@@ -240,6 +240,25 @@ describe("a new card", () => {
     ]);
   });
 
+  it("keeps the line's action under a press elsewhere until it ends, so the control pressed stays put", async () => {
+    await newCard();
+    await removeFirst();
+    await add("빈칸 문장");
+    await userEvent.click(screen.getByRole("textbox", { name: "문장" }));
+    const more = screen.getByRole("button", { name: "+ 칸 추가" });
+    // One session, so the release ends the press begun by the first call.
+    const user = userEvent.setup();
+    await user.pointer({ keys: "[MouseLeft>]", target: more });
+    expect(more).toHaveFocus();
+    expect(screen.getByRole("button", { name: "빈칸 넣기" })).toBeInTheDocument();
+    await user.pointer({ keys: "[/MouseLeft]", target: more });
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "빈칸 넣기" })).not.toBeInTheDocument();
+    });
+    // The press was a click on the control it started on.
+    expect(screen.getByRole("dialog", { name: "칸 추가" })).toBeInTheDocument();
+  });
+
   it("makes a table's cell a blank from its toolbar, and asks before removing a row with text", async () => {
     await newCard();
     await removeFirst();

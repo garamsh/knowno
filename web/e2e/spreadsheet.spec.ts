@@ -5,6 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
 import { xlsxOf } from "../src/testing/xlsx";
+import { expectScreenAtWidths } from "./authoring-screen";
 import { untilReacted } from "./until-reacted";
 
 // The local stack scripts/test-web.ts starts, whose URL and publishable key the app was built with.
@@ -102,6 +103,7 @@ test("adds a deck's cards from a small .xlsx after review, and the server holds 
     buffer: Buffer.from(workbook),
   });
   await expect(page.getByRole("heading", { name: "카드 확인", exact: true })).toBeVisible();
+  await expectScreenAtWidths(page, page.getByRole("dialog"));
   await expect(page.getByRole("switch", { name: "첫 행은 머리글", exact: true })).toHaveAttribute(
     "aria-checked",
     "true",

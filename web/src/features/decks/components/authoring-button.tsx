@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { v7 } from "uuid";
 import { addCard, createDeck, editCard } from "../actions";
@@ -8,7 +8,8 @@ import { builtCells, cellDraft, type CellDraft, emptyCell, encodeCells } from ".
 import { holdsBlank } from "../card-content";
 import { type DeckColor, deckFill, offeredColors } from "../deck-tint";
 import type { Card, Deck } from "../library";
-import { AuthoringSheet } from "./authoring-sheet";
+import { leaveThen } from "../hooks/use-back-entry";
+import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
 import { CellFields } from "./cell-fields";
 import { PhotoImport } from "./photo-import";
 import { SideText } from "./side-text";
@@ -173,6 +174,7 @@ function NewNote({ close }: { close: () => void }) {
   const id = useRef(v7());
   const busy = useRef(false);
   const router = useRouter();
+  const formId = useId();
   function save(adding: boolean) {
     if (busy.current) return;
     busy.current = true;
@@ -180,9 +182,11 @@ function NewNote({ close }: { close: () => void }) {
       try {
         const result = await createDeck(id.current, name, color);
         if (result.saved) {
-          close();
-          router.push(`/decks/${result.deckId}${adding ? "?adding=1" : ""}`);
-          router.refresh();
+          leaveThen(() => {
+            close();
+            router.push(`/decks/${result.deckId}${adding ? "?adding=1" : ""}`);
+            router.refresh();
+          });
         } else setMessage(result.message);
       } catch {
         setMessage("노트를 만들지 못했어요. 다시 시도해 주세요.");
@@ -192,8 +196,33 @@ function NewNote({ close }: { close: () => void }) {
     });
   }
   return (
-    <AuthoringSheet title="새 노트" close={close}>
+    <AuthoringScreen
+      title="새 노트"
+      back
+      close={close}
+      actions={
+        <div className={pairClass}>
+          <button
+            form={formId}
+            value="saved"
+            disabled={pending}
+            className="pressable min-h-cta rounded-button bg-surface px-6 text-button break-keep disabled:opacity-50"
+          >
+            저장
+          </button>
+          <button
+            form={formId}
+            value="adding"
+            disabled={pending}
+            className="pressable min-h-cta rounded-button bg-primary px-4 text-button break-keep text-on-primary disabled:opacity-50"
+          >
+            {pending ? "만드는 중" : "저장하고 카드 추가"}
+          </button>
+        </div>
+      }
+    >
       <form
+        id={formId}
         onSubmit={(event) => {
           event.preventDefault();
           const submitter = event.nativeEvent.submitter;
@@ -242,24 +271,8 @@ function NewNote({ close }: { close: () => void }) {
             {message}
           </p>
         )}
-        <div className={`sticky bottom-0 bg-ground py-3 ${pairClass}`}>
-          <button
-            value="saved"
-            disabled={pending}
-            className="pressable min-h-cta rounded-button bg-surface px-6 text-button break-keep disabled:opacity-50"
-          >
-            저장
-          </button>
-          <button
-            value="adding"
-            disabled={pending}
-            className="pressable min-h-cta rounded-button bg-primary px-4 text-button break-keep text-on-primary disabled:opacity-50"
-          >
-            {pending ? "만드는 중" : "저장하고 카드 추가"}
-          </button>
-        </div>
       </form>
-    </AuthoringSheet>
+    </AuthoringScreen>
   );
 }
 
@@ -285,7 +298,7 @@ export function CardEditor({ deck, card, close }: { deck: Deck; card?: Card; clo
 /** A card this build cannot edit: shown as it is, with why, and nothing to save (ADR 0106). */
 function ReadOnlyCard({ card, close }: { card: Card; close: () => void }) {
   return (
-    <AuthoringSheet title="카드 편집" close={close}>
+    <AuthoringScreen title="카드 편집" close={close}>
       <div className="flex flex-col gap-2 rounded-group bg-surface p-4">
         {holdsBlank(card.cells) ? (
           <WholeCells cells={card.cells} revealed />
@@ -303,7 +316,7 @@ function ReadOnlyCard({ card, close }: { card: Card; close: () => void }) {
       <p className="mt-4 text-body text-ink-2">
         새 버전의 앱에서 만든 카드라 이 버전에서는 편집할 수 없어요. 앱을 업데이트해 주세요.
       </p>
-    </AuthoringSheet>
+    </AuthoringScreen>
   );
 }
 
@@ -366,8 +379,38 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
     });
   }
   return (
-    <AuthoringSheet
+    <AuthoringScreen
       title={card ? "카드 편집" : "새 카드"}
+      actions={
+        <div className={card ? "flex" : pairClass}>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              save(false);
+            }}
+            className={
+              card
+                ? "pressable min-h-cta flex-1 rounded-button bg-primary px-3 text-button text-on-primary disabled:opacity-50"
+                : "pressable min-h-cta rounded-button bg-surface px-6 text-button break-keep disabled:opacity-50"
+            }
+          >
+            {card && pending ? "저장 중" : "저장"}
+          </button>
+          {!card && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                save(true);
+              }}
+              className="pressable min-h-cta rounded-button bg-primary px-4 text-button break-keep text-on-primary disabled:opacity-50"
+            >
+              {pending ? "저장 중" : "저장하고 다음 카드"}
+            </button>
+          )}
+        </div>
+      }
       close={() => {
         if (busy.current) return;
         if (JSON.stringify(drafts) !== opening.current) setDiscarding(true);
@@ -413,34 +456,6 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
           {card ? "그래도 저장" : "그래도 추가"}
         </button>
       )}
-      <div className={`sticky bottom-0 mt-5 bg-ground py-3 ${card ? "flex" : pairClass}`}>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => {
-            save(false);
-          }}
-          className={
-            card
-              ? "pressable min-h-cta flex-1 rounded-button bg-primary px-3 text-button text-on-primary disabled:opacity-50"
-              : "pressable min-h-cta rounded-button bg-surface px-6 text-button break-keep disabled:opacity-50"
-          }
-        >
-          {card && pending ? "저장 중" : "저장"}
-        </button>
-        {!card && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => {
-              save(true);
-            }}
-            className="pressable min-h-cta rounded-button bg-primary px-4 text-button break-keep text-on-primary disabled:opacity-50"
-          >
-            {pending ? "저장 중" : "저장하고 다음 카드"}
-          </button>
-        )}
-      </div>
       {adding && (
         <AuthoringSheet
           title="칸 추가"
@@ -476,7 +491,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
             setDiscarding(false);
           }}
         >
-          <p className="text-secondary text-muted">저장하지 않은 내용은 사라져요.</p>
+          <p className="text-secondary text-muted">입력한 내용은 저장되지 않아요.</p>
           <div className="mt-4 flex flex-col gap-2">
             <button
               type="button"
@@ -497,6 +512,6 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
           </div>
         </AuthoringSheet>
       )}
-    </AuthoringSheet>
+    </AuthoringScreen>
   );
 }
