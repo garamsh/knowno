@@ -74,10 +74,7 @@ export function DeckList({ rows }: { rows: DeckRow[] }) {
                   </span>
                   {/* A deck with no card has no share to draw. */}
                   {cards > 0 && (
-                    <span
-                      aria-hidden
-                      className="flex h-1.5 overflow-hidden rounded-full bg-edge"
-                    >
+                    <span aria-hidden className="flex h-1.5 overflow-hidden rounded-full bg-edge">
                       <span
                         className="bg-accent"
                         style={{ width: `${String(share(mastered, cards))}%` }}

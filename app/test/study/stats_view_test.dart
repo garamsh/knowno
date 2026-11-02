@@ -565,7 +565,7 @@ void main() {
             reason: 'level ${level - 1} against $level',
           );
         }
-        // Control: the mint fill and the edge, which a chart does not draw
+        // Control: the edge, which a chart does not draw
         // in, fail the check, so it can fail.
         expect(_contrast(colors.edge, surface), lessThan(3));
       },

@@ -88,11 +88,11 @@ describe("the 기록 page's chart shades", () => {
   );
 
   it.each(["light", "dark"] as const)(
-    "fails the edge and the mint fill as a bar in the %s theme, so the check can fail",
+    "fails the edge and the primary fill as a bar in the %s theme, so the check can fail",
     (theme) => {
       const surface = rgb(themes[theme].get("surface") ?? "");
       expect(contrast(drawn("bg-edge", theme), surface)).toBeLessThan(3);
-      // Control: the mint fill passes only on a dark surface; on white it fails.
+      // Control: the primary fill passes only on a dark surface; on white it fails.
       if (theme === "light") expect(contrast(drawn("bg-primary", theme), surface)).toBeLessThan(3);
     },
   );

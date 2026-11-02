@@ -485,7 +485,7 @@ test("a user with no deck is invited to make one, and the theme they choose surv
   await expect(group.getByRole("radio", { name: "시스템", exact: true })).toBeChecked();
   // The system's dark mode, so 라이트 differs from it and 다크 from the default's light.
   await page.emulateMedia({ colorScheme: "dark" });
-  const ground = { light: "rgb(239, 250, 246)", dark: "rgb(16, 37, 31)" };
+  const ground = { light: "rgb(237, 250, 252)", dark: "rgb(15, 36, 41)" };
   for (const [choice, label, colour] of [
     ["light", "라이트", ground.light],
     ["dark", "다크", ground.dark],

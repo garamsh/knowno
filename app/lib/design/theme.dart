@@ -445,36 +445,36 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.deckSand,
   });
 
-  /// Light tokens: deep green ink on white surfaces over a mint ground, each
+  /// Light tokens: deep teal ink on white surfaces over an aqua ground, each
   /// solid object on a darker [edge]; coral is the mascot's alone.
   static const light = AppColors(
-    ground: Color(0xFFEFFAF6),
+    ground: Color(0xFFEDFAFC),
     surface: Color(0xFFFFFFFF),
     raised: Color(0xFFFFFFFF),
-    ink: Color(0xFF12332C),
+    ink: Color(0xFF0F3138),
     onInk: Color(0xFFFFFFFF),
-    primary: Color(0xFF7FE0C3),
-    primaryEdge: Color(0xFF4FB89B),
-    onPrimary: Color(0xFF12332C),
-    accent: Color(0xFF0B6B57),
-    edge: Color(0xFFBFE9DC),
-    ink2: Color(0xFF3F5F57),
-    muted: Color(0xFF3F5F57),
-    hairline: Color(0xFFDDF3EC),
-    outline: Color(0xFFBFE9DC),
-    brandTint: Color(0xFFDDF3EC),
-    hero: Color(0xFF0B6B57),
+    primary: Color(0xFF5FD0E0),
+    primaryEdge: Color(0xFF2FA6B8),
+    onPrimary: Color(0xFF0F3138),
+    accent: Color(0xFF0A6B7B),
+    edge: Color(0xFFBCE8EF),
+    ink2: Color(0xFF3B5D65),
+    muted: Color(0xFF3B5D65),
+    hairline: Color(0xFFDCF2F6),
+    outline: Color(0xFFBCE8EF),
+    brandTint: Color(0xFFDCF2F6),
+    hero: Color(0xFF0A6B7B),
     onHero: Color(0xFFFFFFFF),
-    onHeroEdge: Color(0xFF4FB89B),
-    brand: Color(0xFF0B6B57),
+    onHeroEdge: Color(0xFF2FA6B8),
+    brand: Color(0xFF0A6B7B),
     know: Color(0xFF14683F),
     onKnow: Color(0xFFFFFFFF),
     dontKnow: Color(0xFFA3202F),
     dontKnowText: Color(0xFFA3202F),
     dontKnowEdge: Color(0xFF7A1622),
     onDontKnowText: Color(0xFFFFFFFF),
-    shadow: Color(0xFF12332C),
-    chartQuiet: Color(0xFF5F9E8C),
+    shadow: Color(0xFF0F3138),
+    chartQuiet: Color(0xFF5B9DAB),
     chartFading: Color(0xFF7A1622),
     tintAmber: Color(0xFFFFE9A8),
     tintGreen: Color(0xFFBFF0DC),
@@ -494,28 +494,28 @@ final class AppColors extends ThemeExtension<AppColors> {
     deckSand: Color(0xFFF4ECDF),
   );
 
-  /// Dark tokens: pale ink on deep green surfaces, the same mint primary, and
+  /// Dark tokens: pale ink on deep teal surfaces, the same aqua primary, and
   /// the greens and reds lightened to meet WCAG AA on [surface].
   static const dark = AppColors(
-    ground: Color(0xFF10251F),
-    surface: Color(0xFF1B342D),
-    raised: Color(0xFF2C4A41),
-    ink: Color(0xFFE9F8F3),
-    onInk: Color(0xFF10251F),
-    primary: Color(0xFF7FE0C3),
-    primaryEdge: Color(0xFF4FB89B),
-    onPrimary: Color(0xFF10251F),
-    accent: Color(0xFF7FE0C3),
-    edge: Color(0xFF0A1714),
-    ink2: Color(0xFFA8C9BF),
-    muted: Color(0xFFA8C9BF),
-    hairline: Color(0xFF2C4A41),
-    outline: Color(0xFF2C4A41),
-    brandTint: Color(0xFF2C4A41),
-    hero: Color(0xFF0B6B57),
+    ground: Color(0xFF0F2429),
+    surface: Color(0xFF1A343B),
+    raised: Color(0xFF2B4A52),
+    ink: Color(0xFFE8F7FA),
+    onInk: Color(0xFF0F2429),
+    primary: Color(0xFF5FD0E0),
+    primaryEdge: Color(0xFF2FA6B8),
+    onPrimary: Color(0xFF0F2429),
+    accent: Color(0xFF5FD0E0),
+    edge: Color(0xFF091619),
+    ink2: Color(0xFFA6C8D0),
+    muted: Color(0xFFA6C8D0),
+    hairline: Color(0xFF2B4A52),
+    outline: Color(0xFF2B4A52),
+    brandTint: Color(0xFF2B4A52),
+    hero: Color(0xFF0A6B7B),
     onHero: Color(0xFFFFFFFF),
-    onHeroEdge: Color(0xFF4FB89B),
-    brand: Color(0xFF0B6B57),
+    onHeroEdge: Color(0xFF2FA6B8),
+    brand: Color(0xFF0A6B7B),
     know: Color(0xFF8CE6BC),
     onKnow: Color(0xFF1D1833),
     dontKnow: Color(0xFFFFA8BA),
@@ -523,7 +523,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     dontKnowEdge: Color(0xFFD97C92),
     onDontKnowText: Color(0xFF1D1833),
     shadow: Color(0xFF000000),
-    chartQuiet: Color(0xFF6AAA99),
+    chartQuiet: Color(0xFF62A3B2),
     chartFading: Color(0xFFCF4A63),
     tintAmber: Color(0xFF4A3B1E),
     tintGreen: Color(0xFF1F5A44),
@@ -558,7 +558,7 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// Text and icons on an [ink] fill.
   final Color onInk;
 
-  /// The primary action's fill. Mint falls short on a light [surface], so
+  /// The primary action's fill. Aqua falls short on a light [surface], so
   /// its [onPrimary] label and [primaryEdge] carry the button, and text and
   /// marks take [accent] (ADR 0147).
   final Color primary;
