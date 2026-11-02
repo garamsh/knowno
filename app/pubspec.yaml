@@ -167,27 +167,27 @@ flutter:
 
 # The launcher icons, from the 1024 px sources make brand writes; iOS 18 and
 # later draws the dark one in dark mode, and Android 8 and later the adaptive
-# icon, the mark over the cream.
+# icon, the mark over cobalt.
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/brand/icon/app-icon-light-1024.png
   image_path_ios_dark_transparent: assets/brand/icon/app-icon-dark-1024.png
   remove_alpha_ios: true
-  background_color_ios: "#FCEBD5"
-  adaptive_icon_background: "#FCEBD5"
-  adaptive_icon_foreground: assets/brand/icon/app-icon-dark-1024.png
+  background_color_ios: "#2547D0"
+  adaptive_icon_background: "#2547D0"
+  adaptive_icon_foreground: assets/brand/icon/app-icon-foreground-1024.png
 
-# The native splash: the mark alone on the light ground, the mark on its cream
-# circle on the dark ground.
+# The native splash, on the screens' own grounds: the mark alone on the light
+# ground, the mark on its cream circle on the dark ground.
 flutter_native_splash:
-  color: "#FFF6E8"
+  color: "#EEF3FF"
   image: assets/brand/splash/splash-light.png
-  color_dark: "#1F1512"
+  color_dark: "#111A2E"
   image_dark: assets/brand/splash/splash-dark.png
   android_12:
-    color: "#FFF6E8"
+    color: "#EEF3FF"
     image: assets/brand/splash/android12-light.png
-    color_dark: "#1F1512"
+    color_dark: "#111A2E"
     image_dark: assets/brand/splash/android12-dark.png
   web: false

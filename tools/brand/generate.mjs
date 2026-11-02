@@ -17,6 +17,8 @@ const sharp = createRequire(join(root, "web/package.json"))("sharp");
 const ink = "#3B2118";
 const inkOnDark = "#FFF1E3";
 const cream = "#FCEBD5";
+const cobalt = "#2547D0";
+const darkGround = "#111A2E";
 
 /** What the drawing tools/brand/[name].svg holds inside its root. */
 const inner = (name) =>
@@ -41,8 +43,9 @@ const centred = (art, scale, ground = "") => {
 
 const onCircle = centred(mark, 0.88, `<circle cx="512" cy="512" r="512" fill="${cream}"/>`);
 
-/** The mark close up on a full cream square, its body running off the foot. */
-const onSquare = `<rect width="1024" height="1024" fill="${cream}"/><g transform="translate(-120 -6) scale(1.25)">${mark}</g>`;
+/** The mark close up on a full square of [ground], the ground showing around its head, its body running off the foot. */
+const onSquare = (ground) =>
+  `<rect width="1024" height="1024" fill="${ground}"/><g transform="translate(-36 70) scale(1.08)">${mark}</g>`;
 
 /** The mark on the cream circle, in a box [size] across at ([x], [y]). */
 const circled = (x, y, size) =>
@@ -87,7 +90,7 @@ const expressions = {
 };
 
 const vectors = {
-  "web/public/favicon.svg": canvas(onSquare),
+  "web/public/favicon.svg": canvas(onSquare(cobalt)),
   ...Object.fromEntries(
     Object.entries(expressions).map(([name, art]) => [`web/public/brand/knowno-${name}.svg`, art]),
   ),
@@ -130,21 +133,22 @@ const rasters = [
   ...Object.entries(expressions).flatMap(([name, art]) =>
     densities(`knowno-${name}`, art, { width: 1024, height: 1024 }, { width: 128 }),
   ),
-  // The launcher icons' sources: the mark close up on a full cream square, and the mark alone on no ground,
-  // which is iOS 18's dark icon and Android's adaptive foreground; flutter_launcher_icons insets
-  // the latter by 16%, inside the 66 of 108 dp every mask keeps.
-  square("app/assets/brand/icon/app-icon-light-1024.png", canvas(onSquare), 1024, true),
-  square("app/assets/brand/icon/app-icon-dark-1024.png", markAlone, 1024),
+  // The launcher icons' sources: the mark close up on cobalt, the same on the dark ground for iOS
+  // 18's dark icon, and the mark alone on no ground, Android's adaptive foreground over cobalt;
+  // flutter_launcher_icons insets the last by 16%, inside the 66 of 108 dp every mask keeps.
+  square("app/assets/brand/icon/app-icon-light-1024.png", canvas(onSquare(cobalt)), 1024, true),
+  square("app/assets/brand/icon/app-icon-dark-1024.png", canvas(onSquare(darkGround)), 1024, true),
+  square("app/assets/brand/icon/app-icon-foreground-1024.png", markAlone, 1024),
   // The splash's sources: the mark alone on the light ground, the circled mark on the dark one;
   // Android 12 crops to the middle 768 of 1152.
   square("app/assets/brand/splash/splash-light.png", canvas(centred(mark, 0.8)), 640),
   square("app/assets/brand/splash/splash-dark.png", canvas(centred(onCircle, 0.8)), 640),
   square("app/assets/brand/splash/android12-light.png", canvas(centred(mark, 0.6)), 1152),
   square("app/assets/brand/splash/android12-dark.png", canvas(centred(onCircle, 0.6)), 1152),
-  square("web/public/favicon-32.png", canvas(onSquare), 32, true),
-  square("web/public/apple-touch-icon.png", canvas(onSquare), 180, true),
-  square("web/public/icon-192.png", canvas(onSquare), 192, true),
-  square("web/public/icon-512.png", canvas(onSquare), 512, true),
+  square("web/public/favicon-32.png", canvas(onSquare(cobalt)), 32, true),
+  square("web/public/apple-touch-icon.png", canvas(onSquare(cobalt)), 180, true),
+  square("web/public/icon-192.png", canvas(onSquare(cobalt)), 192, true),
+  square("web/public/icon-512.png", canvas(onSquare(cobalt)), 512, true),
 ];
 
 /** [source] rasterised at [width] by [height], as PNG bytes. */
