@@ -39,6 +39,38 @@ async function shot(page: Page, name: string) {
 }
 
 /**
+ * Checks [page] at 200% zoom, the browser's own text enlargement, at a wide screen and a phone's
+ * width: nothing scrolls sideways, so nothing is cut at the edge; saves a screenshot of each when
+ * asked for.
+ */
+async function atDoubleZoom(page: Page, name: string) {
+  const viewport = page.viewportSize();
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
+    await page.evaluate(() => {
+      document.documentElement.style.zoom = "2";
+    });
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(
+      overflow,
+      `${name} at 200% and ${String(width)} px scrolls sideways`,
+    ).toBeLessThanOrEqual(0);
+    if (screenshots) {
+      await page.screenshot({
+        path: `${screenshots}/light/web-${name}-${String(width)}-200.png`,
+        fullPage: true,
+      });
+    }
+    await page.evaluate(() => {
+      document.documentElement.style.zoom = "";
+    });
+  }
+  if (viewport) await page.setViewportSize(viewport);
+}
+
+/**
  * Signs up a new user with a password and gives [context] the session cookies a browser holds
  * after signing in, written by @supabase/ssr itself.
  */
@@ -239,6 +271,7 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   await expect(coach).toHaveCount(0);
   await expect(page.getByRole("region", { name: "응답한 카드가 여기에 쌓여요" })).toHaveCount(0);
   await shot(page, "05-study-stack");
+  await atDoubleZoom(page, "05-study-stack");
   // The today card once one of the day's two cards is done, in a second tab: its count and bar,
   // and the minutes left, once the answer's write has landed.
   const todayTab = await page.context().newPage();
@@ -274,9 +307,10 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   await expect(
     page.getByRole("complementary", { name: "이번 학습" }).getByRole("button"),
   ).toHaveCount(2);
-  await expect(completion.getByText("2 안다", { exact: true })).toBeVisible();
-  await expect(completion.getByText("연속 1일", { exact: true })).toBeVisible();
+  await expect(completion.locator("dl > div").first()).toHaveText("안다2");
+  await expect(completion.getByText("1일 연속", { exact: true })).toBeVisible();
   await shot(page, "06-study-complete");
+  await atDoubleZoom(page, "06-study-complete");
 
   // The writes ran after the screen changed; each state is written after its review.
   await expect
@@ -976,6 +1010,7 @@ test.describe("in UTC, where a study day runs from 04:00 to 04:00 UTC", () => {
       window.scrollTo(0, 0);
     });
     await shot(page, "10-record");
+    await atDoubleZoom(page, "10-record");
   });
 
   test("the streak counts the server's earlier study days with today's answer", async ({
@@ -1047,7 +1082,7 @@ test.describe("in UTC, where a study day runs from 04:00 to 04:00 UTC", () => {
       () => page.keyboard.press("ArrowRight"),
       async () => (await completion.count()) > 0,
     );
-    await expect(completion.getByText("연속 3일", { exact: true })).toBeVisible();
+    await expect(completion.getByText("3일 연속", { exact: true })).toBeVisible();
   });
 });
 

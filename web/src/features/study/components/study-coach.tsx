@@ -2,7 +2,7 @@ import { Pointer } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { Answer } from "../answer-write";
-import { answerTints, grades } from "./graded-card";
+import { answerTints, GradedFace, grades } from "./graded-card";
 
 /** The coach's steps: answering "안다", answering "모른다", and changing an answered card. */
 export const coachSteps = ["know", "dontKnow", "redecide"] as const;
@@ -146,16 +146,8 @@ export function CoachSample() {
       <div className="absolute inset-0 flex items-center justify-end rounded-previous bg-tint-red px-5 text-secondary font-bold text-on-dont-know-tint motion-safe:animate-coach-tint motion-reduce:animate-coach-tint-held">
         모른다로 바꿔요
       </div>
-      <div
-        className={`relative grid w-full grid-cols-[1fr_auto_1fr] rounded-previous border-[1.5px] text-center motion-safe:animate-coach-change motion-reduce:animate-coach-change-held ${grades.know.card}`}
-      >
-        <span className="flex items-center justify-center p-4 text-front text-ink lg:p-6">
-          deadline
-        </span>
-        <span className={`my-7 w-px ${grades.know.line}`} />
-        <span className="flex items-center justify-center p-4 text-back text-ink-2 lg:p-6">
-          마감 기한
-        </span>
+      <div className="relative flex w-full motion-safe:animate-coach-change motion-reduce:animate-coach-change-held">
+        <GradedFace answer="know" front="deadline" back="마감 기한" />
         <Finger className="right-16 bottom-8" />
       </div>
     </div>

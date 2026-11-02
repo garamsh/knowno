@@ -13,7 +13,7 @@ import {
 } from "react";
 import { v7 } from "uuid";
 
-import { Mascot } from "@/design/brand";
+import { Mascot, type MascotExpression } from "@/design/brand";
 import { Chip } from "@/design/chip";
 
 import type { Answer, AnswerWrite } from "../answer-write";
@@ -193,6 +193,8 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
   const leaveFrom = useRef<HTMLElement | null>(null);
   /** The coach's step; null while it does not show. */
   const [coach, setCoach] = useState<CoachStep | null>(null);
+  /** How far a swipe has moved either card across, which the mascot between them reacts to. */
+  const [lean, setLean] = useState(0);
   /** Whether a card has been on screen, after which the coach no longer starts on its own. */
   const studied = useRef(false);
   // On a device's first session the coach starts the first time a card is on screen, at the
@@ -375,7 +377,12 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
   // Keyed by the answers given, so each answer shows the next card as a new one, at rest,
   // rather than easing it in from where a swipe let go.
   const currentCard = view.kind === "studying" && (
-    <CurrentCard key={view.previous.length} card={view.current} onAnswer={answer} />
+    <CurrentCard
+      key={view.previous.length}
+      card={view.current}
+      onAnswer={answer}
+      onLean={setLean}
+    />
   );
   const current: ReactNode =
     view.kind === "studying" ? (
@@ -512,7 +519,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                   place holds the coach's sample in its last step; otherwise the card answered
                   last, or the day's last card from an earlier session, or while studying an
                   outline. */}
-              <div className="grid w-full max-w-study auto-rows-fr gap-7">
+              <div className="relative grid w-full max-w-study auto-rows-fr gap-7">
                 <div
                   className={`grid overflow-hidden ${cardHeight} motion-safe:transition-opacity ${demo ? "opacity-45" : ""}`}
                 >
@@ -529,6 +536,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                       onRedecide={(choice) => {
                         redecide(newest.position, choice);
                       }}
+                      onLean={setLean}
                     />
                   ) : view.earlier ? (
                     <GradedCard
@@ -546,6 +554,13 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                   )}
                 </div>
                 {current}
+                {/* Over the gap between the cards, its middle on the gap's. */}
+                {view.kind === "studying" && (
+                  <Mascot
+                    expression={leanExpression(lean)}
+                    className="pointer-events-none absolute top-1/2 left-1/2 size-mascot-guide -translate-1/2"
+                  />
+                )}
               </div>
               {view.kind === "studying" && (
                 <div className="w-full max-w-study">
@@ -603,6 +618,17 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
   );
 }
 
+/** How far a swipe moves a card before the mascot reacts, in pixels, as on the phone. */
+const leanFeedback = 40;
+
+/**
+ * The mascot's face for a swipe that has moved a card [lean] across: happy past [leanFeedback] to
+ * the right, toward "안다", sad past it to the left, and thinking otherwise.
+ */
+function leanExpression(lean: number): MascotExpression {
+  return lean >= leanFeedback ? "happy" : lean <= -leanFeedback ? "sad" : "thinking";
+}
+
 /**
  * The card under study, [cardHeight] high: its front alone, or a whole card's front with its
  * blanks empty, and the front's sounds' controls under it (ADR 0112), in the largest of the
@@ -610,16 +636,18 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
  * ADR 0123); its back shows once answered, above. A horizontal touch swipe ([useSwipe]) moves and
  * tilts it over the answer it would give, and released past the phone's distance, or flung,
  * gives [onAnswer] that answer; a vertical one scrolls the card's content where it is taller
- * than the card, and the page otherwise, and a mouse drags nothing.
+ * than the card, and the page otherwise, and a mouse drags nothing. [onLean] follows the swipe.
  */
 function CurrentCard({
   card,
   onAnswer,
+  onLean,
 }: {
   card: PreviousAnswer["card"];
   onAnswer: (answer: Answer) => void;
+  onLean: (offset: number) => void;
 }) {
-  const { offset, dragging, toward, handlers } = useSwipe({ onCommit: onAnswer });
+  const { offset, dragging, toward, handlers } = useSwipe({ onCommit: onAnswer, onMove: onLean });
   return (
     <section
       aria-label="현재 카드"

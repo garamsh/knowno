@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, X } from "lucide-react";
-import type { Ref } from "react";
+import type { ReactNode, Ref } from "react";
 
 import { Chip } from "@/design/chip";
 
@@ -9,19 +9,17 @@ import type { Answer } from "../answer-write";
 import { useSwipe } from "../hooks/use-swipe";
 import type { PreviousAnswer } from "../session";
 
-/** Each grade's name, its fill and line, its chip's tone, and its mark. */
+/** Each grade's name, the line a previous card takes in it, its chip's tone, and its mark. */
 export const grades = {
   know: {
     name: "안다",
-    card: "border-know-line bg-know-card",
-    line: "bg-know-line",
+    line: "border-know",
     tone: "know",
     Mark: Check,
   },
   dontKnow: {
     name: "모른다",
-    card: "border-dont-know-line bg-dont-know-card",
-    line: "bg-dont-know-line",
+    line: "border-dont-know-text",
     tone: "dontKnow",
     Mark: X,
   },
@@ -38,6 +36,47 @@ export function answerLabel(answer: Graded): string {
   const front = answer.card.whole?.spokenFront ?? answer.card.text.front;
   const changed = answer.changed ? ". 수정됨" : "";
   return `앞면: ${front}. 뒷면: ${answer.card.text.back}. 응답: ${grades[answer.answer].name}${changed}`;
+}
+
+/**
+ * What a screen reader reads for the previous card: "방금 본 카드" and its grade first, then its
+ * sides, as on the phone (ADR 0151).
+ */
+export function previousLabel(answer: Graded): string {
+  const front = answer.card.whole?.spokenFront ?? answer.card.text.front;
+  const changed = answer.changed ? ". 수정됨" : "";
+  return `방금 본 카드, ${grades[answer.answer].name}. 앞면: ${front}. 뒷면: ${answer.card.text.back}${changed}`;
+}
+
+/**
+ * A previous card's face (ADR 0151): [front] over [back], or a whole card's one face as [front],
+ * in one column centred both ways by auto margins, scrolling inside from its top where it is
+ * taller, so a long answer is never cut, on the surface inside a 3 px line in [answer]'s colour.
+ */
+export function GradedFace({
+  answer,
+  front,
+  back,
+  className = "",
+}: {
+  answer: Answer;
+  front: ReactNode;
+  back?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`flex size-full flex-col overflow-y-auto rounded-previous border-3 bg-surface p-4 text-center lg:p-6 ${grades[answer].line} ${className}`}
+    >
+      <span className="mt-auto text-[26px]/[34px] font-extrabold break-keep wrap-break-word text-ink">
+        {front}
+      </span>
+      {back !== undefined && (
+        <span className="mt-2 text-card-body break-keep wrap-break-word text-ink-2">{back}</span>
+      )}
+      <span aria-hidden className="mb-auto" />
+    </span>
+  );
 }
 
 /**
@@ -71,12 +110,13 @@ const reveals = {
 } as const;
 
 /**
- * The card answered just before the current one, with both sides shown at the current card's
- * sizes, or a whole card's front with its blanks filled, on its grade's fill inside its grade's
- * line, with no chip: its accessible name names the grade. A click opens the whole card. A horizontal touch
- * swipe ([useSwipe]) follows the finger, shows the answer it would give behind it, and toward
- * the other answer changes to it; a vertical one scrolls the page. Without [onRedecide] it is
- * not changed from here, and [label] names it above its sides.
+ * The card answered just before the current one ([GradedFace]): its front over its back, or a whole
+ * card with its blanks filled, its grade by its line alone, with no chip: its accessible name names
+ * the grade first. A click opens the whole card. A horizontal touch swipe ([useSwipe]) follows the
+ * finger, shows the answer it would give behind it, and toward the other answer changes to it; a
+ * vertical one scrolls the card where it is taller, and the page otherwise. [onLean] follows how
+ * far a swipe has moved it. Without [onRedecide] it is not changed from here, and [label] names it
+ * above its sides.
  */
 export function GradedCard({
   answer,
@@ -84,23 +124,25 @@ export function GradedCard({
   onOpen,
   openRef,
   label,
+  onLean,
 }: {
   answer: Graded;
   onRedecide?: (answer: Answer) => void;
   onOpen: () => void;
   openRef?: Ref<HTMLButtonElement>;
   label?: string;
+  onLean?: (offset: number) => void;
 }) {
-  const grade = grades[answer.answer];
   const { offset, dragging, toward, handlers, endsSwipe } = useSwipe({
     held: answer.answer,
     onCommit: onRedecide,
+    onMove: onLean,
   });
   const reveal = toward !== null && toward !== answer.answer ? reveals[toward] : null;
 
   return (
     <article
-      aria-label={label ? `${label}. ${answerLabel(answer)}` : answerLabel(answer)}
+      aria-label={label ? `${label}. ${answerLabel(answer)}` : previousLabel(answer)}
       {...handlers}
       className="relative flex w-full touch-pan-y"
     >
@@ -124,33 +166,21 @@ export function GradedCard({
         style={{
           transform: `translateX(${String(offset)}px) rotate(${String(offset * tiltPerPixel)}rad)`,
         }}
-        className={`pressable relative grid w-full grid-cols-[1fr_auto_1fr] rounded-previous border-[1.5px] text-center focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink ${grade.card} ${dragging ? "" : "motion-safe:transition-transform motion-safe:duration-300"}`}
+        className={`pressable relative flex w-full rounded-previous focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink ${dragging ? "" : "motion-safe:transition-transform motion-safe:duration-300"}`}
       >
         {label && (
-          <span aria-hidden className="absolute top-3 left-4 text-micro text-muted">
+          <span aria-hidden className="absolute bottom-3 left-4 z-10 text-micro text-muted">
             {label}
           </span>
         )}
         {answer.card.whole ? (
-          <span className="col-span-3 flex items-center justify-center p-4 text-back text-ink lg:p-6">
-            <span className="line-clamp-6 break-keep wrap-break-word">
-              {answer.card.whole.filled}
-            </span>
-          </span>
+          <GradedFace answer={answer.answer} front={answer.card.whole.filled} />
         ) : (
-          <>
-            <span className="flex items-center justify-center p-4 text-front text-ink lg:p-6">
-              <span className="line-clamp-6 break-keep wrap-break-word">
-                {answer.card.sides?.front ?? answer.card.text.front}
-              </span>
-            </span>
-            <span aria-hidden className={`my-7 w-px ${grade.line}`} />
-            <span className="flex items-center justify-center p-4 text-back text-ink-2 lg:p-6">
-              <span className="line-clamp-6 break-keep wrap-break-word">
-                {answer.card.sides?.back ?? answer.card.text.back}
-              </span>
-            </span>
-          </>
+          <GradedFace
+            answer={answer.answer}
+            front={answer.card.sides?.front ?? answer.card.text.front}
+            back={answer.card.sides?.back ?? answer.card.text.back}
+          />
         )}
       </button>
     </article>
