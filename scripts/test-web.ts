@@ -1,7 +1,7 @@
 // Runs every e2e spec in web/e2e/ against the built web app and a local stack of its own, or says why
 // it did not. The stack follows ADR 0014's pattern for the database tests: its own project id and
-// reserved ports, stopped with its data however the run ends. It runs Postgres, Auth, PostgREST and
-// the API gateway; the app is built with the stack's URL and publishable key, which a build
+// reserved ports, stopped with its data however the run ends. It runs Postgres, Auth, PostgREST,
+// Storage and the API gateway; the app is built with the stack's URL and publishable key, which a build
 // freezes, and served as the image serves it, by its standalone server.
 import {
   attached,
@@ -16,7 +16,7 @@ import {
   succeeds,
 } from "./process.ts";
 import { skip } from "./skip.ts";
-import { dockerReady, Stack, WITH_API } from "./stack.ts";
+import { dockerReady, Stack, WITH_STORAGE } from "./stack.ts";
 
 const SCOPE = ["web/e2e/*.spec.ts"];
 const SERVER_ATTEMPTS = 5;
@@ -138,7 +138,7 @@ async function main(): Promise<void> {
     await Deno.remove(serverLog).catch(() => {});
   });
   await stack.run(async () => {
-    await stack.start(WITH_API);
+    await stack.start(WITH_STORAGE);
     const { url, key } = await stack.endpoint();
     const built = {
       NEXT_PUBLIC_SUPABASE_URL: url,

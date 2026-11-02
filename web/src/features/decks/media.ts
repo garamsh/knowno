@@ -39,7 +39,11 @@ export async function parseImage(file: unknown, sha256: unknown): Promise<Stored
   return { bytes, sha256 };
 }
 
-/** [request]'s answer, or a timeout's error once [requestTimeoutMs] pass, as the phone bounds it. */
+/**
+ * [request]'s answer, or a timeout's error once [requestTimeoutMs] pass, as the phone bounds it.
+ * A race, since storage-js 2.118.0 takes no abort signal on `upload`, `remove` or
+ * `createSignedUrls`: it stops the wait, not the request.
+ */
 async function bounded<T extends { error: unknown }>(
   request: PromiseLike<T>,
 ): Promise<T | { error: "timeout" }> {

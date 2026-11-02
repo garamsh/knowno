@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { expect, type Page, test } from "@playwright/test";
+import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
@@ -44,12 +44,12 @@ async function choose(page: Page, item: string) {
   await page.getByRole("menuitem", { name: item, exact: true }).click();
 }
 
-test("renames, decorates, publishes, makes private and deletes a note as the user, under row-level security", async ({
-  page,
-  context,
-  baseURL,
-}) => {
-  if (!url || !key || !baseURL) throw new Error("skipped without local stack");
+/**
+ * Signs up a fresh user, hands the browser its session, and returns a client acting as it beside
+ * its id.
+ */
+async function signUp(context: BrowserContext, baseURL: string) {
+  if (!url || !key) throw new Error("skipped without local stack");
   const jar = new Map<string, string>();
   const auth = createServerClient(url, key, {
     cookies: {
@@ -68,7 +68,16 @@ test("renames, decorates, publishes, makes private and deletes a note as the use
   await context.addCookies([...jar].map(([name, value]) => ({ name, value, url: baseURL })));
   const db = createClient(url, key, { auth: { persistSession: false } });
   await db.auth.signInWithPassword({ email, password });
+  return { db, userId };
+}
 
+test("renames, decorates, publishes, makes private and deletes a note as the user, under row-level security", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  const { db, userId } = await signUp(context, baseURL);
   const deckId = randomUUID();
   const otherId = randomUUID();
   const time = new Date(Date.now() - 86_400_000).toISOString();
@@ -183,4 +192,90 @@ test("renames, decorates, publishes, makes private and deletes a note as the use
     (left.data ?? []).filter((row) => row.deck_id === deck).map((row): unknown => row.deleted_at);
   expect(tombstones(deckId)).toEqual([deleted?.deleted_at, deleted?.deleted_at]);
   expect(tombstones(otherId)).toEqual([null]);
+});
+
+/** A 1×1 PNG, which 노트 꾸미기 crops and encodes as a JPEG in the browser. */
+const png = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+test("stores a note's photo in Storage, draws it on 홈 from a signed URL, releases the one it replaces and the last one with the note", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  const { db, userId } = await signUp(context, baseURL);
+  const deckId = randomUUID();
+  const time = new Date(Date.now() - 86_400_000).toISOString();
+  const deck = await db.from("decks").insert({
+    id: deckId,
+    user_id: userId,
+    name: "Photo",
+    visibility: "private",
+    created_at: time,
+    updated_at: time,
+  });
+  expect(deck.error).toBeNull();
+  /** The deck's stored image id. */
+  const image = async (): Promise<string> => {
+    const read = await db.from("decks").select("image_media_id").eq("id", deckId).single();
+    const id: unknown = read.data?.image_media_id;
+    if (typeof id !== "string") throw new Error("the note holds no photo");
+    return id;
+  };
+  /** Whether Storage holds the user's object [id], read as the user. */
+  const held = async (id: string) =>
+    (await db.storage.from("media").download(`${userId}/${id}`)).error === null;
+  /** The ids of the user's `media` rows. */
+  const rows = async (): Promise<unknown[]> =>
+    ((await db.from("media").select("id")).data ?? []).map((row): unknown => row.id);
+
+  /** Picks the PNG in 노트 꾸미기 and saves it. */
+  async function savePhoto() {
+    await choose(page, "노트 꾸미기");
+    const decorate = page.getByRole("dialog", { name: "노트 꾸미기" });
+    await decorate
+      .getByLabel("앨범에서 고르기")
+      .setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
+    await expect(decorate.getByRole("button", { name: "사진 빼기", exact: true })).toBeVisible();
+    await decorate.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(decorate).toBeHidden();
+  }
+
+  await page.goto(`/decks/${deckId}`);
+  await savePhoto();
+  const first = await image();
+  expect(await held(first)).toBe(true);
+  expect(await rows()).toEqual([first]);
+
+  // 홈 draws it from a URL Storage signed for the user, which the browser can read.
+  await page.goto("/");
+  const photo = page.getByRole("link", { name: /^Photo, / }).locator("[style*='background-image']");
+  const style = (await photo.getAttribute("style")) ?? "";
+  expect(style).toContain(`/storage/v1/object/sign/media/${userId}/${first}?token=`);
+  const signed = /url\("([^"]+)"\)/.exec(style)?.[1] ?? "";
+  const fetched = await page.request.get(signed);
+  expect(fetched.status()).toBe(200);
+  expect(fetched.headers()["content-type"]).toBe("image/jpeg");
+
+  // A new photo replaces it: the old object and row go, and the new one is readable.
+  await page.goto(`/decks/${deckId}`);
+  await savePhoto();
+  const second = await image();
+  expect(second).not.toBe(first);
+  expect(await held(first)).toBe(false);
+  expect(await held(second)).toBe(true);
+  expect(await rows()).toEqual([second]);
+
+  // Deleting the note releases its photo, which nothing else holds.
+  await choose(page, "노트 삭제");
+  await page
+    .getByRole("dialog", { name: '"Photo" 노트를 삭제할까요?' })
+    .getByRole("button", { name: "삭제", exact: true })
+    .click();
+  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect.poll(() => held(second)).toBe(false);
+  expect(await rows()).toEqual([]);
 });
