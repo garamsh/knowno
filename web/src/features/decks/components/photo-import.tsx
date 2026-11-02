@@ -417,7 +417,7 @@ export function PhotoImport({
                   onClick={() => {
                     retry(single);
                   }}
-                  className="pressable min-h-cta flex-1 rounded-button bg-primary px-4 text-label text-on-primary"
+                  className="pressable min-h-cta flex-1 rounded-button bg-primary px-4 text-button text-on-primary"
                 >
                   다시 시도
                 </button>
@@ -432,9 +432,9 @@ export function PhotoImport({
             <div
               role="progressbar"
               aria-label="카드를 찾고 있어요"
-              className="h-2 flex-1 overflow-hidden rounded-full bg-hairline"
+              className="h-2 flex-1 overflow-hidden rounded-full bg-edge"
             >
-              <div className="h-full w-full rounded-full bg-ink motion-safe:animate-skeleton" />
+              <div className="h-full w-full rounded-full bg-accent motion-safe:animate-skeleton" />
             </div>
             <Mascot expression="thinking" className="size-mascot-guide shrink-0" />
           </div>
@@ -459,9 +459,9 @@ export function PhotoImport({
             {readingTitle}
           </p>
           <div className="flex items-center gap-4">
-            <div aria-hidden className="h-2 flex-1 overflow-hidden rounded-full bg-hairline">
+            <div aria-hidden className="h-2 flex-1 overflow-hidden rounded-full bg-edge">
               <div
-                className="h-full rounded-full bg-ink transition-[width]"
+                className="h-full rounded-full bg-accent transition-[width]"
                 style={{
                   width: `${String(photos.length ? (100 * read.length) / photos.length : 0)}%`,
                 }}
@@ -557,7 +557,7 @@ export function PhotoImport({
               type="button"
               disabled={pending || toSave.length === 0}
               onClick={add}
-              className="pressable min-h-cta w-full rounded-button bg-primary px-4 text-label text-on-primary disabled:opacity-50"
+              className="pressable min-h-cta w-full rounded-button bg-primary px-4 text-button text-on-primary disabled:opacity-50"
             >
               {pending ? "저장 중" : `카드 ${String(cardCount)}장 추가`}
             </button>
@@ -631,7 +631,7 @@ export function PhotoImport({
             )}
             <button
               disabled={pending || !name.trim()}
-              className="pressable min-h-cta rounded-button bg-primary px-5 text-label text-on-primary disabled:opacity-50"
+              className="pressable min-h-cta rounded-button bg-primary px-5 text-button text-on-primary disabled:opacity-50"
             >
               {pending ? "만드는 중" : "만들기"}
             </button>
@@ -657,7 +657,7 @@ export function PhotoImport({
               changeCandidate(editing);
               setEditing(null);
             }}
-            className="pressable mt-5 min-h-cta w-full rounded-button bg-primary text-label text-on-primary"
+            className="pressable mt-5 min-h-cta w-full rounded-button bg-primary text-button text-on-primary"
           >
             완료
           </button>
@@ -686,7 +686,7 @@ export function PhotoImport({
             <button
               type="button"
               onClick={close}
-              className="pressable min-h-button rounded-button bg-dont-know text-label text-on-ink"
+              className="pressable min-h-button rounded-button bg-dont-know text-button text-on-ink"
             >
               버리기
             </button>
@@ -725,7 +725,7 @@ function CancelBar({ cancel, retryFailed }: { cancel: () => void; retryFailed?: 
       <button
         type="button"
         onClick={cancel}
-        className="pressable min-h-cta flex-1 rounded-button border border-outline bg-surface px-4 text-label"
+        className="pressable min-h-cta flex-1 rounded-button bg-surface px-4 text-button"
       >
         취소
       </button>
@@ -733,7 +733,7 @@ function CancelBar({ cancel, retryFailed }: { cancel: () => void; retryFailed?: 
         <button
           type="button"
           onClick={retryFailed}
-          className="pressable min-h-cta flex-[2] rounded-button bg-primary px-4 text-label break-keep text-on-primary"
+          className="pressable min-h-cta flex-[2] rounded-button bg-primary px-4 text-button break-keep text-on-primary"
         >
           실패한 사진 다시 시도
         </button>
@@ -799,7 +799,7 @@ function PhotoRow({
               type="button"
               aria-label={`사진 ${String(number)} 다시 시도`}
               onClick={retry}
-              className="pressable min-h-button flex-1 rounded-button border border-outline bg-surface px-3 text-label"
+              className="pressable min-h-button flex-1 rounded-button bg-surface px-3 text-button"
             >
               다시 시도
             </button>
@@ -808,7 +808,7 @@ function PhotoRow({
             type="button"
             aria-label={`사진 ${String(number)} 빼기`}
             onClick={drop}
-            className="pressable min-h-button flex-1 rounded-button border border-outline bg-surface px-3 text-label"
+            className="pressable min-h-button flex-1 rounded-button bg-surface px-3 text-button"
           >
             빼기
           </button>
@@ -838,7 +838,7 @@ function PhotoPicker({
 }) {
   return (
     <label
-      className={`pressable flex min-h-cta flex-1 cursor-pointer items-center justify-center gap-2 rounded-button px-4 text-label focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink ${primary ? "bg-primary text-on-primary" : "border border-outline bg-surface"}`}
+      className={`pressable flex min-h-cta flex-1 cursor-pointer items-center justify-center gap-2 rounded-button px-4 text-button focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink ${primary ? "bg-primary text-on-primary" : "bg-surface"}`}
     >
       {icon && <ImagePlus aria-hidden className="size-small-icon" />}
       {label}

@@ -4,8 +4,8 @@
   "description": "카드로 외우는 암기 앱",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFF6E8",
-  "theme_color": "#3B2118",
+  "background_color": "#EEF3FF",
+  "theme_color": "#EEF3FF",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }

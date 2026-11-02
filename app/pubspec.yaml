@@ -113,10 +113,15 @@ flutter:
   # 04be351a74d6bf7d60c480a3087e51d185485d35a52023142af1df19eb8c428a), each
   # byte-identical to the npm package pretendard@1.3.9 (registry integrity
   # sha512-PaQAADyLY5v4kYFwkpSJHbSSYIkiriY/1xXw75TKoZ9UQQqeU+tvP05yTdZAWibiIYoo8ZKtRv8PM7w0IaywSw==).
+  # Jua, under the SIL Open Font License in assets/fonts/OFL-Jua.txt:
+  # ofl/jua/Jua-Regular.ttf and OFL.txt of github.com/google/fonts at commit
+  # 6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec (SHA-256
+  # 769677aef240bfc3b9965f2b50748075bff885e6c6992fc591a3fb268279f898).
   # Google's "G" mark, from its Sign in with Google assets (docs/architecture/design.md).
   # The brand's lockups and circled mark (docs/architecture/design.md).
   assets:
     - assets/fonts/OFL.txt
+    - assets/fonts/OFL-Jua.txt
     - assets/google/
     - assets/brand/
   fonts:
@@ -131,6 +136,14 @@ flutter:
           weight: 700
         - asset: assets/fonts/Pretendard-ExtraBold.otf
           weight: 800
+    - family: Jua
+      fonts:
+        - asset: assets/fonts/Jua-Regular.ttf
+    # What draws a character Jua lacks: one face, so a style at Jua's own
+    # weight takes it whole. Flutter thickens Jua itself at a heavier weight.
+    - family: PretendardExtraBold
+      fonts:
+        - asset: assets/fonts/Pretendard-ExtraBold.otf
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a

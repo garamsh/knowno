@@ -17,7 +17,7 @@ export function DeckView({ deck, timeZone }: { deck: AdminDeck; timeZone: string
   return (
     <div className="flex flex-col gap-section-gap">
       <header className="flex flex-col gap-2">
-        <h1 className="text-display">{deck.name}</h1>
+        <h1 className="text-deck-name">{deck.name}</h1>
         <DeckStateChips state={deck.state} />
         <p className="text-caption text-muted">
           <Link

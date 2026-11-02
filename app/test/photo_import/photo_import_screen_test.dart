@@ -760,6 +760,8 @@ void main() {
     testWidgets(
       'each photo shows its state, and the heading is read as the photo being read of all',
       (tester) async {
+        tester.view.physicalSize = const Size(1170, 2532);
+        addTearDown(tester.view.reset);
         final import = await _Import.open(tester);
         await import.pickSeveral(4);
 
@@ -2114,6 +2116,8 @@ void main() {
       testWidgets(
         'a back while photos are added, while the first are read or while one is extracted leaves the screen and the photos go on being read',
         (tester) async {
+          tester.view.physicalSize = const Size(1170, 2532);
+          addTearDown(tester.view.reset);
           final import = await edited(tester);
           import.photos.libraryPhotos = [Future.value(testPhoto)];
           await import.tap(_shown('Add more photos'));

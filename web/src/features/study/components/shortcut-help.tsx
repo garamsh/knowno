@@ -55,7 +55,7 @@ export function ShortcutHelp({ onClose }: { onClose: () => void }) {
           ref={close}
           type="button"
           onClick={onClose}
-          className="pressable min-h-button rounded-button bg-primary px-6 font-semibold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="pressable min-h-button rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           닫기
         </button>

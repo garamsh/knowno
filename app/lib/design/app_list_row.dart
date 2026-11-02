@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'app_raised.dart';
 import 'theme.dart';
 import 'word_break.dart';
 
-/// A row of a list: a rounded surface on the ground, tappable when [onTap] or
+/// A row of a list: a rounded surface on its edge, tappable when [onTap] or
 /// [onLongPress] is given, with the row gap below it. [child] fills it.
 class AppRowSurface extends StatelessWidget {
   const AppRowSurface({
@@ -11,16 +12,11 @@ class AppRowSurface extends StatelessWidget {
     required this.child,
     this.onTap,
     this.onLongPress,
-    this.onSheet = false,
   });
 
   final Widget child;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
-
-  /// Whether the row sits on a sheet, where it takes the ground colour to
-  /// stand apart from the sheet's surface.
-  final bool onSheet;
 
   @override
   Widget build(BuildContext context) {
@@ -34,27 +30,32 @@ class AppRowSurface extends StatelessWidget {
       );
     }
     final radius = BorderRadius.circular(AppRadius.row);
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpace.rowGap),
-      child: Material(
-        color: onSheet
-            ? AppColors.of(context).ground
-            : AppColors.of(context).surface,
-        borderRadius: radius,
-        child: onTap == null && onLongPress == null
-            ? child
-            : InkWell(
-                borderRadius: radius,
-                onTap: onTap,
-                onLongPress: onLongPress,
-                child: child,
-              ),
+      child: AppRaised(
+        edge: colors.edge,
+        height: AppSize.edgeRow,
+        radius: AppRadius.row,
+        builder: (context, states) => Material(
+          color: colors.surface,
+          borderRadius: radius,
+          child: onTap == null && onLongPress == null
+              ? child
+              : InkWell(
+                  statesController: states,
+                  borderRadius: radius,
+                  onTap: onTap,
+                  onLongPress: onLongPress,
+                  child: child,
+                ),
+        ),
       ),
     );
   }
 }
 
-/// Rows drawn as one group: one white surface, its rows split by hairlines.
+/// Rows drawn as one group: one surface on its edge, split by hairlines.
 /// A row inside it, an [AppRowSurface] or an [AppListRow], draws no surface
 /// and no gap of its own. [SliverAppGroup] draws the same over a long list.
 class AppGroup extends StatelessWidget {
@@ -90,7 +91,8 @@ class SliverAppGroup extends StatelessWidget {
 }
 
 /// One row of a group: its share of the surface, rounded at the group's
-/// ends, under a hairline but for the first.
+/// ends, under a hairline but for the first, the last drawing the group's
+/// edge. A row pressed inside a group dims and does not move.
 class _GroupItem extends StatelessWidget {
   const _GroupItem({
     required this.index,
@@ -106,25 +108,32 @@ class _GroupItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     const corner = Radius.circular(AppRadius.group);
-    return Material(
-      color: colors.surface,
-      clipBehavior: Clip.antiAlias,
-      borderRadius: BorderRadius.vertical(
-        top: index == 0 ? corner : Radius.zero,
-        bottom: index == count - 1 ? corner : Radius.zero,
+    final radius = BorderRadius.vertical(
+      top: index == 0 ? corner : Radius.zero,
+      bottom: index == count - 1 ? corner : Radius.zero,
+    );
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: index == count - 1 ? AppShadow.card(colors) : null,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (index > 0)
-            Divider(
-              height: 1,
-              thickness: 1,
-              indent: AppSpace.s16,
-              color: colors.hairline,
-            ),
-          _InGroup(child: child),
-        ],
+      child: Material(
+        color: colors.surface,
+        clipBehavior: Clip.antiAlias,
+        borderRadius: radius,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (index > 0)
+              Divider(
+                height: 1,
+                thickness: 1,
+                indent: AppSpace.s16,
+                color: colors.hairline,
+              ),
+            _InGroup(child: child),
+          ],
+        ),
       ),
     );
   }
@@ -151,7 +160,6 @@ class AppListRow extends StatelessWidget {
     this.selected,
     this.onTap,
     this.onLongPress,
-    this.onSheet = false,
     this.destructive = false,
   });
 
@@ -165,9 +173,6 @@ class AppListRow extends StatelessWidget {
 
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
-
-  /// Whether the row sits on a sheet; see [AppRowSurface.onSheet].
-  final bool onSheet;
 
   /// Whether the row starts an action that deletes something.
   final bool destructive;
@@ -183,7 +188,6 @@ class AppListRow extends StatelessWidget {
         child: AppRowSurface(
           onTap: onTap,
           onLongPress: onLongPress,
-          onSheet: onSheet,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpace.s16,

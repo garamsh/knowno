@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { untilReacted } from "./until-reacted";
 
 /** The ground's colour in each theme, the body's background (globals.css). */
-const ground = { light: "rgb(255, 246, 232)", dark: "rgb(31, 21, 18)" };
+const ground = { light: "rgb(238, 243, 255)", dark: "rgb(17, 26, 46)" };
 
 /**
  * Records the body's background at the moment the parser inserts the body, before anything in
@@ -159,7 +159,7 @@ test.describe("signed out", () => {
     expect(await manifest.json()).toMatchObject({
       name: "알아몰라",
       short_name: "알아몰라",
-      theme_color: "#3B2118",
+      theme_color: "#EEF3FF",
     });
     for (const { src } of ((await manifest.json()) as { icons: { src: string }[] }).icons) {
       const icon = await request.get(src, { maxRedirects: 0 });

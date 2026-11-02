@@ -44,7 +44,7 @@ export function EnterLink({
       ref={link}
       href={href}
       aria-keyshortcuts="Enter"
-      className={`pressable flex min-h-cta items-center justify-center gap-2 rounded-button bg-primary px-6 text-label text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
+      className={`pressable flex min-h-cta items-center justify-center gap-2 rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
         onGround ? "lg:col-span-2" : "flex-[1_1_100%] whitespace-nowrap sm:min-w-60 sm:flex-none"
       }`}
     >

@@ -4,7 +4,7 @@ import 'theme.dart';
 
 /// How a chip is coloured.
 enum AppChipTone {
-  /// The surface inside an outline, with ink text.
+  /// The raised surface, with ink text.
   neutral,
 
   /// The brand tint, for what is due today and for a selected chip.
@@ -69,7 +69,7 @@ class AppChip extends StatelessWidget {
     final colors = AppColors.of(context);
     final tone = selected ?? false ? AppChipTone.brand : this.tone;
     final (fill, outline, ink) = switch (tone) {
-      AppChipTone.neutral => (colors.surface, colors.outline, colors.ink),
+      AppChipTone.neutral => (colors.raised, colors.raised, colors.ink),
       AppChipTone.brand => (colors.brandTint, colors.brandTint, colors.ink),
       AppChipTone.amber => (colors.tintAmber, colors.tintAmber, colors.ink),
       AppChipTone.know => (colors.know, colors.know, colors.onKnow),

@@ -83,7 +83,7 @@ export function NoCardsHome({ decks }: { decks: Deck[] }) {
       ) : (
         <Link
           href="/decks"
-          className="pressable flex min-h-cta items-center justify-center rounded-button bg-primary px-5 text-label text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="pressable flex min-h-cta items-center justify-center rounded-button bg-primary px-5 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           덱에서 카드 추가
         </Link>

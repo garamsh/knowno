@@ -185,7 +185,7 @@ abstract class AppLocalizations {
   /// What a screen reader calls a colour in the 덱 꾸미기 sheet, by the colour's stored key.
   ///
   /// In ko, this message translates to:
-  /// **'{color, select, blue{파랑} sky{하늘} violet{보라} sand{모래} amber{노랑} slate{회색} other{색}}'**
+  /// **'{color, select, blue{파랑} sky{하늘} violet{복숭아} sand{모래} amber{노랑} slate{회색} other{색}}'**
   String deckColorName(String color);
 
   /// Menu item for deleting a deck.

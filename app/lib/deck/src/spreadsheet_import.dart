@@ -480,7 +480,9 @@ class _SpreadsheetImportScreenState
                           _file.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppType.label.copyWith(color: colors.muted),
+                          style: AppType.bodyStrong.copyWith(
+                            color: colors.muted,
+                          ),
                         ),
                       ),
                       TextButton(
@@ -664,7 +666,6 @@ Future<({T value})?> _showChoice<T>(
         for (final (name, value) in options)
           AppListRow(
             title: name,
-            onSheet: true,
             selected: value == current,
             trailing: value == current
                 ? Icon(LucideIcons.check, color: AppColors.of(context).ink)

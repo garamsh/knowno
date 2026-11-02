@@ -509,8 +509,8 @@ class _TopBar extends StatelessWidget {
                               ? 1
                               : progress.done / progress.total,
                           minHeight: StudyStyle.progressHeight,
-                          color: colors.ink,
-                          backgroundColor: colors.hairline,
+                          color: colors.accent,
+                          backgroundColor: colors.edge,
                           borderRadius: BorderRadius.circular(
                             StudyStyle.progressHeight,
                           ),

@@ -29,14 +29,14 @@ void main() {
             children: [
               const AppSectionLabel('My decks 2'),
               AppListRow(title: 'French', subtitle: '3 cards', onTap: () {}),
-              AppListRow(title: 'German', onSheet: true, onTap: () {}),
+              AppListRow(title: 'German', onTap: () {}),
             ],
           ),
           themeMode: mode,
         );
 
         expect(_fill(tester, find.text('French')), colors.surface);
-        expect(_fill(tester, find.text('German')), colors.ground);
+        expect(_fill(tester, find.text('German')), colors.surface);
         expect(
           tester.getSemantics(find.text('My decks 2')),
           isSemantics(isHeader: true, label: 'My decks 2'),
@@ -148,15 +148,15 @@ void main() {
       );
       for (final (label, fill) in [
         ('Today 3', colors.brandTint),
-        ('Public', colors.surface),
+        ('Public', colors.raised),
         ('Below', colors.tintAmber),
         ('Know', colors.know),
         ("Don't know", colors.dontKnowText),
-        ('Add row', colors.surface),
+        ('Add row', colors.raised),
         ('Blank', colors.brandTint),
-        ('Noun', colors.surface),
+        ('Noun', colors.raised),
       ]) {
-        final outline = fill == colors.surface ? colors.outline : fill;
+        final outline = fill;
         expect(drawn(label), (fill, shape(outline)), reason: label);
         expect(
           tester.widget<Text>(find.text(label)).style?.fontSize,

@@ -12,9 +12,9 @@ const styles = new Map(
 
 /**
  * The styles a page's three sizes leave out (`design.md` §Details): a large figure, with its unit
- * after it, a card's own content, and Google's button.
+ * after it, a card's own content, a button's label, and Google's button.
  */
-const outside = new Set(["figure", "front", "back", "google"]);
+const outside = new Set(["figure", "front", "back", "button", "google"]);
 
 /** The type style [element] draws in: its own base `text-*` style, else its nearest ancestor's. */
 function styleOf(element: Element | null): string | undefined {
@@ -30,7 +30,7 @@ function styleOf(element: Element | null): string | undefined {
 /**
  * The type sizes, in px, of the text drawn under [root] at a phone's width, smallest first: each
  * element's own text in its style, the browser's 16 where none is set, and none of a figure, a
- * figure's unit right after it, a card's content, Google's button, text drawn for a screen reader
+ * figure's unit right after it, a card's content, a button's label, Google's button, text drawn for a screen reader
  * alone or text hidden at a phone's width.
  */
 export function typeSizesOf(root: Element): number[] {

@@ -11,7 +11,7 @@ export function DeckSkeleton() {
       <div className="flex items-center gap-3.5">
         <span className="size-13 shrink-0 rounded-field bg-hairline" />
         <div className="flex flex-1 flex-col">
-          <SkeletonLine text="text-deck-title lg:text-display" width="w-1/3" />
+          <SkeletonLine text="text-deck-name" width="w-1/3" />
           <SkeletonLine text="text-secondary" width="w-32" />
         </div>
       </div>

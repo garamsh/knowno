@@ -319,7 +319,6 @@ class _ThemeRow extends ConsumerWidget {
             ])
               AppListRow(
                 title: _themeName(l10n, mode),
-                onSheet: true,
                 selected: mode == current,
                 trailing: mode == current
                     ? Icon(LucideIcons.check, color: colors.ink)

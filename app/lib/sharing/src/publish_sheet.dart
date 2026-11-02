@@ -109,6 +109,7 @@ class _PublishSheetState extends State<_PublishSheet> {
         ) =>
           AppSheet(
             title: title,
+            titleWritten: true,
             body: switch (error) {
               SharingFailure() => describeSharingFailure(l10n, error),
               _ => Error.throwWithStackTrace(
@@ -132,6 +133,7 @@ class _PublishSheetState extends State<_PublishSheet> {
           _form(l10n, title, askName: data == null),
         _ => AppSheet(
           title: title,
+          titleWritten: true,
           content: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpace.s32),
             child: Center(
@@ -150,6 +152,7 @@ class _PublishSheetState extends State<_PublishSheet> {
         _showErrors && DisplayName.tryParse(_nameField.text) == null;
     return AppSheet(
       title: title,
+      titleWritten: true,
       body: askName ? l10n.displayNameHelp : null,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

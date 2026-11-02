@@ -113,7 +113,7 @@ void main() {
                     .first,
               )
               .color,
-          colors.surface,
+          colors.ground,
         );
         await meetsGuidelines(tester);
         expectScreenTextReadable(tester);

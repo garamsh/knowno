@@ -13,7 +13,7 @@ export function StudySkeleton() {
         <div className="flex items-center gap-4">
           <span className="size-tap-target shrink-0" />
           <span className="h-progress flex-1 rounded-full bg-hairline" />
-          <span className="hidden min-h-button w-24 rounded-button border border-outline bg-surface lg:block" />
+          <span className="hidden min-h-button w-24 rounded-button bg-surface lg:block" />
         </div>
         <span
           className={`mx-auto mt-6 w-full max-w-study rounded-previous border-[1.5px] border-dashed border-outline ${cardHeight}`}

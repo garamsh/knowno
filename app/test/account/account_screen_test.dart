@@ -57,7 +57,12 @@ void main() {
             supportedLocales: AppLocalizations.supportedLocales,
             home: const AccountScreen(
               syncStatus: Text('sync status'),
-              studySettings: [Text('study setting')],
+              studySettings: [
+                Padding(
+                  padding: EdgeInsets.all(AppSpace.s16),
+                  child: Text('study setting'),
+                ),
+              ],
             ),
           ),
         ),

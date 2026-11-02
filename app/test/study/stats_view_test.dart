@@ -527,23 +527,25 @@ void main() {
     );
   }
 
-  for (final (name, colors, brightness) in [
-    ('light', AppColors.light, Brightness.light),
-    ('dark', AppColors.dark, Brightness.dark),
+  for (final (name, colors) in [
+    ('light', AppColors.light),
+    ('dark', AppColors.dark),
   ]) {
     test(
-      '$name: the ink recall bands and the quiet week are 3:1 on the surface, and the bands and the heatmap levels differ in lightness by 1.5:1',
+      '$name: the recall bands and the quiet week are 3:1 on the surface but 보통 in light, the bands 45 degrees apart in hue, and the heatmap levels 1.5:1 apart in lightness',
       () {
         final surface = colors.surface;
-        final (strong, fair, fading) = StatsStyle.bands(colors, brightness);
+        final (strong, fair, fading) = StatsStyle.bands(colors);
         final bands = [
           for (final band in [strong, fair, fading]) _over(band, surface),
         ];
-        // The coral band is 2.67:1 on the light surface; its count in words
-        // carries it (ADR 0145).
+        // 보통 is under 3:1 on the light surface; its count in ink carries it
+        // (ADR 0147).
         for (final mark in [
-          ...bands.take(2),
-          _over(AppColors.quiet(colors.ink), surface),
+          bands[0],
+          if (name == 'dark') bands[1],
+          bands[2],
+          colors.chartQuiet,
         ]) {
           expect(
             _contrast(mark, surface),
@@ -551,11 +553,18 @@ void main() {
             reason: '$mark',
           );
         }
+        // The bands are told apart by hue, 45 degrees or more apart.
+        double apart(Color a, Color b) {
+          final turn = (HSVColor.fromColor(a).hue - HSVColor.fromColor(b).hue)
+              .abs();
+          return turn > 180 ? 360 - turn : turn;
+        }
+
         for (var i = 0; i < bands.length; i++) {
           for (var j = i + 1; j < bands.length; j++) {
             expect(
-              _contrast(bands[i], bands[j]),
-              greaterThanOrEqualTo(1.5),
+              apart(bands[i], bands[j]),
+              greaterThanOrEqualTo(45),
               reason: 'band $i against band $j',
             );
           }
@@ -570,18 +579,10 @@ void main() {
             reason: 'level ${level - 1} against $level',
           );
         }
-        // Control: the fair band at the other theme's alpha fails one of the
-        // checks, so they can fail.
-        final other = brightness == Brightness.light
-            ? Brightness.dark
-            : Brightness.light;
-        final (_, swapped, _) = StatsStyle.bands(colors, other);
-        final swappedFair = _over(swapped, surface);
-        expect(
-          _contrast(swappedFair, surface) < 3 ||
-              _contrast(swappedFair, bands[2]) < 1.5,
-          isTrue,
-        );
+        // Control: the edge, which a chart does not draw in, fails the
+        // check, and two of the old cobalt bands sit under 45 degrees apart.
+        expect(_contrast(colors.edge, surface), lessThan(3));
+        expect(apart(colors.accent, colors.chartOther), lessThan(45));
       },
     );
   }

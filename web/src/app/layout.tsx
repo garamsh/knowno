@@ -19,6 +19,15 @@ const pretendard = localFont({
   display: "swap",
 });
 
+// One face, declared at the weight its styles ask for, so a character it lacks falls back to
+// Pretendard ExtraBold.
+const jua = localFont({
+  src: "../styles/fonts/Jua-Regular.ttf",
+  weight: "800",
+  variable: "--font-jua",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "알아몰라",
   description: "카드로 외우는 암기 앱",
@@ -33,13 +42,20 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#3B2118",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#EEF3FF" },
+    { media: "(prefers-color-scheme: dark)", color: "#111A2E" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // The script sets data-theme on <html> before React hydrates it.
-    <html lang="ko" className={`${pretendard.variable} antialiased`} suppressHydrationWarning>
+    <html
+      lang="ko"
+      className={`${pretendard.variable} ${jua.variable} antialiased`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: timeZoneScript }} />

@@ -49,14 +49,14 @@ export function LeaveConfirm({
             ref={stay}
             type="button"
             onClick={onStay}
-            className="pressable flex min-h-button items-center justify-center rounded-button border border-outline bg-surface px-5 text-label text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="pressable flex min-h-button items-center justify-center rounded-button bg-surface px-5 text-button text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             취소
           </button>
           <button
             type="button"
             onClick={onLeave}
-            className="pressable flex min-h-button items-center justify-center rounded-button bg-dont-know-text px-5 text-label text-on-dont-know-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="pressable flex min-h-button items-center justify-center rounded-button bg-dont-know-text px-5 text-button text-on-dont-know-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             나가기
           </button>

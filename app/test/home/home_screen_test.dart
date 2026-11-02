@@ -750,37 +750,34 @@ void main() {
     );
 
     testWidgets(
-      'the current tab has a coral-tinted pill behind its icon, and moves with the tab',
+      'the current tab\'s name is in the accent, and moves with the tab',
       (tester) async {
         final list = await _open(tester, fresh: {'Alpha': 1});
         final colors = AppColors.of(tester.element(find.byType(TodayTab)));
-        Color? pillUnder(IconData icon) {
-          final pill = find.ancestor(
-            of: find.byWidgetPredicate(
-              (widget) => widget is Icon && widget.icon == icon,
-            ),
-            matching: find.byWidgetPredicate(
-              (widget) =>
-                  widget is Container &&
-                  widget.constraints?.maxWidth == AppSize.tabPill.width,
-            ),
-          );
-          final decoration =
-              tester.widget<Container>(pill.first).decoration as BoxDecoration;
-          return decoration.color;
-        }
+        Color? tab(String name) => tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byWidgetPredicate(
+                  (widget) =>
+                      widget is Semantics && widget.properties.label == 'Tabs',
+                ),
+                matching: find.text(name),
+              ),
+            )
+            .style
+            ?.color;
 
-        expect(pillUnder(LucideIcons.sun), colors.brandTint);
-        expect(pillUnder(LucideIcons.layers), isNull);
+        expect(tab('Today'), colors.accent);
+        expect(tab('Decks'), colors.ink2);
         await list.tap('Decks');
-        expect(pillUnder(LucideIcons.sun), isNull);
-        expect(pillUnder(LucideIcons.layers), colors.brandTint);
+        expect(tab('Today'), colors.ink2);
+        expect(tab('Decks'), colors.accent);
         await list.close();
       },
     );
 
     testWidgets(
-      'the last seven days draw today coral and the other days the brand tint, and the catch-up the same, with no amber',
+      'the last seven days draw today in the accent and the other days in the chart\'s quiet colour, and the catch-up the same, with no amber',
       (tester) async {
         Finder bars(Color fill) => find.descendant(
           of: find.byType(TodayTab),
@@ -793,14 +790,14 @@ void main() {
         );
         var list = await _open(tester, fresh: {'Alpha': 3});
         final colors = AppColors.of(tester.element(find.byType(TodayTab)));
-        expect(bars(colors.primary), findsOneWidget);
-        expect(bars(colors.brandTint), findsNWidgets(6));
+        expect(bars(colors.accent), findsOneWidget);
+        expect(bars(colors.chartOther), findsNWidgets(6));
         await list.close();
 
         list = await _open(tester, due: {'Alpha': 4, 'Beta': 3}, dueDays: 30);
         expect(find.text('Pick up where you left off'), findsOneWidget);
-        expect(bars(colors.primary), findsOneWidget);
-        expect(bars(colors.brandTint), findsNWidgets(6));
+        expect(bars(colors.accent), findsOneWidget);
+        expect(bars(colors.chartOther), findsNWidgets(6));
         expect(bars(colors.streak), findsNothing);
         await list.close();
       },
@@ -1007,7 +1004,7 @@ void main() {
             for (final bar in bars.evaluate()) {
               expect(
                 (bar.widget as LinearProgressIndicator).color,
-                colors.ink,
+                colors.accent,
                 reason: state,
               );
             }

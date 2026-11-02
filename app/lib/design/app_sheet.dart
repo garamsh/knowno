@@ -32,12 +32,18 @@ class AppSheet extends StatelessWidget {
   const AppSheet({
     super.key,
     required this.title,
+    this.titleWritten = false,
     this.body,
     this.content,
     this.actions = const [],
   });
 
   final String title;
+
+  /// Whether [title] carries a name a user wrote, which is never drawn in
+  /// Jua.
+  final bool titleWritten;
+
   final String? body;
   final Widget? content;
   final List<Widget> actions;
@@ -67,7 +73,7 @@ class AppSheet extends StatelessWidget {
                   width: AppSize.handle.width,
                   height: AppSize.handle.height,
                   decoration: ShapeDecoration(
-                    color: colors.hairline,
+                    color: colors.edge,
                     shape: const StadiumBorder(),
                   ),
                 ),
@@ -84,7 +90,9 @@ class AppSheet extends StatelessWidget {
                         child: Text(
                           keepWords(title),
                           semanticsLabel: title,
-                          style: AppType.headline,
+                          style: titleWritten
+                              ? AppType.deckName
+                              : AppType.title,
                         ),
                       ),
                       if (body != null)
@@ -127,6 +135,7 @@ class AppSheet extends StatelessWidget {
 Future<bool> showAppConfirm(
   BuildContext context, {
   required String title,
+  bool titleWritten = false,
   required String consequence,
   required String confirmLabel,
   String? cancelLabel,
@@ -135,6 +144,7 @@ Future<bool> showAppConfirm(
       context,
       builder: (context) => AppSheet(
         title: title,
+        titleWritten: titleWritten,
         body: consequence,
         actions: [
           AppButton(

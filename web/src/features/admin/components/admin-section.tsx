@@ -7,7 +7,7 @@ export const group = "flex flex-col divide-y divide-hairline rounded-group bg-su
 export const row = "flex flex-col gap-1 px-4 py-3";
 
 const buttonBase =
-  "pressable flex min-h-button items-center justify-center self-start rounded-button px-5 text-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
+  "pressable flex min-h-button items-center justify-center self-start rounded-button px-5 text-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
 
 /**
  * The admin area's buttons by role: the screen's one primary in the ink fill, a secondary
@@ -16,7 +16,7 @@ const buttonBase =
  */
 export const button = {
   primary: `${buttonBase} bg-primary text-on-primary`,
-  secondary: `${buttonBase} border border-outline bg-surface text-ink`,
+  secondary: `${buttonBase} bg-surface text-ink`,
   destructive: `${buttonBase} px-1 text-dont-know-text`,
   destructiveFinal: `${buttonBase} bg-dont-know-text text-on-dont-know-text`,
 } as const;

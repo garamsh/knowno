@@ -16,13 +16,13 @@ export default function ErrorPage({
       <button
         type="button"
         onClick={reset}
-        className="pressable min-h-button rounded-button bg-primary px-6 font-semibold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="pressable min-h-button rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         다시 시도
       </button>
       <Link
         href="/"
-        className="pressable flex min-h-button items-center justify-center rounded-button border border-outline bg-surface px-6 font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="pressable flex min-h-button items-center justify-center rounded-button bg-surface px-6 text-button text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         오늘로 가기
       </Link>

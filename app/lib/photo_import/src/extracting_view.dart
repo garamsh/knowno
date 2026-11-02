@@ -4,6 +4,7 @@ import '../../design/app_button.dart';
 import '../../design/app_list_row.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
+import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'import_job.dart';
 
@@ -61,7 +62,11 @@ class ExtractingView extends StatelessWidget {
                   child: Semantics(
                     header: true,
                     liveRegion: true,
-                    child: Text(l10n.extractingTitle, style: AppType.title),
+                    child: Text(
+                      keepWords(l10n.extractingTitle),
+                      semanticsLabel: l10n.extractingTitle,
+                      style: AppType.title,
+                    ),
                   ),
                 ),
                 const Mascot(
@@ -73,8 +78,8 @@ class ExtractingView extends StatelessWidget {
             const SizedBox(height: AppSpace.s20),
             LinearProgressIndicator(
               semanticsLabel: l10n.extractingTitle,
-              color: colors.ink,
-              backgroundColor: colors.hairline,
+              color: colors.accent,
+              backgroundColor: colors.edge,
               borderRadius: BorderRadius.circular(AppSpace.s4),
             ),
             const SizedBox(height: AppSpace.s20),

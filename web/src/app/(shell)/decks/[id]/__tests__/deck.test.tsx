@@ -208,17 +208,17 @@ describe("the deck page", () => {
 
   it("draws in three sizes, the title, the body and the caption, with its backs hidden or shown and with no card", async () => {
     await open("d-fr");
-    expect(typeSizesOf(document.body)).toEqual([13, 16, 26]);
+    expect(typeSizesOf(document.body)).toEqual([13, 16, 28]);
     await userEvent.setup().click(screen.getByRole("switch", { name: "뒷면 보기" }));
     // The state it asked for: every back shown.
     expect(rows()).toContain("Chat, 뒷면 Chat back");
-    expect(typeSizesOf(document.body)).toEqual([13, 16, 26]);
+    expect(typeSizesOf(document.body)).toEqual([13, 16, 28]);
     cleanup();
 
     postgrest.seed("decks", deckRow("d-empty", "Empty"));
     await open("d-empty");
     expect(screen.getByRole("region", { name: "아직 카드가 없어요" })).toBeInTheDocument();
-    expect(typeSizesOf(document.body)).toEqual([13, 16, 26]);
+    expect(typeSizesOf(document.body)).toEqual([13, 16, 28]);
   });
 
   it("keeps the way back to 덱 and a heading above a failed read, with 다시 시도", async () => {
@@ -278,7 +278,7 @@ describe("the deck page", () => {
     );
 
     await open("d-tiled");
-    expect(tile()).toEqual({ icon: "lucide-book-open", fill: "bg-deck-violet" });
+    expect(tile()).toEqual({ icon: "lucide-book-open", fill: "bg-deck-peach" });
     // The read asks for both keys: the fake answers whole rows whatever is selected.
     expect(postgrest.selected.filter((read) => read.startsWith("decks: "))).toContain(
       "decks: id,name,visibility,icon,color",

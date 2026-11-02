@@ -14,7 +14,7 @@
   "deckImageRemove": "Remove photo",
   "deckImageUnreadable": "Couldn't load the photo. Try again.",
   "deckIconName": "{icon, select, layers{Cards} book{Book} languages{Languages} pencil{Pencil} flask{Flask} calculator{Calculator} globe{Globe} music{Music} palette{Palette} brain{Brain} code{Code} landmark{Landmark} briefcase{Briefcase} star{Star} other{Icon}}",
-  "deckColorName": "{color, select, blue{Blue} sky{Sky} violet{Violet} sand{Sand} amber{Amber} slate{Slate} other{Color}}",
+  "deckColorName": "{color, select, blue{Blue} sky{Sky} violet{Peach} sand{Sand} amber{Amber} slate{Slate} other{Color}}",
   "deleteDeck": "Delete deck",
   "deleteDeckTitle": "Delete \"{name}\"?",
   "deleteDeckBody": "{count, plural, =0{This deck has no cards.} =1{Its 1 card will be deleted too.} other{Its {count} cards will be deleted too.}}",

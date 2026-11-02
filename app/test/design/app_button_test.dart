@@ -43,7 +43,7 @@ void main() {
         );
 
         expect(_fill(tester, 'primary'), colors.primary);
-        expect(_fill(tester, 'onHero'), colors.onHero);
+        expect(_fill(tester, 'onHero'), colors.heroButton);
         // The coral fill holds its cocoa label in both themes.
         expect(
           tester

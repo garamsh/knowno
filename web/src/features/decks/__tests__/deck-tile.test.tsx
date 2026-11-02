@@ -45,7 +45,7 @@ describe("a deck's tile", () => {
   it("draws the stored colour, and hides the tile from screen readers with no initial", () => {
     const { box, fill } = tile({ icon: "book", color: "violet" });
 
-    expect(fill).toBe("bg-deck-violet");
+    expect(fill).toBe("bg-deck-peach");
     expect(box).toHaveAttribute("aria-hidden", "true");
     expect(box).not.toHaveTextContent("F");
   });

@@ -75,7 +75,7 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.selectLogic(color, {
       'blue': 'Blue',
       'sky': 'Sky',
-      'violet': 'Violet',
+      'violet': 'Peach',
       'sand': 'Sand',
       'amber': 'Amber',
       'slate': 'Slate',

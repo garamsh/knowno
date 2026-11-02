@@ -172,7 +172,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
                                   header: true,
                                   child: Text(
                                     current.name,
-                                    style: AppType.title,
+                                    style: AppType.deckName,
                                   ),
                                 ),
                                 _DeckSummary(
@@ -424,6 +424,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
       final confirmed = await showAppConfirm(
         context,
         title: l10n.deleteDeckTitle(_name),
+        titleWritten: true,
         consequence: l10n.deleteDeckBody(cardCount),
         confirmLabel: l10n.delete,
       );

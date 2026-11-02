@@ -66,12 +66,12 @@ const onlyGoogle = <T>(tokens: Map<string, T>) => new Map([...tokens].filter(isG
 
 describe("the web theme's colour tokens", () => {
   it("are the light tokens of app/lib/design/theme.dart", () => {
-    expect(dartColors("light").size).toBe(37);
+    expect(dartColors("light").size).toBe(50);
     expect(withoutGoogle(cssColors(lightCss))).toEqual(dartColors("light"));
   });
 
   it("are the dark tokens of app/lib/design/theme.dart, for the system's dark mode and for 다크", () => {
-    expect(dartColors("dark").size).toBe(37);
+    expect(dartColors("dark").size).toBe(50);
     expect(withoutGoogle(cssColors(systemDarkCss))).toEqual(dartColors("dark"));
     expect(withoutGoogle(cssColors(chosenDarkCss))).toEqual(dartColors("dark"));
   });
@@ -161,7 +161,7 @@ describe("the web theme's radius tokens", () => {
       ]),
     );
     // Control: both sides read their tokens, the card's radius among them.
-    expect(dartRadii().get("card")).toBe(24);
+    expect(dartRadii().get("card")).toBe(28);
     expect([...radii.keys()].sort()).toEqual([
       "button",
       "card",
@@ -195,7 +195,11 @@ function dartType(): Map<string, TypeStyle> {
           {
             size,
             lineHeight: Math.round((Number(over) / Number(under)) * size * 100) / 100,
-            weight: Number(/fontWeight: FontWeight\.w(\d+)/.exec(body)?.[1]),
+            // Jua's one face: the phone asks for its own weight, which Flutter would thicken
+            // otherwise, and the web declares it at 800 so its fallback is Pretendard ExtraBold.
+            weight: body.includes("appDisplayFontFamily")
+              ? 800
+              : Number(/fontWeight: FontWeight\.w(\d+)/.exec(body)?.[1]),
             letterSpacing: Number(/letterSpacing: (-?[\d.]+)/.exec(body)?.[1] ?? 0),
           },
         ];
@@ -224,10 +228,10 @@ function cssType(): Map<string, TypeStyle> {
 describe("the web theme's type tokens", () => {
   it("are the styles of app/lib/design/theme.dart's AppType: size, line height, weight and tracking", () => {
     // Control: both sides read every style, the front's tracking among them.
-    expect(dartType().size).toBe(17);
+    expect(dartType().size).toBe(19);
     expect(dartType().get("front")).toEqual({
-      size: 30,
-      lineHeight: 38,
+      size: 42,
+      lineHeight: 46,
       weight: 800,
       letterSpacing: -0.6,
     });
@@ -287,8 +291,8 @@ describe("the web theme's size tokens", () => {
     );
     const web = [...withoutGoogle(cssSpacing)].filter(([name]) => !namedGaps.includes(name));
     // Control: both sides read their sizes, the button's height among them.
-    expect(sizes.get("button")).toBe(56);
-    expect(web.length).toBe(15);
+    expect(sizes.get("button")).toBe(64);
+    expect(web.length).toBe(20);
 
     for (const [name, value] of web) {
       expect({ name, value }).toEqual({ name, value: sizes.get(name) });

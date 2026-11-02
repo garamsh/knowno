@@ -224,8 +224,8 @@ class PhotoImportBar extends StatelessWidget {
                         if (progress != null)
                           LinearProgressIndicator(
                             value: progress,
-                            color: colors.ink,
-                            backgroundColor: colors.hairline,
+                            color: colors.accent,
+                            backgroundColor: colors.edge,
                             borderRadius: BorderRadius.circular(AppSpace.s4),
                           ),
                       ],

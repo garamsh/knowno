@@ -47,7 +47,7 @@ export function AuthoringButton({
         onClick={() => {
           setScreen("options");
         }}
-        className={`pressable min-h-cta w-full rounded-button px-5 text-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${primary ? "bg-primary text-on-primary" : "border border-outline bg-surface"}`}
+        className={`pressable min-h-cta w-full rounded-button px-5 text-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${primary ? "bg-primary text-on-primary" : "bg-surface"}`}
       >
         {label}
       </button>
@@ -194,7 +194,7 @@ function NewDeck({ close }: { close: () => void }) {
         )}
         <button
           disabled={pending}
-          className="pressable min-h-cta rounded-button bg-primary px-5 text-label text-on-primary disabled:opacity-50"
+          className="pressable min-h-cta rounded-button bg-primary px-5 text-button text-on-primary disabled:opacity-50"
         >
           {pending ? "만드는 중" : "만들기"}
         </button>
@@ -361,8 +361,8 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
           }}
           className={
             card
-              ? "pressable min-h-cta flex-1 rounded-button bg-primary px-3 text-label text-on-primary disabled:opacity-50"
-              : "pressable min-h-cta flex-1 rounded-button border border-outline bg-surface px-3 text-label disabled:opacity-50"
+              ? "pressable min-h-cta flex-1 rounded-button bg-primary px-3 text-button text-on-primary disabled:opacity-50"
+              : "pressable min-h-cta flex-1 rounded-button bg-surface px-3 text-button disabled:opacity-50"
           }
         >
           {card && pending ? "저장 중" : "저장"}
@@ -374,7 +374,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
             onClick={() => {
               save(true);
             }}
-            className="pressable min-h-cta flex-1 rounded-button bg-primary px-3 text-label text-on-primary disabled:opacity-50"
+            className="pressable min-h-cta flex-1 rounded-button bg-primary px-3 text-button text-on-primary disabled:opacity-50"
           >
             {pending ? "저장 중" : "저장하고 다음 카드"}
           </button>
@@ -429,7 +429,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
             <button
               type="button"
               onClick={close}
-              className="pressable min-h-button rounded-button bg-dont-know px-4 text-label text-on-ink"
+              className="pressable min-h-button rounded-button bg-dont-know px-4 text-button text-on-ink"
             >
               버리기
             </button>

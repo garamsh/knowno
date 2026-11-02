@@ -1,6 +1,6 @@
 # ADR 0145: Redraw the screens for the coral mascot: rounder, with one current tab, two chart colours and one way out of an empty state
 
-> Status: accepted
+> Status: accepted; its colours, shadows, radii, heights, type sizes and the current tab's pill superseded by ADR-0147
 > Date: 2026-11-02
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

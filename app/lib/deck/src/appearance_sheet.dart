@@ -220,7 +220,7 @@ class _Option extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: radius,
           side: BorderSide(
-            color: selected ? colors.ink : colors.outline,
+            color: selected ? colors.accent : colors.outline,
             width: selected ? 2 : 1,
           ),
         ),
