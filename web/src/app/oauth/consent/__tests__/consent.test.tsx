@@ -91,7 +91,7 @@ describe("the consent page", () => {
     expect(within(group).getByText(testUser.email)).toBeVisible();
     expect(within(group).getByText("claude.ai")).toBeVisible();
     expect(
-      within(group).getByText("덱과 카드를 읽고 새 덱과 카드를 추가해요. 지우거나 고치지는 않아요"),
+      within(group).getByText("노트와 카드를 읽고, 추가하고, 고치고, 지울 수 있어요."),
     ).toBeVisible();
     expect(screen.queryByText(/이 컴퓨터 안의 프로그램/)).not.toBeInTheDocument();
     expect(read).toEqual([pending]);

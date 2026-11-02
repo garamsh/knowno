@@ -47,7 +47,11 @@ async function rows(
   store: Store,
   path: string,
 ): Promise<Record<string, unknown>[]> {
-  const body: unknown = await (await request(store, path)).json();
+  return rowsOf(await (await request(store, path)).json());
+}
+
+/** A response's rows, each an object. */
+function rowsOf(body: unknown): Record<string, unknown>[] {
   if (!Array.isArray(body)) {
     throw new SupabaseError("the REST API answered without rows");
   }
@@ -203,6 +207,140 @@ export async function insert(
     prefer: "return=minimal",
   });
   await response.body?.cancel();
+}
+
+/**
+ * Sets [values] on the caller's live rows of [table] that [filter] selects, in one statement, and
+ * answers the ids it changed. The server's trigger gives each changed row a new revision.
+ */
+export async function update(
+  store: Store,
+  table: "decks" | "cards",
+  filter: string,
+  values: Record<string, unknown>,
+): Promise<string[]> {
+  const changed = await request(
+    store,
+    `${table}?select=id&${filter}&${own(store)}`,
+    { method: "PATCH", body: values, prefer: "return=representation" },
+  );
+  return rowsOf(await changed.json()).map((row) => text(row, "id"));
+}
+
+/** The caller's live cards of [ids], with their columns, in any order. */
+export async function readCards(
+  store: Store,
+  ids: readonly string[],
+): Promise<StoredCard[]> {
+  return ids.length === 0 ? [] : (await rows(
+    store,
+    `cards?select=${CARD_COLUMNS}&id=in.(${ids.join(",")})&${own(store)}`,
+  )).map(storedCard);
+}
+
+/** The live cards of the caller's deck [deckId], with their columns. */
+export async function deckCards(
+  store: Store,
+  deckId: string,
+): Promise<StoredCard[]> {
+  return (await allRows(
+    store,
+    `cards?select=${CARD_COLUMNS}&deck_id=eq.${deckId}&${
+      own(store)
+    }&order=id.asc`,
+  )).map(storedCard);
+}
+
+/** The media id of the caller's live deck [deckId]'s image, or null when it has none. */
+export async function deckImage(
+  store: Store,
+  deckId: string,
+): Promise<string | null> {
+  const found = await rows(
+    store,
+    `decks?select=image_media_id&id=eq.${deckId}&${own(store)}`,
+  );
+  const image = found[0]?.image_media_id;
+  return typeof image === "string" ? image : null;
+}
+
+/**
+ * Those of [media] a live deck or card of the caller's still holds, as the app reads it: a deck by
+ * its image, and a card whose blocks name the id anywhere, so a block this build cannot read holds.
+ */
+export async function heldMedia(
+  store: Store,
+  media: readonly string[],
+): Promise<Set<string>> {
+  if (media.length === 0) return new Set();
+  const decks = await rows(
+    store,
+    `decks?select=image_media_id&image_media_id=in.(${media.join(",")})&${
+      own(store)
+    }`,
+  );
+  const cards = await allRows(
+    store,
+    `cards?select=front,back&${own(store)}&order=id.asc`,
+  );
+  const sides = cards.map((row) => JSON.stringify([row.front, row.back]));
+  return new Set(
+    media.filter((id) =>
+      decks.some((row) => row.image_media_id === id) ||
+      sides.some((side) => side.includes(id))
+    ),
+  );
+}
+
+/**
+ * Deletes [media]'s files from the caller's folder through the Storage API, then their `media`
+ * rows, as the app's release does.
+ */
+export async function releaseMedia(
+  store: Store,
+  media: readonly string[],
+): Promise<void> {
+  if (media.length === 0) return;
+  const removed = await store.fetch(`${store.url}/storage/v1/object/media`, {
+    method: "DELETE",
+    headers: {
+      apikey: store.anonKey,
+      Authorization: `Bearer ${store.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      prefixes: media.map((id) => `${store.userId}/${id}`),
+    }),
+  }).catch((cause: unknown) => {
+    throw new SupabaseError("the Storage API could not be reached", { cause });
+  });
+  await removed.body?.cancel();
+  if (!removed.ok) {
+    throw new SupabaseError(`the Storage API answered ${removed.status}`);
+  }
+  const taken = await request(
+    store,
+    `media?id=in.(${media.join(",")})&user_id=eq.${store.userId}`,
+    { method: "DELETE" },
+  );
+  await taken.body?.cancel();
+}
+
+/** Each live card's id and duplicate key in the caller's decks [deckIds]. */
+export async function cardKeys(
+  store: Store,
+  deckIds: readonly string[],
+): Promise<{ id: string; deck_id: string; card_key: string }[]> {
+  return deckIds.length === 0 ? [] : (await allRows(
+    store,
+    `cards?select=id,deck_id,card_key&deck_id=in.(${deckIds.join(",")})&${
+      own(store)
+    }&order=id.asc`,
+  )).map((row) => ({
+    id: text(row, "id"),
+    deck_id: text(row, "deck_id"),
+    card_key: text(row, "card_key"),
+  }));
 }
 
 /**

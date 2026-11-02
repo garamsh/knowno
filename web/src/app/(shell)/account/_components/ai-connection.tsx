@@ -34,8 +34,8 @@ export function AiConnection() {
         </div>
       </div>
       <p className="px-1 text-caption break-keep text-muted">
-        연결한 AI는 덱과 카드를 읽고 새로 추가할 수 있어요. 지우거나 고치지는 않아요. 연결할 수 있는
-        AI의 수와 기능은 각 서비스의 요금제에 따라 달라요.
+        연결한 AI는 노트와 카드를 읽고, 추가하고, 고치고, 지울 수 있어요. 연결할 수 있는 AI의 수와
+        기능은 각 서비스의 요금제에 따라 달라요.
       </p>
     </section>
   );

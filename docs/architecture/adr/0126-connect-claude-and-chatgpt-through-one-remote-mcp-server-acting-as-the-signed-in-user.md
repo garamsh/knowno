@@ -1,6 +1,6 @@
 # ADR 0126: Connect Claude and ChatGPT through one remote MCP server acting as the signed-in user
 
-> Status: accepted; its resource and authorization server read from the gateway's forwarded origin and its settings entry's address superseded by ADR-0133; its card shape and its read tools' text superseded by ADR-0144
+> Status: accepted; its resource and authorization server read from the gateway's forwarded origin and its settings entry's address superseded by ADR-0133; its card shape and its read tools' text superseded by ADR-0144; its "Nothing edits or deletes" superseded by ADR-0149
 > Date: 2026-10-29
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

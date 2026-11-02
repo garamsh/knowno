@@ -48,7 +48,7 @@ export type HandlerDeps = ToolDeps & {
 };
 
 const INSTRUCTIONS =
-  "knowno is a flashcard app. These tools read the signed-in user's decks and cards and add new decks and cards; they never change or delete anything. Find a deck's id with list_decks, read a deck with list_cards, find cards with search_cards, make a deck with create_deck and add cards with add_cards, choosing each card's form: text, senses, cloze, table or a photo. The resource knowno://guide/card-forms says which fits. New cards reach the user's phone and the web at their next sync.";
+  "knowno is a flashcard app. These tools read, add, change and delete the signed-in user's decks and cards. Find a deck's id with list_decks, read a deck with list_cards, find cards with search_cards, make a deck with create_deck and add cards with add_cards, choosing each card's form: text, senses, cloze, table or a photo. The resource knowno://guide/card-forms says which fits. To change a card, read it and send its blocks back changed with update_cards; prefer that to deleting a card and adding a new one, which loses its study history. Rename a deck with update_deck. Before delete_cards or delete_deck, confirm with the user what will be deleted: a deleted card or deck leaves every device. Changes reach the user's phone and the web at their next sync.";
 
 type Exchange = {
   response: Response;

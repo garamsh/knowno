@@ -42,6 +42,10 @@ type Row = Record<string, unknown>;
 type Fake = {
   decks: Row[];
   cards: Row[];
+  /** Study state by card, which no tool writes. */
+  card_states: Row[];
+  /** The last revision the server's trigger drew. */
+  revision: number;
   media: Row[];
   /** The bucket's files by path, as the Storage API received them. */
   objects: Map<string, { bytes: Uint8Array; type: string | null }>;
@@ -79,6 +83,7 @@ function card(
     ).toLowerCase(),
     deleted_at: null,
     created_at: `2026-10-0${id.slice(-1)}T00:00:00.000Z`,
+    updated_at: `2026-10-0${id.slice(-1)}T00:00:00.000Z`,
     ...extra,
   };
 }
@@ -87,6 +92,13 @@ function seed(): Fake {
   return {
     rest: "up",
     calls: [],
+    revision: 100,
+    card_states: [{
+      card_id: "00000000-0000-7000-8000-000000000c01",
+      user_id: ADA,
+      stability: 4.5,
+      due: "2026-11-05T00:00:00.000Z",
+    }],
     media: [],
     objects: new Map(),
     storage: "up",
@@ -182,7 +194,7 @@ function authUser(token: string | undefined): string | null {
   return null;
 }
 
-/** A filter PostgREST reads from the query: `column=eq.value` and `column=is.null`. */
+/** A filter PostgREST reads from the query: `column=eq.value`, `column=in.(a,b)` and `column=is.null`. */
 function matches(row: Row, params: URLSearchParams, prefix = ""): boolean {
   for (const [key, value] of params) {
     if (
@@ -195,6 +207,15 @@ function matches(row: Row, params: URLSearchParams, prefix = ""): boolean {
     if (value.startsWith("eq.") && String(row[column]) !== value.slice(3)) {
       return false;
     }
+    if (
+      value.startsWith("in.(") &&
+      !value.slice(4, -1).split(",").includes(String(row[column]))
+    ) return false;
+    // Postgres compares a null as unknown, so `lt` drops it.
+    if (
+      value.startsWith("lt.") &&
+      !(typeof row[column] === "string" && row[column] < value.slice(3))
+    ) return false;
   }
   return true;
 }
@@ -218,6 +239,8 @@ function rest(
     ? fake.cards
     : table === "media"
     ? fake.media
+    : table === "card_states"
+    ? fake.card_states
     : null;
   if (rows === null) return Response.json({}, { status: 404 });
   if (method === "POST") {
@@ -236,6 +259,16 @@ function rest(
     }
     rows.push(...inserted.map((row) => ({ deleted_at: null, ...row })));
     return new Response(null, { status: 201 });
+  }
+  if (method === "PATCH") {
+    // The update policy: the caller's own rows alone, each given the trigger's next revision.
+    const changed = rows.filter((row) =>
+      row.user_id === user && matches(row, url.searchParams)
+    );
+    for (const row of changed) {
+      Object.assign(row, body as Row, { revision: ++fake.revision });
+    }
+    return Response.json(changed.map((row) => ({ id: row.id })));
   }
   if (method === "DELETE") {
     const params = url.searchParams;
@@ -304,6 +337,23 @@ function fakeFetch(fake: Fake): typeof fetch {
         ? JSON.parse(init.body)
         : undefined;
       return await rest(fake, url, method, headers, body);
+    }
+    if (
+      url.href === `${SUPABASE_URL}/storage/v1/object/media` &&
+      method === "DELETE"
+    ) {
+      // The bucket's delete policy: files in the caller's own folder alone.
+      const user = authUser(headers.get("Authorization")?.slice(7));
+      if (fake.storage === "refusing" || user === null) {
+        return Response.json({ error: "refused" }, { status: 400 });
+      }
+      const { prefixes } = JSON.parse(String(init?.body)) as {
+        prefixes: string[];
+      };
+      const removed = prefixes.filter((path) =>
+        path.startsWith(`${user}/`) && fake.objects.delete(path)
+      );
+      return Response.json(removed.map((name) => ({ name })));
     }
     const object = url.href.match(/\/storage\/v1\/object\/media\/(.+)$/);
     if (object !== null && url.href.startsWith(SUPABASE_URL)) {
@@ -682,6 +732,10 @@ Deno.test("a protocol version header this server does not speak is refused with 
     "search_cards",
     "create_deck",
     "add_cards",
+    "update_cards",
+    "delete_cards",
+    "update_deck",
+    "delete_deck",
   ]);
 });
 
@@ -1105,6 +1159,7 @@ Deno.test("list_cards reads a stored photo back in the union, by its media id", 
   );
   const cards = result.structuredContent?.cards as { blocks: Row[] }[];
   const { blocks } = cards.at(-1)!;
+  const stored = fake.cards.at(-1)!.front as { id: string }[];
   assert.deepEqual(blocks[1], {
     type: "image",
     media: fake.media[0]!.id,
@@ -1112,6 +1167,7 @@ Deno.test("list_cards reads a stored photo back in the union, by its media id", 
     height: 480,
     boxes: [],
     side: "back",
+    id: stored[1]!.id,
   });
 });
 
@@ -1318,11 +1374,11 @@ Deno.test("a tool whose database cannot be reached answers an error result the m
 });
 
 Deno.test("an unknown tool is refused with the names of the tools", async () => {
-  const { result } = await call("delete_deck", {});
+  const { result } = await call("drop_deck", {});
   assert.equal(result.isError, true);
   assert.match(
     result.content[0]!.text,
-    /list_decks, list_cards, search_cards, create_deck, add_cards/,
+    /list_decks, list_cards, search_cards, create_deck, add_cards, update_cards, delete_cards, update_deck, delete_deck/,
   );
 });
 
@@ -1356,4 +1412,691 @@ Deno.test("cards added in one call within one millisecond are listed in the call
     ),
     ["cell", "first", "second", "third"],
   );
+});
+
+const APPLE = "00000000-0000-7000-8000-000000000c01";
+const BANANA = "00000000-0000-7000-8000-000000000c02";
+const CHERRY = "00000000-0000-7000-8000-000000000c03";
+const DELETED_CARD = "00000000-0000-7000-8000-000000000c04";
+const CELL = "00000000-0000-7000-8000-000000000c05";
+const GRACE_CARD = "00000000-0000-7000-8000-000000000c06";
+const UNKNOWN_CARD = "00000000-0000-7000-8000-0000000000ff";
+/** The call's time, when a test fixes the clock. */
+const CALL_TIME = Date.UTC(2026, 10, 2, 9, 30);
+const FIXED: IdSource = {
+  now: () => CALL_TIME,
+  random: (bytes) => crypto.getRandomValues(new Uint8Array(bytes)),
+};
+
+const cardRow = (fake: Fake, id: string) =>
+  fake.cards.find((row) => row.id === id)!;
+const deckRow = (fake: Fake, id: string) =>
+  fake.decks.find((row) => row.id === id)!;
+
+Deno.test("delete_cards tombstones each live card of the caller's at the call's time, under a new revision, removing no row, and lists those not found", async () => {
+  const fake = seed();
+  const rowsBefore = fake.cards.length;
+  const { result } = await call(
+    "delete_cards",
+    { card_ids: [BANANA, UNKNOWN_CARD, DELETED_CARD, APPLE, BANANA] },
+    fake,
+    ADA_TOKEN,
+    FIXED,
+  );
+  assert.deepEqual(result.structuredContent, {
+    deleted: [BANANA, APPLE],
+    not_found: [UNKNOWN_CARD, DELETED_CARD],
+    files_not_released: [],
+  });
+  assert.equal(fake.cards.length, rowsBefore);
+  const at = new Date(CALL_TIME).toISOString();
+  for (const id of [BANANA, APPLE]) {
+    const row = cardRow(fake, id);
+    assert.equal(row.deleted_at, at);
+    assert.equal(row.updated_at, at);
+    assert.ok((row.revision as number) > 100);
+  }
+  // The earlier tombstone and the rest keep what they held.
+  assert.equal(cardRow(fake, DELETED_CARD).deleted_at, "2026-10-05");
+  assert.equal(cardRow(fake, CHERRY).deleted_at, null);
+  assert.equal(fake.card_states.length, 1);
+  assert.ok(fake.calls.every((c) => !c.url.includes("card_states")));
+  const listed = await call("list_cards", { deck_id: ADA_DECK }, fake);
+  assert.deepEqual(
+    (listed.result.structuredContent?.cards as Row[]).map((card) => card.id),
+    [CHERRY],
+  );
+});
+
+Deno.test("delete_cards refuses 101 ids and writes nothing, and deletes 100", async () => {
+  const many = (count: number) =>
+    Array.from(
+      { length: count },
+      (_, index) =>
+        `00000000-0000-7000-8000-${index.toString(16).padStart(12, "0")}`,
+    );
+  const over = await call("delete_cards", { card_ids: many(101) });
+  assert.equal(over.result.isError, true);
+  assert.match(over.result.content[0]!.text, /at most 100 ids per call/);
+  assert.ok(over.fake.calls.every((c) => c.method !== "PATCH"));
+  const cap = await call("delete_cards", { card_ids: many(100) });
+  assert.equal(cap.result.isError, undefined);
+  assert.equal(
+    (cap.result.structuredContent?.not_found as string[]).length,
+    100,
+  );
+  assert.equal(cap.fake.calls.filter((c) => c.method === "PATCH").length, 1);
+});
+
+Deno.test("delete_cards refuses a call with an id that is not a uuid and writes nothing", async () => {
+  const { result, fake } = await call("delete_cards", {
+    card_ids: [APPLE, "apple"],
+  });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0]!.text, /Nothing was deleted/);
+  assert.ok(fake.calls.every((c) => c.method !== "PATCH"));
+  assert.equal(cardRow(fake, APPLE).deleted_at, null);
+});
+
+Deno.test("delete_cards leaves another user's card in a public deck, which the caller can read, and deletes the caller's own in the same call", async () => {
+  const fake = seed();
+  const { result } = await call("delete_cards", {
+    card_ids: [GRACE_CARD, CELL],
+  }, fake);
+  assert.deepEqual(result.structuredContent, {
+    deleted: [CELL],
+    not_found: [GRACE_CARD],
+    files_not_released: [],
+  });
+  assert.equal(cardRow(fake, GRACE_CARD).deleted_at, null);
+  assert.equal(cardRow(fake, GRACE_CARD).revision, undefined);
+  const own = await call(
+    "delete_cards",
+    { card_ids: [GRACE_CARD] },
+    seed(),
+    GRACE_TOKEN,
+  );
+  assert.deepEqual(own.result.structuredContent?.deleted, [GRACE_CARD]);
+});
+
+Deno.test("update_deck renames a live deck of the caller's, trimmed, at the call's time", async () => {
+  const fake = seed();
+  const { result } = await call(
+    "update_deck",
+    { deck_id: ADA_DECK, name: "  English words  " },
+    fake,
+    ADA_TOKEN,
+    FIXED,
+  );
+  assert.deepEqual(result.structuredContent, {
+    deck: { id: ADA_DECK, name: "English words" },
+  });
+  const row = deckRow(fake, ADA_DECK);
+  assert.equal(row.name, "English words");
+  assert.equal(row.updated_at, new Date(CALL_TIME).toISOString());
+  assert.ok((row.revision as number) > 100);
+  assert.equal(row.deleted_at, null);
+});
+
+Deno.test("update_deck refuses an empty name and one of 501 characters, and takes one of 500", async () => {
+  for (const name of ["   ", "a".repeat(501)]) {
+    const { result, fake } = await call("update_deck", {
+      deck_id: ADA_DECK,
+      name,
+    });
+    assert.equal(result.isError, true);
+    assert.match(result.content[0]!.text, /1 to 500 characters/);
+    assert.equal(deckRow(fake, ADA_DECK).name, "영단어");
+  }
+  const { result } = await call("update_deck", {
+    deck_id: ADA_DECK,
+    name: "a".repeat(500),
+  });
+  assert.equal(result.isError, undefined);
+});
+
+Deno.test("update_deck refuses another user's public deck and a deleted deck, as it renames the caller's own", async () => {
+  for (const deck_id of [GRACE_PUBLIC_DECK, ADA_DELETED_DECK, UNKNOWN_CARD]) {
+    const { result, fake } = await call("update_deck", {
+      deck_id,
+      name: "Mine now",
+    });
+    assert.equal(result.isError, true, deck_id);
+    assert.match(result.content[0]!.text, /Call list_decks/);
+    assert.notEqual(deckRow(fake, GRACE_PUBLIC_DECK).name, "Mine now");
+    assert.notEqual(deckRow(fake, ADA_DELETED_DECK).name, "Mine now");
+  }
+  const own = await call(
+    "update_deck",
+    { deck_id: GRACE_PUBLIC_DECK, name: "Mine now" },
+    seed(),
+    GRACE_TOKEN,
+  );
+  assert.equal(deckRow(own.fake, GRACE_PUBLIC_DECK).name, "Mine now");
+});
+
+Deno.test("delete_deck tombstones a deck of the caller's and its live cards at one time, leaving its earlier tombstone, its study state and other decks", async () => {
+  const fake = seed();
+  const { result } = await call(
+    "delete_deck",
+    { deck_id: ADA_DECK },
+    fake,
+    ADA_TOKEN,
+    FIXED,
+  );
+  assert.deepEqual(result.structuredContent, {
+    deck: { id: ADA_DECK, name: "영단어" },
+    deleted_cards: 3,
+    files_not_released: [],
+  });
+  const at = new Date(CALL_TIME).toISOString();
+  for (
+    const row of [
+      deckRow(fake, ADA_DECK),
+      ...[APPLE, BANANA, CHERRY].map((id) => cardRow(fake, id)),
+    ]
+  ) {
+    assert.equal(row.deleted_at, at);
+    assert.equal(row.updated_at, at);
+    assert.ok((row.revision as number) > 100);
+  }
+  assert.equal(cardRow(fake, DELETED_CARD).deleted_at, "2026-10-05");
+  assert.equal(cardRow(fake, CELL).deleted_at, null);
+  assert.equal(deckRow(fake, ADA_OTHER_DECK).deleted_at, null);
+  assert.equal(fake.cards.length, seed().cards.length);
+  assert.equal(fake.card_states.length, 1);
+  const listed = await call("list_decks", {}, fake);
+  assert.deepEqual(listed.result.structuredContent, {
+    decks: [{ id: ADA_OTHER_DECK, name: "Biology", card_count: 1 }],
+  });
+});
+
+Deno.test("delete_deck refuses another user's public deck and an already deleted one, writing nothing, as it deletes the caller's own", async () => {
+  for (const deck_id of [GRACE_PUBLIC_DECK, ADA_DELETED_DECK]) {
+    const { result, fake } = await call("delete_deck", { deck_id });
+    assert.equal(result.isError, true, deck_id);
+    assert.match(result.content[0]!.text, /Call list_decks/);
+    assert.ok(fake.calls.every((c) => c.method !== "PATCH"));
+  }
+  const own = await call(
+    "delete_deck",
+    { deck_id: GRACE_PUBLIC_DECK },
+    seed(),
+    GRACE_TOKEN,
+  );
+  assert.equal(own.result.structuredContent?.deleted_cards, 1);
+  assert.notEqual(deckRow(own.fake, GRACE_PUBLIC_DECK).deleted_at, null);
+});
+
+const UUID_V7 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const FREE_CARD = "00000000-0000-7000-8000-000000000c07";
+const CARD_PHOTO = "00000000-0000-7000-8000-0000000000a1";
+const CARD_SOUND = "00000000-0000-7000-8000-0000000000a2";
+const DECK_IMAGE = "00000000-0000-7000-8000-0000000000a3";
+
+/** A seed with a `free` v2 card in Biology holding a 글, a photo and a sound, their files stored. */
+function withFreeCard(): Fake {
+  const fake = withPhoto();
+  const at = "2026-10-07T00:00:00.000Z";
+  fake.cards.push({
+    id: FREE_CARD,
+    deck_id: ADA_OTHER_DECK,
+    user_id: ADA,
+    template: "free",
+    template_version: 2,
+    front: [
+      {
+        type: "text",
+        v: 2,
+        id: "b-text",
+        payload: { front: "heart", back: "pumps blood" },
+      },
+      {
+        type: "image",
+        v: 2,
+        id: "b-photo",
+        payload: {
+          media: CARD_PHOTO,
+          width: 640,
+          height: 480,
+          boxes: [],
+          side: "back",
+        },
+      },
+      {
+        type: "audio",
+        v: 2,
+        id: "b-sound",
+        payload: { media: CARD_SOUND, duration_ms: 1200, side: "back" },
+      },
+    ],
+    back: [],
+    card_key: "heart",
+    source: "manual",
+    deleted_at: null,
+    created_at: at,
+    updated_at: at,
+  });
+  fake.card_states.push({ card_id: FREE_CARD, user_id: ADA, stability: 2 });
+  for (const [id, kind] of [[CARD_PHOTO, "image"], [CARD_SOUND, "audio"]]) {
+    fake.media.push({ id, user_id: ADA, kind });
+    fake.objects.set(`${ADA}/${id}`, { bytes: pngBytes(), type: null });
+  }
+  return fake;
+}
+
+Deno.test("update_cards replaces a card's 칸 whole, keeping the ids it is given of the card's own blocks, its photo and sound by media unfetched, and its study state", async () => {
+  const fake = withFreeCard();
+  const listed = await call("list_cards", { deck_id: ADA_OTHER_DECK }, fake);
+  const read = (listed.result.structuredContent?.cards as {
+    id: string;
+    blocks: Row[];
+  }[]).find((card) => card.id === FREE_CARD)!;
+  assert.deepEqual(read.blocks.map((block) => block.id), [
+    "b-text",
+    "b-photo",
+    "b-sound",
+  ]);
+  const [text, photo, sound] = read.blocks as [Row, Row, Row];
+  const states = structuredClone(fake.card_states);
+  const { result } = await call(
+    "update_cards",
+    {
+      cards: [{
+        id: FREE_CARD,
+        blocks: [
+          { ...text, front: "Heart" },
+          {
+            type: "image",
+            id: photo.id,
+            media: photo.media,
+            width: photo.width,
+            height: photo.height,
+            boxes: [{ x: 0.1, y: 0.1, w: 0.2, h: 0.2, answer: "valve" }],
+          },
+          sound,
+          // An id of the card's, but of another type, and one given twice: both minted.
+          { type: "text", id: "b-photo", front: "", back: "a muscle" },
+          { type: "text", id: "b-text", back: "four chambers" },
+        ],
+      }],
+    },
+    fake,
+    ADA_TOKEN,
+    FIXED,
+  );
+  assert.deepEqual(result.structuredContent, {
+    // A boxed photo shows first, read as the phone's plainText reads it: its media id and answers.
+    updated: [{
+      index: 0,
+      id: FREE_CARD,
+      front: `Heart\n${CARD_PHOTO}\nvalve`,
+    }],
+    refused: [],
+  });
+  const row = cardRow(fake, FREE_CARD);
+  const blocks = row.front as { id: string; payload: Row }[];
+  assert.deepEqual(blocks.slice(0, 3).map((block) => block.id), [
+    "b-text",
+    "b-photo",
+    "b-sound",
+  ]);
+  assert.ok(blocks.slice(3).every((block) => UUID_V7.test(block.id)));
+  assert.deepEqual(blocks[1]!.payload, {
+    media: CARD_PHOTO,
+    width: 640,
+    height: 480,
+    boxes: [{
+      x: 0.1,
+      y: 0.1,
+      w: 0.2,
+      h: 0.2,
+      answer: "valve",
+      id: (blocks[1]!.payload.boxes as Row[])[0]!.id,
+    }],
+  });
+  assert.ok(UUID_V7.test((blocks[1]!.payload.boxes as Row[])[0]!.id as string));
+  assert.deepEqual(blocks[2]!.payload, {
+    media: CARD_SOUND,
+    duration_ms: 1200,
+    side: "back",
+  });
+  assert.ok(fake.calls.every((c) => !c.url.startsWith("https://cdn.example")));
+  assert.equal(row.updated_at, new Date(CALL_TIME).toISOString());
+  assert.ok((row.revision as number) > 100);
+  assert.equal(row.source, "manual");
+  assert.equal(row.created_at, "2026-10-07T00:00:00.000Z");
+  assert.deepEqual(fake.card_states, states);
+  assert.ok(fake.calls.every((c) => !c.url.includes("card_states")));
+});
+
+Deno.test("update_cards writes a card of two sides as free v2 with the key of its new front, and fetches a new photo", async () => {
+  const fake = withPhoto();
+  const { result } = await call(
+    "update_cards",
+    {
+      cards: [{
+        id: BANANA,
+        blocks: [
+          { type: "text", front: "  Plantain ", back: "플랜테인" },
+          { type: "image", url: PHOTO, side: "back" },
+        ],
+      }],
+    },
+    fake,
+    ADA_TOKEN,
+    FIXED,
+  );
+  assert.deepEqual(result.structuredContent?.refused, []);
+  const row = cardRow(fake, BANANA);
+  assert.equal(row.template, "free");
+  assert.equal(row.template_version, 2);
+  assert.deepEqual(row.back, []);
+  assert.equal(row.card_key, "plantain");
+  const photo = (row.front as { payload: Row }[])[1]!.payload;
+  assert.equal(photo.width, 640);
+  assert.ok(fake.objects.has(`${ADA}/${photo.media}`));
+});
+
+Deno.test("update_cards refuses 101 cards and writes nothing, and answers 100 card by card", async () => {
+  const many = (count: number) =>
+    Array.from({ length: count }, () => ({
+      id: UNKNOWN_CARD,
+      front: "x",
+      back: "y",
+    }));
+  const over = await call("update_cards", { cards: many(101) });
+  assert.equal(over.result.isError, true);
+  assert.match(over.result.content[0]!.text, /at most 100 cards per call/);
+  assert.ok(over.fake.calls.every((c) => c.method !== "PATCH"));
+  const cap = await call("update_cards", { cards: many(100) });
+  assert.equal(cap.result.isError, undefined);
+  assert.equal(
+    (cap.result.structuredContent?.refused as Row[]).length,
+    100,
+  );
+});
+
+Deno.test("update_cards refuses by index an id that is not a live card of the caller's, another user's public one included, and updates the caller's own in the same call", async () => {
+  const fake = seed();
+  const { result } = await call("update_cards", {
+    cards: [
+      { id: GRACE_CARD, front: "mine", back: "now" },
+      { id: DELETED_CARD, front: "back", back: "again" },
+      { id: UNKNOWN_CARD, front: "who", back: "?" },
+      { id: "cell", front: "not", back: "an id" },
+      { id: CELL, front: "cytoplasm", back: "세포질" },
+    ],
+  }, fake);
+  const { updated, refused } = result.structuredContent as {
+    updated: Row[];
+    refused: Row[];
+  };
+  assert.deepEqual(refused.map((r) => r.index), [0, 1, 2, 3]);
+  for (const r of refused) {
+    assert.match(String(r.reason), /No card of the signed-in user has this id/);
+  }
+  assert.deepEqual(updated.map((u) => u.id), [CELL]);
+  assert.equal(cardRow(fake, GRACE_CARD).revision, undefined);
+  assert.equal(cardRow(fake, DELETED_CARD).revision, undefined);
+  const own = await call(
+    "update_cards",
+    { cards: [{ id: GRACE_CARD, front: "mine", back: "now" }] },
+    seed(),
+    GRACE_TOKEN,
+  );
+  assert.equal((own.result.structuredContent?.updated as Row[]).length, 1);
+});
+
+Deno.test("update_cards refuses a card by its index and the block's, with add_cards' sentences, leaving it as it was", async () => {
+  const fake = withFreeCard();
+  const before = structuredClone(cardRow(fake, CELL));
+  const { result } = await call("update_cards", {
+    cards: [
+      {
+        id: CELL,
+        blocks: [
+          { type: "text", front: "a", back: "b" },
+          { type: "cloze", text: "no blank here", answers: ["x"] },
+        ],
+      },
+      // A photo or a sound of another card's is not this card's to keep.
+      {
+        id: CELL,
+        blocks: [{ type: "image", media: CARD_PHOTO, side: "front" }, {
+          type: "text",
+          back: "b",
+        }],
+      },
+      {
+        id: CELL,
+        blocks: [{ type: "text", front: "a", back: "b" }, {
+          type: "audio",
+          media: CARD_SOUND,
+          side: "back",
+        }],
+      },
+      { id: CELL, blocks: [{ type: "text", front: "only a front" }] },
+      { id: APPLE, front: "apple", back: "사과" },
+    ],
+  }, fake);
+  const { updated, refused } = result.structuredContent as {
+    updated: Row[];
+    refused: { index: number; reason: string }[];
+  };
+  assert.deepEqual(refused.map((r) => r.index), [0, 1, 2, 3]);
+  assert.match(refused[0]!.reason, /^block 1: a cloze needs text with one ___/);
+  assert.match(
+    refused[1]!.reason,
+    /^block 0: an image block by media must name a photo this card already holds/,
+  );
+  assert.match(
+    refused[2]!.reason,
+    /^block 1: an audio block must name a sound this card already holds/,
+  );
+  assert.match(refused[3]!.reason, /^the card adds nothing at the reveal/);
+  assert.deepEqual(updated.map((u) => u.id), [APPLE]);
+  assert.deepEqual(cardRow(fake, CELL), before);
+});
+
+Deno.test("update_cards refuses a new front another card of the deck shows, or one an earlier card of the call took, unless allow_duplicates, and a card may keep its own", async () => {
+  const fake = seed();
+  const { result } = await call("update_cards", {
+    cards: [
+      { id: BANANA, front: "Apple", back: "사과 2" },
+      { id: APPLE, front: "apple", back: "사과!" },
+      { id: CHERRY, front: "kiwi", back: "키위" },
+      { id: BANANA, front: "KIWI", back: "키위 2" },
+      // The same front in another deck is no duplicate.
+      { id: CELL, front: "apple", back: "사과 3" },
+    ],
+  }, fake);
+  const { updated, refused } = result.structuredContent as {
+    updated: Row[];
+    refused: { index: number; reason: string }[];
+  };
+  assert.deepEqual(refused.map((r) => r.index), [0, 3]);
+  assert.match(
+    refused[0]!.reason,
+    new RegExp(`card ${APPLE} in the same deck`),
+  );
+  assert.match(
+    refused[1]!.reason,
+    new RegExp(`card ${CHERRY} in the same deck`),
+  );
+  assert.deepEqual(updated.map((u) => u.index), [1, 2, 4]);
+  assert.equal(cardRow(fake, BANANA).card_key, "banana");
+  const allowed = await call("update_cards", {
+    cards: [{ id: BANANA, front: "Apple", back: "사과 2" }],
+    allow_duplicates: true,
+  }, fake);
+  assert.deepEqual(allowed.result.structuredContent?.refused, []);
+  assert.equal(cardRow(fake, BANANA).card_key, "apple");
+});
+
+Deno.test("update_cards refuses a card holding a block of a later version and a card edited after the call began, and updates the rest", async () => {
+  const fake = seed();
+  cardRow(fake, BANANA).front = [
+    { type: "text", v: 1, payload: { text: "Banana" } },
+    { type: "hologram", v: 1, payload: {} },
+  ];
+  cardRow(fake, CHERRY).updated_at = "2026-12-01T00:00:00.000Z";
+  const { result } = await call(
+    "update_cards",
+    {
+      cards: [
+        { id: BANANA, front: "banana", back: "바나나" },
+        { id: CHERRY, front: "cherry", back: "체리" },
+        { id: APPLE, front: "apple", back: "사과" },
+      ],
+    },
+    fake,
+    ADA_TOKEN,
+    FIXED,
+  );
+  const { updated, refused } = result.structuredContent as {
+    updated: Row[];
+    refused: { index: number; reason: string }[];
+  };
+  assert.match(refused[0]!.reason, /newer version of knowno/);
+  assert.match(refused[1]!.reason, /changed elsewhere after this call began/);
+  assert.deepEqual(refused.map((r) => r.index), [0, 1]);
+  assert.deepEqual(updated.map((u) => u.id), [APPLE]);
+  assert.equal(cardRow(fake, CHERRY).updated_at, "2026-12-01T00:00:00.000Z");
+  assert.equal(cardRow(fake, BANANA).revision, undefined);
+});
+
+Deno.test("update_cards fetches ten photos a call, an eleventh card refused with what to do", async () => {
+  const fake = withPhoto();
+  const ids = Array.from(
+    { length: 11 },
+    (_, index) =>
+      `00000000-0000-7000-8000-0000000001${
+        index.toString(16).padStart(2, "0")
+      }`,
+  );
+  for (const id of ids) {
+    fake.cards.push(
+      card(id, ADA_OTHER_DECK, ADA, [block("text", { text: id })], [
+        block("text", { text: "뜻" }),
+      ], { created_at: "2026-10-09", updated_at: "2026-10-09" }),
+    );
+  }
+  const { result } = await call("update_cards", {
+    cards: ids.map((id) => ({
+      id,
+      blocks: [{ type: "text", front: id }, {
+        type: "image",
+        url: PHOTO,
+        side: "back",
+      }],
+    })),
+  }, fake);
+  const { updated, refused } = result.structuredContent as {
+    updated: Row[];
+    refused: { index: number; reason: string }[];
+  };
+  assert.equal(updated.length, 10);
+  assert.deepEqual(refused.map((r) => r.index), [10]);
+  assert.match(refused[0]!.reason, /at most 10 photos per call/);
+});
+
+Deno.test("tools/list marks the read tools read-only, the writes not destructive and the deletions destructive", async () => {
+  const run = await send({
+    body: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+  });
+  const tools = (run.json as {
+    result: { tools: { name: string; annotations: Row }[] };
+  }).result.tools;
+  const hints = Object.fromEntries(
+    tools.map((tool) => [tool.name, [
+      tool.annotations.readOnlyHint,
+      tool.annotations.destructiveHint,
+    ]]),
+  );
+  assert.deepEqual(hints, {
+    list_decks: [true, undefined],
+    list_cards: [true, undefined],
+    search_cards: [true, undefined],
+    create_deck: [false, false],
+    add_cards: [false, false],
+    update_cards: [false, false],
+    update_deck: [false, false],
+    delete_cards: [false, true],
+    delete_deck: [false, true],
+  });
+});
+
+Deno.test("initialize asks the model to confirm a deletion with the user and to prefer update_cards", async () => {
+  const run = await send({
+    body: { jsonrpc: "2.0", id: 1, method: "initialize", params: {} },
+  });
+  const { instructions } = (run.json as { result: { instructions: string } })
+    .result;
+  assert.match(
+    instructions,
+    /Before delete_cards or delete_deck, confirm with the user/,
+  );
+  assert.match(
+    instructions,
+    /prefer that to deleting a card and adding a new one/,
+  );
+});
+
+Deno.test("delete_cards releases the photos and sounds no live card or deck holds, and keeps those another holds", async () => {
+  const free = withFreeCard();
+  const released = await call("delete_cards", { card_ids: [FREE_CARD] }, free);
+  assert.deepEqual(released.result.structuredContent?.files_not_released, []);
+  assert.equal(free.objects.size, 0);
+  assert.deepEqual(free.media, []);
+  const held = withFreeCard();
+  held.cards.push(
+    card("00000000-0000-7000-8000-000000000c08", ADA_DECK, ADA, [
+      block("text", { text: "valve" }),
+    ], [block("image", { media: CARD_PHOTO, width: 1, height: 1, boxes: [] })]),
+  );
+  deckRow(held, ADA_DECK).image_media_id = CARD_SOUND;
+  const kept = await call("delete_cards", { card_ids: [FREE_CARD] }, held);
+  assert.deepEqual(kept.result.structuredContent?.deleted, [FREE_CARD]);
+  assert.deepEqual(kept.result.structuredContent?.files_not_released, []);
+  assert.equal(held.objects.size, 2);
+  assert.equal(held.media.length, 2);
+});
+
+Deno.test("delete_cards keeps its deletion when Storage refuses the release, and names the files not released", async () => {
+  const fake = withFreeCard();
+  fake.storage = "refusing";
+  const { result } = await call(
+    "delete_cards",
+    { card_ids: [FREE_CARD] },
+    fake,
+  );
+  assert.deepEqual(result.structuredContent, {
+    deleted: [FREE_CARD],
+    not_found: [],
+    files_not_released: [CARD_PHOTO, CARD_SOUND],
+  });
+  assert.notEqual(cardRow(fake, FREE_CARD).deleted_at, null);
+  assert.equal(fake.objects.size, 2);
+  assert.equal(fake.media.length, 2);
+});
+
+Deno.test("delete_deck releases the deck's image and its cards' photos and sounds", async () => {
+  const fake = withFreeCard();
+  deckRow(fake, ADA_OTHER_DECK).image_media_id = DECK_IMAGE;
+  fake.media.push({ id: DECK_IMAGE, user_id: ADA, kind: "image" });
+  fake.objects.set(`${ADA}/${DECK_IMAGE}`, { bytes: pngBytes(), type: null });
+  const { result } = await call(
+    "delete_deck",
+    { deck_id: ADA_OTHER_DECK },
+    fake,
+  );
+  assert.deepEqual(result.structuredContent, {
+    deck: { id: ADA_OTHER_DECK, name: "Biology" },
+    deleted_cards: 2,
+    files_not_released: [],
+  });
+  assert.equal(fake.objects.size, 0);
+  assert.deepEqual(fake.media, []);
 });

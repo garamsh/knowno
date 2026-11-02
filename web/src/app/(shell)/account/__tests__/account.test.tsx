@@ -97,8 +97,10 @@ describe("the account page", () => {
     expect(section.getByText("ChatGPT").nextElementSibling).toHaveTextContent(
       "chatgpt.com/plugins에서 커스텀 MCP 서버를 추가하고 서버 주소를 넣은 뒤 알아몰라로 로그인해요",
     );
-    // What a connection may do, and that it deletes and edits nothing; substring, inside the note.
-    expect(section.getByText(/지우거나 고치지는 않아요/)).toBeVisible();
+    // What a connection may do; substring, inside the note.
+    expect(
+      section.getByText(/노트와 카드를 읽고, 추가하고, 고치고, 지울 수 있어요\./),
+    ).toBeVisible();
   });
 
   it("redirects to /login without a session", async () => {
