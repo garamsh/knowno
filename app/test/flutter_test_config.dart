@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:knowno/design/mascot.dart';
 import 'package:knowno/design/streak_flame.dart';
 import 'package:knowno/study/study.dart';
 
@@ -12,5 +13,6 @@ import 'package:knowno/study/study.dart';
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   await Scheduler.load();
   streakFlamesMove = false;
+  mascotsMove = false;
   await testMain();
 }

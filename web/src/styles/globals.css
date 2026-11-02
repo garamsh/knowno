@@ -526,3 +526,105 @@
     }
   }
 }
+
+/* The mascot's motion (ADR 0152), on the parts tools/brand/generate.mjs names, in units of its
+   1024 drawing. Its component sets data-motion only while it is on screen with reduce motion off,
+   data-eyes for a blink, and --glance-x and --glance-y for a glance; each eye closes about the
+   centre its transform-origin names. */
+@layer components {
+  .mascot {
+    overflow: visible;
+  }
+  .mascot .breath {
+    transform-box: view-box;
+    transform-origin: 512px 960px;
+  }
+  .mascot .eye {
+    transform-box: view-box;
+    transition: transform 60ms ease-in;
+  }
+  .mascot[data-eyes="shut"] .eye {
+    transform: scaleY(0.05);
+    opacity: 0;
+    transition:
+      transform 70ms ease-in,
+      opacity 0s linear 60ms;
+  }
+  .mascot .lid {
+    transition: opacity 40ms;
+  }
+  .mascot[data-eyes="shut"] .lid {
+    opacity: 1;
+  }
+  .mascot .pupil {
+    transform: translate(var(--glance-x, 0px), var(--glance-y, 0px));
+    transition: transform 260ms cubic-bezier(0.3, 0.7, 0.3, 1);
+  }
+  .mascot[data-motion="full"] .breath {
+    animation: mascot-breath 3s ease-in-out infinite;
+  }
+  .mascot[data-motion="full"][data-expression="sleepy"] .breath {
+    animation: mascot-breath-deep 4.2s ease-in-out infinite;
+  }
+  .mascot[data-motion="full"][data-expression="sleepy"] .zz {
+    animation: mascot-zz 4.2s ease-in-out infinite;
+  }
+  .mascot[data-motion="full"][data-expression="happy"] .breath {
+    animation: mascot-hop 1.6s cubic-bezier(0.3, 0.6, 0.4, 1) infinite;
+  }
+  .mascot[data-motion="full"][data-expression="happy"] .arms {
+    transform-box: view-box;
+    transform-origin: 512px 640px;
+    animation: mascot-arms 1.6s ease-in-out infinite;
+  }
+}
+@keyframes mascot-breath {
+  50% {
+    transform: scale(1.012, 0.982);
+  }
+}
+@keyframes mascot-breath-deep {
+  50% {
+    transform: scale(1.02, 0.97);
+  }
+}
+@keyframes mascot-hop {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  12% {
+    transform: translateY(0) scale(1.04, 0.95);
+  }
+  30% {
+    transform: translateY(-46px) scale(0.98, 1.03);
+  }
+  48% {
+    transform: translateY(0) scale(1.03, 0.97);
+  }
+}
+@keyframes mascot-arms {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0) translateY(0);
+  }
+  30% {
+    transform: rotate(-3deg) translateY(-14px);
+  }
+}
+@keyframes mascot-zz {
+  0% {
+    opacity: 0;
+    transform: translate(-20px, 30px);
+  }
+  30%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(10px, -40px);
+  }
+}

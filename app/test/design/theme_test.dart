@@ -77,7 +77,8 @@ void main() {
     expect(darkTheme.textTheme.bodyMedium?.fontFamily, appFontFamily);
   });
 
-  test('no colour is written outside the theme file and Google\'s button', () {
+  test('no colour is written outside the theme file, Google\'s button and '
+      'the mascot\'s drawing', () {
     final colour = RegExp(r'Color\(0x|\bColors\.');
     final sources = {
       for (final entity in Directory('lib').listSync(recursive: true))
@@ -88,14 +89,17 @@ void main() {
           entity.path: entity.readAsStringSync(),
     };
     // Controls: the scan reads the theme file, where every colour is written,
-    // and Google's button, whose colours are Google's.
+    // Google's button, whose colours are Google's, and the mascot's drawing,
+    // whose colours tools/brand/ writes.
     expect(colour.hasMatch(sources['lib/design/theme.dart'] ?? ''), isTrue);
     expect(colour.hasMatch(sources[_googleButton] ?? ''), isTrue);
+    expect(colour.hasMatch(sources[_mascotDrawing] ?? ''), isTrue);
 
     expect([
       for (final MapEntry(key: path, value: source) in sources.entries)
         if (path != 'lib/design/theme.dart' &&
             path != _googleButton &&
+            path != _mascotDrawing &&
             colour.hasMatch(source))
           path,
     ], isEmpty);
@@ -359,6 +363,9 @@ void main() {
 /// to the tokens: the one file beside the theme and the components that
 /// writes colours and sizes.
 const _googleButton = 'lib/account/src/google_button.dart';
+
+/// The mascot's shapes, which `make brand` writes from `tools/brand/`.
+const _mascotDrawing = 'lib/design/mascot_drawings.dart';
 
 /// `CardText`, which fits a card side's text by scaling the `AppType` style
 /// it is given; it is `deck`'s, since `deck` alone draws cards.

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Writes every brand file from the drawings in tools/brand/, the mark and the mascot's expressions
 // over the one body.svg, and wordmarks.json, the outlines of 알아몰라 and knowno in Pretendard
-// ExtraBold (app/assets/fonts/): the SVGs of web/public/, and the PNGs of app/assets/brand/ and
-// web/public/. `make brand` runs it, then the launcher icon and
+// ExtraBold (app/assets/fonts/): the SVGs of web/public/, the PNGs of app/assets/brand/ and
+// web/public/, and the parts each client's Mascot moves, as Dart for the app and SVG markup for the
+// web. `make brand` runs it, then the launcher icon and
 // splash generators over its output. With --check it writes nothing and fails on a file that
-// differs from what it would write: an SVG by any byte, a PNG by a mean difference per channel of
-// 1 in 255 or more, since librsvg's anti-aliasing differs a little between platforms.
+// differs from what it would write: an SVG or a source file by any byte, a PNG by a mean difference
+// per channel of 1 in 255 or more, since librsvg's anti-aliasing differs a little between platforms.
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -17,6 +18,8 @@ const sharp = createRequire(join(root, "web/package.json"))("sharp");
 const ink = "#3B2118";
 const inkOnDark = "#FFF1E3";
 const cream = "#FCEBD5";
+const cobalt = "#2547D0";
+const darkGround = "#111A2E";
 
 /** What the drawing tools/brand/[name].svg holds inside its root. */
 const inner = (name) =>
@@ -41,8 +44,9 @@ const centred = (art, scale, ground = "") => {
 
 const onCircle = centred(mark, 0.88, `<circle cx="512" cy="512" r="512" fill="${cream}"/>`);
 
-/** The mark close up on a full cream square, its body running off the foot. */
-const onSquare = `<rect width="1024" height="1024" fill="${cream}"/><g transform="translate(-120 -6) scale(1.25)">${mark}</g>`;
+/** The mark close up on a full square of [ground], the ground showing around its head, its body running off the foot. */
+const onSquare = (ground) =>
+  `<rect width="1024" height="1024" fill="${ground}"/><g transform="translate(-36 70) scale(1.08)">${mark}</g>`;
 
 /** The mark on the cream circle, in a box [size] across at ([x], [y]). */
 const circled = (x, y, size) =>
@@ -87,7 +91,7 @@ const expressions = {
 };
 
 const vectors = {
-  "web/public/favicon.svg": canvas(onSquare),
+  "web/public/favicon.svg": canvas(onSquare(cobalt)),
   ...Object.fromEntries(
     Object.entries(expressions).map(([name, art]) => [`web/public/brand/knowno-${name}.svg`, art]),
   ),
@@ -95,6 +99,159 @@ const vectors = {
   "web/public/brand/knowno-lockup-dark.svg": lockup(inkOnDark),
   "web/public/brand/knowno-stacked-light.svg": stacked(ink),
   "web/public/brand/knowno-stacked-dark.svg": stacked(inkOnDark),
+};
+
+/** The elements of an SVG fragment as a tree of { tag, attrs, children }; the drawings hold nothing else. */
+const parse = (markup) => {
+  const root = { children: [] };
+  const open = [root];
+  for (const [, close, tag, attrs, alone] of markup.matchAll(/<(\/?)(\w+)([^>]*?)(\/?)>/g)) {
+    if (close) {
+      open.pop();
+      continue;
+    }
+    const node = {
+      tag,
+      attrs: Object.fromEntries([...attrs.matchAll(/([\w-]+)="([^"]*)"/g)].map(([, k, v]) => [k, v])),
+      children: [],
+    };
+    open.at(-1).children.push(node);
+    if (!alone) open.push(node);
+  }
+  return root.children;
+};
+
+/** A number of the drawing to a tenth, as SVG and Dart both write it. */
+const number = (n) => String(Math.round(n * 10) / 10);
+
+/**
+ * [nodes] with each eye's closed lid after it: an arc in ink, 20 wide, from 0.72 of the white's
+ * radius either side of its centre, dipping a half radius below it. The eye keeps its white's
+ * centre as the point it closes about.
+ */
+const withLids = (nodes) =>
+  nodes.flatMap((node) => {
+    if (node.attrs.class !== "eye") return [{ ...node, children: withLids(node.children) }];
+    const { cx, cy, r } = Object.fromEntries(
+      Object.entries(node.children.find(({ tag }) => tag === "circle").attrs).map(([k, v]) => [k, Number(v)]),
+    );
+    const d = `M${number(cx - 0.72 * r)} ${cy}Q${cx} ${number(cy + 0.5 * r)} ${number(cx + 0.72 * r)} ${cy}`;
+    return [
+      { ...node, attrs: { ...node.attrs, "transform-origin": `${cx} ${cy}` } },
+      {
+        tag: "path",
+        attrs: {
+          class: "lid",
+          fill: "none",
+          stroke: ink,
+          "stroke-width": "20",
+          "stroke-linecap": "round",
+          opacity: "0",
+          d,
+        },
+        children: [],
+      },
+    ];
+  });
+
+/** Each expression's drawing, its moving parts named by class: eye, pupil, lid, arms and zz. */
+const parts = Object.fromEntries(
+  ["thinking", "happy", "sad", "sleepy"].map((name) => [
+    name,
+    withLids(parse(drawing(name === "thinking" ? "mark" : name))),
+  ]),
+);
+
+const markup = (nodes) =>
+  nodes
+    .map(({ tag, attrs, children }) => {
+      const open = `<${tag}${Object.entries(attrs)
+        .map(([k, v]) => ` ${k}="${v}"`)
+        .join("")}`;
+      return children.length ? `${open}>${markup(children)}</${tag}>` : `${open}/>`;
+    })
+    .join("");
+
+/** The web's parts: each drawing inside the group that breathes, as markup for an inline SVG. */
+const webParts = `// Written by tools/brand/generate.mjs from the drawings in tools/brand/; run make brand after changing one.
+
+${Object.entries(parts)
+  .map(([name, nodes]) => `const ${name} =\n  '<g class="breath">${markup(nodes)}</g>';\n`)
+  .join("\n")}
+/** Each expression's drawing on a 1024 square, inside the group that breathes, its moving parts named by class. */
+export const mascotDrawings = { ${Object.keys(parts).join(", ")} };
+`;
+
+/** The shapes of [nodes], back to front, each with the style, transform and moving part it takes from its groups. */
+function* shapes(nodes, context = { style: {}, transform: "", move: null, eye: null }) {
+  for (const node of nodes) {
+    const style = { ...context.style };
+    for (const key of ["fill", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin"]) {
+      if (key in node.attrs) style[key] = node.attrs[key];
+    }
+    const inner = {
+      style,
+      transform: [context.transform, node.attrs.transform].filter(Boolean).join(" "),
+      move: node.attrs.class ?? context.move,
+      eye: node.attrs["transform-origin"] ?? context.eye,
+    };
+    if (node.tag === "g") yield* shapes(node.children, inner);
+    else yield { ...inner, node };
+  }
+}
+
+const dartColour = (hex) => `Color(0xFF${hex.slice(1).toUpperCase()})`;
+
+/** A call of [name] with [args], on one line where it fits in 80 columns at [indent], as dart format writes it. */
+const dartCall = (indent, name, args) => {
+  const pad = " ".repeat(indent);
+  const line = `${pad}${name}(${args.join(", ")}),`;
+  if (line.length <= 80) return line;
+  return [`${pad}${name}(`, ...args.map((arg) => `${pad}  ${arg},`), `${pad}),`].join("\n");
+};
+
+/** One shape as the app's `_Shape`. */
+const dartShape = ({ node: { tag, attrs }, style, transform, move, eye }) => {
+  const args =
+    tag === "path"
+      ? [`d: '${attrs.d}'`]
+      : [
+          `oval: (${[attrs.cx, attrs.cy, attrs.rx ?? attrs.r, attrs.ry ?? attrs.r]
+            .map((n) => number(Number(n)))
+            .join(", ")})`,
+        ];
+  const fill = style.fill ?? "#000000";
+  if (fill !== "none") args.push(`fill: ${dartColour(fill)}`);
+  if (style.stroke && style.stroke !== "none") {
+    args.push(`stroke: ${dartColour(style.stroke)}`, `width: ${style["stroke-width"] ?? 1}`);
+    if (style["stroke-linecap"]) args.push(`cap: StrokeCap.${style["stroke-linecap"]}`);
+    if (style["stroke-linejoin"]) args.push(`join: StrokeJoin.${style["stroke-linejoin"]}`);
+  }
+  if (transform) args.push(`transform: '${transform}'`);
+  if (move) args.push(`move: _Move.${move}`);
+  if (eye) args.push(`eye: Offset(${eye.split(" ").join(", ")})`);
+  return dartCall(4, "_Shape", args);
+};
+
+/** The app's parts: each drawing's shapes, which its Mascot paints and moves. */
+const dartParts = `// Written by tools/brand/generate.mjs from the drawings in tools/brand/; run
+// make brand after changing one.
+part of 'mascot.dart';
+
+/// Each expression's shapes, back to front, on a 1024 square.
+const _drawings = {
+${Object.entries(parts)
+  .map(
+    ([name, nodes]) => `  MascotExpression.${name}: [\n${[...shapes(nodes)].map(dartShape).join("\n")}\n  ],`,
+  )
+  .join("\n")}
+};
+`;
+
+/** The source files each client's Mascot draws its parts from. */
+const sources = {
+  "app/lib/design/mascot_drawings.dart": dartParts,
+  "web/src/design/mascot-drawings.ts": webParts,
 };
 
 /** The size an SVG of [size] is drawn at, [height] or [width] high or wide, in device pixels. */
@@ -130,21 +287,22 @@ const rasters = [
   ...Object.entries(expressions).flatMap(([name, art]) =>
     densities(`knowno-${name}`, art, { width: 1024, height: 1024 }, { width: 128 }),
   ),
-  // The launcher icons' sources: the mark close up on a full cream square, and the mark alone on no ground,
-  // which is iOS 18's dark icon and Android's adaptive foreground; flutter_launcher_icons insets
-  // the latter by 16%, inside the 66 of 108 dp every mask keeps.
-  square("app/assets/brand/icon/app-icon-light-1024.png", canvas(onSquare), 1024, true),
-  square("app/assets/brand/icon/app-icon-dark-1024.png", markAlone, 1024),
+  // The launcher icons' sources: the mark close up on cobalt, the same on the dark ground for iOS
+  // 18's dark icon, and the mark alone on no ground, Android's adaptive foreground over cobalt;
+  // flutter_launcher_icons insets the last by 16%, inside the 66 of 108 dp every mask keeps.
+  square("app/assets/brand/icon/app-icon-light-1024.png", canvas(onSquare(cobalt)), 1024, true),
+  square("app/assets/brand/icon/app-icon-dark-1024.png", canvas(onSquare(darkGround)), 1024, true),
+  square("app/assets/brand/icon/app-icon-foreground-1024.png", markAlone, 1024),
   // The splash's sources: the mark alone on the light ground, the circled mark on the dark one;
   // Android 12 crops to the middle 768 of 1152.
   square("app/assets/brand/splash/splash-light.png", canvas(centred(mark, 0.8)), 640),
   square("app/assets/brand/splash/splash-dark.png", canvas(centred(onCircle, 0.8)), 640),
   square("app/assets/brand/splash/android12-light.png", canvas(centred(mark, 0.6)), 1152),
   square("app/assets/brand/splash/android12-dark.png", canvas(centred(onCircle, 0.6)), 1152),
-  square("web/public/favicon-32.png", canvas(onSquare), 32, true),
-  square("web/public/apple-touch-icon.png", canvas(onSquare), 180, true),
-  square("web/public/icon-192.png", canvas(onSquare), 192, true),
-  square("web/public/icon-512.png", canvas(onSquare), 512, true),
+  square("web/public/favicon-32.png", canvas(onSquare(cobalt)), 32, true),
+  square("web/public/apple-touch-icon.png", canvas(onSquare(cobalt)), 180, true),
+  square("web/public/icon-192.png", canvas(onSquare(cobalt)), 192, true),
+  square("web/public/icon-512.png", canvas(onSquare(cobalt)), 512, true),
 ];
 
 /** [source] rasterised at [width] by [height], as PNG bytes. */
@@ -167,7 +325,7 @@ async function difference(a, b) {
 
 async function check() {
   const stale = [];
-  for (const [path, text] of Object.entries(vectors)) {
+  for (const [path, text] of Object.entries({ ...vectors, ...sources })) {
     const file = join(root, path);
     if (!existsSync(file) || readFileSync(file, "utf8") !== text) stale.push(path);
   }
@@ -182,12 +340,12 @@ async function check() {
     process.exit(1);
   }
   console.log(
-    `checked ${Object.keys(vectors).length} SVGs and ${rasters.length} PNGs, the table in tools/brand/generate.mjs, against the drawings in tools/brand/`,
+    `checked ${Object.keys(vectors).length} SVGs, ${rasters.length} PNGs and ${Object.keys(sources).length} source files, the tables in tools/brand/generate.mjs, against the drawings in tools/brand/`,
   );
 }
 
 async function write() {
-  for (const [path, text] of Object.entries(vectors)) {
+  for (const [path, text] of Object.entries({ ...vectors, ...sources })) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), text);
   }
@@ -195,7 +353,9 @@ async function write() {
     mkdirSync(dirname(join(root, raster.path)), { recursive: true });
     writeFileSync(join(root, raster.path), await render(raster));
   }
-  console.log(`wrote ${Object.keys(vectors).length} SVGs and ${rasters.length} PNGs from the drawings in tools/brand/`);
+  console.log(
+    `wrote ${Object.keys(vectors).length} SVGs, ${rasters.length} PNGs and ${Object.keys(sources).length} source files from the drawings in tools/brand/`,
+  );
 }
 
 await (process.argv.includes("--check") ? check() : write());

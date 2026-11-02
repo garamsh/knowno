@@ -10,13 +10,14 @@ import 'package:image/image.dart' as img;
 
 const _iconLight = 'assets/brand/icon/app-icon-light-1024.png';
 const _iconDark = 'assets/brand/icon/app-icon-dark-1024.png';
+const _iconForeground = 'assets/brand/icon/app-icon-foreground-1024.png';
 const _splashLight = 'assets/brand/splash/splash-light.png';
 const _splashDark = 'assets/brand/splash/splash-dark.png';
 const _android12Light = 'assets/brand/splash/android12-light.png';
 const _android12Dark = 'assets/brand/splash/android12-dark.png';
 
-final _groundLight = img.ColorRgb8(0xFF, 0xF6, 0xE8);
-final _groundDark = img.ColorRgb8(0x1F, 0x15, 0x12);
+final _groundLight = img.ColorRgb8(0xEE, 0xF3, 0xFF);
+final _groundDark = img.ColorRgb8(0x11, 0x1A, 0x2E);
 final _white = img.ColorRgb8(0xFF, 0xFF, 0xFF);
 
 img.Image _read(String path) =>
@@ -148,33 +149,30 @@ void main() {
     }
   });
 
-  test(
-    'Android 8 and later draw the adaptive icon: the mark over the cream',
-    () {
-      const res = 'android/app/src/main/res';
-      final adaptive = File('$res/mipmap-anydpi-v26/ic_launcher.xml')
-          .readAsStringSync();
-      expect(adaptive, contains('@color/ic_launcher_background'));
-      expect(adaptive, contains('@drawable/ic_launcher_foreground'));
-      expect(
-        File('$res/values/colors.xml').readAsStringSync(),
-        contains('<color name="ic_launcher_background">#FCEBD5</color>'),
+  test('Android 8 and later draw the adaptive icon: the mark over cobalt', () {
+    const res = 'android/app/src/main/res';
+    final adaptive = File('$res/mipmap-anydpi-v26/ic_launcher.xml')
+        .readAsStringSync();
+    expect(adaptive, contains('@color/ic_launcher_background'));
+    expect(adaptive, contains('@drawable/ic_launcher_foreground'));
+    expect(
+      File('$res/values/colors.xml').readAsStringSync(),
+      contains('<color name="ic_launcher_background">#2547D0</color>'),
+    );
+    for (final (density, size) in [
+      ('mdpi', 108),
+      ('hdpi', 162),
+      ('xhdpi', 216),
+      ('xxhdpi', 324),
+      ('xxxhdpi', 432),
+    ]) {
+      _expectDrawn(
+        '$res/drawable-$density/ic_launcher_foreground.png',
+        _iconForeground,
+        size,
       );
-      for (final (density, size) in [
-        ('mdpi', 108),
-        ('hdpi', 162),
-        ('xhdpi', 216),
-        ('xxhdpi', 324),
-        ('xxxhdpi', 432),
-      ]) {
-        _expectDrawn(
-          '$res/drawable-$density/ic_launcher_foreground.png',
-          _iconDark,
-          size,
-        );
-      }
-    },
-  );
+    }
+  });
 
   test('the iOS splash draws the mark on the light and the dark ground', () {
     const folder = 'ios/Runner/Assets.xcassets';
@@ -234,11 +232,11 @@ void main() {
       expect(_pixel('$res/drawable-night/background.png'), _groundDark);
       expect(
         File('$res/values-v31/styles.xml').readAsStringSync(),
-        contains('<item name="android:windowSplashScreenBackground">#FFF6E8'),
+        contains('<item name="android:windowSplashScreenBackground">#EEF3FF'),
       );
       expect(
         File('$res/values-night-v31/styles.xml').readAsStringSync(),
-        contains('<item name="android:windowSplashScreenBackground">#1F1512'),
+        contains('<item name="android:windowSplashScreenBackground">#111A2E'),
       );
     },
   );

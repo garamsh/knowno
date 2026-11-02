@@ -4,14 +4,22 @@
 <ellipse cx="226" cy="590" rx="40" ry="31"/>
 <ellipse cx="790" cy="590" rx="40" ry="31"/>
 </g>
+<g class="eye">
 <circle cx="352" cy="458" r="96" fill="#FFFFFF"/>
-<circle cx="664" cy="458" r="96" fill="#FFFFFF"/>
+<g class="pupil">
 <circle cx="362" cy="462" r="70" fill="#3B2118"/>
-<circle cx="654" cy="462" r="70" fill="#3B2118"/>
 <circle cx="338" cy="432" r="24" fill="#FFFFFF"/>
-<circle cx="630" cy="432" r="24" fill="#FFFFFF"/>
 <circle cx="390" cy="500" r="12" fill="#FFFFFF"/>
+</g>
+</g>
+<g class="eye">
+<circle cx="664" cy="458" r="96" fill="#FFFFFF"/>
+<g class="pupil">
+<circle cx="654" cy="462" r="70" fill="#3B2118"/>
+<circle cx="630" cy="432" r="24" fill="#FFFFFF"/>
 <circle cx="682" cy="500" r="12" fill="#FFFFFF"/>
+</g>
+</g>
 <g fill="#FB7262">
 <path d="M236 330H470V366C390 372 310 400 236 470Z"/>
 <path d="M780 330H546V366C626 372 706 400 780 470Z"/>
