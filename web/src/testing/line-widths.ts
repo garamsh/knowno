@@ -11,7 +11,7 @@ export function layOutLines(column: number): () => void {
   const rect = vi
     .spyOn(HTMLElement.prototype, "getBoundingClientRect")
     .mockImplementation(function (this: HTMLElement) {
-      const width = (this.textContent ?? "").length * 20;
+      const width = this.textContent.length * 20;
       return new DOMRect(0, 0, width, 20);
     });
   return () => {

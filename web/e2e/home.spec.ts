@@ -129,7 +129,9 @@ async function expectEdge(page: Page, control: Locator, token: string) {
         probe.remove();
         return { edge: getComputedStyle(element).boxShadow, colour: resolved };
       }, token);
-      expect(edge, `${token} at ${String(width)} in ${colorScheme}`).toBe(`${colour} 0px 7px 0px 0px`);
+      expect(edge, `${token} at ${String(width)} in ${colorScheme}`).toBe(
+        `${colour} 0px 7px 0px 0px`,
+      );
     }
   }
   await page.setViewportSize({ width: 390, height: 844 });
@@ -181,7 +183,11 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   expect(empty.error).toBeNull();
   await first.goto("/");
   await expect(first.getByRole("heading", { name: "첫 카드를 만들어 볼까요?" })).toBeVisible();
-  await expectEdge(first, first.getByRole("link", { name: "카드 추가", exact: true }), "--color-on-hero-edge");
+  await expectEdge(
+    first,
+    first.getByRole("link", { name: "카드 추가", exact: true }),
+    "--color-on-hero-edge",
+  );
   await capture(first, "no-cards");
   await fresh.close();
 
@@ -234,7 +240,11 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   if (!tabBar || !firstRow || !secondRow) throw new Error("the tab bar and the rows are drawn");
   expect(firstRow.y + firstRow.height).toBeLessThanOrEqual(tabBar.y);
   expect(secondRow.y).toBeGreaterThanOrEqual(tabBar.y);
-  await expectEdge(page, page.getByRole("link", { name: "시작", exact: true }), "--color-on-hero-edge");
+  await expectEdge(
+    page,
+    page.getByRole("link", { name: "시작", exact: true }),
+    "--color-on-hero-edge",
+  );
   await capture(page, "home");
   await untilReacted(
     () => page.getByRole("button", { name: "노트 검색", exact: true }).click(),
@@ -248,11 +258,7 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   await page.goto(`/decks/${decks[0]?.id ?? ""}`);
   await expect(page.getByRole("heading", { level: 1, name: "영단어 기본" })).toBeVisible();
   // Control: off the hero, the study link is the primary fill on the primary's edge.
-  await expectEdge(
-    page,
-    page.getByRole("link", { name: /^이 노트 학습/ }),
-    "--color-primary-edge",
-  );
+  await expectEdge(page, page.getByRole("link", { name: /^이 노트 학습/ }), "--color-primary-edge");
   await capture(page, "note");
 
   await untilReacted(

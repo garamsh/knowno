@@ -67,7 +67,9 @@ describe("cards from a file", () => {
 
     const review = within(await screen.findByRole("dialog", { name: "카드 확인" }));
     const heading = review.getByRole("heading", { name: "카드 확인" });
-    expect(review.getByRole("button", { name: "닫기" }).parentElement).not.toContainElement(heading);
+    expect(review.getByRole("button", { name: "닫기" }).parentElement).not.toContainElement(
+      heading,
+    );
     expect(heading.nextElementSibling).toHaveTextContent(/^words\.csv/);
     expect(review.getByText("words.csv")).toHaveClass("text-body-strong", "text-muted");
   });
