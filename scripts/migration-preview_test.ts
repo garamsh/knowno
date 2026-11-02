@@ -2,7 +2,7 @@
 // The preview on a real stack is scripts/test-migration-preview.ts, which make test-db runs.
 import assert from "node:assert/strict";
 import { markdown, parseReport, pretty, Report } from "./migration-preview.ts";
-import { commit, git, host, program, repository } from "./testing.ts";
+import { commit, git, host, program, repository, run } from "./testing.ts";
 
 const REPORT: Report = {
   tables: [
@@ -125,6 +125,38 @@ Deno.test("refuses no report path, and one outside the temporary directory, with
   const outside = await program(await base(), "migration-preview", [
     "/elsewhere/report",
   ], { PATH: path, TMPDIR: tmp });
+  assert.equal(outside.code, 2);
+  assert.match(
+    outside.stderr,
+    /^the report path \/elsewhere\/report is outside /,
+  );
+});
+
+Deno.test("accepts a report path through a symlink to the temporary directory, and refuses one outside it", async () => {
+  const { path } = await host({});
+  const real = await Deno.makeTempDir();
+  const parent = await Deno.makeTempDir();
+  const linked = `${parent}/tmp-link`;
+  const made = await run(parent, ["ln", "-s", real, linked]);
+  assert.equal(made.code, 0, `setup: ${made.stderr}`);
+  const through = await program(await base(), "migration-preview", [
+    `${linked}/report`,
+  ], {
+    PATH: path,
+    TMPDIR: linked,
+  });
+  assert.equal(through.code, 1, through.stderr);
+  assert.equal(
+    through.stderr,
+    "the migration preview needs Docker, and docker reached no daemon on this host\n",
+  );
+
+  const outside = await program(await base(), "migration-preview", [
+    "/elsewhere/report",
+  ], {
+    PATH: path,
+    TMPDIR: linked,
+  });
   assert.equal(outside.code, 2);
   assert.match(
     outside.stderr,

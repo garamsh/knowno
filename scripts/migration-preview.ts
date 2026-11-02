@@ -141,7 +141,17 @@ async function main(args: string[]): Promise<void> {
   const tmp = Deno.env.get("TMPDIR") || "/tmp";
   const root = decodeURIComponent(new URL("..", import.meta.url).pathname)
     .replace(/\/$/, "");
-  const out = args[0].startsWith("/") ? args[0] : `${root}/${args[0]}`;
+  const given = args[0].startsWith("/") ? args[0] : `${root}/${args[0]}`;
+  // run.sh gave TMPDIR by its real path, the one Deno compares a grant with, so the report's
+  // directory is compared and written by its real path too. Deno.realPath cannot resolve it: the
+  // grant names only the real path, not the one given.
+  const at = given.lastIndexOf("/");
+  const resolved = await captured("realpath", [given.slice(0, at) || "/"], {
+    quiet: true,
+  });
+  const out = resolved.code === 0
+    ? `${resolved.stdout.trim()}${given.slice(at)}`
+    : given;
   if (!out.startsWith(`${tmp}/`)) {
     fail(
       `the report path ${
@@ -261,7 +271,7 @@ async function main(args: string[]): Promise<void> {
     await Deno.writeTextFile(`${out}.json`, pretty(report));
     await Deno.writeTextFile(`${out}.md`, markdown(report));
     console.log(
-      `wrote ${out}.json and ${out}.md: ${fresh.length} new migrations applied over main's ${onMain.length} at ${base.commit} (${base.how}), ${
+      `wrote ${given}.json and ${given}.md: ${fresh.length} new migrations applied over main's ${onMain.length} at ${base.commit} (${base.how}), ${
         report.tables.filter(moved).length
       } of ${report.tables.length} tables with rows or the table changed`,
     );
