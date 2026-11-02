@@ -107,10 +107,10 @@ jobs:
         # skipped, and `ios` builds it.
         include:
           - { id: lint, target: lint-code format, frb: true, wasm-bindgen: true, node: true, deno: true }
-          - { id: test-app, target: test-app, wasm-bindgen: true, node: true }
+          - { id: test-app, target: test-app, wasm-bindgen: true, node: true, deno: true }
           - { id: test-sync, target: test-sync, supabase: true }
           - { id: build-apk, target: build-apk, java: true }
-          - { id: build, target: build-ios build-engine-web, node: true }
+          - { id: build, target: build-ios build-engine-web, node: true, deno: true }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # make lint-code's scripts/check-migration-order.ts reads main as the merge commit's first
@@ -162,9 +162,9 @@ jobs:
         uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: wasm-bindgen@${{ steps.wasm-bindgen.outputs.version }}
-      # scripts/web.sh runs on the release web/.nvmrc names, and make test-app runs engine-wasm/'s
+      # scripts/web.ts runs on the release web/.nvmrc names, and make test-app runs engine-wasm/'s
       # tests in node, through wasm-bindgen-test-runner. The npm cache holds the downloads
-      # scripts/web.sh's npm ci installs from web/package-lock.json.
+      # scripts/web.ts's npm ci installs from web/package-lock.json.
       - if: matrix.node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -176,7 +176,7 @@ jobs:
         uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: 2.120.0
-      # make lint-code and format run deno over supabase/functions/, tools/eval/ and scripts/.
+      # scripts/run.sh runs the programs in scripts/, which these targets call.
       - if: matrix.deno
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
@@ -194,7 +194,7 @@ jobs:
       matrix:
         include:
           - { target: test-db, deno: true }
-          - { target: test-web, node: true }
+          - { target: test-web, node: true, deno: true }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: matrix.node
@@ -206,7 +206,7 @@ jobs:
       - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: 2.120.0
-      # make test-db runs deno test over supabase/functions/, tools/eval/ and scripts/.
+      # scripts/run.sh runs the programs in scripts/, which these targets call.
       - if: matrix.deno
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
