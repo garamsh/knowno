@@ -162,6 +162,7 @@ test("renames, decorates, publishes, makes private and deletes a note as the use
 
   await choose(page, "비공개로 전환");
   await expect(page.getByRole("status")).toHaveText("노트를 비공개로 전환했어요");
+  await expect(page.getByText("0장 익힘", { exact: true })).toBeVisible();
   expect(await stored()).toMatchObject({ visibility: "private", description: "고양이와 개" });
 
   // 노트 삭제 asks, then tombstones the note and its cards and opens 홈.
