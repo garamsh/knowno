@@ -471,7 +471,7 @@ class _CardListHeader extends StatelessWidget {
                       header: true,
                       child: Text(
                         l10n.cardsHeading(cards),
-                        style: AppType.headline.copyWith(color: colors.ink),
+                        style: AppType.label.copyWith(color: colors.ink),
                       ),
                     ),
                     ProgressCounter(

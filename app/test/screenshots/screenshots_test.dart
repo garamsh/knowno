@@ -131,11 +131,14 @@ const _uncounted = {
   'GoogleSignInButton',
 };
 
-/// Whether [element] draws text at the large figure's size: a figure's
+/// The large figures' sizes: a count's, and today's on 홈's hero.
+final _figureSizes = {AppType.figure.fontSize, AppType.heroFigure.fontSize};
+
+/// Whether [element] draws text at a large figure's size: a figure's
 /// paragraph, or the field it is typed in.
 bool _isFigure(Element element) => switch (element.widget) {
-  RichText(:final text) => text.style?.fontSize == AppType.figure.fontSize,
-  EditableText(:final style) => style.fontSize == AppType.figure.fontSize,
+  RichText(:final text) => _figureSizes.contains(text.style?.fontSize),
+  EditableText(:final style) => _figureSizes.contains(style.fontSize),
   _ => false,
 };
 
@@ -171,8 +174,21 @@ bool _isFigureUnit(Element element) {
 /// screen's three sizes.
 List<double> _chromeSizes(WidgetTester tester) {
   final sizes = <double>{};
+  // Under 홈's own navigator, a route is current only while the route that
+  // holds that navigator is too.
+  bool current(Element element) {
+    var current = ModalRoute.of(element)?.isCurrent ?? true;
+    element.visitAncestorElements((ancestor) {
+      if (ancestor.widget is Navigator) {
+        current &= ModalRoute.of(ancestor)?.isCurrent ?? true;
+      }
+      return current;
+    });
+    return current;
+  }
+
   for (final element in find.byType(RichText).evaluate()) {
-    if (!(ModalRoute.of(element)?.isCurrent ?? true)) continue;
+    if (!current(element)) continue;
     var onCard = false;
     element.visitAncestorElements((ancestor) {
       onCard = _uncounted.contains(ancestor.widget.runtimeType.toString());
@@ -281,8 +297,12 @@ void main() {
 
     // Lets 홈's drawer down, unless it is down.
     Future<void> closeDrawer(WidgetTester tester) async {
-      if (find.bySemanticsLabel(ko.drawerClose).evaluate().isNotEmpty) {
-        await tap(tester, find.bySemanticsLabel(ko.drawerClose));
+      if (find.text(ko.drawerOpen).evaluate().isEmpty) {
+        await tester.drag(
+          find.textContaining(ko.myDecks(0).replaceAll('0', '')).first,
+          const Offset(0, 300),
+        );
+        await tester.pumpAndSettle();
       }
     }
 
@@ -2078,13 +2098,9 @@ void main() {
       // A deck, so the bar shows above the tab bar.
       await dismissSheet(tester);
       await tap(tester, find.text(ko.newDeckTitle));
-      await tap(tester, find.text(ko.createManually));
       await tester.enterText(find.byType(EditableText), '영단어 기본');
-      await tap(tester, find.text(ko.create));
-      // Dismissing 노트 꾸미기 keeps the default tile and opens the deck, which
-      // back leaves.
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
+      // Saving opens the deck, which back leaves.
+      await tap(tester, find.text(ko.save));
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await shot(tester, '27a-photo-bar-paused');
@@ -2207,10 +2223,13 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
       await shot(tester, '27-card-list-public');
-      tester.state<NavigatorState>(find.byType(Navigator)).pop();
+      // The note is on 홈's own navigator, under the app's.
+      tester.state<NavigatorState>(find.byType(Navigator).last).pop();
       await tester.pumpAndSettle();
       await shot(tester, '28-deck-list-public');
 
+      await tester.ensureVisible(find.text(ko.browsePublicDecks));
+      await tester.pumpAndSettle();
       await tap(tester, find.text(ko.browsePublicDecks));
       await shot(tester, '29-browse');
       await tap(tester, find.text('스페인어 동물'));

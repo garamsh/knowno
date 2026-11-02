@@ -279,21 +279,30 @@ class _Home extends StatelessWidget {
       backgroundColor: colors.hero,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // The first-run step asks for the minutes once a day with cards
-            // shows.
-            if (face != null && cards) const FirstDailyMinutes(),
-            if (open) ...[
-              _HeroBand(face: face),
-              Expanded(child: drawer),
-            ] else ...[
-              _HeroTop(streak: streak),
-              Expanded(child: _Hero(face: face)),
-              Flexible(child: drawer),
+        child: LayoutBuilder(
+          builder: (context, constraints) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // The first-run step asks for the minutes once a day with cards
+              // shows.
+              if (face != null && cards) const FirstDailyMinutes(),
+              if (open) ...[
+                _HeroBand(face: face),
+                Expanded(child: drawer),
+              ] else ...[
+                _HeroTop(streak: streak),
+                Expanded(child: _Hero(face: face)),
+                // Closed, the drawer takes its rows' height down to the foot,
+                // and never more than half the screen.
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: constraints.maxHeight / 2,
+                  ),
+                  child: drawer,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -398,7 +407,7 @@ class _Hero extends StatelessWidget {
                     keepWords(title),
                     semanticsLabel: title,
                     textAlign: TextAlign.center,
-                    style: (face!.figure ? AppType.heroFigure : AppType.display)
+                    style: (face!.figure ? AppType.heroFigure : AppType.title)
                         .copyWith(color: colors.onHero),
                   ),
                 ),
@@ -407,7 +416,7 @@ class _Hero extends StatelessWidget {
                   keepWords(line),
                   semanticsLabel: line,
                   textAlign: TextAlign.center,
-                  style: AppType.headline.copyWith(color: colors.onHero),
+                  style: AppType.bodyStrong.copyWith(color: colors.onHero),
                 ),
               if (face != null) ...[
                 const SizedBox(height: AppSpace.s8),
@@ -463,7 +472,7 @@ class _HeroBand extends StatelessWidget {
                 : Text(
                     keepWords(title),
                     semanticsLabel: title,
-                    style: AppType.display.copyWith(color: colors.onHero),
+                    style: AppType.title.copyWith(color: colors.onHero),
                   ),
           ),
           if (face != null)
@@ -594,7 +603,7 @@ class _DrawerState extends State<_Drawer> {
                   header: true,
                   child: Text(
                     l10n.myDecks(widget.decks.length),
-                    style: AppType.headline.copyWith(color: colors.ink),
+                    style: AppType.label.copyWith(color: colors.ink),
                   ),
                 ),
                 if (open)
@@ -700,8 +709,8 @@ class _DrawerState extends State<_Drawer> {
                 ),
               ],
             )
-          // Closed, it takes its rows' height, and at a large text size no
-          // more than the hero beside it, its rows scrolling.
+          // Closed, it takes its rows' height, its rows scrolling where a
+          // large text size makes them taller than its space.
           : Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
