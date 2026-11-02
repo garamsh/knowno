@@ -4,7 +4,7 @@ import type { Extraction } from "./read-photo";
 
 /** The longest side, in pixels, of a photo sent for extraction, as the phone's `maxLongSide`. */
 export const maxLongSide = 2048;
-/** The upload bound `readPhoto` accepts, inside the Server Action's 4 MiB request limit. */
+/** The upload bound `readPhoto` accepts, inside the Server Action's 6 MiB request limit. */
 export const maxUploadBytes = 3 * 1024 * 1024;
 const qualities = [0.85, 0.7, 0.55, 0.4];
 

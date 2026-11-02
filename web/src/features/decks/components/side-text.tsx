@@ -1,14 +1,22 @@
 import { type Content, describeContent, labelShown, type Sense } from "../card-content";
+import { PhotoFrame } from "./photo-frame";
 
 /**
  * A card side's blocks, each on its line: text as written, a cloze or a table filled, a senses
- * block as [SensesText] draws it, and a block this version cannot show as a placeholder. It is
- * spans throughout, so a button can hold it.
+ * block as [SensesText] draws it, and a block this version cannot show as a placeholder. A photo
+ * is named, as a list row names it, or with [photos], as a study card draws its side, drawn whole
+ * (ADR 0109). It is spans throughout, so a button can hold it.
  */
-export function SideText({ blocks }: { blocks: Content[] }) {
+export function SideText({ blocks, photos = false }: { blocks: Content[]; photos?: boolean }) {
   return blocks.map((block, index) => (
     <span key={index} className="block">
-      {block.kind === "senses" ? <SensesText senses={block.senses} /> : describeContent([block])}
+      {block.kind === "senses" ? (
+        <SensesText senses={block.senses} />
+      ) : photos && block.kind === "image" ? (
+        <PhotoFrame image={block} revealed />
+      ) : (
+        describeContent([block])
+      )}
     </span>
   ));
 }

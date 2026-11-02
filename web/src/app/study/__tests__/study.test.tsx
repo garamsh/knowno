@@ -67,7 +67,7 @@ const placements = (
  * whole card as a screen reader reads it, its blanks being in the page and hidden, and a split
  * card's text; and the previous card's text, a split card's front and back run together.
  */
-const drawn: Record<string, { whole: boolean; before: string; after: string }> = {
+const drawn: Record<string, { whole: boolean; before: string; after: string; photo?: true }> = {
   "placement 1: an import's cloze, its back the filled text, drops the back": {
     whole: true,
     before: "The capital is 빈칸.",
@@ -168,10 +168,12 @@ const drawn: Record<string, { whole: boolean; before: string; after: string }> =
     before: "onetwo",
     after: "onetwo사과",
   },
+  // The photo is drawn on its side, as the phone draws it, and its frame holds no text.
   "no blank: photo and sound keep their sides": {
     whole: false,
     before: "",
-    after: "사진소리",
+    after: "소리",
+    photo: true,
   },
 };
 
@@ -1987,6 +1989,8 @@ describe("the study page", () => {
         expect(whole !== null).toBe(expected.whole);
         expect(whole?.getAttribute("aria-label") ?? front.textContent).toBe(expected.before);
         if (whole) expect(Object.values(blanksUnder(whole))).not.toContain(true);
+        // A split side draws its photo whole; a whole card draws it in its frame.
+        if (!whole) expect(front.querySelector("[data-image]") !== null).toBe(!!expected.photo);
 
         await answerKnow();
 

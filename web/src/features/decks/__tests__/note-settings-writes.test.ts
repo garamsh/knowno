@@ -387,3 +387,47 @@ describe("a note's photo in the reads that list notes", () => {
     if ("library" in list) expect(list.library.decks[0]?.imageUrl).toBeUndefined();
   });
 });
+
+describe("a card's photos and sounds in a note's read", () => {
+  const sound = (id: string) => [
+    { type: "audio", v: 1, id: "s1", payload: { media: id, duration_ms: 900 } },
+  ];
+
+  it("signs each photo and sound Storage holds in one request, on its 칸 and its side, and none to one whose file is gone", async () => {
+    const photo = uuidOf("photo");
+    const voice = uuidOf("voice");
+    db.seed("decks", deckRow("deck", "A"));
+    db.seed(
+      "cards",
+      { ...cardRow("c1", "deck", "x"), front: photoSide(photo), back: sound(voice) },
+      { ...cardRow("c2", "deck", "y"), front: photoSide(uuidOf("gone")) },
+    );
+    storedMedia(photo);
+    storedMedia(voice);
+    db.requests.length = 0;
+
+    const read = await readLibrary([uuidOf("deck") as never]);
+    if (!("library" in read)) throw new Error("the note was not read");
+    const [first, second] = read.library.cards;
+    const url = (id: string) =>
+      `http://supabase.test/storage/v1/object/sign/media/${testUser.id}/${id}?token=signed`;
+    expect(first?.front[0]).toMatchObject({ kind: "image", url: url(photo) });
+    expect(first?.back[0]).toMatchObject({ kind: "audio", url: url(voice) });
+    expect(first?.cells.map((cell) => ("block" in cell ? cell.block : null))).toMatchObject([
+      { kind: "image", url: url(photo) },
+      { kind: "audio", url: url(voice) },
+    ]);
+    expect(second?.front[0]).not.toHaveProperty("url");
+    expect(db.requests.filter((request) => request === "POST storage sign")).toHaveLength(1);
+  });
+
+  it("reads the cards without URLs when signing fails", async () => {
+    db.seed("decks", deckRow("deck", "A"));
+    db.seed("cards", { ...cardRow("c1", "deck", "x"), front: photoSide(uuidOf("photo")) });
+    storedMedia(uuidOf("photo"));
+    storage.fail("sign");
+    const read = await readLibrary([uuidOf("deck") as never]);
+    if (!("library" in read)) throw new Error("the note was not read");
+    expect(read.library.cards[0]?.front[0]).not.toHaveProperty("url");
+  });
+});

@@ -8,7 +8,8 @@
  * plays in milliseconds (ADR 0112). A block of another type, or of a known
  * type at a version above the one this build reads, is shown as a placeholder naming it, so a
  * card a later version wrote is shown, not lost. A block keeps the id it was stored with, and a
- * photo or a sound the payload fields this build does not know, so a save writes them back.
+ * photo or a sound the payload fields this build does not know, so a save writes them back. A
+ * photo's or a sound's `url` is the signed URL a read drew it from (ADR 0163), never stored.
  */
 export type Content = (
   | { kind: "text"; text: string }
@@ -28,8 +29,9 @@ export type Content = (
       height: number;
       boxes: ImageBox[];
       rest?: Rest;
+      url?: string;
     }
-  | { kind: "audio"; media: string; durationMs: number; rest?: Rest }
+  | { kind: "audio"; media: string; durationMs: number; rest?: Rest; url?: string }
   | { kind: "unsupported"; type: string }
 ) & { id?: string };
 

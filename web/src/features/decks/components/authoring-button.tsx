@@ -3,8 +3,15 @@
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { v7 } from "uuid";
-import { addCard, createDeck, editCard } from "../actions";
-import { builtCells, cellDraft, type CellDraft, emptyCell, encodeCells } from "../authoring";
+import { addCard, createDeck, editCard, storeCardMedia } from "../actions";
+import {
+  builtCells,
+  cellDraft,
+  type CellDraft,
+  emptyCell,
+  encodeCells,
+  pendingUploads,
+} from "../authoring";
 import { holdsBlank } from "../card-content";
 import type { DeckColor } from "../deck-tint";
 import type { Card, Deck } from "../library";
@@ -250,6 +257,8 @@ const cellChoices = [
   { kind: "word", name: "단어", line: "단어와 뜻을 함께 적어요" },
   { kind: "cloze", name: "빈칸 문장", line: "문장 속 단어를 가려요" },
   { kind: "table", name: "표", line: "가릴 부분을 골라요" },
+  { kind: "image", name: "사진", line: "사진 위에 가릴 곳을 그려요" },
+  { kind: "audio", name: "소리", line: "녹음하거나 파일을 넣어요" },
 ] as const;
 
 /** The editor's starting 칸: a stored card's, or one empty 글. */
@@ -320,6 +329,21 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
     busy.current = true;
     start(async () => {
       try {
+        // Each new photo and sound is stored first, one request each, so the card names only
+        // files the server holds; a card refused releases them, and the next save stores them
+        // again (ADR 0163).
+        for (const upload of pendingUploads(drafts)) {
+          const form = new FormData();
+          form.set("media", upload.media);
+          form.set("kind", upload.kind);
+          form.set("file", upload.file);
+          form.set("sha256", upload.sha256);
+          const stored = await storeCardMedia(form);
+          if (!stored.stored) {
+            setMessage(stored.message);
+            return;
+          }
+        }
         const written = { id: cardId, blocks: encodeCells(cells) };
         const result = card
           ? await editCard(deck.id, card.id, written, allow)
@@ -393,8 +417,8 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
         <CellFields
           drafts={drafts}
           showErrors={showErrors}
-          change={(value) => {
-            setDrafts(value);
+          change={(update) => {
+            setDrafts(update);
             setDuplicate(false);
             setMessage("");
           }}

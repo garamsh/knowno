@@ -97,7 +97,7 @@ describe("a new card", () => {
     expect(screen.queryByRole("heading", { name: "앞면" })).not.toBeInTheDocument();
   });
 
-  it("offers 글, 단어, 빈칸 문장 and 표 under '+ 칸 추가', and no photo or sound the web cannot pick", async () => {
+  it("offers 글, 단어, 빈칸 문장, 표, 사진 and 소리 under '+ 칸 추가', as the phone's sheet", async () => {
     await newCard();
     await userEvent.click(screen.getByRole("button", { name: "+ 칸 추가" }));
     const sheet = screen.getByRole("dialog", { name: "칸 추가" });
@@ -111,6 +111,8 @@ describe("a new card", () => {
       "단어단어와 뜻을 함께 적어요",
       "빈칸 문장문장 속 단어를 가려요",
       "표가릴 부분을 골라요",
+      "사진사진 위에 가릴 곳을 그려요",
+      "소리녹음하거나 파일을 넣어요",
     ]);
     await userEvent.click(within(sheet).getByRole("button", { name: "표" }));
     expect(screen.getByRole("heading", { name: "표" })).toBeInTheDocument();

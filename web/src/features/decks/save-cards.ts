@@ -15,8 +15,9 @@ import {
   type CardDraft,
   type StoredCard,
 } from "./authoring";
-import { parseCardContent, parseCells, plainText, sidesOf } from "./card-content";
+import { type Cell, parseCardContent, parseCells, plainText, sidesOf } from "./card-content";
 import { parseCardId, parseDeckId } from "./library";
+import { holdsMedia, parseMediaId, releaseUnheld } from "./media";
 
 /**
  * A duplicate warning stores nothing and names the stored or earlier card it repeats and the
@@ -45,10 +46,29 @@ const cardNeedsUpdate =
 type OnDuplicate = "refuse" | "add" | "merge";
 type Client = Awaited<ReturnType<typeof createClient>>;
 
-/** A new card of 칸, `free` v2 (ADR 0137). It holds no media: the web uploads none. */
-function parseNewCard(value: unknown): CardDraft | null {
+/**
+ * A new card of 칸, `free` v2 (ADR 0137); with [media] false, as an import writes, one holding no
+ * photo or sound.
+ */
+function parseNewCard(value: unknown, media: boolean): CardDraft | null {
   const card = parseCellsDraft(value);
-  return card && mediaOf(parseCells(card.front) ?? []).length === 0 ? card : null;
+  return card && (media || mediaOf(parseCells(card.front) ?? []).length === 0) ? card : null;
+}
+
+/** The media [card]'s 칸 name. */
+function mediaIn(card: CardDraft): ReturnType<typeof mediaOf> {
+  return mediaOf(parseCells(card.front) ?? []);
+}
+
+/**
+ * Releases [ids] that no live deck or card of [userId]'s holds, after a write, logging those it
+ * could not: the write stands either way (ADR 0159).
+ */
+async function release(client: Client, userId: string, ids: string[], by: string): Promise<void> {
+  const wanted = ids.flatMap((id) => parseMediaId(id) ?? []);
+  if (wanted.length === 0) return;
+  const kept = await releaseUnheld(client, userId, wanted);
+  if (kept.length > 0) console.error(`${by}: media not released: ${kept.join(",")}`);
 }
 
 /** Inserts explicit reviewed cards under the current owner, using stable ids for safe retries. */
@@ -70,7 +90,11 @@ export async function savePhotoCards(deckId: string, input: unknown): Promise<Sa
   return writeCards(deckId, input, "import", "merge");
 }
 
-/** Inserts direct entry's card of 칸, its id stable across retries, in `free` v2. */
+/**
+ * Inserts direct entry's card of 칸, its id stable across retries, in `free` v2. Each photo and
+ * sound it names is one the user stored under its kind (`storeCardMedia`, ADR 0163); a card
+ * refused releases them, so a file stored for it is not left behind.
+ */
 export async function addCard(
   deckId: string,
   input: unknown,
@@ -79,14 +103,17 @@ export async function addCard(
   if (typeof allowDuplicate !== "boolean") return malformed;
   const refused = frameRefusal(input);
   if (refused) return { saved: false, message: refused };
-  return writeCards(deckId, [input], "manual", allowDuplicate ? "add" : "refuse");
+  return writeCards(deckId, [input], "manual", allowDuplicate ? "add" : "refuse", true);
 }
 
 /**
  * Writes a stored card's 칸 over it in `free` v2 (ADR 0143), its id, source, creation and reviews
  * kept, its key taken from the new 칸 as the phone's `editCard`. The later `updated_at` wins, as
  * `sync.md` has it: an edit made elsewhere with a later time stays, and this one is refused. A
- * card this build cannot edit, one deleted, and a photo or sound it does not hold are refused.
+ * card this build cannot edit, and one deleted, are refused, and so is a photo or sound the card
+ * does not hold unless the user stored it under its kind (ADR 0163). Once written, the photos and
+ * sounds the stored card held and the edit drops are released, as the phone's `editCard`; a
+ * refused edit releases the new ones it named.
  */
 export async function editCard(
   deckId: string,
@@ -106,6 +133,23 @@ export async function editCard(
   const session = await readUserId(client);
   if ("failure" in session) return signedOut;
   const { userId } = session;
+  const result = await writeEdit(client, userId, deckId, card, cells, allowDuplicate);
+  // A refused edit's media the stored card holds stay held, so only its new ones go.
+  const freed = result.saved ? result.dropped : mediaOf(cells).map(({ media }) => media);
+  await release(client, userId, freed, "editCard");
+  return result.saved ? { saved: true } : result;
+}
+
+/** [editCard]'s write of [card]'s [cells] over the stored card, naming the media it drops. */
+async function writeEdit(
+  client: Client,
+  userId: string,
+  deckId: string,
+  card: CardDraft,
+  cells: Cell[],
+  allowDuplicate: boolean,
+): Promise<{ saved: true; dropped: string[] } | Exclude<SaveCardsResult, { saved: true }>> {
+  const cardId = card.id;
   if (!(await holdsDeck(client, userId, deckId))) return noDeck;
   const owned = () =>
     client
@@ -128,8 +172,15 @@ export async function editCard(
   });
   if (!stored) return failed;
   if (stored.readOnly) return { saved: false, message: cardNeedsUpdate };
-  const held = new Set(mediaOf(stored.cells));
-  if (mediaOf(cells).some((media) => !held.has(media))) return malformed;
+  const held = mediaOf(stored.cells).map(({ media }) => media);
+  const given = mediaOf(cells);
+  const ownsMedia = await holdsMedia(
+    client,
+    userId,
+    given.filter(({ media }) => !held.includes(media)),
+  );
+  if (ownsMedia === null) return failed;
+  if (!ownsMedia) return malformed;
   const key = frameKey(cells);
   if (!allowDuplicate) {
     const same = await client
@@ -172,14 +223,22 @@ export async function editCard(
   if (time !== Date.parse(now)) return time !== null && time > Date.parse(now) ? later : failed;
   if (JSON.stringify(parseCells(field(saved, "front"))) !== JSON.stringify(cells)) return failed;
   revalidatePath("/", "layout");
-  return { saved: true };
+  return {
+    saved: true,
+    dropped: held.filter((media) => !given.some((kept) => kept.media === media)),
+  };
 }
 
+/**
+ * Writes [input]'s new cards into the deck. With [media], each may name photos and sounds the
+ * user stored under their kind, released when the write is refused.
+ */
 async function writeCards(
   deckId: string,
   input: unknown,
   source: "manual" | "import",
   onDuplicate: OnDuplicate,
+  media = false,
 ): Promise<SaveCardsResult> {
   if (
     !parseDeckId(deckId) ||
@@ -190,13 +249,37 @@ async function writeCards(
     !boundedJson(input)
   )
     return malformed;
-  const cards = input.map(parseNewCard);
+  const cards = input.map((value) => parseNewCard(value, media));
   if (cards.some((card) => !card || !parseCardId(card.id))) return malformed;
   const client = await createClient();
   const session = await readUserId(client);
   if ("failure" in session) return signedOut;
   const { userId } = session;
+  const named = cards.flatMap((card) => (card ? mediaIn(card) : []));
+  const result = await writeRows(client, userId, deckId, cards, source, onDuplicate, named);
+  if (!result.saved)
+    await release(
+      client,
+      userId,
+      named.map(({ media: id }) => id),
+      "addCard",
+    );
+  return result;
+}
+
+async function writeRows(
+  client: Client,
+  userId: string,
+  deckId: string,
+  cards: (CardDraft | null)[],
+  source: "manual" | "import",
+  onDuplicate: OnDuplicate,
+  named: ReturnType<typeof mediaOf>,
+): Promise<SaveCardsResult> {
   if (!(await holdsDeck(client, userId, deckId))) return noDeck;
+  const ownsMedia = await holdsMedia(client, userId, named);
+  if (ownsMedia === null) return failed;
+  if (!ownsMedia) return malformed;
   const existing = await selectAll((from, to, counted) =>
     client
       .from("cards")

@@ -113,6 +113,16 @@ describe("a photo on a whole card", () => {
       "사진, Paris, 빈칸",
     );
   });
+
+  it("draws the photo filling its frame from the URL a read signed, and the ground alone without one", () => {
+    const [photo] = photos;
+    if (photo?.kind !== "image") throw new Error("the wide photo");
+    const signed = draw({ ...photo, url: "https://storage.test/wide?token=t" }, 320);
+    expect(signed.frame?.style.backgroundImage).toBe('url("https://storage.test/wide?token=t")');
+    expect(signed.frame?.className).toContain("bg-cover");
+    expect(signed.marks).toHaveLength(2);
+    expect(draw(photo, 320).frame?.style.backgroundImage).toBe("");
+  });
 });
 
 // A table card whose cell holds a span blank, as the app's `study_screen_test.dart` draws it

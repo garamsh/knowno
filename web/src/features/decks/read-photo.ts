@@ -13,7 +13,7 @@ import type { PhotoFailure } from "./photo-failure";
  */
 export type Extraction = { cards: Candidate[]; cursor: string | null } | { failure: PhotoFailure };
 
-/** The upload bound: the browser prepares every photo under it, inside the 4 MiB action limit. */
+/** The upload bound: the browser prepares every photo under it, inside the 6 MiB action limit. */
 const maxUploadBytes = 3 * 1024 * 1024;
 
 /** The longest cursor the function takes, as its `MAX_CURSOR_LENGTH`. */

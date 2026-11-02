@@ -6,19 +6,24 @@ import { field, parseTime } from "@/supabase/row";
 import { createClient } from "@/supabase/server";
 import { readUserId } from "@/supabase/session";
 
-import { parseCardContent } from "./card-content";
+import { type Content, parseCardContent } from "./card-content";
 import type { Card, CardEntry, CardId, Deck, DeckId, Library } from "./library";
 import { type MediaId, parseMediaId, signMedia } from "./media";
 
 /** How long a deck's signed photo URL stays valid, in seconds. */
 const imageUrlSeconds = 60 * 60;
+/** How long a card's signed photo or sound URL stays valid, in seconds: past a study session. */
+const cardMediaSeconds = 4 * 60 * 60;
 
 /** Why the library could not be read: a server failure, or a row this version cannot read. */
 export type LibraryFailure = ServerFailure | "unreadable";
 
 /**
  * The decks [decks] names, or every deck, of the signed-in user, with their descriptions, their
- * cards and both sides of each; see [readDeckList] for what both reads leave out.
+ * cards and both sides of each; see [readDeckList] for what both reads leave out. Each card's
+ * photos and sounds carry a URL signed for the user in one request (ADR 0163), which the note
+ * page, the editor and study draw and play them from; one Storage does not sign, and every one
+ * when signing fails, has none and is drawn as its frame, as the phone draws a file it cannot read.
  */
 export function readLibrary(
   decks?: readonly DeckId[],
@@ -28,7 +33,36 @@ export function readLibrary(
     parseCard,
     decks,
     true,
+    signCards,
   );
+}
+
+/** [cards] with each photo and sound's URL from [sign]. */
+async function signCards(
+  cards: Card[],
+  sign: (ids: string[], seconds: number) => Promise<Map<string, string>>,
+): Promise<Card[]> {
+  const named = (blocks: Content[]) =>
+    blocks.flatMap((block) =>
+      block.kind === "image" || block.kind === "audio" ? [block.media] : [],
+    );
+  const signed = await sign(
+    cards.flatMap((card) => named([...card.front, ...card.back])),
+    cardMediaSeconds,
+  );
+  if (signed.size === 0) return cards;
+  const drawn = (block: Content): Content => {
+    const url = (block.kind === "image" || block.kind === "audio") && signed.get(block.media);
+    return url ? { ...block, url } : block;
+  };
+  return cards.map((card) => ({
+    ...card,
+    front: card.front.map(drawn),
+    back: card.back.map(drawn),
+    cells: card.cells.map((cell) =>
+      cell.kind === "text" || cell.kind === "word" ? cell : { ...cell, block: drawn(cell.block) },
+    ),
+  }));
 }
 
 /**
@@ -49,6 +83,10 @@ async function read<C extends CardEntry>(
   parse: (row: unknown) => C | null,
   decks?: readonly DeckId[],
   described = false,
+  sign?: (
+    cards: C[],
+    sign: (ids: string[], seconds: number) => Promise<Map<string, string>>,
+  ) => Promise<C[]>,
 ): Promise<{ library: Library<C> } | { failure: LibraryFailure }> {
   const supabase = await createClient();
   const session = await readUserId(supabase);
@@ -109,7 +147,10 @@ async function read<C extends CardEntry>(
   // The phone's orders: decks by name, cards by creation; ties by id, so every read agrees.
   liveDecks.sort((a, b) => compare(a.name, b.name) || compare(a.id, b.id));
   cards.sort((a, b) => a.createdAt - b.createdAt || compare(a.id, b.id));
-  return { library: { decks: liveDecks, cards } };
+  const drawn = sign
+    ? await sign(cards, (ids, seconds) => signMedia(supabase, userId, ids, seconds))
+    : cards;
+  return { library: { decks: liveDecks, cards: drawn } };
 }
 
 function compare(a: string, b: string): number {
