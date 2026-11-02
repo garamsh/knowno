@@ -1,6 +1,6 @@
 # ADR 0139: Draw both clients around the coral mascot, with warm colour tokens and rounder, taller buttons
 
-> Status: accepted; its ink primary fill and the mascot's cream circle on a screen superseded by ADR-0141; its button radius and heights superseded by ADR-0145; its warm colour tokens superseded by ADR-0147; its adaptive icon over the cream and its splash grounds superseded by ADR-0152
+> Status: accepted; its ink primary fill and the mascot's cream circle on a screen superseded by ADR-0141; its button radius and heights superseded by ADR-0145; its warm colour tokens superseded by ADR-0147; its adaptive icon over the cream and its splash grounds superseded by ADR-0152; its lockups' two words superseded by ADR-0154
 > Date: 2026-11-02
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

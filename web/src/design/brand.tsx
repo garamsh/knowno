@@ -5,12 +5,12 @@ import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "r
 
 import { mascotDrawings } from "./mascot-drawings";
 
-/** The brand's lockup in its light-ground and dark-ground files under public/brand/. */
+/** The brand's lockup, 알아몰라 beside or under the mark, in its light-ground and dark-ground files under public/brand/. */
 type Mark = "lockup" | "stacked";
 
 const sizes: Record<Mark, { width: number; height: number }> = {
-  lockup: { width: 981, height: 200 },
-  stacked: { width: 600, height: 484 },
+  lockup: { width: 674, height: 200 },
+  stacked: { width: 446, height: 421 },
 };
 
 /**

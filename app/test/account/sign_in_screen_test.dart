@@ -75,6 +75,56 @@ void main() {
     },
   );
 
+  for (final (locale, name) in [
+    (const Locale('ko'), 'ko'),
+    (const Locale('en'), 'en'),
+  ]) {
+    testWidgets('draws the logo of the $name locale, one name in both themes', (
+      tester,
+    ) async {
+      for (final (mode, ground) in [
+        (ThemeMode.light, 'light'),
+        (ThemeMode.dark, 'dark'),
+      ]) {
+        await pumpScreen(
+          tester,
+          FakeAccountService(),
+          locale: locale,
+          themeMode: mode,
+        );
+
+        final logo = find.byWidgetPredicate(
+          (widget) =>
+              widget is Image &&
+              widget.image is AssetImage &&
+              (widget.image as AssetImage).assetName.contains('stacked'),
+        );
+        expect(
+          ((tester.widget<Image>(logo)).image as AssetImage).assetName,
+          'assets/brand/knowno-stacked-$name-$ground.png',
+        );
+        expect(
+          find.bySemanticsLabel(name == 'ko' ? '알아몰라' : 'knowno'),
+          findsOneWidget,
+          reason: 'the logo is read as the one name it shows',
+        );
+      }
+    });
+  }
+
+  testWidgets('draws knowno for a locale other than Korean', (tester) async {
+    await pumpScreen(
+      tester,
+      FakeAccountService(),
+      locale: const Locale('en', 'GB'),
+    );
+
+    expect(
+      find.image(const AssetImage('assets/brand/knowno-stacked-en-light.png')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets(
     'shows progress while signing in, then nothing more for a cancelled picker',
     (tester) async {
