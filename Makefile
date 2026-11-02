@@ -88,8 +88,8 @@ test-db:
 	scripts/run.sh test-migration-preview
 	scripts/run.sh deno test
 
-# Writes the brand's SVGs and PNGs from tools/brand/, then the launcher icons and the splash from
-# them. Not part of make ci, which checks them through scripts/run.sh web lint. Revert the two edits the
+# Writes the brand's SVGs and PNGs and the mascot's moving parts from tools/brand/, then the launcher
+# icons and the splash from them. Not part of make ci, which checks them through scripts/run.sh web lint. Revert the two edits the
 # generators make beyond their output (design.md §Brand).
 brand:
 	node tools/brand/generate.mjs
