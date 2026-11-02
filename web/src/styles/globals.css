@@ -529,8 +529,11 @@
    data-eyes for a blink, and --glance-x and --glance-y for a glance; each eye closes about the
    centre its transform-origin names. */
 @layer components {
+  /* No wider than its box, as preflight holds the still <img> it replaces; the viewBox keeps
+     the drawing's proportions. */
   .mascot {
     overflow: visible;
+    max-width: 100%;
   }
   .mascot .breath {
     transform-box: view-box;
