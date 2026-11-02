@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Writes every brand file from the drawings in tools/brand/, the mark and the mascot's expressions
-// over the one body.svg, and wordmarks.json, the outlines of 알아몰라 and knowno in Pretendard
+// over the one body.svg, the study coach's hand, and wordmarks.json, the outlines of 알아몰라 and knowno in Pretendard
 // ExtraBold (app/assets/fonts/): the SVGs of web/public/, the PNGs of app/assets/brand/ and
 // web/public/, and the parts each client's Mascot moves, as Dart for the app and SVG markup for the
 // web. A lockup holds one name: 알아몰라 on the web and for a Korean phone, knowno for any other.
@@ -126,6 +126,10 @@ const stacked = (lang, circle, words) => {
 const canvas = (body) => svg(1024, 1024, body);
 const markAlone = canvas(mark);
 
+/** The touch coach's pointing hand, tilted, on its 120 by 140 drawing; each client draws it 70 wide. */
+const handSize = { width: 120, height: 140 };
+const coachHand = svg(handSize.width, handSize.height, inner("coach-hand"), "");
+
 /** The mascot's expressions, the mark itself the thinking one. */
 const expressions = {
   thinking: markAlone,
@@ -143,6 +147,7 @@ const vectors = {
   "web/public/brand/knowno-lockup-dark.svg": lockup(darkCard, darkAccent),
   "web/public/brand/knowno-stacked-light.svg": stacked("ko", white, cobalt),
   "web/public/brand/knowno-stacked-dark.svg": stacked("ko", darkCard, darkAccent),
+  "web/public/brand/knowno-coach-hand.svg": coachHand,
 };
 
 /** The elements of an SVG fragment as a tree of { tag, attrs, children }; the drawings hold nothing else. */
@@ -336,6 +341,7 @@ const rasters = [
   ...Object.entries(expressions).flatMap(([name, art]) =>
     densities(`knowno-${name}`, art, { width: 1024, height: 1024 }, { width: 128 }),
   ),
+  ...densities("knowno-coach-hand", coachHand, handSize, { width: 70 }),
   // The launcher icons' sources: the mark close up on cobalt, the same on the dark ground for iOS
   // 18's dark icon, and the mark alone on no ground, Android's adaptive foreground over cobalt;
   // flutter_launcher_icons insets the last by 16%, inside the 66 of 108 dp every mask keeps.
