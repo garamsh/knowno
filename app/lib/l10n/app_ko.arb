@@ -28,7 +28,7 @@
   "@deckImageUnreadable": {"description": "In the 덱 꾸미기 sheet: shown when the picked photo, the camera or the photo library could not be read."},
   "deckIconName": "{icon, select, layers{카드 묶음} book{책} languages{언어} pencil{연필} flask{실험} calculator{계산기} globe{지구본} music{음악} palette{팔레트} brain{두뇌} code{코드} landmark{건축물} briefcase{서류 가방} star{별} other{아이콘}}",
   "@deckIconName": {"description": "What a screen reader calls an icon in the 덱 꾸미기 sheet, by the icon's stored key.", "placeholders": {"icon": {"type": "String"}}},
-  "deckColorName": "{color, select, blue{파랑} sky{하늘} violet{보라} sand{모래} amber{노랑} slate{회색} other{색}}",
+  "deckColorName": "{color, select, blue{파랑} sky{하늘} violet{복숭아} sand{모래} amber{노랑} slate{회색} other{색}}",
   "@deckColorName": {"description": "What a screen reader calls a colour in the 덱 꾸미기 sheet, by the colour's stored key.", "placeholders": {"color": {"type": "String"}}},
   "deleteDeck": "덱 삭제",
   "@deleteDeck": {"description": "Menu item for deleting a deck."},

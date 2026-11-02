@@ -75,7 +75,7 @@ class AppLocalizationsKo extends AppLocalizations {
     String _temp0 = intl.Intl.selectLogic(color, {
       'blue': '파랑',
       'sky': '하늘',
-      'violet': '보라',
+      'violet': '복숭아',
       'sand': '모래',
       'amber': '노랑',
       'slate': '회색',

@@ -19,7 +19,6 @@ void main() {
         for (final (mark, ground) in [
           (colors.streak, card),
           (colors.accent, colors.edge),
-          (colors.chartQuiet, card),
         ]) {
           expect(
             contrast(mark, ground),
@@ -27,6 +26,12 @@ void main() {
             reason: '$mark on $ground',
           );
         }
+        // A quiet day's bar is carried by its count, and stays 1.5:1 from
+        // today's.
+        expect(
+          contrast(colors.chartOther, colors.accent),
+          greaterThanOrEqualTo(1.5),
+        );
         // Control: the hairline track itself is not a mark, and fails 3:1 on
         // the white, so the check can fail.
         expect(contrast(colors.hairline, card), lessThan(3));

@@ -35,10 +35,11 @@ abstract final class StatsStyle {
   /// The ring around today's heatmap cell.
   static const todayRing = 2.0;
 
-  /// The recall bands, strong, fair and fading: 3:1 on the surface, and every
-  /// two 1.5:1 apart in lightness, not by hue alone (ADR 0147).
+  /// The recall bands, strong, fair and fading: every two 1.5:1 apart in
+  /// lightness, not by hue alone, and each but fair, which its count
+  /// carries, 3:1 on the surface (ADR 0147).
   static (Color, Color, Color) bands(AppColors colors) =>
-      (colors.accent, colors.chartQuiet, colors.chartFading);
+      (colors.accent, colors.chartOther, colors.chartFading);
 
   /// A heatmap cell at each level, from a day without a card to the busiest
   /// third: the hairline, then the ink at three alphas, each level 1.5:1

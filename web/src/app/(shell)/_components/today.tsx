@@ -316,7 +316,7 @@ function CatchUp({
           <div key={labels[index]} className="flex flex-col items-center justify-end gap-1">
             <span className="text-micro font-bold">{value}</span>
             <span
-              className={`w-full rounded-md ${index === 0 ? "bg-accent" : "bg-chart-quiet"}`}
+              className={`w-full rounded-md ${index === 0 ? "bg-accent" : "bg-chart-other"}`}
               style={{ height: `${String(Math.max(4, (value / highest) * 64))}px` }}
             />
             <span className="text-micro text-muted">{labels[index]}</span>
@@ -360,7 +360,7 @@ function LastWeek({ week, timeZone }: { week: WeekDay[]; timeZone: string }) {
           <span key={day.start} className="flex flex-col items-center justify-end gap-1">
             <span className="text-micro font-bold">{day.cards}</span>
             <span
-              className={`w-full rounded-md ${index === week.length - 1 ? "bg-accent" : "bg-chart-quiet"}`}
+              className={`w-full rounded-md ${index === week.length - 1 ? "bg-accent" : "bg-chart-other"}`}
               style={{ height: `${String(Math.max(4, (day.cards / highest) * 64))}px` }}
             />
             <span className="text-micro text-muted">{labels[index]}</span>

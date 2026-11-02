@@ -759,8 +759,7 @@ void main() {
               find.descendant(
                 of: find.byWidgetPredicate(
                   (widget) =>
-                      widget is Semantics &&
-                      widget.properties.label == 'Tabs',
+                      widget is Semantics && widget.properties.label == 'Tabs',
                 ),
                 matching: find.text(name),
               ),
@@ -792,13 +791,13 @@ void main() {
         var list = await _open(tester, fresh: {'Alpha': 3});
         final colors = AppColors.of(tester.element(find.byType(TodayTab)));
         expect(bars(colors.accent), findsOneWidget);
-        expect(bars(colors.chartQuiet), findsNWidgets(6));
+        expect(bars(colors.chartOther), findsNWidgets(6));
         await list.close();
 
         list = await _open(tester, due: {'Alpha': 4, 'Beta': 3}, dueDays: 30);
         expect(find.text('Pick up where you left off'), findsOneWidget);
         expect(bars(colors.accent), findsOneWidget);
-        expect(bars(colors.chartQuiet), findsNWidgets(6));
+        expect(bars(colors.chartOther), findsNWidgets(6));
         expect(bars(colors.streak), findsNothing);
         await list.close();
       },

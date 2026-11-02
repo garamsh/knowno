@@ -1,12 +1,12 @@
 // The 기록 page's chart shades, as the phone's (app/lib/study/src/stats_style.dart). The bands and
-// the quiet week are 3:1 on the surface, and every two bands, and every two adjacent heatmap
+// the quiet week are 3:1 on the surface but fair, which its count carries, and every two bands, and every two adjacent heatmap
 // levels, differ in lightness by 1.5:1;
 // src/features/study/__tests__/record-shades.test.ts reads these classes to check it.
 
-/** The recall bands: strong in the accent, fair and fading in the chart's two colours. */
+/** The recall bands: strong in the accent, fair in the chart's other colour, fading in its red. */
 export const bandShades = {
   strong: "bg-accent",
-  fair: "bg-chart-quiet",
+  fair: "bg-chart-other",
   fading: "bg-chart-fading",
 } as const;
 

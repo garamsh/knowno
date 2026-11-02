@@ -28,6 +28,7 @@
   --color-dont-know-edge: #7a1622;
   --color-on-dont-know-text: #ffffff;
   --color-shadow: #0f3138;
+  --color-chart-other: #5fd0e0;
   --color-chart-quiet: #5b9dab;
   --color-chart-fading: #7a1622;
   --color-tint-amber: #ffe9a8;
@@ -42,7 +43,7 @@
   --color-streak: #c26a0a;
   --color-deck-blue: #c9e2ff;
   --color-deck-sky: #e0f0fa;
-  --color-deck-violet: #e6dff7;
+  --color-deck-peach: #ffd9c2;
   --color-deck-amber: #ffe9a8;
   --color-deck-slate: #e9ecf1;
   --color-deck-sand: #f4ecdf;
@@ -357,6 +358,8 @@
     --color-dont-know-edge: #d97c92;
     --color-on-dont-know-text: #1d1833;
     --color-shadow: #000000;
+    --color-chart-other: #62a3b2;
+    --color-chart-other: #62a3b2;
     --color-chart-quiet: #62a3b2;
     --color-chart-fading: #cf4a63;
     --color-tint-amber: #4a3b1e;
@@ -371,7 +374,7 @@
     --color-streak: #f5a623;
     --color-deck-blue: #2f5a86;
     --color-deck-sky: #1d3a50;
-    --color-deck-violet: #3b3360;
+    --color-deck-peach: #5a3e30;
     --color-deck-amber: #4a3b1e;
     --color-deck-slate: #2d3445;
     --color-deck-sand: #3f3527;
@@ -408,6 +411,7 @@
   --color-dont-know-edge: #d97c92;
   --color-on-dont-know-text: #1d1833;
   --color-shadow: #000000;
+  --color-chart-other: #62a3b2;
   --color-chart-quiet: #62a3b2;
   --color-chart-fading: #cf4a63;
   --color-tint-amber: #4a3b1e;
@@ -422,7 +426,7 @@
   --color-streak: #f5a623;
   --color-deck-blue: #2f5a86;
   --color-deck-sky: #1d3a50;
-  --color-deck-violet: #3b3360;
+  --color-deck-peach: #5a3e30;
   --color-deck-amber: #4a3b1e;
   --color-deck-slate: #2d3445;
   --color-deck-sand: #3f3527;

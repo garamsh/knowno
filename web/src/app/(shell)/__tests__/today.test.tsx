@@ -893,14 +893,14 @@ describe("the 오늘 and 덱 pages", () => {
     expect(screen.queryByRole("heading", { name: title })).not.toBeInTheDocument();
   });
 
-  it("draws today's bar in the accent and the other days in the chart's quiet colour, on the last seven days and the catch-up, with no amber", async () => {
+  it("draws today's bar in the accent and the other days in the chart's other colour, on the last seven days and the catch-up, with no amber", async () => {
     /** The bars of the page's chart, by fill. */
     const bars = (fill: string) => document.querySelectorAll(`span.rounded-md.${fill}`).length;
     postgrest.seed("decks", deckRow("d-fr", "French"));
     postgrest.seed("cards", cardRow("c-chat", "d-fr", "chat"));
     await render(Today, {});
     expect(bars("bg-accent")).toBe(1);
-    expect(bars("bg-chart-quiet")).toBe(6);
+    expect(bars("bg-chart-other")).toBe(6);
     cleanup();
 
     postgrest = new FakePostgrest();
@@ -918,7 +918,7 @@ describe("the 오늘 and 덱 pages", () => {
     await render(Today, {});
     expect(screen.getByRole("heading", { name: "다시 시작하면 돼요" })).toBeInTheDocument();
     expect(bars("bg-accent")).toBe(1);
-    expect(bars("bg-chart-quiet")).toBe(6);
+    expect(bars("bg-chart-other")).toBe(6);
     expect(bars("bg-streak")).toBe(0);
   });
 

@@ -280,7 +280,7 @@ void main() {
           for (final fill in [
             colors.deckBlue,
             colors.deckSky,
-            colors.deckViolet,
+            colors.deckPeach,
             colors.deckAmber,
             colors.deckSlate,
             colors.deckSand,

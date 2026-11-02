@@ -278,7 +278,7 @@ describe("the deck page", () => {
     );
 
     await open("d-tiled");
-    expect(tile()).toEqual({ icon: "lucide-book-open", fill: "bg-deck-violet" });
+    expect(tile()).toEqual({ icon: "lucide-book-open", fill: "bg-deck-peach" });
     // The read asks for both keys: the fake answers whole rows whatever is selected.
     expect(postgrest.selected.filter((read) => read.startsWith("decks: "))).toContain(
       "decks: id,name,visibility,icon,color",

@@ -13,7 +13,7 @@ describe("a deck's colour", () => {
     expect(deckColors.map(deckFill)).toEqual([
       "bg-deck-blue",
       "bg-deck-sky",
-      "bg-deck-violet",
+      "bg-deck-peach",
       "bg-deck-amber",
       "bg-deck-slate",
       "bg-deck-sand",

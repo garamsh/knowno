@@ -679,7 +679,7 @@ class _DayBars extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: index == emphasised
                           ? colors.accent
-                          : colors.chartQuiet,
+                          : colors.chartOther,
                       borderRadius: BorderRadius.circular(AppSpace.s8 - 2),
                     ),
                   ),

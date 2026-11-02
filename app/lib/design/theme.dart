@@ -425,6 +425,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.dontKnowEdge,
     required this.onDontKnowText,
     required this.shadow,
+    required this.chartOther,
     required this.chartQuiet,
     required this.chartFading,
     required this.tintAmber,
@@ -439,7 +440,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.streak,
     required this.deckBlue,
     required this.deckSky,
-    required this.deckViolet,
+    required this.deckPeach,
     required this.deckAmber,
     required this.deckSlate,
     required this.deckSand,
@@ -474,6 +475,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     dontKnowEdge: Color(0xFF7A1622),
     onDontKnowText: Color(0xFFFFFFFF),
     shadow: Color(0xFF0F3138),
+    chartOther: Color(0xFF5FD0E0),
     chartQuiet: Color(0xFF5B9DAB),
     chartFading: Color(0xFF7A1622),
     tintAmber: Color(0xFFFFE9A8),
@@ -488,7 +490,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     streak: Color(0xFFC26A0A),
     deckBlue: Color(0xFFC9E2FF),
     deckSky: Color(0xFFE0F0FA),
-    deckViolet: Color(0xFFE6DFF7),
+    deckPeach: Color(0xFFFFD9C2),
     deckAmber: Color(0xFFFFE9A8),
     deckSlate: Color(0xFFE9ECF1),
     deckSand: Color(0xFFF4ECDF),
@@ -523,6 +525,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     dontKnowEdge: Color(0xFFD97C92),
     onDontKnowText: Color(0xFF1D1833),
     shadow: Color(0xFF000000),
+    chartOther: Color(0xFF62A3B2),
     chartQuiet: Color(0xFF62A3B2),
     chartFading: Color(0xFFCF4A63),
     tintAmber: Color(0xFF4A3B1E),
@@ -537,7 +540,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     streak: Color(0xFFF5A623),
     deckBlue: Color(0xFF2F5A86),
     deckSky: Color(0xFF1D3A50),
-    deckViolet: Color(0xFF3B3360),
+    deckPeach: Color(0xFF5A3E30),
     deckAmber: Color(0xFF4A3B1E),
     deckSlate: Color(0xFF2D3445),
     deckSand: Color(0xFF3F3527),
@@ -621,12 +624,17 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// The colour of every shadow, before its opacity.
   final Color shadow;
 
-  /// A chart's bar or segment that is not the one it stresses: 3:1 on
-  /// [surface], where [edge] is not (ADR 0147).
+  /// A chart's bar or segment that is not the one it stresses, beside its
+  /// own count, which carries it: the primary in the light theme, and a
+  /// step from [accent] in the dark, where the two are one colour.
+  final Color chartOther;
+
+  /// A mark with no count of its own: a past week's mastered bar, a deck's
+  /// learning share. 3:1 on [surface], where [edge] is not (ADR 0147).
   final Color chartQuiet;
 
   /// The recall band that is fading: 3:1 on [surface], and 1.5:1 from
-  /// [accent] and [chartQuiet].
+  /// [accent] and [chartOther].
   final Color chartFading;
 
   /// An amber tint: the backlog card's check and a chart's shortfall.
@@ -671,12 +679,12 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// The streak flame's glow, from its fourth stage.
   Color get flameGlow => streak.withValues(alpha: 0.35);
 
-  /// The deck palette, the colours a deck's tile takes: blue, sky, violet,
+  /// The deck palette, the colours a deck's tile takes: blue, sky, peach,
   /// amber, slate and sand, none green or red, which mean "Know" and "Don't
   /// know".
   final Color deckBlue;
   final Color deckSky;
-  final Color deckViolet;
+  final Color deckPeach;
   final Color deckAmber;
   final Color deckSlate;
   final Color deckSand;
@@ -714,6 +722,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? dontKnowEdge,
     Color? onDontKnowText,
     Color? shadow,
+    Color? chartOther,
     Color? chartQuiet,
     Color? chartFading,
     Color? tintAmber,
@@ -728,7 +737,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? streak,
     Color? deckBlue,
     Color? deckSky,
-    Color? deckViolet,
+    Color? deckPeach,
     Color? deckAmber,
     Color? deckSlate,
     Color? deckSand,
@@ -759,6 +768,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     dontKnowEdge: dontKnowEdge ?? this.dontKnowEdge,
     onDontKnowText: onDontKnowText ?? this.onDontKnowText,
     shadow: shadow ?? this.shadow,
+    chartOther: chartOther ?? this.chartOther,
     chartQuiet: chartQuiet ?? this.chartQuiet,
     chartFading: chartFading ?? this.chartFading,
     tintAmber: tintAmber ?? this.tintAmber,
@@ -773,7 +783,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     streak: streak ?? this.streak,
     deckBlue: deckBlue ?? this.deckBlue,
     deckSky: deckSky ?? this.deckSky,
-    deckViolet: deckViolet ?? this.deckViolet,
+    deckPeach: deckPeach ?? this.deckPeach,
     deckAmber: deckAmber ?? this.deckAmber,
     deckSlate: deckSlate ?? this.deckSlate,
     deckSand: deckSand ?? this.deckSand,
@@ -810,6 +820,7 @@ final class AppColors extends ThemeExtension<AppColors> {
       dontKnowEdge: mix(dontKnowEdge, other.dontKnowEdge),
       onDontKnowText: mix(onDontKnowText, other.onDontKnowText),
       shadow: mix(shadow, other.shadow),
+      chartOther: mix(chartOther, other.chartOther),
       chartQuiet: mix(chartQuiet, other.chartQuiet),
       chartFading: mix(chartFading, other.chartFading),
       tintAmber: mix(tintAmber, other.tintAmber),
@@ -824,7 +835,7 @@ final class AppColors extends ThemeExtension<AppColors> {
       streak: mix(streak, other.streak),
       deckBlue: mix(deckBlue, other.deckBlue),
       deckSky: mix(deckSky, other.deckSky),
-      deckViolet: mix(deckViolet, other.deckViolet),
+      deckPeach: mix(deckPeach, other.deckPeach),
       deckAmber: mix(deckAmber, other.deckAmber),
       deckSlate: mix(deckSlate, other.deckSlate),
       deckSand: mix(deckSand, other.deckSand),
