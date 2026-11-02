@@ -20,10 +20,20 @@ export function parseCardId(value: unknown): CardId | null {
 }
 
 /**
- * A deck that is not deleted, whether its owner published it, and the keys of the icon and
- * colour its owner chose for its tile, absent while none is stored (ADR 0103).
+ * A deck that is not deleted, whether its owner published it, the keys of the icon and colour
+ * its owner chose for its tile, absent while none is stored (ADR 0103), a signed URL its photo is
+ * drawn from while it holds one the server lets it read (ADR 0159), and, on a note's page, the
+ * description it is published with.
  */
-export type Deck = { id: DeckId; name: string; public: boolean; icon?: string; color?: string };
+export type Deck = {
+  id: DeckId;
+  name: string;
+  public: boolean;
+  icon?: string;
+  color?: string;
+  imageUrl?: string;
+  description?: string;
+};
 
 /**
  * A card that is not deleted, in a deck that is not, without its content: what the deck list

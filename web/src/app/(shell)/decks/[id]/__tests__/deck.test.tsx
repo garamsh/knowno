@@ -127,6 +127,28 @@ describe("the deck page", () => {
     expect(screen.queryByRole("searchbox", { name: "카드 검색" })).not.toBeInTheDocument();
   });
 
+  it("puts 노트 설정 on the surface beside the name, with the phone's four items, on a note with cards and on one with none", async () => {
+    postgrest.seed("decks", deckRow("d-empty", "Empty"));
+    for (const [name, title] of [
+      ["d-fr", "French"],
+      ["d-empty", "Empty"],
+    ] as const) {
+      cleanup();
+      await open(name);
+      const settings = screen.getByRole("button", { name: "노트 설정" });
+      expect(settings).toHaveClass("size-tap-target", "shadow-row", "bg-surface");
+      expect(settings.closest("header")).toBe(
+        screen.getByRole("heading", { level: 1, name: title }).closest("header"),
+      );
+      await userEvent.click(settings);
+      expect(
+        within(screen.getByRole("menu", { name: "노트 설정" }))
+          .getAllByRole("menuitem")
+          .map((item) => item.textContent),
+      ).toEqual(["이름 바꾸기", "노트 꾸미기", "노트 공개", "노트 삭제"]);
+    }
+  });
+
   it("opens the 카드 추가 sheet on arrival from 새 노트's 저장하고 카드 추가, and not otherwise", async () => {
     await open("d-fr");
     // Control: a plain arrival leaves the sheet closed.

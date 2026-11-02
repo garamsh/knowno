@@ -4,8 +4,10 @@ import {
   AuthoringButton,
   CardGrid,
   type LibraryFailure,
+  NoteSettings,
   parseDeckId,
   ReadFailure,
+  readDisplayName,
 } from "@/features/decks";
 import {
   countDay,
@@ -21,7 +23,7 @@ import { readDeck } from "./read-deck";
 
 /**
  * The note [params] names, read on the server, as the final screens draw it (ADR 0150): its name
- * with the card search, "이 노트 학습 · n장" while it holds a card, its cards, and one "카드 추가"
+ * with the card search and 노트 설정, "이 노트 학습 · n장" while it holds a card, its cards, and one "카드 추가"
  * at the foot above the tab bar, open on arrival when [searchParams] hold `adding=1`. A note that
  * does not exist, or an id that names none, is not found.
  */
@@ -35,7 +37,11 @@ export async function Deck({
   const deckId = parseDeckId((await params).id);
   const adding = (await searchParams)?.adding === "1";
   if (!deckId) notFound();
-  const [read, studyDay] = await Promise.all([readDeck(deckId), readToday()]);
+  const [read, studyDay, displayName] = await Promise.all([
+    readDeck(deckId),
+    readToday(),
+    readDisplayName(),
+  ]);
   if ("failure" in read) return <Failure failure={read.failure} />;
   if ("failure" in studyDay) return <Failure failure={studyDay.failure} />;
 
@@ -53,6 +59,7 @@ export async function Deck({
         deck={deck}
         cards={cards}
         mastered={mastered}
+        settings={<NoteSettings deck={deck} cardCount={cards.length} displayName={displayName} />}
         study={
           <EnterLink
             href={studyHref([deck.id], "deck")}

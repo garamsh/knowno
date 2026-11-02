@@ -6,9 +6,9 @@ import { recordDays, streak, studyDayStart } from "@/features/study";
 import { bearerUser, supabaseUrl, testUser } from "./handlers";
 
 type Row = Record<string, unknown>;
-type Table = "decks" | "cards" | "reviews" | "card_states";
+type Table = "decks" | "cards" | "reviews" | "card_states" | "media" | "profiles";
 
-const tables: readonly Table[] = ["decks", "cards", "reviews", "card_states"];
+const tables: readonly Table[] = ["decks", "cards", "reviews", "card_states", "media", "profiles"];
 
 /** The columns each table's primary key holds, as server.md lists them. */
 const keys: Record<Table, readonly string[]> = {
@@ -16,6 +16,8 @@ const keys: Record<Table, readonly string[]> = {
   cards: ["id"],
   reviews: ["id"],
   card_states: ["user_id", "card_id"],
+  media: ["user_id", "id"],
+  profiles: ["user_id"],
 };
 
 /** The columns a client may update in each table: every one but a review's, as server.md grants. */
@@ -24,6 +26,8 @@ const updatable: Record<Table, readonly string[] | null> = {
   cards: null,
   reviews: ["rating", "updated_at"],
   card_states: null,
+  media: [],
+  profiles: ["display_name"],
 };
 
 /**
@@ -54,6 +58,8 @@ const columns: Record<Table, readonly string[] | null> = {
     "updated_at",
     "revision",
   ],
+  media: ["user_id", "id", "kind", "mime_type", "byte_size", "sha256", "created_at"],
+  profiles: ["user_id", "display_name", "created_at"],
 };
 
 /** PostgREST's answer to a request naming a column [table] lacks, or null when it names none. */
@@ -109,8 +115,15 @@ function passes(row: Row, column: string, filter: string): boolean {
 
 const reserved = new Set(["select", "order", "offset", "limit", "on_conflict", "columns"]);
 
-/** The four tables' uuid columns, as server.md lists them. */
-const uuidColumns = new Set(["id", "user_id", "deck_id", "card_id", "origin_deck_id"]);
+/** The tables' uuid columns, as server.md lists them. */
+const uuidColumns = new Set([
+  "id",
+  "user_id",
+  "deck_id",
+  "card_id",
+  "origin_deck_id",
+  "image_media_id",
+]);
 
 const uuidForm = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -158,17 +171,26 @@ function ordered(rows: Row[], order: string | null): Row[] {
   return rows.toSorted((a, b) => sign * (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
 }
 
+/** A write's answer: the rows it wrote under `Prefer: return=representation`, else none. */
+function returned(request: Request, rows: Row[]): Response {
+  return request.headers.get("prefer")?.includes("return=representation")
+    ? HttpResponse.json(rows)
+    : new HttpResponse(null, { status: 204 });
+}
+
 /** A request that waits until the test releases it. */
 type Held = { release: () => void; released: Promise<void> };
 
 /**
- * PostgREST over the four sync tables, in memory, for a session Supabase Auth knows: what a test
+ * PostgREST over the four sync tables, `media` and `profiles`, in memory, for a session Supabase
+ * Auth knows: what a test
  * seeds is what the app reads, and what the app writes lands in [rows]. A row a test seeds
  * for another user stands in for one row-level security lets every user read, as another
  * user's public deck and its cards; the request's filters decide whether it is returned. It applies the
  * filters the app sends, its order by one column, the paging of `offset` and `limit` with the
  * count `Prefer: count=exact` asks for, the server's revision on every write, an upsert's
- * `resolution`, and the reviews' column grant. It answers `study_streak_before` from the seeded
+ * `resolution`, the rows a write returns under `Prefer: return=representation`, a `profiles`
+ * row's `user_id` defaulting to the caller as the server's does, and the reviews' column grant. It answers `study_streak_before` from the seeded
  * reviews with the web's own `streak`, as the server counts the same days, and
  * `study_days_before` with the web's own `studyDayStart`, as the server groups the same days;
  * `study_record_days` with the web's own `recordDays`, as the server counts the same days; and
@@ -177,7 +199,14 @@ type Held = { release: () => void; released: Promise<void> };
  * `save_study_settings` as the server does: the later edit wins.
  */
 export class FakePostgrest {
-  readonly rows: Record<Table, Row[]> = { decks: [], cards: [], reviews: [], card_states: [] };
+  readonly rows: Record<Table, Row[]> = {
+    decks: [],
+    cards: [],
+    reviews: [],
+    card_states: [],
+    media: [],
+    profiles: [],
+  };
   /** Each user's study settings, by user id, as `public.study_settings` holds them. */
   readonly studySettings = new Map<string, { daily_minutes: number; updated_at: string }>();
   /** Every request answered, as `<method> <table>`. */
@@ -435,7 +464,10 @@ export class FakePostgrest {
       if (refused) return refused;
       this.requests.push(`POST ${table}`);
       const body: unknown = await request.json();
-      const incoming = (Array.isArray(body) ? body : [body]) as Row[];
+      const caller = bearerUser(request.headers.get("authorization"));
+      const incoming = ((Array.isArray(body) ? body : [body]) as Row[]).map((row) =>
+        table === "profiles" && caller ? { user_id: caller.id, ...row } : row,
+      );
       const unknown = unknownColumn(
         table,
         incoming.flatMap((row) => Object.keys(row)),
@@ -470,11 +502,29 @@ export class FakePostgrest {
       }
       const malformed = malformedUuid(url.searchParams);
       if (malformed) return malformed;
+      const written: Row[] = [];
       for (const row of matching(this.rows[table], url.searchParams)) {
         const at = this.rows[table].indexOf(row);
-        this.rows[table][at] = this.stamp({ ...row, ...body });
+        const next = this.stamp({ ...row, ...body });
+        this.rows[table][at] = next;
+        written.push(next);
       }
-      return new HttpResponse(null, { status: 204 });
+      return returned(request, written);
+    }),
+    http.delete(`${supabaseUrl}/rest/v1/:table`, async ({ request, params }) => {
+      const { table } = params;
+      if (!isTable(table)) return HttpResponse.json({}, { status: 404 });
+      const refused = await this.gate(table);
+      if (refused) return refused;
+      this.requests.push(`DELETE ${table}`);
+      const url = new URL(request.url);
+      const unknown = unknownColumn(table, namedColumns(url.searchParams));
+      if (unknown) return unknown;
+      const malformed = malformedUuid(url.searchParams);
+      if (malformed) return malformed;
+      const removed = matching(this.rows[table], url.searchParams);
+      this.rows[table] = this.rows[table].filter((row) => !removed.includes(row));
+      return returned(request, removed);
     }),
   ];
 }
