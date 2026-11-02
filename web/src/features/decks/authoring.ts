@@ -18,6 +18,7 @@ import {
   parseContent,
   partsOfSpeech,
   plainText,
+  type Rest,
   type Sense,
   type SenseLabel,
   sidesOf,
@@ -140,12 +141,12 @@ export function frameRefusal(value: unknown): string | null {
   const problem = cells && frameProblem(cells);
   return problem ? frameMessages[problem] : null;
 }
-/** The media ids [cells] hold. */
-export function mediaOf(cells: Cell[]): string[] {
+/** The files [cells] name: each photo's and sound's media id, with the kind of its block. */
+export function mediaOf(cells: Cell[]): { media: string; kind: "image" | "audio" }[] {
   return cells.flatMap((cell) =>
     (cell.kind === "blank" || cell.kind === "placed") &&
     (cell.block.kind === "image" || cell.block.kind === "audio")
-      ? [cell.block.media]
+      ? [{ media: cell.block.media, kind: cell.block.kind }]
       : [],
   );
 }
@@ -265,7 +266,30 @@ export type SenseDraft = {
   withExamples: boolean;
 };
 
-/** One 칸 in the editor. A stored 사진 or 소리 is [kept]: the web moves it and changes its side alone. */
+/**
+ * A file a 사진 or a 소리 names: its media id, the URL it is drawn or played from, and, until a
+ * save stores it, the prepared file and its SHA-256 (ADR 0163).
+ */
+export type MediaFile = { media: string; url?: string; upload?: { file: Blob; sha256: string } };
+
+/** A box over a photo in the editor: a stored box, its answer as typed (ADR 0109). */
+export type BoxDraft = {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  answer: string;
+  rest?: Rest;
+};
+
+/** A photo as the editor holds it: its file, its pixels and its stored fields it does not know. */
+export type PhotoDraft = MediaFile & { width: number; height: number; rest?: Rest };
+
+/** A sound as the editor holds it: its file, its length and its stored fields it does not know. */
+export type SoundDraft = MediaFile & { durationMs: number; rest?: Rest };
+
+/** One 칸 in the editor. */
 export type CellDraft =
   | { kind: "text"; id: string; front: string; back: string }
   | { kind: "word"; id: string; term: string; ask: WordAsk; senses: SenseDraft[] }
@@ -278,7 +302,8 @@ export type CellDraft =
       blanks: TableBlank[];
       spans: CellSpan[];
     }
-  | { kind: "kept"; id: string; cell: Extract<WrittenCell, { kind: "blank" | "placed" }> };
+  | { kind: "image"; id: string; side: CellSide; photo: PhotoDraft | null; boxes: BoxDraft[] }
+  | { kind: "audio"; id: string; side: CellSide; sound: SoundDraft | null };
 
 const labelText = (labels: SenseLabel[]) => labels.map(labelShown).join(" ");
 
@@ -298,10 +323,17 @@ export function emptySense(): SenseDraft {
   return senseDraft({ labels: [], meaning: "", examples: [] });
 }
 
-/** A new 칸 of [kind], empty; a table starts at two columns and two rows. */
-export function emptyCell(kind: "text" | "word" | "cloze" | "table"): CellDraft {
+/**
+ * A new 칸 of [kind], empty; a table starts at two columns and two rows, and a 사진 or a 소리
+ * holds no file yet and sits on the front.
+ */
+export function emptyCell(kind: CellDraft["kind"]): CellDraft {
   const id = v7();
   switch (kind) {
+    case "image":
+      return { kind, id, side: "front", photo: null, boxes: [] };
+    case "audio":
+      return { kind, id, side: "front", sound: null };
     case "text":
       return { kind, id, front: "", back: "" };
     case "word":
@@ -366,7 +398,33 @@ export function cellDraft(cell: WrittenCell): CellDraft {
           blanks: stored.blanks,
           spans: stored.spans,
         };
-      return { kind: "kept", id, cell };
+      const side = cell.kind === "placed" ? cell.side : "front";
+      if (stored.kind !== "image" && stored.kind !== "audio")
+        throw new Error(`a ${stored.kind} block is not a 칸 of its own`);
+      const file = { media: stored.media, ...(stored.url && { url: stored.url }) };
+      if (stored.kind === "image")
+        return {
+          kind: "image",
+          id,
+          side,
+          photo: {
+            ...file,
+            width: stored.width,
+            height: stored.height,
+            ...(stored.rest && { rest: stored.rest }),
+          },
+          boxes: stored.boxes.map(({ answer, ...box }) => ({ ...box, answer: answer ?? "" })),
+        };
+      return {
+        kind: "audio",
+        id,
+        side,
+        sound: {
+          ...file,
+          durationMs: stored.durationMs,
+          ...(stored.rest && { rest: stored.rest }),
+        },
+      };
     }
   }
 }
@@ -375,8 +433,11 @@ export function cellDraft(cell: WrittenCell): CellDraft {
 export function cellProblem(draft: CellDraft): string | null {
   switch (draft.kind) {
     case "text":
-    case "kept":
       return null;
+    case "image":
+      return draft.photo ? null : "사진을 골라 주세요";
+    case "audio":
+      return draft.sound ? null : "소리를 넣어 주세요";
     case "word":
       return draft.senses.some(({ meaning }) => meaning.trim() === "")
         ? senseRequired(draft.senses)
@@ -472,9 +533,49 @@ function builtCell(draft: CellDraft): WrittenCell | null {
           ...blockId(draft.id),
         },
       };
-    case "kept":
-      return draft.cell;
+    case "image": {
+      if (!draft.photo) return null;
+      const { media, width, height, rest } = draft.photo;
+      const block: Content = {
+        kind: "image",
+        media,
+        width,
+        height,
+        // A box's answer is trimmed, and left out while empty, as the phone saves it.
+        boxes: draft.boxes.map(({ answer, ...box }) => ({
+          ...box,
+          answer: answer.trim() === "" ? null : answer.trim(),
+        })),
+        ...(rest && { rest }),
+        ...blockId(draft.id),
+      };
+      return draft.boxes.length > 0
+        ? { kind: "blank", block }
+        : { kind: "placed", block, side: draft.side };
+    }
+    case "audio": {
+      if (!draft.sound) return null;
+      const { media, durationMs, rest } = draft.sound;
+      return {
+        kind: "placed",
+        block: { kind: "audio", media, durationMs, ...(rest && { rest }), ...blockId(draft.id) },
+        side: draft.side,
+      };
+    }
   }
+}
+
+/** The files [drafts] name that a save stores before it writes the card (ADR 0163). */
+export function pendingUploads(
+  drafts: CellDraft[],
+): { media: string; kind: "image" | "audio"; file: Blob; sha256: string }[] {
+  return drafts.flatMap((draft) => {
+    const named =
+      draft.kind === "image" ? draft.photo : draft.kind === "audio" ? draft.sound : null;
+    return named?.upload && (draft.kind === "image" || draft.kind === "audio")
+      ? [{ media: named.media, kind: draft.kind, ...named.upload }]
+      : [];
+  });
 }
 
 /**
@@ -636,9 +737,4 @@ export function withoutColumn<T extends Extract<CellDraft, { kind: "table" }>>(
     blanks: moved(table.blanks),
     spans: moved(table.spans),
   };
-}
-
-/** A kept 칸 moved to [side]. */
-export function onSide(draft: Extract<CellDraft, { kind: "kept" }>, side: CellSide): CellDraft {
-  return draft.cell.kind === "placed" ? { ...draft, cell: { ...draft.cell, side } } : draft;
 }

@@ -16,12 +16,12 @@ import { signedInCookies } from "@/testing/session";
 
 import { type DisplayNameRead, NoteSettings } from "../components/note-settings";
 import type { Deck, DeckId } from "../library";
-import { cropImage } from "../prepare-image";
+import { prepareImage } from "../prepare-image";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 // jsdom decodes no image: the crop is prepare-image.test.ts's, and here gives a fixed JPEG.
-vi.mock("../prepare-image", () => ({ cropImage: vi.fn() }));
+vi.mock("../prepare-image", () => ({ prepareImage: vi.fn() }));
 
 const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9, 9]);
 
@@ -44,9 +44,11 @@ beforeEach(async () => {
   setRequestCookies(await signedInCookies());
   testRouter.push.mockClear();
   testRouter.refresh.mockClear();
-  vi.mocked(cropImage).mockResolvedValue({
+  vi.mocked(prepareImage).mockResolvedValue({
     jpeg: new Blob([jpeg], { type: "image/jpeg" }),
     sha256: createHash("sha256").update(jpeg).digest("hex"),
+    width: 1,
+    height: 1,
   });
 });
 
@@ -156,7 +158,7 @@ describe("노트 설정", () => {
   });
 
   it("says a photo the browser cannot read could not be loaded, and stores nothing", async () => {
-    vi.mocked(cropImage).mockResolvedValue(null);
+    vi.mocked(prepareImage).mockResolvedValue(null);
     db.seed("decks", deckRow("deck", "French"));
     await choose("노트 꾸미기");
     const sheet = within(screen.getByRole("dialog", { name: "노트 꾸미기" }));

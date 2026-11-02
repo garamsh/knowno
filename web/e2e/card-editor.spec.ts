@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { crc32, deflateSync } from "node:zlib";
 
-import { expect, type Page, test } from "@playwright/test";
+import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
@@ -40,12 +41,9 @@ async function capture(page: Page, name: string) {
 
 const text = (id: string, value: string) => ({ type: "text", v: 1, id, payload: { text: value } });
 
-test("writes every 칸 type as free v2, and opens and saves a stored card over its own row", async ({
-  page,
-  context,
-  baseURL,
-}) => {
-  if (!url || !key || !baseURL) throw new Error("skipped without local stack");
+/** Signs a new user up, hands the browser its session, and returns a client signed in as it. */
+async function signUp(context: BrowserContext, baseURL: string) {
+  if (!url || !key) throw new Error("skipped without local stack");
   const jar = new Map<string, string>();
   const auth = createServerClient(url, key, {
     cookies: {
@@ -64,6 +62,16 @@ test("writes every 칸 type as free v2, and opens and saves a stored card over i
   await context.addCookies([...jar].map(([name, value]) => ({ name, value, url: baseURL })));
   const db = createClient(url, key, { auth: { persistSession: false } });
   await db.auth.signInWithPassword({ email, password });
+  return { db, userId };
+}
+
+test("writes every 칸 type as free v2, and opens and saves a stored card over its own row", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  const { db, userId } = await signUp(context, baseURL);
 
   const deckId = randomUUID();
   const time = new Date(Date.now() - 86_400_000).toISOString();
@@ -267,4 +275,192 @@ test("writes every 칸 type as free v2, and opens and saves a stored card over i
   ).toBeVisible();
   await expect(readOnly.getByRole("button", { name: "저장", exact: true })).toHaveCount(0);
   await capture(page, "read-only");
+});
+
+/** A [width] by [height] PNG of one colour, which the browser decodes and prepares as a JPEG. */
+function png(width: number, height: number): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const sum = Buffer.alloc(4);
+    sum.writeUInt32BE(crc32(body));
+    return Buffer.concat([length, body, sum]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2, 0, 0, 0], 8);
+  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(width * 3, 0x60)]);
+  const pixels = deflateSync(Buffer.concat(Array.from({ length: height }, () => row)));
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", header),
+    chunk("IDAT", pixels),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+/**
+ * About a second of silent MP3: 38 MPEG-1 Layer III frames of 1,152 samples at 44.1 kHz, mono at
+ * 128 kbit/s, each 417 bytes, whose side information and data are empty.
+ */
+function silentMp3(): Buffer {
+  const frame = Buffer.alloc(417);
+  frame.set([0xff, 0xfb, 0x90, 0xc0]);
+  return Buffer.concat(Array.from({ length: 38 }, () => frame));
+}
+
+test("adds a 사진 칸 with its boxes and a 소리 칸, which study draws and plays, and releases a removed one's file", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  const { db, userId } = await signUp(context, baseURL);
+  const deckId = randomUUID();
+  const time = new Date(Date.now() - 86_400_000).toISOString();
+  const deck = await db.from("decks").insert({
+    id: deckId,
+    user_id: userId,
+    name: "사진 단어장",
+    visibility: "private",
+    created_at: time,
+    updated_at: time,
+  });
+  expect(deck.error).toBeNull();
+  /** Whether Storage holds the user's object [id], read as the user. */
+  const held = async (id: string) =>
+    (await db.storage.from("media").download(`${userId}/${id}`)).error === null;
+  /** The user's `media` rows, by id, with their kind and type. */
+  const rows = async () =>
+    ((await db.from("media").select("id,kind,mime_type")).data ?? []).map((row): unknown => row);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/decks/${deckId}`);
+  const manual = page.getByRole("button", { name: "직접 입력" });
+  await untilReacted(
+    () => page.getByRole("button", { name: "카드 추가" }).click(),
+    () => manual.isVisible(),
+  );
+  await manual.click();
+  const dialog = page.getByRole("dialog", { name: "새 카드" });
+  await dialog.getByRole("textbox", { name: "앞면", exact: true }).fill("Name the city");
+  await dialog.getByRole("textbox", { name: "뒷면", exact: true }).fill("수도");
+  const addCell = async (name: string) => {
+    await dialog.getByRole("button", { name: "+ 칸 추가" }).click();
+    const sheet = page.getByRole("dialog", { name: "칸 추가" });
+    await sheet.getByRole("button", { name, exact: true }).click();
+    await expect(sheet).toBeHidden();
+  };
+
+  // A photo, prepared whole in the browser, with a box from "빈칸 추가" and one drawn by a drag.
+  await addCell("사진");
+  await capture(page, "photo-empty");
+  await dialog
+    .getByLabel("앨범에서 고르기")
+    .setInputFiles({ name: "city.png", mimeType: "image/png", buffer: png(400, 300) });
+  await dialog.getByRole("button", { name: "빈칸 추가" }).click();
+  await dialog.getByRole("textbox", { name: "정답 (선택)" }).fill("Paris");
+  const photo = dialog.locator("[data-photo]");
+  await photo.scrollIntoViewIfNeeded();
+  const frame = await photo.boundingBox();
+  if (!frame) throw new Error("the photo is not drawn");
+  expect(frame.width / frame.height).toBeCloseTo(4 / 3, 1);
+  await page.mouse.move(frame.x + frame.width * 0.05, frame.y + frame.height * 0.05);
+  await page.mouse.down();
+  await page.mouse.move(frame.x + frame.width * 0.25, frame.y + frame.height * 0.3, { steps: 4 });
+  await page.mouse.up();
+  await expect(dialog.getByRole("button", { name: "빈칸 2" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await capture(page, "photo");
+
+  // A sound picked from a file; recording is offered where the browser records AAC alone.
+  await addCell("소리");
+  const records = await page.evaluate(
+    () =>
+      typeof MediaRecorder !== "undefined" &&
+      MediaRecorder.isTypeSupported("audio/mp4;codecs=mp4a.40.2"),
+  );
+  await expect(dialog.getByRole("button", { name: "녹음하기" })).toHaveCount(records ? 1 : 0);
+  await dialog
+    .getByLabel("파일에서 고르기")
+    .setInputFiles({ name: "city.mp3", mimeType: "audio/mpeg", buffer: silentMp3() });
+  await expect(dialog.getByRole("button", { name: "소리 듣기" })).toBeVisible();
+  await capture(page, "sound");
+  await dialog.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  // The files went first, as their rows and objects, and the card names them.
+  const written = await db
+    .from("cards")
+    .select("id,front,back,template,template_version")
+    .eq("deck_id", deckId)
+    .single();
+  expect(written.data).toMatchObject({ template: "free", template_version: 2, back: [] });
+  const cardId = String(written.data?.id);
+  type Block = { type: string; payload: Record<string, unknown> };
+  const [, image, sound] = written.data?.front as Block[];
+  expect(image).toMatchObject({ type: "image", payload: { width: 400, height: 300 } });
+  expect(image?.payload).not.toHaveProperty("side");
+  const boxes = image?.payload.boxes as { id: string; answer?: string; x: number; w: number }[];
+  expect(boxes.map(({ id, answer }) => [id, answer])).toEqual([
+    ["1", "Paris"],
+    ["2", undefined],
+  ]);
+  expect(boxes[1]?.x).toBeCloseTo(0.05, 1);
+  expect(boxes[1]?.w).toBeCloseTo(0.2, 1);
+  expect(sound).toMatchObject({ type: "audio", payload: { side: "front" } });
+  const durationMs = Number(sound?.payload.duration_ms);
+  expect(durationMs).toBeGreaterThan(900);
+  expect(durationMs).toBeLessThan(1100);
+  const photoId = String(image?.payload.media);
+  const soundId = String(sound?.payload.media);
+  expect(await rows()).toEqual(
+    expect.arrayContaining([
+      { id: photoId, kind: "image", mime_type: "image/jpeg" },
+      { id: soundId, kind: "audio", mime_type: "audio/mpeg" },
+    ]),
+  );
+  expect([await held(photoId), await held(soundId)]).toEqual([true, true]);
+
+  // Study draws the photo from a URL signed for the user, its boxes hidden, and plays the sound.
+  await page.addInitScript(() => {
+    window.localStorage.setItem("studyCoachShown", "true");
+  });
+  await page.goto(`/study?decks=${deckId}`);
+  const front = page.getByRole("group", { name: "앞면", exact: true });
+  await expect(front).toBeVisible();
+  const drawn = front.locator(`[data-image="${photoId}"]`);
+  const style = (await drawn.getAttribute("style")) ?? "";
+  expect(style).toContain(`/storage/v1/object/sign/media/${userId}/${photoId}?token=`);
+  const signed = /url\("([^"]+)"\)/.exec(style)?.[1] ?? "";
+  const fetched = await page.request.get(signed);
+  expect(fetched.status()).toBe(200);
+  expect(fetched.headers()["content-type"]).toBe("image/jpeg");
+  await expect(drawn.locator('[data-box="hidden"]')).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "소리 듣기" })).toBeVisible();
+  await capture(page, "study");
+
+  // Removing the 소리 칸 from the card releases its file, and the photo the card keeps stays.
+  await page.goto(`/decks/${deckId}`);
+  await page.getByRole("button", { name: /^Name the city/ }).click();
+  const editor = page.getByRole("dialog", { name: "카드 편집" });
+  await expect(editor.locator("[data-photo]")).toHaveAttribute(
+    "style",
+    new RegExp(`/storage/v1/object/sign/media/${userId}/${photoId}\\?token=`),
+  );
+  await capture(page, "stored-media");
+  await editor.getByRole("button", { name: "3번째 칸 메뉴" }).click();
+  await page.getByRole("menuitem", { name: "삭제" }).click();
+  await expect(editor.getByRole("heading", { name: "소리" })).toHaveCount(0);
+  await editor.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(editor).toBeHidden();
+  const edited = await db.from("cards").select("front").eq("id", cardId).single();
+  expect((edited.data?.front as Block[]).map(({ type }) => type)).toEqual(["text", "image"]);
+  await expect.poll(() => held(soundId)).toBe(false);
+  expect(await held(photoId)).toBe(true);
+  expect(await rows()).toEqual([{ id: photoId, kind: "image", mime_type: "image/jpeg" }]);
 });

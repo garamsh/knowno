@@ -11,7 +11,7 @@ import { readUserId } from "@/supabase/session";
 import { parseDeckIcon } from "./deck-icon";
 import { deckColors } from "./deck-tint";
 import { parseDeckId } from "./library";
-import { type MediaId, parseImage, parseMediaId, releaseUnheld, storeImage } from "./media";
+import { type MediaId, parseImage, parseMediaId, releaseUnheld, storeFile } from "./media";
 
 const gone = "이 노트는 삭제됐어요. 다른 노트를 골라 주세요.";
 const failed = "노트를 꾸미지 못했어요. 다시 시도해 주세요.";
@@ -59,7 +59,7 @@ export async function decorateDeck(
   if (image === "remove") next = null;
   else if (image !== "keep") {
     next = v7() as MediaId;
-    if (!(await storeImage(client, userId, next, image))) {
+    if (!(await storeFile(client, userId, next, image))) {
       await releaseUnheld(client, userId, [next]);
       return { saved: false, message: notStored };
     }

@@ -16,7 +16,6 @@ import {
   cellProblem,
   emptySense,
   movedSpans,
-  onSide,
   type SenseDraft,
   senseRequired,
   type Span,
@@ -29,8 +28,8 @@ import {
 } from "../authoring";
 import type { CellSide, WordAsk } from "../card-content";
 import { AuthoringSheet } from "./authoring-sheet";
+import { type CellChange, PhotoFields, SoundFields } from "./media-fields";
 import { RowMenu } from "./row-menu";
-import { WholeCard } from "./whole-card";
 
 type Draft<K extends CellDraft["kind"]> = Extract<CellDraft, { kind: K }>;
 
@@ -652,40 +651,6 @@ function TableGroup({
   );
 }
 
-/** A stored 사진 or 소리: drawn as it is, its media kept, and its side chosen while it has one. */
-function KeptGroup({ draft, change }: { draft: Draft<"kept">; change: (next: CellDraft) => void }) {
-  const { cell } = draft;
-  return (
-    <div className="divide-y divide-hairline">
-      {cell.block.kind === "image" ? (
-        <div className="p-3">
-          <div className="mx-auto max-w-56">
-            <WholeCard blocks={[cell.block]} revealed />
-          </div>
-          <p className="mt-2 text-center text-caption text-muted">사진은 앱에서 볼 수 있어요</p>
-        </div>
-      ) : (
-        <div className="px-4 py-3">
-          <WholeCard blocks={[cell.block]} revealed inRow />
-        </div>
-      )}
-      {cell.kind === "placed" && (
-        <Choices<CellSide>
-          name="보일 면"
-          choices={[
-            ["front", "앞면"],
-            ["back", "뒷면"],
-          ]}
-          value={cell.side}
-          change={(side) => {
-            change(onSide(draft, side));
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
 function kindName(draft: CellDraft): string {
   switch (draft.kind) {
     case "text":
@@ -696,9 +661,34 @@ function kindName(draft: CellDraft): string {
       return "빈칸 문장";
     case "table":
       return "표";
-    case "kept":
-      return draft.cell.block.kind === "image" ? "사진" : "소리";
+    case "image":
+      return "사진";
+    case "audio":
+      return "소리";
   }
+}
+
+/** The row of "앞면" and "뒷면" chips choosing the side a 사진 or a 소리 sits on. */
+function SideChoices({
+  draft,
+  change,
+}: {
+  draft: Draft<"image" | "audio">;
+  change: (next: CellDraft) => void;
+}) {
+  return (
+    <Choices<CellSide>
+      name="보일 면"
+      choices={[
+        ["front", "앞면"],
+        ["back", "뒷면"],
+      ]}
+      value={draft.side}
+      change={(side) => {
+        change({ ...draft, side });
+      }}
+    />
+  );
 }
 
 /** One group per 칸, headed by its type's name with its ⋯, as the phone's editor (ADR 0137). */
@@ -707,6 +697,7 @@ function CellGroup({
   at,
   count,
   showErrors,
+  recorder,
   change,
   move,
   remove,
@@ -715,7 +706,8 @@ function CellGroup({
   at: number;
   count: number;
   showErrors: boolean;
-  change: (next: CellDraft) => void;
+  recorder: { taken: boolean; hold: (holding: boolean) => void };
+  change: CellChange;
   move: (by: number) => void;
   remove: () => void;
 }) {
@@ -757,7 +749,25 @@ function CellGroup({
         {draft.kind === "table" && (
           <TableGroup draft={draft} showErrors={showErrors} change={change} />
         )}
-        {draft.kind === "kept" && <KeptGroup draft={draft} change={change} />}
+        {draft.kind === "image" && (
+          <>
+            <PhotoFields draft={draft} change={change} />
+            {draft.photo && draft.boxes.length === 0 && (
+              <SideChoices draft={draft} change={change} />
+            )}
+          </>
+        )}
+        {draft.kind === "audio" && (
+          <>
+            <SoundFields
+              draft={draft}
+              change={change}
+              recorderTaken={recorder.taken}
+              holdRecorder={recorder.hold}
+            />
+            <SideChoices draft={draft} change={change} />
+          </>
+        )}
         {showErrors && problem && draft.kind !== "word" && <Problem>{problem}</Problem>}
       </div>
     </section>
@@ -773,9 +783,11 @@ export function CellFields({
 }: {
   drafts: CellDraft[];
   showErrors: boolean;
-  change: (drafts: CellDraft[]) => void;
+  change: (update: (drafts: CellDraft[]) => CellDraft[]) => void;
   add: () => void;
 }) {
+  // The 칸 recording, one at a time, as the phone's one recorder.
+  const [recording, setRecording] = useState<string | null>(null);
   return (
     <div className="flex flex-col gap-3">
       {drafts.map((draft, at) => (
@@ -785,16 +797,28 @@ export function CellFields({
           at={at}
           count={drafts.length}
           showErrors={showErrors}
+          recorder={{
+            taken: recording !== null && recording !== draft.id,
+            hold: (holding) => {
+              setRecording((holder) => (holding ? draft.id : holder === draft.id ? null : holder));
+            },
+          }}
           change={(next) => {
-            change(drafts.map((item) => (item.id === draft.id ? next : item)));
+            change((current) =>
+              current.map((item) =>
+                item.id === draft.id ? (typeof next === "function" ? next(item) : next) : item,
+              ),
+            );
           }}
           move={(by) => {
-            const next = drafts.filter((item) => item !== draft);
-            next.splice(at + by, 0, draft);
-            change(next);
+            change((current) => {
+              const next = current.filter((item) => item.id !== draft.id);
+              next.splice(at + by, 0, current.find((item) => item.id === draft.id) ?? draft);
+              return next;
+            });
           }}
           remove={() => {
-            change(drafts.filter((item) => item !== draft));
+            change((current) => current.filter((item) => item.id !== draft.id));
           }}
         />
       ))}

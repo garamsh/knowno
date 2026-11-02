@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
     "/record": ["./src/features/study/engine-wasm/knowno_engine_wasm_bg.wasm"],
   },
   experimental: {
-    serverActions: { bodySizeLimit: "4mb" },
+    serverActions: { bodySizeLimit: "6mb" },
     // src/styles/fonts is a link to the app's bundled fonts, and src/features/study/engine-wasm
     // one to the engine's WebAssembly module, both outside this project.
     turbopackAdditionalRoots: {

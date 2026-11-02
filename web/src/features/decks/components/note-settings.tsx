@@ -8,7 +8,7 @@ import { type DeckIcon, deckIconNames, deckIcons, parseDeckIcon } from "../deck-
 import { type DeckColor, deckColor } from "../deck-tint";
 import type { Deck } from "../library";
 import { leaveThen } from "../hooks/use-back-entry";
-import { cropImage, type PreparedImage } from "../prepare-image";
+import { prepareImage, type PreparedImage } from "../prepare-image";
 import { characters, maxDescriptionLength, parseDisplayName } from "../publishing";
 import { AuthoringSheet } from "./authoring-sheet";
 import { DeckColorPicker } from "./deck-color-picker";
@@ -217,7 +217,7 @@ function DecorateSheet({ deck, close, done }: { deck: Deck; close: () => void; d
     if (!file) return;
     setPicking(true);
     setProblem("");
-    const image = await cropImage(file);
+    const image = await prepareImage(file, "square");
     setPicking(false);
     if (!image) {
       setProblem("사진을 불러오지 못했어요. 다시 시도해 주세요.");

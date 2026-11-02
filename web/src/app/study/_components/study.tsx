@@ -20,7 +20,6 @@ import {
   newCards,
   readToday,
   readyServerEngine,
-  signSounds,
   studyDecks,
   StudyScreen,
   studyReturn,
@@ -49,19 +48,12 @@ export async function Study({
   if ("failure" in today) return <Failure failure={today.failure} back={back} />;
   if (!read.library.decks.some((deck) => named.includes(deck.id))) notFound();
 
-  // Each sound's signed address, in one request (ADR 0112).
-  const signed = await signSounds([
-    ...new Set(
-      read.library.cards.flatMap((card) =>
-        audioOf([...card.front, ...card.back]).map((sound) => sound.media),
-      ),
-    ),
-  ]);
+  // Each sound plays from the address the read signed (ADR 0112, ADR 0163).
   const sounds = (blocks: Content[]) =>
     audioOf(blocks).map((sound) => ({
       media: sound.media,
       length: audioLength(sound.durationMs),
-      url: signed.get(sound.media) ?? null,
+      url: sound.url ?? null,
     }));
 
   // Each side's text, and a whole card's faces, for the client, which cannot import decks' entry
@@ -79,10 +71,13 @@ export async function Study({
         filled: <WholeCells cells={cells} revealed />,
       },
     }),
-    ...([...card.front, ...card.back].some((block) => block.kind === "senses") && {
+    // A senses block's labels and a photo with no box are drawn as decks draws a side.
+    ...([...card.front, ...card.back].some(
+      (block) => block.kind === "senses" || block.kind === "image",
+    ) && {
       sides: {
-        front: <SideText blocks={card.front} />,
-        back: <SideText blocks={card.back} />,
+        front: <SideText blocks={card.front} photos />,
+        back: <SideText blocks={card.back} photos />,
       },
     }),
     ...(audioOf([...card.front, ...card.back]).length > 0 && {

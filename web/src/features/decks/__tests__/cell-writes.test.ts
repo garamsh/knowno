@@ -1,12 +1,14 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cardRow, deckRow, uuidOf } from "@/testing/library";
-import { otherUser } from "@/testing/mocks/handlers";
+import { otherUser, testUser } from "@/testing/mocks/handlers";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { server } from "@/testing/mocks/server";
+import { FakeStorage } from "@/testing/mocks/storage";
 import { setRequestCookies } from "@/testing/next-headers";
 import { signedInCookies } from "@/testing/session";
 
@@ -29,9 +31,11 @@ import {
 } from "../authoring";
 import { parseCardContent, parseCells } from "../card-content";
 import { addCard, editCard } from "../save-cards";
+import { storeCardMedia } from "../store-card-media";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.spyOn(console, "error").mockImplementation(() => undefined);
 
 const conversions = (
   JSON.parse(
@@ -43,9 +47,11 @@ const conversions = (
 ).filter(({ cells }) => cells !== null);
 
 let db: FakePostgrest;
+let storage: FakeStorage;
 beforeEach(async () => {
   db = new FakePostgrest();
-  server.use(...db.handlers);
+  storage = new FakeStorage(db);
+  server.use(...db.handlers, ...storage.handlers);
   setRequestCookies(await signedInCookies());
   db.rows.decks.push(deckRow("deck", "Deck"));
 });
@@ -78,6 +84,33 @@ const photoBlock = (media: string, side: "front" | "back" = "back") => ({
   v: 2,
   id: "p1",
   payload: { media, width: 9, height: 9, boxes: [], side },
+});
+const soundBlock = (media: string) => ({
+  type: "audio",
+  v: 2,
+  id: "a1",
+  payload: { media, duration_ms: 900, side: "back" },
+});
+
+/** A file of [kind] the test user stored under [name]'s id: its `media` row and its object. */
+function storedFile(name: string, kind: "image" | "audio" = "image") {
+  const id = uuidOf(name);
+  db.rows.media.push({
+    user_id: testUser.id,
+    id,
+    kind,
+    mime_type: kind === "image" ? "image/jpeg" : "audio/mp4",
+    byte_size: 3,
+    sha256: "0".repeat(64),
+  });
+  storage.seed(`${testUser.id}/${id}`);
+  return id;
+}
+
+/** Whether the test user's file [id] is still stored: its row and its object. */
+const kept = (id: string) => ({
+  row: db.rows.media.some((row) => row.id === id),
+  object: storage.objects.has(`${testUser.id}/${id}`),
 });
 
 describe("encodeCells", () => {
@@ -294,12 +327,131 @@ describe("addCard", () => {
     expect(db.rows.cards).toHaveLength(2);
   });
 
-  it("refuses a photo on a new card, since the web uploads none, beside a card without one", async () => {
-    const cards = draftOf("photo", glue("a", "b"), photoBlock("m"));
-    expect(await addCard(uuidOf("deck"), cards)).toMatchObject({ saved: false });
+  it("takes a photo and a sound the user stored under their kinds, against files not stored and one of the other kind", async () => {
+    const photo = storedFile("photo");
+    const sound = storedFile("sound", "audio");
+    const unstored = uuidOf("unstored");
+    for (const blocks of [
+      [glue("a", "b"), photoBlock(unstored)],
+      [glue("a", "b"), photoBlock(sound)],
+      [glue("a", "b"), soundBlock(photo)],
+    ])
+      expect(await addCard(uuidOf("deck"), draftOf("card", ...blocks))).toMatchObject({
+        saved: false,
+        message: "카드 내용을 확인해 주세요",
+      });
     expect(db.rows.cards).toHaveLength(0);
-    expect(await addCard(uuidOf("deck"), draftOf("plain", glue("a", "b")))).toEqual({
-      saved: true,
+
+    // A refused card released what it named, so the editor stores its files again.
+    storedFile("photo");
+    storedFile("sound", "audio");
+    expect(
+      await addCard(
+        uuidOf("deck"),
+        draftOf("card", glue("a", "b"), photoBlock(photo), soundBlock(sound)),
+      ),
+    ).toEqual({ saved: true });
+    expect(parseCells(db.rows.cards[0]?.front)).toMatchObject([
+      { kind: "text" },
+      { kind: "placed", block: { kind: "image", media: photo } },
+      { kind: "placed", block: { kind: "audio", media: sound } },
+    ]);
+    expect([kept(photo), kept(sound)]).toEqual([
+      { row: true, object: true },
+      { row: true, object: true },
+    ]);
+  });
+
+  it("releases the files a refused card named, as a saved card keeps them", async () => {
+    db.rows.decks.push(deckRow("gone", "Gone", true));
+    const photo = storedFile("photo");
+    const cards = draftOf("card", glue("a", "b"), photoBlock(photo));
+    expect(await addCard(uuidOf("gone"), cards)).toMatchObject({ saved: false });
+    expect(kept(photo)).toEqual({ row: false, object: false });
+
+    const again = storedFile("again");
+    expect(
+      await addCard(uuidOf("deck"), draftOf("card", glue("a", "b"), photoBlock(again))),
+    ).toEqual({ saved: true });
+    expect(kept(again)).toEqual({ row: true, object: true });
+  });
+});
+
+describe("storeCardMedia", () => {
+  const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const mp4 = new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x4d, 0x34, 0x41, 0x20]);
+  const mp3 = new Uint8Array([0x49, 0x44, 0x33, 4, 0, 0, 0, 0]);
+  const digestOf = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+
+  /** The form the editor sends for one file of [kind] under [name]'s id. */
+  function fileForm(name: string, kind: string, bytes: Uint8Array, sha256 = digestOf(bytes)) {
+    const form = new FormData();
+    form.set("media", uuidOf(name));
+    form.set("kind", kind);
+    form.set("file", new Blob([new Uint8Array(bytes)]));
+    form.set("sha256", sha256);
+    return form;
+  }
+
+  it("stores a photo and a sound as their rows, then their objects, under the type their bytes open with", async () => {
+    expect(await storeCardMedia(fileForm("photo", "image", jpeg))).toEqual({ stored: true });
+    expect(await storeCardMedia(fileForm("m4a", "audio", mp4))).toEqual({ stored: true });
+    expect(await storeCardMedia(fileForm("mp3", "audio", mp3))).toEqual({ stored: true });
+    expect(db.rows.media.map(({ id, kind, mime_type }) => [id, kind, mime_type])).toEqual([
+      [uuidOf("photo"), "image", "image/jpeg"],
+      [uuidOf("m4a"), "audio", "audio/mp4"],
+      [uuidOf("mp3"), "audio", "audio/mpeg"],
+    ]);
+    expect(storage.objects.get(`${testUser.id}/${uuidOf("m4a")}`)?.contentType).toBe("audio/mp4");
+    expect(db.requests.filter((request) => request.startsWith("POST"))).toEqual([
+      "POST media",
+      "POST storage upload",
+      "POST media",
+      "POST storage upload",
+      "POST media",
+      "POST storage upload",
+    ]);
+  });
+
+  it("counts a file already stored under its id as stored, so a retry succeeds", async () => {
+    expect(await storeCardMedia(fileForm("photo", "image", jpeg))).toEqual({ stored: true });
+    expect(await storeCardMedia(fileForm("photo", "image", jpeg))).toEqual({ stored: true });
+    expect(db.rows.media).toHaveLength(1);
+  });
+
+  it("refuses a wrong digest, a PNG photo, a photo sent as a sound, a sound past 5 MiB and an unknown kind, against the same files sent right", async () => {
+    const large = new Uint8Array(5 * 1024 * 1024 + 1);
+    large.set(mp3);
+    for (const form of [
+      fileForm("a", "image", jpeg, "0".repeat(64)),
+      fileForm("b", "image", png),
+      fileForm("c", "audio", jpeg),
+      fileForm("d", "audio", large),
+      fileForm("e", "video", mp4),
+    ])
+      expect(await storeCardMedia(form)).toEqual({
+        stored: false,
+        message: "카드를 저장하지 못했어요. 다시 시도해 주세요.",
+      });
+    expect(db.rows.media).toEqual([]);
+    expect(storage.objects.size).toBe(0);
+    // Control: the bound is the phone's 5 MiB, so a sound of exactly that is stored.
+    expect(
+      await storeCardMedia(fileForm("d", "audio", large.subarray(0, 5 * 1024 * 1024))),
+    ).toEqual({ stored: true });
+    expect(await storeCardMedia(fileForm("a", "image", jpeg))).toEqual({ stored: true });
+  });
+
+  it("releases the row an upload that fails left, and refuses signed out", async () => {
+    const restore = storage.fail("upload");
+    expect(await storeCardMedia(fileForm("photo", "image", jpeg))).toMatchObject({ stored: false });
+    expect(db.rows.media).toEqual([]);
+    restore();
+    setRequestCookies([]);
+    expect(await storeCardMedia(fileForm("photo", "image", jpeg))).toEqual({
+      stored: false,
+      message: "다시 로그인해 주세요",
     });
   });
 });
@@ -387,25 +539,94 @@ describe("editCard", () => {
     expect(await edit("mine", card)).toEqual({ saved: true });
   });
 
-  it("keeps a held photo and refuses one the card does not hold", async () => {
+  it("keeps a held photo, and refuses one the card does not hold and the user did not store", async () => {
+    const held = storedFile("held");
     db.rows.cards.push(
       stored("card", {
         template_version: 2,
-        front: [glue("a", "b"), photoBlock("held", "front")],
+        front: [glue("a", "b"), photoBlock(held, "front")],
         back: [],
       }),
     );
-    expect(await edit("card", draftOf("card", glue("a", "b"), photoBlock("taken")))).toMatchObject({
+    expect(
+      await edit("card", draftOf("card", glue("a", "b"), photoBlock(uuidOf("taken")))),
+    ).toMatchObject({
       saved: false,
       message: "카드 내용을 확인해 주세요",
     });
-    expect(await edit("card", draftOf("card", glue("a", "b"), photoBlock("held")))).toEqual({
+    expect(kept(held)).toEqual({ row: true, object: true });
+    expect(await edit("card", draftOf("card", glue("a", "b"), photoBlock(held)))).toEqual({
       saved: true,
     });
     expect(parseCells(db.rows.cards[0]?.front)?.[1]).toMatchObject({
       kind: "placed",
       side: "back",
     });
+    expect(kept(held)).toEqual({ row: true, object: true });
+  });
+
+  it("takes a photo the user stored and releases the one the edit drops, the object first, then its row", async () => {
+    const old = storedFile("old");
+    const next = storedFile("next");
+    db.rows.cards.push(
+      stored("card", { template_version: 2, front: [glue("a", "b"), photoBlock(old)], back: [] }),
+    );
+    db.requests.length = 0;
+    expect(await edit("card", draftOf("card", glue("a", "b"), photoBlock(next)))).toEqual({
+      saved: true,
+    });
+    expect(parseCells(db.rows.cards[0]?.front)?.[1]).toMatchObject({ block: { media: next } });
+    expect([kept(old), kept(next)]).toEqual([
+      { row: false, object: false },
+      { row: true, object: true },
+    ]);
+    const write = db.requests.indexOf("PATCH cards");
+    const removed = db.requests.indexOf("DELETE storage remove");
+    expect(write).toBeGreaterThan(-1);
+    expect(removed).toBeGreaterThan(write);
+    expect(db.requests.indexOf("DELETE media")).toBeGreaterThan(removed);
+  });
+
+  it("keeps a dropped photo another card holds, against one nothing else holds", async () => {
+    const shared = storedFile("shared");
+    const own = storedFile("own");
+    db.rows.cards.push(
+      stored("card", {
+        template_version: 2,
+        front: [glue("a", "b"), photoBlock(shared), { ...soundBlock(own), id: "a2" }],
+        back: [],
+      }),
+      stored("other", {
+        template_version: 2,
+        front: [glue("c", "d"), photoBlock(shared)],
+        back: [],
+      }),
+    );
+    expect(await edit("card", draftOf("card", glue("a", "b")))).toEqual({ saved: true });
+    expect([kept(shared), kept(own)]).toEqual([
+      { row: true, object: true },
+      { row: false, object: false },
+    ]);
+  });
+
+  it("releases the new photo a refused edit named, keeping the one the stored card holds", async () => {
+    const held = storedFile("held");
+    const added = storedFile("added");
+    db.rows.cards.push(
+      stored("card", { template_version: 2, front: [glue("a", "b"), photoBlock(held)], back: [] }),
+      stored("same", { card_key: "taken" }),
+    );
+    const cells = parseCells([glue("x", "y"), photoBlock(added)]);
+    if (!cells) throw new Error("the 칸 did not parse");
+    db.rows.cards[1] = { ...db.rows.cards[1], card_key: frameKey(cells) };
+    expect(await edit("card", draftOf("card", glue("x", "y"), photoBlock(added)))).toMatchObject({
+      saved: false,
+      duplicate: uuidOf("same"),
+    });
+    expect([kept(held), kept(added)]).toEqual([
+      { row: true, object: true },
+      { row: false, object: false },
+    ]);
   });
 
   it("refuses a card of a deleted deck, beside one of a live deck", async () => {
