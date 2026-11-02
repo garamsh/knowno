@@ -198,7 +198,9 @@ function Home({
   notice?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col">
+    // A block, not a flex column: as a flex item the hero's least height would hold the mascot
+    // at its largest.
+    <div>
       <section
         aria-labelledby="hero-title"
         className={`${heroFit} -mx-gutter -mt-6 bg-hero px-gutter pt-6 pb-20 text-on-hero lg:mx-0 lg:mt-0 lg:rounded-card lg:p-8 ${raised ? "h-[calc(100dvh-26rem)]" : "h-[calc(100dvh-13.5rem)]"}`}

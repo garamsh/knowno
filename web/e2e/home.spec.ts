@@ -471,28 +471,44 @@ test("fits 홈's hero above the drawer at a phone's heights, the mascot giving w
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
       const at = `at ${String(width)} × ${String(height)} in ${colorScheme}`;
-      const [button, drawn, peek, tabBar] = await Promise.all([
+      if (directory)
+        await page.screenshot({
+          path: `${directory}/${colorScheme}/web-home-fit-${String(height)}.png`,
+        });
+      const [box, button, drawn, peek, tabBar] = await Promise.all([
+        hero.boundingBox(),
         start.boundingBox(),
         mascot.boundingBox(),
         drawer.boundingBox(),
         page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox(),
       ]);
-      if (!button || !drawn || !peek || !tabBar) throw new Error("the hero and drawer are drawn");
-      // 시작 is whole on the first screen, above the drawer's edge, with no scroll.
-      expect(button.y, at).toBeGreaterThanOrEqual(0);
-      expect(button.y + button.height, at).toBeLessThanOrEqual(peek.y);
-      expect(peek.y, at).toBeLessThan(tabBar.y);
+      if (!box || !button || !drawn || !peek || !tabBar)
+        throw new Error("the hero and drawer are drawn");
+      // The hero keeps the height the drawer leaves it, 13.5rem short of the screen.
+      expect.soft(box.height, at).toBe(height - 216);
+      // 시작 is whole on the first screen, above the drawer's edge, with no scroll; each size
+      // is checked, and shot, whatever an earlier one found.
+      expect.soft(button.y, at).toBeGreaterThanOrEqual(0);
+      expect.soft(button.y + button.height, at).toBeLessThanOrEqual(peek.y);
+      expect.soft(peek.y, at).toBeLessThan(tabBar.y);
       // The mascot gives way, from 210 down to its floor of 96, square.
-      expect(drawn.height, at).toBeGreaterThanOrEqual(96);
-      expect(drawn.height, at).toBeLessThanOrEqual(210);
-      expect(drawn.width, at).toBeCloseTo(drawn.height, 0);
-      if (directory)
-        await page.screenshot({
-          path: `${directory}/${colorScheme}/web-home-fit-${String(height)}.png`,
-        });
+      expect.soft(drawn.height, at).toBeGreaterThanOrEqual(96);
+      expect.soft(drawn.height, at).toBeLessThanOrEqual(210);
+      expect.soft(drawn.width, at).toBeCloseTo(drawn.height, 0);
     }
   }
   // Control: given the room, the mascot is drawn at its full 210.
   await page.setViewportSize({ width: 430, height: 1200 });
   expect((await mascot.boundingBox())?.height).toBe(210);
+  // Short of room for the floor, the mascot holds at 96 and the hero grows, 시작 still above the
+  // drawer.
+  await page.setViewportSize({ width: 375, height: 480 });
+  const [floor, button, peek] = await Promise.all([
+    mascot.boundingBox(),
+    start.boundingBox(),
+    drawer.boundingBox(),
+  ]);
+  if (!floor || !button || !peek) throw new Error("the hero and drawer are drawn");
+  expect(floor.height).toBe(96);
+  expect(button.y + button.height).toBeLessThanOrEqual(peek.y);
 });

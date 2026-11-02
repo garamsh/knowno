@@ -8,7 +8,8 @@ import { heroFit, heroFitGroup } from "./hero-fit";
  */
 export function TodaySkeleton() {
   return (
-    <Skeleton status="오늘 할 카드를 불러오는 중이에요." className="flex flex-col">
+    // A block, not a flex column, as the page's 홈 is.
+    <Skeleton status="오늘 할 카드를 불러오는 중이에요." className="">
       <div
         className={`${heroFit} -mx-gutter -mt-6 h-[calc(100dvh-13.5rem)] bg-hero px-gutter pt-6 pb-20 lg:mx-0 lg:mt-0 lg:rounded-card lg:p-8`}
       >
