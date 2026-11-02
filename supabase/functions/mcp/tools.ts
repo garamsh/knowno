@@ -1,5 +1,5 @@
 /**
- * The five tools a model calls: their definitions, written for a model that has no other
+ * The nine tools a model calls: their definitions, written for a model that has no other
  * documentation, and their calls, each answering a result or a refusal the model can act on.
  */
 
@@ -13,6 +13,7 @@ import {
 import { blocksOut, cellsOf, searchText, type StoredSides } from "./frame.ts";
 import { GUIDE_URI } from "./guide.ts";
 import {
+  keptOf,
   MAX_BLOCKS,
   MAX_EXAMPLES,
   MAX_LABELS,
@@ -21,20 +22,28 @@ import {
   type ReadCard,
   readCard,
   type StoredBlock,
+  storedIds,
 } from "./input.ts";
 import { fetchPhoto, MAX_PHOTO_BYTES, type PhotoDeps } from "./photo.ts";
 import {
   allCards,
+  cardKeys,
+  deckCards,
+  deckImage,
   deckKeys,
+  heldMedia,
   insert,
   listCards,
   listDecks,
+  readCards,
   readDeck,
+  releaseMedia,
   type Store,
   storePhoto,
+  update,
 } from "./store.ts";
 
-/** The most cards one `add_cards` call takes. */
+/** The most cards one `add_cards`, `update_cards` or `delete_cards` call takes. */
 export const MAX_CARDS = 100;
 /** The most photos one call fetches, so a call stays under the platform's wall clock. */
 export const MAX_PHOTOS = 10;
@@ -82,6 +91,21 @@ const examplesField = {
 const cellIndex = { type: "integer", minimum: 0 };
 const fraction = { type: "number", minimum: 0, maximum: 1 };
 const sideField = { type: "string", enum: ["front", "back"] };
+const boxesField = {
+  type: "array",
+  items: {
+    type: "object",
+    properties: {
+      x: fraction,
+      y: fraction,
+      w: fraction,
+      h: fraction,
+      answer: { type: "string" },
+    },
+    required: ["x", "y", "w", "h"],
+    additionalProperties: false,
+  },
+};
 
 /** The union on `type`, each variant saying when to use it. */
 const blockIn = {
@@ -198,23 +222,98 @@ const blockIn = {
         type: { const: "image" },
         url: { type: "string", format: "uri" },
         side: sideField,
-        boxes: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              x: fraction,
-              y: fraction,
-              w: fraction,
-              h: fraction,
-              answer: { type: "string" },
-            },
-            required: ["x", "y", "w", "h"],
-            additionalProperties: false,
-          },
-        },
+        boxes: boxesField,
       },
       required: ["type", "url"],
+      additionalProperties: false,
+    },
+  ],
+};
+
+/** A card as blocks of [block], or in the plain form, with [extra] properties beside them. */
+function cardIn(
+  block: unknown,
+  extra: Record<string, unknown> = {},
+  required: string[] = [],
+) {
+  return {
+    anyOf: [
+      {
+        type: "object",
+        properties: {
+          ...extra,
+          blocks: {
+            type: "array",
+            minItems: 1,
+            maxItems: MAX_BLOCKS,
+            items: block,
+          },
+        },
+        required: [...required, "blocks"],
+        additionalProperties: false,
+      },
+      {
+        type: "object",
+        properties: {
+          ...extra,
+          front: { type: "string", minLength: 1, maxLength: MAX_TEXT },
+          back: { type: "string", minLength: 1, maxLength: MAX_TEXT },
+          labels: labelsField,
+          examples: examplesField,
+        },
+        required: [...required, "front", "back"],
+        additionalProperties: false,
+      },
+    ],
+  };
+}
+
+const blockId = {
+  type: "string",
+  description:
+    "The block's id as list_cards returned it, to keep the block it changes; leave it out for a new block.",
+};
+const keptMedia = {
+  type: "string",
+  description:
+    "The media id of a photo or sound the card holds, as list_cards returned it.",
+};
+
+/** `update_cards`' blocks: the union with each block's id, and a stored photo or sound by media. */
+const blockEdit = {
+  anyOf: [
+    ...blockIn.anyOf.map((variant) => ({
+      ...variant,
+      properties: { ...variant.properties, id: blockId },
+    })),
+    {
+      type: "object",
+      description:
+        "A photo the card already holds, kept as stored, its boxes and side as given.",
+      properties: {
+        type: { const: "image" },
+        id: blockId,
+        media: keptMedia,
+        width: { type: "integer" },
+        height: { type: "integer" },
+        side: sideField,
+        boxes: boxesField,
+      },
+      required: ["type", "media"],
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      description:
+        "A sound the card already holds, kept as stored, on the side given.",
+      properties: {
+        type: { const: "audio" },
+        id: blockId,
+        media: keptMedia,
+        duration_ms: { type: "integer" },
+        side: sideField,
+      },
+      required: ["type", "media", "side"],
       additionalProperties: false,
     },
   ],
@@ -227,11 +326,18 @@ const cardOut = {
     blocks: {
       type: "array",
       description:
-        "The card's blocks in add_cards' union, except that a photo names its stored media id, width and height in place of url, a sound is an audio block, and a block of a later version is an unknown block.",
+        "The card's blocks in add_cards' union, each with its id when it has one, except that a photo names its stored media id, width and height in place of url, a sound is an audio block, and a block of a later version is an unknown block.",
       items: { type: "object", properties: { type: { type: "string" } } },
     },
   },
   required: ["id", "blocks"],
+};
+
+const filesNotReleased = {
+  type: "array",
+  items: { type: "string" },
+  description:
+    "The media ids of deleted photos and sounds whose files could not be deleted now; the cards stay deleted.",
 };
 
 /** The tools as `tools/list` returns them. */
@@ -397,34 +503,7 @@ export const TOOLS = [
           type: "array",
           minItems: 1,
           maxItems: MAX_CARDS,
-          items: {
-            anyOf: [
-              {
-                type: "object",
-                properties: {
-                  blocks: {
-                    type: "array",
-                    minItems: 1,
-                    maxItems: MAX_BLOCKS,
-                    items: blockIn,
-                  },
-                },
-                required: ["blocks"],
-                additionalProperties: false,
-              },
-              {
-                type: "object",
-                properties: {
-                  front: { type: "string", minLength: 1, maxLength: MAX_TEXT },
-                  back: { type: "string", minLength: 1, maxLength: MAX_TEXT },
-                  labels: labelsField,
-                  examples: examplesField,
-                },
-                required: ["front", "back"],
-                additionalProperties: false,
-              },
-            ],
-          },
+          items: cardIn(blockIn),
         },
         allow_duplicates: {
           type: "boolean",
@@ -485,6 +564,166 @@ export const TOOLS = [
       openWorldHint: false,
     },
   },
+  {
+    name: "update_cards",
+    title: "Change cards",
+    description:
+      `Replaces the blocks of up to ${MAX_CARDS} of the signed-in user's cards, keeping each card's id, deck and study history. Each card is {"id":..., "blocks":[...]} in add_cards' forms, or its id with the plain front and back; the new blocks replace all of the card's blocks, so send every block the card should keep. Read the card with list_cards or search_cards first and send its blocks back changed: a block keeps its identity by the id list_cards gave it, and a photo or sound the card holds is kept by its media, without fetching it again. A new photo is fetched from its url, at most ${MAX_PHOTOS} per call. A card whose new first-shown text matches another card in its deck is refused unless allow_duplicates is true. The answer lists the cards updated and those refused, each with its index in the request and why. The changes reach the user's phone and the web at their next sync.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        cards: {
+          type: "array",
+          minItems: 1,
+          maxItems: MAX_CARDS,
+          items: cardIn(blockEdit, {
+            id: {
+              type: "string",
+              format: "uuid",
+              description:
+                "The card's id, as list_cards or search_cards returned it.",
+            },
+          }, ["id"]),
+        },
+        allow_duplicates: {
+          type: "boolean",
+          default: false,
+          description:
+            "Change a card even when its new front matches another card in its deck. Set it only when the user asked for both.",
+        },
+      },
+      required: ["cards"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        updated: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              index: { type: "integer" },
+              id: { type: "string" },
+              front: { type: "string" },
+            },
+            required: ["index", "id", "front"],
+          },
+        },
+        refused: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              index: { type: "integer" },
+              reason: { type: "string" },
+            },
+            required: ["index", "reason"],
+          },
+        },
+      },
+      required: ["updated", "refused"],
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+  },
+  {
+    name: "delete_cards",
+    title: "Delete cards",
+    description:
+      `Deletes up to ${MAX_CARDS} of the signed-in user's cards by id, as deleting a card on the phone does: the card leaves every device at its next sync, and its photos and sounds that no other card or deck holds are deleted. Confirm with the user before calling it, naming the cards. To change a card, call update_cards instead of deleting it and adding a new one, which would lose its study history. The answer lists the ids deleted, those not found, which are not the user's live cards, and the media ids of files that could not be deleted now.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        card_ids: {
+          type: "array",
+          minItems: 1,
+          maxItems: MAX_CARDS,
+          items: { type: "string", format: "uuid" },
+          description:
+            "The cards' ids, as list_cards or search_cards returned them.",
+        },
+      },
+      required: ["card_ids"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        deleted: { type: "array", items: { type: "string" } },
+        not_found: { type: "array", items: { type: "string" } },
+        files_not_released: filesNotReleased,
+      },
+      required: ["deleted", "not_found", "files_not_released"],
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
+    name: "update_deck",
+    title: "Rename a deck",
+    description:
+      "Renames one of the signed-in user's decks. The new name reaches the user's phone and the web at their next sync.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        deck_id: deckId,
+        name: {
+          type: "string",
+          minLength: 1,
+          maxLength: MAX_NAME,
+          description: "The deck's new name, as the user will see it.",
+        },
+      },
+      required: ["deck_id", "name"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: { deck: deckOut },
+      required: ["deck"],
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
+    name: "delete_deck",
+    title: "Delete a deck",
+    description:
+      "Deletes one of the signed-in user's decks and every card in it, as deleting a deck on the phone does: they leave every device at its next sync, and their photos and sounds that no other card or deck holds are deleted. Confirm with the user before calling it, naming the deck and how many cards it holds. The answer gives the number of cards deleted and the media ids of files that could not be deleted now.",
+    inputSchema: {
+      type: "object",
+      properties: { deck_id: deckId },
+      required: ["deck_id"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        deck: deckOut,
+        deleted_cards: { type: "integer" },
+        files_not_released: filesNotReleased,
+      },
+      required: ["deck", "deleted_cards", "files_not_released"],
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
 ] as const;
 
 /** The dependencies a call needs beyond the caller's store. */
@@ -534,6 +773,14 @@ export async function callTool(
       return await createDeck(input, store, deps);
     case "add_cards":
       return await addCards(input, store, deps);
+    case "update_cards":
+      return await updateCards(input, store, deps);
+    case "delete_cards":
+      return await deleteCards(input, store, deps);
+    case "update_deck":
+      return await updateDeck(input, store, deps);
+    case "delete_deck":
+      return await deleteDeck(input, store, deps);
     default:
       return refuse(
         `There is no tool named ${name}. The tools are ${
@@ -543,21 +790,32 @@ export async function callTool(
   }
 }
 
-function deckIdOf(args: Args): string | null {
-  const value = args.deck_id;
+/** [value] as a lowercase uuid, or null when it is not one. */
+function idOf(value: unknown): string | null {
   return typeof value === "string" && UUID.test(value.toLowerCase())
     ? value.toLowerCase()
     : null;
 }
 
-/** A stored card as the read tools return it; one that does not parse says so by its one block. */
+function deckIdOf(args: Args): string | null {
+  return idOf(args.deck_id);
+}
+
+/**
+ * A stored card as the read tools return it, each 칸 of a `free` v2 card with its stored id; one
+ * that does not parse says so by its one block.
+ */
 function cardOf(card: StoredSides & { id: string }) {
   const cells = cellsOf(card);
+  const ids = storedIds(card);
   return {
     id: card.id,
     blocks: cells === null
       ? [{ type: "unknown", stored_type: "unreadable" }]
-      : blocksOut(cells),
+      : blocksOut(cells).map((block, index) => {
+        const id = ids[index];
+        return typeof id === "string" ? { ...block, id } : block;
+      }),
   };
 }
 
@@ -754,4 +1012,258 @@ async function addCards(
   }
   if (rows.length > 0) await insert(store, "cards", rows);
   return result({ deck, added, skipped, refused });
+}
+
+const CARD_NOT_FOUND =
+  "No card of the signed-in user has this id, or it was deleted. Call list_cards or search_cards for the ids of the user's cards.";
+const NEWER =
+  "this card holds a block written by a newer version of knowno, which update_cards cannot keep: the user can edit it in the app.";
+
+async function updateCards(
+  args: Args,
+  store: Store,
+  deps: ToolDeps,
+): Promise<ToolResult> {
+  const input = args.cards;
+  if (!Array.isArray(input) || input.length === 0) {
+    return refuse(
+      `cards must be a list of 1 to ${MAX_CARDS} cards, each with its id and blocks, or its id, front and back.`,
+    );
+  }
+  if (input.length > MAX_CARDS) {
+    return refuse(
+      `update_cards takes at most ${MAX_CARDS} cards per call, and this call has ${input.length}. Nothing was changed. Send the cards in calls of ${MAX_CARDS} or fewer.`,
+    );
+  }
+  const allowDuplicates = args.allow_duplicates ?? false;
+  if (typeof allowDuplicates !== "boolean") {
+    return refuse("allow_duplicates must be true or false.");
+  }
+  const wanted = input.map((value) => isRecord(value) ? idOf(value.id) : null);
+  const stored = new Map(
+    (await readCards(store, [
+      ...new Set(wanted.filter((id) => id !== null)),
+    ])).map((card) => [card.id, card]),
+  );
+  // Each live card's key in its deck, and the cards holding each key.
+  const keyOf = new Map<string, string>();
+  const holders = new Map<string, Set<string>>();
+  const hold = (id: string, key: string) => {
+    keyOf.set(id, key);
+    holders.set(key, (holders.get(key) ?? new Set()).add(id));
+  };
+  for (
+    const { id, deck_id, card_key } of await cardKeys(store, [
+      ...new Set([...stored.values()].map((card) => card.deck_id)),
+    ])
+  ) hold(id, `${deck_id}\n${card_key}`);
+  const now = new Date(deps.now()).toISOString();
+  const updated: { index: number; id: string; front: string }[] = [];
+  const refused: { index: number; reason: string }[] = [];
+  let photosLeft = MAX_PHOTOS;
+  for (const [index, value] of input.entries()) {
+    const id = wanted[index];
+    const card = id === null ? undefined : stored.get(id);
+    if (id === null || card === undefined) {
+      refused.push({ index, reason: CARD_NOT_FOUND });
+      continue;
+    }
+    if (updated.some((done) => done.id === id)) {
+      refused.push({
+        index,
+        reason:
+          "this card was updated earlier in this call: send each card once.",
+      });
+      continue;
+    }
+    const cells = cellsOf(card);
+    if (cells === null || cells.some((cell) => cell.kind === "unknown")) {
+      refused.push({ index, reason: NEWER });
+      continue;
+    }
+    const { id: _, ...fields } = value as Args;
+    const read = readCard(fields, deps, keptOf(card));
+    if (typeof read === "string") {
+      refused.push({ index, reason: read });
+      continue;
+    }
+    const key = `${card.deck_id}\n${read.key}`;
+    const other = [...holders.get(key) ?? []].find((held) => held !== id);
+    if (other !== undefined && !allowDuplicates) {
+      refused.push({
+        index,
+        reason:
+          `card ${other} in the same deck already shows this first: set allow_duplicates to true to keep both.`,
+      });
+      continue;
+    }
+    if (read.photos.length > photosLeft) {
+      refused.push({
+        index,
+        reason:
+          `update_cards fetches at most ${MAX_PHOTOS} photos per call: send this card in another call.`,
+      });
+      continue;
+    }
+    photosLeft -= read.photos.length;
+    const blocks = await withPhotos(read, store, deps);
+    if (typeof blocks === "string") {
+      refused.push({ index, reason: blocks });
+      continue;
+    }
+    // The later edit wins, as on the web: a row edited after this call's time is left as it is.
+    const changed = await update(
+      store,
+      "cards",
+      `id=eq.${id}&updated_at=lt.${now}`,
+      {
+        front: blocks,
+        back: [],
+        card_key: read.key,
+        template: "free",
+        template_version: 2,
+        updated_at: now,
+      },
+    );
+    if (changed.length === 0) {
+      refused.push({
+        index,
+        reason:
+          "the card was deleted or changed elsewhere after this call began: read it again with list_cards.",
+      });
+      continue;
+    }
+    holders.get(keyOf.get(id) ?? "")?.delete(id);
+    hold(id, key);
+    updated.push({ index, id, front: read.front });
+  }
+  return result({ updated, refused });
+}
+
+/** The columns a deletion sets, as the clients write a tombstone: deleted at the call's time. */
+function tombstone(deps: ToolDeps): Record<string, string> {
+  const at = new Date(deps.now()).toISOString();
+  return { deleted_at: at, updated_at: at };
+}
+
+async function deleteCards(
+  args: Args,
+  store: Store,
+  deps: ToolDeps,
+): Promise<ToolResult> {
+  const input = args.card_ids;
+  if (!Array.isArray(input) || input.length === 0) {
+    return refuse(
+      `card_ids must be a list of 1 to ${MAX_CARDS} card ids, as list_cards returns them.`,
+    );
+  }
+  if (input.length > MAX_CARDS) {
+    return refuse(
+      `delete_cards takes at most ${MAX_CARDS} ids per call, and this call has ${input.length}. Nothing was deleted. Send the ids in calls of ${MAX_CARDS} or fewer.`,
+    );
+  }
+  const ids = input.map(idOf);
+  if (ids.includes(null)) {
+    return refuse(
+      "each of card_ids must be a card's id, a uuid, as list_cards returns it. Nothing was deleted.",
+    );
+  }
+  const wanted = [...new Set(ids as string[])];
+  const stored = await readCards(store, wanted);
+  const deleted = new Set(
+    await update(
+      store,
+      "cards",
+      `id=in.(${wanted.join(",")})`,
+      tombstone(deps),
+    ),
+  );
+  return result({
+    deleted: wanted.filter((id) => deleted.has(id)),
+    not_found: wanted.filter((id) => !deleted.has(id)),
+    files_not_released: await release(
+      store,
+      stored.filter((card) => deleted.has(card.id)).flatMap(mediaOf),
+    ),
+  });
+}
+
+/** The media ids [card]'s photos and sounds name. */
+function mediaOf(card: StoredSides): string[] {
+  return [...keptOf(card).media.keys()];
+}
+
+/**
+ * Releases those of [media] no live deck or card of the caller's holds, as the clients do once a
+ * deletion is written, and answers those it could not; the deletion stands either way.
+ */
+async function release(
+  store: Store,
+  media: readonly string[],
+): Promise<string[]> {
+  let candidates = [...new Set(media)];
+  try {
+    const held = await heldMedia(store, candidates);
+    candidates = candidates.filter((id) => !held.has(id));
+    await releaseMedia(store, candidates);
+    return [];
+  } catch (error) {
+    if (!(error instanceof SupabaseError)) throw error;
+    return candidates;
+  }
+}
+
+async function updateDeck(
+  args: Args,
+  store: Store,
+  deps: ToolDeps,
+): Promise<ToolResult> {
+  const id = deckIdOf(args);
+  if (id === null) {
+    return refuse(
+      "deck_id must be a deck's id, a uuid, as list_decks returns it.",
+    );
+  }
+  const name = trimmed(args.name, MAX_NAME);
+  if (name === null) {
+    return refuse(`name must be text of 1 to ${MAX_NAME} characters.`);
+  }
+  const renamed = await update(store, "decks", `id=eq.${id}`, {
+    name,
+    updated_at: new Date(deps.now()).toISOString(),
+  });
+  return renamed.length === 0
+    ? refuse(NOT_FOUND)
+    : result({ deck: { id, name } });
+}
+
+async function deleteDeck(
+  args: Args,
+  store: Store,
+  deps: ToolDeps,
+): Promise<ToolResult> {
+  const id = deckIdOf(args);
+  if (id === null) {
+    return refuse(
+      "deck_id must be a deck's id, a uuid, as list_decks returns it.",
+    );
+  }
+  const deck = await readDeck(store, id);
+  if (deck === null) return refuse(NOT_FOUND);
+  const [image, stored] = await Promise.all([
+    deckImage(store, id),
+    deckCards(store, id),
+  ]);
+  const at = tombstone(deps);
+  // Its cards before the deck, so a call that fails between the two leaves the deck to delete again.
+  const cards = new Set(await update(store, "cards", `deck_id=eq.${id}`, at));
+  await update(store, "decks", `id=eq.${id}`, at);
+  return result({
+    deck,
+    deleted_cards: cards.size,
+    files_not_released: await release(store, [
+      ...(image === null ? [] : [image]),
+      ...stored.filter((card) => cards.has(card.id)).flatMap(mediaOf),
+    ]),
+  });
 }

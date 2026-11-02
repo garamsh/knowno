@@ -1,7 +1,7 @@
 /**
- * A card of an `add_cards` call read into the stored `free` v2 form (ADR 0137 §One input format):
- * `{"blocks": [칸, …]}` in the union on `type`, or the plain front and back. Each 칸 is built as
- * the block the web's `encodeCells` writes, then held to the frame's own reader.
+ * A card of an `add_cards` or `update_cards` call read into the stored `free` v2 form (ADR 0137
+ * §One input format): `{"blocks": [칸, …]}` in the union on `type`, or the plain front and back.
+ * Each 칸 is built as the block the web's `encodeCells` writes, then held to the frame's own reader.
  */
 
 import { type IdSource, labelsOf, uuidV7 } from "./cards.ts";
@@ -12,6 +12,7 @@ import {
   frameProblem,
   parseCells,
   shownFirst,
+  type StoredSides,
 } from "./frame.ts";
 
 /** The longest a card's text may be. */
@@ -141,17 +142,46 @@ function tableBlock(value: Args): Built {
   return { payload: { columns, rows, blanks, spans } };
 }
 
+/** [boxes] each under a new id, or null when they are not a list. */
+function boxesOf(boxes: unknown, ids: IdSource): unknown[] | null {
+  return Array.isArray(boxes)
+    ? boxes.map((box: unknown) =>
+      isRecord(box) ? { ...box, id: uuidV7(ids) } : box
+    )
+    : null;
+}
+
+const BOXES =
+  "boxes must be a list of boxes, each with x, y, w and h as fractions from 0 to 1.";
+
+/** A photo or sound the card already holds, given by its `media`: kept as stored, never fetched. */
+function keptBlock(value: Args, ids: IdSource, kept: Kept): Built {
+  const stored = typeof value.media === "string"
+    ? kept.media.get(value.media)
+    : undefined;
+  if (stored === undefined || stored.type !== value.type) {
+    return value.type === "image"
+      ? "an image block by media must name a photo this card already holds, as list_cards returns it; give a new photo by url."
+      : "an audio block must name a sound this card already holds by its media, as list_cards returns it; a new sound cannot be added.";
+  }
+  const { side } = value;
+  if (stored.type === "audio") {
+    return { payload: { ...stored.payload, side } };
+  }
+  const boxes = boxesOf(value.boxes ?? [], ids);
+  if (boxes === null) return BOXES;
+  return {
+    payload: { ...stored.payload, boxes, ...(side !== undefined && { side }) },
+  };
+}
+
 function imageBlock(value: Args, ids: IdSource): Built {
   const { url, boxes = [], side } = value;
   if (typeof url !== "string") {
     return "an image block needs url, the https address of a JPEG, PNG or WebP image.";
   }
-  if (!Array.isArray(boxes)) {
-    return "boxes must be a list of boxes, each with x, y, w and h as fractions from 0 to 1.";
-  }
-  const stored = boxes.map((box: unknown) =>
-    isRecord(box) ? { ...box, id: uuidV7(ids) } : box
-  );
+  const stored = boxesOf(boxes, ids);
+  if (stored === null) return BOXES;
   return {
     url,
     // A placeholder size and a new id: the fetch fills in the size once the card is otherwise valid.
@@ -165,7 +195,13 @@ function imageBlock(value: Args, ids: IdSource): Built {
   };
 }
 
-function built(value: Args, ids: IdSource): Built {
+function built(value: Args, ids: IdSource, kept: Kept | null): Built {
+  if (
+    kept !== null &&
+    (value.type === "audio" ||
+      (value.type === "image" && value.url === undefined &&
+        value.media !== undefined))
+  ) return keptBlock(value, ids, kept);
   switch (value.type) {
     case "text":
       return textBlock(value);
@@ -195,6 +231,7 @@ const SHAPES: Record<string, string> = {
     "a table needs columns, rows of as many cells as columns, and a blank or a span: each blank a distinct cell holding text, each span a run of a cell's text that overlaps no other span and is in no blank cell.",
   image:
     "an image holds side, front or back, exactly while it holds no box, and each box needs x, y, w and h inside the image, as fractions from 0 to 1, and an optional text answer.",
+  audio: "an audio block needs side, front or back.",
 };
 
 const PROBLEMS = {
@@ -218,7 +255,11 @@ function card(
 }
 
 /** A card of [values], or why it is refused, naming the block by its index. */
-function readBlocks(values: unknown, ids: IdSource): ReadCard | string {
+function readBlocks(
+  values: unknown,
+  ids: IdSource,
+  kept: Kept | null,
+): ReadCard | string {
   if (
     !Array.isArray(values) || values.length === 0 ||
     values.length > MAX_BLOCKS
@@ -231,13 +272,13 @@ function readBlocks(values: unknown, ids: IdSource): ReadCard | string {
   for (const [index, value] of values.entries()) {
     const where = `block ${index}: `;
     if (!isRecord(value)) return `${where}a block must be an object.`;
-    const read = built(value, ids);
+    const read = built(value, ids, kept);
     if (typeof read === "string") return where + read;
     const type = value.type as string;
     const block = {
       type,
       v: FRAME_VERSIONS.get(type) ?? (type === "table" ? 2 : 1),
-      id: uuidV7(ids),
+      id: keptId(value.id, type, kept, blocks) ?? uuidV7(ids),
       payload: read.payload,
     };
     const parsed = parseCells([block]);
@@ -251,8 +292,25 @@ function readBlocks(values: unknown, ids: IdSource): ReadCard | string {
   return card(blocks, photos, cells);
 }
 
+/** [id] when it is a stored block's of the card, of [type], not taken by an earlier block. */
+function keptId(
+  id: unknown,
+  type: string,
+  kept: Kept | null,
+  taken: readonly StoredBlock[],
+): string | null {
+  return typeof id === "string" && kept?.ids.get(id) === type &&
+      !taken.some((block) => block.id === id)
+    ? id
+    : null;
+}
+
 /** The plain form: one 글, or a 단어 when it has labels or examples. */
-function readPlain(value: Args, ids: IdSource): ReadCard | string {
+function readPlain(
+  value: Args,
+  ids: IdSource,
+  kept: Kept | null,
+): ReadCard | string {
   const front = requiredText(value.front);
   if (front === null) {
     return `front must be text of 1 to ${MAX_TEXT} characters.`;
@@ -273,18 +331,70 @@ function readPlain(value: Args, ids: IdSource): ReadCard | string {
         : { type: "senses", term: front, ask: "term", senses },
     ],
     ids,
+    kept,
   );
 }
 
-/** A card of an `add_cards` call, read, or the reason it is refused. */
-export function readCard(value: unknown, ids: IdSource): ReadCard | string {
+/**
+ * A card of an `add_cards` or `update_cards` call, read, or the reason it is refused. [kept] is
+ * what the card being updated holds: the block ids a block may keep, and its photos and sounds.
+ */
+export function readCard(
+  value: unknown,
+  ids: IdSource,
+  kept: Kept | null = null,
+): ReadCard | string {
   if (!isRecord(value)) {
     return "the card must be an object with blocks, or with front and back.";
   }
   if ("blocks" in value) {
     return "front" in value || "back" in value
       ? "give a card blocks, or front and back, not both."
-      : readBlocks(value.blocks, ids);
+      : readBlocks(value.blocks, ids, kept);
   }
-  return readPlain(value, ids);
+  return readPlain(value, ids, kept);
+}
+
+/** What a stored card holds that an update may keep. */
+export type Kept = {
+  /** Each stored 칸's type by its id. */
+  readonly ids: ReadonlyMap<string, string>;
+  /** Each stored photo's and sound's type and payload, without its side and boxes, by media id. */
+  readonly media: ReadonlyMap<
+    string,
+    { readonly type: string; readonly payload: Args }
+  >;
+};
+
+/** The ids of a `free` v2 card's 칸, in order; none for a card of two sides, whose 칸 are converted. */
+export function storedIds(stored: StoredSides): (string | null)[] {
+  return stored.template === "free" && stored.template_version === 2 &&
+      Array.isArray(stored.front)
+    ? stored.front.map((block: unknown) =>
+      isRecord(block) && typeof block.id === "string" ? block.id : null
+    )
+    : [];
+}
+
+/** What [stored] holds that an update may keep. */
+export function keptOf(stored: StoredSides): Kept {
+  const ids = new Map<string, string>();
+  const media = new Map<string, { type: string; payload: Args }>();
+  const free = storedIds(stored);
+  const blocks = [stored.front, stored.back].flatMap((side) =>
+    Array.isArray(side) ? side.filter(isRecord) : []
+  );
+  for (const { type, id, payload } of blocks) {
+    if (typeof type !== "string") continue;
+    if (typeof id === "string" && free.includes(id)) ids.set(id, type);
+    if (!isRecord(payload) || typeof payload.media !== "string") continue;
+    if (type === "image") {
+      const { media: name, width, height } = payload;
+      media.set(name, { type, payload: { media: name, width, height } });
+    } else if (type === "audio") {
+      const { media: name, duration_ms } = payload;
+      media.set(name, { type, payload: { media: name, duration_ms } });
+    }
+  }
+  return { ids, media };
 }
