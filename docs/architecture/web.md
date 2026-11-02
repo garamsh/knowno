@@ -17,7 +17,6 @@ The web app in `web/`: its stack, the rules that keep it portable between Vercel
 - `web/src/` holds the closed list of top-level folders [`structure.md`](structure.md) names ([ADR 0039](adr/0039-name-every-top-level-folder-by-its-responsibility-compose-across-domains-in-a-home-shell-and-keep-seams-off-screens.md)): the routes in `app/`, with the legal documents in a `(legal)` route group; the features `account`, `admin`, `decks`, `study` and `legal` under `features/`; the foundations `design/` (the brand's marks, the one chip, the skeleton, the theme choice and its store, "다시 시도", and the dialogs' focus trap) and `supabase/` (the Supabase adapter); `styles/`, `testing/` and `__tests__/`; and `env.ts` and `proxy.ts`.
 - Every user-facing string is Korean, in 해요체, written where it is rendered; the root layout declares `lang="ko"`.
 - Icons are `lucide-react`'s, pinned exactly like every package ([ADR 0027](adr/0027-draw-both-clients-in-the-smartman-brand-and-the-v2-screens.md)).
-- The admin overview's charts are `recharts`', with `react-is` pinned to `react`'s version as Recharts asks, so the two move together ([ADR 0074](adr/0074-chart-the-overview-s-photos-and-cost-by-day-plan-model-and-prompt-version-with-recharts-each-chart-an-image-named-by-a-sentence-beside-a-table.md)). Only the admin feature's client components import it.
 
 ### Portability
 

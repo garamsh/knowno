@@ -3,17 +3,34 @@ import Link from "next/link";
 import { activatePrompt } from "../activate-prompt";
 import { clearTestPrompt } from "../clear-test-prompt";
 import { formatTime } from "../format";
+import { countsLine, type ExtractionCall, type OutcomeSummary } from "../outcomes";
 import { lineDiff } from "../prompt-diff";
 import type { PromptDetail } from "../read-admin";
 import { testPrompt } from "../test-prompt";
 import { ConfirmAction } from "./confirm-action";
+import { DailyRates, VersionCalls } from "./outcomes-view";
 import { PromptChips } from "./prompt-chips";
 
 /**
- * One version: its text, its difference from the active version, and the actions that serve it,
- * each asked first.
+ * One version: the actions that serve it, each asked first, its 30 days' results by day, its
+ * difference from the active version, its recorded calls a page at a time, and its text.
  */
-export function PromptView({ version, timeZone }: { version: PromptDetail; timeZone: string }) {
+export function PromptView({
+  version,
+  results,
+  calls,
+  before,
+  more,
+  timeZone,
+}: {
+  version: PromptDetail;
+  /** This version's recorded calls over the last 30 UTC days. */
+  results: OutcomeSummary;
+  calls: ExtractionCall[];
+  before: number | null;
+  more: boolean;
+  timeZone: string;
+}) {
   const active = version.labels.includes("active");
   const test = version.labels.includes("test");
   const diff =
@@ -31,7 +48,35 @@ export function PromptView({ version, timeZone }: { version: PromptDetail; timeZ
           {version.length.toLocaleString("ko-KR")}자 · {formatTime(version.createdAt, timeZone)}
           {version.createdByEmail === null ? "" : ` · ${version.createdByEmail}`}
         </p>
+        <p className="text-caption text-ink-2">최근 30일 {countsLine(results.total)}</p>
       </div>
+      <div className="flex flex-wrap gap-3">
+        {!active && (
+          <ConfirmAction
+            label="모든 사용자에게 적용"
+            question={`버전 ${String(version.id)}을 모든 사용자에게 적용할까요? 위에서 다른 점을 확인해 주세요.`}
+            confirmLabel="적용"
+            action={activatePrompt.bind(null, version.id)}
+          />
+        )}
+        {!active && !test && (
+          <ConfirmAction
+            label="관리자만 테스트"
+            question={`버전 ${String(version.id)}을 관리자에게만 쓸까요? 사용자는 지금 버전을 그대로 써요.`}
+            confirmLabel="테스트 시작"
+            action={testPrompt.bind(null, version.id)}
+          />
+        )}
+        {test && (
+          <ConfirmAction
+            label="테스트 끝내기"
+            question="테스트를 끝낼까요? 관리자도 사용 중인 버전을 쓰게 돼요."
+            confirmLabel="테스트 끝내기"
+            action={clearTestPrompt}
+          />
+        )}
+      </div>
+      <DailyRates days={results.days} />
       {diff !== null && version.active !== null && (
         <section aria-label="사용 중인 버전과 다른 점" className="flex flex-col gap-2">
           <h2 className="px-1 text-section text-muted">
@@ -68,36 +113,17 @@ export function PromptView({ version, timeZone }: { version: PromptDetail; timeZ
           </ol>
         </section>
       )}
-      <div className="flex flex-wrap gap-3">
-        {!active && (
-          <ConfirmAction
-            label="모든 사용자에게 적용"
-            question={`버전 ${String(version.id)}을 모든 사용자에게 적용할까요? 위에서 다른 점을 확인해 주세요.`}
-            confirmLabel="적용"
-            action={activatePrompt.bind(null, version.id)}
-          />
-        )}
-        {!active && !test && (
-          <ConfirmAction
-            label="관리자만 테스트"
-            question={`버전 ${String(version.id)}을 관리자에게만 쓸까요? 사용자는 지금 버전을 그대로 써요.`}
-            confirmLabel="테스트 시작"
-            action={testPrompt.bind(null, version.id)}
-          />
-        )}
-        {test && (
-          <ConfirmAction
-            label="테스트 끝내기"
-            question="테스트를 끝낼까요? 관리자도 사용 중인 버전을 쓰게 돼요."
-            confirmLabel="테스트 끝내기"
-            action={clearTestPrompt}
-          />
-        )}
-      </div>
+      <VersionCalls
+        versionId={version.id}
+        calls={calls}
+        before={before}
+        more={more}
+        timeZone={timeZone}
+      />
       <section aria-label="프롬프트" className="flex flex-col gap-2">
         <h2 className="px-1 text-section text-muted">프롬프트</h2>
         <Link
-          href={`/admin/prompts?from=${String(version.id)}`}
+          href={`/admin/ai/new?from=${String(version.id)}`}
           className="self-start px-1 text-body text-ink-2 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ink"
         >
           이 버전에서 새 버전 쓰기

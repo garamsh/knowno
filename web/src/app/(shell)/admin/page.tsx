@@ -1,15 +1,15 @@
 import { Suspense } from "react";
 
-import { OverviewContent } from "./_components/content";
 import { AdminSkeleton } from "./_components/admin-skeleton";
+import { TodoContent } from "./_components/content";
 
-/** The admin area's overview: users, study, and photo extractions with their estimated cost. */
+/** 처리할 일: what waits on an operator, then the last 7 days against the 7 before (ADR 0155). */
 export default function Page() {
   return (
     <>
-      <h1 className="text-display">개요</h1>
+      <h1 className="text-display">처리할 일</h1>
       <Suspense fallback={<AdminSkeleton />}>
-        <OverviewContent />
+        <TodoContent />
       </Suspense>
     </>
   );

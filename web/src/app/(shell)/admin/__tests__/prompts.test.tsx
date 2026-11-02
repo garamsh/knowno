@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,12 +18,12 @@ import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 import { field } from "@/supabase/row";
 
-import { AuditContent, PromptContent, PromptsContent } from "../_components/content";
+import { AiContent, AuditContent, NewPromptContent, PromptContent } from "../_components/content";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
-  usePathname: () => "/admin/prompts",
+  usePathname: () => "/admin/ai",
 }));
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 // The browser's canvas, which jsdom lacks, downscales the photo; here it passes through, and a
@@ -86,22 +86,25 @@ beforeEach(async () => {
   await signIn();
 });
 
-describe("the prompts page", () => {
+describe("사진 AI's versions and the new version's form", () => {
   it("lists the versions newest first with their labels, and starts the form from the active one", async () => {
-    await render(PromptsContent, { searchParams: Promise.resolve({}) });
-    const versions = within(screen.getByRole("region", { name: "저장된 버전" }));
+    await render(AiContent, {});
+    const versions = within(screen.getByRole("region", { name: "버전별 결과" }));
     expect(versions.getAllByRole("link").map((link) => link.textContent)).toEqual([
       expect.stringMatching(/^버전 2shorter/),
       expect.stringMatching(/^버전 1사용 중prompt v8/),
     ]);
+    expect(screen.getByText(/사용 중인 버전 1로 카드를 만들어요/)).toBeInTheDocument();
+
+    cleanup();
+    await render(NewPromptContent, { searchParams: Promise.resolve({}) });
     expect(screen.getByRole("textbox", { name: "프롬프트" })).toHaveValue(
       "Prompt v8.\nKeep each fact.",
     );
-    expect(screen.getByText(/사용 중인 버전 1로 카드를 만들어요/)).toBeInTheDocument();
   });
 
   it("starts the form from the version the address names", async () => {
-    await render(PromptsContent, { searchParams: Promise.resolve({ from: "2" }) });
+    await render(NewPromptContent, { searchParams: Promise.resolve({ from: "2" }) });
     expect(screen.getByRole("textbox", { name: "프롬프트" })).toHaveValue(
       "Prompt v8.\nKeep each fact once.",
     );
@@ -112,7 +115,7 @@ describe("saving a version", () => {
   it("saves the text as a new version that serves no one, records it, and opens it", async () => {
     expect(
       await redirected(savePrompt({ message: null }, form({ text: "New prompt.", note: " try " }))),
-    ).toContain(";/admin/prompts/3;");
+    ).toContain(";/admin/ai/3;");
     expect(admin.prompts.at(-1)).toEqual({
       id: 3,
       text: "New prompt.",
@@ -137,7 +140,7 @@ describe("saving a version", () => {
       await redirected(
         savePrompt({ message: null }, form({ text: "가".repeat(20_000), note: "" })),
       ),
-    ).toContain(";/admin/prompts/3;");
+    ).toContain(";/admin/ai/3;");
   });
 
   it("is refused for a user who is not an admin, saving nothing, and done for an admin", async () => {
@@ -149,13 +152,16 @@ describe("saving a version", () => {
     await signIn();
     expect(
       await redirected(savePrompt({ message: null }, form({ text: "Mine.", note: "" }))),
-    ).toContain(";/admin/prompts/3;");
+    ).toContain(";/admin/ai/3;");
   });
 });
 
 describe("a version's page", () => {
   it("shows the difference from the active version line by line, in words as well as colour", async () => {
-    await render(PromptContent, { params: Promise.resolve({ id: "2" }) });
+    await render(PromptContent, {
+      params: Promise.resolve({ id: "2" }),
+      searchParams: Promise.resolve({}),
+    });
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("버전 2");
     const diff = within(screen.getByRole("region", { name: "사용 중인 버전과 다른 점" }));
     expect(
@@ -170,7 +176,10 @@ describe("a version's page", () => {
 
   it("serves the version to every user once confirmed, and rolls back to an earlier one the same way", async () => {
     const user = userEvent.setup();
-    const view = await render(PromptContent, { params: Promise.resolve({ id: "2" }) });
+    const view = await render(PromptContent, {
+      params: Promise.resolve({ id: "2" }),
+      searchParams: Promise.resolve({}),
+    });
     await user.click(screen.getByRole("button", { name: "모든 사용자에게 적용" }));
     await user.click(screen.getByRole("button", { name: "취소" }));
     expect(admin.promptLabels.get("active")).toBe(1);
@@ -180,7 +189,10 @@ describe("a version's page", () => {
     expect(admin.promptLabels.get("active")).toBe(2);
 
     view.unmount();
-    await render(PromptContent, { params: Promise.resolve({ id: "1" }) });
+    await render(PromptContent, {
+      params: Promise.resolve({ id: "1" }),
+      searchParams: Promise.resolve({}),
+    });
     expect(screen.getByRole("region", { name: "사용 중인 버전과 다른 점" })).toBeInTheDocument();
     expect(await activatePrompt(1)).toEqual({
       changed: true,
@@ -195,7 +207,7 @@ describe("a version's page", () => {
 
   it("serves a version to admins as the test version, which the trial then runs, and ends the test", async () => {
     expect(await testPrompt(2)).toMatchObject({ changed: true });
-    await render(PromptsContent, { searchParams: Promise.resolve({}) });
+    await render(AiContent, {});
     expect(screen.getByText(/테스트 버전 2로 카드를 만들어요/)).toBeInTheDocument();
     expect(await clearTestPrompt()).toMatchObject({ changed: true });
     expect(await clearTestPrompt()).toEqual({
@@ -214,7 +226,10 @@ describe("a version's page", () => {
   it("is not found for an id that is no version's or not one", async () => {
     for (const id of ["9", "abc", "0"]) {
       await expect(
-        render(PromptContent, { params: Promise.resolve({ id }) }),
+        render(PromptContent, {
+          params: Promise.resolve({ id }),
+          searchParams: Promise.resolve({}),
+        }),
       ).rejects.toMatchObject(notFound);
     }
   });
@@ -242,13 +257,13 @@ describe("the trial on one photo", () => {
       }),
     );
     const user = userEvent.setup();
-    await render(PromptsContent, { searchParams: Promise.resolve({}) });
+    await render(AiContent, {});
     const trial = within(screen.getByRole("region", { name: "사진 한 장으로 시험" }));
     await user.upload(
       trial.getByLabelText("사진"),
       new File([new Uint8Array([1, 2, 3])], "page.jpg", { type: "image/jpeg" }),
     );
-    await user.click(trial.getByRole("button", { name: "시험" }));
+    await user.click(trial.getByRole("button", { name: "시험하기" }));
     expect(await trial.findByText("카드 2장을 만들었어요.")).toBeInTheDocument();
     expect(
       within(trial.getByRole("list", { name: "만든 카드" }))
@@ -285,12 +300,12 @@ describe("the trial on one photo", () => {
     expect(calls).toHaveLength(3);
 
     const user = userEvent.setup();
-    await render(PromptsContent, { searchParams: Promise.resolve({}) });
+    await render(AiContent, {});
     await user.upload(
       screen.getByLabelText("사진"),
       new File([new Uint8Array([1])], "unreadable.jpg", { type: "image/jpeg" }),
     );
-    await user.click(screen.getByRole("button", { name: "시험" }));
+    await user.click(screen.getByRole("button", { name: "시험하기" }));
     expect(
       await screen.findByText("이 사진을 읽지 못했어요. 다른 사진을 골라 주세요."),
     ).toBeInTheDocument();
@@ -310,22 +325,28 @@ describe("the trial on one photo", () => {
   });
 });
 
+/** The first line of each entry of the audit log's list. */
+const auditEntries = () =>
+  within(screen.getByRole("list", { name: "작업 기록" }))
+    .getAllByRole("listitem")
+    .map((entry) => entry.firstChild?.textContent);
+
 describe("the audit log", () => {
   it("names each prompt change and links its version", async () => {
     expect(
       await redirected(savePrompt({ message: null }, form({ text: "Third.", note: "" }))),
-    ).toContain(";/admin/prompts/3;");
+    ).toContain(";/admin/ai/3;");
     await testPrompt(3);
     await activatePrompt(3);
     await render(AuditContent, {});
-    expect(screen.getAllByRole("listitem").map((entry) => entry.firstChild?.textContent)).toEqual([
+    expect(auditEntries()).toEqual([
       "프롬프트 적용 · 버전 3",
       "프롬프트 테스트 시작 · 버전 3",
       "프롬프트 저장 · 버전 3",
     ]);
     expect(screen.getAllByRole("link", { name: "버전 3" })[0]).toHaveAttribute(
       "href",
-      "/admin/prompts/3",
+      "/admin/ai/3",
     );
   });
 });

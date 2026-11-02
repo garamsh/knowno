@@ -15,11 +15,17 @@ export function ConfirmAction({
   question,
   confirmLabel,
   action,
+  compact = false,
+  disabled = false,
 }: {
   label: string;
   question: string;
   confirmLabel: string;
   action: () => Promise<ActionResult>;
+  /** Whether it sits in a row or a card, drawn as [button.row]. */
+  compact?: boolean;
+  /** Whether there is nothing for it to do, so it cannot be pressed. */
+  disabled?: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -69,11 +75,12 @@ export function ConfirmAction({
       ) : (
         <button
           type="button"
+          disabled={disabled}
           onClick={() => {
             setMessage(null);
             setConfirming(true);
           }}
-          className={button.secondary}
+          className={compact ? button.row : button.secondary}
         >
           {label}
         </button>

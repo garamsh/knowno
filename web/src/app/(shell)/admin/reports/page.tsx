@@ -1,16 +1,6 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { ReportsContent } from "../_components/content";
-import { AdminSkeleton } from "../_components/admin-skeleton";
-
-/** The reported decks, with their reasons and the moderation actions. */
+/** 신고 is 노트's reported view now (ADR 0155). The admin gate checks the role before this runs. */
 export default function Page() {
-  return (
-    <>
-      <h1 className="text-display">신고</h1>
-      <Suspense fallback={<AdminSkeleton />}>
-        <ReportsContent />
-      </Suspense>
-    </>
-  );
+  redirect("/admin/decks");
 }

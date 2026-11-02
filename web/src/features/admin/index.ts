@@ -5,36 +5,36 @@ export { AdminNav } from "./components/admin-nav";
 export { AuditLog } from "./components/audit-log";
 export { DeckView } from "./components/deck-view";
 export { GrantAdminForm } from "./components/grant-admin-form";
-export { OutcomesView } from "./components/outcomes-view";
-export { OverviewView } from "./components/overview-view";
-export { summarizeOutcomes } from "./outcomes";
-export { summarizeUsage } from "./usage";
+export { AiView } from "./components/ai-view";
+export { NoteList } from "./components/note-list";
+export { TodoView } from "./components/todo-view";
+export { ViewSwitch } from "./components/view-switch";
+export { outcomeDays, summarizeOutcomes } from "./outcomes";
+export { summarizeWeeks, weekUsageDays } from "./usage";
 export { PlansView } from "./components/plans-view";
 export { PromptForm } from "./components/prompt-form";
-export { PromptTrial } from "./components/prompt-trial";
-export { PromptVersions } from "./components/prompt-versions";
 export { PromptView } from "./components/prompt-view";
-export { PublicDecks } from "./components/public-decks";
-export { ReportedDecks } from "./components/reported-decks";
 export { UserSearch } from "./components/user-search";
 export { UserView } from "./components/user-view";
 export {
   adminTimeZone,
   extractionPageSize,
-  readExtractionCalls,
+  type NoteView,
   readExtractionOutcomes,
   readAdmins,
   readAuditLog,
   readDeck,
   readExtractionBreakdown,
   readIsAdmin,
-  readOverview,
+  readNotes,
+  readOpenReports,
   readPlanVersions,
+  readPromptLabels,
   readPromptVersion,
   readPromptVersions,
-  readPublicDecks,
-  readReportedDecks,
   readUser,
+  readVersionCalls,
+  readWeekActivity,
   searchUsers,
   searchUsersThrough,
 } from "./read-admin";

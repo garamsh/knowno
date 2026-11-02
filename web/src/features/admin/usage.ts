@@ -14,32 +14,16 @@ export type BreakdownRow = {
 /** Photos and their estimated cost; `unpriced` photos were served by a model never measured. */
 export type Amount = { photos: number; usd: number; unpriced: number };
 
-/** One series of a stacked chart: its key in each day's values, and its name. */
-export type Series = { key: string; label: string };
-
-/** Each day's estimated cost per series, oldest first, with the series in drawing order. */
-export type Stack = {
-  series: Series[];
-  days: { day: string; values: Record<string, number> }[];
-  totals: Record<string, Amount>;
-};
-
-/** The usage the overview charts. */
-export type Usage = {
-  days: ({ day: string } & Amount)[];
-  totals: { today: Amount; week: Amount; month: Amount };
-  plans: Stack;
-  models: Stack;
-  versions: { version: number | null; amount: Amount }[];
+/** The photos of the last 7 UTC days against the 7 before, as 처리할 일's 이번 주 shows them. */
+export type WeekUsage = {
+  current: Amount;
+  previous: Amount;
   /** The models with photos and no measured cost. */
   unpricedModels: string[];
-  /** The model a photo without a call record is costed at: the Free plan's. */
-  unrecordedModel: string | null;
 };
 
-const planNames: Record<PlanId, string> = { free: "무료", pro: "프로", max: "맥스" };
-/** The series of the photos counted before calls were recorded. */
-export const unrecorded = "기록 전";
+/** How many UTC days the two weeks read. */
+export const weekUsageDays = 14;
 
 /** The UTC day [offset] days from [today], as YYYY-MM-DD. */
 function dayFrom(today: string, offset: number): string {
@@ -50,86 +34,29 @@ function dayFrom(today: string, offset: number): string {
 
 const empty = (): Amount => ({ photos: 0, usd: 0, unpriced: 0 });
 
-function add(amount: Amount, photos: number, usd: number | null): void {
-  amount.photos += photos;
-  if (usd === null) amount.unpriced += photos;
-  else amount.usd += photos * usd;
-}
-
 /**
- * The last [span] UTC days' usage ending [today], from the server's [rows]: each photo costed at
- * its model's measured cost, and a photo without a call record at [freeModel]'s.
+ * The last 7 UTC days ending [today] and the 7 before, from the server's [rows]: each photo costed
+ * at its model's measured cost, and a photo without a call record at [freeModel]'s (ADR 0074).
  */
-export function summarizeUsage(
+export function summarizeWeeks(
   rows: readonly BreakdownRow[],
   today: string,
   freeModel: string | null,
-  span = 30,
-): Usage {
-  const dayList = Array.from({ length: span }, (_, index) => dayFrom(today, index - span + 1));
-  const days = new Map(dayList.map((day) => [day, empty()]));
-  const weekStart = dayFrom(today, -6);
-  const totals = { today: empty(), week: empty(), month: empty() };
-  const plans = new Map<string, Series>();
-  const models = new Map<string, Series>();
-  const planDays = new Map<string, Record<string, number>>(dayList.map((day) => [day, {}]));
-  const modelDays = new Map<string, Record<string, number>>(dayList.map((day) => [day, {}]));
-  const planTotals: Record<string, Amount> = {};
-  const modelTotals: Record<string, Amount> = {};
-  const versions = new Map<number | null, Amount>();
+): WeekUsage {
+  const currentStart = dayFrom(today, -6);
+  const previousStart = dayFrom(today, -13);
+  const current = empty();
+  const previous = empty();
   const unpriced = new Set<string>();
   for (const row of rows) {
-    const dayAmount = days.get(row.day);
-    if (dayAmount === undefined) continue;
+    if (row.day > today || row.day < previousStart) continue;
+    const amount = row.day >= currentStart ? current : previous;
     const model = row.model ?? freeModel;
     const usd = model === null ? null : usdPerPhoto(model);
     if (usd === null && model !== null) unpriced.add(model);
-    add(dayAmount, row.photos, usd);
-    add(totals.month, row.photos, usd);
-    if (row.day >= weekStart) add(totals.week, row.photos, usd);
-    if (row.day === today) add(totals.today, row.photos, usd);
-    const planKey = row.plan ?? unrecorded;
-    const modelKey = row.model ?? unrecorded;
-    plans.set(planKey, {
-      key: planKey,
-      label: row.plan === null ? unrecorded : planNames[row.plan],
-    });
-    models.set(modelKey, { key: modelKey, label: modelKey });
-    for (const [perDay, key, sums] of [
-      [planDays, planKey, planTotals],
-      [modelDays, modelKey, modelTotals],
-    ] as const) {
-      const values = perDay.get(row.day);
-      if (values !== undefined) values[key] = (values[key] ?? 0) + row.photos * (usd ?? 0);
-      add((sums[key] ??= empty()), row.photos, usd);
-    }
-    const version = versions.get(row.promptVersion) ?? empty();
-    add(version, row.photos, usd);
-    versions.set(row.promptVersion, version);
+    amount.photos += row.photos;
+    if (usd === null) amount.unpriced += row.photos;
+    else amount.usd += row.photos * usd;
   }
-  const ordered = (series: Map<string, Series>, rank: (key: string) => number) =>
-    [...series.values()].toSorted(
-      (a, b) => rank(a.key) - rank(b.key) || a.key.localeCompare(b.key),
-    );
-  const planRank = (key: string) => ["free", "pro", "max", unrecorded].indexOf(key);
-  const modelRank = (key: string) => (key === unrecorded ? 1 : 0);
-  return {
-    days: dayList.map((day) => ({ day, ...(days.get(day) ?? empty()) })),
-    totals,
-    plans: {
-      series: ordered(plans, planRank),
-      days: dayList.map((day) => ({ day, values: planDays.get(day) ?? {} })),
-      totals: planTotals,
-    },
-    models: {
-      series: ordered(models, modelRank),
-      days: dayList.map((day) => ({ day, values: modelDays.get(day) ?? {} })),
-      totals: modelTotals,
-    },
-    versions: [...versions]
-      .map(([version, amount]) => ({ version, amount }))
-      .toSorted((a, b) => (b.version ?? 0) - (a.version ?? 0)),
-    unpricedModels: [...unpriced].toSorted(),
-    unrecordedModel: freeModel,
-  };
+  return { current, previous, unpricedModels: [...unpriced].toSorted() };
 }

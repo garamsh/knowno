@@ -7,39 +7,43 @@ import {
   AdminFailureMessage,
   AdminList,
   adminTimeZone,
+  AiView,
   AuditLog,
-  extractionPageSize,
-  OutcomesView,
-  readExtractionCalls,
-  readExtractionOutcomes,
-  summarizeOutcomes,
   DeckView,
+  extractionPageSize,
   GrantAdminForm,
-  OverviewView,
+  NoteList,
+  type NoteView,
+  outcomeDays,
   parseUserId,
   PlansView,
   PromptForm,
-  PromptTrial,
-  PromptVersions,
   PromptView,
-  PublicDecks,
   readAdmins,
   readAuditLog,
   readDeck,
   readExtractionBreakdown,
-  readOverview,
+  readExtractionOutcomes,
+  readNotes,
+  readOpenReports,
   readPlanVersions,
+  readPromptLabels,
   readPromptVersion,
   readPromptVersions,
-  readPublicDecks,
-  readReportedDecks,
   readUser,
+  readVersionCalls,
+  readWeekActivity,
   searchUsersThrough,
-  ReportedDecks,
+  summarizeOutcomes,
+  summarizeWeeks,
+  TodoView,
   UserSearch,
   UserView,
-  summarizeUsage,
+  ViewSwitch,
+  weekUsageDays,
 } from "@/features/admin";
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 /** The text of a search parameter, or "" when it is absent or repeated. */
 function searchText(value: string | string[] | undefined): string {
@@ -51,69 +55,90 @@ function pageIndex(value: string | string[] | undefined): number {
   return typeof value === "string" && /^\d{1,3}$/.test(value) ? Number(value) : 0;
 }
 
-export async function OverviewContent() {
-  const [read, plans, breakdown] = await Promise.all([
-    readOverview(),
+/** A version's or an extraction's id in an address: digits only, as the server numbers them. */
+function versionId(value: string | string[] | undefined): number | null {
+  return typeof value === "string" && /^[1-9]\d{0,15}$/.test(value) ? Number(value) : null;
+}
+
+/** Today's UTC day, the day the extraction reads count by. */
+function utcToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export async function TodoContent() {
+  const [reports, failures, labels, week, breakdown, plans] = await Promise.all([
+    readOpenReports(),
+    readExtractionOutcomes(7),
+    readPromptLabels(),
+    readWeekActivity(),
+    readExtractionBreakdown(weekUsageDays),
     readPlanVersions(),
-    readExtractionBreakdown(),
   ]);
-  if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
-  if ("failure" in plans) return <AdminFailureMessage failure={plans.failure} />;
+  if ("failure" in reports) return <AdminFailureMessage failure={reports.failure} />;
+  if ("failure" in failures) return <AdminFailureMessage failure={failures.failure} />;
+  if ("failure" in labels) return <AdminFailureMessage failure={labels.failure} />;
+  if ("failure" in week) return <AdminFailureMessage failure={week.failure} />;
   if ("failure" in breakdown) return <AdminFailureMessage failure={breakdown.failure} />;
+  if ("failure" in plans) return <AdminFailureMessage failure={plans.failure} />;
   // A photo counted before calls were recorded is costed at the model of Free's current version.
   const free =
     plans.data.find((version) => version.plan === "free" && version.current)?.model ?? null;
-  const today = new Date().toISOString().slice(0, 10);
-  return <OverviewView overview={read.data} usage={summarizeUsage(breakdown.data, today, free)} />;
-}
-
-export async function ExtractionsContent({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const before = versionId((await searchParams).before);
-  const [outcomes, calls, timeZone] = await Promise.all([
-    readExtractionOutcomes(),
-    readExtractionCalls(before),
-    adminTimeZone(),
-  ]);
-  if ("failure" in outcomes) return <AdminFailureMessage failure={outcomes.failure} />;
-  if ("failure" in calls) return <AdminFailureMessage failure={calls.failure} />;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = utcToday();
   return (
-    <OutcomesView
-      summary={summarizeOutcomes(outcomes.data, today)}
-      calls={calls.data}
-      before={before}
-      more={calls.data.length === extractionPageSize}
-      timeZone={timeZone}
+    <TodoView
+      reports={reports.data}
+      failures={summarizeOutcomes(failures.data, today, 7).total}
+      test={labels.data.find((label) => label.label === "test") ?? null}
+      week={week.data}
+      usage={summarizeWeeks(breakdown.data, today, free)}
     />
   );
 }
 
-export async function PlansContent() {
-  const [read, timeZone] = await Promise.all([readPlanVersions(), adminTimeZone()]);
-  if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
-  return <PlansView versions={read.data} timeZone={timeZone} />;
+const noteViews: readonly { view: NoteView; label: string; empty: string }[] = [
+  {
+    view: "reported",
+    label: "신고된 노트",
+    empty: "처리할 신고가 없어요. 새 신고가 들어오면 여기에 보여요.",
+  },
+  {
+    view: "public",
+    label: "모든 공개 노트",
+    empty: "공개된 노트가 없어요. 사용자가 노트를 공개하면 여기에 보여요.",
+  },
+  { view: "hidden", label: "숨긴 노트", empty: "숨긴 노트가 없어요." },
+];
+
+/** The 노트 section's address for [view] and [search]; the reported view is the section's own. */
+function notesHref(view: NoteView, search: string): string {
+  const params = new URLSearchParams();
+  if (view !== "reported") params.set("view", view);
+  if (search !== "") params.set("q", search);
+  const query = params.toString();
+  return query === "" ? "/admin/decks" : `/admin/decks?${query}`;
 }
 
-export async function ReportsContent() {
-  const [read, timeZone] = await Promise.all([readReportedDecks(), adminTimeZone()]);
-  if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
-  return <ReportedDecks decks={read.data} timeZone={timeZone} />;
-}
-
-export async function PublicDecksContent({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const search = searchText((await searchParams).q);
-  const [read, timeZone] = await Promise.all([readPublicDecks({ search }), adminTimeZone()]);
+export async function NotesContent({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const search = searchText(params.q);
+  const shown = noteViews.find(({ view }) => view === params.view) ?? noteViews[0];
+  if (shown === undefined) return null;
+  const [read, reports] = await Promise.all([readNotes(shown.view, search), readOpenReports()]);
   return (
     <>
+      <ViewSwitch
+        label="노트 보기"
+        views={noteViews.map(({ view, label }) => ({
+          href: notesHref(view, search),
+          label:
+            view === "reported" && !("failure" in reports)
+              ? `${label} ${String(reports.data.notes)}`
+              : label,
+          current: view === shown.view,
+        }))}
+      />
       <form role="search" action="/admin/decks" className="relative">
+        {shown.view !== "reported" && <input type="hidden" name="view" value={shown.view} />}
         <Search
           aria-hidden
           className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted"
@@ -122,23 +147,18 @@ export async function PublicDecksContent({
         <input
           type="search"
           name="q"
-          aria-label="노트 이름 검색"
-          placeholder="노트 이름 검색"
+          aria-label="노트 이름이나 만든 사람 이메일로 검색"
+          placeholder="노트 이름이나 만든 사람 이메일로 검색"
           defaultValue={search}
-          className="h-search w-full rounded-field border border-outline bg-surface pr-4 pl-12 text-body placeholder:text-muted focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ink"
+          className="h-search w-full rounded-field bg-surface pr-4 pl-12 text-body placeholder:text-muted focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ink"
         />
       </form>
       {"failure" in read ? (
         <AdminFailureMessage failure={read.failure} />
       ) : (
-        <PublicDecks
-          decks={read.data}
-          timeZone={timeZone}
-          empty={
-            search
-              ? "찾는 노트가 없어요. 다른 단어로 검색해 보세요."
-              : "공개된 노트가 없어요. 사용자가 노트를 공개하면 여기에 보여요."
-          }
+        <NoteList
+          notes={read.data}
+          empty={search === "" ? shown.empty : "찾는 노트가 없어요. 다른 단어로 검색해 보세요."}
         />
       )}
     </>
@@ -155,11 +175,7 @@ export async function DeckContent({ params }: { params: Promise<{ id: string }> 
   return <DeckView deck={read.data} timeZone={timeZone} />;
 }
 
-export async function UsersContent({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+export async function UsersContent({ searchParams }: { searchParams: SearchParams }) {
   const { q, page } = await searchParams;
   const query = searchText(q);
   const shown = pageIndex(page);
@@ -190,10 +206,112 @@ export async function UserContent({ params }: { params: Promise<{ id: string }> 
   return <UserView user={read.data} timeZone={timeZone} />;
 }
 
+export async function AiContent() {
+  const [versions, outcomes] = await Promise.all([
+    readPromptVersions(),
+    readExtractionOutcomes(outcomeDays),
+  ]);
+  if ("failure" in versions) return <AdminFailureMessage failure={versions.failure} />;
+  if ("failure" in outcomes) return <AdminFailureMessage failure={outcomes.failure} />;
+  const today = utcToday();
+  const byVersion = (span: number) =>
+    new Map(
+      summarizeOutcomes(outcomes.data, today, span).versions.map(({ version, counts }) => [
+        version,
+        counts,
+      ]),
+    );
+  return <AiView versions={versions.data} week={byVersion(7)} month={byVersion(outcomeDays)} />;
+}
+
+export async function NewPromptContent({ searchParams }: { searchParams: SearchParams }) {
+  const [read, from] = await Promise.all([
+    readPromptVersions(),
+    searchParams.then((params) => versionId(params.from)),
+  ]);
+  if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
+  const active = read.data.find((version) => version.labels.includes("active"));
+  // The form starts from the version the address names, or else the active one.
+  const basis = from ?? active?.id ?? null;
+  const start = basis === null ? null : await readPromptVersion(basis);
+  if (start !== null && "failure" in start) return <AdminFailureMessage failure={start.failure} />;
+  return (
+    <PromptForm
+      key={basis}
+      initialText={start?.data?.text ?? ""}
+      basis={start?.data ? `버전 ${String(start.data.id)}` : "빈 프롬프트"}
+    />
+  );
+}
+
+export async function PromptContent({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: SearchParams;
+}) {
+  const id = versionId((await params).id);
+  if (id === null) notFound();
+  const before = versionId((await searchParams).before);
+  const [read, outcomes, calls, timeZone] = await Promise.all([
+    readPromptVersion(id),
+    readExtractionOutcomes(outcomeDays),
+    readVersionCalls(id, before),
+    adminTimeZone(),
+  ]);
+  if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
+  if (read.data === null) notFound();
+  if ("failure" in outcomes) return <AdminFailureMessage failure={outcomes.failure} />;
+  if ("failure" in calls) return <AdminFailureMessage failure={calls.failure} />;
+  return (
+    <PromptView
+      version={read.data}
+      results={summarizeOutcomes(
+        outcomes.data.filter((row) => row.promptVersion === id),
+        utcToday(),
+      )}
+      calls={calls.data}
+      before={before}
+      more={calls.data.length === extractionPageSize}
+      timeZone={timeZone}
+    />
+  );
+}
+
+/** 설정's three pages, each an address of its own. */
+function SettingsSwitch({ current }: { current: "plans" | "admins" | "audit" }) {
+  return (
+    <ViewSwitch
+      label="설정 보기"
+      views={[
+        { href: "/admin/settings", label: "요금제", current: current === "plans" },
+        { href: "/admin/settings/admins", label: "관리자", current: current === "admins" },
+        { href: "/admin/settings/audit", label: "작업 기록", current: current === "audit" },
+      ]}
+    />
+  );
+}
+
+export async function PlansContent() {
+  const [read, timeZone] = await Promise.all([readPlanVersions(), adminTimeZone()]);
+  return (
+    <>
+      <SettingsSwitch current="plans" />
+      {"failure" in read ? (
+        <AdminFailureMessage failure={read.failure} />
+      ) : (
+        <PlansView versions={read.data} timeZone={timeZone} />
+      )}
+    </>
+  );
+}
+
 export async function AdminsContent() {
   const [read, timeZone] = await Promise.all([readAdmins(), adminTimeZone()]);
   return (
     <>
+      <SettingsSwitch current="admins" />
       <GrantAdminForm />
       {"failure" in read ? (
         <AdminFailureMessage failure={read.failure} />
@@ -206,51 +324,14 @@ export async function AdminsContent() {
 
 export async function AuditContent() {
   const [read, timeZone] = await Promise.all([readAuditLog(), adminTimeZone()]);
-  if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
-  return <AuditLog entries={read.data} timeZone={timeZone} />;
-}
-
-/** A version's or an extraction's id in an address: digits only, as the server numbers them. */
-function versionId(value: string | string[] | undefined): number | null {
-  return typeof value === "string" && /^[1-9]\d{0,15}$/.test(value) ? Number(value) : null;
-}
-
-export async function PromptsContent({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const [read, timeZone, from] = await Promise.all([
-    readPromptVersions(),
-    adminTimeZone(),
-    searchParams.then((params) => versionId(params.from)),
-  ]);
-  if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
-  const active = read.data.find((version) => version.labels.includes("active"));
-  const test = read.data.find((version) => version.labels.includes("test"));
-  // The form starts from the version the address names, or else the active one.
-  const basis = from ?? active?.id ?? null;
-  const start = basis === null ? null : await readPromptVersion(basis);
-  if (start !== null && "failure" in start) return <AdminFailureMessage failure={start.failure} />;
-  const served = test ?? active;
   return (
     <>
-      {served !== undefined && <PromptTrial served={{ id: served.id, test: served === test }} />}
-      <PromptForm
-        key={basis}
-        initialText={start?.data?.text ?? ""}
-        basis={start?.data ? `버전 ${String(start.data.id)}` : "빈 프롬프트"}
-      />
-      <PromptVersions versions={read.data} timeZone={timeZone} />
+      <SettingsSwitch current="audit" />
+      {"failure" in read ? (
+        <AdminFailureMessage failure={read.failure} />
+      ) : (
+        <AuditLog entries={read.data} timeZone={timeZone} />
+      )}
     </>
   );
-}
-
-export async function PromptContent({ params }: { params: Promise<{ id: string }> }) {
-  const id = versionId((await params).id);
-  if (id === null) notFound();
-  const [read, timeZone] = await Promise.all([readPromptVersion(id), adminTimeZone()]);
-  if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
-  if (read.data === null) notFound();
-  return <PromptView version={read.data} timeZone={timeZone} />;
 }

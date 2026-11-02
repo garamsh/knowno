@@ -32,6 +32,7 @@ export function UserSuspension({
     >
       {suspension === null ? (
         <ReasonAction
+          compact
           label="이용 정지"
           reasonLabel="정지하는 이유"
           question={`${email}의 이용을 정지할까요?`}
@@ -50,6 +51,7 @@ export function UserSuspension({
             </div>
           </div>
           <ConfirmAction
+            compact
             label="정지 해제"
             question={`${email}의 정지를 풀까요?`}
             confirmLabel="정지 해제"

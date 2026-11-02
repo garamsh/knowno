@@ -9,7 +9,6 @@ export type ExtractionCall = {
   usageId: number;
   at: number;
   plan: string;
-  promptVersion: number;
   result: {
     outcome: Outcome;
     attempts: 1 | 2;
@@ -46,7 +45,7 @@ export type OutcomeSummary = {
   versions: { version: number; counts: OutcomeCounts }[];
 };
 
-/** How many days the view reads. */
+/** How many days a version's results cover. */
 export const outcomeDays = 30;
 
 /** The words for each outcome. */
@@ -93,16 +92,38 @@ function add(a: OutcomeCounts, b: OutcomeCounts): OutcomeCounts {
   };
 }
 
+/** The failure rate over which the area draws it red (ADR 0155). */
+export const failureAlarm = 0.05;
+
+/** [rate] as a percent with one decimal, as "3.2%". */
+export function percent(rate: number): string {
+  return `${(rate * 100).toFixed(1)}%`;
+}
+
+/** The counts under a version's rate: its calls and each way they ended without cards. */
+export function countsLine(counts: OutcomeCounts): string {
+  return [
+    `추출 ${counts.calls.toLocaleString("ko-KR")}건`,
+    `카드 없음 ${String(counts.noCards)}`,
+    `형식 오류 ${String(counts.invalidOutput)}`,
+    `모델 오류 ${String(counts.modelError)}`,
+  ].join(" · ");
+}
+
 /** The share of [counts]' recorded calls that failed, or null when none was recorded. */
 export function failureRate(counts: OutcomeCounts): number | null {
   return counts.calls === 0 ? null : (counts.invalidOutput + counts.modelError) / counts.calls;
 }
 
-/** [rows] summed over the [outcomeDays] UTC days that end with [today], by day and by version. */
-export function summarizeOutcomes(rows: OutcomeDay[], today: string): OutcomeSummary {
+/** [rows] summed over the [span] UTC days that end with [today], by day and by version. */
+export function summarizeOutcomes(
+  rows: OutcomeDay[],
+  today: string,
+  span = outcomeDays,
+): OutcomeSummary {
   const end = Date.parse(`${today}T00:00:00Z`);
-  const days = Array.from({ length: outcomeDays }, (_, index) =>
-    new Date(end - (outcomeDays - 1 - index) * 86_400_000).toISOString().slice(0, 10),
+  const days = Array.from({ length: span }, (_, index) =>
+    new Date(end - (span - 1 - index) * 86_400_000).toISOString().slice(0, 10),
   );
   const byDay = new Map(days.map((day) => [day, none]));
   const byVersion = new Map<number, OutcomeCounts>();

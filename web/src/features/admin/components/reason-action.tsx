@@ -16,6 +16,7 @@ export function ReasonAction({
   question,
   confirmLabel,
   final = false,
+  compact = false,
   action,
 }: {
   label: string;
@@ -23,6 +24,8 @@ export function ReasonAction({
   question: string;
   confirmLabel: string;
   final?: boolean;
+  /** Whether it sits in a row or a menu, drawn a tap target high. */
+  compact?: boolean;
   action: (reason: string) => Promise<ActionResult>;
 }) {
   const [open, setOpen] = useState(false);
@@ -95,7 +98,15 @@ export function ReasonAction({
             setMessage(null);
             setOpen(true);
           }}
-          className={final ? button.destructive : button.secondary}
+          className={
+            compact
+              ? final
+                ? button.rowDestructive
+                : button.row
+              : final
+                ? button.destructive
+                : button.secondary
+          }
         >
           {label}
         </button>

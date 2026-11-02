@@ -3,19 +3,13 @@ import "server-only";
 import { cookies } from "next/headers";
 
 import { describeContent, parseCells, parseContent, sidesOf } from "@/features/decks";
-import { parseTimeZone, studyDayStart, timeZoneCookie } from "@/features/study";
+import { parseTimeZone, timeZoneCookie } from "@/features/study";
 import { classifyFailure, requestTimeoutMs, type ServerFailure } from "@/supabase/failure";
 import { field, parseTime } from "@/supabase/row";
 import { createClient } from "@/supabase/server";
 import { readUserId } from "@/supabase/session";
 
-import {
-  type CallFailure,
-  type ExtractionCall,
-  type Outcome,
-  type OutcomeDay,
-  outcomeDays,
-} from "./outcomes";
+import { type CallFailure, type ExtractionCall, type Outcome, type OutcomeDay } from "./outcomes";
 import type { BreakdownRow } from "./usage";
 
 /** Why an admin read failed: the server's failure, `rejected` for a caller who is not an admin, or a row this version cannot read. */
@@ -30,23 +24,35 @@ export type DeckState = { visibility: "public" | "private"; hidden: boolean; del
 /** Who owns a deck: the account's email and, once the owner published, its display name. */
 export type Owner = { id: string; email: string; name: string | null };
 
-export type Overview = {
-  users: number;
-  newUsers7d: number;
-  newUsers30d: number;
-  studiedToday: number;
-  studied7d: number;
-};
+/** A view of the 노트 section's list (ADR 0155). */
+export type NoteView = "reported" | "public" | "hidden";
 
-export type ReportedDeck = {
+/** A public note as the 노트 section lists it. */
+export type NoteRow = {
   id: string;
   name: string;
   owner: Owner;
-  state: DeckState;
+  hidden: boolean;
+  cards: number;
+  copies: number;
   reports: number;
   reasons: string[];
-  lastReportedAt: number;
+  /** When its oldest standing report was made; null with none. */
+  firstReportedAt: number | null;
+  publishedAt: number | null;
 };
+
+/** The open reports: how many notes others can still see carry one, and the oldest one's age in whole days. */
+export type OpenReports = { notes: number; oldestDays: number | null };
+
+/** One figure of the last 7 days and of the 7 before. */
+export type WeekPair = { current: number; previous: number };
+
+/** The last 7 study days against the 7 before: new users, and the daily average who studied. */
+export type WeekActivity = { newUsers: WeekPair; studiedDaily: WeekPair };
+
+/** A prompt label that is set, its version, and the whole days since it was set. */
+export type PromptLabelSet = { label: PromptLabel; versionId: number; daysSince: number };
 
 export type PublicDeck = {
   id: string;
@@ -87,6 +93,8 @@ export type UserDeck = {
   hidden: boolean;
   removed: boolean;
   cards: number;
+  /** Its reports, read for a public note; 0 for a private one. */
+  reports: number;
 };
 
 /** Why, when and by whom a user was suspended. */
@@ -145,11 +153,12 @@ export type AdminUser = {
   decks: number;
   cards: number;
   admin: boolean;
-  publicDecks: PublicDeck[];
   plan: UserPlan;
   suspension: Suspension | null;
   /** Every live deck of the user, public or private, newest first. */
   allDecks: UserDeck[];
+  /** The next renewal, when the user takes the plan's version then in effect, as "2026-12-01". */
+  renewal: string;
 };
 
 export type AdminMember = {
@@ -171,7 +180,23 @@ export type AuditEntry = {
   detail: Record<string, unknown>;
 };
 
-const day = 86_400_000;
+/** The whole days from [time] to now. */
+function wholeDaysSince(time: number): number {
+  return Math.floor((Date.now() - time) / 86_400_000);
+}
+
+/**
+ * The renewal after [now]: the 1st of the next month in Asia/Seoul, when each user takes the
+ * version then in effect (ADR 0097; `private.entitlement_of` on the server), as "2026-12-01".
+ */
+function nextRenewal(now: number): string {
+  const [year = 0, month = 0] = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" })
+    .format(now)
+    .split("-")
+    .map(Number);
+  const next = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
+  return `${String(next.year)}-${String(next.month).padStart(2, "0")}-01`;
+}
 
 /** The zone the browser names in its cookie, in which the admin area shows times, or the fallback. */
 export async function adminTimeZone(): Promise<string> {
@@ -191,67 +216,79 @@ export async function readIsAdmin(): Promise<boolean | { failure: AdminFailure }
   return typeof read.data === "boolean" ? read.data : { failure: "unreadable" };
 }
 
-/**
- * The overview, with "today" and "the last 7 days" the study days, from 04:00, of the zone the
- * browser names in its cookie, and the extractions by UTC day, the daily limit's day.
- */
-export async function readOverview(): Promise<AdminRead<Overview>> {
-  const timeZone = await adminTimeZone();
-  const now = Date.now();
-  const totals = await call("admin_overview", {
-    today_start: new Date(studyDayStart(now, timeZone)).toISOString(),
-    week_start: new Date(studyDayStart(now - 6 * day, timeZone)).toISOString(),
-  });
-  if ("failure" in totals) return totals;
-  const row = only(totals.data);
-  const counts = ["users", "new_users_7d", "new_users_30d", "studied_today", "studied_7d"].map(
-    (key) => count(field(row, key)),
-  );
-  const [users, newUsers7d, newUsers30d, studiedToday, studied7d] = counts;
-  if (
-    users == null ||
-    newUsers7d == null ||
-    newUsers30d == null ||
-    studiedToday == null ||
-    studied7d == null
-  ) {
+/** The last 7 study days, from 04:00 in the zone the browser names, against the 7 before. */
+export async function readWeekActivity(): Promise<AdminRead<WeekActivity>> {
+  const read = await call("admin_week_activity", { time_zone: await adminTimeZone() });
+  if ("failure" in read) return read;
+  const row = only(read.data);
+  const [newThis, newLast, studiedThis, studiedLast] = [
+    "new_users_this",
+    "new_users_last",
+    "studied_this",
+    "studied_last",
+  ].map((key) => count(field(row, key)));
+  if (newThis == null || newLast == null || studiedThis == null || studiedLast == null) {
     return { failure: "unreadable" };
   }
+  // The server counts each user once a study day over the 7; the page shows a day's average.
   return {
     data: {
-      users,
-      newUsers7d,
-      newUsers30d,
-      studiedToday,
-      studied7d,
+      newUsers: { current: newThis, previous: newLast },
+      studiedDaily: { current: studiedThis / 7, previous: studiedLast / 7 },
     },
   };
 }
 
-/** Every reported deck, the latest report first. */
-export async function readReportedDecks(): Promise<AdminRead<ReportedDeck[]>> {
-  return parsed(await call("admin_reported_decks"), (row) => {
+/** The public notes of [view] whose name or owner's email holds [search] (ADR 0155). */
+export async function readNotes(view: NoteView, search: string): Promise<AdminRead<NoteRow[]>> {
+  return parsed(await call("admin_note_list", { view, search }), (row) => {
     const id = text(field(row, "deck_id"));
     const name = text(field(row, "name"));
     const owner = parseOwner(row);
-    const state = parseState(row);
+    const hidden = field(row, "hidden");
+    const cards = count(field(row, "cards"));
+    const copies = count(field(row, "copy_count"));
     const reports = count(field(row, "reports"));
     const reasons = strings(field(row, "reasons"));
-    const lastReportedAt = parseTime(field(row, "last_reported_at"));
-    if (id === null || name === null || !owner || !state || reports === null || !reasons) {
-      return null;
-    }
-    if (lastReportedAt === null) return null;
-    return { id, name, owner, state, reports, reasons, lastReportedAt };
+    const first = field(row, "first_reported_at");
+    const firstReportedAt = first === null ? null : parseTime(first);
+    const published = field(row, "published_at");
+    const publishedAt = published === null ? null : parseTime(published);
+    if (id === null || name === null || !owner || typeof hidden !== "boolean") return null;
+    if (cards === null || copies === null || reports === null || !reasons) return null;
+    if (first !== null && firstReportedAt === null) return null;
+    if (published !== null && publishedAt === null) return null;
+    return {
+      id,
+      name,
+      owner,
+      hidden,
+      cards,
+      copies,
+      reports,
+      reasons,
+      firstReportedAt,
+      publishedAt,
+    };
   });
 }
 
-/** Every public deck whose name holds [search], or every public deck of [owner]. */
-export async function readPublicDecks(
-  query: { search: string } | { owner: string },
-): Promise<AdminRead<PublicDeck[]>> {
-  const args = "owner" in query ? { owner: query.owner } : { search: query.search };
-  return parsed(await call("admin_public_decks", args), parsePublicDeck);
+/** The open reports: the reported notes others can still see, and the oldest report among them. */
+export async function readOpenReports(): Promise<AdminRead<OpenReports>> {
+  const read = await readNotes("reported", "");
+  if ("failure" in read) return read;
+  const times = read.data.flatMap((note) => note.firstReportedAt ?? []);
+  return {
+    data: {
+      notes: read.data.length,
+      oldestDays: times.length === 0 ? null : wholeDaysSince(Math.min(...times)),
+    },
+  };
+}
+
+/** Every public deck of [owner], each with its reports. */
+async function readPublicDecks(owner: string): Promise<AdminRead<PublicDeck[]>> {
+  return parsed(await call("admin_public_decks", { owner }), parsePublicDeck);
 }
 
 /** Any deck with its live cards and its removal from sharing, or null for a deck that does not exist. */
@@ -358,7 +395,7 @@ export async function searchUsers(query: string, page: number): Promise<AdminRea
 export async function readUser(id: string): Promise<AdminRead<AdminUser | null>> {
   const [userRead, decksRead, planRead, suspensionRead, allDecksRead] = await Promise.all([
     call("admin_user", { user_id: id }),
-    readPublicDecks({ owner: id }),
+    readPublicDecks(id),
     call("admin_user_plan", { user_id: id }),
     call("admin_user_suspension", { user_id: id }),
     call("admin_user_decks", { user_id: id }),
@@ -371,6 +408,7 @@ export async function readUser(id: string): Promise<AdminRead<AdminUser | null>>
   const suspensions = rows(suspensionRead.data, parseSuspension);
   const allDecks = rows(allDecksRead.data, parseUserDeck);
   if (!suspensions || !allDecks) return { failure: "unreadable" };
+  const reports = new Map(decksRead.data.map((deck) => [deck.id, deck.reports]));
   if (Array.isArray(userRead.data) && userRead.data.length === 0) return { data: null };
   const plan = parseUserPlan(only(planRead.data));
   if (!plan) return { failure: "unreadable" };
@@ -397,10 +435,10 @@ export async function readUser(id: string): Promise<AdminRead<AdminUser | null>>
       decks,
       cards,
       admin,
-      publicDecks: decksRead.data,
       plan,
       suspension: suspensions[0] ?? null,
-      allDecks,
+      allDecks: allDecks.map((deck) => ({ ...deck, reports: reports.get(deck.id) ?? 0 })),
+      renewal: nextRenewal(Date.now()),
     },
   };
 }
@@ -476,7 +514,7 @@ function parseSuspension(row: unknown): Suspension | null {
   return { reason, suspendedAt, suspendedByEmail: by };
 }
 
-function parseUserDeck(row: unknown): UserDeck | null {
+function parseUserDeck(row: unknown): Omit<UserDeck, "reports"> | null {
   const id = text(field(row, "deck_id"));
   const name = field(row, "name");
   const visibility = field(row, "visibility");
@@ -531,9 +569,9 @@ export async function readAuditLog(): Promise<AdminRead<AuditEntry[]>> {
   });
 }
 
-/** The last 30 UTC days' photos by the plan, model and prompt version that served them (ADR 0074). */
-export async function readExtractionBreakdown(): Promise<AdminRead<BreakdownRow[]>> {
-  return parsed(await call("admin_extraction_breakdown", { days: 30 }), (row) => {
+/** The last [days] UTC days' photos by the plan, model and prompt version that served them. */
+export async function readExtractionBreakdown(days: number): Promise<AdminRead<BreakdownRow[]>> {
+  return parsed(await call("admin_extraction_breakdown", { days }), (row) => {
     const date = field(row, "day");
     const plan = field(row, "plan");
     const model = field(row, "model");
@@ -552,24 +590,28 @@ export async function readExtractionBreakdown(): Promise<AdminRead<BreakdownRow[
   });
 }
 
-/** How many recorded extractions a page of the outcomes view lists. */
+/** How many recorded extractions a page of a version's calls lists. */
 export const extractionPageSize = 50;
 
 /**
- * The recorded extractions, newest first, a page of them before the usage id [before], or the
- * newest page when it is null (ADR 0130). The user each served is not read.
+ * The extractions prompt version [versionId] served, newest first, a page of them before the usage
+ * id [before], or the newest page when it is null. The user each served is not read.
  */
-export async function readExtractionCalls(
+export async function readVersionCalls(
+  versionId: number,
   before: number | null,
 ): Promise<AdminRead<ExtractionCall[]>> {
   return parsed(
-    await call("admin_extraction_calls", { before, page_size: extractionPageSize }),
+    await call("admin_version_calls", {
+      version_id: versionId,
+      before,
+      page_size: extractionPageSize,
+    }),
     (row) => {
       const usageId = count(field(row, "usage_id"));
       const at = parseTime(field(row, "created_at"));
       const plan = text(field(row, "plan"));
-      const promptVersion = count(field(row, "prompt_version_id"));
-      if (usageId === null || at === null || plan === null || promptVersion === null) return null;
+      if (usageId === null || at === null || plan === null) return null;
       const outcome = field(row, "outcome");
       const attempts = field(row, "attempts");
       const latencyMs = count(field(row, "latency_ms"));
@@ -579,9 +621,7 @@ export async function readExtractionCalls(
       // The outcome's columns are null together, for a call without an outcome.
       if (outcome === null) {
         const rest = [attempts, latencyMs, cardsReturned, cardsDropped, failures];
-        return rest.every((value) => value === null)
-          ? { usageId, at, plan, promptVersion, result: null }
-          : null;
+        return rest.every((value) => value === null) ? { usageId, at, plan, result: null } : null;
       }
       if (!isOutcome(outcome) || (attempts !== 1 && attempts !== 2)) return null;
       if (latencyMs === null || cardsReturned === null || cardsDropped === null || !failures) {
@@ -591,16 +631,15 @@ export async function readExtractionCalls(
         usageId,
         at,
         plan,
-        promptVersion,
         result: { outcome, attempts, latencyMs, cardsReturned, cardsDropped, failures },
       };
     },
   );
 }
 
-/** Each UTC day's recorded extractions over the last [outcomeDays] days, by prompt version. */
-export async function readExtractionOutcomes(): Promise<AdminRead<OutcomeDay[]>> {
-  return parsed(await call("admin_extraction_failures", { days: outcomeDays }), (row) => {
+/** Each UTC day's recorded extractions over the last [days] days, by prompt version. */
+export async function readExtractionOutcomes(days: number): Promise<AdminRead<OutcomeDay[]>> {
+  return parsed(await call("admin_extraction_failures", { days }), (row) => {
     const day = field(row, "day");
     const promptVersion = count(field(row, "prompt_version_id"));
     const [calls, ok, noCards, invalidOutput, modelError, retried, recovered, unrecorded] = [
@@ -703,6 +742,19 @@ export async function readPromptVersion(id: number): Promise<AdminRead<PromptDet
   });
   if ("failure" in read) return read;
   return { data: read.data[0] ?? null };
+}
+
+/** Each prompt label that is set, with its version and when it was set. */
+export async function readPromptLabels(): Promise<AdminRead<PromptLabelSet[]>> {
+  return parsed(await call("admin_prompt_labels"), (row) => {
+    const label = field(row, "label");
+    const versionId = count(field(row, "version_id"));
+    const setAt = parseTime(field(row, "set_at"));
+    if ((label !== "active" && label !== "test") || versionId === null || setAt === null) {
+      return null;
+    }
+    return { label, versionId, daysSince: wholeDaysSince(setAt) };
+  });
 }
 
 function parsePromptVersion(row: unknown, length: number | null): PromptVersion | null {

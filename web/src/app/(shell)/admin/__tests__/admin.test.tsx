@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,9 +17,8 @@ import {
   unpublishDeck,
   unsuspendUser,
 } from "@/features/admin/actions";
-import { studyDayStart } from "@/features/study";
 import { FakeAdmin } from "@/testing/mocks/admin";
-import { otherUser, testUser } from "@/testing/mocks/handlers";
+import { otherUser, supabaseUrl, testUser } from "@/testing/mocks/handlers";
 import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
 import { render } from "@/testing/render";
@@ -30,10 +29,9 @@ import {
   AdminsContent,
   AuditContent,
   DeckContent,
-  OverviewContent,
+  NotesContent,
   PlansContent,
-  PublicDecksContent,
-  ReportsContent,
+  TodoContent,
   UserContent,
   UsersContent,
 } from "../_components/content";
@@ -41,7 +39,7 @@ import {
 vi.mock("next/headers", () => import("@/testing/next-headers"));
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
-  usePathname: () => "/admin/reports",
+  usePathname: () => "/admin/decks",
 }));
 const revalidated = vi.hoisted(() => [] as string[]);
 vi.mock("next/cache", () => ({
@@ -54,6 +52,9 @@ const notFound = { digest: "NEXT_HTTP_ERROR_FALLBACK;404" };
 const french = "d0000000-0000-4000-8000-0000000000f1";
 const diary = "d0000000-0000-4000-8000-0000000000f2";
 const stored = "d0000000-0000-4000-8000-0000000000f3";
+const german = "d0000000-0000-4000-8000-0000000000f4";
+const latin = "d0000000-0000-4000-8000-0000000000f5";
+const day = 86_400_000;
 
 /** Signs the next request in as [user], with the browser's zone UTC. */
 async function signIn(user: typeof testUser | typeof otherUser = testUser) {
@@ -86,34 +87,48 @@ describe("the admin area's gate", () => {
   it("gives a user who is not an admin the not-found page, and an admin the area's menu", async () => {
     await signIn(otherUser);
     await expect(render(AdminGate, { children: <p>내용</p> })).rejects.toMatchObject(notFound);
-    expect(admin.calls.map((call) => call.split(" ")[0])).toEqual(["is_admin"]);
+    // The menu's count is asked beside the check, and the server refuses it.
+    expect(admin.calls.map((call) => call.split(" ")[0])).toEqual(["is_admin", "admin_note_list"]);
 
-    // Control: the admin sees the menu and the page.
+    // Control: the admin sees the five sections, the current one marked, and the page.
     await signIn();
     await render(AdminGate, { children: <p>내용</p> });
     const menu = screen.getByRole("navigation", { name: "관리 메뉴" });
     expect(
       within(menu)
         .getAllByRole("link")
-        .map((link) => link.textContent),
+        .map((link) => [link.textContent, link.getAttribute("href")]),
     ).toEqual([
-      "개요",
-      "신고",
-      "공개 노트",
-      "사용자",
-      "요금제",
-      "프롬프트",
-      "추출 결과",
-      "관리자",
-      "작업 기록",
+      ["처리할 일, 새 신고 1건", "/admin"],
+      ["노트", "/admin/decks"],
+      ["사용자", "/admin/users"],
+      ["사진 AI", "/admin/ai"],
+      ["설정", "/admin/settings"],
     ]);
-    expect(within(menu).getByRole("link", { name: "신고" })).toHaveAttribute(
+    expect(within(menu).getByRole("link", { name: "노트" })).toHaveAttribute(
       "aria-current",
       "page",
     );
     expect(screen.getByText("내용")).toBeInTheDocument();
     // Korean on every page breaks only between words.
     expect(screen.getByText("내용").parentElement).toHaveClass("break-keep");
+  });
+
+  it("carries no count in the menu while no note others see is reported, or while the count cannot be read", async () => {
+    admin.decks[0]?.reports.splice(0);
+    await render(AdminGate, { children: <p>내용</p> });
+    expect(screen.getByRole("link", { name: "처리할 일" })).toBeInTheDocument();
+
+    cleanup();
+    admin.decks[0]?.reports.push({ reason: "spam", at: "2026-10-18T01:00:00Z" });
+    server.use(
+      http.post(`${supabaseUrl}/rest/v1/rpc/admin_note_list`, () =>
+        HttpResponse.json({ code: "P0001", message: "boom" }, { status: 400 }),
+      ),
+    );
+    await render(AdminGate, { children: <p>내용</p> });
+    expect(screen.getByRole("link", { name: "처리할 일" })).toBeInTheDocument();
+    expect(screen.getByText("내용")).toBeInTheDocument();
   });
 
   it("gives a revoked admin the not-found page at once", async () => {
@@ -126,126 +141,221 @@ describe("the admin area's gate", () => {
 const utcDay = (offset = 0) =>
   new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
 
-describe("the overview", () => {
-  it("shows users and study, and the last 30 days of photos with their cost by day, plan, model and version", async () => {
-    // Haiku, the Free plan's model, is measured at $0.0018 a photo; Sonnet at $0.0267.
+describe("처리할 일", () => {
+  it("shows the open reports, the week's failure rate and the prompt under test, each with its one action", async () => {
+    admin.extractionFailures = [
+      // 2 of 20 failed: 10.0%, over the 5% line.
+      {
+        day: utcDay(),
+        prompt_version_id: 1,
+        calls: 20,
+        ok: 18,
+        no_cards: 0,
+        invalid_output: 2,
+        model_error: 0,
+        retried: 0,
+        recovered: 0,
+        failure_rate: 0.1,
+        unrecorded: 0,
+      },
+    ];
+    admin.prompts.push({ id: 2, text: "Prompt v9.", note: "prompt v9", by: null });
+    admin.promptLabels.set("test", 2);
+    admin.promptLabelsSetAt.set("test", new Date(Date.now() - 2 * day - 60_000).toISOString());
+    const now = Date.now();
+    await render(TodoContent, {});
+
+    const reports = within(screen.getByRole("region", { name: "새 신고" }));
+    expect(reports.getByText("1건")).toBeInTheDocument();
+    // French's oldest report, 2026-10-18 01:00 UTC.
+    const age = Math.floor((now - Date.parse("2026-10-18T01:00:00Z")) / day);
+    expect(reports.getByText(`가장 오래된 신고 ${String(age)}일 전`)).toBeInTheDocument();
+    expect(reports.getByRole("link", { name: "신고 보기" })).toHaveAttribute(
+      "href",
+      "/admin/decks",
+    );
+
+    const failures = within(screen.getByRole("region", { name: "사진 읽기 실패율 · 7일" }));
+    expect(failures.getByText("10.0%")).toHaveClass("text-dont-know-text");
+    expect(failures.getByRole("link", { name: "자세히" })).toHaveAttribute("href", "/admin/ai");
+
+    const test = within(screen.getByRole("region", { name: "테스트 중인 프롬프트" }));
+    expect(test.getByText("버전 2")).toBeInTheDocument();
+    expect(test.getByText("관리자만 쓰는 중 · 3일째")).toBeInTheDocument();
+    expect(test.getByRole("link", { name: "적용 또는 끝내기" })).toHaveAttribute(
+      "href",
+      "/admin/ai/2",
+    );
+    expect(admin.calls).toContain('admin_extraction_failures {"days":7}');
+  });
+
+  it("draws a rate of 5% in ink, and says what is true with no report, no recorded call and no test", async () => {
+    admin.decks.length = 0;
+    await render(TodoContent, {});
+    expect(
+      within(screen.getByRole("region", { name: "새 신고" })).getByText("처리할 신고가 없어요."),
+    ).toBeInTheDocument();
+    const failures = within(screen.getByRole("region", { name: "사진 읽기 실패율 · 7일" }));
+    expect(failures.getByText("최근 7일에 기록된 추출이 없어요.")).toBeInTheDocument();
+    const test = within(screen.getByRole("region", { name: "테스트 중인 프롬프트" }));
+    expect(test.getByText("없음")).toBeInTheDocument();
+    expect(test.getByRole("link", { name: "사진 AI 보기" })).toHaveAttribute("href", "/admin/ai");
+
+    cleanup();
+    admin.extractionFailures = [
+      {
+        day: utcDay(),
+        prompt_version_id: 1,
+        calls: 20,
+        ok: 19,
+        no_cards: 0,
+        invalid_output: 1,
+        model_error: 0,
+        retried: 0,
+        recovered: 0,
+        failure_rate: 0.05,
+        unrecorded: 0,
+      },
+    ];
+    await render(TodoContent, {});
+    const rate = within(screen.getByRole("region", { name: "사진 읽기 실패율 · 7일" })).getByText(
+      "5.0%",
+    );
+    expect(rate).toHaveClass("text-ink");
+    expect(rate).not.toHaveClass("text-dont-know-text");
+  });
+
+  it("compares the last 7 days with the 7 before: new users, the daily average who studied, and the photos and their cost", async () => {
+    admin.weekActivity = {
+      new_users_this: 56,
+      new_users_last: 41,
+      studied_this: 21,
+      studied_last: 14,
+    };
+    // Haiku, the Free plan's model, is measured at $0.0018 a photo.
     admin.breakdown = [
-      { day: utcDay(-1), plan: null, model: null, prompt_version_id: null, photos: 10 },
       {
         day: utcDay(),
         plan: "free",
         model: "anthropic/claude-haiku-5.5",
-        prompt_version_id: 2,
+        prompt_version_id: 1,
         photos: 5,
       },
-      {
-        day: utcDay(),
-        plan: "pro",
-        model: "anthropic/claude-sonnet-5.5",
-        prompt_version_id: 2,
-        photos: 1,
-      },
+      { day: utcDay(-8), plan: null, model: null, prompt_version_id: null, photos: 10 },
     ];
-    // The session's token holds for an hour from now, so the clock stays real.
-    const now = Date.now();
-    await render(OverviewContent, {});
+    await render(TodoContent, {});
 
-    const users = screen.getByRole("region", { name: "사용자" });
-    expect(within(users).getByText("전체").nextSibling).toHaveTextContent("2명");
-    const photos = within(screen.getByRole("region", { name: "사진 추출" }));
-    expect(photos.getByText("오늘").nextSibling).toHaveTextContent("6장 · $0.0357");
-    expect(photos.getByText("최근 30일").nextSibling).toHaveTextContent("16장 · $0.0537");
-    expect(
-      photos.getByRole("img", { name: /^최근 30일 사진 16장 · \$0\.0537\. 가장 많은 날은/ }),
-    ).toHaveAccessibleName(
-      `최근 30일 사진 16장 · $0.0537. 가장 많은 날은 ${utcDay(-1)}, 10장이에요.`,
+    const week = within(screen.getByRole("region", { name: "이번 주" }));
+    // Each row carries its term, last week, this week and the change, so a substring is right.
+    expect(week.getByText("새 사용자").closest("div")).toHaveTextContent(
+      /새 사용자지난주 41명56명\+37%/,
     );
-    const byDay = within(photos.getByRole("table", { name: "날짜별 사진과 예상 비용" }));
-    expect(
-      byDay
-        .getAllByRole("row")
-        .slice(1, 3)
-        .map((row) => row.textContent),
-    ).toEqual([`${utcDay()}6장$0.0357`, `${utcDay(-1)}10장$0.0180`]);
-    expect(byDay.getAllByRole("row")).toHaveLength(31);
-    const byPlan = within(photos.getByRole("table", { name: "요금제" }));
-    expect(
-      byPlan
-        .getAllByRole("row")
-        .slice(1)
-        .map((row) => row.textContent),
-    ).toEqual(["무료5장$0.0090", "프로1장$0.0267", "기록 전10장$0.0180"]);
-    expect(
-      photos.getByRole("img", {
-        name: "요금제별 예상 비용, 최근 30일: 무료 $0.0090, 프로 $0.0267, 기록 전 $0.0180.",
-      }),
-    ).toBeInTheDocument();
-    const byVersion = within(photos.getByRole("table", { name: "버전" }));
-    expect(byVersion.getByRole("link", { name: "버전 2" })).toHaveAttribute(
-      "href",
-      "/admin/prompts/2",
+    expect(week.getByText("학습한 사용자").closest("div")).toHaveTextContent(
+      /학습한 사용자하루 평균 · 지난주 2명3명\+50%/,
     );
-    expect(
-      byVersion
-        .getAllByRole("row")
-        .slice(1)
-        .map((row) => row.textContent),
-    ).toEqual(["버전 26장$0.0357", "기록 전10장$0.0180"]);
-    // Today and the last 7 days of study are study days from 04:00 in the browser's zone.
-    const call = admin.calls.find((made) => made.startsWith("admin_overview "));
-    const args = JSON.parse(call?.slice("admin_overview ".length) ?? "{}") as Record<
-      string,
-      string
-    >;
-    const today = studyDayStart(now, "UTC");
-    expect(new Date(today).toISOString().slice(11)).toBe("04:00:00.000Z");
-    expect(args).toEqual({
-      today_start: new Date(today).toISOString(),
-      week_start: new Date(studyDayStart(now - 6 * 86_400_000, "UTC")).toISOString(),
-    });
-    expect(admin.calls).toContain('admin_extraction_breakdown {"days":30}');
+    expect(week.getByText("읽은 사진 · 예상 비용").closest("div")).toHaveTextContent(
+      /지난주 10장 · \$0\.01805장 · \$0\.0090−50%/,
+    );
+    expect(admin.calls).toContain('admin_week_activity {"time_zone":"UTC"}');
+    expect(admin.calls).toContain('admin_extraction_breakdown {"days":14}');
   });
 
-  it("says when there were no photos in the last 30 days", async () => {
-    await render(OverviewContent, {});
-    expect(
-      screen.getByRole("img", { name: "최근 30일 동안 사진 추출이 없어요." }),
-    ).toBeInTheDocument();
+  it("shows no change beside a figure whose week before was 0", async () => {
+    admin.weekActivity = { new_users_this: 3, new_users_last: 0, studied_this: 0, studied_last: 0 };
+    await render(TodoContent, {});
+    const row = within(screen.getByRole("region", { name: "이번 주" }))
+      .getByText("새 사용자")
+      .closest("div");
+    expect(row).toHaveTextContent(/^새 사용자지난주 0명3명$/);
   });
 
-  it("says a user who is not an admin may not see it, against an admin's figures", async () => {
+  it("says a user who is not an admin may not see it", async () => {
     await signIn(otherUser);
-    await render(OverviewContent, {});
+    await render(TodoContent, {});
     expect(screen.getByRole("alert")).toHaveTextContent("관리자만 볼 수 있어요.");
-    expect(screen.queryByRole("region", { name: "사용자" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "새 신고" })).not.toBeInTheDocument();
   });
 });
 
-describe("the reports page", () => {
-  it("lists a reported deck with its reasons and state, and its actions", async () => {
-    await render(ReportsContent, {});
-    const row = screen.getByRole("listitem");
-    expect(within(row).getByRole("link", { name: "French" })).toHaveAttribute(
+const notes = (params: Record<string, string> = {}) =>
+  render(NotesContent, { searchParams: Promise.resolve(params) });
+
+/** The rows of 노트's list. */
+const noteRows = () =>
+  within(screen.getByRole("list", { name: "노트 목록" })).getAllByRole("listitem");
+
+describe("노트", () => {
+  beforeEach(() => {
+    admin.seedDeck({ id: german, name: "German", publishedAt: "2026-10-18T00:00:00Z" });
+    admin.seedDeck({
+      id: latin,
+      name: "Latin",
+      hidden: true,
+      reports: [{ reason: "spam", at: "2026-10-16T00:00:00Z" }],
+    });
+  });
+
+  it("opens on the reported notes others still see, with the count in the switch and three fixed actions and ⋯ on each", async () => {
+    await notes();
+    const views = within(screen.getByRole("navigation", { name: "노트 보기" }));
+    expect(views.getAllByRole("link").map((link) => link.textContent)).toEqual([
+      "신고된 노트 1",
+      "모든 공개 노트",
+      "숨긴 노트",
+    ]);
+    expect(views.getByRole("link", { name: "신고된 노트 1" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    const [row] = noteRows();
+    // The row's line carries the owner and counts together, so a substring is right.
+    expect(row).toHaveTextContent(
+      /French신고 2other@example.com · 카드 2장 · 가져오기 3회 · 사유: 저작권 침해, 스팸/,
+    );
+    // Latin is reported but hidden, German has no report, Diary is private.
+    for (const name of ["Latin", "German", "Diary"]) {
+      expect(screen.queryByText(name)).not.toBeInTheDocument();
+    }
+    expect(within(row as HTMLElement).getByRole("link", { name: "카드 보기" })).toHaveAttribute(
       "href",
       `/admin/decks/${french}`,
     );
-    // The row's line carries more than the count, so a substring is right.
-    expect(row).toHaveTextContent(/신고 2건 · 저작권 침해, 스팸/);
-    expect(within(row).getByText("공개")).toBeInTheDocument();
     expect(
-      within(row)
+      within(row as HTMLElement)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["숨기기", "비공개로 전환", "신고 정리"]);
+    ).toEqual(["문제없음", "숨기기", "공유에서 영구 삭제"]);
+    expect(admin.calls).toContain('admin_note_list {"view":"reported","search":""}');
   });
 
-  it("asks before it hides a deck, does nothing on 취소, and records the hide once confirmed", async () => {
+  it("opens 만든 사람 보기 and 공유에서 영구 삭제 under ⋯", async () => {
     const user = userEvent.setup();
-    await render(ReportsContent, {});
+    await notes();
+    const more = screen.getByLabelText("'French' 더 보기");
+    const menu = more.closest("details");
+    expect(menu).not.toHaveAttribute("open");
+    await user.click(more);
+    expect(menu).toHaveAttribute("open");
+    expect(
+      within(menu as HTMLElement).getByRole("link", { name: "만든 사람 보기" }),
+    ).toHaveAttribute("href", `/admin/users/${otherUser.id}`);
+    await user.click(
+      within(menu as HTMLElement).getByRole("button", { name: "공유에서 영구 삭제" }),
+    );
+    // The removal keeps its red final step.
+    expect(screen.getByRole("button", { name: "영구 삭제" }).className).toContain(
+      "bg-dont-know-text",
+    );
+  });
+
+  it("asks before it hides a note, does nothing on 취소, and records the hide once confirmed", async () => {
+    const user = userEvent.setup();
+    await notes();
     await user.click(screen.getByRole("button", { name: "숨기기" }));
     const question = screen.getByRole("group", { name: "'French' 노트를 공개 목록에서 숨길까요?" });
     expect(within(question).getByRole("button", { name: "숨기기" })).toHaveFocus();
-    // A reversible action's confirm comes last, after 취소, in the ink fill.
+    // A reversible action's confirm comes last, after 취소, in the primary fill.
     expect(
       within(question)
         .getAllByRole("button")
@@ -268,14 +378,88 @@ describe("the reports page", () => {
     expect(admin.decks[0]?.hidden).toBe(true);
     expect(admin.audit).toMatchObject([{ action: "hide_deck", target_id: french }]);
     expect(revalidated).toEqual(["/admin"]);
+
+    // The hidden note leaves the reported view for the hidden one.
+    cleanup();
+    await notes();
+    expect(screen.queryByText("French")).not.toBeInTheDocument();
   });
 
-  it("says when there are no reports", async () => {
-    admin.decks.length = 0;
-    await render(ReportsContent, {});
+  it("clears a note's reports on 문제없음, which a note without a report cannot press", async () => {
+    const user = userEvent.setup();
+    await notes();
+    await user.click(screen.getByRole("button", { name: "문제없음" }));
+    await user.click(
+      within(screen.getByRole("group", { name: /신고 2건을 정리할까요/ })).getByRole("button", {
+        name: "문제없음",
+      }),
+    );
+    expect(await screen.findByText("신고 2건을 정리했어요.")).toBeInTheDocument();
+    expect(admin.decks[0]?.reports).toEqual([]);
+
+    cleanup();
+    await notes({ view: "public", q: "german" });
+    expect(screen.getByRole("button", { name: "문제없음" })).toBeDisabled();
+    // Control: a reported note's 문제없음 can be pressed.
+    cleanup();
+    await notes({ view: "public", q: "latin" });
+    expect(screen.getByRole("button", { name: "문제없음" })).toBeEnabled();
+  });
+
+  it("lists every public note and the hidden ones in their views, a hidden one offering 숨김 해제", async () => {
+    await notes({ view: "public" });
+    expect(noteRows().map((row) => /^(German|French|Latin)/.exec(row.textContent)?.[0])).toEqual([
+      "German",
+      "French",
+      "Latin",
+    ]);
     expect(
-      screen.getByText("신고된 노트가 없어요. 새 신고가 들어오면 여기에 보여요."),
+      within(screen.getByRole("navigation", { name: "노트 보기" })).getByRole("link", {
+        name: "모든 공개 노트",
+      }),
+    ).toHaveAttribute("aria-current", "page");
+
+    cleanup();
+    await notes({ view: "hidden" });
+    const [row] = noteRows();
+    expect(row).toHaveTextContent(/^Latin신고 1숨김/);
+    expect(
+      within(row as HTMLElement).getByRole("button", { name: "숨김 해제" }),
     ).toBeInTheDocument();
+    expect(
+      within(row as HTMLElement).queryByRole("button", { name: "숨기기" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("searches by the note's name or its owner's email, keeping the view, and says when nothing matches", async () => {
+    await notes({ view: "public", q: "OTHER@" });
+    expect(noteRows()).toHaveLength(3);
+    expect(admin.calls).toContain('admin_note_list {"view":"public","search":"OTHER@"}');
+    // The switch keeps the search, and the form the view.
+    expect(screen.getByRole("link", { name: "숨긴 노트" })).toHaveAttribute(
+      "href",
+      "/admin/decks?view=hidden&q=OTHER%40",
+    );
+    expect(screen.getByRole("search")).toHaveFormValues({ view: "public", q: "OTHER@" });
+
+    cleanup();
+    await notes({ q: "spanish" });
+    expect(screen.getByText("찾는 노트가 없어요. 다른 단어로 검색해 보세요.")).toBeInTheDocument();
+  });
+
+  it("says when there is no report to handle", async () => {
+    admin.decks.length = 0;
+    await notes();
+    expect(
+      screen.getByText("처리할 신고가 없어요. 새 신고가 들어오면 여기에 보여요."),
+    ).toBeInTheDocument();
+  });
+
+  it("says a user who is not an admin may not see it", async () => {
+    await signIn(otherUser);
+    await notes();
+    expect(screen.getByRole("alert")).toHaveTextContent("관리자만 볼 수 있어요.");
+    expect(screen.queryByRole("list", { name: "노트 목록" })).not.toBeInTheDocument();
   });
 });
 
@@ -333,19 +517,6 @@ describe("the moderation actions", () => {
     ).rejects.toMatchObject(notFound);
     // Control: a well-formed id reaches the server.
     expect(await suspendUser(otherUser.id, "spam")).toMatchObject({ changed: true });
-  });
-});
-
-describe("the public decks page", () => {
-  it("lists public decks by name, with their counts, and says when the search finds none", async () => {
-    await render(PublicDecksContent, { searchParams: Promise.resolve({}) });
-    const row = screen.getByRole("listitem");
-    // The line carries the owner and counts together.
-    expect(row).toHaveTextContent(/other@example.com · 카드 2장 · 가져오기 3회 · 신고 2건/);
-    expect(screen.queryByText("Diary")).not.toBeInTheDocument();
-
-    await render(PublicDecksContent, { searchParams: Promise.resolve({ q: "spanish" }) });
-    expect(screen.getByText("찾는 노트가 없어요. 다른 단어로 검색해 보세요.")).toBeInTheDocument();
   });
 });
 
@@ -516,14 +687,47 @@ describe("the users pages", () => {
 
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
     expect(screen.getByRole("heading", { name: "other@example.com" })).toBeInTheDocument();
-    expect(screen.getByText("이번 달 사진 추출").nextSibling).toHaveTextContent("4장 / 한 달 10장");
-    expect(screen.getByText("마지막 학습").nextSibling).toHaveTextContent("2026-10-18 09:30");
-    expect(
-      within(screen.getByRole("region", { name: "공개 노트" })).getByRole("link", {
-        name: "French",
-      }),
-    ).toBeInTheDocument();
+    const account = within(screen.getByRole("region", { name: "계정" }));
+    expect(account.getByText("이번 달 사진 추출").nextSibling).toHaveTextContent(
+      "4장 / 한 달 10장",
+    );
+    expect(account.getByText("마지막 학습").nextSibling).toHaveTextContent("2026-10-18 09:30");
+    expect(account.getByText("노트 · 카드").nextSibling).toHaveTextContent("2개 · 3장");
     expect(screen.queryByRole("button", { name: /삭제|편집/ })).not.toBeInTheDocument();
+  });
+
+  it("lists the user's notes, public and private, each linked, a public one with its reports", async () => {
+    await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
+    const decks = within(screen.getByRole("region", { name: "노트" }));
+    // Each row carries the name, its chips and its cards, so a substring is right.
+    expect(decks.getByRole("link", { name: /^French공개신고 2/ })).toHaveAttribute(
+      "href",
+      `/admin/decks/${french}`,
+    );
+    expect(decks.getByRole("link", { name: /^Diary비공개카드/ })).toHaveAttribute(
+      "href",
+      `/admin/decks/${diary}`,
+    );
+  });
+
+  it("shows the plan's next renewal, the 1st in Seoul, and opens the grant form under 요금제 바꾸기", async () => {
+    const user = userEvent.setup();
+    await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
+    const plan = within(screen.getByRole("region", { name: "요금제" }));
+    const [year = 0, month = 0] = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" })
+      .format(Date.now())
+      .split("-")
+      .map(Number);
+    const renewal =
+      month === 12
+        ? `${String(year + 1)}-01-01`
+        : `${String(year)}-${String(month + 1).padStart(2, "0")}-01`;
+    expect(plan.getByText("다음 갱신").nextSibling).toHaveTextContent(renewal);
+    const change = plan.getByText("요금제 바꾸기");
+    expect(change.closest("details")).not.toHaveAttribute("open");
+    await user.click(change);
+    expect(change.closest("details")).toHaveAttribute("open");
+    expect(plan.getByRole("form", { name: "요금제 지정" })).toBeInTheDocument();
   });
 
   it("says when the search finds no one, and shows no list before a search", async () => {
@@ -689,7 +893,9 @@ describe("the admins page", () => {
   it("lists the admins and offers no revoke of one's own role", async () => {
     admin.admins.set(otherUser.id, { grantedAt: "2026-10-19T02:00:00Z", grantedBy: testUser.id });
     await render(AdminsContent, {});
-    const rows = screen.getAllByRole("listitem");
+    const rows = within(screen.getByRole("region", { name: "지정된 관리자" })).getAllByRole(
+      "listitem",
+    );
     expect(rows.map((row) => row.querySelector("span span")?.textContent)).toEqual([
       "learner@example.com (나)",
       "other@example.com",
@@ -740,6 +946,12 @@ describe("the admins page", () => {
   });
 });
 
+/** The first line of each entry of the audit log's list. */
+const auditEntries = () =>
+  within(screen.getByRole("list", { name: "작업 기록" }))
+    .getAllByRole("listitem")
+    .map((entry) => entry.firstChild?.textContent);
+
 describe("the audit log", () => {
   it("shows each write, newest first, with who acted and on what", async () => {
     await hideDeck(french);
@@ -747,10 +959,7 @@ describe("the audit log", () => {
     data.set("email", "other@example.com");
     await grantAdmin({ message: null }, data);
     await render(AuditContent, {});
-    expect(screen.getAllByRole("listitem").map((entry) => entry.firstChild?.textContent)).toEqual([
-      "관리자 지정 · other@example.com",
-      "노트 숨기기 · French",
-    ]);
+    expect(auditEntries()).toEqual(["관리자 지정 · other@example.com", "노트 숨기기 · French"]);
     expect(screen.getByRole("link", { name: "French" })).toHaveAttribute(
       "href",
       `/admin/decks/${french}`,
@@ -762,7 +971,7 @@ describe("the audit log", () => {
     await unsuspendUser(otherUser.id);
     await removeDeck(french, "copyright");
     await render(AuditContent, {});
-    expect(screen.getAllByRole("listitem").map((entry) => entry.firstChild?.textContent)).toEqual([
+    expect(auditEntries()).toEqual([
       "공유에서 영구 삭제 · French · copyright",
       "정지 해제 · other@example.com",
       "이용 정지 · other@example.com · spam decks",
@@ -972,13 +1181,13 @@ describe("the plans page", () => {
         photos: 1,
       },
     ];
-    await render(OverviewContent, {});
-    const photos = within(screen.getByRole("region", { name: "사진 추출" }));
-    expect(photos.getByText("오늘").nextSibling).toHaveTextContent(
-      "5장 · $0.0018 (비용 모르는 4장 제외)",
+    await render(TodoContent, {});
+    const week = within(screen.getByRole("region", { name: "이번 주" }));
+    expect(week.getByText("읽은 사진 · 예상 비용").closest("div")).toHaveTextContent(
+      /5장 · \$0\.0018/,
     );
     expect(
-      photos.getByText(/측정하지 않은 모델\(openai\/gpt-6-luna\)의 사진은 비용에서 빠졌어요/),
+      screen.getByText(/측정하지 않은 모델\(openai\/gpt-6-luna\)의 사진은 비용에서 빠졌어요/),
     ).toBeInTheDocument();
   });
 });
@@ -987,7 +1196,8 @@ describe("a user's plan", () => {
   it("shows Free with its terms, grants Max until a day's end in the admin's zone, and goes back to Free", async () => {
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
     const plan = within(screen.getByRole("region", { name: "요금제" }));
-    expect(plan.getByText("무료 · anthropic/claude-haiku-5.5 · 한 달 10장")).toBeInTheDocument();
+    expect(plan.getByText("지금").nextSibling).toHaveTextContent("무료 · 한 달 10장");
+    expect(plan.getByText("모델").nextSibling).toHaveTextContent("anthropic/claude-haiku-5.5");
     expect(plan.queryByRole("button", { name: "무료로 되돌리기" })).not.toBeInTheDocument();
 
     const ends = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
@@ -1005,11 +1215,10 @@ describe("a user's plan", () => {
 
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
     const granted = within(screen.getAllByRole("region", { name: "요금제" }).at(-1) as HTMLElement);
-    expect(
-      granted.getByText("맥스 · anthropic/claude-haiku-5.5 · 무제한 (하루 1000장까지)"),
-    ).toBeInTheDocument();
-    // The grant's line carries its time and granter too, so a substring is right.
-    expect(granted.getByText(new RegExp(`${ends}까지`))).toBeInTheDocument();
+    expect(granted.getByText("지금").nextSibling).toHaveTextContent(
+      "맥스 · 무제한 (하루 1000장까지)",
+    );
+    expect(granted.getByText("마지막 날", { selector: "dt" }).nextSibling).toHaveTextContent(ends);
     expect(granted.getByRole("button", { name: "무료로 되돌리기" })).toBeInTheDocument();
 
     expect(await revokePlan(otherUser.id)).toEqual({
@@ -1068,10 +1277,10 @@ describe("a user's plan", () => {
     );
     await grantPlan({ message: null }, form({ user: otherUser.id, plan: "pro", ends_on: "" }));
     await render(AuditContent, {});
-    expect(screen.getAllByRole("listitem").map((entry) => entry.firstChild?.textContent)).toEqual([
+    expect(auditEntries()).toEqual([
       "요금제 지정 · other@example.com · 프로",
       "요금제 새 버전 · 프로 · openai/gpt-6-luna · 하루 200장",
     ]);
-    expect(screen.getByRole("link", { name: "프로" })).toHaveAttribute("href", "/admin/plans");
+    expect(screen.getByRole("link", { name: "프로" })).toHaveAttribute("href", "/admin/settings");
   });
 });

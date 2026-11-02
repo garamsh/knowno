@@ -1,15 +1,15 @@
 import { Suspense } from "react";
 
-import { PublicDecksContent } from "../_components/content";
 import { AdminSkeleton } from "../_components/admin-skeleton";
+import { NotesContent } from "../_components/content";
 
-/** Every public deck, searched by name, with the moderation actions. */
+/** 노트: the reported, public or hidden notes, searched by name or owner, with their actions. */
 export default function Page({ searchParams }: PageProps<"/admin/decks">) {
   return (
     <>
-      <h1 className="text-display">공개 노트</h1>
+      <h1 className="text-display">노트</h1>
       <Suspense fallback={<AdminSkeleton />}>
-        <PublicDecksContent searchParams={searchParams} />
+        <NotesContent searchParams={searchParams} />
       </Suspense>
     </>
   );

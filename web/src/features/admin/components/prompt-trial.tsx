@@ -4,7 +4,7 @@ import { useId, useState, useTransition } from "react";
 
 import { encodePhoto } from "../encode-photo";
 import { type TrialCard, tryPrompt } from "../try-prompt";
-import { button, group } from "./admin-section";
+import { button, card } from "./admin-section";
 
 /**
  * Runs extract-cards on one photo as the signed-in admin, who is served [served]: the test version
@@ -16,9 +16,9 @@ export function PromptTrial({ served }: { served: { id: number; test: boolean } 
   const [pending, startTransition] = useTransition();
   const id = useId();
   return (
-    <section aria-label="사진 한 장으로 시험" className="flex flex-col gap-2">
-      <h2 className="px-1 text-section text-muted">사진 한 장으로 시험</h2>
-      <p className="px-1 text-caption text-muted">
+    <section aria-label="사진 한 장으로 시험" className={card}>
+      <h2 className="text-body-strong text-ink-2">사진 한 장으로 시험</h2>
+      <p className="text-caption text-ink-2">
         {served.test ? "테스트" : "사용 중인"} 버전 {served.id}로 카드를 만들어요. 내 오늘 사진
         한도에서 1장을 써요.
       </p>
@@ -45,8 +45,8 @@ export function PromptTrial({ served }: { served: { id: number; test: boolean } 
           });
         }}
       >
-        <div className={`${group} gap-2 px-4 py-3`}>
-          <label htmlFor={id} className="text-body">
+        <div className="flex flex-col gap-2">
+          <label htmlFor={id} className="sr-only">
             사진
           </label>
           <input
@@ -57,19 +57,19 @@ export function PromptTrial({ served }: { served: { id: number; test: boolean } 
             className="min-w-0 text-caption text-ink-2 file:mr-3 file:rounded-button file:border file:border-outline file:bg-surface file:px-3 file:py-2 file:text-body file:text-ink"
           />
         </div>
-        <button type="submit" disabled={pending} className={button.secondary}>
-          {pending ? "만드는 중…" : "시험"}
+        <button type="submit" disabled={pending} className={`${button.row} self-start`}>
+          {pending ? "만드는 중…" : "시험하기"}
         </button>
       </form>
       <p role="status" className="text-caption text-muted empty:hidden">
         {message ?? (cards === null ? null : `카드 ${String(cards.length)}장을 만들었어요.`)}
       </p>
       {cards !== null && (
-        <ul aria-label="만든 카드" className={group}>
-          {cards.map((card, index) => (
-            <li key={index} className="grid gap-1 px-4 py-3 md:grid-cols-2 md:gap-4">
-              <span className="text-body-strong">{card.front}</span>
-              <span className="text-body whitespace-pre-wrap">{card.back}</span>
+        <ul aria-label="만든 카드" className="flex flex-col divide-y divide-hairline">
+          {cards.map((made, index) => (
+            <li key={index} className="grid gap-1 py-3 md:grid-cols-2 md:gap-4">
+              <span className="text-body-strong">{made.front}</span>
+              <span className="text-body whitespace-pre-wrap">{made.back}</span>
             </li>
           ))}
         </ul>
