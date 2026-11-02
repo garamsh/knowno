@@ -272,6 +272,20 @@ void main() {
     /// Shows the 기록 tab once its read is done: the read awaits the
     /// engine call by call, each finishing in real time and resuming on a
     /// pump.
+    // Pulls up 홈's drawer, unless it is up.
+    Future<void> openDrawer(WidgetTester tester) async {
+      if (find.text(ko.drawerOpen).evaluate().isNotEmpty) {
+        await tap(tester, find.text(ko.drawerOpen));
+      }
+    }
+
+    // Lets 홈's drawer down, unless it is down.
+    Future<void> closeDrawer(WidgetTester tester) async {
+      if (find.bySemanticsLabel(ko.drawerClose).evaluate().isNotEmpty) {
+        await tap(tester, find.bySemanticsLabel(ko.drawerClose));
+      }
+    }
+
     Future<void> showRecord(WidgetTester tester) async {
       await tester.tap(find.text(ko.tabRecord));
       for (
@@ -354,32 +368,23 @@ void main() {
         }
       }
 
-      // The first-run home's one primary opens the new-deck sheet.
+      // The first-run home's one primary opens 새 노트.
       await tap(tester, find.text(ko.newDeckTitle));
-      await shot(tester, '03b-new-deck-options');
-      await tap(tester, find.text(ko.createManually));
-      await shot(tester, '03-new-deck-sheet');
       await enter(ko.deckName, '영단어 기본');
-      // Creating the deck offers 노트 꾸미기, then opens it, empty, adding a
-      // card its one primary.
-      await tap(tester, find.text(ko.create));
-      await tap(tester, find.bySemanticsLabel(ko.deckIconName('languages')));
-      await tap(tester, find.bySemanticsLabel(ko.deckColorName('sky')));
-      await shot(tester, '03c-deck-appearance');
+      await tap(tester, find.bySemanticsLabel(ko.deckColorName('blue')));
+      await shot(tester, '03-new-deck');
+      // Saving opens the deck, empty, adding a card its one primary.
       await tap(tester, find.text(ko.save));
       await shot(tester, '04-card-list-empty');
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      // The 오늘 tab while no deck holds a card: how to start.
+      // 홈 while no deck holds a card: how to start.
       await shot(tester, '16-today-no-cards');
-      await tap(tester, find.text(ko.tabDecks));
-      await tap(tester, find.text(ko.newDeckTitle));
-      await tap(tester, find.text(ko.createManually));
+      await openDrawer(tester);
+      await tap(tester, find.text(ko.newDeck));
       await enter(ko.deckName, '일본어 N3 한자');
-      await tap(tester, find.text(ko.create));
-      // Dismissing 노트 꾸미기 keeps this deck's default tile.
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
+      await tap(tester, find.bySemanticsLabel(ko.deckColorName('violet')));
+      await tap(tester, find.text(ko.save));
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
@@ -425,6 +430,12 @@ void main() {
       await shot(tester, '08-rename-sheet');
       await dismissSheet(tester);
       await tap(tester, find.byTooltip(ko.deckActions));
+      await shot(tester, '08b-deck-menu');
+      await tap(tester, find.text(ko.deckAppearance));
+      await tap(tester, find.bySemanticsLabel(ko.deckIconName('languages')));
+      await shot(tester, '03c-deck-appearance');
+      await tap(tester, find.text(ko.save));
+      await tap(tester, find.byTooltip(ko.deckActions));
       await tap(tester, find.text(ko.deleteDeck));
       await shot(tester, '09-delete-deck-confirm');
       await tap(tester, find.text(ko.cancel));
@@ -441,16 +452,17 @@ void main() {
       // The tabs before any study: four new cards for today.
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      await tap(tester, find.text(ko.tabToday));
       // Once a deck has cards, the first-run step asks for the daily minutes.
       await waitForPicker(tester, more: ko.dailyMinutesMore);
       await shot(tester, '16a0-daily-minutes-first');
       await tap(tester, find.text(ko.dailyMinutesSkip));
+      await closeDrawer(tester);
       await shot(tester, '16a-today');
-      await tap(tester, find.text(ko.tabDecks));
+      await openDrawer(tester);
+      await shot(tester, '16a2-today-drawer');
       await tap(tester, find.text('영단어 기본'));
 
-      await tester.tap(find.text(ko.studyDeck));
+      await tester.tap(find.textContaining(ko.studyThisDeckPlain));
       // The device's first session: the coach. Its demonstration repeats, so
       // the screen is pumped a fixed time into its cycle rather than settled.
       for (
@@ -503,13 +515,13 @@ void main() {
       await tap(tester, find.byTooltip(ko.close));
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      await tap(tester, find.text(ko.tabToday));
+      await closeDrawer(tester);
       await shot(tester, '16a1-today-started');
-      await tap(tester, find.text(ko.tabDecks));
+      await openDrawer(tester);
       await tap(tester, find.text('영단어 기본'));
       // Reopened the same day: the day's last card from the earlier session,
       // and for a moment the notice that the session goes on with the day.
-      await tap(tester, find.text(ko.studyDeck));
+      await tap(tester, find.textContaining(ko.studyThisDeckPlain));
       await shot(tester, '13d-study-resumed');
       await tester.pump(const Duration(seconds: 3));
       await tester.pumpAndSettle();
@@ -550,10 +562,11 @@ void main() {
       await shot(tester, '16c-record');
       // Today's cards done: the done card and the next seven days. The tab
       // bar's 오늘, the last, since the study days name today too.
-      await tap(tester, find.text(ko.tabToday).last);
+      await tap(tester, find.text(ko.tabHome));
+      await closeDrawer(tester);
       await shot(tester, '16b-today-done');
 
-      await tap(tester, find.byTooltip(ko.account));
+      await tap(tester, find.text(ko.tabSettings));
       await shot(tester, '18-account');
       await tap(tester, find.text(ko.themeTitle));
       await shot(tester, '18e-theme-sheet');
@@ -860,13 +873,13 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tap(tester, find.text(ko.tabDecks));
+      await openDrawer(tester);
       await tap(tester, find.text('국어 문법'));
       await shot(tester, '31-whole-card-list');
       await tap(tester, find.byType(Switch));
       await shot(tester, '31b-whole-card-list-shown');
 
-      await tap(tester, find.text(ko.studyDeck));
+      await tap(tester, find.textContaining(ko.studyThisDeckPlain));
       await shot(tester, '32-whole-card-study');
       for (final name in [
         '32b-whole-card-answered',
@@ -935,9 +948,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tap(tester, find.text(ko.tabDecks));
+      await openDrawer(tester);
       await tap(tester, find.text('생명과학'));
-      await tap(tester, find.text(ko.studyDeck));
+      await tap(tester, find.textContaining(ko.studyThisDeckPlain));
       await shot(tester, '34-long-study-1');
       for (final name in [
         '34b-long-study-2',
@@ -2172,7 +2185,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tap(tester, find.text(ko.tabDecks));
+      await openDrawer(tester);
       await tap(tester, find.text('영단어 기본'));
       await tap(tester, find.byTooltip(ko.deckActions));
       await shot(tester, '25-deck-menu-publish');
