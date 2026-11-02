@@ -33,6 +33,7 @@ Deno.test("test counts each set beside how it was selected, and fails on a faili
   assert.equal(failing.code, 1);
   assert.ok(failing.stdout.includes("FAILED"), failing.stdout);
   assert.ok(!failing.stdout.includes("Deno tests"), failing.stdout);
+  assert.ok(!failing.stderr.includes("ran no test"), failing.stderr);
 });
 
 Deno.test("test fails when a test file ran no test", async () => {

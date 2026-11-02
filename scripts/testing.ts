@@ -42,7 +42,7 @@ export async function repository(): Promise<string> {
   await git(repo, "init", "-q", "-b", "main");
   await Deno.mkdir(`${repo}/scripts`);
   for await (const { name } of Deno.readDir(HERE)) {
-    const shipped = /\.(sh|ts)$/.test(name) && !name.endsWith("_test.ts");
+    const shipped = /\.(sh|ts|txt)$/.test(name) && !name.endsWith("_test.ts");
     if (shipped) {
       await Deno.copyFile(`${HERE}${name}`, `${repo}/scripts/${name}`);
     }

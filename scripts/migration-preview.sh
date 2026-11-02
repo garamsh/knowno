@@ -6,7 +6,7 @@
 # <out>.md for the pull request. The stack is stopped, with its data, however the run ends
 # (ADR 0014). Production data never reaches it (server.md).
 #
-# The base is main as the change will meet it, as scripts/check-migration-order.sh reads it: the first
+# The base is main as the change will meet it, as scripts/check-migration-order.ts reads it: the first
 # parent of a merge commit, which is how CI checks a pull request out, or else where HEAD left
 # origin/main.
 #
