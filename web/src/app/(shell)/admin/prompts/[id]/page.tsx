@@ -1,13 +1,7 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { AdminSkeleton } from "../../_components/admin-skeleton";
-import { PromptContent } from "../../_components/content";
-
-/** One prompt version, its difference from the active one, and the actions that serve it. */
-export default function Page({ params }: PageProps<"/admin/prompts/[id]">) {
-  return (
-    <Suspense fallback={<AdminSkeleton />}>
-      <PromptContent params={params} />
-    </Suspense>
-  );
+/** A prompt version's page is under 사진 AI now (ADR 0155). The admin gate checks the role before this runs. */
+export default async function Page({ params }: PageProps<"/admin/prompts/[id]">) {
+  const { id } = await params;
+  redirect(`/admin/ai/${encodeURIComponent(id)}`);
 }

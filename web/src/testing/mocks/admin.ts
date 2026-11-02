@@ -97,17 +97,14 @@ export class FakeAdmin {
   ];
   readonly decks: FakeDeck[] = [];
   readonly audit: Row[] = [];
-  overview: Row = {
-    users: 2,
-    new_users_7d: 1,
-    new_users_30d: 2,
-    studied_today: 1,
-    studied_7d: 2,
-    extractions_today: 5,
-  };
+  /** What `admin_week_activity` answers: the last 7 study days and the 7 before. */
+  weekActivity: Row = { new_users_this: 1, new_users_last: 0, studied_this: 7, studied_last: 14 };
   /** The rows `admin_extraction_breakdown` answers: each UTC day's photos by plan, model and version. */
   breakdown: Row[] = [];
-  /** The rows `admin_extraction_calls` pages through, newest first, as the server orders them. */
+  /**
+   * The recorded calls, newest first, as the server orders them, each with the version that served
+   * it; `admin_version_calls` pages through one version's.
+   */
   extractionCalls: Row[] = [];
   /** The rows `admin_extraction_failures` answers: each UTC day's counts by prompt version. */
   extractionFailures: Row[] = [];
@@ -130,6 +127,10 @@ export class FakeAdmin {
   ];
   /** The version each label names; no `test` while none is set. */
   readonly promptLabels = new Map<"active" | "test", number>([["active", 1]]);
+  /** When each label was last set. */
+  readonly promptLabelsSetAt = new Map<"active" | "test", string>([
+    ["active", "2026-10-19T04:00:00Z"],
+  ]);
   /** Each suspended user's suspension. */
   readonly suspensions = new Map<string, { reason: string; by: string }>();
   /** Each deck removed from sharing, and why. */
@@ -203,36 +204,62 @@ export class FakeAdmin {
   private answer(name: string, args: Row, admin: string): unknown {
     const deckOf = (id: unknown) => this.decks.find((deck) => deck.id === id);
     switch (name) {
-      case "admin_overview":
-        return [this.overview];
+      case "admin_week_activity":
+        return [this.weekActivity];
       case "admin_extraction_breakdown":
         return this.breakdown;
-      case "admin_extraction_calls": {
+      case "admin_version_calls": {
         const before = typeof args.before === "number" ? args.before : null;
-        const size = Math.min(Math.max(Number(args.page_size ?? 100), 1), 500);
+        const size = Math.min(Math.max(Number(args.page_size ?? 50), 1), 500);
         return this.extractionCalls
+          .filter((call) => call.prompt_version_id === args.version_id)
           .filter((call) => before === null || Number(call.usage_id) < before)
-          .slice(0, size);
+          .slice(0, size)
+          .map(({ prompt_version_id: _version, ...call }) => call);
       }
       case "admin_extraction_failures":
         return this.extractionFailures;
-      case "admin_reported_decks":
+      case "admin_note_list": {
+        const view = args.view;
+        if (view !== "reported" && view !== "public" && view !== "hidden") {
+          throw new Error(`admin_note_list knows no view ${String(view)}`);
+        }
+        const search = typeof args.search === "string" ? args.search.toLowerCase() : "";
+        const first = (deck: FakeDeck) => deck.reports.map((report) => report.at).sort()[0] ?? null;
         return this.decks
-          .filter((deck) => deck.reports.length > 0)
+          .filter((deck) => deck.visibility === "public" && !deck.deleted)
+          .filter((deck) =>
+            view === "reported"
+              ? !deck.hidden && deck.reports.length > 0
+              : view === "hidden"
+                ? deck.hidden
+                : true,
+          )
+          .filter(
+            (deck) =>
+              deck.name.toLowerCase().includes(search) ||
+              String(this.owner(deck).owner_email).toLowerCase().includes(search),
+          )
+          .toSorted((a, b) =>
+            view === "reported"
+              ? (first(a) ?? "").localeCompare(first(b) ?? "")
+              : view === "hidden"
+                ? b.reports.length - a.reports.length
+                : (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""),
+          )
           .map((deck) => ({
             deck_id: deck.id,
             name: deck.name,
             ...this.owner(deck),
-            visibility: deck.visibility,
             hidden: deck.hidden,
-            deleted: deck.deleted,
+            cards: deck.cards.length,
+            copy_count: deck.copies,
             reports: deck.reports.length,
             reasons: this.reasons(deck),
-            last_reported_at: deck.reports
-              .map((report) => report.at)
-              .sort()
-              .at(-1),
+            first_reported_at: first(deck),
+            published_at: deck.publishedAt,
           }));
+      }
       case "admin_public_decks": {
         const search = typeof args.search === "string" ? args.search.toLowerCase() : "";
         return this.decks
@@ -375,6 +402,13 @@ export class FakeAdmin {
         this.record(admin, "remove_deck", "deck", deck.id, { name: deck.name, reason });
         return true;
       }
+      case "admin_prompt_labels":
+        return (["active", "test"] as const).flatMap((label) => {
+          const version = this.promptLabels.get(label);
+          return version === undefined
+            ? []
+            : [{ label, version_id: version, set_at: this.promptLabelsSetAt.get(label) }];
+        });
       case "admin_prompt_versions":
         return this.prompts.toReversed().map((prompt) => this.promptRow(prompt));
       case "admin_prompt_version": {
@@ -404,6 +438,7 @@ export class FakeAdmin {
         const previous = this.promptLabels.get(label) ?? null;
         if (previous === id) return false;
         this.promptLabels.set(label, id);
+        this.promptLabelsSetAt.set(label, new Date().toISOString());
         const cleared = label === "active" && this.promptLabels.get("test") === id;
         if (cleared) this.promptLabels.delete("test");
         this.record(

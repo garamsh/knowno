@@ -6,7 +6,7 @@ import type { UserDeck } from "../read-admin";
 import { AdminSection, Empty, group } from "./admin-section";
 import { DeckStateChips } from "./deck-state";
 
-/** Every live deck of a user, public or private, each opening the deck read-only. */
+/** Every live note of a user, public or private, with its reports, each opening the note read-only. */
 export function UserDecks({ decks }: { decks: UserDeck[] }) {
   return (
     <AdminSection label="노트">
@@ -25,6 +25,7 @@ export function UserDecks({ decks }: { decks: UserDeck[] }) {
                   <DeckStateChips
                     state={{ visibility: deck.visibility, hidden: deck.hidden, deleted: false }}
                   />
+                  {deck.reports > 0 && <Chip tone="amber">신고 {deck.reports}</Chip>}
                   {deck.removed && <Chip tone="amber">공유 삭제</Chip>}
                 </span>
                 <span className="text-caption whitespace-nowrap text-muted">

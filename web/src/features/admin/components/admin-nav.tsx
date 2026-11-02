@@ -3,20 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { switchLink } from "./admin-section";
+
+/** The area's sections, by the job each holds (ADR 0155); a section's own pages keep it current. */
 const sections = [
-  { href: "/admin", label: "개요" },
-  { href: "/admin/reports", label: "신고" },
-  { href: "/admin/decks", label: "공개 노트" },
+  { href: "/admin", label: "처리할 일" },
+  { href: "/admin/decks", label: "노트" },
   { href: "/admin/users", label: "사용자" },
-  { href: "/admin/plans", label: "요금제" },
-  { href: "/admin/prompts", label: "프롬프트" },
-  { href: "/admin/extractions", label: "추출 결과" },
-  { href: "/admin/admins", label: "관리자" },
-  { href: "/admin/audit", label: "작업 기록" },
+  { href: "/admin/ai", label: "사진 AI" },
+  { href: "/admin/settings", label: "설정" },
 ] as const;
 
-/** The admin area's sections, the current one marked; a section's own pages keep it current. */
-export function AdminNav() {
+/**
+ * The admin area's menu, the current section marked, with 처리할 일 carrying the open reports'
+ * count; [openReports] is null while that count could not be read, which 처리할 일 then says.
+ */
+export function AdminNav({ openReports }: { openReports: number | null }) {
   const path = usePathname();
   return (
     <nav aria-label="관리 메뉴" className="-mx-gutter overflow-x-auto px-gutter lg:mx-0 lg:px-0">
@@ -28,11 +30,16 @@ export function AdminNav() {
               <Link
                 href={href}
                 aria-current={current ? "page" : undefined}
-                className={`pressable flex min-h-tap-target items-center rounded-button px-3 text-label whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
-                  current ? "bg-brand-tint font-bold text-ink" : "text-ink-2"
-                }`}
+                className={switchLink(current)}
               >
                 {label}
+                {href === "/admin" && openReports !== null && openReports > 0 && (
+                  <span className="ml-2 rounded-chip bg-primary px-2 text-section text-on-primary tabular-nums">
+                    <span className="sr-only">, 새 신고 </span>
+                    {openReports}
+                    <span className="sr-only">건</span>
+                  </span>
+                )}
               </Link>
             </li>
           );

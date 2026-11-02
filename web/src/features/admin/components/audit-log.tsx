@@ -25,9 +25,9 @@ function Target({ entry }: { entry: AuditEntry }) {
       : entry.targetKind === "user"
         ? `/admin/users/${entry.targetId}`
         : entry.targetKind === "plan"
-          ? "/admin/plans"
+          ? "/admin/settings"
           : entry.targetKind === "prompt"
-            ? `/admin/prompts/${entry.targetId}`
+            ? `/admin/ai/${entry.targetId}`
             : null;
   return href === null ? (
     <span>{words}</span>
@@ -47,7 +47,7 @@ export function AuditLog({ entries, timeZone }: { entries: AuditEntry[]; timeZon
     return <Empty>기록된 작업이 없어요. 관리자가 작업하면 여기에 남아요.</Empty>;
   }
   return (
-    <ul className={group}>
+    <ul aria-label="작업 기록" className={group}>
       {entries.map((entry) => (
         <li key={entry.id} className="flex flex-col gap-1 px-4 py-3">
           <span className="text-body-strong">

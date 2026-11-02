@@ -1,16 +1,6 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { AdminsContent } from "../_components/content";
-import { AdminSkeleton } from "../_components/admin-skeleton";
-
-/** The admins, with granting and revoking. */
+/** 관리자 is under 설정 now (ADR 0155). The admin gate checks the role before this runs. */
 export default function Page() {
-  return (
-    <>
-      <h1 className="text-display">관리자</h1>
-      <Suspense fallback={<AdminSkeleton />}>
-        <AdminsContent />
-      </Suspense>
-    </>
-  );
+  redirect("/admin/settings/admins");
 }

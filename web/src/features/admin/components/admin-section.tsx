@@ -19,7 +19,25 @@ export const button = {
   secondary: `${buttonBase} bg-surface text-ink`,
   destructive: `${buttonBase} px-1 text-dont-know-text`,
   destructiveFinal: `${buttonBase} bg-dont-know-text text-on-dont-know-text`,
+  /** An action in a row or a card: outlined, a tap target high, its label in the label type. */
+  row: "pressable inline-flex min-h-tap-target items-center justify-center self-start rounded-button bg-surface px-3 text-label whitespace-nowrap text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50",
+  /** A destructive action in a row or a menu: red text, a tap target high. */
+  rowDestructive:
+    "pressable inline-flex min-h-tap-target items-center self-start rounded-button px-1 text-label whitespace-nowrap text-dont-know-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
 } as const;
+
+/** A card of 처리할 일 or 사진 AI: one solid surface on its edge, holding a figure and one action. */
+export const card = "flex flex-col gap-2 rounded-group bg-surface p-5";
+
+/**
+ * A link of the menu or of a section's view switch: the current one in `accent` on the brand
+ * tint, the others `ink-2`, as design.md §Details draws the current menu item.
+ */
+export function switchLink(current: boolean): string {
+  return `pressable flex min-h-tap-target items-center rounded-button px-3 text-label whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
+    current ? "bg-brand-tint text-accent" : "text-ink-2"
+  }`;
+}
 
 /** A field inside a group: no border until it is focused, then a 1.5 px ink outline. */
 export const field =
