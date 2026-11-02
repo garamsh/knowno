@@ -103,7 +103,7 @@ abstract final class StudyStyle {
   /// Where in its cycle the coach holds under reduce motion: the card out.
   static const coachStill = 0.54;
 
-  /// The current card's shadow, in the theme's [AppColors.shadow].
+  /// The current card's edge.
   static List<BoxShadow> currentShadow(AppColors colors) =>
-      AppShadow.raised(colors);
+      AppShadow.card(colors);
 }

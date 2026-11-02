@@ -97,12 +97,12 @@ describe("the consent page", () => {
     expect(read).toEqual([pending]);
   });
 
-  it("draws the request as one group, 취소 outlined and 연결 the one ink fill last, in three type sizes", async () => {
+  it("draws the request as one group, 취소 quiet and 연결 the one primary fill last, in three type sizes", async () => {
     const { container } = await open(pending);
 
     const buttons = screen.getAllByRole("button");
     expect(buttons.map((button) => button.textContent)).toEqual(["취소", "연결"]);
-    expect(buttons[0]).toHaveClass("border-outline");
+    expect(buttons[0]).toHaveClass("bg-surface");
     expect(buttons[0]).not.toHaveClass("bg-primary");
     expect(buttons[1]).toHaveClass("bg-primary", "text-on-primary");
     expect(container.querySelectorAll(".rounded-group")).toHaveLength(1);

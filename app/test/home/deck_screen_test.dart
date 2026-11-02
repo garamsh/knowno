@@ -75,6 +75,20 @@ void main() {
     },
   );
 
+  testWidgets('a deck\'s name is Pretendard, never Jua, as its title', (
+    tester,
+  ) async {
+    final screens = await DeckScreens.open(tester);
+    await screens.push((deck) => DeckScreen(deck: deck));
+
+    final style = tester.widget<Text>(find.text('French').first).style!;
+    expect(style.fontFamily, appFontFamily);
+    expect(style.fontWeight, FontWeight.w800);
+    // Control: the style a title we write takes is Jua, so the check can fail.
+    expect(AppType.deckTitle.fontFamily, appDisplayFontFamily);
+    await screens.close();
+  });
+
   testWidgets(
     'a deck with no card shows no today card of zeros and only its count of none, where a deck with one shows its counts and today card',
     (tester) async {
@@ -205,7 +219,7 @@ void main() {
         find.descendant(of: find.byType(DeckTile), matching: find.byIcon(icon));
     // Control: the choice was made, so the sheet's preview shows it.
     expect(onTile(LucideIcons.bookOpen), findsOneWidget);
-    await tester.tapAt(const Offset(195, 40));
+    await tester.tapAt(const Offset(195, 10));
     await tester.pumpAndSettle();
 
     expect(onTile(LucideIcons.bookOpen), findsNothing);

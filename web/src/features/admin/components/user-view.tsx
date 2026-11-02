@@ -31,7 +31,7 @@ export function UserView({ user, timeZone }: { user: AdminUser; timeZone: string
   return (
     <div className="flex flex-col gap-section-gap">
       <header className="flex flex-wrap items-center gap-2">
-        <h1 className="text-display break-all">{user.email}</h1>
+        <h1 className="text-deck-name break-all">{user.email}</h1>
         {user.admin && <Chip tone="brand">관리자</Chip>}
         {user.suspension !== null && <Chip tone="amber">정지됨</Chip>}
       </header>

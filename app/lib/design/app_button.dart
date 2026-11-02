@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 
+import 'app_raised.dart';
 import 'theme.dart';
 
 /// What a button does, which decides how prominent it is.
 enum AppButtonVariant {
-  /// The screen's or the sheet's one primary action: the coral fill with a
-  /// cocoa label.
+  /// The screen's or the sheet's one primary action: the primary fill on its
+  /// edge.
   primary,
 
-  /// The study coach's action: a coral fill with a cocoa label.
+  /// The study coach's action: the [AppColors.onHero] fill on its edge.
   onHero,
 
-  /// An action beside the primary one: an outline on the surface.
+  /// An action beside the primary one: the surface on its edge.
   secondary,
 
   /// A destructive action that is not yet the final step: red text.
@@ -37,9 +38,10 @@ enum AppButtonSize {
   cta,
 }
 
-/// The app's button. Pressed, it dims under its label's colour, with no
-/// splash and no haptic of its own; while [loading] it shows progress in
-/// place of its label and cannot be pressed again.
+/// The app's button. A filled one sits on its edge and, pressed, moves down
+/// onto it; any press dims under its label's colour, with no splash and no
+/// haptic of its own. While [loading] it shows progress in place of its label
+/// and cannot be pressed again.
 class AppButton extends StatelessWidget {
   const AppButton({
     super.key,
@@ -115,33 +117,51 @@ class AppButton extends StatelessWidget {
             ),
             null => Text(label, textAlign: TextAlign.center),
           };
-    return switch (variant) {
-      AppButtonVariant.primary ||
-      AppButtonVariant.onHero ||
-      AppButtonVariant.destructiveFinal => FilledButton(
-        style: FilledButton.styleFrom(
-          minimumSize: minimumSize,
-          backgroundColor: fill,
-          foregroundColor: onFill,
-        ),
-        onPressed: pressed,
-        child: child,
-      ),
-      AppButtonVariant.secondary => OutlinedButton(
-        style: OutlinedButton.styleFrom(minimumSize: minimumSize),
-        onPressed: pressed,
-        child: child,
-      ),
-      AppButtonVariant.destructive ||
-      AppButtonVariant.text ||
-      AppButtonVariant.onHeroText => TextButton(
-        style: TextButton.styleFrom(
-          minimumSize: minimumSize,
-          foregroundColor: onFill,
-        ),
-        onPressed: pressed,
-        child: child,
-      ),
+    final edge = switch (variant) {
+      _ when pressed == null => null,
+      AppButtonVariant.primary => colors.primaryEdge,
+      AppButtonVariant.onHero => colors.onHeroEdge,
+      AppButtonVariant.destructiveFinal => colors.dontKnowEdge,
+      AppButtonVariant.secondary => colors.edge,
+      _ => null,
     };
+    final edgeHeight = variant == AppButtonVariant.secondary
+        ? AppSize.edgeCard
+        : AppSize.edgeButton;
+    return AppRaised(
+      edge: edge,
+      height: edgeHeight,
+      radius: AppRadius.button,
+      builder: (context, states) => switch (variant) {
+        AppButtonVariant.primary ||
+        AppButtonVariant.onHero ||
+        AppButtonVariant.destructiveFinal => FilledButton(
+          statesController: states,
+          style: FilledButton.styleFrom(
+            minimumSize: minimumSize,
+            backgroundColor: fill,
+            foregroundColor: onFill,
+          ),
+          onPressed: pressed,
+          child: child,
+        ),
+        AppButtonVariant.secondary => OutlinedButton(
+          statesController: states,
+          style: OutlinedButton.styleFrom(minimumSize: minimumSize),
+          onPressed: pressed,
+          child: child,
+        ),
+        AppButtonVariant.destructive ||
+        AppButtonVariant.text ||
+        AppButtonVariant.onHeroText => TextButton(
+          style: TextButton.styleFrom(
+            minimumSize: minimumSize,
+            foregroundColor: onFill,
+          ),
+          onPressed: pressed,
+          child: child,
+        ),
+      },
+    );
   }
 }

@@ -45,7 +45,7 @@ describe("the shell's menus", () => {
     expect(links(tabs ?? document.body)).toEqual(pages);
   });
 
-  it("draw the current page a coral-tinted pill behind its icon and a bold label, the others muted, on both menus", () => {
+  it("draw the current page in the accent and the others in ink-2, on both menus, the side menu's over a tinted pill", () => {
     path = "/decks";
     render(
       <>
@@ -57,15 +57,20 @@ describe("the shell's menus", () => {
     expect(menus).toHaveLength(2);
     for (const menu of menus) {
       const current = within(menu).getByRole("link", { name: "덱" });
-      expect(current).toHaveClass("text-ink");
-      expect(current.className).toMatch(/font-bold|text-label/);
-      expect(current.querySelector("svg")?.parentElement).toHaveClass("bg-brand-tint");
-      // Control: another page has the pill's place and no tint.
+      expect(current).toHaveClass("text-label", "text-accent");
+      // Control: another page takes neither.
       const other = within(menu).getByRole("link", { name: "기록" });
-      expect(other).toHaveClass("text-muted");
-      expect(other).not.toHaveClass("text-ink");
-      expect(other.querySelector("svg")?.parentElement).not.toHaveClass("bg-brand-tint");
+      expect(other).toHaveClass("text-label", "text-ink-2");
+      expect(other).not.toHaveClass("text-accent");
     }
+    const [side, tabs] = menus;
+    if (!side || !tabs) throw new Error("the two menus are checked above");
+    const pill = (menu: HTMLElement, name: string) =>
+      within(menu).getByRole("link", { name }).querySelector("svg")?.parentElement;
+    expect(pill(side, "덱")).toHaveClass("bg-brand-tint");
+    expect(pill(side, "기록")).not.toHaveClass("bg-brand-tint");
+    // The tab bar's tabs are their names alone.
+    expect(tabs.querySelector("svg")).toBeNull();
   });
 
   it("show the side menu from 1024 px wide and the tab bar below it", () => {

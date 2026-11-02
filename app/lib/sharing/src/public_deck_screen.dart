@@ -67,7 +67,10 @@ class _PublicDeckScreenState extends State<PublicDeckScreen> {
           AppSpace.s16,
         ),
         children: [
-          Semantics(header: true, child: Text(deck.name, style: AppType.title)),
+          Semantics(
+            header: true,
+            child: Text(deck.name, style: AppType.deckName),
+          ),
           const SizedBox(height: AppSpace.s4),
           Text(
             l10n.publicDeckLine(
@@ -187,6 +190,7 @@ class _PublicDeckScreenState extends State<PublicDeckScreen> {
     final confirmed = await showAppConfirm(
       context,
       title: l10n.blockTitle(name),
+      titleWritten: true,
       consequence: l10n.blockBody,
       confirmLabel: l10n.block,
     );

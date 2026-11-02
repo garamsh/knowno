@@ -23,17 +23,19 @@ const pairs: [string, string, string][] = [
   ["the empty home's sentence on the ground", "muted", "ground"],
   ["the empty home's title on the ground", "ink", "ground"],
   ["the side menu's other pages on the surface", "ink-2", "surface"],
-  ["the side menu's current page on its tint", "ink", "brand-tint"],
+  ["the side menu's current page on its tint", "accent", "brand-tint"],
+  ["the tab bar's current page on the surface", "accent", "surface"],
+  ["a count on the ground", "accent", "ground"],
   ["the tab bar's other pages on the surface", "muted", "surface"],
   ["the today, backlog and deck page cards' figures and pills on the surface", "ink", "surface"],
   ["the today, backlog and deck page cards' quiet text on the surface", "muted", "surface"],
-  ["the today, backlog and deck page cards' buttons on the coral fill", "on-primary", "primary"],
+  ["the today, backlog and deck page cards' buttons on the primary fill", "on-primary", "primary"],
   ["an avatar's initial and a selection's check on the ink fill", "on-ink", "ink"],
   ["a red confirmation's label on its fill", "on-ink", "dont-know"],
   ["the done card's heading on its tint", "ink", "brand-tint"],
   ["the done card's next review on its tint", "ink-2", "brand-tint"],
   ["the done card's pills on the surface", "ink", "surface"],
-  ["the done card's 학습하기 on the coral fill", "on-primary", "primary"],
+  ["the done card's 학습하기 on the primary fill", "on-primary", "primary"],
   ["the catch-up's line and labels on the surface", "muted", "surface"],
   ["the last seven days' labels and a deck's progress on the surface", "muted", "surface"],
   ["the date and the breadcrumb on the ground", "muted", "ground"],
@@ -81,7 +83,10 @@ const studyMarks: [string, string, string][] = [
   ["the 모른다 chip on its card", "dont-know-text", "dont-know-card"],
   ["the 모른다 chip on the ground", "dont-know-text", "ground"],
   ["the streak's flame on the completion card and the 오늘 page's cards", "streak", "surface"],
-  ["the today card's bar on its hairline track", "ink", "hairline"],
+  ["a progress bar on its track", "accent", "edge"],
+  ["a chart's stressed bar on the surface", "accent", "surface"],
+  ["a chart's quiet bar on the surface", "chart-quiet", "surface"],
+  ["the fading recall band on the surface", "chart-fading", "surface"],
   ["the catch-up's amber bars on the surface", "streak", "surface"],
 ];
 
@@ -111,9 +116,9 @@ const stateShare =
  * where they appear.
  */
 const statePairs: [string, string, string, string][] = [
-  ["a coral button's label", "on-primary", "primary", "on-primary"],
-  ["an outlined button's label on the surface", "ink", "surface", "ink"],
-  ["an outlined admin button's label on the ground", "ink", "ground", "ink"],
+  ["a primary button's label", "on-primary", "primary", "on-primary"],
+  ["a quiet button's label on the surface", "ink", "surface", "ink"],
+  ["a quiet admin button's label on the ground", "ink", "ground", "ink"],
   ["the side menu's other pages", "ink-2", "surface", "ink-2"],
   ["the menus' current page on its tint", "ink", "brand-tint", "ink"],
   ["the tab bar's other pages", "muted", "surface", "muted"],
@@ -129,7 +134,7 @@ const statePairs: [string, string, string, string][] = [
   ["a 모른다 card's front", "ink", "dont-know-card", "ink"],
   ["a 모른다 card's back", "ink-2", "dont-know-card", "ink"],
   ["the coach's 건너뛰기 on the hero", "on-hero", "hero", "on-hero"],
-  ["the coach's 다음 on the coral", "hero", "on-hero", "hero"],
+  ["the coach's 다음 on its fill", "hero", "on-hero", "hero"],
   ["Google's label on its fill", "google-label", "google-fill", "google-label"],
 ];
 
@@ -142,7 +147,7 @@ describe("the text of a hovered or pressed control", () => {
     const tight = (share: number) =>
       contrast(muted, layered(set.get("surface") ?? "", set.get("ink") ?? "", share));
     expect(tight(stateShare)).toBeGreaterThanOrEqual(4.5);
-    expect(tight(0.08)).toBeLessThan(4.5);
+    expect(tight(0.5)).toBeLessThan(4.5);
   });
 
   it.each(["light", "dark"] as const)("meets WCAG AA, 4.5:1, in the %s theme", (theme) => {

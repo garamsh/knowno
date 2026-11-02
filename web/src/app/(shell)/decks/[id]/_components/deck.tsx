@@ -53,7 +53,7 @@ export async function Deck({ params }: { params: Promise<{ id: string }> }) {
       <header className="flex items-center gap-3.5">
         <DeckTile deck={deck} size="size-13 lg:rounded-button" />
         <div className="flex min-w-0 flex-col">
-          <h1 className="text-deck-title break-words lg:text-display">{deck.name}</h1>
+          <h1 className="text-deck-name break-words">{deck.name}</h1>
           {/* The page's one count of its cards. */}
           <p className="text-secondary text-muted">
             {[

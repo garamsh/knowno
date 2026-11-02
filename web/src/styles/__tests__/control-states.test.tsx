@@ -56,6 +56,34 @@ describe("the controls' pointer, hover and pressed states", () => {
     );
   });
 
+  it("moves a pressed solid object down onto its edge, the colour dim alone under reduce motion", () => {
+    const motion =
+      /@media \(prefers-reduced-motion: no-preference\) \{\s*\.pressable:not\(:disabled\):active \{([^}]*)\}/.exec(
+        globalsCss,
+      )?.[1];
+    expect(motion).toContain("translateY(calc(var(--edge) - var(--spacing-edge-pressed)))");
+    expect(motion).toContain("box-shadow: 0 var(--spacing-edge-pressed) 0 var(--edge-colour)");
+    // Control: no rule outside that query moves a control, so reduce motion keeps the dim alone.
+    const outside = globalsCss.replace(
+      /@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n  \}/,
+      "",
+    );
+    expect(outside).not.toMatch(/:active[^{]*\{[^}]*transform/);
+  });
+
+  it("sits a solid object on a hard edge with no blur", () => {
+    const edge = /box-shadow: 0 var\(--edge\) ([^;]*);/.exec(globalsCss)?.[1];
+    expect(edge).toBe("0 var(--edge-colour)");
+    for (const [name, token] of [
+      ["--shadow-card", "edge-card"],
+      ["--shadow-row", "edge-row"],
+    ]) {
+      expect(globalsCss).toContain(
+        `${String(name)}: 0 var(--spacing-${String(token)}) 0 var(--color-edge);`,
+      );
+    }
+  });
+
   it("dims a hovered or pressed control under a layer of its text colour, with no change of size", () => {
     const rule = /\.pressable \{([^}]*)\}/.exec(globalsCss)?.[1] ?? "";
     expect(rule).toContain("--state-layer: color-mix(in srgb, currentColor 4%, transparent);");
@@ -65,7 +93,7 @@ describe("the controls' pointer, hover and pressed states", () => {
       );
     }
     // No scale, under any variant, and nothing to animate one.
-    expect(rule).not.toMatch(/scale|transition|transform/);
+    expect(rule).not.toMatch(/scale|transition/);
     // Nor does a control press with a scale of its own.
     const src = path.join(import.meta.dirname, "../..");
     const pressedScale = /active:[\w:-]*scale/;

@@ -272,14 +272,12 @@ class _ImportListViewState extends State<ImportListView> {
             for (final deck in widget.decks)
               AppListRow(
                 title: deck.name,
-                onSheet: true,
                 selected: deck.id == target?.id,
                 trailing: check(deck.id == target?.id),
                 onTap: () => Navigator.of(context).pop(_TargetChoice(deck.id)),
               ),
             AppListRow(
               title: l10n.newDeck,
-              onSheet: true,
               selected: target == null,
               trailing: check(target == null),
               onTap: () => Navigator.of(context).pop(const _TargetChoice(null)),
@@ -320,7 +318,7 @@ class _DeckLine extends StatelessWidget {
       after,
     ] = (name == null ? l10n.importNewDeck(marker) : l10n.importDeck(marker))
         .split(marker);
-    final style = AppType.label.copyWith(color: colors.muted);
+    final style = AppType.bodyStrong.copyWith(color: colors.muted);
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
@@ -332,7 +330,7 @@ class _DeckLine extends StatelessWidget {
             minimumSize: const Size(0, AppSize.tapTarget),
             tapTargetSize: MaterialTapTargetSize.padded,
             foregroundColor: colors.ink,
-            textStyle: AppType.label.copyWith(
+            textStyle: AppType.bodyStrong.copyWith(
               fontWeight: FontWeight.w600,
               decoration: TextDecoration.underline,
             ),

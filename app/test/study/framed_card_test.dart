@@ -133,6 +133,27 @@ String _label(WidgetTester tester, Type card) => tester
     .label;
 
 void main() {
+  testWidgets('a card\'s text is Pretendard, never Jua', (tester) async {
+    await _pump(tester, _current(_framed(_fixtures.first)));
+
+    final drawn = tester.widgetList<RichText>(
+      find.descendant(
+        of: find.byType(CurrentCard),
+        matching: find.byType(RichText),
+      ),
+    );
+    // Control: the card's text was found, so the checks below read it.
+    expect(
+      drawn.where((text) => text.text.toPlainText().trim().isNotEmpty),
+      isNotEmpty,
+    );
+    for (final text in drawn) {
+      final style = (text.text as TextSpan).style!;
+      expect(style.fontFamily, appFontFamily);
+      expect(style.fontFamilyFallback, isNull);
+    }
+  });
+
   for (final fixture in _fixtures) {
     final name = fixture['name'] as String;
     final framed = _framed(fixture);

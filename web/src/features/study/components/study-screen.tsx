@@ -44,9 +44,9 @@ import {
 } from "./study-coach";
 
 const button =
-  "pressable flex min-h-button items-center justify-center gap-2 rounded-button px-5 text-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
+  "pressable flex min-h-button items-center justify-center gap-2 rounded-button px-5 text-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
 
-const quiet = `${button} border border-outline bg-surface text-ink`;
+const quiet = `${button} bg-surface text-ink`;
 
 /** A key hint beside a control's name, left out of the name screen readers announce. */
 function Hint({ children }: { children: string }) {
@@ -421,10 +421,10 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                 aria-valuemax={view.total}
                 aria-valuenow={view.done}
                 aria-valuetext={`${String(view.total)}장 중 ${String(view.done)}장 끝냄`}
-                className="h-progress flex-1 overflow-hidden rounded-full bg-hairline"
+                className="h-progress flex-1 overflow-hidden rounded-full bg-edge"
               >
                 <div
-                  className="h-full rounded-full bg-ink motion-safe:transition-[width]"
+                  className="h-full rounded-full bg-accent motion-safe:transition-[width]"
                   style={{
                     width: `${String(view.total === 0 ? 0 : (100 * view.done) / view.total)}%`,
                   }}
@@ -638,7 +638,7 @@ function CurrentCard({
         style={{
           transform: `translateX(${String(offset)}px) rotate(${String(offset * tiltPerPixel)}rad)`,
         }}
-        className={`relative flex flex-1 rounded-card bg-surface shadow-raised ${dragging ? "" : "motion-safe:transition-transform motion-safe:duration-300"}`}
+        className={`relative flex flex-1 rounded-card bg-surface shadow-card ${dragging ? "" : "motion-safe:transition-transform motion-safe:duration-300"}`}
       >
         <div aria-label="앞면" role="group" className="flex min-h-0 flex-1 rounded-card">
           <CardScroll>

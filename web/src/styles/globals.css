@@ -2,41 +2,48 @@
 
 /* The tokens of app/lib/design/theme.dart (docs/architecture/design.md), light first. */
 @theme {
-  --color-ground: #fff6e8;
-  --color-surface: #fffcf7;
+  --color-ground: #effaf6;
+  --color-surface: #ffffff;
   --color-raised: #ffffff;
-  --color-ink: #3b2118;
-  --color-primary: #fb7262;
-  --color-on-primary: #3b2118;
+  --color-ink: #12332c;
   --color-on-ink: #ffffff;
-  --color-ink-2: #64483d;
-  --color-muted: #80695e;
-  --color-hairline: #f2e6d6;
-  --color-outline: #e8d8c5;
-  --color-brand-tint: #ffe3d0;
-  --color-hero: #3b2118;
-  --color-on-hero: #fb7262;
-  --color-brand: #3b2118;
-  --color-know: #1d8054;
+  --color-primary: #7fe0c3;
+  --color-primary-edge: #4fb89b;
+  --color-on-primary: #12332c;
+  --color-accent: #0b6b57;
+  --color-edge: #bfe9dc;
+  --color-ink-2: #3f5f57;
+  --color-muted: #3f5f57;
+  --color-hairline: #ddf3ec;
+  --color-outline: #bfe9dc;
+  --color-brand-tint: #ddf3ec;
+  --color-hero: #0b6b57;
+  --color-on-hero: #ffffff;
+  --color-on-hero-edge: #4fb89b;
+  --color-brand: #0b6b57;
+  --color-know: #14683f;
   --color-on-know: #ffffff;
-  --color-dont-know: #d6335f;
-  --color-dont-know-text: #b3123f;
+  --color-dont-know: #a3202f;
+  --color-dont-know-text: #a3202f;
+  --color-dont-know-edge: #7a1622;
   --color-on-dont-know-text: #ffffff;
-  --color-shadow: #3b2118;
-  --color-tint-amber: #fff1d6;
-  --color-tint-green: #e3f4ec;
-  --color-tint-red: #fce4eb;
-  --color-know-card: #eaf6ef;
-  --color-know-line: #9ed3b6;
-  --color-on-know-tint: #1d6b47;
-  --color-dont-know-card: #fce9ee;
-  --color-dont-know-line: #edb0c0;
-  --color-on-dont-know-tint: #a81238;
+  --color-shadow: #12332c;
+  --color-chart-quiet: #5f9e8c;
+  --color-chart-fading: #7a1622;
+  --color-tint-amber: #ffe9a8;
+  --color-tint-green: #bff0dc;
+  --color-tint-red: #ffd2de;
+  --color-know-card: #bff0dc;
+  --color-know-line: #86d5b7;
+  --color-on-know-tint: #14683f;
+  --color-dont-know-card: #ffd2de;
+  --color-dont-know-line: #f0a3b8;
+  --color-on-dont-know-tint: #a3202f;
   --color-streak: #c26a0a;
-  --color-deck-blue: #e8ecf5;
+  --color-deck-blue: #c9e2ff;
   --color-deck-sky: #e0f0fa;
-  --color-deck-violet: #ece7f8;
-  --color-deck-amber: #fff1d6;
+  --color-deck-violet: #e6dff7;
+  --color-deck-amber: #ffe9a8;
   --color-deck-slate: #e9ecf1;
   --color-deck-sand: #f4ecdf;
 
@@ -45,36 +52,36 @@
   --color-google-stroke: #747775;
   --color-google-label: #1f1f1f;
 
-  --radius-sheet: 28px;
-  --radius-card: 24px;
-  --radius-previous: 24px;
-  --radius-row: 24px;
-  --radius-group: 24px;
-  --radius-button: 20px;
-  --radius-chip: 999px;
-  --radius-field: 16px;
+  --radius-sheet: 32px;
+  --radius-card: 28px;
+  --radius-previous: 28px;
+  --radius-row: 22px;
+  --radius-group: 28px;
+  --radius-button: 24px;
+  --radius-chip: 16px;
+  --radius-field: 18px;
   --radius-panel: 40px;
 
   /* The type scale of AppType in theme.dart: size, line height, weight and tracking. */
   --text-display: 28px;
   --text-display--line-height: 36px;
   --text-display--font-weight: 800;
-  --text-display--letter-spacing: -0.8px;
-  --text-title: 22px;
-  --text-title--line-height: 30px;
+  --text-title: 26px;
+  --text-title--line-height: 34px;
   --text-title--font-weight: 800;
-  --text-title--letter-spacing: -0.4px;
-  --text-deck-title: 26px;
-  --text-deck-title--line-height: 34px;
+  --text-deck-title: 28px;
+  --text-deck-title--line-height: 36px;
   --text-deck-title--font-weight: 800;
-  --text-deck-title--letter-spacing: -0.6px;
-  --text-figure: 36px;
-  --text-figure--line-height: 44px;
+  --text-deck-name: 28px;
+  --text-deck-name--line-height: 36px;
+  --text-deck-name--font-weight: 800;
+  --text-deck-name--letter-spacing: -0.8px;
+  --text-figure: 38px;
+  --text-figure--line-height: 46px;
   --text-figure--font-weight: 800;
-  --text-figure--letter-spacing: -0.8px;
-  --text-headline: 18px;
-  --text-headline--line-height: 26px;
-  --text-headline--font-weight: 700;
+  --text-headline: 20px;
+  --text-headline--line-height: 28px;
+  --text-headline--font-weight: 800;
   --text-body: 16px;
   --text-body--line-height: 24px;
   --text-body--font-weight: 500;
@@ -83,7 +90,10 @@
   --text-body-strong--font-weight: 700;
   --text-label: 16px;
   --text-label--line-height: 24px;
-  --text-label--font-weight: 700;
+  --text-label--font-weight: 800;
+  --text-button: 23px;
+  --text-button--line-height: 28px;
+  --text-button--font-weight: 800;
   --text-secondary: 13px;
   --text-secondary--line-height: 18px;
   --text-secondary--font-weight: 400;
@@ -96,8 +106,8 @@
   --text-micro: 13px;
   --text-micro--line-height: 18px;
   --text-micro--font-weight: 400;
-  --text-front: 30px;
-  --text-front--line-height: 38px;
+  --text-front: 42px;
+  --text-front--line-height: 46px;
   --text-front--font-weight: 800;
   --text-front--letter-spacing: -0.6px;
   --text-back: 20px;
@@ -121,25 +131,30 @@
      named gaps are tokens of their own. */
   --spacing: 4px;
   --spacing-gutter: 20px;
-  --spacing-row-gap: 8px;
+  --spacing-row-gap: 12px;
   --spacing-section-gap: 28px;
 
   /* The sizes of AppSize in theme.dart that the web draws, under the same names. */
-  --spacing-cta: 56px;
-  --spacing-button: 56px;
-  --spacing-search: 48px;
+  --spacing-cta: 64px;
+  --spacing-button: 64px;
+  --spacing-search: 46px;
   --spacing-tap-target: 44px;
   --spacing-avatar: 56px;
   --spacing-small-avatar: 32px;
-  --spacing-deck-tile: 44px;
+  --spacing-deck-tile: 46px;
   --spacing-small-icon: 18px;
   --spacing-lockup-height: 30px;
   --spacing-mascot-medium: 96px;
   --spacing-mascot-guide: 64px;
   --spacing-hero-symbol: 120px;
-  --spacing-progress: 8px;
+  --spacing-progress: 10px;
   --spacing-stacked-lockup-width: 200px;
   --spacing-mascot-large: 128px;
+  --spacing-tab-bar: 66px;
+  --spacing-edge-card: 6px;
+  --spacing-edge-button: 7px;
+  --spacing-edge-row: 5px;
+  --spacing-edge-pressed: 2px;
 
   /* Google's button on the web: GoogleButtonStyle's mark and its Android and web spacing. */
   --spacing-google-mark: 20px;
@@ -266,11 +281,9 @@
     }
   }
 
-  /* AppShadow: a card on the ground, and the current study card's two layers. */
-  --shadow-card: 0 4px 12px color-mix(in srgb, var(--color-shadow) 8%, transparent);
-  --shadow-raised:
-    0 1px 4px color-mix(in srgb, var(--color-shadow) 6%, transparent),
-    0 12px 32px color-mix(in srgb, var(--color-shadow) 12%, transparent);
+  /* AppShadow: a card and a row on their edges, hard offsets with no blur. */
+  --shadow-card: 0 var(--spacing-edge-card) 0 var(--color-edge);
+  --shadow-row: 0 var(--spacing-edge-row) 0 var(--color-edge);
 }
 
 /* Tailwind's dark: variant follows the same choice as the colours. */
@@ -287,46 +300,78 @@
 
 @theme inline {
   --font-sans: var(--font-pretendard), ui-sans-serif, system-ui, sans-serif;
+  /* Jua, then Pretendard ExtraBold for a character it lacks: the styles below ask for 800. */
+  --font-display: var(--font-jua), var(--font-sans);
+}
+
+/* The styles AppType draws in Jua: what we write, and never a user's text. */
+@utility text-display {
+  font-family: var(--font-display);
+}
+@utility text-title {
+  font-family: var(--font-display);
+}
+@utility text-deck-title {
+  font-family: var(--font-display);
+}
+@utility text-figure {
+  font-family: var(--font-display);
+}
+@utility text-headline {
+  font-family: var(--font-display);
+}
+@utility text-label {
+  font-family: var(--font-display);
+}
+@utility text-button {
+  font-family: var(--font-display);
 }
 
 /* The dark set: chosen on the account page (data-theme, src/design/theme.ts), or by the system
    while the choice is the system's. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-ground: #1f1512;
-    --color-surface: #2b1e1a;
-    --color-raised: #382823;
-    --color-ink: #fff1e3;
-    --color-primary: #fb7262;
-    --color-on-primary: #3b2118;
-    --color-on-ink: #3b2118;
-    --color-ink-2: #dccabb;
-    --color-muted: #bda89a;
-    --color-hairline: #3d2c26;
-    --color-outline: #4a372f;
-    --color-brand-tint: #57342a;
-    --color-hero: #382823;
-    --color-on-hero: #fb7262;
-    --color-brand: #3b2118;
-    --color-know: #5ed39a;
-    --color-on-know: #1f1512;
-    --color-dont-know: #ff8fb0;
-    --color-dont-know-text: #ff8fb0;
-    --color-on-dont-know-text: #1f1512;
+    --color-ground: #10251f;
+    --color-surface: #1b342d;
+    --color-raised: #2c4a41;
+    --color-ink: #e9f8f3;
+    --color-on-ink: #10251f;
+    --color-primary: #7fe0c3;
+    --color-primary-edge: #4fb89b;
+    --color-on-primary: #10251f;
+    --color-accent: #7fe0c3;
+    --color-edge: #0a1714;
+    --color-ink-2: #a8c9bf;
+    --color-muted: #a8c9bf;
+    --color-hairline: #2c4a41;
+    --color-outline: #2c4a41;
+    --color-brand-tint: #2c4a41;
+    --color-hero: #0b6b57;
+    --color-on-hero: #ffffff;
+    --color-on-hero-edge: #4fb89b;
+    --color-brand: #0b6b57;
+    --color-know: #8ce6bc;
+    --color-on-know: #1d1833;
+    --color-dont-know: #ffa8ba;
+    --color-dont-know-text: #ffa8ba;
+    --color-dont-know-edge: #d97c92;
+    --color-on-dont-know-text: #1d1833;
     --color-shadow: #000000;
+    --color-chart-quiet: #6aaa99;
+    --color-chart-fading: #cf4a63;
     --color-tint-amber: #4a3b1e;
-    --color-tint-green: #1e3f33;
-    --color-tint-red: #4c2233;
-    --color-know-card: #17302a;
-    --color-know-line: #2e6b50;
-    --color-on-know-tint: #5ed39a;
-    --color-dont-know-card: #3d1c2a;
-    --color-dont-know-line: #7e3350;
-    --color-on-dont-know-tint: #ff8fb0;
+    --color-tint-green: #1f5a44;
+    --color-tint-red: #6b2331;
+    --color-know-card: #1b4a3b;
+    --color-know-line: #2c6b57;
+    --color-on-know-tint: #8ce6bc;
+    --color-dont-know-card: #52202f;
+    --color-dont-know-line: #7a3049;
+    --color-on-dont-know-tint: #ffa8ba;
     --color-streak: #f5a623;
-    --color-deck-blue: #2a3560;
+    --color-deck-blue: #2f5a86;
     --color-deck-sky: #1d3a50;
-    --color-deck-violet: #382d5c;
+    --color-deck-violet: #3b3360;
     --color-deck-amber: #4a3b1e;
     --color-deck-slate: #2d3445;
     --color-deck-sand: #3f3527;
@@ -337,40 +382,47 @@
 }
 
 :root[data-theme="dark"] {
-  --color-ground: #1f1512;
-  --color-surface: #2b1e1a;
-  --color-raised: #382823;
-  --color-ink: #fff1e3;
-  --color-primary: #fb7262;
-  --color-on-primary: #3b2118;
-  --color-on-ink: #3b2118;
-  --color-ink-2: #dccabb;
-  --color-muted: #bda89a;
-  --color-hairline: #3d2c26;
-  --color-outline: #4a372f;
-  --color-brand-tint: #57342a;
-  --color-hero: #382823;
-  --color-on-hero: #fb7262;
-  --color-brand: #3b2118;
-  --color-know: #5ed39a;
-  --color-on-know: #1f1512;
-  --color-dont-know: #ff8fb0;
-  --color-dont-know-text: #ff8fb0;
-  --color-on-dont-know-text: #1f1512;
+  --color-ground: #10251f;
+  --color-surface: #1b342d;
+  --color-raised: #2c4a41;
+  --color-ink: #e9f8f3;
+  --color-on-ink: #10251f;
+  --color-primary: #7fe0c3;
+  --color-primary-edge: #4fb89b;
+  --color-on-primary: #10251f;
+  --color-accent: #7fe0c3;
+  --color-edge: #0a1714;
+  --color-ink-2: #a8c9bf;
+  --color-muted: #a8c9bf;
+  --color-hairline: #2c4a41;
+  --color-outline: #2c4a41;
+  --color-brand-tint: #2c4a41;
+  --color-hero: #0b6b57;
+  --color-on-hero: #ffffff;
+  --color-on-hero-edge: #4fb89b;
+  --color-brand: #0b6b57;
+  --color-know: #8ce6bc;
+  --color-on-know: #1d1833;
+  --color-dont-know: #ffa8ba;
+  --color-dont-know-text: #ffa8ba;
+  --color-dont-know-edge: #d97c92;
+  --color-on-dont-know-text: #1d1833;
   --color-shadow: #000000;
+  --color-chart-quiet: #6aaa99;
+  --color-chart-fading: #cf4a63;
   --color-tint-amber: #4a3b1e;
-  --color-tint-green: #1e3f33;
-  --color-tint-red: #4c2233;
-  --color-know-card: #17302a;
-  --color-know-line: #2e6b50;
-  --color-on-know-tint: #5ed39a;
-  --color-dont-know-card: #3d1c2a;
-  --color-dont-know-line: #7e3350;
-  --color-on-dont-know-tint: #ff8fb0;
+  --color-tint-green: #1f5a44;
+  --color-tint-red: #6b2331;
+  --color-know-card: #1b4a3b;
+  --color-know-line: #2c6b57;
+  --color-on-know-tint: #8ce6bc;
+  --color-dont-know-card: #52202f;
+  --color-dont-know-line: #7a3049;
+  --color-on-dont-know-tint: #ffa8ba;
   --color-streak: #f5a623;
-  --color-deck-blue: #2a3560;
+  --color-deck-blue: #2f5a86;
   --color-deck-sky: #1d3a50;
-  --color-deck-violet: #382d5c;
+  --color-deck-violet: #3b3360;
   --color-deck-amber: #4a3b1e;
   --color-deck-slate: #2d3445;
   --color-deck-sand: #3f3527;
@@ -379,8 +431,10 @@
   --color-google-label: #e3e3e3;
 }
 
+/* Jua has one face, declared at 800, and no style may thicken or slant it. */
 :root {
   color-scheme: light dark;
+  font-synthesis: none;
 }
 
 :root[data-theme="light"] {
@@ -400,10 +454,45 @@
 
 /* Every button and row's hover and pressed state, as the phone's AppButton shows pressed
    feedback (design.md §Details): a dim, a layer of the control's own text colour at 4% over its
-   fill, with no change of size. */
+   fill, with no change of size. A solid object sits on an edge of a darker colour, a hard offset
+   with no blur, and a press moves it down onto that edge; reduce motion keeps the dim alone. */
 @layer components {
   .pressable {
     --state-layer: color-mix(in srgb, currentColor 4%, transparent);
     @apply not-disabled:hover:bg-[linear-gradient(var(--state-layer),var(--state-layer))] not-disabled:active:bg-[linear-gradient(var(--state-layer),var(--state-layer))];
+  }
+
+  .rounded-card.bg-surface,
+  .rounded-group.bg-surface,
+  .rounded-previous.bg-surface,
+  .rounded-button.bg-surface {
+    --edge: var(--spacing-edge-card);
+    --edge-colour: var(--color-edge);
+  }
+  .rounded-row.bg-surface {
+    --edge: var(--spacing-edge-row);
+    --edge-colour: var(--color-edge);
+  }
+  .rounded-button.bg-primary {
+    --edge: var(--spacing-edge-button);
+    --edge-colour: var(--color-primary-edge);
+  }
+  .rounded-button.bg-on-hero {
+    --edge: var(--spacing-edge-button);
+    --edge-colour: var(--color-on-hero-edge);
+  }
+  .rounded-button.bg-dont-know,
+  .rounded-button.bg-dont-know-text {
+    --edge: var(--spacing-edge-button);
+    --edge-colour: var(--color-dont-know-edge);
+  }
+  :where(.rounded-card, .rounded-group, .rounded-previous, .rounded-row, .rounded-button) {
+    box-shadow: 0 var(--edge) 0 var(--edge-colour);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .pressable:not(:disabled):active {
+      box-shadow: 0 var(--spacing-edge-pressed) 0 var(--edge-colour);
+      transform: translateY(calc(var(--edge) - var(--spacing-edge-pressed)));
+    }
   }
 }

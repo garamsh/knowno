@@ -62,7 +62,7 @@ export function CompletionCard({
             ref={studyOn}
             type="button"
             onClick={onStudyOn}
-            className="pressable flex min-h-cta items-center justify-center rounded-button bg-primary px-6 text-label text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="pressable flex min-h-cta items-center justify-center rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             학습하기
           </button>

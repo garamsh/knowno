@@ -7,7 +7,7 @@ import { DeckList } from "../components/deck-list";
 import { parseDeckId } from "../library";
 
 describe("a deck row's progress bar", () => {
-  it("draws mastered in ink and learning in ink at 45%, with no gap between the shares, as the phone does", () => {
+  it("draws mastered in the accent and learning in the chart's quiet colour, with no gap between the shares, as the phone does", () => {
     const id = parseDeckId(uuidOf("d-fr"));
     if (!id) throw new Error("the fixed id is a uuid");
     render(
@@ -32,8 +32,8 @@ describe("a deck row's progress bar", () => {
       );
     const mastered = share("25%");
     const learning = share("50%");
-    expect(mastered?.className.split(" ")).toEqual(["bg-ink"]);
-    expect(learning?.className.split(" ")).toEqual(["bg-ink/45"]);
+    expect(mastered?.className.split(" ")).toEqual(["bg-accent"]);
+    expect(learning?.className.split(" ")).toEqual(["bg-chart-quiet"]);
     // The two shares sit side by side in one track, with nothing between them.
     expect(learning?.parentElement).toBe(mastered?.parentElement);
     expect(learning?.parentElement?.className.split(" ")).not.toEqual(
@@ -90,10 +90,10 @@ describe("a deck row's line", () => {
     expect(row).toHaveAccessibleName("Empty, 카드 0장");
     expect(within(row).getByText("0장")).toBeInTheDocument();
     // The bar is its hairline track; an empty share draws no width, so the track is looked for.
-    expect(row.querySelector(".bg-hairline")).toBeNull();
+    expect(row.querySelector(".bg-edge")).toBeNull();
     expect(within(row).queryByText(/익힘/)).not.toBeInTheDocument();
     // Control: the deck with cards draws its bar, so the query finds one where there is one.
     const french = screen.getByRole("link", { name: /^French/ });
-    expect(french.querySelector(".bg-hairline")).not.toBeNull();
+    expect(french.querySelector(".bg-edge")).not.toBeNull();
   });
 });

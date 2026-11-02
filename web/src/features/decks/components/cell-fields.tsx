@@ -686,7 +686,7 @@ function TableGroup({
               onClick={() => {
                 remove(removing);
               }}
-              className="pressable min-h-button rounded-button bg-dont-know px-4 text-label text-on-ink"
+              className="pressable min-h-button rounded-button bg-dont-know px-4 text-button text-on-ink"
             >
               삭제
             </button>

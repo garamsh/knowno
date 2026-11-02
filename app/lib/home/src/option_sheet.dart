@@ -24,7 +24,6 @@ Future<T?> showOptionSheet<T>(
           AppListRow(
             title: option.title,
             subtitle: option.body,
-            onSheet: true,
             onTap: () => Navigator.of(context).pop(option.value),
           ),
       ],

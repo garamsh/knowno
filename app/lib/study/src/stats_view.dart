@@ -443,7 +443,7 @@ class _RetentionChart extends StatelessWidget {
                     floor: floor,
                     grid: colors.hairline,
                     target: colors.know,
-                    line: colors.ink,
+                    line: colors.accent,
                     area: colors.brandTint,
                     ring: colors.surface,
                   ),
@@ -576,10 +576,7 @@ class _RecallCard extends StatelessWidget {
         ],
       );
     }
-    final (strong, fair, fading) = StatsStyle.bands(
-      colors,
-      Theme.of(context).brightness,
-    );
+    final (strong, fair, fading) = StatsStyle.bands(colors);
     final shares = [
       (count: bands.strong, colour: strong, name: l10n.recallStrong),
       (count: bands.fair, colour: fair, name: l10n.recallFair),
@@ -721,8 +718,8 @@ class _MasteredCard extends StatelessWidget {
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: index == weeks.length - 1
-                            ? colors.ink
-                            : AppColors.quiet(colors.ink),
+                            ? colors.accent
+                            : colors.chartQuiet,
                         borderRadius: BorderRadius.circular(AppSpace.s4),
                       ),
                       child: SizedBox(

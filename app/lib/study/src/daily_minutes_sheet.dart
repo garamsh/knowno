@@ -462,35 +462,38 @@ class _NumberInput extends StatelessWidget {
       textBaseline: TextBaseline.alphabetic,
       spacing: AppSpace.s4,
       children: [
-        // Wide enough for three figures, so "분" stays beside the number.
-        SizedBox(
-          width: AppSize.cta + AppSize.cta,
-          child: Semantics(
-            label: l10n.dailyMinutesInput,
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.done,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(3),
-              ],
-              textAlign: TextAlign.center,
-              style: AppType.figure.copyWith(color: line),
-              decoration: InputDecoration(
-                isDense: true,
-                filled: false,
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: line),
+        // Wide enough for three figures, so "분" stays beside the number,
+        // and narrower where a large text size leaves less room.
+        Flexible(
+          child: SizedBox(
+            width: AppSize.cta + AppSize.cta,
+            child: Semantics(
+              label: l10n.dailyMinutesInput,
+              child: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(3),
+                ],
+                textAlign: TextAlign.center,
+                style: AppType.figure.copyWith(color: line),
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: false,
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: line),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: line),
+                  ),
                 ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: line),
-                ),
+                onChanged: onChanged,
+                onSubmitted: onSubmitted,
               ),
-              onChanged: onChanged,
-              onSubmitted: onSubmitted,
             ),
           ),
         ),

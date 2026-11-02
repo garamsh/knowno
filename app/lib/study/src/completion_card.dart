@@ -39,7 +39,7 @@ class CompletionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(StudyStyle.cardRadius),
-        boxShadow: AppShadow.raised(colors),
+        boxShadow: AppShadow.card(colors),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(

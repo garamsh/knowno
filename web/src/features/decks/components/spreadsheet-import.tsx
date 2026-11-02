@@ -211,7 +211,7 @@ export function SpreadsheetImport({
               엑셀(.xlsx)이나 CSV 파일의 한 행이 카드 한 장이 돼요. 파일은 5MB, 1,000행까지 읽어요.
             </p>
             <label
-              className={`pressable flex min-h-cta cursor-pointer items-center justify-center rounded-button bg-primary px-4 text-label text-on-primary has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink ${opening ? "opacity-50" : ""}`}
+              className={`pressable flex min-h-cta cursor-pointer items-center justify-center rounded-button bg-primary px-4 text-button text-on-primary has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink ${opening ? "opacity-50" : ""}`}
             >
               {opening ? "읽는 중" : "파일 고르기"}
               {picker}
@@ -433,7 +433,7 @@ export function SpreadsheetImport({
               onClick={() => {
                 save(false);
               }}
-              className="pressable min-h-cta w-full rounded-button bg-primary px-4 text-label text-on-primary disabled:opacity-50"
+              className="pressable min-h-cta w-full rounded-button bg-primary px-4 text-button text-on-primary disabled:opacity-50"
             >
               {pending ? "저장 중" : `${String(unsaved.length)}장 추가`}
             </button>
@@ -461,7 +461,7 @@ export function SpreadsheetImport({
             <button
               type="button"
               onClick={close}
-              className="pressable min-h-button rounded-button bg-dont-know text-label text-on-ink"
+              className="pressable min-h-button rounded-button bg-dont-know text-button text-on-ink"
             >
               버리기
             </button>

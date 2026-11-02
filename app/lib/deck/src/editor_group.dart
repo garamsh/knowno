@@ -35,18 +35,24 @@ class EditorGroup extends StatelessWidget {
     final theme = Theme.of(context);
     return Theme(
       data: theme.copyWith(inputDecorationTheme: groupFieldTheme(colors)),
-      child: Material(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.group),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final (index, child) in children.indexed) ...[
-              if (index > 0) const Divider(height: 1, thickness: 1),
-              child,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.group),
+          boxShadow: AppShadow.card(colors),
+        ),
+        child: Material(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.group),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final (index, child) in children.indexed) ...[
+                if (index > 0) const Divider(height: 1, thickness: 1),
+                child,
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

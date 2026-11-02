@@ -86,6 +86,12 @@ Future<void> _loadFonts() async {
     pretendard.addFont(bytes('assets/fonts/Pretendard-$weight.otf'));
   }
   await pretendard.load();
+  await (FontLoader(
+    appDisplayFallbackFamily,
+  )..addFont(bytes('assets/fonts/Pretendard-ExtraBold.otf'))).load();
+  await (FontLoader(
+    appDisplayFontFamily,
+  )..addFont(bytes('assets/fonts/Jua-Regular.ttf'))).load();
   await (FontLoader('packages/lucide_icons_flutter/Lucide')..addFont(
         rootBundle.load('packages/lucide_icons_flutter/assets/lucide.ttf'),
       ))
@@ -180,7 +186,8 @@ List<double> _chromeSizes(WidgetTester tester) {
       if (span is! TextSpan) return;
       // Icons are glyphs of their own font, not text.
       if (ownSize != null &&
-          ownFamily == appFontFamily &&
+          const [appFontFamily, appDisplayFontFamily].contains(ownFamily) &&
+          ownSize != AppType.button.fontSize &&
           (span.text ?? '').trim().isNotEmpty) {
         own.add(ownSize);
       }

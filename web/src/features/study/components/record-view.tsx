@@ -402,7 +402,7 @@ function MasteredCard({ weeks }: { weeks: number[] }) {
           <span
             // The weeks are fixed in place, oldest first.
             key={index}
-            className={`flex-1 rounded-sm ${index === weeks.length - 1 ? "bg-ink" : quietWeekShade}`}
+            className={`flex-1 rounded-sm ${index === weeks.length - 1 ? "bg-accent" : quietWeekShade}`}
             style={{ height: `${String((count / most) * 100)}%` }}
           />
         ))}

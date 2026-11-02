@@ -308,8 +308,8 @@ class _TodayCard extends StatelessWidget {
             semanticsLabel: l10n.todayProgress(goal.goal, goal.done),
             minHeight: AppSpace.s8,
             borderRadius: BorderRadius.circular(AppSpace.s8),
-            color: colors.ink,
-            backgroundColor: colors.hairline,
+            color: colors.accent,
+            backgroundColor: colors.edge,
           ),
         ),
         if (overview.extra > 0)
@@ -605,6 +605,7 @@ class _ChartCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(AppRadius.previous),
+        boxShadow: AppShadow.card(colors),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpace.s16),
@@ -677,8 +678,8 @@ class _DayBars extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: index == emphasised
-                          ? colors.primary
-                          : colors.brandTint,
+                          ? colors.accent
+                          : colors.chartQuiet,
                       borderRadius: BorderRadius.circular(AppSpace.s8 - 2),
                     ),
                   ),
@@ -753,7 +754,7 @@ class _TodayDecks extends StatelessWidget {
                           children: [
                             DeckTile(deck: deck),
                             Expanded(
-                              child: Text(deck.name, style: AppType.label),
+                              child: Text(deck.name, style: AppType.bodyStrong),
                             ),
                             Text(
                               l10n.deckDueCount(total),

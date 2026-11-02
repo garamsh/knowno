@@ -527,24 +527,19 @@ void main() {
     );
   }
 
-  for (final (name, colors, brightness) in [
-    ('light', AppColors.light, Brightness.light),
-    ('dark', AppColors.dark, Brightness.dark),
+  for (final (name, colors) in [
+    ('light', AppColors.light),
+    ('dark', AppColors.dark),
   ]) {
     test(
-      '$name: the ink recall bands and the quiet week are 3:1 on the surface, and the bands and the heatmap levels differ in lightness by 1.5:1',
+      '$name: the recall bands and the quiet week are 3:1 on the surface, and the bands and the heatmap levels differ in lightness by 1.5:1',
       () {
         final surface = colors.surface;
-        final (strong, fair, fading) = StatsStyle.bands(colors, brightness);
+        final (strong, fair, fading) = StatsStyle.bands(colors);
         final bands = [
           for (final band in [strong, fair, fading]) _over(band, surface),
         ];
-        // The coral band is 2.67:1 on the light surface; its count in words
-        // carries it (ADR 0145).
-        for (final mark in [
-          ...bands.take(2),
-          _over(AppColors.quiet(colors.ink), surface),
-        ]) {
+        for (final mark in [...bands, colors.chartQuiet]) {
           expect(
             _contrast(mark, surface),
             greaterThanOrEqualTo(3),
@@ -570,18 +565,9 @@ void main() {
             reason: 'level ${level - 1} against $level',
           );
         }
-        // Control: the fair band at the other theme's alpha fails one of the
-        // checks, so they can fail.
-        final other = brightness == Brightness.light
-            ? Brightness.dark
-            : Brightness.light;
-        final (_, swapped, _) = StatsStyle.bands(colors, other);
-        final swappedFair = _over(swapped, surface);
-        expect(
-          _contrast(swappedFair, surface) < 3 ||
-              _contrast(swappedFair, bands[2]) < 1.5,
-          isTrue,
-        );
+        // Control: the mint fill and the edge, which a chart does not draw
+        // in, fail the check, so it can fail.
+        expect(_contrast(colors.edge, surface), lessThan(3));
       },
     );
   }

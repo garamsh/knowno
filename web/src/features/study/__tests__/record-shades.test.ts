@@ -87,9 +87,13 @@ describe("the 기록 page's chart shades", () => {
     },
   );
 
-  it("fails a fair band drawn at the other theme's alpha, so the check can fail", () => {
-    // Control: the light alpha in the dark theme lands within 1.5:1 of the coral band.
-    const fairAtLightAlpha = drawn("bg-ink/75", "dark");
-    expect(contrast(fairAtLightAlpha, drawn(bandShades.fading, "dark"))).toBeLessThan(1.5);
-  });
+  it.each(["light", "dark"] as const)(
+    "fails the edge and the mint fill as a bar in the %s theme, so the check can fail",
+    (theme) => {
+      const surface = rgb(themes[theme].get("surface") ?? "");
+      expect(contrast(drawn("bg-edge", theme), surface)).toBeLessThan(3);
+      // Control: the mint fill passes only on a dark surface; on white it fails.
+      if (theme === "light") expect(contrast(drawn("bg-primary", theme), surface)).toBeLessThan(3);
+    },
+  );
 });

@@ -8,7 +8,7 @@ export default function NotFound() {
       <p className="text-muted">삭제되었거나 주소가 잘못되었어요. 덱 목록에서 다시 골라 주세요.</p>
       <Link
         href="/decks"
-        className="pressable flex min-h-button items-center justify-center rounded-button bg-primary px-6 font-semibold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="pressable flex min-h-button items-center justify-center rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         덱 목록
       </Link>

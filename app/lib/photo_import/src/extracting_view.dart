@@ -73,8 +73,8 @@ class ExtractingView extends StatelessWidget {
             const SizedBox(height: AppSpace.s20),
             LinearProgressIndicator(
               semanticsLabel: l10n.extractingTitle,
-              color: colors.ink,
-              backgroundColor: colors.hairline,
+              color: colors.accent,
+              backgroundColor: colors.edge,
               borderRadius: BorderRadius.circular(AppSpace.s4),
             ),
             const SizedBox(height: AppSpace.s20),

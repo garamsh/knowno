@@ -42,13 +42,13 @@ class CardSplitRow extends StatelessWidget {
             child: WholeCardView.cells(
               cells,
               revealed: true,
-              style: AppType.label,
+              style: AppType.bodyStrong,
             ),
           )
         : SplitCard(
             centred: false,
             front: (context, _) =>
-                Text.rich(contentSpan(l10n, front), style: AppType.label),
+                Text.rich(contentSpan(l10n, front), style: AppType.bodyStrong),
             back: (context, _) => Text.rich(
               contentSpan(l10n, back),
               style: AppType.secondary.copyWith(color: colors.ink2),

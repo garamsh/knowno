@@ -23,7 +23,7 @@ const items: readonly Item[] = [
 
 const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
-/** The place of a menu item's icon, 56 by 32 as the phone's tab, the current one's a coral tint. */
+/** The place of a menu item's icon, the current one's a quiet tint of the primary. */
 function Pill({ selected, children }: { selected: boolean; children: ReactNode }) {
   return (
     <span
@@ -35,7 +35,7 @@ function Pill({ selected, children }: { selected: boolean; children: ReactNode }
 }
 
 /**
- * The menu from 1024 px wide: the lockup, 오늘, 덱 and 기록, the current one a coral-tinted pill
+ * The menu from 1024 px wide: the lockup, 오늘, 덱 and 기록, the current one a tinted pill
  * behind its icon beside a bold label and the others muted, as the tab bar draws them, and
  * [account], the account's link, at its foot.
  */
@@ -66,7 +66,7 @@ export function SideMenuAt({ path, account }: { path: string | null; account: Re
               key={href}
               href={href}
               aria-current={selected ? "page" : undefined}
-              className={`pressable flex min-h-tap-target items-center gap-3 rounded-field px-1 text-label ${selected ? "text-ink" : "font-medium text-muted"} ${focus}`}
+              className={`pressable flex min-h-tap-target items-center gap-3 rounded-field px-1 text-label ${selected ? "text-accent" : "text-ink-2"} ${focus}`}
             >
               <Pill selected={selected}>
                 <Icon aria-hidden className="size-5" strokeWidth={selected ? 2.2 : 2} />
@@ -82,7 +82,7 @@ export function SideMenuAt({ path, account }: { path: string | null; account: Re
   );
 }
 
-/** The menu below 1024 px wide: 오늘, 덱 and 기록 in a bar at the foot, the current one as beside. */
+/** The menu below 1024 px wide: 오늘, 덱 and 기록, their names alone, in a bar floating on its edge. */
 export function TabBar() {
   return <TabBarAt path={usePathname()} />;
 }
@@ -92,20 +92,17 @@ export function TabBarAt({ path }: { path: string | null }) {
   return (
     <nav
       aria-label="주 메뉴"
-      className="fixed inset-x-0 bottom-0 z-10 grid h-16 grid-cols-3 border-t border-hairline bg-surface lg:hidden"
+      className="fixed inset-x-4 bottom-4 z-10 grid min-h-tab-bar grid-cols-3 rounded-button bg-surface shadow-row lg:hidden"
     >
-      {items.map(({ href, label, Icon, current }) => {
+      {items.map(({ href, label, current }) => {
         const selected = path !== null && current(path);
         return (
           <Link
             key={href}
             href={href}
             aria-current={selected ? "page" : undefined}
-            className={`pressable flex flex-col items-center justify-center gap-0.5 text-micro ${selected ? "font-bold text-ink" : "font-medium text-muted"} ${focus} focus-visible:-outline-offset-2`}
+            className={`pressable flex items-center justify-center rounded-button text-label ${selected ? "text-accent" : "text-ink-2"} ${focus} focus-visible:-outline-offset-2`}
           >
-            <Pill selected={selected}>
-              <Icon aria-hidden className="size-6" strokeWidth={selected ? 2.2 : 2} />
-            </Pill>
             {label}
           </Link>
         );

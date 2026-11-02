@@ -1,8 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// The family of the bundled Pretendard, declared in `pubspec.yaml`.
+/// The family of the bundled Pretendard, declared in `pubspec.yaml`: body
+/// text, and everything a user wrote, in any style.
 const appFontFamily = 'Pretendard';
+
+/// The family of the bundled Jua, declared in `pubspec.yaml`: the titles,
+/// figures and buttons we write, and never a user's text. Its styles ask for
+/// [FontWeight.w400], its one face's own, since Flutter thickens it at any
+/// heavier weight.
+const appDisplayFontFamily = 'Jua';
+
+/// Pretendard ExtraBold as a family of one face, which draws a character Jua
+/// lacks at a Jua style's weight.
+const appDisplayFallbackFamily = 'PretendardExtraBold';
+
+const _displayFallback = [appDisplayFallbackFamily];
 
 /// The spacing scale, on a 4 px base. Every padding, margin and gap in the
 /// app is one of these.
@@ -21,42 +34,42 @@ abstract final class AppSpace {
   static const gutter = s20;
 
   /// Space between two rows of a list.
-  static const rowGap = s8;
+  static const rowGap = s12;
 
   /// Space between two sections of a screen.
   static const sectionGap = s28;
 }
 
 /// The corner radii of the app's rounded surfaces, on one scale: group and
-/// card 24, button 20, sheet 28, and a chip and a label fully round
-/// (ADR 0145).
+/// card 28, button 24, row 22, sheet 32, and a chip and a field 16 to 18
+/// (ADR 0147).
 abstract final class AppRadius {
   /// The bottom corners of the sign-in screen's brand panel.
   static const panel = 40.0;
 
   /// A sheet's top corners.
-  static const sheet = 28.0;
+  static const sheet = 32.0;
 
   /// A card: a study card, the today card, or a card preview.
-  static const card = 24.0;
+  static const card = 28.0;
 
   /// A previous card in the study stack.
-  static const previous = 24.0;
+  static const previous = 28.0;
 
   /// A row in a list that stands alone on the ground.
-  static const row = 24.0;
+  static const row = 22.0;
 
   /// A group of rows split by hairlines: a settings section, a deck's cards.
-  static const group = 24.0;
+  static const group = 28.0;
 
   /// A button.
-  static const button = 20.0;
+  static const button = 24.0;
 
-  /// A chip, and a label before a meaning: fully round at any height.
-  static const chip = 999.0;
+  /// A chip, and a label before a meaning.
+  static const chip = 16.0;
 
   /// A field.
-  static const field = 16.0;
+  static const field = 18.0;
 
   /// A pull-down menu, such as a photo import section's form menu.
   static const menu = 16.0;
@@ -65,22 +78,22 @@ abstract final class AppRadius {
 /// The heights and sizes of the app's controls and brand marks.
 abstract final class AppSize {
   /// The screen's or the sheet's primary action, at the bottom.
-  static const cta = 56.0;
+  static const cta = 64.0;
 
   /// Every other button.
-  static const button = 56.0;
+  static const button = 64.0;
 
   /// A one-line field.
-  static const field = 52.0;
+  static const field = 50.0;
 
   /// The search field over a list.
-  static const search = 48.0;
+  static const search = 46.0;
 
   /// The least width and height of anything tapped.
   static const tapTarget = 44.0;
 
   /// A sheet's drag handle.
-  static const handle = Size(40, 5);
+  static const handle = Size(44, 5);
 
   /// The account screen's initial avatar.
   static const avatar = 56.0;
@@ -89,7 +102,7 @@ abstract final class AppSize {
   static const smallAvatar = 32.0;
 
   /// A deck row's initial tile.
-  static const deckTile = 44.0;
+  static const deckTile = 46.0;
 
   /// A small icon, inside a button or a line of text.
   static const smallIcon = 18.0;
@@ -131,21 +144,63 @@ abstract final class AppSize {
   static const heroSymbol = 120.0;
 
   /// The study progress bar's thickness.
-  static const progress = 8.0;
+  static const progress = 10.0;
 
-  /// The coral-tinted pill behind the current tab's icon.
-  static const tabPill = Size(56, 32);
+  /// The tab bar's height, before a larger text size grows it.
+  static const tabBar = 66.0;
+
+  /// The edge a card, a group or a quiet button sits on.
+  static const edgeCard = 6.0;
+
+  /// The edge a primary button sits on.
+  static const edgeButton = 7.0;
+
+  /// The edge a list row or the tab bar sits on.
+  static const edgeRow = 5.0;
+
+  /// What is left of an edge while its object is pressed down onto it.
+  static const edgePressed = 2.0;
 }
 
 /// Digits of one width, so a figure keeps its place as it changes. Kept out
 /// of [AppType]'s styles, which the web's token test reads.
 const _tabularDigits = [FontFeature.tabularFigures()];
 
-/// The app's type scale, all Pretendard, with explicit line heights.
-/// A style without a colour takes the text colour of where it is drawn.
+/// The app's type scale, with explicit line heights: Jua for the titles,
+/// figures and buttons we write, Pretendard for body text and for everything
+/// a user wrote, whatever its rank (ADR 0147). A style without a colour takes
+/// the text colour of where it is drawn.
 abstract final class AppType {
-  /// A home screen's title: 28/36, extra bold.
+  /// A home screen's title: 28/36, Jua.
   static const display = TextStyle(
+    fontFamily: appDisplayFontFamily,
+    fontFamilyFallback: _displayFallback,
+    fontSize: 28,
+    height: 36 / 28,
+    fontWeight: FontWeight.w400,
+  );
+
+  /// A pushed screen's and a sheet's title: 26/34, Jua.
+  static const title = TextStyle(
+    fontFamily: appDisplayFontFamily,
+    fontFamilyFallback: _displayFallback,
+    fontSize: 26,
+    height: 34 / 26,
+    fontWeight: FontWeight.w400,
+  );
+
+  /// A tab's title: 28/36, Jua.
+  static const deckTitle = TextStyle(
+    fontFamily: appDisplayFontFamily,
+    fontFamilyFallback: _displayFallback,
+    fontSize: 28,
+    height: 36 / 28,
+    fontWeight: FontWeight.w400,
+  );
+
+  /// A title a user wrote, such as a deck's name: 28/36, extra bold
+  /// Pretendard, never Jua.
+  static const deckName = TextStyle(
     fontFamily: appFontFamily,
     fontSize: 28,
     height: 36 / 28,
@@ -153,41 +208,24 @@ abstract final class AppType {
     letterSpacing: -0.8,
   );
 
-  /// A pushed screen's title: 22/30, extra bold.
-  static const title = TextStyle(
-    fontFamily: appFontFamily,
-    fontSize: 22,
-    height: 30 / 22,
-    fontWeight: FontWeight.w800,
-    letterSpacing: -0.4,
-  );
-
-  /// The deck name over its cards: 26/34, extra bold.
-  static const deckTitle = TextStyle(
-    fontFamily: appFontFamily,
-    fontSize: 26,
-    height: 34 / 26,
-    fontWeight: FontWeight.w800,
-    letterSpacing: -0.6,
-  );
-
-  /// A large figure, such as the today card's count: 36/44, extra bold,
-  /// tracked in about 2%, its digits tabular.
+  /// A large figure, such as the today card's count: 38/46, Jua, its digits
+  /// tabular.
   static const figure = TextStyle(
-    fontFamily: appFontFamily,
-    fontSize: 36,
-    height: 44 / 36,
-    fontWeight: FontWeight.w800,
-    letterSpacing: -0.8,
+    fontFamily: appDisplayFontFamily,
+    fontFamilyFallback: _displayFallback,
+    fontSize: 38,
+    height: 46 / 38,
+    fontWeight: FontWeight.w400,
     fontFeatures: _tabularDigits,
   );
 
-  /// A sheet's title: 18/26, bold.
+  /// A section's title and a figure's unit: 20/28, Jua.
   static const headline = TextStyle(
-    fontFamily: appFontFamily,
-    fontSize: 18,
-    height: 26 / 18,
-    fontWeight: FontWeight.w700,
+    fontFamily: appDisplayFontFamily,
+    fontFamilyFallback: _displayFallback,
+    fontSize: 20,
+    height: 28 / 20,
+    fontWeight: FontWeight.w400,
   );
 
   /// Running text: 16/24, medium.
@@ -206,12 +244,23 @@ abstract final class AppType {
     fontWeight: FontWeight.w700,
   );
 
-  /// A button's label: the body size, 16/24, bold.
+  /// A quiet label we write, such as a tab's or a chart's heading: 16/24,
+  /// Jua.
   static const label = TextStyle(
-    fontFamily: appFontFamily,
+    fontFamily: appDisplayFontFamily,
+    fontFamilyFallback: _displayFallback,
     fontSize: 16,
     height: 24 / 16,
-    fontWeight: FontWeight.w700,
+    fontWeight: FontWeight.w400,
+  );
+
+  /// A primary or quiet button's label: 23/28, Jua.
+  static const button = TextStyle(
+    fontFamily: appDisplayFontFamily,
+    fontFamilyFallback: _displayFallback,
+    fontSize: 23,
+    height: 28 / 23,
+    fontWeight: FontWeight.w400,
   );
 
   /// Secondary text, such as a sheet's body or a line under a title: the
@@ -247,11 +296,12 @@ abstract final class AppType {
     fontWeight: FontWeight.w400,
   );
 
-  /// A study card's front: 30/38, extra bold.
+  /// A study card's front: 42/46, extra bold Pretendard, never Jua, so a
+  /// card's text is one face whatever its script.
   static const front = TextStyle(
     fontFamily: appFontFamily,
-    fontSize: 30,
-    height: 38 / 30,
+    fontSize: 42,
+    height: 46 / 42,
     fontWeight: FontWeight.w800,
     letterSpacing: -0.6,
   );
@@ -331,31 +381,17 @@ abstract final class AppBrand {
       'assets/brand/knowno-$expression.png';
 }
 
-/// The shadows the app draws, in the theme's [AppColors.shadow].
+/// The edges solid objects sit on: a hard offset of a darker colour, with no
+/// blur (ADR 0147).
 abstract final class AppShadow {
-  /// A card resting on the ground: the today card, a card preview.
-  static List<BoxShadow> card(AppColors colors) => [
-    BoxShadow(
-      color: colors.shadow.withValues(alpha: 0.08),
-      blurRadius: 12,
-      offset: const Offset(0, 4),
-    ),
+  /// An edge of [color], [height] tall.
+  static List<BoxShadow> edge(Color color, double height) => [
+    BoxShadow(color: color, offset: Offset(0, height)),
   ];
 
-  /// The current study card and the completion card: a close, tight layer
-  /// under a wide, soft one.
-  static List<BoxShadow> raised(AppColors colors) => [
-    BoxShadow(
-      color: colors.shadow.withValues(alpha: 0.06),
-      blurRadius: 4,
-      offset: const Offset(0, 1),
-    ),
-    BoxShadow(
-      color: colors.shadow.withValues(alpha: 0.12),
-      blurRadius: 32,
-      offset: const Offset(0, 12),
-    ),
-  ];
+  /// A card resting on the ground: the today card, a study card, a group.
+  static List<BoxShadow> card(AppColors colors) =>
+      edge(colors.edge, AppSize.edgeCard);
 }
 
 /// The app's colour tokens. Every colour a screen draws comes from here or
@@ -369,7 +405,10 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.ink,
     required this.onInk,
     required this.primary,
+    required this.primaryEdge,
     required this.onPrimary,
+    required this.accent,
+    required this.edge,
     required this.ink2,
     required this.muted,
     required this.hairline,
@@ -377,13 +416,17 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.brandTint,
     required this.hero,
     required this.onHero,
+    required this.onHeroEdge,
     required this.brand,
     required this.know,
     required this.onKnow,
     required this.dontKnow,
     required this.dontKnowText,
+    required this.dontKnowEdge,
     required this.onDontKnowText,
     required this.shadow,
+    required this.chartQuiet,
+    required this.chartFading,
     required this.tintAmber,
     required this.tintGreen,
     required this.tintRed,
@@ -402,85 +445,99 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.deckSand,
   });
 
-  /// Light tokens: warm cocoa ink on warm white surfaces over a cream ground,
-  /// the mascot's coral in [brandTint] and [onHero].
+  /// Light tokens: deep green ink on white surfaces over a mint ground, each
+  /// solid object on a darker [edge]; coral is the mascot's alone.
   static const light = AppColors(
-    ground: Color(0xFFFFF6E8),
-    surface: Color(0xFFFFFCF7),
+    ground: Color(0xFFEFFAF6),
+    surface: Color(0xFFFFFFFF),
     raised: Color(0xFFFFFFFF),
-    ink: Color(0xFF3B2118),
+    ink: Color(0xFF12332C),
     onInk: Color(0xFFFFFFFF),
-    primary: Color(0xFFFB7262),
-    onPrimary: Color(0xFF3B2118),
-    ink2: Color(0xFF64483D),
-    muted: Color(0xFF80695E),
-    hairline: Color(0xFFF2E6D6),
-    outline: Color(0xFFE8D8C5),
-    brandTint: Color(0xFFFFE3D0),
-    hero: Color(0xFF3B2118),
-    onHero: Color(0xFFFB7262),
-    brand: Color(0xFF3B2118),
-    know: Color(0xFF1D8054),
+    primary: Color(0xFF7FE0C3),
+    primaryEdge: Color(0xFF4FB89B),
+    onPrimary: Color(0xFF12332C),
+    accent: Color(0xFF0B6B57),
+    edge: Color(0xFFBFE9DC),
+    ink2: Color(0xFF3F5F57),
+    muted: Color(0xFF3F5F57),
+    hairline: Color(0xFFDDF3EC),
+    outline: Color(0xFFBFE9DC),
+    brandTint: Color(0xFFDDF3EC),
+    hero: Color(0xFF0B6B57),
+    onHero: Color(0xFFFFFFFF),
+    onHeroEdge: Color(0xFF4FB89B),
+    brand: Color(0xFF0B6B57),
+    know: Color(0xFF14683F),
     onKnow: Color(0xFFFFFFFF),
-    dontKnow: Color(0xFFD6335F),
-    dontKnowText: Color(0xFFB3123F),
+    dontKnow: Color(0xFFA3202F),
+    dontKnowText: Color(0xFFA3202F),
+    dontKnowEdge: Color(0xFF7A1622),
     onDontKnowText: Color(0xFFFFFFFF),
-    shadow: Color(0xFF3B2118),
-    tintAmber: Color(0xFFFFF1D6),
-    tintGreen: Color(0xFFE3F4EC),
-    tintRed: Color(0xFFFCE4EB),
-    knowCard: Color(0xFFEAF6EF),
-    knowLine: Color(0xFF9ED3B6),
-    onKnowTint: Color(0xFF1D6B47),
-    dontKnowCard: Color(0xFFFCE9EE),
-    dontKnowLine: Color(0xFFEDB0C0),
-    onDontKnowTint: Color(0xFFA81238),
+    shadow: Color(0xFF12332C),
+    chartQuiet: Color(0xFF5F9E8C),
+    chartFading: Color(0xFF7A1622),
+    tintAmber: Color(0xFFFFE9A8),
+    tintGreen: Color(0xFFBFF0DC),
+    tintRed: Color(0xFFFFD2DE),
+    knowCard: Color(0xFFBFF0DC),
+    knowLine: Color(0xFF86D5B7),
+    onKnowTint: Color(0xFF14683F),
+    dontKnowCard: Color(0xFFFFD2DE),
+    dontKnowLine: Color(0xFFF0A3B8),
+    onDontKnowTint: Color(0xFFA3202F),
     streak: Color(0xFFC26A0A),
-    deckBlue: Color(0xFFE8ECF5),
+    deckBlue: Color(0xFFC9E2FF),
     deckSky: Color(0xFFE0F0FA),
-    deckViolet: Color(0xFFECE7F8),
-    deckAmber: Color(0xFFFFF1D6),
+    deckViolet: Color(0xFFE6DFF7),
+    deckAmber: Color(0xFFFFE9A8),
     deckSlate: Color(0xFFE9ECF1),
     deckSand: Color(0xFFF4ECDF),
   );
 
-  /// Dark tokens: cream ink on warm espresso surfaces, the primary fill
-  /// inverted, and the greens and reds lightened to meet WCAG AA on [surface].
+  /// Dark tokens: pale ink on deep green surfaces, the same mint primary, and
+  /// the greens and reds lightened to meet WCAG AA on [surface].
   static const dark = AppColors(
-    ground: Color(0xFF1F1512),
-    surface: Color(0xFF2B1E1A),
-    raised: Color(0xFF382823),
-    ink: Color(0xFFFFF1E3),
-    onInk: Color(0xFF3B2118),
-    primary: Color(0xFFFB7262),
-    onPrimary: Color(0xFF3B2118),
-    ink2: Color(0xFFDCCABB),
-    muted: Color(0xFFBDA89A),
-    hairline: Color(0xFF3D2C26),
-    outline: Color(0xFF4A372F),
-    brandTint: Color(0xFF57342A),
-    hero: Color(0xFF382823),
-    onHero: Color(0xFFFB7262),
-    brand: Color(0xFF3B2118),
-    know: Color(0xFF5ED39A),
-    onKnow: Color(0xFF1F1512),
-    dontKnow: Color(0xFFFF8FB0),
-    dontKnowText: Color(0xFFFF8FB0),
-    onDontKnowText: Color(0xFF1F1512),
+    ground: Color(0xFF10251F),
+    surface: Color(0xFF1B342D),
+    raised: Color(0xFF2C4A41),
+    ink: Color(0xFFE9F8F3),
+    onInk: Color(0xFF10251F),
+    primary: Color(0xFF7FE0C3),
+    primaryEdge: Color(0xFF4FB89B),
+    onPrimary: Color(0xFF10251F),
+    accent: Color(0xFF7FE0C3),
+    edge: Color(0xFF0A1714),
+    ink2: Color(0xFFA8C9BF),
+    muted: Color(0xFFA8C9BF),
+    hairline: Color(0xFF2C4A41),
+    outline: Color(0xFF2C4A41),
+    brandTint: Color(0xFF2C4A41),
+    hero: Color(0xFF0B6B57),
+    onHero: Color(0xFFFFFFFF),
+    onHeroEdge: Color(0xFF4FB89B),
+    brand: Color(0xFF0B6B57),
+    know: Color(0xFF8CE6BC),
+    onKnow: Color(0xFF1D1833),
+    dontKnow: Color(0xFFFFA8BA),
+    dontKnowText: Color(0xFFFFA8BA),
+    dontKnowEdge: Color(0xFFD97C92),
+    onDontKnowText: Color(0xFF1D1833),
     shadow: Color(0xFF000000),
+    chartQuiet: Color(0xFF6AAA99),
+    chartFading: Color(0xFFCF4A63),
     tintAmber: Color(0xFF4A3B1E),
-    tintGreen: Color(0xFF1E3F33),
-    tintRed: Color(0xFF4C2233),
-    knowCard: Color(0xFF17302A),
-    knowLine: Color(0xFF2E6B50),
-    onKnowTint: Color(0xFF5ED39A),
-    dontKnowCard: Color(0xFF3D1C2A),
-    dontKnowLine: Color(0xFF7E3350),
-    onDontKnowTint: Color(0xFFFF8FB0),
+    tintGreen: Color(0xFF1F5A44),
+    tintRed: Color(0xFF6B2331),
+    knowCard: Color(0xFF1B4A3B),
+    knowLine: Color(0xFF2C6B57),
+    onKnowTint: Color(0xFF8CE6BC),
+    dontKnowCard: Color(0xFF52202F),
+    dontKnowLine: Color(0xFF7A3049),
+    onDontKnowTint: Color(0xFFFFA8BA),
     streak: Color(0xFFF5A623),
-    deckBlue: Color(0xFF2A3560),
+    deckBlue: Color(0xFF2F5A86),
     deckSky: Color(0xFF1D3A50),
-    deckViolet: Color(0xFF382D5C),
+    deckViolet: Color(0xFF3B3360),
     deckAmber: Color(0xFF4A3B1E),
     deckSlate: Color(0xFF2D3445),
     deckSand: Color(0xFF3F3527),
@@ -501,11 +558,24 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// Text and icons on an [ink] fill.
   final Color onInk;
 
-  /// The primary action's fill: the mascot's coral, in both themes.
+  /// The primary action's fill. Mint falls short on a light [surface], so
+  /// its [onPrimary] label and [primaryEdge] carry the button, and text and
+  /// marks take [accent] (ADR 0147).
   final Color primary;
 
-  /// A primary action's label, the brand's cocoa, on [primary].
+  /// The edge [primary] sits on.
+  final Color primaryEdge;
+
+  /// A primary action's label on [primary].
   final Color onPrimary;
+
+  /// Coloured text, a count, the current tab, and a chart's or a progress
+  /// bar's stressed mark: never [primary].
+  final Color accent;
+
+  /// The edge a [surface] sits on: a card, a row, a quiet button, the tab bar.
+  /// Decoration, so no contrast is asked of it.
+  final Color edge;
 
   /// Text one step quieter than [ink], such as a card's back in a list.
   final Color ink2;
@@ -516,21 +586,22 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// Dividers and the line around a card.
   final Color hairline;
 
-  /// The outline of a secondary button and a field.
+  /// The outline of a field, and the track of a progress bar.
   final Color outline;
 
-  /// A quiet tint of the mascot's coral: a chip, an avatar's circle, a filled
-  /// blank.
+  /// A quiet tint of the ground: a chip, an avatar's circle, a filled blank.
   final Color brandTint;
 
   /// The study coach's fill and the study screen's notice.
   final Color hero;
 
-  /// The mascot's coral: text and the button fill on [hero]; never on a light
-  /// ground, where it falls short of AA.
+  /// Text and the button fill on [hero].
   final Color onHero;
 
-  /// The brand's cocoa in both themes: the label of a button on [hero].
+  /// The edge a button filled in [onHero] sits on.
+  final Color onHeroEdge;
+
+  /// [hero]'s colour as the label of a button filled in [onHero].
   final Color brand;
 
   /// "Know", as text and icons on [surface] or [ground], and as a fill under [onKnow].
@@ -542,10 +613,21 @@ final class AppColors extends ThemeExtension<AppColors> {
 
   /// "Don't know" and destruction, as text on [surface] and as a fill under [onDontKnowText].
   final Color dontKnowText;
+
+  /// The edge a destructive fill sits on.
+  final Color dontKnowEdge;
   final Color onDontKnowText;
 
   /// The colour of every shadow, before its opacity.
   final Color shadow;
+
+  /// A chart's bar or segment that is not the one it stresses: 3:1 on
+  /// [surface], where [edge] is not (ADR 0147).
+  final Color chartQuiet;
+
+  /// The recall band that is fading: 3:1 on [surface], and 1.5:1 from
+  /// [accent] and [chartQuiet].
+  final Color chartFading;
 
   /// An amber tint: the backlog card's check and a chart's shortfall.
   final Color tintAmber;
@@ -599,10 +681,6 @@ final class AppColors extends ThemeExtension<AppColors> {
   final Color deckSlate;
   final Color deckSand;
 
-  /// A chart's bar that is not the one it stresses: [color] a step back, ink's
-  /// still 3:1 on the surface. Derived, so no token holds it.
-  static Color quiet(Color color) => color.withValues(alpha: 0.55);
-
   /// The tokens of [context]'s theme.
   static AppColors of(BuildContext context) =>
       Theme.of(context).extension<AppColors>() ??
@@ -616,7 +694,10 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? ink,
     Color? onInk,
     Color? primary,
+    Color? primaryEdge,
     Color? onPrimary,
+    Color? accent,
+    Color? edge,
     Color? ink2,
     Color? muted,
     Color? hairline,
@@ -624,13 +705,17 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? brandTint,
     Color? hero,
     Color? onHero,
+    Color? onHeroEdge,
     Color? brand,
     Color? know,
     Color? onKnow,
     Color? dontKnow,
     Color? dontKnowText,
+    Color? dontKnowEdge,
     Color? onDontKnowText,
     Color? shadow,
+    Color? chartQuiet,
+    Color? chartFading,
     Color? tintAmber,
     Color? tintGreen,
     Color? tintRed,
@@ -654,7 +739,10 @@ final class AppColors extends ThemeExtension<AppColors> {
     ink: ink ?? this.ink,
     onInk: onInk ?? this.onInk,
     primary: primary ?? this.primary,
+    primaryEdge: primaryEdge ?? this.primaryEdge,
     onPrimary: onPrimary ?? this.onPrimary,
+    accent: accent ?? this.accent,
+    edge: edge ?? this.edge,
     ink2: ink2 ?? this.ink2,
     muted: muted ?? this.muted,
     hairline: hairline ?? this.hairline,
@@ -662,13 +750,17 @@ final class AppColors extends ThemeExtension<AppColors> {
     brandTint: brandTint ?? this.brandTint,
     hero: hero ?? this.hero,
     onHero: onHero ?? this.onHero,
+    onHeroEdge: onHeroEdge ?? this.onHeroEdge,
     brand: brand ?? this.brand,
     know: know ?? this.know,
     onKnow: onKnow ?? this.onKnow,
     dontKnow: dontKnow ?? this.dontKnow,
     dontKnowText: dontKnowText ?? this.dontKnowText,
+    dontKnowEdge: dontKnowEdge ?? this.dontKnowEdge,
     onDontKnowText: onDontKnowText ?? this.onDontKnowText,
     shadow: shadow ?? this.shadow,
+    chartQuiet: chartQuiet ?? this.chartQuiet,
+    chartFading: chartFading ?? this.chartFading,
     tintAmber: tintAmber ?? this.tintAmber,
     tintGreen: tintGreen ?? this.tintGreen,
     tintRed: tintRed ?? this.tintRed,
@@ -698,7 +790,10 @@ final class AppColors extends ThemeExtension<AppColors> {
       ink: mix(ink, other.ink),
       onInk: mix(onInk, other.onInk),
       primary: mix(primary, other.primary),
+      primaryEdge: mix(primaryEdge, other.primaryEdge),
       onPrimary: mix(onPrimary, other.onPrimary),
+      accent: mix(accent, other.accent),
+      edge: mix(edge, other.edge),
       ink2: mix(ink2, other.ink2),
       muted: mix(muted, other.muted),
       hairline: mix(hairline, other.hairline),
@@ -706,13 +801,17 @@ final class AppColors extends ThemeExtension<AppColors> {
       brandTint: mix(brandTint, other.brandTint),
       hero: mix(hero, other.hero),
       onHero: mix(onHero, other.onHero),
+      onHeroEdge: mix(onHeroEdge, other.onHeroEdge),
       brand: mix(brand, other.brand),
       know: mix(know, other.know),
       onKnow: mix(onKnow, other.onKnow),
       dontKnow: mix(dontKnow, other.dontKnow),
       dontKnowText: mix(dontKnowText, other.dontKnowText),
+      dontKnowEdge: mix(dontKnowEdge, other.dontKnowEdge),
       onDontKnowText: mix(onDontKnowText, other.onDontKnowText),
       shadow: mix(shadow, other.shadow),
+      chartQuiet: mix(chartQuiet, other.chartQuiet),
+      chartFading: mix(chartFading, other.chartFading),
       tintAmber: mix(tintAmber, other.tintAmber),
       tintGreen: mix(tintGreen, other.tintGreen),
       tintRed: mix(tintRed, other.tintRed),
@@ -742,7 +841,7 @@ final darkTheme = _theme(Brightness.dark, AppColors.dark);
 ThemeData _theme(Brightness brightness, AppColors colors) {
   final scheme = ColorScheme(
     brightness: brightness,
-    primary: colors.ink,
+    primary: colors.accent,
     onPrimary: colors.onInk,
     secondary: colors.ink2,
     onSecondary: colors.surface,
@@ -799,16 +898,16 @@ ThemeData _theme(Brightness brightness, AppColors colors) {
       style: FilledButton.styleFrom(
         minimumSize: buttonSize,
         shape: control,
-        textStyle: AppType.label,
+        textStyle: AppType.button,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         minimumSize: buttonSize,
         shape: control,
-        textStyle: AppType.label,
+        textStyle: AppType.button,
         foregroundColor: colors.ink,
-        side: BorderSide(color: colors.outline),
+        side: BorderSide.none,
         backgroundColor: colors.surface,
       ),
     ),
@@ -837,8 +936,8 @@ ThemeData _theme(Brightness brightness, AppColors colors) {
       errorStyle: AppType.caption.copyWith(color: colors.dontKnowText),
     ),
     bottomSheetTheme: BottomSheetThemeData(
-      backgroundColor: colors.surface,
-      modalBackgroundColor: colors.surface,
+      backgroundColor: colors.ground,
+      modalBackgroundColor: colors.ground,
       showDragHandle: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -859,20 +958,22 @@ ThemeData _theme(Brightness brightness, AppColors colors) {
         shape: control,
       ),
     ),
-    // On, the ink track; off, a muted thumb and outline, each at least 3:1
-    // on the ground.
+    // On, the accent track; off, a muted thumb and outline, each at least
+    // 3:1 on the ground.
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
         (states) =>
             states.contains(WidgetState.selected) ? colors.onInk : colors.muted,
       ),
       trackColor: WidgetStateProperty.resolveWith(
-        (states) =>
-            states.contains(WidgetState.selected) ? colors.ink : colors.surface,
+        (states) => states.contains(WidgetState.selected)
+            ? colors.accent
+            : colors.surface,
       ),
       trackOutlineColor: WidgetStateProperty.resolveWith(
-        (states) =>
-            states.contains(WidgetState.selected) ? colors.ink : colors.muted,
+        (states) => states.contains(WidgetState.selected)
+            ? colors.accent
+            : colors.muted,
       ),
     ),
     snackBarTheme: SnackBarThemeData(

@@ -149,9 +149,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-/// The three tabs at the foot of the screen, on the surface over a hairline:
-/// the current one a coral-tinted pill behind its icon over a bold label, the
-/// others muted.
+/// The three tabs at the foot of the screen, on one surface floating on its
+/// edge: each its name alone, the current one in the primary colour.
 class _TabBar extends StatelessWidget {
   const _TabBar({required this.selected, required this.onSelect});
 
@@ -162,85 +161,62 @@ class _TabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
-    final tabs = [
-      (icon: LucideIcons.sun, label: l10n.tabToday),
-      (icon: LucideIcons.layers, label: l10n.tabDecks),
-      (icon: LucideIcons.chartColumn, label: l10n.tabRecord),
-    ];
+    final tabs = [l10n.tabToday, l10n.tabDecks, l10n.tabRecord];
     return Semantics(
       container: true,
       label: l10n.tabsLabel,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.surface,
-          border: Border(top: BorderSide(color: colors.hairline)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Row(
-            children: [
-              for (final (index, tab) in tabs.indexed)
-                Expanded(
-                  child: Semantics(
-                    selected: index == selected,
-                    button: true,
-                    child: InkWell(
-                      onTap: () => onSelect(index),
-                      // At least its height; taller where a larger text
-                      // size needs it, so the label is never cut.
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minHeight: AppSize.cta + AppSpace.s8,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          spacing: AppSpace.s4,
-                          children: [
-                            // Off the bar's top edge at a large text size too.
-                            const SizedBox(height: AppSpace.s4),
-                            Container(
-                              width: AppSize.tabPill.width,
-                              height: AppSize.tabPill.height,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: index == selected
-                                    ? colors.brandTint
-                                    : null,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.chip,
-                                ),
-                              ),
-                              child: Icon(
-                                tab.icon,
-                                color: index == selected
-                                    ? colors.ink
-                                    : colors.muted,
-                              ),
-                            ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.s16,
+            AppSpace.s12,
+            AppSpace.s16,
+            AppSpace.s16,
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.button),
+              boxShadow: AppShadow.edge(colors.edge, AppSize.edgeRow),
+            ),
+            child: Row(
+              children: [
+                for (final (index, tab) in tabs.indexed)
+                  Expanded(
+                    child: Semantics(
+                      selected: index == selected,
+                      button: true,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.button),
+                        onTap: () => onSelect(index),
+                        // At least its height; taller where a larger text
+                        // size needs it, so the label is never cut.
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight: AppSize.tabBar,
+                          ),
+                          child: Center(
                             // One line, shrunk to the tab only where a large
                             // text size is wider than it.
-                            FittedBox(
+                            child: FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                tab.label,
-                                style: AppType.micro.copyWith(
+                                tab,
+                                style: AppType.label.copyWith(
                                   color: index == selected
-                                      ? colors.ink
-                                      : colors.muted,
-                                  fontWeight: index == selected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
+                                      ? colors.accent
+                                      : colors.ink2,
                                 ),
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

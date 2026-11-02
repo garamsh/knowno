@@ -253,10 +253,10 @@ export async function Today() {
             aria-valuemin={0}
             aria-valuemax={goal.goal}
             aria-valuenow={goal.done}
-            className="h-progress overflow-hidden rounded-full bg-hairline"
+            className="h-progress overflow-hidden rounded-full bg-edge"
           >
             <div
-              className="h-full rounded-full bg-ink"
+              className="h-full rounded-full bg-accent"
               style={{ width: `${String(goal.goal === 0 ? 0 : (goal.done / goal.goal) * 100)}%` }}
             />
           </div>
@@ -316,7 +316,7 @@ function CatchUp({
           <div key={labels[index]} className="flex flex-col items-center justify-end gap-1">
             <span className="text-micro font-bold">{value}</span>
             <span
-              className={`w-full rounded-md ${index === 0 ? "bg-primary" : "bg-brand-tint"}`}
+              className={`w-full rounded-md ${index === 0 ? "bg-accent" : "bg-chart-quiet"}`}
               style={{ height: `${String(Math.max(4, (value / highest) * 64))}px` }}
             />
             <span className="text-micro text-muted">{labels[index]}</span>
@@ -360,7 +360,7 @@ function LastWeek({ week, timeZone }: { week: WeekDay[]; timeZone: string }) {
           <span key={day.start} className="flex flex-col items-center justify-end gap-1">
             <span className="text-micro font-bold">{day.cards}</span>
             <span
-              className={`w-full rounded-md ${index === week.length - 1 ? "bg-primary" : "bg-brand-tint"}`}
+              className={`w-full rounded-md ${index === week.length - 1 ? "bg-accent" : "bg-chart-quiet"}`}
               style={{ height: `${String(Math.max(4, (day.cards / highest) * 64))}px` }}
             />
             <span className="text-micro text-muted">{labels[index]}</span>
@@ -391,10 +391,10 @@ function TodayDecks({ rows }: { rows: { deck: Deck; today: number; mastered: num
             >
               <DeckTile deck={deck} size="size-8.5 text-secondary" />
               <span className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="truncate text-label">{deck.name}</span>
-                <span aria-hidden className="h-1.5 overflow-hidden rounded-full bg-hairline">
+                <span className="truncate text-body-strong">{deck.name}</span>
+                <span aria-hidden className="h-1.5 overflow-hidden rounded-full bg-edge">
                   <span
-                    className="block h-full bg-ink"
+                    className="block h-full bg-accent"
                     style={{ width: `${String(mastered * 100)}%` }}
                   />
                 </span>

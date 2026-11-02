@@ -71,7 +71,7 @@ describe.each(documents)("$name", ({ page, title, effectiveDate, effectiveSenten
     await render(page, {});
 
     expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(0);
-    expect(typeSizesOf(document.body)).toEqual([13, 16, 22]);
+    expect(typeSizesOf(document.body)).toEqual([13, 16, 26]);
   });
 
   it("carries every required section, each a heading its table of contents links to", async () => {

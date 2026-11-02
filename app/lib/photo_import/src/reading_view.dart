@@ -102,8 +102,8 @@ class ReadingView extends StatelessWidget {
             ExcludeSemantics(
               child: LinearProgressIndicator(
                 value: jobs.isEmpty ? 0 : read / jobs.length,
-                color: colors.ink,
-                backgroundColor: colors.hairline,
+                color: colors.accent,
+                backgroundColor: colors.edge,
                 borderRadius: BorderRadius.circular(AppSpace.s4),
               ),
             ),

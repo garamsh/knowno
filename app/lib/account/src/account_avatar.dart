@@ -34,8 +34,11 @@ class AccountAvatar extends ConsumerWidget {
             ? Icon(LucideIcons.user, color: colors.onInk, size: size / 2)
             : Text(
                 email.characters.first.toUpperCase(),
-                style: (size >= AppSize.avatar ? AppType.title : AppType.label)
-                    .copyWith(color: colors.onInk),
+                style:
+                    (size >= AppSize.avatar
+                            ? AppType.deckName
+                            : AppType.bodyStrong)
+                        .copyWith(color: colors.onInk),
               ),
       ),
     );

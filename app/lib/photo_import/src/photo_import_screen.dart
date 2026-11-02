@@ -413,7 +413,6 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
             ])
               AppListRow(
                 title: label,
-                onSheet: true,
                 onTap: () => Navigator.of(context).pop(origin),
               ),
           ],

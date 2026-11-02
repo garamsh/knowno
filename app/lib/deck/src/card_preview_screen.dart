@@ -185,7 +185,7 @@ class _Face extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        boxShadow: AppShadow.raised(colors),
+        boxShadow: AppShadow.card(colors),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.card),
