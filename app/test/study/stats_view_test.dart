@@ -580,9 +580,9 @@ void main() {
           );
         }
         // Control: the edge, which a chart does not draw in, fails the
-        // check, and two of the old cobalt bands sit under 45 degrees apart.
+        // check, and the accent and its tint sit under 45 degrees apart.
         expect(_contrast(colors.edge, surface), lessThan(3));
-        expect(apart(colors.accent, colors.chartOther), lessThan(45));
+        expect(apart(colors.accent, colors.brandTint), lessThan(45));
       },
     );
   }

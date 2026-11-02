@@ -283,8 +283,6 @@ const square = (path, source, pixels, opaque = false) => ({
 });
 
 const rasters = [
-  ...densities("knowno-lockup-light", vectors["web/public/brand/knowno-lockup-light.svg"], lockupSize, { height: 30 }),
-  ...densities("knowno-lockup-dark", vectors["web/public/brand/knowno-lockup-dark.svg"], lockupSize, { height: 30 }),
   ...densities("knowno-stacked-light", vectors["web/public/brand/knowno-stacked-light.svg"], stackedSize, { width: 200 }),
   ...densities("knowno-stacked-dark", vectors["web/public/brand/knowno-stacked-dark.svg"], stackedSize, { width: 200 }),
   ...Object.entries(expressions).flatMap(([name, art]) =>

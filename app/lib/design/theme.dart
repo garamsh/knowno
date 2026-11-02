@@ -95,12 +95,6 @@ abstract final class AppSize {
   /// A sheet's drag handle.
   static const handle = Size(44, 5);
 
-  /// The account screen's initial avatar.
-  static const avatar = 56.0;
-
-  /// The home screen's initial avatar, in its top bar.
-  static const smallAvatar = 32.0;
-
   /// A deck row's initial tile.
   static const deckTile = 46.0;
 
@@ -125,9 +119,6 @@ abstract final class AppSize {
   /// How high a pull-down menu floats, which sets its shadow.
   static const menuElevation = 12.0;
 
-  /// The horizontal lockup's height in the home screen's top bar.
-  static const lockupHeight = 30.0;
-
   /// The stacked lockup's width on the sign-in screen.
   static const stackedLockupWidth = 200.0;
 
@@ -142,9 +133,6 @@ abstract final class AppSize {
 
   /// The mascot beside words: the backlog card's, or a photo being read.
   static const mascotGuide = 64.0;
-
-  /// The symbol in the today card's corner.
-  static const heroSymbol = 120.0;
 
   /// The study progress bar's thickness.
   static const progress = 10.0;
@@ -378,11 +366,6 @@ abstract final class AppType {
 
 /// The brand's marks, drawn from the files under `assets/brand/`.
 abstract final class AppBrand {
-  /// The mark on its circle, 알아몰라 and knowno side by side, in a
-  /// light-ground or a dark-ground version.
-  static String lockup(Brightness brightness) =>
-      'assets/brand/knowno-lockup-${brightness.name}.png';
-
   /// The mark on its circle over 알아몰라 and knowno, in a light-ground or a
   /// dark-ground version.
   static String stacked(Brightness brightness) =>
@@ -440,7 +423,6 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.dontKnowEdge,
     required this.onDontKnowText,
     required this.shadow,
-    required this.chartOther,
     required this.chartQuiet,
     required this.recallStrong,
     required this.recallFair,
@@ -495,7 +477,6 @@ final class AppColors extends ThemeExtension<AppColors> {
     dontKnowEdge: Color(0xFF7A1622),
     onDontKnowText: Color(0xFFFFFFFF),
     shadow: Color(0xFF13224A),
-    chartOther: Color(0xFF9DB1F0),
     chartQuiet: Color(0xFF6F86D9),
     recallStrong: Color(0xFF1E9E6A),
     recallFair: Color(0xFFF5B731),
@@ -550,7 +531,6 @@ final class AppColors extends ThemeExtension<AppColors> {
     dontKnowEdge: Color(0xFFD97C92),
     onDontKnowText: Color(0xFF1D1833),
     shadow: Color(0xFF000000),
-    chartOther: Color(0xFF3D568F),
     chartQuiet: Color(0xFF6890E2),
     recallStrong: Color(0xFF4FD69C),
     recallFair: Color(0xFFF7C64F),
@@ -660,10 +640,6 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// The colour of every shadow, before its opacity.
   final Color shadow;
 
-  /// A chart's bar or segment that is not the one it stresses, beside its
-  /// own count, which carries it: 1.5:1 from [accent].
-  final Color chartOther;
-
   /// A mark with no count of its own: a past week's mastered bar, a deck's
   /// learning share. 3:1 on [surface], where [edge] is not (ADR 0147).
   final Color chartQuiet;
@@ -762,7 +738,6 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? dontKnowEdge,
     Color? onDontKnowText,
     Color? shadow,
-    Color? chartOther,
     Color? chartQuiet,
     Color? recallStrong,
     Color? recallFair,
@@ -813,7 +788,6 @@ final class AppColors extends ThemeExtension<AppColors> {
     dontKnowEdge: dontKnowEdge ?? this.dontKnowEdge,
     onDontKnowText: onDontKnowText ?? this.onDontKnowText,
     shadow: shadow ?? this.shadow,
-    chartOther: chartOther ?? this.chartOther,
     chartQuiet: chartQuiet ?? this.chartQuiet,
     recallStrong: recallStrong ?? this.recallStrong,
     recallFair: recallFair ?? this.recallFair,
@@ -870,7 +844,6 @@ final class AppColors extends ThemeExtension<AppColors> {
       dontKnowEdge: mix(dontKnowEdge, other.dontKnowEdge),
       onDontKnowText: mix(onDontKnowText, other.onDontKnowText),
       shadow: mix(shadow, other.shadow),
-      chartOther: mix(chartOther, other.chartOther),
       chartQuiet: mix(chartQuiet, other.chartQuiet),
       recallStrong: mix(recallStrong, other.recallStrong),
       recallFair: mix(recallFair, other.recallFair),

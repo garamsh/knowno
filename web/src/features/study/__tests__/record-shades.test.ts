@@ -119,8 +119,8 @@ describe("the 기록 page's chart shades", () => {
     (theme) => {
       const surface = rgb(themes[theme].get("surface") ?? "");
       expect(contrast(drawn("bg-edge", theme), surface)).toBeLessThan(3);
-      // Control: today's bar and the other days' share a hue, so the hue check can fail.
-      expect(hueApart(drawn("bg-accent", theme), drawn("bg-chart-other", theme))).toBeLessThan(45);
+      // Control: the accent and its tint share a hue, so the hue check can fail.
+      expect(hueApart(drawn("bg-accent", theme), drawn("bg-brand-tint", theme))).toBeLessThan(45);
     },
   );
 });
