@@ -253,7 +253,7 @@ The `extract-cards` Edge Function that turns a photo of clear study material, su
 
 #### Flow
 
-- **Source** — the new-deck sheet and the deck screen's "카드 추가" sheet each hold "사진 찍기", the system camera, and "앨범에서 고르기", the library; the row chosen starts photo import from that source at once, as `PhotoImport`'s `PhotoOrigin` ([ADR 0054](adr/0054-take-the-photo-with-the-system-camera-or-from-the-library-and-remove-the-in-app-camera-view.md), [ADR 0067](adr/0067-start-a-deck-or-a-card-from-one-sheet-that-holds-the-photo-source-and-name-public-decks-once.md)):
+- **Source** — the deck screen's "카드 추가" sheet holds "사진 찍기", the system camera, and "앨범에서 고르기", the library; the row chosen starts photo import from that source at once, as `PhotoImport`'s `PhotoOrigin` ([ADR 0054](adr/0054-take-the-photo-with-the-system-camera-or-from-the-library-and-remove-the-in-app-camera-view.md), [ADR 0067](adr/0067-start-a-deck-or-a-card-from-one-sheet-that-holds-the-photo-source-and-name-public-decks-once.md)):
   - the camera takes one photo; the album picks up to 50 in one system picker, in pick order ([ADR 0089](adr/0089-import-up-to-ten-photos-into-one-list-read-two-at-a-time-and-state-today-s-limit-before-reading.md), [ADR 0094](adr/0094-read-a-photo-import-of-up-to-fifty-photos-three-at-a-time-as-an-app-level-job-kept-on-the-device-and-offered-again-after-a-restart.md));
   - while a job is reading or its list waits, a new import starts nothing and a snack bar says "읽고 있는 사진이 있어요. 끝난 뒤에 새로 가져올 수 있어요.";
   - the photo import screen opens only with a photo, at Extracting, with several, at Reading, or with the failure that came instead;
