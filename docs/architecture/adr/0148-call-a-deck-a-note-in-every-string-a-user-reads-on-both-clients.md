@@ -27,9 +27,8 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - A reader of the docs meets `deck` for the thing in code and 노트 for the same thing on a screen; `design.md` §Copy says so once.
 - A new string that says 덱 fails a test in the first run.
 - The ADRs before this one keep 덱 in their bodies, as they were decided.
-- The MCP function's text and the web pages for connecting an AI follow in #575.
 
 ## Signs the decision was wrong
 
 - Users or the owner call the thing something else again, or read 노트 as something other than a deck, such as a free note without cards.
-- The allow-list grows past the files waiting on #575, which would show strings the scan cannot reach.
+- The allow-list grows past a few files, which would show strings the scan cannot reach.
