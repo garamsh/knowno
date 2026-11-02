@@ -4,6 +4,7 @@ import { type BrowserContext, expect, type Locator, type Page, test } from "@pla
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
+import { expectScreenAtWidths } from "./authoring-screen";
 import { untilReacted } from "./until-reacted";
 
 // The local stack scripts/test-web.ts starts, whose URL and publishable key the app was built with.
@@ -206,6 +207,8 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   await page.getByRole("button", { name: "직접 입력", exact: true }).click();
   const editor = page.getByRole("dialog", { name: "새 카드" });
   await expect(editor).toBeVisible();
+  await expectScreenAtWidths(page, editor);
+  await capture(page, "new-card");
   // At 100% on a phone, each of the pair's labels takes one line.
   for (const label of ["저장", "저장하고 다음 카드"]) {
     expect(await labelLines(editor.getByRole("button", { name: label, exact: true })), label).toBe(
@@ -223,6 +226,7 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   for (const label of ["저장", "저장하고 카드 추가"]) {
     expect(await labelLines(note.getByRole("button", { name: label, exact: true })), label).toBe(1);
   }
+  await expectScreenAtWidths(page, note);
   await capture(page, "new-note");
   // 저장하고 카드 추가 opens the new note with its 카드 추가 sheet up, its colour stored.
   // The radio is visually hidden inside its swatch, which takes the pointer.
@@ -231,4 +235,97 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   await expect(page.getByRole("dialog", { name: "카드 추가" })).toBeVisible();
   const stored = await db.from("decks").select("name,color").eq("name", "토익 900");
   expect(stored.data).toEqual([{ name: "토익 900", color: "sand" }]);
+});
+
+test("answers the browser's back on an authoring screen as the phone's back, and leaves 새 노트 for its note", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  const { userId, db } = await signUp(context, baseURL, "back");
+  const deckId = randomUUID();
+  const time = new Date().toISOString();
+  const inserted = await db.from("decks").insert({
+    id: deckId,
+    user_id: userId,
+    name: "단어장",
+    visibility: "private",
+    created_at: time,
+    updated_at: time,
+  });
+  expect(inserted.error).toBeNull();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.goto(`/decks/${deckId}`);
+  const editor = page.getByRole("dialog", { name: "새 카드" });
+  const question = page.getByRole("dialog", { name: "작성 중인 카드를 버릴까요?" });
+  const openEditor = async () => {
+    await untilReacted(
+      () => page.getByRole("button", { name: "카드 추가", exact: true }).click(),
+      () => page.getByRole("dialog", { name: "카드 추가" }).isVisible(),
+    );
+    await page.getByRole("button", { name: "직접 입력", exact: true }).click();
+    await expect(editor).toBeVisible();
+  };
+
+  // Untouched, the back closes the screen and stays on the note, focus back on 카드 추가.
+  await openEditor();
+  await page.goBack();
+  await expect(editor).toBeHidden();
+  expect(new URL(page.url()).pathname).toBe(`/decks/${deckId}`);
+  await expect(page.getByRole("button", { name: "카드 추가", exact: true })).toBeFocused();
+
+  // Over the screen, the back closes a sheet alone; the next asks about the 칸 added, and 버리기
+  // leaves nothing behind.
+  const addSheet = page.getByRole("dialog", { name: "칸 추가" });
+  await openEditor();
+  await editor.getByRole("button", { name: "+ 칸 추가", exact: true }).click();
+  await addSheet.getByRole("button", { name: "단어", exact: true }).click();
+  await editor.getByRole("button", { name: "+ 칸 추가", exact: true }).click();
+  await expect(addSheet).toBeVisible();
+  await page.goBack();
+  await expect(addSheet).toBeHidden();
+  await expect(editor).toBeVisible();
+  await page.goBack();
+  await question.getByRole("button", { name: "버리기", exact: true }).click();
+  await expect(editor).toBeHidden();
+  await page.goBack();
+  await expect(page).toHaveURL(`${baseURL}/`);
+  await page.goForward();
+  await expect(page.getByRole("heading", { level: 1, name: "단어장" })).toBeVisible();
+
+  // Holding a change, the back asks first; a back on the question keeps writing, and so does
+  // Escape on the question; Escape on the screen asks too, and 버리기 leaves.
+  await openEditor();
+  await editor.getByRole("textbox", { name: "앞면", exact: true }).fill("사과");
+  await page.goBack();
+  await expect(question).toBeVisible();
+  await page.goBack();
+  await expect(question).toBeHidden();
+  await expect(editor.getByRole("textbox", { name: "앞면", exact: true })).toHaveValue("사과");
+  await page.goBack();
+  await expect(question).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(question).toBeHidden();
+  await page.keyboard.press("Escape");
+  await question.getByRole("button", { name: "버리기", exact: true }).click();
+  await expect(editor).toBeHidden();
+  expect(new URL(page.url()).pathname).toBe(`/decks/${deckId}`);
+
+  // Every entry the screens held is gone, so the next back leaves the note for 홈.
+  await page.goBack();
+  await expect(page).toHaveURL(`${baseURL}/`);
+
+  // 새 노트 is left before its note opens, so a back from that note returns to 홈.
+  await untilReacted(
+    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
+    () => page.getByRole("dialog", { name: "새 노트" }).isVisible(),
+  );
+  await page.getByRole("textbox", { name: "이름", exact: true }).fill("토익");
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "토익" })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });

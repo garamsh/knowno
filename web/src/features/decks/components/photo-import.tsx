@@ -21,7 +21,8 @@ import {
   type SectionForm,
   sectionsOf,
 } from "../section-form";
-import { AuthoringSheet } from "./authoring-sheet";
+import { leaveThen } from "../hooks/use-back-entry";
+import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
 import { CardFields } from "./card-fields";
 import { ImportList } from "./import-list";
 
@@ -349,9 +350,11 @@ export function PhotoImport({
           deckId,
           Object.fromEntries(sections.map((section) => [section.key, formOf(section)])),
         );
-        close();
-        router.push(`/decks/${deckId}`);
-        router.refresh();
+        leaveThen(() => {
+          close();
+          router.push(`/decks/${deckId}`);
+          router.refresh();
+        });
       } catch {
         setMessage("카드를 저장하지 못했어요. 다시 시도해 주세요.");
       } finally {
@@ -384,8 +387,59 @@ export function PhotoImport({
           ? "단어를 찾았어요"
           : `카드 ${String(candidates.length)}장을 만들었어요`;
 
+  const actions = failure ? (
+    (isRetakeable(failure) || (single && isRetryable(failure))) && (
+      <div className="flex gap-3">
+        {isRetakeable(failure) && (
+          <PhotoPicker
+            label={camera ? "다시 찍기" : "다른 사진 고르기"}
+            camera={camera}
+            multiple={false}
+            primary={!(single && isRetryable(failure))}
+            pick={replace}
+          />
+        )}
+        {single && isRetryable(failure) && (
+          <button
+            type="button"
+            onClick={() => {
+              retry(single);
+            }}
+            className="pressable min-h-cta flex-1 rounded-button bg-primary px-4 text-button text-on-primary"
+          >
+            다시 시도
+          </button>
+        )}
+      </div>
+    )
+  ) : single ? (
+    <CancelBar cancel={cancel} />
+  ) : unfinished ? (
+    <CancelBar
+      cancel={cancel}
+      retryFailed={
+        photos.some((photo) => photo.state.kind === "failed" && isRetryable(photo.state.failure))
+          ? retryFailed
+          : undefined
+      }
+    />
+  ) : (
+    <button
+      type="button"
+      disabled={pending || toSave.length === 0}
+      onClick={add}
+      className="pressable min-h-cta w-full rounded-button bg-primary px-4 text-button text-on-primary disabled:opacity-50"
+    >
+      {pending ? "저장 중" : `카드 ${String(cardCount)}장 추가`}
+    </button>
+  );
+
   return (
-    <AuthoringSheet title={title} close={unfinished && !failure ? cancel : leave}>
+    <AuthoringScreen
+      title={title}
+      actions={actions}
+      close={unfinished && !failure ? cancel : leave}
+    >
       {failure ? (
         <div className="flex min-w-0 flex-col">
           <div className="flex flex-col items-center gap-4 py-10">
@@ -396,30 +450,6 @@ export function PhotoImport({
           </div>
           {note && !jobFailure && (
             <p className="pb-4 text-center text-body break-keep text-ink-2">{note}</p>
-          )}
-          {(isRetakeable(failure) || (single && isRetryable(failure))) && (
-            <div className="sticky -bottom-4 flex gap-3 bg-ground pt-3 pb-7">
-              {isRetakeable(failure) && (
-                <PhotoPicker
-                  label={camera ? "다시 찍기" : "다른 사진 고르기"}
-                  camera={camera}
-                  multiple={false}
-                  primary={!(single && isRetryable(failure))}
-                  pick={replace}
-                />
-              )}
-              {single && isRetryable(failure) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    retry(single);
-                  }}
-                  className="pressable min-h-cta flex-1 rounded-button bg-primary px-4 text-button text-on-primary"
-                >
-                  다시 시도
-                </button>
-              )}
-            </div>
           )}
         </div>
       ) : single ? (
@@ -448,7 +478,6 @@ export function PhotoImport({
             ))}
           </div>
           <p className="text-center text-caption break-keep text-muted">{privacyNote}</p>
-          <CancelBar cancel={cancel} />
         </div>
       ) : unfinished ? (
         <div className="flex min-w-0 flex-col gap-5">
@@ -487,16 +516,6 @@ export function PhotoImport({
             ))}
           </ul>
           <p className="text-center text-caption break-keep text-muted">{privacyNote}</p>
-          <CancelBar
-            cancel={cancel}
-            retryFailed={
-              photos.some(
-                (photo) => photo.state.kind === "failed" && isRetryable(photo.state.failure),
-              )
-                ? retryFailed
-                : undefined
-            }
-          />
         </div>
       ) : (
         <div className="flex min-w-0 flex-col">
@@ -547,16 +566,6 @@ export function PhotoImport({
               {message}
             </p>
           )}
-          <div className="sticky -bottom-4 mt-4 bg-ground pt-3 pb-7">
-            <button
-              type="button"
-              disabled={pending || toSave.length === 0}
-              onClick={add}
-              className="pressable min-h-cta w-full rounded-button bg-primary px-4 text-button text-on-primary disabled:opacity-50"
-            >
-              {pending ? "저장 중" : `카드 ${String(cardCount)}장 추가`}
-            </button>
-          </div>
         </div>
       )}
       {choosing && (
@@ -688,7 +697,7 @@ export function PhotoImport({
           </div>
         </AuthoringSheet>
       )}
-    </AuthoringSheet>
+    </AuthoringScreen>
   );
 }
 
@@ -713,10 +722,10 @@ function Thumbnail({ url, className }: { url: string; className: string }) {
   );
 }
 
-/** "취소" at the bottom of the reading screens, and "실패한 사진 다시 시도" beside it while one can be sent again. */
+/** "취소" at the foot of the reading screens, and "실패한 사진 다시 시도" beside it while one can be sent again. */
 function CancelBar({ cancel, retryFailed }: { cancel: () => void; retryFailed?: () => void }) {
   return (
-    <div className="sticky -bottom-4 flex gap-3 bg-ground pt-3 pb-7">
+    <div className="flex gap-3">
       <button
         type="button"
         onClick={cancel}
