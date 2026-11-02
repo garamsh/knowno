@@ -34,7 +34,11 @@ import { WholeCard } from "./whole-card";
 
 type Draft<K extends CellDraft["kind"]> = Extract<CellDraft, { kind: K }>;
 
-const fieldBox = "whitespace-pre-wrap break-words p-2 text-body";
+/** A field's box, padded as the phone's `AppTextField`: 16 across, and down the field's height past a line. */
+const fieldBox =
+  "min-h-field whitespace-pre-wrap break-words px-4 py-[calc((var(--spacing-field)-var(--text-body--line-height))/2)] text-body";
+/** A table cell's box, padded 12 on every side as the phone's table pads a cell's field. */
+const cellBox = "whitespace-pre-wrap break-words p-3 text-body";
 /** A small outlined control, its target the tap target's height past what it draws. */
 const chipShape =
   "pressable relative h-8 rounded-chip border px-3 text-secondary before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-[''] disabled:opacity-40";
@@ -44,7 +48,8 @@ const chipOn = `${chipShape} border-ink bg-brand-tint`;
 /**
  * A field that grows with its text and tints each of [marks] in it as a blank, as the phone's line
  * draws its blanks: the text sits in a textarea over a copy that draws the tint. An empty blank,
- * the mark of no width, is a short underline where the caret stands, which moves no text.
+ * the mark of no width, is a short underline where the caret stands, which moves no text. A table's
+ * [shape] "cell" takes the cell's padding in place of the field's.
  */
 function Field({
   label,
@@ -55,7 +60,9 @@ function Field({
   select,
   input,
   keyDown,
+  shape = "field",
 }: {
+  shape?: "field" | "cell";
   label: string;
   value: string;
   change: (value: string, selection: Span) => void;
@@ -87,9 +94,10 @@ function Field({
     at = end;
   }
   parts.push(value.slice(at));
+  const box = shape === "cell" ? cellBox : fieldBox;
   return (
     <div className="relative min-w-0 flex-1">
-      <div aria-hidden className={`min-h-field ${fieldBox} text-transparent`}>
+      <div aria-hidden className={`${box} text-transparent`}>
         {parts}
         {"​"}
       </div>
@@ -106,7 +114,7 @@ function Field({
         onFocus={read}
         onSelect={read}
         onKeyDown={keyDown}
-        className={`absolute inset-0 size-full resize-none overflow-hidden rounded-field bg-transparent ${fieldBox} placeholder:text-muted focus:outline-2 focus:-outline-offset-2 focus:outline-ink`}
+        className={`absolute inset-0 size-full resize-none overflow-hidden rounded-field bg-transparent ${box} placeholder:text-muted focus:outline-2 focus:-outline-offset-2 focus:outline-ink`}
       />
     </div>
   );
@@ -560,6 +568,7 @@ function TableGroup({
                   className={`min-w-36 border border-hairline bg-ground p-0 text-left font-bold ${cell?.row === -1 && cell.column === column ? "outline-2 -outline-offset-2 outline-ink" : ""}`}
                 >
                   <Field
+                    shape="cell"
                     label={`${String(column + 1)}열 머리글`}
                     value={header}
                     keyDown={toNext}
@@ -586,6 +595,7 @@ function TableGroup({
                     className={`min-w-36 border border-hairline p-0 ${isBlank(row, column) ? "bg-brand-tint" : ""} ${column === 0 ? "font-bold" : ""} ${cell?.row === row && cell.column === column ? "outline-2 -outline-offset-2 outline-ink" : ""} ${showErrors && isBlank(row, column) && text.trim() === "" ? "outline-2 -outline-offset-2 outline-dont-know-text" : ""}`}
                   >
                     <Field
+                      shape="cell"
                       label={`${String(row + 1)}행 ${String(column + 1)}열${heldBy(row, column) ? ", 빈칸" : ""}`}
                       value={text}
                       marks={draft.spans.filter(

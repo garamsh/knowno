@@ -190,6 +190,22 @@ test("writes every 칸 type as free v2, and opens and saves a stored card over i
   await page.getByRole("textbox", { name: "2행 1열" }).fill("한국");
   await page.getByRole("textbox", { name: "2행 2열" }).fill("서울");
   await expect(page.getByRole("button", { name: "2행 삭제" })).toBeVisible();
+  // A one-line field is the phone's AppTextField, 50 high and padded 13 by 16; a table's cell is
+  // the phone's cell field, padded 12 all round, 48 high.
+  for (const [name, box] of [
+    ["뜻", { height: 50, padding: "13px 16px" }],
+    ["문장", { height: 50, padding: "13px 16px" }],
+    ["1열 머리글", { height: 48, padding: "12px" }],
+    ["2행 1열", { height: 48, padding: "12px" }],
+  ] as const) {
+    expect(
+      await page.getByRole("textbox", { name, exact: true }).evaluate((field) => ({
+        height: Math.round(field.getBoundingClientRect().height),
+        padding: getComputedStyle(field).padding,
+      })),
+      name,
+    ).toEqual(box);
+  }
   await capture(page, "every-type");
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(dialog).toBeHidden();
