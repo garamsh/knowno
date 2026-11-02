@@ -10,6 +10,7 @@ import { supabaseUrl, testAccessToken } from "@/testing/mocks/handlers";
 import { setRequestCookies } from "@/testing/next-headers";
 import { signedInCookies } from "@/testing/session";
 import { AuthoringButton } from "../components/authoring-button";
+import { PhotoImport } from "../components/photo-import";
 import { preparePhoto } from "../extract-photo";
 import { describeFailure } from "../photo-failure";
 import { readPhoto } from "../read-photo";
@@ -460,22 +461,23 @@ describe("photo import", () => {
     URL.createObjectURL = () => "blob:photo";
     URL.revokeObjectURL = () => undefined;
   });
-  /** Picks [count] photos from the album, from the deck's page or, without [from], the deck list. */
+  /**
+   * Picks [count] photos from the album on the deck's 카드 추가 sheet, or, with "list", starts the
+   * import over the deck list with no deck chosen, as the import's own deck line can.
+   */
   async function choose(count: number, from: "deck" | "list" = "deck") {
-    await render(
-      () =>
-        from === "deck" ? <AuthoringButton deck={deck} /> : <AuthoringButton decks={[deck]} />,
-      {},
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: from === "deck" ? "카드 추가" : "새 노트 만들기" }),
-    );
+    const files = Array.from({ length: count }, (_, at) => new File([], `${String(at)}.jpg`));
+    if (from === "list") {
+      await render(
+        () => <PhotoImport decks={[deck]} camera={false} files={files} close={() => undefined} />,
+        {},
+      );
+      return;
+    }
+    await render(() => <AuthoringButton deck={deck} />, {});
+    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
     const picker = screen.getByLabelText("앨범에서 고르기", { selector: "input" });
-    fireEvent.change(picker, {
-      target: {
-        files: Array.from({ length: count }, (_, at) => new File([], `${String(at)}.jpg`)),
-      },
-    });
+    fireEvent.change(picker, { target: { files } });
   }
   /** The function's answers in turn, counting the photos sent. */
   function answer(...answers: { status: number; body: Record<string, unknown> }[]) {

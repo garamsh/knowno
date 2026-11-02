@@ -120,7 +120,7 @@ describe("the controls' pointer, hover and pressed states", () => {
   it("is on the menus' items, 모두 학습, a deck row and a deck page's cards and switch", () => {
     render(
       <>
-        <SideMenuAt path="/" account={null} />
+        <SideMenuAt path="/" />
         <TabBarAt path="/" />
         <EnterLink href="/study" label="모두 학습" />
         <DeckList
@@ -152,7 +152,7 @@ describe("the controls' pointer, hover and pressed states", () => {
 
     const [side, bar] = screen.getAllByRole("navigation", { name: "주 메뉴" });
     for (const menu of [side, bar]) {
-      for (const item of ["오늘", "노트", "기록"]) {
+      for (const item of ["기록", "홈", "설정"]) {
         expect(pressable(within(menu as HTMLElement).getByRole("link", { name: item }))).toBe(true);
       }
     }
@@ -160,7 +160,8 @@ describe("the controls' pointer, hover and pressed states", () => {
     expect(pressable(screen.getByRole("link", { name: /^French/ }))).toBe(true);
     expect(pressable(screen.getByRole("button", { name: "chat, 뒷면 가려짐" }))).toBe(true);
     expect(pressable(screen.getByRole("switch", { name: "뒷면 보기" }))).toBe(true);
-    // Control: the card search, a field, takes no button state.
-    expect(pressable(screen.getByRole("searchbox", { name: "카드 검색" }))).toBe(false);
+    expect(pressable(screen.getByRole("button", { name: "카드 검색" }))).toBe(true);
+    // Control: the note's name, a heading, takes no button state.
+    expect(pressable(screen.getByRole("heading", { level: 1, name: "French" }))).toBe(false);
   });
 });

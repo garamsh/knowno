@@ -82,12 +82,16 @@ test("adds a deck's cards from a small .xlsx after review, and the server holds 
     },
   ]);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/decks");
+  await page.goto("/");
   await untilReacted(
     () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
-  await page.getByRole("button", { name: "파일에서 고르기", exact: true }).click();
+  await page.getByRole("textbox", { name: "이름", exact: true }).fill("엑셀 단어");
+  await page.getByRole("button", { name: "저장하고 카드 추가", exact: true }).click();
+  // The new note opens with its 카드 추가 sheet up.
+  await expect(page.getByRole("dialog", { name: "카드 추가", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "엑셀·CSV 파일", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "파일에서 카드 추가", exact: true }),
   ).toBeVisible();
@@ -111,7 +115,6 @@ test("adds a deck's cards from a small .xlsx after review, and the server holds 
   await expect(
     page.getByText("앞면이나 뒷면이 빈 행 1개는 건너뛰어요", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("textbox", { name: "이름", exact: true }).fill("엑셀 단어");
   await capture(page, "review");
   // The sheet's end: the deck it adds to and its one primary action.
   await page

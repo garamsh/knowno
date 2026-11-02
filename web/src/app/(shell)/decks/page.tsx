@@ -1,16 +1,6 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { Decks } from "./_components/decks";
-import { DecksSkeleton } from "./_components/decks-skeleton";
-
-export const metadata: Metadata = { title: "노트 · 알아몰라" };
-
-/** 노트: every deck, with a search. */
+/** The notes live in 홈's drawer, so an address kept from the 노트 tab opens 홈 (ADR 0150). */
 export default function DecksPage() {
-  return (
-    <Suspense fallback={<DecksSkeleton />}>
-      <Decks />
-    </Suspense>
-  );
+  redirect("/");
 }

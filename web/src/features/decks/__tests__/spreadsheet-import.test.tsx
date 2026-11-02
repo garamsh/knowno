@@ -37,7 +37,7 @@ const deck = { id: deckId, name: "단어장", public: false };
 async function openFile(file: File) {
   await render(() => <AuthoringButton deck={deck} />, {});
   await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
-  await userEvent.click(screen.getByRole("button", { name: "파일에서 고르기" }));
+  await userEvent.click(screen.getByRole("button", { name: "엑셀·CSV 파일" }));
   // The body's second sentence names both limits; the paragraph holds more, so this is presence.
   expect(screen.getByText(/파일은 5MB, 1,000행까지 읽어요\./u)).toBeVisible();
   fireEvent.change(screen.getByLabelText("파일 고르기", { selector: "input" }), {
@@ -137,7 +137,7 @@ describe("cards from a file", () => {
   it("states a refused file and asks before discarding read cards", async () => {
     await render(() => <AuthoringButton deck={deck} />, {});
     await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
-    await userEvent.click(screen.getByRole("button", { name: "파일에서 고르기" }));
+    await userEvent.click(screen.getByRole("button", { name: "엑셀·CSV 파일" }));
     fireEvent.change(screen.getByLabelText("파일 고르기", { selector: "input" }), {
       target: { files: [new File(["x"], "words.xls")] },
     });

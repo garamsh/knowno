@@ -20,43 +20,42 @@ describe("the shell's menus", () => {
   afterEach(cleanup);
 
   it.each([
-    ["/", "오늘"],
-    ["/decks", "노트"],
-    ["/decks/d-fr", "노트"],
+    ["/", "홈"],
+    ["/decks/d-fr", "홈"],
     ["/record", "기록"],
-  ])("on %s mark %s as the current page, in the side menu and the tab bar", (at, current) => {
-    path = at;
-    render(
-      <>
-        <SideMenu account={<a href="/account">설정</a>} />
-        <TabBar />
-      </>,
-    );
-    const [side, tabs] = screen.getAllByRole("navigation", { name: "주 메뉴" });
-    const pages = ["오늘 → /", "노트 → /decks", "기록 → /record"].map((link) =>
-      link.startsWith(current) ? `${link} (current)` : link,
-    );
+    ["/account", "설정"],
+  ])(
+    "on %s hold 기록, 홈 and 설정 in that order, %s current, in the side menu and the tab bar",
+    (at, current) => {
+      path = at;
+      render(
+        <>
+          <SideMenu />
+          <TabBar />
+        </>,
+      );
+      const [side, tabs] = screen.getAllByRole("navigation", { name: "주 메뉴" });
+      const pages = ["기록 → /record", "홈 → /", "설정 → /account"].map((link) =>
+        link.startsWith(current) ? `${link} (current)` : link,
+      );
 
-    expect(links(side ?? document.body)).toEqual([
-      "알아몰라, 오늘 → /",
-      ...pages,
-      "설정 → /account",
-    ]);
-    expect(links(tabs ?? document.body)).toEqual(pages);
-  });
+      expect(links(side ?? document.body)).toEqual(["알아몰라, 홈 → /", ...pages]);
+      expect(links(tabs ?? document.body)).toEqual(pages);
+    },
+  );
 
   it("draw the current page in the accent and the others in ink-2, on both menus, the side menu's over a tinted pill", () => {
-    path = "/decks";
+    path = "/decks/d-fr";
     render(
       <>
-        <SideMenu account={null} />
+        <SideMenu />
         <TabBar />
       </>,
     );
     const menus = screen.getAllByRole("navigation", { name: "주 메뉴" });
     expect(menus).toHaveLength(2);
     for (const menu of menus) {
-      const current = within(menu).getByRole("link", { name: "노트" });
+      const current = within(menu).getByRole("link", { name: "홈" });
       expect(current).toHaveClass("text-label", "text-accent");
       // Control: another page takes neither.
       const other = within(menu).getByRole("link", { name: "기록" });
@@ -67,7 +66,7 @@ describe("the shell's menus", () => {
     if (!side || !tabs) throw new Error("the two menus are checked above");
     const pill = (menu: HTMLElement, name: string) =>
       within(menu).getByRole("link", { name }).querySelector("svg")?.parentElement;
-    expect(pill(side, "노트")).toHaveClass("bg-brand-tint");
+    expect(pill(side, "홈")).toHaveClass("bg-brand-tint");
     expect(pill(side, "기록")).not.toHaveClass("bg-brand-tint");
     // The tab bar's tabs are their names alone.
     expect(tabs.querySelector("svg")).toBeNull();
@@ -77,7 +76,7 @@ describe("the shell's menus", () => {
     path = "/";
     render(
       <>
-        <SideMenu account={null} />
+        <SideMenu />
         <TabBar />
       </>,
     );

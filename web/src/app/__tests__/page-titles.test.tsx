@@ -32,8 +32,8 @@ describe("the signed-in pages' titles", () => {
     vi.useRealTimers();
   });
 
-  it("names 오늘 and the study page", () => {
-    expect(todayMetadata.title).toBe("오늘 · 알아몰라");
+  it("names 홈 and the study page", () => {
+    expect(todayMetadata.title).toBe("홈 · 알아몰라");
     expect(studyMetadata.title).toBe("학습 · 알아몰라");
   });
 

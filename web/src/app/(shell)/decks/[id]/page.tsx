@@ -22,11 +22,14 @@ export async function generateMetadata({ params }: PageProps<"/decks/[id]">): Pr
   return { title: `${deck.name} · 알아몰라` };
 }
 
-/** One deck: where it sits, its header, today's card for it with its progress, and its cards. */
-export default function DeckPage({ params }: PageProps<"/decks/[id]">) {
+/**
+ * One note: its name, its study link and its cards; `?adding=1`, which 새 노트's "저장하고 카드
+ * 추가" opens, opens its 카드 추가 sheet.
+ */
+export default function DeckPage({ params, searchParams }: PageProps<"/decks/[id]">) {
   return (
     <Suspense fallback={<DeckSkeleton />}>
-      <Deck params={params} />
+      <Deck params={params} searchParams={searchParams} />
     </Suspense>
   );
 }

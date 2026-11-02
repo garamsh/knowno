@@ -28,10 +28,10 @@ describe("which text Jua draws", () => {
 
   it("is never a card's text or a deck's name", () => {
     // Control: the deck's name and a card's front are drawn in these styles.
-    expect(read("app/(shell)/decks/[id]/_components/deck.tsx")).toMatch(
-      /className="text-deck-name[^"]*">\{deck\.name\}/,
+    expect(read("features/decks/components/card-grid.tsx")).toMatch(
+      /className="[^"]*text-deck-name[^"]*">\{deck\.name\}/,
     );
-    expect(read("app/(shell)/_components/today.tsx")).toMatch(
+    expect(read("features/decks/components/deck-list.tsx")).toMatch(
       /className="[^"]*text-body-strong">\{deck\.name\}/,
     );
     expect(read("features/study/components/card-side.tsx")).toContain("text-front");

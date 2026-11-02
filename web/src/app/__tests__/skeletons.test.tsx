@@ -4,15 +4,13 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { TodaySkeleton } from "../(shell)/_components/today-skeleton";
 import { ProfileSkeleton } from "../(shell)/account/_components/profile-skeleton";
-import { DecksSkeleton } from "../(shell)/decks/_components/decks-skeleton";
 import { DeckSkeleton } from "../(shell)/decks/[id]/_components/deck-skeleton";
 import { RecordSkeleton } from "../(shell)/record/_components/record-skeleton";
 import { ConsentSkeleton } from "../oauth/consent/_components/consent-skeleton";
 import { StudySkeleton } from "../study/_components/study-skeleton";
 
 const skeletons: [string, ReactElement, string][] = [
-  ["the 오늘 page", <TodaySkeleton key="today" />, "오늘 할 카드를 불러오는 중이에요."],
-  ["the 노트 page", <DecksSkeleton key="decks" />, "노트를 불러오는 중이에요."],
+  ["홈", <TodaySkeleton key="today" />, "오늘 할 카드를 불러오는 중이에요."],
   ["a deck's page", <DeckSkeleton key="deck" />, "노트를 불러오는 중이에요."],
   ["the study page", <StudySkeleton key="study" />, "카드를 불러오는 중이에요."],
   ["the settings page", <ProfileSkeleton key="account" />, "설정을 불러오는 중이에요."],
