@@ -45,7 +45,7 @@ export function EnterLink({
       aria-keyshortcuts="Enter"
       className={`pressable flex min-h-cta items-center justify-center gap-2 rounded-button px-6 text-button break-keep focus-visible:outline-2 focus-visible:outline-offset-2 ${
         onHero
-          ? "w-full max-w-56 bg-hero-button text-on-hero-button [--edge-colour:var(--color-primary-edge)] [--edge:var(--spacing-edge-button)] focus-visible:outline-on-hero"
+          ? "w-full max-w-56 bg-hero-button text-on-hero-button focus-visible:outline-on-hero"
           : "w-full bg-primary text-on-primary focus-visible:outline-ink"
       }`}
     >
