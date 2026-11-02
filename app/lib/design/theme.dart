@@ -696,7 +696,7 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// it.
   final Color onDontKnowTint;
 
-  /// The streak flame's body, on the 오늘 tab and the completion card.
+  /// The streak flame's body, on the 오늘 tab.
   final Color streak;
 
   /// What a pressed row draws over itself: [ink] at the 10% a pressed

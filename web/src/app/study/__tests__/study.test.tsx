@@ -613,11 +613,10 @@ describe("the study page", () => {
       ]);
       // The mascot between the cards goes with them.
       expect(document.querySelectorAll('img[src*="/brand/knowno-"]')).toHaveLength(1);
-      // The happy mascot (ADR 0141), and the flame its one icon (ADR 0116).
+      // The happy mascot (ADR 0141), and no icon: on the hero the streak is its words alone,
+      // since the flame's colours are the light surface's (ADR 0151).
       expect(completion.querySelector('img[src*="knowno-happy"]')).not.toBeNull();
-      expect(
-        [...completion.querySelectorAll("svg")].map((icon) => icon.getAttribute("class")),
-      ).toEqual([expect.stringContaining("lucide-flame")]);
+      expect(completion.querySelectorAll("svg")).toHaveLength(0);
       // No new card is left past today's, so the card says so and 그만하기 takes the focus.
       expect(screen.getByText("더 학습할 카드가 없어요")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "학습하기" })).not.toBeInTheDocument();

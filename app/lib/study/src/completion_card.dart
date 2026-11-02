@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../design/app_button.dart';
 import '../../design/mascot.dart';
-import 'streak_flame.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'session.dart';
@@ -67,23 +66,12 @@ class CompletionCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                        // No flame: its stages are drawn for a light
+                        // surface and fade into the hero (ADR 0151).
                         ExcludeSemantics(
-                          child: Row(
-                            spacing: AppSpace.s4,
-                            children: [
-                              StreakFlame(
-                                days: completion.streak,
-                                size: AppSize.smallIcon,
-                              ),
-                              Flexible(
-                                child: Text(
-                                  l10n.completionStreak(completion.streak),
-                                  style: AppType.label.copyWith(
-                                    color: colors.onHero,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            l10n.completionStreak(completion.streak),
+                            style: AppType.label.copyWith(color: colors.onHero),
                           ),
                         ),
                       ],

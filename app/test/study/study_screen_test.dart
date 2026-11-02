@@ -1664,17 +1664,27 @@ void main() {
         ),
         findsOneWidget,
       );
-      // After the streak's flame, burning at its stage.
+      // On the hero the streak is its words alone, in the hero's text
+      // colour: the flame's stages are drawn for a light surface and fade
+      // into the hero (ADR 0151).
+      expect(
+        find.descendant(
+          of: find.byType(CompletionCard),
+          matching: find.byType(StreakFlame),
+        ),
+        findsNothing,
+      );
       expect(
         tester
-            .widget<StreakFlame>(
+            .widget<Text>(
               find.descendant(
                 of: find.byType(CompletionCard),
-                matching: find.byType(StreakFlame),
+                matching: find.text('1-day streak'),
               ),
             )
-            .days,
-        1,
+            .style!
+            .color,
+        AppColors.light.onHero,
       );
       expect(shownText('2/2'), findsOneWidget);
       // On the hero surface, in the place the current card had.

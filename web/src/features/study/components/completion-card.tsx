@@ -1,6 +1,5 @@
 "use client";
 
-import { Flame } from "lucide-react";
 import Link from "next/link";
 import { type MouseEvent, useEffect, useRef } from "react";
 
@@ -54,10 +53,8 @@ export function CompletionCard({
           <h2 id="completion-title" className="text-display">
             오늘 학습 완료
           </h2>
-          <p className="flex items-center gap-1 text-label">
-            <Flame aria-hidden className="size-small-icon text-streak" strokeWidth={2} />
-            {completion.streak}일 연속
-          </p>
+          {/* No flame: on the hero it would draw in the light surface's colours (ADR 0151). */}
+          <p className="text-label">{completion.streak}일 연속</p>
         </div>
       </div>
       <dl className="grid grid-cols-3 gap-2 text-center">
