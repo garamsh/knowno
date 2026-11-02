@@ -61,9 +61,9 @@ class _List {
 
   Future<void> tap(String text) async {
     // The hero scrolls where the test font makes it taller than its space.
-    await tester.ensureVisible(find.text(text));
+    await tester.ensureVisible(shownText(text));
     await tester.pumpAndSettle();
-    await tester.tap(find.text(text));
+    await tester.tap(shownText(text));
     await tester.pumpAndSettle();
   }
 
@@ -524,8 +524,8 @@ void main() {
         await tester.pumpAndSettle();
         await tester.enterText(find.byType(EditableText), 'ALP');
         await tester.pumpAndSettle();
-        expect(find.text('Alpha'), findsOneWidget);
-        expect(find.text('Beta'), findsNothing);
+        expect(shownText('Alpha'), findsOneWidget);
+        expect(shownText('Beta'), findsNothing);
         await tester.enterText(find.byType(EditableText), 'zebra');
         await tester.pumpAndSettle();
         expect(shownText('No note matches. Try other words.'), findsOneWidget);
@@ -551,7 +551,7 @@ void main() {
         );
         await list.decks();
         Finder row(String deck) =>
-            find.ancestor(of: find.text(deck), matching: find.byType(DeckRow));
+            find.ancestor(of: shownText(deck), matching: find.byType(DeckRow));
         Finder inRow(String deck, Finder finder) =>
             find.descendant(of: row(deck), matching: finder);
 
@@ -685,6 +685,39 @@ void main() {
       );
     }
   });
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets(
+      'at text scale $scale a note\'s Korean name in the drawer breaks only between words and is read as written, and a one-word name wider than the row still wraps',
+      (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        const name = '토익 영단어 기본 어휘 노트와 필수 표현 모음';
+        // The control: one word, so it can break only inside itself.
+        const word = '토익영단어기본어휘노트와필수표현모음';
+        final list = await _open(
+          tester,
+          locale: const Locale('ko'),
+          decks: [name, word],
+        );
+        await list.tap('올려서 보기');
+
+        expectBreaksBetweenWords(tester, name);
+        expect(
+          tester.getSemantics(shownText(name)),
+          isSemantics(label: '$name\n0장', hasTapAction: true),
+        );
+        // The rows grow with the text, so the control may lie below the first.
+        await tester.scrollUntilVisible(
+          shownText(word),
+          100,
+          scrollable: find.byType(Scrollable).last,
+        );
+        expectWrapsInsideWord(tester, word);
+        await list.close();
+      },
+    );
+  }
 
   group('daily study minutes', () {
     testWidgets(

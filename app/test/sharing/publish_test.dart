@@ -223,7 +223,7 @@ void main() {
 
     expect(find.text('Public'), findsOneWidget);
     final chip = tester.getCenter(find.text('Public')).dy;
-    expect(chip, closeTo(tester.getCenter(find.text('French')).dy, 20));
+    expect(chip, closeTo(tester.getCenter(shownText('French')).dy, 20));
     await app.close();
   });
 

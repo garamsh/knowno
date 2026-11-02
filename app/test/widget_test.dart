@@ -838,7 +838,7 @@ void main() {
         await showTab(tester, 'Record');
         await meetsGuidelines();
         await showTab(tester, 'Home');
-        await tester.tap(find.text('French'));
+        await tester.tap(shownText('French'));
         await tester.pumpAndSettle();
         await meetsGuidelines();
         await addCard(tester, 'Chat', 'cat');

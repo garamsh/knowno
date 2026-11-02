@@ -35,6 +35,7 @@ import '../sync/fake_sync_server.dart';
 import 'fake_account_service.dart';
 import 'fake_google_sign_in.dart';
 import '../media/fakes.dart';
+import '../word_breaks.dart';
 
 const _ada = UserId('00000000-0000-4000-8000-00000000000a');
 
@@ -339,12 +340,12 @@ void main() {
     final routes =
         <String, (Future<void> Function(WidgetTester), Finder Function())>{
           'card list': (
-            (tester) => tapAndSettle(tester, find.text('French')),
+            (tester) => tapAndSettle(tester, shownText('French')),
             () => find.byType(DeckScreen),
           ),
           'card editor': (
             (tester) async {
-              await tapAndSettle(tester, find.text('French'));
+              await tapAndSettle(tester, shownText('French'));
               await tapAndSettle(tester, find.text('Add card'));
               await tapAndSettle(tester, find.text('Enter by hand'));
             },
@@ -352,7 +353,7 @@ void main() {
           ),
           'study': (
             (tester) async {
-              await tapAndSettle(tester, find.text('French'));
+              await tapAndSettle(tester, shownText('French'));
               await tapAndSettle(
                 tester,
                 find.textContaining('Study this note'),
@@ -412,7 +413,7 @@ void main() {
         expect(find.byType(StudyScreen), findsNothing);
         expect(find.byType(AccountScreen), findsNothing);
         expect(find.text('Choose from album'), findsNothing);
-        expect(find.text('French'), findsNothing);
+        expect(shownText('French'), findsNothing);
         expect(find.text('Chat'), findsNothing);
         await unmountApp(tester);
       });

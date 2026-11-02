@@ -391,7 +391,7 @@ void main() {
       );
       final tabs = find.bySemanticsLabel('Tabs');
       await screens.tap(find.text('Pull up to see all'));
-      await screens.tap(find.text('French'));
+      await screens.tap(shownText('French'));
 
       expect(find.byType(DeckScreen), findsOneWidget);
       expect(tabs, findsOneWidget);

@@ -408,7 +408,7 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
-      await tap(tester, find.text('영단어 기본'));
+      await tap(tester, shownText('영단어 기본'));
       const cards = {
         'ephemeral': '덧없는, 순간적인',
         'meticulous': '꼼꼼한, 세심한',
@@ -480,7 +480,7 @@ void main() {
       await shot(tester, '16a-today');
       await openDrawer(tester);
       await shot(tester, '16a2-today-drawer');
-      await tap(tester, find.text('영단어 기본'));
+      await tap(tester, shownText('영단어 기본'));
 
       await tester.tap(find.textContaining(ko.studyThisDeckPlain));
       // The device's first session: the coach. Its demonstration repeats, so
@@ -538,7 +538,7 @@ void main() {
       await closeDrawer(tester);
       await shot(tester, '16a1-today-started');
       await openDrawer(tester);
-      await tap(tester, find.text('영단어 기본'));
+      await tap(tester, shownText('영단어 기본'));
       // Reopened the same day: the day's last card from the earlier session,
       // and for a moment the notice that the session goes on with the day.
       await tap(tester, find.textContaining(ko.studyThisDeckPlain));
@@ -580,11 +580,10 @@ void main() {
       await shot(tester, '16-deck-list');
       await showRecord(tester);
       await shot(tester, '16c-record');
-      // Today's cards done: the done card and the next seven days. The tab
-      // bar's 오늘, the last, since the study days name today too.
+      // 홈 after the sessions, with one of today's cards still counted.
       await tap(tester, find.text(ko.tabHome));
       await closeDrawer(tester);
-      await shot(tester, '16b-today-done');
+      await shot(tester, '16b-today-one-left');
 
       await tap(tester, find.text(ko.tabSettings));
       await shot(tester, '18-account');
@@ -810,6 +809,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // The day's plan done: its title, the next review and 학습하기.
+      expect(shownText(ko.todayDone), findsOneWidget);
+      expect(shownText(ko.nextReview(ko.dayTomorrow, 35, 6)), findsOneWidget);
+      expect(find.text(ko.todayStudy), findsOneWidget);
       await shot(tester, '16i-today-done-extra');
       await tester.scrollUntilVisible(
         find.text(ko.todayStudy),
@@ -894,7 +897,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       await openDrawer(tester);
-      await tap(tester, find.text('국어 문법'));
+      await tap(tester, shownText('국어 문법'));
       await shot(tester, '31-whole-card-list');
       await tap(tester, find.byType(Switch));
       await shot(tester, '31b-whole-card-list-shown');
@@ -969,7 +972,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       await openDrawer(tester);
-      await tap(tester, find.text('생명과학'));
+      await tap(tester, shownText('생명과학'));
       await tap(tester, find.textContaining(ko.studyThisDeckPlain));
       await shot(tester, '34-long-study-1');
       for (final name in [
@@ -1801,7 +1804,7 @@ void main() {
       await tap(tester, shownText('face'));
       await shot(tester, '22c-photo-edit');
       await tap(tester, find.text(ko.editDone));
-      await tap(tester, find.text('영단어 기본'));
+      await tap(tester, shownText('영단어 기본'));
       await shot(tester, '21-photo-deck-sheet');
       await dismissSheet(tester);
 
@@ -2202,7 +2205,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await openDrawer(tester);
-      await tap(tester, find.text('영단어 기본'));
+      await tap(tester, shownText('영단어 기본'));
       await tap(tester, find.byTooltip(ko.deckActions));
       await shot(tester, '25-deck-menu-publish');
       await tap(tester, find.text(ko.publish));

@@ -13,6 +13,7 @@ import 'package:knowno/sharing/sharing.dart';
 import '../home/home_data.dart';
 import 'fakes.dart';
 import '../study/study_storage.dart';
+import '../word_breaks.dart';
 
 /// The home screen over an in-memory database, with sharing through a
 /// substituted server and network state, and study over the same database.
@@ -107,7 +108,7 @@ class SharingApp {
     await tester.pumpAndSettle();
   }
 
-  Future<void> tapText(String text) => tap(find.text(text));
+  Future<void> tapText(String text) => tap(shownText(text));
 
   /// Opens the browse screen from 홈's drawer, or from the first-run home
   /// before the first deck.

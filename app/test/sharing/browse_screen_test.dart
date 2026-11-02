@@ -63,7 +63,7 @@ void main() {
         myDecks: {'Mine': {}},
       );
       await tester.ensureVisible(find.text('Browse public notes'));
-      final mine = tester.getRect(find.text('Mine'));
+      final mine = tester.getRect(shownText('Mine'));
       final create = tester.getRect(find.text('New note'));
       final browse = tester.getRect(find.text('Browse public notes'));
       expect(create.bottom, lessThan(mine.top));
