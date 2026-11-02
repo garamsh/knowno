@@ -18,7 +18,7 @@ esac`;
 export const DOCKER = `${RECORD}
 case "$1" in
 info) exit "\${DOCKER_INFO:-0}" ;;
-exec) cat >>"$(dirname "$0")/calls" ;;
+exec) cat >>"$(dirname "$0")/calls"; exit "\${DOCKER_EXEC_EXIT:-0}" ;;
 esac`;
 
 /** The reservations a stack's ports leave under the temporary directory once the run is over. */

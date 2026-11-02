@@ -90,6 +90,20 @@ Deno.test("fails on a run with no pgTAP test, and on a failing run, stopping the
   assert.deepEqual(await reservationsLeft(tmp), []);
 });
 
+Deno.test("a failing psql ends the run with its exit code, stopping the stack", async () => {
+  const { repo, tmp } = await fixture();
+  const { path, log } = await host({ docker: DOCKER, supabase: SUPABASE });
+  const ran = await program(repo, "test-db", [], {
+    PATH: path,
+    TMPDIR: tmp,
+    DOCKER_EXEC_EXIT: "3",
+  });
+  assert.equal(ran.code, 3);
+  const calls = await log();
+  assert.ok(!calls.includes("supabase test db"), calls);
+  assert.ok(calls.includes("supabase stop --no-backup"), calls);
+});
+
 Deno.test("retries a stop Docker refuses, and fails the run once it gives up, freeing its port", async () => {
   const { repo, tmp } = await fixture();
   const twice = await host({ docker: DOCKER, supabase: SUPABASE });

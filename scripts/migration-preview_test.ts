@@ -100,6 +100,7 @@ Deno.test("pretty prints as jq does, and parseReport refuses a report without ta
     tables: [],
     schemas: [],
   });
+  assert.throws(() => parseReport('{"schemas":[]}'));
 });
 
 async function base(): Promise<string> {

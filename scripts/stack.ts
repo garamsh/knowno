@@ -31,8 +31,10 @@ async function listening(port: number): Promise<boolean> {
   try {
     (await Deno.connect({ hostname: "127.0.0.1", port })).close();
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    // Only a refused connection says nothing listens; a missing grant is no answer.
+    if (error instanceof Deno.errors.ConnectionRefused) return false;
+    throw error;
   }
 }
 

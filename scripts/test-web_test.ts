@@ -9,7 +9,9 @@ import { commit, host, program, RECORD, repository, write } from "./testing.ts";
 const NODE = `${RECORD}
 here="$(dirname "$0")"
 if [ -f "$here/taken" ]; then rm "$here/taken"; echo "Error: listen EADDRINUSE: 127.0.0.1:$PORT" >&2; exit 1; fi
-touch "$here/up"; exec sleep 30`;
+touch "$here/up"
+trap 'echo "node stopped" >>"$here/calls"; exit 0' TERM
+sleep 30 & wait`;
 const CURL = `[ -f "$(dirname "$0")/up" ]`;
 const PASSED =
   "  ✓  1 [chromium] › e2e/a.spec.ts:3:1 › works\n  ✓  2 [chromium] › e2e/b.spec.ts:3:1 › works\n\n  2 passed (1s)";
@@ -66,6 +68,7 @@ Deno.test("runs every spec against the app built for its stack, then stops the s
       calls.includes("node web/.next/standalone/server.js\n"),
     calls,
   );
+  assert.ok(calls.includes("node stopped\n"), calls);
   assert.ok(calls.trimEnd().endsWith("supabase stop --no-backup"), calls);
   assert.deepEqual(await reservationsLeft(tmp), []);
 });
@@ -158,6 +161,10 @@ Deno.test("playwrightSummary and specsThatPassed read the list reporter", () => 
     passed: 3,
     skipped: true,
   });
+  assert.equal(
+    playwrightSummary("  1 passed (retry)\n  4 passed (1s)\n").passed,
+    4,
+  );
   assert.deepEqual([...specsThatPassed(PASSED)], [
     "e2e/a.spec.ts",
     "e2e/b.spec.ts",
