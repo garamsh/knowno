@@ -176,7 +176,7 @@ export function PhotoImport({
     // Where the allowance cannot be read every photo is sent, and a refusal shows on its photo.
     const allowance = await readAllowance().catch(() => null);
     if (closed.current) return;
-    if (allowance && allowance.remaining < batch.length) {
+    if (allowance?.kind === "limited" && allowance.remaining < batch.length) {
       const left = new Set(batch.slice(allowance.remaining).map((photo) => photo.id));
       remove((photo) => !left.has(photo.id));
       if (allowance.remaining === 0) {

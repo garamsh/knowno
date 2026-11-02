@@ -145,6 +145,21 @@ export type UserPlan = {
   } | null;
 };
 
+/**
+ * Whether no photo limit applies to a user now, as the server decides it (ADR 0157): an admin, or
+ * a 무제한 grant that has not ended; and the grant, ended or not, when there is one.
+ */
+export type UserUnlimited = {
+  unlimited: boolean;
+  grant: {
+    endsAt: number | null;
+    /** Whether its end has passed when it was read. */
+    ended: boolean;
+    grantedAt: number;
+    grantedByEmail: string | null;
+  } | null;
+};
+
 export type AdminUser = {
   id: string;
   email: string;
@@ -154,6 +169,7 @@ export type AdminUser = {
   cards: number;
   admin: boolean;
   plan: UserPlan;
+  unlimited: UserUnlimited;
   suspension: Suspension | null;
   /** Every live deck of the user, public or private, newest first. */
   allDecks: UserDeck[];
@@ -393,16 +409,19 @@ export async function searchUsers(query: string, page: number): Promise<AdminRea
 
 /** One user with their public decks, or null when no user has [id]. */
 export async function readUser(id: string): Promise<AdminRead<AdminUser | null>> {
-  const [userRead, decksRead, planRead, suspensionRead, allDecksRead] = await Promise.all([
-    call("admin_user", { user_id: id }),
-    readPublicDecks(id),
-    call("admin_user_plan", { user_id: id }),
-    call("admin_user_suspension", { user_id: id }),
-    call("admin_user_decks", { user_id: id }),
-  ]);
+  const [userRead, decksRead, planRead, unlimitedRead, suspensionRead, allDecksRead] =
+    await Promise.all([
+      call("admin_user", { user_id: id }),
+      readPublicDecks(id),
+      call("admin_user_plan", { user_id: id }),
+      call("admin_user_unlimited", { user_id: id }),
+      call("admin_user_suspension", { user_id: id }),
+      call("admin_user_decks", { user_id: id }),
+    ]);
   if ("failure" in userRead) return userRead;
   if ("failure" in decksRead) return decksRead;
   if ("failure" in planRead) return planRead;
+  if ("failure" in unlimitedRead) return unlimitedRead;
   if ("failure" in suspensionRead) return suspensionRead;
   if ("failure" in allDecksRead) return allDecksRead;
   const suspensions = rows(suspensionRead.data, parseSuspension);
@@ -411,7 +430,8 @@ export async function readUser(id: string): Promise<AdminRead<AdminUser | null>>
   const reports = new Map(decksRead.data.map((deck) => [deck.id, deck.reports]));
   if (Array.isArray(userRead.data) && userRead.data.length === 0) return { data: null };
   const plan = parseUserPlan(only(planRead.data));
-  if (!plan) return { failure: "unreadable" };
+  const unlimited = parseUserUnlimited(only(unlimitedRead.data), Date.now());
+  if (!plan || !unlimited) return { failure: "unreadable" };
   const row = only(userRead.data);
   const email = text(field(row, "email"));
   const createdAt = parseTime(field(row, "created_at"));
@@ -436,6 +456,7 @@ export async function readUser(id: string): Promise<AdminRead<AdminUser | null>>
       cards,
       admin,
       plan,
+      unlimited,
       suspension: suspensions[0] ?? null,
       allDecks: allDecks.map((deck) => ({ ...deck, reports: reports.get(deck.id) ?? 0 })),
       renewal: nextRenewal(Date.now()),
@@ -503,6 +524,22 @@ function parseUserPlan(row: unknown): UserPlan | null {
   if ((endsAtValue !== null && endsAt === null) || grantedAt === null) return null;
   if (grantedBy !== null && typeof grantedBy !== "string") return null;
   return { entitlement, grant: { plan: granted, endsAt, grantedAt, grantedByEmail: grantedBy } };
+}
+
+function parseUserUnlimited(row: unknown, now: number): UserUnlimited | null {
+  const unlimited = field(row, "unlimited");
+  const endsAtValue = field(row, "ends_at");
+  const grantedAtValue = field(row, "granted_at");
+  const grantedBy = field(row, "granted_by_email");
+  if (typeof unlimited !== "boolean") return null;
+  // The grant's columns are null together, while the user has no grant.
+  if (grantedAtValue === null) return { unlimited, grant: null };
+  const endsAt = endsAtValue === null ? null : parseTime(endsAtValue);
+  const grantedAt = parseTime(grantedAtValue);
+  if ((endsAtValue !== null && endsAt === null) || grantedAt === null) return null;
+  if (grantedBy !== null && typeof grantedBy !== "string") return null;
+  const ended = endsAt !== null && endsAt <= now;
+  return { unlimited, grant: { endsAt, ended, grantedAt, grantedByEmail: grantedBy } };
 }
 
 function parseSuspension(row: unknown): Suspension | null {

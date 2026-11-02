@@ -120,6 +120,9 @@ from private.plan_versions where plan = 'pro';
 insert into private.user_plans (user_id, plan, ends_at, granted_by, version_id)
 select '5eed0000-0000-4000-8000-0000000000a1', 'max', now() - interval '3 days', '5eed0000-0000-4000-8000-0000000000a3', max(id)
 from private.plan_versions where plan = 'max';
+-- A 무제한 grant beside the Pro grant, ending in a week.
+insert into private.unlimited_grants (user_id, ends_at, granted_by) values
+  ('5eed0000-0000-4000-8000-0000000000a2', now() + interval '7 days', '5eed0000-0000-4000-8000-0000000000a3');
 insert into private.user_plans_before_versions (user_id, plan, ends_at, granted_by, granted_at) values
   ('5eed0000-0000-4000-8000-0000000000a2', 'pro', null, '5eed0000-0000-4000-8000-0000000000a3', now() - interval '20 days');
 
