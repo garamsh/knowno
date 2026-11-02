@@ -136,6 +136,13 @@ async function expectEdge(page: Page, control: Locator, token: string) {
   await page.emulateMedia({ colorScheme: "light" });
 }
 
+/** The height [field] is drawn at, in px. */
+async function fieldHeight(field: Locator): Promise<number> {
+  const box = await field.boundingBox();
+  if (!box) throw new Error("the field is drawn");
+  return box.height;
+}
+
 /** How many lines [button]'s label takes. */
 function labelLines(button: Locator): Promise<number> {
   return button.evaluate((element) => {
@@ -234,6 +241,8 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
     () => page.getByRole("searchbox", { name: "노트 검색" }).isVisible(),
   );
   await page.getByRole("searchbox", { name: "노트 검색" }).fill("한");
+  // Control for the fields below: a search over a list is the phone's search height.
+  expect(await fieldHeight(page.getByRole("searchbox", { name: "노트 검색" }))).toBe(46);
   await capture(page, "drawer-search");
 
   await page.goto(`/decks/${decks[0]?.id ?? ""}`);
@@ -255,6 +264,8 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   const editor = page.getByRole("dialog", { name: "새 카드" });
   await expect(editor).toBeVisible();
   await expectScreenAtWidths(page, editor);
+  // Each text field is the phone's AppTextField height, as are the ones below.
+  expect(await fieldHeight(editor.getByRole("textbox", { name: "앞면", exact: true }))).toBe(50);
   await capture(page, "new-card");
   // At 100% on a phone, each of the pair's labels takes one line.
   for (const label of ["저장", "저장하고 다음 카드"]) {
@@ -270,6 +281,7 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   );
   const note = page.getByRole("dialog", { name: "새 노트" });
   await note.getByRole("textbox", { name: "이름", exact: true }).fill("토익 900");
+  expect(await fieldHeight(note.getByRole("textbox", { name: "이름", exact: true }))).toBe(50);
   for (const label of ["저장", "저장하고 카드 추가"]) {
     expect(await labelLines(note.getByRole("button", { name: label, exact: true })), label).toBe(1);
   }

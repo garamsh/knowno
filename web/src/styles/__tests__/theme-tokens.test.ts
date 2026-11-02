@@ -292,7 +292,7 @@ describe("the web theme's size tokens", () => {
     const web = [...withoutGoogle(cssSpacing)].filter(([name]) => !namedGaps.includes(name));
     // Control: both sides read their sizes, the button's height among them.
     expect(sizes.get("button")).toBe(64);
-    expect(web.length).toBe(17);
+    expect(web.length).toBe(18);
 
     for (const [name, value] of web) {
       expect({ name, value }).toEqual({ name, value: sizes.get(name) });

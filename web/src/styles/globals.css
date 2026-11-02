@@ -144,6 +144,7 @@
   /* The sizes of AppSize in theme.dart that the web draws, under the same names. */
   --spacing-cta: 64px;
   --spacing-button: 64px;
+  --spacing-field: 50px;
   --spacing-search: 46px;
   --spacing-tap-target: 44px;
   --spacing-deck-tile: 46px;
