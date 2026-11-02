@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' show PathMetric;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../account/account.dart';
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
-import '../../design/app_chip.dart';
-import '../../design/app_text_field.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
@@ -17,30 +18,28 @@ import '../../l10n/app_localizations.dart';
 import '../../sharing/sharing.dart';
 import '../../study/study.dart';
 import 'above_menu.dart';
-import 'deck_screen.dart';
 import 'first_run.dart';
 import 'new_deck.dart';
-import 'progress_bar.dart';
 
-/// 홈: before the first deck, how to start; then today on the hero surface
-/// over a drawer of the decks. Closed, the drawer shows "내 노트 n" and one
-/// row, or three while no card is due; pulled up, every deck, with the
-/// search, "새 노트" and the public decks.
-class HomeTab extends ConsumerStatefulWidget {
-  const HomeTab({super.key});
+/// 홈: before the first deck, how to start; then today on the hero surface,
+/// and under it the streak over the last seven study days. The profile button
+/// at the top right opens 설정 through [onSettings]; a deck opens in the 노트
+/// tab through [onOpenDeck], and [onNotes] shows that tab.
+class HomeTab extends ConsumerWidget {
+  const HomeTab({
+    super.key,
+    required this.onOpenDeck,
+    required this.onNotes,
+    required this.onSettings,
+  });
+
+  final OpenDeck onOpenDeck;
+  final VoidCallback onNotes;
+  final VoidCallback onSettings;
 
   @override
-  ConsumerState<HomeTab> createState() => _HomeTabState();
-}
-
-class _HomeTabState extends ConsumerState<HomeTab> {
-  var _open = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final sharing = ref.watch(sharingServiceProvider);
-    void browse() => Navigator.of(aboveMenu(context))
-        .push(MaterialPageRoute<void>(builder: (_) => sharing!.browseScreen()));
     return switch ((ref.watch(decksProvider), ref.watch(cardCountsProvider))) {
       (AsyncData(value: final decks), AsyncData(value: final counts)) =>
         switch (DeckSelection.of([for (final deck in decks) deck.id])) {
@@ -48,30 +47,45 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             appBar: AppBar(
               titleSpacing: AppSpace.gutter,
               title: const _AppName(),
+              actions: [
+                ProfileButton(onPressed: onSettings),
+                const SizedBox(width: AppSpace.gutter),
+              ],
             ),
-            body: _FirstRunHome(onBrowse: sharing == null ? null : browse),
+            body: _FirstRunHome(
+              onNewDeck: () => openNewDeck(context, onOpenDeck),
+              onBrowse: sharing == null
+                  ? null
+                  : () => Navigator.of(aboveMenu(context)).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => sharing.browseScreen(),
+                      ),
+                    ),
+            ),
           ),
           final all => TodayOverviewReader(
             decks: all,
-            builder: (context, overview) => _Home(
-              decks: decks,
-              counts: counts,
-              cards: counts.values.any((count) => count > 0),
-              face: counts.values.every((count) => count == 0)
-                  ? _cardless(context, decks)
-                  : _face(context, overview, all),
-              streak: switch (overview) {
-                TodayOverview(:final streak) => streak,
-                _ => 0,
-              },
-              problem: switch (overview) {
-                OverviewUnavailable(:final message) => message,
-                _ => null,
-              },
-              open: _open,
-              onOpen: (open) => setState(() => _open = open),
-              onBrowse: sharing == null ? null : browse,
-            ),
+            builder: (context, overview) {
+              final cardless = counts.values.every((count) => count == 0);
+              return _Home(
+                face: cardless
+                    ? _cardless(context, decks)
+                    : _face(context, overview, all),
+                cards: !cardless,
+                below: switch (overview) {
+                  _ when cardless => null,
+                  TodayOverview(:final streak, :final week) => _WeekCard(
+                    streak: streak,
+                    week: week,
+                  ),
+                  OverviewUnavailable(:final message) => _ProblemRow(
+                    message: message,
+                  ),
+                  OverviewPending() => null,
+                },
+                onSettings: onSettings,
+              );
+            },
           ),
         },
       _ => const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -95,7 +109,6 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         line: _nextReview(context, overview),
         action: l10n.todayStudy,
         onAction: study,
-        due: false,
       ),
       TodayOverview(count: TodayCounted(backlog: true, :final total)) => _Face(
         mascot: MascotExpression.thinking,
@@ -122,24 +135,16 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   }
 
   /// The hero while no deck holds a card: add cards to the one deck, or, with
-  /// more, open the drawer to choose one.
+  /// more, show the 노트 tab to choose one.
   _Face _cardless(BuildContext context, List<Deck> decks) {
     final l10n = AppLocalizations.of(context);
     final (action, onAction) = switch (decks) {
-      [final deck] => (
-        l10n.newCard,
-        () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => DeckScreen(deck: deck, addingCard: true),
-          ),
-        ),
-      ),
-      _ => (l10n.addCardsInDecks, () => setState(() => _open = true)),
+      [final deck] => (l10n.newCard, () => onOpenDeck(deck, addingCard: true)),
+      _ => (l10n.addCardsInDecks, onNotes),
     };
     return _Face(
       mascot: MascotExpression.happy,
       title: l10n.noCardsTitle,
-      due: false,
       action: action,
       onAction: onAction,
     );
@@ -163,8 +168,7 @@ String _nextReview(BuildContext context, TodayOverview overview) {
 }
 
 /// What the hero says: the [mascot] over [title], large as a figure while
-/// [figure], then [line], and the one [action]. [due] is false while no card
-/// is due today, which opens the drawer higher.
+/// [figure], then [line], and the one [action].
 final class _Face {
   const _Face({
     required this.mascot,
@@ -173,7 +177,6 @@ final class _Face {
     this.line,
     required this.action,
     required this.onAction,
-    this.due = true,
   });
 
   final MascotExpression mascot;
@@ -182,7 +185,6 @@ final class _Face {
   final String? line;
   final String action;
   final VoidCallback onAction;
-  final bool due;
 }
 
 /// The app's name, read as the screen's heading.
@@ -202,10 +204,11 @@ class _AppName extends StatelessWidget {
 }
 
 /// The first-run home: the mascot, "첫 노트를 만들어 볼까요?", "새 노트 만들기",
-/// which opens 새 노트, and, with sharing, the public decks.
+/// which [onNewDeck] opens, and, with sharing, the public decks.
 class _FirstRunHome extends StatelessWidget {
-  const _FirstRunHome({required this.onBrowse});
+  const _FirstRunHome({required this.onNewDeck, required this.onBrowse});
 
+  final VoidCallback onNewDeck;
   final VoidCallback? onBrowse;
 
   @override
@@ -219,7 +222,7 @@ class _FirstRunHome extends StatelessWidget {
         AppButton(
           label: l10n.newDeckTitle,
           size: AppButtonSize.cta,
-          onPressed: () => openNewDeck(context),
+          onPressed: onNewDeck,
         ),
         if (onBrowse != null)
           AppButton(
@@ -233,75 +236,79 @@ class _FirstRunHome extends StatelessWidget {
   }
 }
 
-/// Today on the hero over the drawer, or, with the drawer [open], the hero in
-/// a band over every deck.
+/// Today on the hero, rounded at its foot, and [below] it, on the ground,
+/// the week card or why the day cannot be read: the hero takes the height
+/// [below] leaves, and the page scrolls only where the hero's words leave its
+/// mascot less than its floor.
 class _Home extends StatelessWidget {
   const _Home({
-    required this.decks,
-    required this.counts,
     required this.face,
     required this.cards,
-    required this.streak,
-    required this.problem,
-    required this.open,
-    required this.onOpen,
-    required this.onBrowse,
+    required this.below,
+    required this.onSettings,
   });
 
-  final List<Deck> decks;
-  final Map<DeckId, int> counts;
   final _Face? face;
 
   /// Whether any deck holds a card, before which the first-run step waits.
   final bool cards;
-  final int streak;
-
-  /// Why today's count cannot be read, shown atop the drawer.
-  final String? problem;
-  final bool open;
-  final ValueChanged<bool> onOpen;
-  final VoidCallback? onBrowse;
+  final Widget? below;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final face = this.face;
-    final drawer = _Drawer(
-      decks: decks,
-      counts: counts,
-      open: open,
-      shut: face == null || face.due ? 1 : 3,
-      problem: problem,
-      onOpen: onOpen,
-      onBrowse: onBrowse,
+    final below = this.below;
+    final hero = DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.hero,
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(AppRadius.sheet),
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpace.gutter,
+          MediaQuery.paddingOf(context).top + AppSpace.s12,
+          AppSpace.gutter,
+          AppSpace.s20,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // The first-run step asks for the minutes once a day with cards
+            // shows.
+            if (face != null && cards) const FirstDailyMinutes(),
+            Row(
+              spacing: AppSpace.s8,
+              children: [
+                Expanded(child: _AppName(color: colors.onHero)),
+                ProfileButton(onPressed: onSettings, onHero: true),
+              ],
+            ),
+            Expanded(child: _Hero(face: face)),
+          ],
+        ),
+      ),
     );
     return Scaffold(
-      backgroundColor: colors.hero,
-      body: SafeArea(
-        bottom: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // The first-run step asks for the minutes once a day with cards
-              // shows.
-              if (face != null && cards) const FirstDailyMinutes(),
-              if (open) ...[
-                _HeroBand(face: face),
-                Expanded(child: drawer),
-              ] else ...[
-                _HeroTop(streak: streak),
-                Expanded(child: _Hero(face: face)),
-                // Closed, the drawer takes its rows' height down to the foot,
-                // and never more than half the screen.
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: constraints.maxHeight / 2,
+      body: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: _HomeFit(
+            height: constraints.maxHeight,
+            fill: hero,
+            below: below == null
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpace.gutter,
+                      AppSpace.s16,
+                      AppSpace.gutter,
+                      AppSpace.s12,
+                    ),
+                    child: below,
                   ),
-                  child: drawer,
-                ),
-              ],
-            ],
           ),
         ),
       ),
@@ -309,68 +316,77 @@ class _Home extends StatelessWidget {
   }
 }
 
-/// The hero's top bar: the app's name and, while the streak is above zero,
-/// "n일 연속" on a card in the accent.
-class _HeroTop extends StatelessWidget {
-  const _HeroTop({required this.streak});
+/// [fill] over [below] in [height]: [below] at its own height, and [fill] in
+/// what it leaves, but never shorter than [fill]'s least height, past which
+/// the two are taller than [height].
+class _HomeFit extends MultiChildRenderObjectWidget {
+  _HomeFit({required this.height, required Widget fill, required Widget below})
+    : super(children: [fill, below]);
 
-  final int streak;
+  final double height;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpace.gutter,
-        AppSpace.s16,
-        AppSpace.gutter,
-        0,
-      ),
-      child: Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: AppSpace.s8,
-        runSpacing: AppSpace.s8,
-        children: [
-          _AppName(color: colors.onHero),
-          if (streak > 0) StreakBadge(days: streak),
-        ],
-      ),
+  _RenderHomeFit createRenderObject(BuildContext context) =>
+      _RenderHomeFit(height);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderHomeFit renderObject) =>
+      renderObject.height = height;
+}
+
+final class _FitData extends ContainerBoxParentData<RenderBox> {}
+
+/// Lays out and paints a fit's children, placed by [performLayout].
+abstract class _RenderFit extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _FitData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _FitData> {
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _FitData) child.parentData = _FitData();
+  }
+
+  void place(RenderBox child, Offset offset) =>
+      (child.parentData! as _FitData).offset = offset;
+
+  @override
+  void paint(PaintingContext context, Offset offset) =>
+      defaultPaint(context, offset);
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      defaultHitTestChildren(result, position: position);
+}
+
+class _RenderHomeFit extends _RenderFit {
+  _RenderHomeFit(this._height);
+
+  double _height;
+  set height(double value) {
+    if (value == _height) return;
+    _height = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final fill = firstChild!;
+    final below = lastChild!;
+    final width = constraints.maxWidth;
+    below.layout(BoxConstraints.tightFor(width: width), parentUsesSize: true);
+    final height = max(
+      _height - below.size.height,
+      fill.getMinIntrinsicHeight(width),
     );
+    fill.layout(BoxConstraints.tight(Size(width, height)));
+    place(fill, Offset.zero);
+    place(below, Offset(0, height));
+    size = constraints.constrain(Size(width, height + below.size.height));
   }
 }
 
-/// "n일 연속" on the surface over its edge, in the accent.
-class StreakBadge extends StatelessWidget {
-  const StreakBadge({super.key, required this.days});
-
-  final int days;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        boxShadow: AppShadow.edge(colors.edge, AppSize.edgeRow),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpace.s12,
-          vertical: AppSpace.s4,
-        ),
-        child: Text(
-          AppLocalizations.of(context).streakDays(days),
-          style: AppType.label.copyWith(color: colors.accent),
-        ),
-      ),
-    );
-  }
-}
-
-/// The hero's face, centred in its space and scrolled where a large text
-/// size makes it taller: the mascot, the words, and the action.
+/// The hero's face in its space: the mascot as large as the words leave room
+/// for, the group centred.
 class _Hero extends StatelessWidget {
   const _Hero({required this.face});
 
@@ -382,354 +398,315 @@ class _Hero extends StatelessWidget {
     final face = this.face;
     final title = face?.title;
     final line = face?.line;
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpace.gutter,
-          vertical: AppSpace.s16,
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: max(0, constraints.maxHeight - AppSpace.s32),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            spacing: AppSpace.s8,
-            children: [
-              Mascot(
-                expression: face?.mascot ?? MascotExpression.thinking,
-                size: AppSize.mascotHero,
-              ),
-              if (title != null)
-                Semantics(
-                  header: true,
-                  child: Text(
-                    keepWords(title),
-                    semanticsLabel: title,
-                    textAlign: TextAlign.center,
-                    style: (face!.figure ? AppType.heroFigure : AppType.title)
-                        .copyWith(color: colors.onHero),
-                  ),
-                ),
-              if (line != null)
-                Text(
-                  keepWords(line),
-                  semanticsLabel: line,
-                  textAlign: TextAlign.center,
-                  style: AppType.bodyStrong.copyWith(color: colors.onHero),
-                ),
-              if (face != null) ...[
-                const SizedBox(height: AppSpace.s8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minWidth: AppSize.mascotHero + AppSpace.s12,
-                  ),
-                  child: AppButton(
-                    label: face.action,
-                    variant: AppButtonVariant.onHero,
-                    size: AppButtonSize.cta,
-                    onPressed: face.onAction,
-                  ),
-                ),
-              ],
-            ],
-          ),
+    return _HeroFit(
+      mascot: LayoutBuilder(
+        builder: (context, constraints) => Mascot(
+          expression: face?.mascot ?? MascotExpression.thinking,
+          size: constraints.maxWidth,
         ),
       ),
-    );
-  }
-}
-
-/// The hero in a band over the open drawer: the mascot small, the words, and
-/// the action.
-class _HeroBand extends StatelessWidget {
-  const _HeroBand({required this.face});
-
-  final _Face? face;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final face = this.face;
-    final title = face?.title;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpace.gutter,
-        AppSpace.s16,
-        AppSpace.gutter,
-        AppSpace.s20,
-      ),
-      child: Row(
-        spacing: AppSpace.s12,
+      words: Column(
+        mainAxisSize: MainAxisSize.min,
+        spacing: AppSpace.s8,
         children: [
-          Mascot(
-            expression: face?.mascot ?? MascotExpression.thinking,
-            size: AppSize.mascotMedium,
-          ),
-          Expanded(
-            child: title == null
-                ? const SizedBox.shrink()
-                : Text(
-                    keepWords(title),
-                    semanticsLabel: title,
-                    style: AppType.title.copyWith(color: colors.onHero),
-                  ),
-          ),
-          if (face != null)
-            Flexible(
+          if (title != null)
+            Semantics(
+              header: true,
+              child: Text(
+                keepWords(title),
+                semanticsLabel: title,
+                textAlign: TextAlign.center,
+                style: (face!.figure ? AppType.heroFigure : AppType.title)
+                    .copyWith(color: colors.onHero),
+              ),
+            ),
+          if (line != null)
+            Text(
+              keepWords(line),
+              semanticsLabel: line,
+              textAlign: TextAlign.center,
+              style: AppType.bodyStrong.copyWith(color: colors.onHero),
+            ),
+          if (face != null) ...[
+            const SizedBox(height: AppSpace.s8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: AppSize.mascotHero + AppSpace.s12,
+              ),
               child: AppButton(
                 label: face.action,
                 variant: AppButtonVariant.onHero,
+                size: AppButtonSize.cta,
                 onPressed: face.onAction,
               ),
             ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// The decks on the ground, rounded at the top: closed, "내 노트 n" and the
-/// first [shut] rows; [open], every deck under the search, "새 노트" and the
-/// public decks. A drag up on its head opens it and a drag down closes it; a
-/// tap on its handle does either, and on its closed head opens it.
-class _Drawer extends StatefulWidget {
-  const _Drawer({
-    required this.decks,
-    required this.counts,
-    required this.open,
-    required this.shut,
-    required this.problem,
-    required this.onOpen,
-    required this.onBrowse,
-  });
-
-  final List<Deck> decks;
-  final Map<DeckId, int> counts;
-  final bool open;
-
-  /// How many rows the closed drawer shows.
-  final int shut;
-  final String? problem;
-  final ValueChanged<bool> onOpen;
-  final VoidCallback? onBrowse;
+/// The [mascot] over the [words] in the height it is given: the words at
+/// their own size, and the mascot square in what they leave, from
+/// [AppSize.mascotHero] down to [AppSize.mascotFloor], the two centred as a
+/// group. Its least height is the words under the mascot at that floor.
+class _HeroFit extends MultiChildRenderObjectWidget {
+  _HeroFit({required Widget mascot, required Widget words})
+    : super(children: [mascot, words]);
 
   @override
-  State<_Drawer> createState() => _DrawerState();
+  _RenderHeroFit createRenderObject(BuildContext context) => _RenderHeroFit();
 }
 
-class _DrawerState extends State<_Drawer> {
-  /// The search, or null while its field is closed.
-  String? _query;
+class _RenderHeroFit extends _RenderFit {
+  /// The space between the mascot and the words, and around the group.
+  static const _gap = AppSpace.s8;
 
-  /// How far the head was dragged, down positive.
-  var _drag = 0.0;
+  double _group(double words, double mascot) => mascot + _gap * 3 + words;
 
   @override
-  void didUpdateWidget(_Drawer old) {
-    super.didUpdateWidget(old);
-    if (!widget.open) _query = null;
+  double computeMinIntrinsicHeight(double width) =>
+      _group(lastChild!.getMinIntrinsicHeight(width), AppSize.mascotFloor);
+
+  @override
+  double computeMaxIntrinsicHeight(double width) =>
+      _group(lastChild!.getMaxIntrinsicHeight(width), AppSize.mascotHero);
+
+  @override
+  double computeMinIntrinsicWidth(double height) =>
+      lastChild!.getMinIntrinsicWidth(double.infinity);
+
+  @override
+  double computeMaxIntrinsicWidth(double height) =>
+      lastChild!.getMaxIntrinsicWidth(double.infinity);
+
+  @override
+  void performLayout() {
+    final mascot = firstChild!;
+    final words = lastChild!;
+    final width = constraints.maxWidth;
+    words.layout(BoxConstraints.tightFor(width: width), parentUsesSize: true);
+    final room = constraints.hasBoundedHeight
+        ? constraints.maxHeight
+        : constraints.minHeight;
+    final side = (room - _group(words.size.height, 0)).clamp(
+      AppSize.mascotFloor,
+      AppSize.mascotHero,
+    );
+    mascot.layout(BoxConstraints.tight(Size.square(side)));
+    final group = _group(words.size.height, side) - _gap * 2;
+    size = constraints.constrain(Size(width, max(room, group + _gap * 2)));
+    final top = (size.height - group) / 2;
+    place(mascot, Offset((width - side) / 2, top));
+    place(words, Offset(0, top + side + _gap));
   }
+}
+
+/// "n일 연속", the count in the accent, with the last seven study days'
+/// cards at its right, over a bar a day, today's last and in the accent, each
+/// under its count and over its weekday. A day with no card is a dashed bar.
+class _WeekCard extends StatelessWidget {
+  const _WeekCard({required this.streak, required this.week});
+
+  final int streak;
+  final List<({DateTime date, int cards})> week;
+
+  /// The bars' height at the week's most cards, and a day without any's.
+  static const _barHeight = 48.0;
+  static const _emptyBar = AppSpace.s16;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
-    final open = widget.open;
-    final query = (_query ?? '').trim().toLowerCase();
-    final shown = open
-        ? [
-            for (final deck in widget.decks)
-              if (deck.name.toLowerCase().contains(query)) deck,
-          ]
-        : widget.decks.take(widget.shut).toList();
-    final problem = widget.problem;
-    final head = GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      // Closed, a tap anywhere on the head opens it, as its handle does.
-      onTap: open ? null : () => widget.onOpen(true),
-      onVerticalDragStart: (_) => _drag = 0,
-      onVerticalDragUpdate: (details) => _drag += details.delta.dy,
-      onVerticalDragEnd: (details) {
-        final velocity = details.primaryVelocity ?? 0;
-        if (_drag < -AppSpace.s24 || velocity < -300) widget.onOpen(true);
-        if (_drag > AppSpace.s24 || velocity > 300) widget.onOpen(false);
-      },
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final most = week.map((day) => day.cards).fold(0, max);
+    final total = week.fold(0, (sum, day) => sum + day.cards);
+    String name(int index) => index == week.length - 1
+        ? l10n.dayToday
+        : DateFormat.E(locale).format(week[index].date);
+    final streakText = l10n.streakDays(streak);
+    final number = '$streak';
+    final at = streakText.indexOf(number);
+    TextStyle small(int index) => AppType.caption.copyWith(
+      color: index == week.length - 1 ? colors.accent : colors.ink2,
+    );
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: AppShadow.card(colors),
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          AppSpace.gutter,
+          AppSpace.s20,
           AppSpace.s12,
-          AppSpace.gutter,
-          AppSpace.s8,
+          AppSpace.s20,
+          AppSpace.s12,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: AppSpace.s12,
+          spacing: AppSpace.s8,
           children: [
-            Center(
-              child: Semantics(
-                button: true,
-                label: open ? l10n.drawerClose : l10n.drawerOpen,
-                onTap: () => widget.onOpen(!open),
-                excludeSemantics: true,
-                child: GestureDetector(
-                  onTap: () => widget.onOpen(!open),
-                  child: SizedBox(
-                    width: AppSize.tapTarget * 2,
-                    height: kMinInteractiveDimension,
-                    child: Center(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: colors.edge,
-                          borderRadius: BorderRadius.circular(AppSpace.s4),
-                        ),
-                        child: const SizedBox(
-                          width: AppSize.tapTarget,
-                          height: AppSpace.s4,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
             Wrap(
               alignment: WrapAlignment.spaceBetween,
               crossAxisAlignment: WrapCrossAlignment.center,
               spacing: AppSpace.s8,
-              runSpacing: AppSpace.s8,
               children: [
                 Semantics(
                   header: true,
-                  child: Text(
-                    l10n.myDecks(widget.decks.length),
-                    style: AppType.label.copyWith(color: colors.ink),
+                  child: Text.rich(
+                    // The count in the accent, where the sentence holds it.
+                    at < 0
+                        ? TextSpan(text: streakText)
+                        : TextSpan(
+                            children: [
+                              TextSpan(text: streakText.substring(0, at)),
+                              TextSpan(
+                                text: number,
+                                style: TextStyle(color: colors.accent),
+                              ),
+                              TextSpan(
+                                text: streakText.substring(at + number.length),
+                              ),
+                            ],
+                          ),
+                    style: AppType.title.copyWith(color: colors.ink),
                   ),
                 ),
-                if (open)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: AppSpace.s8,
-                    children: [
-                      RaisedIconButton(
-                        icon: _query == null
-                            ? LucideIcons.search
-                            : LucideIcons.x,
-                        tooltip: _query == null
-                            ? l10n.searchDecks
-                            : l10n.closeSearch,
-                        onPressed: () =>
-                            setState(() => _query = _query == null ? '' : null),
-                      ),
-                      AppChip.action(
-                        label: l10n.newDeck,
-                        onPressed: () => openNewDeck(context),
-                      ),
-                    ],
-                  )
-                else
-                  ExcludeSemantics(
-                    child: Text(
-                      l10n.drawerOpen,
-                      style: AppType.secondary.copyWith(color: colors.ink2),
-                    ),
-                  ),
+                Text(
+                  l10n.lastWeekCards(total),
+                  style: AppType.caption.copyWith(color: colors.ink2),
+                ),
               ],
             ),
-            if (open && _query != null)
-              AppTextField(
-                hint: l10n.searchDecks,
-                prefixIcon: const Icon(LucideIcons.search),
-                height: AppSize.search,
-                autofocus: true,
-                onChanged: (query) => setState(() => _query = query),
+            Semantics(
+              container: true,
+              image: true,
+              label: [
+                for (final (index, day) in week.indexed)
+                  l10n.weekDayCards(name(index), day.cards),
+              ].join(', '),
+              excludeSemantics: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: AppSpace.s4,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    spacing: AppSpace.s8,
+                    children: [
+                      for (final (index, day) in week.indexed)
+                        Expanded(
+                          child: Column(
+                            spacing: AppSpace.s4,
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  '${day.cards}',
+                                  style: small(index),
+                                ),
+                              ),
+                              _Bar(
+                                height: day.cards == 0
+                                    ? _emptyBar
+                                    : max(
+                                        AppSpace.s8,
+                                        _barHeight * day.cards / most,
+                                      ),
+                                color: index == week.length - 1
+                                    ? colors.accent
+                                    : day.cards == 0
+                                    ? colors.edge
+                                    : colors.heat1,
+                                dashed: day.cards == 0,
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                  Row(
+                    spacing: AppSpace.s8,
+                    children: [
+                      for (var index = 0; index < week.length; index++)
+                        Expanded(
+                          child: Center(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(name(index), style: small(index)),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ),
+            ),
           ],
         ),
       ),
     );
-    final rows = [
-      if (problem != null) _ProblemRow(message: problem),
-      if (shown.isEmpty && open)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpace.s32),
-          child: Text(
-            keepWords(l10n.noDeckMatches),
-            semanticsLabel: l10n.noDeckMatches,
-            textAlign: TextAlign.center,
-            style: AppType.body.copyWith(color: colors.muted),
-          ),
-        ),
-      for (final deck in shown)
-        DeckRow(
-          deck: deck,
-          cardCount: widget.counts[deck.id] ?? 0,
-          onOpen: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => DeckScreen(deck: deck)),
-          ),
-          today: TodayCounter(
-            decks: DeckSelection(deck.id),
-            builder: (context, count) => TodayChip(count: count),
-          ),
-          progress: ProgressCounter(
-            decks: DeckSelection(deck.id),
-            builder: (context, progress) => _DeckProgress(
-              progress: progress,
-              cardCount: widget.counts[deck.id] ?? 0,
-            ),
-          ),
-        ),
-      if (open && widget.onBrowse != null)
-        AppButton(
-          label: l10n.browsePublicDecks,
-          variant: AppButtonVariant.text,
-          onPressed: widget.onBrowse,
-        ),
-    ];
-    const padding = EdgeInsets.fromLTRB(
-      AppSpace.gutter,
-      0,
-      AppSpace.gutter,
-      AppSpace.s16,
-    );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.ground,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.sheet),
-        ),
-      ),
-      child: open
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                head,
-                Expanded(
-                  child: ListView(padding: padding, children: rows),
-                ),
-              ],
-            )
-          // Closed, it takes its rows' height, its rows scrolling where a
-          // large text size makes them taller than its space.
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                head,
-                Flexible(
-                  child: ListView(
-                    shrinkWrap: true,
-                    padding: padding,
-                    children: rows,
-                  ),
-                ),
-              ],
-            ),
-    );
   }
 }
 
-/// Why today's count cannot be read, as a row atop the drawer.
+/// A day's bar, [height] tall in [color], or its outline dashed while
+/// [dashed].
+class _Bar extends StatelessWidget {
+  const _Bar({required this.height, required this.color, required this.dashed});
+
+  final double height;
+  final Color color;
+  final bool dashed;
+
+  static const _shape = BorderRadius.vertical(
+    top: Radius.circular(AppSpace.s8),
+    bottom: Radius.circular(AppSpace.s4),
+  );
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: height,
+    width: double.infinity,
+    child: dashed
+        ? CustomPaint(painter: _DashedOutline(color))
+        : DecoratedBox(
+            decoration: BoxDecoration(color: color, borderRadius: _shape),
+          ),
+  );
+}
+
+/// The bar's outline in [color], dashed.
+class _DashedOutline extends CustomPainter {
+  const _DashedOutline(this.color);
+
+  final Color color;
+
+  static const _line = 2.0;
+  static const _dash = AppSpace.s4;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final outline = Path()
+      ..addRRect(_Bar._shape.toRRect((Offset.zero & size).deflate(_line / 2)));
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _line;
+    for (final PathMetric metric in outline.computeMetrics()) {
+      for (var at = 0.0; at < metric.length; at += _dash * 2) {
+        canvas.drawPath(metric.extractPath(at, at + _dash), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedOutline old) => old.color != color;
+}
+
+/// Why today's count cannot be read, in the week card's place.
 class _ProblemRow extends StatelessWidget {
   const _ProblemRow({required this.message});
 
@@ -738,88 +715,26 @@ class _ProblemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpace.rowGap),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.row),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpace.s16),
-          child: Row(
-            spacing: AppSpace.s12,
-            children: [
-              Icon(LucideIcons.circleAlert, color: colors.ink2),
-              Expanded(
-                child: Text(
-                  message,
-                  style: AppType.body.copyWith(color: colors.ink),
-                ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.row),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpace.s16),
+        child: Row(
+          spacing: AppSpace.s12,
+          children: [
+            Icon(LucideIcons.circleAlert, color: colors.ink2),
+            Expanded(
+              child: Text(
+                message,
+                style: AppType.body.copyWith(color: colors.ink),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
-}
-
-/// A brand-tint "오늘 n" when a session over the deck would study any card
-/// now, and the reason when the count cannot be read.
-class TodayChip extends StatelessWidget {
-  const TodayChip({super.key, required this.count});
-
-  final TodayCount count;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return switch (count) {
-      TodayCounted(:final total) when total > 0 => AppChip(
-        label: AppLocalizations.of(context).todayChip(total),
-        tone: AppChipTone.brand,
-      ),
-      TodayUnavailable(:final message) => Tooltip(
-        message: message,
-        child: Icon(
-          LucideIcons.circleAlert,
-          color: colors.muted,
-          semanticLabel: message,
-        ),
-      ),
-      TodayCounted() || TodayPending() => const SizedBox.shrink(),
-    };
-  }
-}
-
-/// A deck row's "n장 중 m장 익힘" over its progress bar, whose label carries
-/// the mastered, learning and new counts; "n장" alone while the progress is
-/// read, and for a deck with no card, which has nothing to draw.
-class _DeckProgress extends StatelessWidget {
-  const _DeckProgress({required this.progress, required this.cardCount});
-
-  final DeckProgress? progress;
-  final int cardCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final quiet = AppType.caption.copyWith(color: AppColors.of(context).muted);
-    final progress = this.progress;
-    if (progress == null || progress.total == 0) {
-      return Text(l10n.deckRowCards(cardCount), style: quiet);
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: AppSpace.s4,
-      children: [
-        Text(
-          l10n.deckMastered(progress.total, progress.mastered),
-          style: quiet,
-        ),
-        ProgressBar(progress: progress),
-      ],
     );
   }
 }

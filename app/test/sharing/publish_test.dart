@@ -12,7 +12,7 @@ const _french = {
   'French': {'chat': 'cat'},
 };
 
-/// Opens 홈's drawer over "French", then French's card list.
+/// Opens the 노트 tab over "French", then French's card list.
 Future<SharingApp> _openFrench(
   WidgetTester tester, {
   FakeSharingServer? server,
@@ -204,7 +204,7 @@ void main() {
     await app.close();
   });
 
-  testWidgets('the drawer shows the chip on a public deck only', (
+  testWidgets('the 노트 tab shows the chip on a public deck only', (
     tester,
   ) async {
     final app = await SharingApp.open(

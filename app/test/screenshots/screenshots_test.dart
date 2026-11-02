@@ -6,7 +6,6 @@ import 'dart:math';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart' hide Card;
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,6 +28,8 @@ import 'package:knowno/study/study.dart';
 import 'package:knowno/sync/sync.dart';
 
 import '../account/fake_account_service.dart';
+import '../app_fonts.dart';
+import '../home/hero_states.dart';
 import '../home/home_data.dart';
 import '../photo_import/fakes.dart';
 import '../sharing/fakes.dart';
@@ -75,47 +76,6 @@ Future<void> _swipeCurrent(WidgetTester tester, double dx) async {
 }
 
 const _density = 2.0;
-
-/// Loads the bundled font, Lucide's icons and Material's, which tests
-/// otherwise draw as boxes.
-Future<void> _loadFonts() async {
-  Future<ByteData> bytes(String path) async =>
-      ByteData.sublistView(await File(path).readAsBytes());
-  final pretendard = FontLoader(appFontFamily);
-  for (final weight in ['Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold']) {
-    pretendard.addFont(bytes('assets/fonts/Pretendard-$weight.otf'));
-  }
-  await pretendard.load();
-  await (FontLoader(
-    appDisplayFallbackFamily,
-  )..addFont(bytes('assets/fonts/Pretendard-ExtraBold.otf'))).load();
-  await (FontLoader(
-    appDisplayFontFamily,
-  )..addFont(bytes('assets/fonts/Jua-Regular.ttf'))).load();
-  await (FontLoader('packages/lucide_icons_flutter/Lucide')..addFont(
-        rootBundle.load('packages/lucide_icons_flutter/assets/lucide.ttf'),
-      ))
-      .load();
-  await (FontLoader('MaterialIcons')..addFont(
-        bytes(
-          '${_flutterRoot()}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
-        ),
-      ))
-      .load();
-}
-
-/// The Flutter SDK running this test, found above the test runner.
-String _flutterRoot() {
-  var dir = File(Platform.resolvedExecutable).parent;
-  while (dir.parent.path != dir.path) {
-    if (Directory('${dir.path}/bin/cache/artifacts/material_fonts')
-        .existsSync()) {
-      return dir.path;
-    }
-    dir = dir.parent;
-  }
-  throw StateError('no Flutter SDK above ${Platform.resolvedExecutable}');
-}
 
 /// The widgets whose text a screen's three sizes leave out: a card's own
 /// content on the study and preview cards, which `design.md` §Details leaves
@@ -225,7 +185,7 @@ void main() {
   setUpAll(() async {
     if (!_capture) return;
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
-    await _loadFonts();
+    await loadAppFonts();
     scheduler = await Scheduler.load();
     for (final mode in ['light', 'dark']) {
       File('build/screenshots/$mode/type-sizes.txt')
@@ -288,23 +248,13 @@ void main() {
     /// Shows the 기록 tab once its read is done: the read awaits the
     /// engine call by call, each finishing in real time and resuming on a
     /// pump.
-    // Pulls up 홈's drawer, unless it is up.
-    Future<void> openDrawer(WidgetTester tester) async {
-      if (find.text(ko.drawerOpen).evaluate().isNotEmpty) {
-        await tap(tester, find.text(ko.drawerOpen));
-      }
-    }
+    // Shows the 노트 tab: the bar's 노트, the last, below the tab's title.
+    Future<void> showNotes(WidgetTester tester) =>
+        tap(tester, find.text(ko.tabNotes).last);
 
-    // Lets 홈's drawer down, unless it is down.
-    Future<void> closeDrawer(WidgetTester tester) async {
-      if (find.text(ko.drawerOpen).evaluate().isEmpty) {
-        await tester.drag(
-          find.textContaining(ko.myDecks(0).replaceAll('0', '')).first,
-          const Offset(0, 300),
-        );
-        await tester.pumpAndSettle();
-      }
-    }
+    // Shows 홈.
+    Future<void> showHome(WidgetTester tester) =>
+        tap(tester, find.text(ko.tabHome));
 
     /// Lets the answers a closed study screen is still writing land: a read
     /// of the study store waits for them, each engine call finishing in real
@@ -419,8 +369,9 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       // 홈 while no deck holds a card: how to start.
+      await showHome(tester);
       await shot(tester, '16-today-no-cards');
-      await openDrawer(tester);
+      await showNotes(tester);
       await tap(tester, find.text(ko.newDeck));
       await enter(ko.deckName, '일본어 N3 한자');
       await tap(tester, find.bySemanticsLabel(ko.deckColorName('violet')));
@@ -492,14 +443,15 @@ void main() {
       // The tabs before any study: four new cards for today.
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      // Once a deck has cards, the first-run step asks for the daily minutes.
+      // Once 홈 shows a deck with cards, the first-run step asks for the
+      // daily minutes.
+      await showHome(tester);
       await waitForPicker(tester, more: ko.dailyMinutesMore);
       await shot(tester, '16a0-daily-minutes-first');
       await tap(tester, find.text(ko.dailyMinutesSkip));
-      await closeDrawer(tester);
       await shot(tester, '16a-today');
-      await openDrawer(tester);
-      await shot(tester, '16a2-today-drawer');
+      await showNotes(tester);
+      await shot(tester, '16a2-notes');
       await tap(tester, shownText('영단어 기본'));
 
       await tester.tap(find.textContaining(ko.studyThisDeckPlain));
@@ -560,9 +512,9 @@ void main() {
       await untilWritten(tester);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      await closeDrawer(tester);
+      await showHome(tester);
       await shot(tester, '16a1-today-started');
-      await openDrawer(tester);
+      await showNotes(tester);
       await tap(tester, shownText('영단어 기본'));
       // Reopened the same day: the day's last card from the earlier session,
       // and for a moment the notice that the session goes on with the day.
@@ -607,11 +559,11 @@ void main() {
       await showRecord(tester);
       await shot(tester, '16c-record');
       // 홈 after the sessions, with today's cards done.
-      await tap(tester, find.text(ko.tabHome));
-      await closeDrawer(tester);
+      await showHome(tester);
       await shot(tester, '16b-today-done');
 
-      await tap(tester, find.text(ko.tabSettings));
+      // 설정, from 홈's profile button.
+      await tap(tester, find.byTooltip(ko.accountTitle));
       await shot(tester, '18-account');
       await tap(tester, find.text(ko.themeTitle));
       await shot(tester, '18e-theme-sheet');
@@ -718,6 +670,76 @@ void main() {
       await shot(tester, '16d-today-backlog');
       await unmount(tester);
     });
+
+    for (final device in heroPhones) {
+      for (final MapEntry(key: state, value: (_, setup))
+          in heroStates.entries) {
+        testWidgets('홈 $state on a ${device.name} in $mode', skip: !_capture, (
+          tester,
+        ) async {
+          phone(tester);
+          tester.view.physicalSize = device.size * _density;
+          tester.view.padding = FakeViewPadding(
+            top: device.top * _density,
+            bottom: device.bottom * _density,
+          );
+          tester.view.viewPadding = tester.view.padding;
+          final db = AppDatabase(NativeDatabase.memory());
+          addTearDown(db.close);
+          var ids = 0;
+          final repository = DeckRepository(
+            db,
+            clock: () => homeNow.subtract(const Duration(days: 5)),
+            newId: () => 'id${ids++}',
+          );
+          await tester.runAsync(() async {
+            final decks = [
+              for (final name in heroNotes)
+                (await repository.createDeck(name)).id,
+            ];
+            final minutes = await setup(db, repository, decks);
+            if (minutes != null) {
+              await StudyRepository(
+                db,
+                newId: () => 'setting',
+              ).setDailyMinutes(minutes, at: homeNow);
+            }
+          });
+          final storage = await openStudyStorage(tester);
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                deckRepositoryProvider.overrideWithValue(repository),
+                ...homeOverrides(db, storage: storage),
+              ],
+              child: MaterialApp(
+                theme: lightTheme,
+                darkTheme: darkTheme,
+                themeMode: ThemeMode.values.byName(mode),
+                locale: const Locale('ko'),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: const HomeScreen(),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await shot(
+            tester,
+            '16m-home-$state-${device.size.height.toInt()}'.replaceAll(
+              ' ',
+              '-',
+            ),
+          );
+          // The owner's four notes, on the 노트 tab.
+          if (state == 'today') {
+            await showNotes(tester);
+            await shot(tester, '16n-notes-${device.size.height.toInt()}');
+          }
+          await unmount(tester);
+        });
+      }
+    }
 
     testWidgets(
       'the today tab at twice the text size in $mode',
@@ -922,7 +944,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await openDrawer(tester);
+      await showNotes(tester);
       await tap(tester, shownText('국어 문법'));
       await shot(tester, '31-whole-card-list');
       await tap(tester, find.byType(Switch));
@@ -997,7 +1019,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await openDrawer(tester);
+      await showNotes(tester);
       await tap(tester, shownText('생명과학'));
       await tap(tester, find.textContaining(ko.studyThisDeckPlain));
       await shot(tester, '34-long-study-1');
@@ -2230,7 +2252,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await openDrawer(tester);
+      await showNotes(tester);
       await tap(tester, shownText('영단어 기본'));
       await tap(tester, find.byTooltip(ko.deckActions));
       await shot(tester, '25-deck-menu-publish');

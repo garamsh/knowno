@@ -12,14 +12,16 @@ import '../../study/study.dart';
 import '../../sync/sync.dart';
 import 'deck_screen.dart';
 import 'home_tab.dart';
+import 'notes_tab.dart';
 import 'record_tab.dart';
 
 /// The tabs, in the order the bar shows them.
-enum _Tab { record, home, settings }
+enum _Tab { record, home, notes }
 
-/// The signed-in app: the 기록, 홈 and 설정 tabs, opening on 홈. 홈 keeps a
-/// navigator of its own, so a note opens above the menu. Back on another tab
-/// returns to 홈; on 홈 it closes what 홈 opened, then is left to the platform.
+/// The signed-in app: the 기록, 홈 and 노트 tabs, opening on 홈, with 설정 over
+/// the menu from 홈's profile button. 노트 keeps a navigator of its own, so a
+/// note opens above the menu. Back on 노트 first closes what 노트 opened; on
+/// another tab it returns to 홈, and on 홈 it is left to the platform.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -30,21 +32,21 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   var _tab = _Tab.home;
 
-  /// The tabs shown so far, each built the first time: 기록 reads every
-  /// review, and 설정 the account and its sync.
+  /// The tabs shown so far: 기록 is built the first time, since it reads
+  /// every review.
   final _shown = {_Tab.home};
 
-  final _homeNavigator = GlobalKey<NavigatorState>();
+  final _notesNavigator = GlobalKey<NavigatorState>();
 
-  /// Whether 홈's navigator holds a screen over its first.
-  var _homeOpened = false;
+  /// Whether 노트's navigator holds a screen over its first.
+  var _notesOpened = false;
 
-  late final _homeObserver = _DepthObserver(() {
+  late final _notesObserver = _DepthObserver(() {
     // A navigator reports during its own update, so the state changes after.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final opened = _homeNavigator.currentState?.canPop() ?? false;
-      if (mounted && opened != _homeOpened) {
-        setState(() => _homeOpened = opened);
+      final opened = _notesNavigator.currentState?.canPop() ?? false;
+      if (mounted && opened != _notesOpened) {
+        setState(() => _notesOpened = opened);
       }
     });
   });
@@ -66,21 +68,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  /// Opens the photo import under way, then, on 홈, the deck it saved into.
+  /// Opens the photo import under way, then, on 노트, the deck it saved into.
   Future<void> _openImport(PhotoImports imports) async {
     final deck = await openPhotoImport(context, imports);
     if (deck == null || !mounted) return;
-    _select(_Tab.home);
-    await _homeNavigator.currentState?.push(
-      MaterialPageRoute<void>(builder: (_) => DeckScreen(deck: deck)),
+    _openDeck(deck);
+  }
+
+  /// Shows 노트 and opens [deck]'s screen on its navigator.
+  void _openDeck(Deck deck, {bool addingCard = false}) {
+    setState(() => _tab = _Tab.notes);
+    unawaited(
+      _notesNavigator.currentState?.push(
+        MaterialPageRoute<void>(
+          builder: (_) => DeckScreen(deck: deck, addingCard: addingCard),
+        ),
+      ),
     );
   }
 
-  /// Shows [tab]; 홈 again, while it shows a screen it opened, returns to its
-  /// first.
+  /// Opens 설정 over the menu.
+  void _openSettings() => unawaited(
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const AccountScreen(
+          syncStatus: SyncStatusView(),
+          studySettings: [
+            DailyMinutesRow(),
+            AutoplayAudioRow(),
+            PartOfSpeechPresetsRow(),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  /// Shows [tab]; 노트 again, while it shows a screen it opened, returns to
+  /// its first.
   void _select(_Tab tab) {
-    if (tab == _Tab.home && _tab == _Tab.home) {
-      _homeNavigator.currentState?.popUntil((route) => route.isFirst);
+    if (tab == _Tab.notes && _tab == _Tab.notes) {
+      _notesNavigator.currentState?.popUntil((route) => route.isFirst);
     }
     setState(() {
       _tab = tab;
@@ -98,13 +125,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         : PhotoImportBar(imports: imports, onOpen: () => _openImport(imports));
     return switch (ref.watch(decksProvider)) {
       AsyncData(value: final decks) => PopScope(
-        canPop: _tab == _Tab.home && !_homeOpened,
+        canPop: _tab == _Tab.home,
         onPopInvokedWithResult: (popped, _) {
           if (popped) return;
-          if (_tab != _Tab.home) {
-            setState(() => _tab = _Tab.home);
+          if (_tab == _Tab.notes && _notesOpened) {
+            unawaited(_notesNavigator.currentState?.maybePop());
           } else {
-            unawaited(_homeNavigator.currentState?.maybePop());
+            setState(() => _tab = _Tab.home);
           }
         },
         child: Scaffold(
@@ -115,25 +142,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 RecordTab(decks: decks)
               else
                 const SizedBox.shrink(),
+              HomeTab(
+                onOpenDeck: _openDeck,
+                onNotes: () => _select(_Tab.notes),
+                onSettings: _openSettings,
+              ),
+              // Built from the first, so a deck 홈 or an import opens has
+              // its navigator to open on.
               HeroControllerScope.none(
                 child: Navigator(
-                  key: _homeNavigator,
-                  observers: [_homeObserver],
+                  key: _notesNavigator,
+                  observers: [_notesObserver],
                   onGenerateRoute: (_) =>
-                      MaterialPageRoute<void>(builder: (_) => const HomeTab()),
+                      MaterialPageRoute<void>(builder: (_) => const NotesTab()),
                 ),
               ),
-              if (_shown.contains(_Tab.settings))
-                const AccountScreen(
-                  syncStatus: SyncStatusView(),
-                  studySettings: [
-                    DailyMinutesRow(),
-                    AutoplayAudioRow(),
-                    PartOfSpeechPresetsRow(),
-                  ],
-                )
-              else
-                const SizedBox.shrink(),
             ],
           ),
           bottomNavigationBar: Column(
@@ -199,7 +222,7 @@ class _TabBar extends StatelessWidget {
     String name(_Tab tab) => switch (tab) {
       _Tab.record => l10n.tabRecord,
       _Tab.home => l10n.tabHome,
-      _Tab.settings => l10n.tabSettings,
+      _Tab.notes => l10n.tabNotes,
     };
     return Semantics(
       container: true,

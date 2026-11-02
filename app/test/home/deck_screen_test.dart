@@ -381,7 +381,7 @@ void main() {
   );
 
   testWidgets(
-    'opened from 홈, the deck screen sits above the tab bar, which stays under it until study covers it',
+    'opened from the 노트 tab, the deck screen sits above the tab bar, which stays under it until study covers it',
     (tester) async {
       final screens = await DeckScreens.open(
         tester,
@@ -390,7 +390,9 @@ void main() {
         fromHome: true,
       );
       final tabs = find.bySemanticsLabel('Tabs');
-      await screens.tap(find.text('Pull up to see all'));
+      await screens.tap(
+        find.descendant(of: tabs, matching: find.text('Notes')),
+      );
       await screens.tap(shownText('French'));
 
       expect(find.byType(DeckScreen), findsOneWidget);

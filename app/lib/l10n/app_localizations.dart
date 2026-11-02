@@ -1243,12 +1243,6 @@ abstract class AppLocalizations {
   /// **'다크'**
   String get themeDark;
 
-  /// Label above the deck rows, with how many decks there are.
-  ///
-  /// In ko, this message translates to:
-  /// **'내 노트 {count}'**
-  String myDecks(int count);
-
   /// How many cards a deck holds, under its name.
   ///
   /// In ko, this message translates to:
@@ -2959,17 +2953,11 @@ abstract class AppLocalizations {
   /// **'파일을 읽지 못했어요. 다시 골라 주세요.'**
   String get spreadsheetNotRead;
 
-  /// The middle tab: today's study and the notes.
+  /// The middle tab: today's study.
   ///
   /// In ko, this message translates to:
   /// **'홈'**
   String get tabHome;
-
-  /// The settings tab.
-  ///
-  /// In ko, this message translates to:
-  /// **'설정'**
-  String get tabSettings;
 
   /// Today's cards, large on the home's hero.
   ///
@@ -2988,18 +2976,6 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'시작'**
   String get homeStart;
-
-  /// The closed drawer's hint: pull it up for every note.
-  ///
-  /// In ko, this message translates to:
-  /// **'올려서 보기'**
-  String get drawerOpen;
-
-  /// Closes the drawer back to its one row.
-  ///
-  /// In ko, this message translates to:
-  /// **'접기'**
-  String get drawerClose;
 
   /// The note screen's study button with today's count.
   ///
@@ -3059,6 +3035,24 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'이전'**
   String get coachPrevious;
+
+  /// The notes tab, and its title over every note.
+  ///
+  /// In ko, this message translates to:
+  /// **'노트'**
+  String get tabNotes;
+
+  /// On 홈's week card, beside the streak: the cards studied over the last seven study days.
+  ///
+  /// In ko, this message translates to:
+  /// **'지난 7일 {count}장'**
+  String lastWeekCards(int count);
+
+  /// What a screen reader reads for one of the week card's bars: the day and its cards.
+  ///
+  /// In ko, this message translates to:
+  /// **'{day} {count}장'**
+  String weekDayCards(String day, int count);
 }
 
 class _AppLocalizationsDelegate

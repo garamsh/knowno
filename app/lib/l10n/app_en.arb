@@ -190,7 +190,6 @@
   "themeSystem": "System",
   "themeLight": "Light",
   "themeDark": "Dark",
-  "myDecks": "My notes {count}",
   "cardCount": "{count, plural, =1{1 card} other{{count} cards}}",
   "todayChip": "Today {count}",
   "backlogPaused": "New cards wait until you catch up on your reviews.",
@@ -477,12 +476,9 @@
   "spreadsheetTooManyRows": "The file has over 1,000 rows. Split it and choose it again.",
   "spreadsheetNotRead": "The file could not be read. Choose it again.",
   "tabHome": "Home",
-  "tabSettings": "Settings",
   "homeToday": "{count, plural, =1{1 card today} other{{count} cards today}}",
   "homeMinutes": "About {minutes} min",
   "homeStart": "Start",
-  "drawerOpen": "Pull up to see all",
-  "drawerClose": "Collapse",
   "studyThisDeck": "Study this note · {count}",
   "studyThisDeckPlain": "Study this note",
   "cardsHeading": "Cards {count}",
@@ -491,5 +487,8 @@
   "saveAndAddCards": "Save and add cards",
   "previousCardLabel": "Card just seen, {answer}. Front: {front}. Back: {back}{changed, select, yes{. Changed} other{}}",
   "completionTimeLabel": "Time",
-  "coachPrevious": "Back"
+  "coachPrevious": "Back",
+  "tabNotes": "Notes",
+  "lastWeekCards": "Last 7 days: {count}",
+  "weekDayCards": "{day}: {count, plural, =1{1 card} other{{count} cards}}"
 }

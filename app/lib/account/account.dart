@@ -18,4 +18,5 @@ export 'src/failure.dart'
         AccountOffline,
         AccountRejected,
         AccountSuspended;
+export 'src/profile_button.dart' show ProfileButton;
 export 'src/providers.dart' show accountServiceProvider, appVersionProvider;

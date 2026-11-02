@@ -55,7 +55,7 @@ List<String> _listed(WidgetTester tester) =>
 
 void main() {
   testWidgets(
-    'the drawer pulled up offers New note over the deck rows, which opens 새 노트, and Browse public notes under them',
+    'the 노트 tab offers New note over the deck rows, which opens 새 노트, and Browse public notes under them',
     (tester) async {
       final app = await SharingApp.open(
         tester,
