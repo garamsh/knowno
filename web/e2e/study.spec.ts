@@ -39,14 +39,15 @@ async function shot(page: Page, name: string) {
 }
 
 /**
- * Checks [page] at 200% zoom, the browser's own text enlargement, at a wide screen and a phone's
- * width: nothing scrolls sideways, so nothing is cut at the edge; saves a screenshot of each when
- * asked for.
+ * Checks [page] at 200% zoom, the browser's own text enlargement, on a 1280 px screen, which lays
+ * it out in 640 CSS px: nothing scrolls sideways, so nothing is cut at the edge; saves a screenshot
+ * when asked for. A phone's 390 px at 200% leaves 195 CSS px, under the 320 that WCAG's reflow
+ * asks a page to fit, so it is not checked here.
  */
 async function atDoubleZoom(page: Page, name: string) {
   const viewport = page.viewportSize();
-  for (const width of [1280, 390]) {
-    await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
+  for (const width of [1280]) {
+    await page.setViewportSize({ width, height: 800 });
     await page.evaluate(() => {
       document.documentElement.style.zoom = "2";
     });
