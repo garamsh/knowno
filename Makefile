@@ -41,10 +41,10 @@ lint-repo:
 	scripts/run.sh check-ios-client-id
 
 lint-code:
-	scripts/check-generated.sh
+	scripts/run.sh check-generated
 	scripts/run.sh check-migration-order
 	scripts/run.sh deno lint
-	scripts/web.sh lint
+	scripts/run.sh web lint
 	cd app && $(DART_FILES); \
 	flutter analyze $$files && \
 	echo "analyzed $$(echo "$$files" | wc -l | tr -d ' ') Dart files in app/, selected by: $(DART_SCOPE)"
@@ -58,7 +58,7 @@ lint-code:
 
 format:
 	scripts/run.sh deno format
-	scripts/web.sh format
+	scripts/run.sh web format
 	cd app && $(DART_FILES); \
 	dart format --output=none --set-exit-if-changed $$files && \
 	echo "format checked $$(echo "$$files" | wc -l | tr -d ' ') Dart files in app/, selected by: $(DART_SCOPE)"
@@ -81,7 +81,7 @@ test-app: bridge
 	echo "ran the tests flutter test selects by default: app/test/**/*_test.dart"
 	cd engine && cargo test --locked && \
 	echo "ran the tests cargo test selects by default in engine/: unit tests in src/, engine/tests/*.rs, doc tests"
-	scripts/wasm-bindgen.sh test
+	scripts/run.sh wasm-bindgen test
 
 test-db:
 	scripts/test-db.sh
@@ -89,7 +89,7 @@ test-db:
 	scripts/run.sh deno test
 
 # Writes the brand's SVGs and PNGs from tools/brand/, then the launcher icons and the splash from
-# them. Not part of make ci, which checks them through scripts/web.sh lint. Revert the two edits the
+# them. Not part of make ci, which checks them through scripts/run.sh web lint. Revert the two edits the
 # generators make beyond their output (design.md §Brand).
 brand:
 	node tools/brand/generate.mjs
@@ -105,7 +105,7 @@ test-sync: bridge
 	scripts/test-sync.sh
 
 test-web:
-	scripts/web.sh test
+	scripts/run.sh web test
 	scripts/test-web.sh
 
 # build is the sum of its parts; CI runs build-apk and build-ios build-engine-web as parallel jobs.
@@ -141,6 +141,6 @@ build-engine-web:
 	cd engine-wasm && cargo build --locked --release && \
 	RUSTDOCFLAGS='-D warnings' cargo doc --locked --no-deps && \
 	echo "built the crate knowno_engine_wasm for wasm32-unknown-unknown and its rustdoc from engine-wasm/Cargo.toml"
-	scripts/web.sh build
+	scripts/run.sh web build
 
 ci: lint format test build
