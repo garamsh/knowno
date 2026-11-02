@@ -4,6 +4,7 @@ import { expect, type Page, type Request, test } from "@playwright/test";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
+import { expectScreenAtWidths } from "./authoring-screen";
 import { untilReacted } from "./until-reacted";
 
 // The local stack scripts/test-web.ts starts, whose URL and publishable key the app was built with.
@@ -273,6 +274,7 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
     { width: 2048, height: 1536 },
   ]);
   await expect(page.getByText("노트 '임시'에 추가돼요", { exact: true })).toBeVisible();
+  await expectScreenAtWidths(page, page.getByRole("dialog"));
   await capture(page, "list");
   await page.getByRole("button", { name: "사진 2, 카드 1장", exact: true }).click();
   await expect(page.getByRole("button", { name: "사진 2, 카드 1장", exact: true })).toHaveAttribute(

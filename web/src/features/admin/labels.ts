@@ -18,6 +18,8 @@ export const actionLabels: Record<string, string> = {
   create_plan_version: "요금제 새 버전",
   grant_plan: "요금제 지정",
   revoke_plan: "무료로 되돌리기",
+  grant_unlimited: "무제한 지정",
+  revoke_unlimited: "무제한 해제",
   suspend_user: "이용 정지",
   unsuspend_user: "정지 해제",
   remove_deck: "공유에서 영구 삭제",

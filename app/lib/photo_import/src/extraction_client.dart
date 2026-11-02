@@ -69,9 +69,10 @@ final class CandidateCard {
   final List<Content>? wholeFront;
 }
 
-/// The photos the user's plan lets through a [period], and those counted
-/// against it in the current one.
-typedef ExtractionAllowance = ({int limit, LimitPeriod period, int used});
+/// The photos the user's plan lets through a [period], null when no limit
+/// applies to the user (an admin, or a 무제한 grant; ADR 0157), and those
+/// counted in the current one.
+typedef ExtractionAllowance = ({int? limit, LimitPeriod period, int used});
 
 /// The cards one request read off a page, and the [cursor] to send back with
 /// the same photo to read on; null once the page is read to its end, or when
@@ -363,17 +364,17 @@ Uri extractCardsUrl(String restUrl) {
 }
 
 /// The allowance `extraction_allowance()`'s [rows] hold: one row of a
-/// `photo_limit`, its `period` and a `used`, neither number below 0; null for
-/// anything else.
+/// `photo_limit`, null for no limit, its `period` and a `used`, neither number
+/// below 0; null for anything else.
 ExtractionAllowance? parseAllowance(Object? rows) => switch (rows) {
   [
     {
-      'photo_limit': final int limit,
+      'photo_limit': final int? limit,
       'period': final String period,
       'used': final int used,
     },
   ]
-      when limit >= 0 && used >= 0 =>
+      when (limit == null || limit >= 0) && used >= 0 =>
     switch (_period(period)) {
       final period? => (limit: limit, period: period, used: used),
       null => null,

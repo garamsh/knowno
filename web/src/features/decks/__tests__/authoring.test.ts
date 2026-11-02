@@ -483,13 +483,35 @@ describe("photo candidates and allowance", () => {
         HttpResponse.json([{ photo_limit: 10, period: "month", used: 3 }]),
       ),
     );
-    expect(await readAllowance()).toEqual({ remaining: 7, limit: 10, period: "month" });
+    expect(await readAllowance()).toEqual({
+      kind: "limited",
+      remaining: 7,
+      limit: 10,
+      period: "month",
+    });
     server.use(
       http.post(`${supabaseUrl}/rest/v1/rpc/extraction_allowance`, () =>
         HttpResponse.json([{ photo_limit: 10, period: "month", used: 10 }]),
       ),
     );
-    expect(await readAllowance()).toEqual({ remaining: 0, limit: 10, period: "month" });
+    expect(await readAllowance()).toEqual({
+      kind: "limited",
+      remaining: 0,
+      limit: 10,
+      period: "month",
+    });
+    server.use(
+      http.post(`${supabaseUrl}/rest/v1/rpc/extraction_allowance`, () =>
+        HttpResponse.json([{ photo_limit: null, period: "month", used: 40 }]),
+      ),
+    );
+    expect(await readAllowance()).toEqual({ kind: "unlimited" });
+    server.use(
+      http.post(`${supabaseUrl}/rest/v1/rpc/extraction_allowance`, () =>
+        HttpResponse.json([{ period: "month", used: 40 }]),
+      ),
+    );
+    expect(await readAllowance()).toBeNull();
     server.use(
       http.post(`${supabaseUrl}/rest/v1/rpc/extraction_allowance`, () =>
         HttpResponse.json([{ photo_limit: 10, period: "year", used: 0 }]),

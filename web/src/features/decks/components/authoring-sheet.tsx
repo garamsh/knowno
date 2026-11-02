@@ -1,21 +1,24 @@
 "use client";
 
-import { X } from "lucide-react";
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { ChevronLeft, X } from "lucide-react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  type SyntheticEvent,
+  useEffect,
+  useId,
+  useRef,
+} from "react";
 import { keepFocusInside } from "@/design/focus-trap";
+import { useBackEntry } from "../hooks/use-back-entry";
 
-/** The authoring flow's modal sheet, with native focus isolation and focus return. */
-export function AuthoringSheet({
-  title,
-  children,
-  close,
-}: {
-  title: string;
-  children: ReactNode;
-  close: () => void;
-}) {
+/**
+ * A native modal dialog open while mounted: focus moves in and returns to what opened it, Tab
+ * stays inside, and Escape and the browser's back call [close], as the phone's back pops its top
+ * route.
+ */
+function useAuthoringDialog(close: () => void) {
   const ref = useRef<HTMLDialogElement>(null);
-  const heading = useId();
   useEffect(() => {
     const dialog = ref.current;
     const trigger = document.activeElement;
@@ -25,20 +28,38 @@ export function AuthoringSheet({
       if (trigger instanceof HTMLElement) trigger.focus();
     };
   }, []);
+  useBackEntry(close);
+  return {
+    ref,
+    "aria-modal": true,
+    onCancel: (event: SyntheticEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    },
+    onKeyDown: (event: KeyboardEvent<HTMLDialogElement>) => {
+      event.stopPropagation();
+      keepFocusInside(event);
+    },
+  } as const;
+}
+
+/** The authoring flow's modal sheet, at the foot below 1024 px and centred from it. */
+export function AuthoringSheet({
+  title,
+  children,
+  close,
+}: {
+  title: string;
+  children: ReactNode;
+  close: () => void;
+}) {
+  const dialog = useAuthoringDialog(close);
+  const heading = useId();
   return (
     <dialog
-      ref={ref}
+      {...dialog}
       aria-labelledby={heading}
-      aria-modal="true"
-      onCancel={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        close();
-      }}
-      onKeyDown={(event) => {
-        event.stopPropagation();
-        keepFocusInside(event);
-      }}
       onClick={(event) => {
         if (event.target === event.currentTarget) close();
       }}
@@ -59,6 +80,56 @@ export function AuthoringSheet({
           </button>
         </header>
         <div className="min-h-0 overflow-y-auto overscroll-contain px-gutter pb-4">{children}</div>
+      </div>
+    </dialog>
+  );
+}
+
+/**
+ * An authoring flow's screen, as the phone pushes one (ADR 0158): below 1024 px the whole page,
+ * its title bar led by "닫기", or "뒤로" with [back], over the scrolling [children] and the
+ * [actions] fixed at its foot; from 1024 px the same in a dialog.
+ */
+export function AuthoringScreen({
+  title,
+  children,
+  actions,
+  back = false,
+  close,
+}: {
+  title: string;
+  children: ReactNode;
+  actions?: ReactNode;
+  back?: boolean;
+  close: () => void;
+}) {
+  const dialog = useAuthoringDialog(close);
+  const heading = useId();
+  const Icon = back ? ChevronLeft : X;
+  return (
+    <dialog
+      {...dialog}
+      aria-labelledby={heading}
+      className="fixed inset-0 m-0 size-full max-h-none max-w-none overflow-hidden bg-ground break-keep p-0 text-ink backdrop:bg-hero/40 lg:m-auto lg:h-fit lg:max-h-[90dvh] lg:max-w-list lg:rounded-sheet"
+    >
+      <div className="flex h-dvh min-h-0 flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:h-auto lg:max-h-[90dvh]">
+        <header className="flex shrink-0 items-center gap-2 px-2 py-2 lg:px-3">
+          <button
+            type="button"
+            aria-label={back ? "뒤로" : "닫기"}
+            onClick={close}
+            className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-button"
+          >
+            <Icon aria-hidden className="size-6" />
+          </button>
+          <h2 id={heading} className="min-w-0 text-title break-keep">
+            {title}
+          </h2>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-gutter pt-2 pb-4">
+          {children}
+        </div>
+        {actions && <div className="shrink-0 px-gutter pt-2 pb-4">{actions}</div>}
       </div>
     </dialog>
   );
