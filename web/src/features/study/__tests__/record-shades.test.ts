@@ -65,33 +65,48 @@ function drawn(shade: string, theme: "light" | "dark"): Rgb {
   return colour.map((channel, at) => alpha * channel + (1 - alpha) * (surface[at] ?? 0)) as Rgb;
 }
 
+/** The hue of [rgb] in degrees. */
+function hue([r, g, b]: Rgb): number {
+  const max = Math.max(r, g, b);
+  const span = max - Math.min(r, g, b);
+  if (span === 0) return 0;
+  const turn =
+    max === r ? ((g - b) / span) % 6 : max === g ? (b - r) / span + 2 : (r - g) / span + 4;
+  return (turn * 60 + 360) % 360;
+}
+
+/** How far apart [a] and [b] are in hue, in degrees. */
+function hueApart(a: Rgb, b: Rgb): number {
+  const turn = Math.abs(hue(a) - hue(b));
+  return turn > 180 ? 360 - turn : turn;
+}
+
 describe("the 기록 page's chart shades", () => {
   it.each(["light", "dark"] as const)(
-    "in the %s theme: the strong and fading bands and the quiet week are 3:1 on the surface, every two bands and adjacent heatmap levels 1.5:1 apart",
+    "in the %s theme: the bands and the quiet week are 3:1 on the surface but 보통 in light, the bands 45 degrees apart in hue, and adjacent heatmap levels 1.5:1 apart",
     (theme) => {
       const surface = rgb(themes[theme].get("surface") ?? "");
       const [strong, fair, fading] = [bandShades.strong, bandShades.fair, bandShades.fading].map(
         (shade) => drawn(shade, theme),
       );
       if (!strong || !fair || !fading) throw new Error("three bands are drawn");
-      // The fair band is under 3:1 on the light surface; its count in words carries it (ADR 0147).
-      for (const mark of [strong, fading, drawn(quietWeekShade, theme)]) {
+      // 보통 is under 3:1 on the light surface; its count in ink carries it (ADR 0147).
+      for (const mark of [
+        strong,
+        ...(theme === "dark" ? [fair] : []),
+        fading,
+        drawn(quietWeekShade, theme),
+      ]) {
         expect(contrast(mark, surface)).toBeGreaterThanOrEqual(3);
       }
-      // In the dark theme 곧 잊음 is 모른다's pink, apart from 좋음's blue by hue (ADR 0147).
-      const pairs =
-        theme === "dark"
-          ? [
-              [strong, fair],
-              [fair, fading],
-            ]
-          : [
-              [strong, fair],
-              [fair, fading],
-              [strong, fading],
-            ];
-      for (const [a, b] of pairs)
-        expect(contrast(a ?? strong, b ?? strong)).toBeGreaterThanOrEqual(1.5);
+      // The bands are told apart by hue, 45 degrees or more apart.
+      for (const [a, b] of [
+        [strong, fair],
+        [fair, fading],
+        [strong, fading],
+      ] as const) {
+        expect(hueApart(a, b)).toBeGreaterThanOrEqual(45);
+      }
       const levels = heatShades.map((shade) => drawn(shade, theme));
       for (const [i, level] of levels.slice(1).entries()) {
         expect(contrast(levels[i] ?? level, level)).toBeGreaterThanOrEqual(1.5);
@@ -104,6 +119,8 @@ describe("the 기록 page's chart shades", () => {
     (theme) => {
       const surface = rgb(themes[theme].get("surface") ?? "");
       expect(contrast(drawn("bg-edge", theme), surface)).toBeLessThan(3);
+      // Control: today's bar and the other days' share a hue, so the hue check can fail.
+      expect(hueApart(drawn("bg-accent", theme), drawn("bg-chart-other", theme))).toBeLessThan(45);
     },
   );
 });

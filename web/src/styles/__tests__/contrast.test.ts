@@ -87,7 +87,8 @@ const studyMarks: [string, string, string][] = [
   ["a progress bar on its track", "accent", "edge"],
   ["a chart's stressed bar on the surface", "accent", "surface"],
   ["a chart's quiet bar on the surface", "chart-quiet", "surface"],
-  ["the fading recall band on the surface", "chart-fading", "surface"],
+  ["the 좋음 recall band on the surface", "recall-strong", "surface"],
+  ["the 곧 잊음 recall band on the surface", "recall-fading", "surface"],
   ["the catch-up's amber bars on the surface", "streak", "surface"],
 ];
 

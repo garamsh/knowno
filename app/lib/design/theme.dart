@@ -430,7 +430,9 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.shadow,
     required this.chartOther,
     required this.chartQuiet,
-    required this.chartFading,
+    required this.recallStrong,
+    required this.recallFair,
+    required this.recallFading,
     required this.tintAmber,
     required this.tintGreen,
     required this.tintRed,
@@ -483,7 +485,9 @@ final class AppColors extends ThemeExtension<AppColors> {
     shadow: Color(0xFF13224A),
     chartOther: Color(0xFF9DB1F0),
     chartQuiet: Color(0xFF6F86D9),
-    chartFading: Color(0xFF6B1320),
+    recallStrong: Color(0xFF1E9E6A),
+    recallFair: Color(0xFFF5B731),
+    recallFading: Color(0xFFE8516A),
     tintAmber: Color(0xFFFFE9A8),
     tintGreen: Color(0xFFBFF0DC),
     tintRed: Color(0xFFFFD2DE),
@@ -536,7 +540,9 @@ final class AppColors extends ThemeExtension<AppColors> {
     shadow: Color(0xFF000000),
     chartOther: Color(0xFF3D568F),
     chartQuiet: Color(0xFF6890E2),
-    chartFading: Color(0xFFFFA8BA),
+    recallStrong: Color(0xFF4FD69C),
+    recallFair: Color(0xFFF7C64F),
+    recallFading: Color(0xFFFF7F96),
     tintAmber: Color(0xFF4A3B1E),
     tintGreen: Color(0xFF1F5A44),
     tintRed: Color(0xFF6B2331),
@@ -650,10 +656,11 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// learning share. 3:1 on [surface], where [edge] is not (ADR 0147).
   final Color chartQuiet;
 
-  /// The recall band that is fading: 3:1 on [surface], and 1.5:1 from
-  /// [chartOther]; in the dark theme it is 모른다's colour, apart from
-  /// [accent] by hue (ADR 0147).
-  final Color chartFading;
+  /// The recall bands, 좋음, 보통 and 곧 잊음, told apart by hue, each
+  /// beside its count in ink, which carries a band under 3:1 (ADR 0147).
+  final Color recallStrong;
+  final Color recallFair;
+  final Color recallFading;
 
   /// An amber tint: the backlog card's check and a chart's shortfall.
   final Color tintAmber;
@@ -745,7 +752,9 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? shadow,
     Color? chartOther,
     Color? chartQuiet,
-    Color? chartFading,
+    Color? recallStrong,
+    Color? recallFair,
+    Color? recallFading,
     Color? tintAmber,
     Color? tintGreen,
     Color? tintRed,
@@ -794,7 +803,9 @@ final class AppColors extends ThemeExtension<AppColors> {
     shadow: shadow ?? this.shadow,
     chartOther: chartOther ?? this.chartOther,
     chartQuiet: chartQuiet ?? this.chartQuiet,
-    chartFading: chartFading ?? this.chartFading,
+    recallStrong: recallStrong ?? this.recallStrong,
+    recallFair: recallFair ?? this.recallFair,
+    recallFading: recallFading ?? this.recallFading,
     tintAmber: tintAmber ?? this.tintAmber,
     tintGreen: tintGreen ?? this.tintGreen,
     tintRed: tintRed ?? this.tintRed,
@@ -849,7 +860,9 @@ final class AppColors extends ThemeExtension<AppColors> {
       shadow: mix(shadow, other.shadow),
       chartOther: mix(chartOther, other.chartOther),
       chartQuiet: mix(chartQuiet, other.chartQuiet),
-      chartFading: mix(chartFading, other.chartFading),
+      recallStrong: mix(recallStrong, other.recallStrong),
+      recallFair: mix(recallFair, other.recallFair),
+      recallFading: mix(recallFading, other.recallFading),
       tintAmber: mix(tintAmber, other.tintAmber),
       tintGreen: mix(tintGreen, other.tintGreen),
       tintRed: mix(tintRed, other.tintRed),
