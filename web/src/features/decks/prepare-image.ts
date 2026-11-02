@@ -1,3 +1,5 @@
+import { encodeJpeg } from "@/design/encode-jpeg";
+
 /** The longest side, in pixels, of an image the web stores, as the phone's `maxImageSide`. */
 export const maxImageSide = 1024;
 
@@ -52,10 +54,7 @@ export async function prepareImage(file: Blob, shape: ImageShape): Promise<Prepa
       width,
       height,
     );
-    const jpeg = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/jpeg", 0.85);
-    });
-    if (!jpeg) return null;
+    const jpeg = encodeJpeg(canvas, 0.85);
     return { jpeg, sha256: await sha256Of(jpeg), width, height };
   } finally {
     image.close();

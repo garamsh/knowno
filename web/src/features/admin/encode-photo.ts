@@ -1,3 +1,5 @@
+import { encodeJpeg } from "@/design/encode-jpeg";
+
 /** The longest side the app sends a photo at, in pixels ([`ai-extraction.md`]'s photo rules). */
 const maxSide = 2048;
 
@@ -23,10 +25,8 @@ export async function encodePhoto(file: File): Promise<File | null> {
   canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
   for (let quality = 85; quality >= 40; quality -= 15) {
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/jpeg", quality / 100);
-    });
-    if (blob !== null && blob.size <= maxTrialBytes) {
+    const blob = encodeJpeg(canvas, quality / 100);
+    if (blob.size <= maxTrialBytes) {
       return new File([blob], "photo.jpg", { type: "image/jpeg" });
     }
   }

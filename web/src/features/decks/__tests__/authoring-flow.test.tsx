@@ -174,17 +174,13 @@ function stubBrowserImages({
     if (!isDrawingContext(context)) throw new Error("the stub lacks what preparePhoto draws with");
     return context;
   });
-  vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(
-    (callback: BlobCallback, type?: string, quality?: number) => {
-      qualities.push(quality ?? 1);
+  vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockImplementation(
+    (type?: string, quality?: unknown) => {
+      qualities.push(typeof quality === "number" ? quality : 1);
       const size = sizes[qualities.length - 1] ?? 1000;
       const bytes = new Uint8Array(size);
       bytes.set(jpegBytes);
-      const blob = new Blob([bytes], { type });
-      Object.defineProperty(blob, "arrayBuffer", {
-        value: () => Promise.resolve(bytes.buffer),
-      });
-      callback(blob);
+      return `data:${type ?? ""};base64,${Buffer.from(bytes).toString("base64")}`;
     },
   );
   return { drawn, qualities };
