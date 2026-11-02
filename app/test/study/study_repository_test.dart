@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart' show CardId;
@@ -161,5 +162,23 @@ void main() {
 
     expect([for (final stored in await answers) stored.card.value], ['a']);
     expect((await states).keys, [const CardId('a')]);
+  });
+
+  test('a write that throws is reported, and a read and a write queued behind it still run', () async {
+    final reported = <Object>[];
+    final previousHandler = FlutterError.onError;
+    FlutterError.onError = (details) => reported.add(details.exception);
+    addTearDown(() => FlutterError.onError = previousHandler);
+    final broken = StateError('engine state lost');
+    final at = day.add(const Duration(hours: 1));
+
+    unawaited(study.queueWrite(() async => throw broken));
+    final read = study.answersSince(day);
+    unawaited(study.queueWrite(() => answer('a', at)));
+    final after = study.answersSince(day);
+
+    expect(await read, isEmpty);
+    expect([for (final stored in await after) stored.card.value], ['a']);
+    expect(reported, [broken]);
   });
 }

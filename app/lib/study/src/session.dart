@@ -220,8 +220,8 @@ final class _Answered {
 /// and the write that follow run afterwards, one at a time in the order given,
 /// behind those of every session over the same [StudyRepository], which holds
 /// its reads until they land; a [StudyFailure] they raise goes to [onFailure].
-/// Any other error is reported to [FlutterError.reportError], and the writes
-/// after it still run.
+/// Any other error [StudyRepository.queueWrite] reports, and the writes after
+/// it still run.
 class StudySession extends ChangeNotifier {
   StudySession({
     required DeckSelection decks,
@@ -608,17 +608,6 @@ class StudySession extends ChangeNotifier {
         await _repository.record(card, history, after, at: _clock());
       } on StudyFailure catch (failure) {
         _onFailure(failure);
-      } catch (error, stackTrace) {
-        // Reported as uncaught rather than rethrown: an errored future would
-        // skip every write queued behind it.
-        FlutterError.reportError(
-          FlutterErrorDetails(
-            exception: error,
-            stack: stackTrace,
-            library: 'study',
-            context: ErrorDescription('while recording an answer'),
-          ),
-        );
       }
     });
   }

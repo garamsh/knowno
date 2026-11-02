@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../database/database.dart';
 import '../../deck/deck.dart';
@@ -25,23 +26,35 @@ class StudyRepository {
 
   /// Runs [write] once every write queued before it has finished, and holds
   /// every read until it has, so a read sees every answer given before it,
-  /// though the session that gave it has closed.
+  /// though the session that gave it has closed. Completes once [write] has.
   ///
-  /// [write] completes without an error, reporting its own failures, since an
-  /// errored write would fail every read and write behind it; and it reads
-  /// nothing through this repository, which would wait on itself.
+  /// An error [write] throws is reported to [FlutterError.reportError], and
+  /// the reads and writes behind it still run. [write] reads nothing through
+  /// this repository, which would wait on itself.
   Future<void> queueWrite(Future<void> Function() write) {
     final written = switch (_writing) {
       final writing? => writing.then((_) => write()),
       null => Future.microtask(write),
     };
-    _writing = written;
+    final settled = written.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) =>
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: error,
+              stack: stackTrace,
+              library: 'study',
+              context: ErrorDescription('while recording an answer'),
+            ),
+          ),
+    );
+    _writing = settled;
     unawaited(
-      written.then((_) {
-        if (identical(_writing, written)) _writing = null;
+      settled.then((_) {
+        if (identical(_writing, settled)) _writing = null;
       }),
     );
-    return written;
+    return settled;
   }
 
   /// A fresh id for a review about to be recorded.
