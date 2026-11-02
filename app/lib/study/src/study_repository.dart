@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 
 import '../../database/database.dart';
@@ -17,24 +19,45 @@ class StudyRepository {
   final AppDatabase _db;
   final String Function() _newId;
 
+  /// The last write [queueWrite] queued while it runs; each runs after the
+  /// one before.
+  Future<void>? _writing;
+
+  /// Runs [write] once every write queued before it has finished, and holds
+  /// every read until it has, so a read sees every answer given before it,
+  /// though the session that gave it has closed.
+  ///
+  /// [write] completes without an error, reporting its own failures, since an
+  /// errored write would fail every read and write behind it; and it reads
+  /// nothing through this repository, which would wait on itself.
+  Future<void> queueWrite(Future<void> Function() write) {
+    final written = switch (_writing) {
+      final writing? => writing.then((_) => write()),
+      null => Future.microtask(write),
+    };
+    _writing = written;
+    unawaited(
+      written.then((_) {
+        if (identical(_writing, written)) _writing = null;
+      }),
+    );
+    return written;
+  }
+
   /// A fresh id for a review about to be recorded.
   ReviewId newReviewId() => ReviewId(_newId());
 
   /// The stored state of each of [cards] that has one; a card never reviewed
   /// is absent.
-  Future<Map<CardId, CardState>> statesOf(List<CardId> cards) async {
-    try {
-      final query = _db.select(_db.cardStates)
-        ..where(
-          (row) => row.cardId.isIn([for (final card in cards) card.value]),
-        );
-      return {
-        for (final row in await query.get()) CardId(row.cardId): _toState(row),
-      };
-    } on Exception catch (cause, stackTrace) {
-      Error.throwWithStackTrace(StudyStorageFailure(cause), stackTrace);
-    }
-  }
+  Future<Map<CardId, CardState>> statesOf(
+    List<CardId> cards,
+  ) => _read(() async {
+    final query = _db.select(_db.cardStates)
+      ..where((row) => row.cardId.isIn([for (final card in cards) card.value]));
+    return {
+      for (final row in await query.get()) CardId(row.cardId): _toState(row),
+    };
+  });
 
   /// Stores [reviews] of [card] and the card's [state] after the last of
   /// them, in one transaction, each row edited [at] and left for sync to
@@ -220,6 +243,7 @@ class StudyRepository {
   );
 
   Future<T> _read<T>(Future<T> Function() read) async {
+    if (_writing case final writing?) await writing;
     try {
       return await read();
     } on Exception catch (cause, stackTrace) {

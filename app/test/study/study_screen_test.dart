@@ -76,6 +76,12 @@ class _StalledRepository implements StudyRepository {
   @override
   ReviewId newReviewId() => ReviewId('review${_ids++}');
 
+  Future<void> _writes = Future.value();
+
+  @override
+  Future<void> queueWrite(Future<void> Function() write) =>
+      _writes = _writes.then((_) => write());
+
   @override
   Future<Map<CardId, CardState>> statesOf(List<CardId> cards) async => {};
 

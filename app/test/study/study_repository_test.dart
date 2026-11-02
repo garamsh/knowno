@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -128,4 +130,36 @@ void main() {
       expect(await study.latestAnswerBefore(day), isNull);
     },
   );
+
+  test('a read of the answers or the states waits for every write queued before it', () async {
+    final at = day.add(const Duration(hours: 1));
+    final held = Completer<void>();
+    unawaited(
+      study.queueWrite(() async {
+        await held.future;
+        await answer('a', at);
+        await db
+            .into(db.cardStates)
+            .insert(
+              CardStatesCompanion.insert(
+                cardId: 'a',
+                stability: 1,
+                difficulty: 5,
+                lastReview: at,
+                due: at.add(const Duration(days: 1)),
+                updatedAt: at,
+              ),
+            );
+      }),
+    );
+
+    final answers = study.answersSince(day);
+    final states = study.statesOf(const [CardId('a')]);
+    // Every turn the reads need to finish, before the write runs.
+    await pumpEventQueue();
+    held.complete();
+
+    expect([for (final stored in await answers) stored.card.value], ['a']);
+    expect((await states).keys, [const CardId('a')]);
+  });
 }

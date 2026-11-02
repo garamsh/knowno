@@ -53,6 +53,10 @@ class _UnreadableStates implements StudyRepository {
   ReviewId newReviewId() => const ReviewId('unused');
 
   @override
+  Future<void> queueWrite(Future<void> Function() write) =>
+      throw UnimplementedError();
+
+  @override
   Future<Map<CardId, CardState>> statesOf(List<CardId> cards) async =>
       throw const StudyStorageFailure(FormatException('unreadable'));
 

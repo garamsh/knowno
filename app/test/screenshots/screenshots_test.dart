@@ -306,6 +306,26 @@ void main() {
       }
     }
 
+    /// Lets the answers a closed study screen is still writing land: a read
+    /// of the study store waits for them, each engine call finishing in real
+    /// time and resuming on a pump.
+    Future<void> untilWritten(WidgetTester tester) async {
+      var read = false;
+      unawaited(
+        ProviderScope.containerOf(tester.element(find.byType(Navigator).first))
+            .read(studyRepositoryProvider)
+            .allStates()
+            .then((_) => read = true),
+      );
+      for (var tries = 0; tries < 20000 && !read; tries++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 1)),
+        );
+        await tester.pump();
+      }
+      expect(read, isTrue);
+    }
+
     Future<void> showRecord(WidgetTester tester) async {
       await tester.tap(find.text(ko.tabRecord));
       for (
@@ -536,6 +556,7 @@ void main() {
       await dismissSheet(tester);
       // The today card once some of the day's cards are done.
       await tap(tester, find.byTooltip(ko.close));
+      await untilWritten(tester);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await closeDrawer(tester);
@@ -558,6 +579,7 @@ void main() {
       // No new card is left past today's, so the card says so.
       await shot(tester, '15-study-complete');
       await tap(tester, find.byTooltip(ko.close));
+      await untilWritten(tester);
 
       // The empty deck has nothing to study today.
       final container = ProviderScope.containerOf(
@@ -583,10 +605,10 @@ void main() {
       await shot(tester, '16-deck-list');
       await showRecord(tester);
       await shot(tester, '16c-record');
-      // 홈 after the sessions, with one of today's cards still counted.
+      // 홈 after the sessions, with today's cards done.
       await tap(tester, find.text(ko.tabHome));
       await closeDrawer(tester);
-      await shot(tester, '16b-today-one-left');
+      await shot(tester, '16b-today-done');
 
       await tap(tester, find.text(ko.tabSettings));
       await shot(tester, '18-account');
