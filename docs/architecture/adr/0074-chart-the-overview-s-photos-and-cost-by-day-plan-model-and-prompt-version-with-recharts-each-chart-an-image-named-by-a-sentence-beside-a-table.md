@@ -1,6 +1,6 @@
 # ADR 0074: Chart the overview's photos and cost by day, plan, model and prompt version with Recharts, each chart an image named by a sentence beside a table
 
-> Status: accepted
+> Status: accepted; its overview charts, their tables and Recharts superseded by ADR-0155
 > Date: 2026-10-19
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
