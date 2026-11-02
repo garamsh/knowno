@@ -147,7 +147,7 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
   await context.addCookies([...jar].map(([name, value]) => ({ name, value, url: baseURL })));
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/decks");
+  await page.goto("/");
   // The fixtures are drawn by Chromium's own encoder: a noisy 3200×2400 JPEG well over the
   // former 6 MiB refusal, a 600×400 JPEG given an EXIF orientation, and a small PNG.
   const [large, landscape, png] = await page.evaluate(async () => {
@@ -228,10 +228,14 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
     await route.fulfill({ response, body });
   });
 
+  // A first note, opened with its 카드 추가 sheet up; the photos' cards then go to a new one.
   await untilReacted(
     () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
+  await page.getByRole("textbox", { name: "이름", exact: true }).fill("임시");
+  await page.getByRole("button", { name: "저장하고 카드 추가", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "카드 추가", exact: true })).toBeVisible();
   await page.getByLabel("앨범에서 고르기", { exact: true }).setInputFiles([
     { name: "large.jpg", mimeType: "image/jpeg", buffer: largeBytes },
     {
@@ -268,7 +272,7 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
     { width: 800, height: 600 },
     { width: 2048, height: 1536 },
   ]);
-  await expect(page.getByText("새 노트에 추가돼요", { exact: true })).toBeVisible();
+  await expect(page.getByText("노트 '임시'에 추가돼요", { exact: true })).toBeVisible();
   await capture(page, "list");
   await page.getByRole("button", { name: "사진 2, 카드 1장", exact: true }).click();
   await expect(page.getByRole("button", { name: "사진 2, 카드 1장", exact: true })).toHaveAttribute(
@@ -283,7 +287,7 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
   // The menu stays open through each capture: a viewport change does not close it.
   await capture(page, "menu");
   await page.getByRole("menuitemradio", { name: "양쪽 방향 모두", exact: true }).click();
-  await page.getByRole("button", { name: "새 노트", exact: true }).click();
+  await page.getByRole("button", { name: "임시", exact: true }).click();
   await capture(page, "deck-choice");
   await page.getByRole("radio", { name: "새 노트", exact: true }).click();
   await page.getByRole("button", { name: "카드 5장 추가", exact: true }).click();

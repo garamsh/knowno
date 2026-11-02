@@ -8,7 +8,6 @@ import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { supabaseUnreachable } from "@/testing/mocks/handlers";
 import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
-import { expectTextReadable } from "@/testing/contrast";
 import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 import { typeSizesOf } from "@/testing/type-sizes";

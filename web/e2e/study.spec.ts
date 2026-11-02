@@ -140,13 +140,13 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   ).toBeNull();
 
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "오늘 할 카드", exact: true })).toBeVisible();
-  await expect(page.getByRole("progressbar", { name: "2장 중 0장", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "오늘 2장", exact: true })).toBeVisible();
   // The minutes are set in 설정 alone.
   await expect(page.getByRole("button", { name: /하루 학습 시간/ })).toHaveCount(0);
-  await expect(
-    page.getByRole("link", { name: "French, 오늘 2장 학습", exact: true }),
-  ).toHaveAttribute("href", `/study?decks=${deckId}`);
+  await expect(page.getByRole("link", { name: "시작", exact: true })).toHaveAttribute(
+    "href",
+    `/study?decks=${deckId}`,
+  );
   // 오늘 carries no account content; the account page does.
   await expect(page.getByText(email)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "로그아웃" })).toHaveCount(0);
@@ -185,7 +185,7 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   ).toBeVisible();
   await page
     .getByRole("navigation", { name: "주 메뉴" })
-    .getByRole("link", { name: "노트", exact: true })
+    .getByRole("link", { name: "홈", exact: true })
     .click();
   const deckRow = page.getByRole("link", {
     name: "French, 카드 2장, 공개, 오늘 2, 2장 중 0장 익힘, 익힘 0장, 학습 중 0장, 새 카드 2장",
@@ -245,11 +245,11 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   await todayTab.goto("/");
   await expect(async () => {
     await todayTab.reload();
-    await expect(
-      todayTab.getByRole("progressbar", { name: "2장 중 1장", exact: true }),
-    ).toBeVisible({ timeout: 1000 });
+    await expect(todayTab.getByRole("heading", { name: "오늘 1장", exact: true })).toBeVisible({
+      timeout: 1000,
+    });
   }).toPass();
-  await expect(todayTab.getByText(/^약 \d+분 남음$/)).toBeVisible();
+  await expect(todayTab.getByText(/^약 \d+분이면 끝나요$/)).toBeVisible();
   await shot(todayTab, "01a-today-started");
   await todayTab.close();
   // A click on the previous card opens it whole; Esc closes it, and the session goes on.
@@ -454,7 +454,7 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   await expect(
     page.getByRole("heading", { name: "다시 시작하면 돼요", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("region", { name: /따라잡아요$/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "시작", exact: true })).toBeVisible();
   await shot(page, "01e-today-backlog");
 
   await page.goto("/account");
@@ -476,7 +476,7 @@ test("a user with no deck is invited to make one, and the theme they choose surv
   await expect(
     page.getByRole("heading", { name: "첫 노트를 만들어 볼까요?", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "모두 학습" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "시작" })).toHaveCount(0);
   await shot(page, "08-empty-home");
 
   await page.goto("/account");
@@ -570,15 +570,14 @@ test("each page that waits on the server shows its skeleton, still under reduced
       path: "/",
       name: "today",
       status: "오늘 할 카드를 불러오는 중이에요.",
-      content: "h1",
+      content: '[aria-labelledby="hero-title"]',
       held: 0,
     },
-    { path: "/decks", name: "decks", status: "노트를 불러오는 중이에요.", content: "h1", held: 0 },
     {
       path: `/decks/${deckId}`,
       name: "deck",
       status: "노트를 불러오는 중이에요.",
-      content: '[aria-label="위치"]',
+      content: "header",
       held: 0,
     },
     {
@@ -977,25 +976,6 @@ test.describe("in UTC, where a study day runs from 04:00 to 04:00 UTC", () => {
       window.scrollTo(0, 0);
     });
     await shot(page, "10-record");
-
-    // 오늘's retention card: the last 30 days' figure and gap, linking here.
-    await page.goto("/");
-    const card = page.getByRole("region", { name: "기억률", exact: true });
-    await expect(
-      card.getByRole("img", { name: /^최근 30일 복습에서 맞힌 비율, 목표 90%: / }),
-    ).toBeVisible();
-    await expect(
-      card.getByRole("link", { name: "기록에서 자세히 보기", exact: true }),
-    ).toHaveAttribute("href", "/record");
-    await page.reload();
-    await expect(card).toBeVisible();
-    const todayLoad = await page.evaluate(() => {
-      const [entry] = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
-      return entry ? entry.loadEventEnd - entry.startTime : -1;
-    });
-    console.log(`오늘's warm load with the retention card: ${String(Math.round(todayLoad))} ms`);
-    expect(todayLoad).toBeGreaterThan(0);
-    await shot(page, "10b-today-retention");
   });
 
   test("the streak counts the server's earlier study days with today's answer", async ({
@@ -1111,7 +1091,7 @@ test("the shell's menu sits at the side from 1024 px and at the foot below it, a
   const menus = page.locator('nav[aria-label="주 메뉴"]');
   for (const width of [1280, 1024, 768, 390]) {
     await page.setViewportSize({ width, height: 844 });
-    for (const path of ["/", "/decks", `/decks/${deckId}`, "/record", "/account"]) {
+    for (const path of ["/", `/decks/${deckId}`, "/record", "/account"]) {
       await page.goto(path);
       await expect(page.locator("h1")).toBeVisible();
       // One menu shows at a time: the side menu from 1024 px, the tab bar below.
@@ -1128,7 +1108,7 @@ test("the shell's menu sits at the side from 1024 px and at the foot below it, a
 
   // The skip link is the first stop, visible once focused, and leads past the menus.
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/decks");
+  await page.goto("/");
   await expect(page.locator("h1")).toBeVisible();
   await page.keyboard.press("Tab");
   const skip = page.getByRole("link", { name: "본문으로 건너뛰기", exact: true });
@@ -1137,7 +1117,7 @@ test("the shell's menu sits at the side from 1024 px and at the foot below it, a
   await page.keyboard.press("Enter");
   await expect(page.locator("main")).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("searchbox", { name: "노트 검색" })).toBeFocused();
+  await expect(page.getByRole("link", { name: "시작", exact: true })).toBeFocused();
   // The landmarks: the menu, the content.
   await expect(page.getByRole("main")).toHaveCount(1);
   await page.goto("/record");
@@ -1193,7 +1173,7 @@ test("creates a deck and a card on mobile, warns on a duplicate and keeps saved 
   expect(jar.size).toBeGreaterThan(0);
   await context.addCookies([...jar].map(([name, value]) => ({ name, value, url: baseURL })));
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/decks");
+  await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "첫 노트를 만들어 볼까요?", exact: true }),
   ).toBeVisible();
@@ -1202,9 +1182,8 @@ test("creates a deck and a card on mobile, warns on a duplicate and keeps saved 
     () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
-  await page.getByRole("button", { name: "직접 입력", exact: true }).click();
   await page.getByRole("textbox", { name: "이름", exact: true }).fill("영어 단어");
-  await page.getByRole("button", { name: "만들기", exact: true }).click();
+  await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByRole("heading", { name: "영어 단어", exact: true })).toBeVisible();
   await capture(page, "authoring-deck");
   await page.getByRole("button", { name: "카드 추가", exact: true }).click();
