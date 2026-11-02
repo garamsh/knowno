@@ -171,8 +171,10 @@ test("renames, decorates, publishes, makes private and deletes a note as the use
   await capture(page, "delete");
   await question.getByRole("button", { name: "삭제", exact: true }).click();
   await expect(page).toHaveURL(`${baseURL}/`);
-  await expect(page.getByText("Kept")).toBeVisible();
-  await expect(page.getByText("Français")).toHaveCount(0);
+  // A row's name carries its counts after the note's; Next's route announcer may still read the
+  // deleted note's heading, so the rows are what is asserted.
+  await expect(page.getByRole("link", { name: /^Kept, / })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Français, / })).toHaveCount(0);
   const deleted = await stored();
   expect(deleted?.deleted_at).not.toBeNull();
   const left = await db.from("cards").select("deck_id, deleted_at").eq("user_id", userId);
