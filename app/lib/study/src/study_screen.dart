@@ -84,6 +84,10 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
   /// Drives the coach's demonstration, one cycle after another.
   late final _demo = AnimationController(vsync: this, duration: coachCycle);
 
+  /// How far a drag has moved either card, which the mascot between them
+  /// reacts to.
+  final _lean = ValueNotifier<double>(0);
+
   /// Whether the session has been studied on screen, after which the coach
   /// is no longer started on its own.
   var _studied = false;
@@ -149,6 +153,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
     stopSound(_providers);
     _resumeTimer?.cancel();
     _demo.dispose();
+    _lean.dispose();
     _lifecycle.dispose();
     _session.dispose();
     super.dispose();
@@ -263,6 +268,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
             onAnswer: _answer,
             onGuide: () => setState(_startCoach),
             onDragStart: () => _setCoach(null),
+            lean: _lean,
             demo: switch (_coach) {
               _CoachStep.know => Answer.know,
               _CoachStep.dontKnow => Answer.dontKnow,
@@ -309,13 +315,10 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
       ),
       SessionComplete(:final completion, :final previous, :final more) => (
         previous,
-        Align(
+        CompletionCard(
           key: const ValueKey('completion'),
-          alignment: Alignment.topCenter,
-          child: CompletionCard(
-            completion: completion,
-            onStudyOn: more ? _session.studyOn : null,
-          ),
+          completion: completion,
+          onStudyOn: more ? _session.studyOn : null,
         ),
       ),
     };
@@ -361,6 +364,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
         key: ValueKey(newest.position),
         card: newest,
         onRedecide: (answer) => _session.redecide(newest.position, answer),
+        lean: _lean,
       ),
       _ when earlier != null => EarlierCardView(
         key: const ValueKey('earlier'),
@@ -388,7 +392,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
                   StudyStyle.currentBottomGap) /
               2,
         );
-        return Padding(
+        final cards = Padding(
           padding: const EdgeInsets.fromLTRB(
             StudyStyle.cardMargin,
             StudyStyle.topGap,
@@ -412,6 +416,32 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
               Expanded(child: switcher(current, _emerge)),
             ],
           ),
+        );
+        if (state is! SessionStudying) return cards;
+        // Over the gap between the cards, its middle on the gap's.
+        return Stack(
+          children: [
+            Positioned.fill(child: cards),
+            Positioned(
+              left: 0,
+              right: 0,
+              top:
+                  StudyStyle.topGap +
+                  card +
+                  (StudyStyle.cardGap - StudyStyle.mascot) / 2,
+              child: IgnorePointer(
+                child: Center(
+                  child: ValueListenableBuilder(
+                    valueListenable: _lean,
+                    builder: (context, lean, _) => Mascot(
+                      expression: leanExpression(lean),
+                      size: StudyStyle.mascot,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -441,6 +471,17 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
     );
   }
 }
+
+/// The mascot's face for a drag that has moved a card [lean] across: happy
+/// past [StudyStyle.dragFeedbackDistance] to the right, toward "Know", sad
+/// past it to the left, and thinking otherwise.
+@visibleForTesting
+MascotExpression leanExpression(double lean) =>
+    lean >= StudyStyle.dragFeedbackDistance
+    ? MascotExpression.happy
+    : lean <= -StudyStyle.dragFeedbackDistance
+    ? MascotExpression.sad
+    : MascotExpression.thinking;
 
 /// Rises the card answered just now into the previous card's place.
 Widget _rise(Widget child, Animation<double> animation) => AnimatedBuilder(

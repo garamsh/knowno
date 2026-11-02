@@ -11,8 +11,11 @@ abstract final class StudyStyle {
   static const previousRadius = AppRadius.previous;
   static const cardPadding = AppSpace.s16;
 
-  /// The completion card's least height.
+  /// The completion panel's least height.
   static const completionMinHeight = 200.0;
+
+  /// The mascot between the two cards, over the gap that parts them.
+  static const mascot = AppSize.mascotGuide;
 
   /// Space above the previous card.
   static const topGap = AppSpace.s20;
@@ -30,18 +33,15 @@ abstract final class StudyStyle {
   /// one button's tap target is padded to Material's least interactive size.
   static const guideRow = guideGap + kMinInteractiveDimension;
 
-  /// A card half narrower than this, in logical pixels at text scale 1, puts
-  /// the back under the front.
-  static const minHalfWidth = 140.0;
+  /// A previous card's line around it, in its grade's colour (ADR 0151).
+  static const previousLine = 3.0;
 
-  /// A previous card's line around it.
-  static const previousLine = 1.5;
+  /// A previous card's front, over its back: user text, so Pretendard.
+  static const previousFront = AppType.deckName;
+  static const previousBack = AppType.cardBody;
 
   static const topBarHeight = 56.0;
   static const progressHeight = AppSize.progress;
-
-  /// How far the divider between a card's halves stops short of its edges.
-  static const dividerInset = AppSpace.s28;
 
   /// The width of the empty previous card's place's dashed outline.
   static const placeholderOutline = 1.5;

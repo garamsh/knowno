@@ -27,6 +27,9 @@ import 'study_style.dart';
 /// While the coach demonstrates an answer, [demo], the card moves toward it
 /// over the answer's tint under a finger, [demoProgress] through one
 /// [coachCycle], and [coach] takes the guide's row's place.
+///
+/// [lean] follows how far a drag has moved the card, for the mascot between
+/// the cards, and is back at zero once the card is let go or answered.
 class CurrentCard extends StatefulWidget {
   const CurrentCard({
     super.key,
@@ -35,6 +38,7 @@ class CurrentCard extends StatefulWidget {
     required this.onGuide,
     this.autoplay = false,
     this.onDragStart,
+    this.lean,
     this.demo,
     this.demoProgress = 0,
     this.coach,
@@ -49,6 +53,8 @@ class CurrentCard extends StatefulWidget {
 
   /// Called as a drag on the card begins.
   final VoidCallback? onDragStart;
+
+  final ValueNotifier<double>? lean;
 
   final Answer? demo;
   final double demoProgress;
@@ -101,7 +107,9 @@ class _CurrentCardState extends State<CurrentCard>
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
-    if (!_committed) _drag.value += details.delta.dx;
+    if (_committed) return;
+    _drag.value += details.delta.dx;
+    widget.lean?.value = _drag.value;
   }
 
   void _onDragEnd(DragEndDetails details) {
@@ -122,6 +130,7 @@ class _CurrentCardState extends State<CurrentCard>
 
   void _springBack() {
     if (_committed) return;
+    widget.lean?.value = 0;
     _drag.animateTo(
       0,
       duration: StudyStyle.springBackDuration,
@@ -144,6 +153,7 @@ class _CurrentCardState extends State<CurrentCard>
         curve: Curves.easeIn,
       );
     }
+    widget.lean?.value = 0;
     if (mounted) widget.onAnswer(answer);
   }
 

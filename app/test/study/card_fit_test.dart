@@ -282,7 +282,7 @@ void main() {
   );
 
   testWidgets(
-    'a long back shows whole at the back size on the previous card, on a 390 by 844 phone at the default text scale',
+    'a long back shows whole at the previous card\'s back size, on a 390 by 844 phone at the default text scale',
     (tester) async {
       const longBack = '(결과·수익 등을) 내다, 산출하다; 양도하다';
       // An iPhone of that size: its status bar and home indicator.
@@ -345,12 +345,19 @@ void main() {
       final previous = find.byType(PreviousCardView);
       expect(previous, findsOneWidget);
       final kept = _drawn(tester, previous, longBack);
-      expect(kept.text.style!.fontSize, AppType.back.fontSize);
+      expect(kept.text.style!.fontSize, StudyStyle.previousBack.fontSize);
       expect(kept.didExceedMaxLines, isFalse);
-      // Control: it wraps, so the room the card gives it is what fits it.
+      // Inside the card's width, at full size: the card gives it the
+      // whole width, under the front, rather than a half.
       expect(
-        kept.size.height,
-        greaterThan(AppType.back.fontSize! * AppType.back.height!),
+        kept.size.width,
+        lessThanOrEqualTo(
+          tester.getSize(previous).width - 2 * StudyStyle.cardPadding,
+        ),
+      );
+      expect(
+        kept.size.width,
+        greaterThan((tester.getSize(previous).width) / 2),
       );
       expect(
         tester.getSize(previous),

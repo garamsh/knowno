@@ -1,6 +1,6 @@
 # ADR 0104: Draw the streak flame in five stages by the streak's days, burning at every stage
 
-> Status: accepted
+> Status: superseded by ADR-0151
 > Date: 2026-10-26
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

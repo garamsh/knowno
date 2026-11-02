@@ -35,16 +35,15 @@
   --color-recall-strong: #1e9e6a;
   --color-recall-fair: #f5b731;
   --color-recall-fading: #e8516a;
+  --color-heat-0: #e3e9f8;
+  --color-heat-1: #aabef3;
+  --color-heat-2: #7d98ea;
+  --color-heat-3: #2547d0;
   --color-tint-amber: #ffe9a8;
   --color-tint-green: #bff0dc;
   --color-tint-red: #ffd2de;
-  --color-know-card: #bff0dc;
-  --color-know-line: #86d5b7;
   --color-on-know-tint: #14683f;
-  --color-dont-know-card: #ffd2de;
-  --color-dont-know-line: #f0a3b8;
   --color-on-dont-know-tint: #a3202f;
-  --color-streak: #c26a0a;
   --color-deck-blue: #dce6ff;
   --color-deck-sky: #e0f0fa;
   --color-deck-peach: #ffe3dc;
@@ -193,6 +192,7 @@
   --animate-coach-tint-held: coach-tint 2.8s ease-out -1.5s infinite paused;
   --animate-coach-finger: coach-finger 2.8s ease-out infinite;
   --animate-coach-finger-held: coach-finger 2.8s ease-out -1.5s infinite paused;
+  --animate-coach-press: coach-press 2.8s infinite;
   @keyframes coach-know {
     0%,
     18%,
@@ -257,6 +257,19 @@
     40%,
     60% {
       opacity: 1;
+    }
+  }
+  /* A pointer step's press of its control, dimmed just before the card moves out at 20%. */
+  @keyframes coach-press {
+    0%,
+    8%,
+    22%,
+    100% {
+      filter: none;
+    }
+    11%,
+    18% {
+      filter: brightness(0.88);
     }
   }
   @keyframes coach-finger {
@@ -369,16 +382,15 @@
     --color-recall-strong: #4fd69c;
     --color-recall-fair: #f7c64f;
     --color-recall-fading: #ff7f96;
+    --color-heat-0: #2c3858;
+    --color-heat-1: #365292;
+    --color-heat-2: #5578c9;
+    --color-heat-3: #8ab4ff;
     --color-tint-amber: #4a3b1e;
     --color-tint-green: #1f5a44;
     --color-tint-red: #6b2331;
-    --color-know-card: #1b4a3b;
-    --color-know-line: #2c6b57;
     --color-on-know-tint: #8ce6bc;
-    --color-dont-know-card: #52202f;
-    --color-dont-know-line: #7a3049;
     --color-on-dont-know-tint: #ffa8ba;
-    --color-streak: #f5a623;
     --color-deck-blue: #2c3a66;
     --color-deck-sky: #1d3a50;
     --color-deck-peach: #4a3330;
@@ -425,16 +437,15 @@
   --color-recall-strong: #4fd69c;
   --color-recall-fair: #f7c64f;
   --color-recall-fading: #ff7f96;
+  --color-heat-0: #2c3858;
+  --color-heat-1: #365292;
+  --color-heat-2: #5578c9;
+  --color-heat-3: #8ab4ff;
   --color-tint-amber: #4a3b1e;
   --color-tint-green: #1f5a44;
   --color-tint-red: #6b2331;
-  --color-know-card: #1b4a3b;
-  --color-know-line: #2c6b57;
   --color-on-know-tint: #8ce6bc;
-  --color-dont-know-card: #52202f;
-  --color-dont-know-line: #7a3049;
   --color-on-dont-know-tint: #ffa8ba;
-  --color-streak: #f5a623;
   --color-deck-blue: #2c3a66;
   --color-deck-sky: #1d3a50;
   --color-deck-peach: #4a3330;
@@ -504,7 +515,7 @@
     --edge: var(--spacing-edge-button);
     --edge-colour: var(--color-primary-edge);
   }
-  .rounded-button.bg-on-hero {
+  .rounded-button.bg-hero-button {
     --edge: var(--spacing-edge-button);
     --edge-colour: var(--color-on-hero-edge);
   }
