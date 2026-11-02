@@ -61,7 +61,7 @@ export function ConsentForm({
           <div className="flex flex-col gap-1 px-4 py-3">
             <dt className="text-caption text-muted">할 수 있는 일</dt>
             <dd className="text-body break-keep">
-              덱과 카드를 읽고 새 덱과 카드를 추가해요. 지우거나 고치지는 않아요
+              노트와 카드를 읽고, 추가하고, 고치고, 지울 수 있어요.
             </dd>
           </div>
         </dl>
