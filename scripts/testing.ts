@@ -82,3 +82,41 @@ export function program(
 export function outputLines({ stdout, stderr }: Ran): string[] {
   return `${stdout}\n${stderr}`.split("\n");
 }
+
+const HOST_TOOLS = [
+  "basename",
+  "deno",
+  "diff",
+  "dirname",
+  "git",
+  "grep",
+  "rm",
+  "sed",
+  "sh",
+  "which",
+];
+
+/**
+ * A directory to set as PATH: the tools a program's run needs, and a stub for each of `stubs`, whose
+ * body is shell. A tool named in neither is missing, as on a host without it. `log` is the stubs'
+ * record of their calls.
+ */
+export async function host(
+  stubs: Record<string, string>,
+): Promise<{ path: string; log: () => Promise<string> }> {
+  const path = await Deno.makeTempDir();
+  for (const tool of HOST_TOOLS.filter((name) => !(name in stubs))) {
+    const found = await run(path, ["sh", "-c", `command -v ${tool}`]);
+    assert.equal(found.code, 0, `setup: no ${tool} on this host`);
+    await run(path, ["ln", "-s", found.stdout.trim(), tool]);
+  }
+  for (const [name, body] of Object.entries(stubs)) {
+    await Deno.writeTextFile(`${path}/${name}`, `#!/bin/sh\n${body}\n`);
+    await Deno.chmod(`${path}/${name}`, 0o755);
+  }
+  await Deno.writeTextFile(`${path}/calls`, "");
+  return { path, log: () => Deno.readTextFile(`${path}/calls`) };
+}
+
+/** Shell that records a stub's call in the log of the host whose PATH it runs under. */
+export const RECORD = `echo "$(basename "$0") $*" >>"$(dirname "$0")/calls"`;

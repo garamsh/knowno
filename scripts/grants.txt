@@ -1,5 +1,8 @@
 # Each program's grant, the narrowest it works with, which scripts/run.sh passes to deno run (ADR 0146).
+check-generated: --allow-run=which,git,flutter_rust_bridge_codegen,dart,flutter,cargo,wasm-bindgen,diff --allow-read=app,engine-wasm/pkg,engine-wasm/Cargo.lock,TMPDIR --allow-write=TMPDIR --allow-env=CI,CARGO_HOME,HOME
 check-ios-client-id: --allow-read=app/config/dev.json,app/ios/Runner/Info.plist
 check-migration-order: --allow-run=git
 check-secrets: --allow-run=git --allow-read=.
 deno: --allow-run=git,deno --allow-read=TMPDIR --allow-write=TMPDIR
+wasm-bindgen: --allow-run=which,cargo,wasm-bindgen,node --allow-read=engine-wasm/Cargo.lock --allow-env=CI,CARGO_HOME,HOME
+web: --allow-run=which,git,node,npm,npx,grep,docker,curl --allow-read=web/.nvmrc,web/package-lock.json,web/node_modules/.package-lock.json,web/Dockerfile,app/config/dev.json --allow-env=CI,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY

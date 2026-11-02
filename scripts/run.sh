@@ -25,4 +25,4 @@ if ! command -v deno >/dev/null 2>&1; then
 fi
 shift
 # shellcheck disable=SC2086 # the grants are separate flags
-exec deno run --no-prompt $allow "scripts/$program.ts" "$@"
+exec deno run --quiet --no-prompt $allow "scripts/$program.ts" "$@"
