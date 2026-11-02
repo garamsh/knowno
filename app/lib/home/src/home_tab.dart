@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,6 +56,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             builder: (context, overview) => _Home(
               decks: decks,
               counts: counts,
+              cards: counts.values.any((count) => count > 0),
               face: counts.values.every((count) => count == 0)
                   ? _cardless(context, decks)
                   : _face(context, overview, all),
@@ -238,6 +240,7 @@ class _Home extends StatelessWidget {
     required this.decks,
     required this.counts,
     required this.face,
+    required this.cards,
     required this.streak,
     required this.problem,
     required this.open,
@@ -248,6 +251,9 @@ class _Home extends StatelessWidget {
   final List<Deck> decks;
   final Map<DeckId, int> counts;
   final _Face? face;
+
+  /// Whether any deck holds a card, before which the first-run step waits.
+  final bool cards;
   final int streak;
 
   /// Why today's count cannot be read, shown atop the drawer.
@@ -278,14 +284,14 @@ class _Home extends StatelessWidget {
           children: [
             // The first-run step asks for the minutes once a day with cards
             // shows.
-            if (face != null) const FirstDailyMinutes(),
+            if (face != null && cards) const FirstDailyMinutes(),
             if (open) ...[
               _HeroBand(face: face),
               Expanded(child: drawer),
             ] else ...[
               _HeroTop(streak: streak),
               Expanded(child: _Hero(face: face)),
-              drawer,
+              Flexible(child: drawer),
             ],
           ],
         ),
@@ -375,7 +381,7 @@ class _Hero extends StatelessWidget {
         ),
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            minHeight: constraints.maxHeight - AppSpace.s32,
+            minHeight: max(0, constraints.maxHeight - AppSpace.s32),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -461,10 +467,12 @@ class _HeroBand extends StatelessWidget {
                   ),
           ),
           if (face != null)
-            AppButton(
-              label: face.action,
-              variant: AppButtonVariant.onHero,
-              onPressed: face.onAction,
+            Flexible(
+              child: AppButton(
+                label: face.action,
+                variant: AppButtonVariant.onHero,
+                onPressed: face.onAction,
+              ),
             ),
         ],
       ),
@@ -559,7 +567,7 @@ class _DrawerState extends State<_Drawer> {
                   onTap: () => widget.onOpen(!open),
                   child: SizedBox(
                     width: AppSize.tapTarget * 2,
-                    height: AppSpace.s16,
+                    height: kMinInteractiveDimension,
                     child: Center(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
@@ -692,14 +700,17 @@ class _DrawerState extends State<_Drawer> {
                 ),
               ],
             )
+          // Closed, it takes its rows' height, and at a large text size no
+          // more than the hero beside it, its rows scrolling.
           : Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 head,
-                Padding(
-                  padding: padding,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: padding,
                     children: rows,
                   ),
                 ),

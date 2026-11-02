@@ -30,8 +30,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   var _tab = _Tab.home;
 
-  /// Whether the 기록 tab was shown: it reads every review, so not before.
-  var _recordShown = false;
+  /// The tabs shown so far, each built the first time: 기록 reads every
+  /// review, and 설정 the account and its sync.
+  final _shown = {_Tab.home};
 
   final _homeNavigator = GlobalKey<NavigatorState>();
 
@@ -83,7 +84,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
     setState(() {
       _tab = tab;
-      _recordShown |= tab == _Tab.record;
+      _shown.add(tab);
     });
   }
 
@@ -110,7 +111,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           body: IndexedStack(
             index: _tab.index,
             children: [
-              if (_recordShown)
+              if (_shown.contains(_Tab.record))
                 RecordTab(decks: decks)
               else
                 const SizedBox.shrink(),
@@ -122,14 +123,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       MaterialPageRoute<void>(builder: (_) => const HomeTab()),
                 ),
               ),
-              const AccountScreen(
-                syncStatus: SyncStatusView(),
-                studySettings: [
-                  DailyMinutesRow(),
-                  AutoplayAudioRow(),
-                  PartOfSpeechPresetsRow(),
-                ],
-              ),
+              if (_shown.contains(_Tab.settings))
+                const AccountScreen(
+                  syncStatus: SyncStatusView(),
+                  studySettings: [
+                    DailyMinutesRow(),
+                    AutoplayAudioRow(),
+                    PartOfSpeechPresetsRow(),
+                  ],
+                )
+              else
+                const SizedBox.shrink(),
             ],
           ),
           bottomNavigationBar: Column(
