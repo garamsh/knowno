@@ -7,10 +7,9 @@ import { button, field, group } from "./admin-section";
 
 /** Grants a user 무제한, with an optional last day. */
 export function GrantUnlimitedForm({ userId }: { userId: string }) {
-  const [state, action, pending] = useActionState<GrantUnlimitedState, FormData>(
-    grantUnlimited,
-    { message: null },
-  );
+  const [state, action, pending] = useActionState<GrantUnlimitedState, FormData>(grantUnlimited, {
+    message: null,
+  });
   return (
     <form action={action} aria-label="무제한 지정" className="mt-2 flex flex-col gap-3">
       <input type="hidden" name="user" value={userId} />

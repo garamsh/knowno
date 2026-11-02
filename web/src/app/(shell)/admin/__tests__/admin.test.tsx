@@ -1242,8 +1242,8 @@ describe("a user's 무제한", () => {
       message: "이미 무제한이 아니에요.",
     });
     expect(admin.audit).toMatchObject([
-      { action: "grant_unlimited", target_id: otherUser.id },
       { action: "revoke_unlimited", target_id: otherUser.id },
+      { action: "grant_unlimited", target_id: otherUser.id },
     ]);
     await render(AuditContent, {});
     expect(screen.getByText("무제한 지정")).toBeInTheDocument();

@@ -296,7 +296,7 @@ describe("the trial on one photo", () => {
     expect(
       await screen.findByText("이 사진을 읽지 못했어요. 다른 사진을 골라 주세요."),
     ).toBeInTheDocument();
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(1);
   });
 
   it("is refused to a user who is not an admin before the function is called, and an admin's reaches it", async () => {
