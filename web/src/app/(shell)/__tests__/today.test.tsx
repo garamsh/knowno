@@ -575,7 +575,7 @@ describe("the 오늘 and 노트 pages", () => {
     postgrest.seed("cards", cardRow("fr-new", "d-fr", "chat"));
     await render(Today, {});
     const today = screen.getByRole("region", { name: "오늘 1장" });
-    expect(today).toHaveClass("min-h-[calc(100dvh-16rem)]");
+    expect(today).toHaveClass("min-h-[calc(100dvh-13.5rem)]");
     expect(today).not.toHaveClass("min-h-[calc(100dvh-26rem)]");
   });
 

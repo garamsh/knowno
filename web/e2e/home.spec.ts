@@ -60,10 +60,15 @@ async function capture(page: Page, name: string) {
     await page.setViewportSize({ width, height });
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
+      // What reaches past the viewport's right edge, named by its tag and classes.
       expect(
-        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        await page.evaluate(() =>
+          [...document.querySelectorAll<HTMLElement>("body *")]
+            .filter((element) => element.getBoundingClientRect().right > window.innerWidth + 0.5)
+            .map((element) => `${element.tagName} ${element.className}`),
+        ),
         `${name} at ${String(width)} scrolls sideways`,
-      ).toBe(true);
+      ).toEqual([]);
       expect(await clipped(page), `${name} at ${String(width)}`).toEqual([]);
       if (directory)
         await page.screenshot({
@@ -121,6 +126,8 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   browser,
 }) => {
   if (!baseURL) throw new Error("skipped without local stack");
+  // Seven screens at three sizes in two themes each.
+  test.setTimeout(120_000);
 
   const fresh = await browser.newContext({ baseURL });
   await signUp(fresh, baseURL, "first");
@@ -168,10 +175,17 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "오늘 5장", exact: true })).toBeVisible();
-  // At a phone's width the drawer starts below the hero, its first row in view.
+  // At a phone's width the drawer starts below the hero, its first row above the tab bar and the
+  // next under it, pulled up by the page's scroll.
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("link", { name: /^영단어 기본, 카드/ })).toBeInViewport();
-  await expect(page.getByRole("link", { name: /^한국사 연표, 카드/ })).not.toBeInViewport();
+  const tabBar = await page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox();
+  const rows = page.getByRole("region", { name: /^내 노트/ }).getByRole("link");
+  await expect(rows).toHaveCount(3);
+  const firstRow = await rows.nth(0).boundingBox();
+  const secondRow = await rows.nth(1).boundingBox();
+  if (!tabBar || !firstRow || !secondRow) throw new Error("the tab bar and the rows are drawn");
+  expect(firstRow.y + firstRow.height).toBeLessThanOrEqual(tabBar.y);
+  expect(secondRow.y).toBeGreaterThanOrEqual(tabBar.y);
   await capture(page, "home");
   await untilReacted(
     () => page.getByRole("button", { name: "노트 검색", exact: true }).click(),
@@ -211,7 +225,8 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   }
   await capture(page, "new-note");
   // 저장하고 카드 추가 opens the new note with its 카드 추가 sheet up, its colour stored.
-  await note.getByRole("radio", { name: "모래" }).check();
+  // The radio is visually hidden inside its swatch, which takes the pointer.
+  await note.getByRole("radio", { name: "모래" }).check({ force: true });
   await note.getByRole("button", { name: "저장하고 카드 추가", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "카드 추가" })).toBeVisible();
   const stored = await db.from("decks").select("name,color").eq("name", "토익 900");

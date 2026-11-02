@@ -195,7 +195,7 @@ function Home({
     <div className="flex flex-col">
       <section
         aria-labelledby="hero-title"
-        className={`-mx-gutter -mt-6 flex flex-col bg-hero px-gutter pt-6 pb-14 text-on-hero lg:mx-0 lg:mt-0 lg:min-h-0 lg:rounded-card lg:p-8 ${raised ? "min-h-[calc(100dvh-26rem)]" : "min-h-[calc(100dvh-16rem)]"}`}
+        className={`-mx-gutter -mt-6 flex flex-col bg-hero px-gutter pt-6 pb-14 text-on-hero lg:mx-0 lg:mt-0 lg:min-h-0 lg:rounded-card lg:p-8 ${raised ? "min-h-[calc(100dvh-26rem)]" : "min-h-[calc(100dvh-13.5rem)]"}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-display">알아몰라</h1>

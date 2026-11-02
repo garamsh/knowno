@@ -46,7 +46,7 @@ export function DeckList({
     : rows;
   return (
     <section id="notes" aria-labelledby="notes-title" className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="notes-title" className="text-label">
           내 노트 {rows.length}
         </h2>
@@ -84,7 +84,7 @@ export function DeckList({
           찾는 노트가 없어요. 다른 단어로 검색해 보세요.
         </p>
       ) : (
-        <ul className="grid gap-row-gap lg:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-row-gap lg:grid-cols-2">
           {shown.map((row) => {
             const { deck, cards, today, mastered = 0, learning = 0 } = row;
             // A deck with no card, or whose progress is unknown, has no share to draw.

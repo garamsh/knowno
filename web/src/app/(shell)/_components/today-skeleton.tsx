@@ -7,7 +7,7 @@ import { Skeleton, SkeletonLine } from "@/design/skeleton";
 export function TodaySkeleton() {
   return (
     <Skeleton status="오늘 할 카드를 불러오는 중이에요." className="flex flex-col">
-      <div className="-mx-gutter -mt-6 flex min-h-[calc(100dvh-16rem)] flex-col bg-hero px-gutter pt-6 pb-14 lg:mx-0 lg:mt-0 lg:min-h-0 lg:rounded-card lg:p-8">
+      <div className="-mx-gutter -mt-6 flex min-h-[calc(100dvh-13.5rem)] flex-col bg-hero px-gutter pt-6 pb-14 lg:mx-0 lg:mt-0 lg:min-h-0 lg:rounded-card lg:p-8">
         <SkeletonLine text="text-display" width="w-28" />
         <div className="flex flex-1 flex-col items-center justify-center gap-2 py-6">
           <span className="size-mascot-hero rounded-full bg-on-hero/15" />
