@@ -103,8 +103,13 @@ export async function filtered(
     stderr: "inherit",
   }).spawn();
   const writer = child.stdin.getWriter();
-  await writer.write(new TextEncoder().encode(input));
-  await writer.close();
+  try {
+    await writer.write(new TextEncoder().encode(input));
+    await writer.close();
+  } catch (error) {
+    // A filter may exit before reading all of its input, as a pipe allows.
+    if (!(error instanceof Deno.errors.BrokenPipe)) throw error;
+  }
   return lines(text.decode((await child.output()).stdout));
 }
 
