@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../design/app_raised.dart';
 import '../../design/theme.dart';
 
 /// The context whose navigator opens a screen or a sheet over the menu, from
@@ -26,12 +25,13 @@ class RaisedIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return AppRaised(
-      edge: colors.edge,
-      height: AppSize.edgeRow,
-      radius: AppRadius.chip,
-      builder: (context, states) => IconButton(
-        statesController: states,
+    final radius = BorderRadius.circular(AppRadius.chip);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: AppShadow.edge(colors.edge, AppSize.edgeRow),
+      ),
+      child: IconButton(
         tooltip: tooltip,
         onPressed: onPressed,
         icon: Icon(icon),
@@ -39,9 +39,7 @@ class RaisedIconButton extends StatelessWidget {
           backgroundColor: colors.raised,
           foregroundColor: colors.ink,
           minimumSize: const Size.square(AppSize.tapTarget),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.chip),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: radius),
         ),
       ),
     );

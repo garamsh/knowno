@@ -474,8 +474,8 @@ class _HeroBand extends StatelessWidget {
 
 /// The decks on the ground, rounded at the top: closed, "내 노트 n" and the
 /// first [shut] rows; [open], every deck under the search, "새 노트" and the
-/// public decks. A drag up on its head opens it and a drag down closes it, as
-/// a tap on the head does.
+/// public decks. A drag up on its head opens it and a drag down closes it; a
+/// tap on its handle does either, and on its closed head opens it.
 class _Drawer extends StatefulWidget {
   const _Drawer({
     required this.decks,
@@ -529,6 +529,8 @@ class _DrawerState extends State<_Drawer> {
     final problem = widget.problem;
     final head = GestureDetector(
       behavior: HitTestBehavior.opaque,
+      // Closed, a tap anywhere on the head opens it, as its handle does.
+      onTap: open ? null : () => widget.onOpen(true),
       onVerticalDragStart: (_) => _drag = 0,
       onVerticalDragUpdate: (details) => _drag += details.delta.dy,
       onVerticalDragEnd: (details) {
@@ -566,7 +568,7 @@ class _DrawerState extends State<_Drawer> {
                         ),
                         child: const SizedBox(
                           width: AppSize.tapTarget,
-                          height: AppSpace.s4 + 1,
+                          height: AppSpace.s4,
                         ),
                       ),
                     ),
