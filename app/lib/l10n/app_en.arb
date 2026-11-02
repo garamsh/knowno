@@ -173,7 +173,6 @@
   "noCardsLeft": "No more cards to study",
   "stopStudying": "Stop",
   "schedulingFailure": "Couldn't work out this card's next review. Its schedule did not change.",
-  "account": "Settings",
   "accountTitle": "Settings",
   "welcomeBody": "Swipe to respond,\nand meet each card again just before you forget",
   "signInWithGoogle": "Continue with Google",

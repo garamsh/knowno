@@ -51,11 +51,6 @@ export type Today = {
   dueAtStart: number;
   /** The cards first answered today, across every deck, which today's new cards include. */
   startedToday: number;
-  /**
-   * The time answered on each of the latest study days before today, each answer up to
-   * `answerCapMs`, which the 오늘 page's last seven days show.
-   */
-  earlierTimes: { dayStart: number; ms: number }[];
   states: CardStates;
   readAt: number;
   streakBefore: number;
@@ -162,7 +157,6 @@ export async function readToday(
       dailyMinutes: minutes.dailyMinutes,
       dueAtStart: due,
       startedToday: firstAnswers.length,
-      earlierTimes: window.times,
       states: states.states,
       readAt: states.readAt,
       streakBefore: before.streak,
@@ -222,10 +216,7 @@ async function readStudyDays(
   supabase: Awaited<ReturnType<typeof createClient>>,
   start: number,
   timeZone: string,
-): Promise<
-  | { days: StudyDayTotal[]; times: { dayStart: number; ms: number }[] }
-  | { failure: ServerFailure | "unreadable" }
-> {
+): Promise<{ days: StudyDayTotal[] } | { failure: ServerFailure | "unreadable" }> {
   const read = await supabase
     .rpc("study_days_before", {
       time_zone: timeZone,
@@ -238,15 +229,12 @@ async function readStudyDays(
   const rows: unknown = read.data;
   if (!Array.isArray(rows)) return { failure: "unreadable" };
   const days: StudyDayTotal[] = [];
-  const times: { dayStart: number; ms: number }[] = [];
   for (const row of rows) {
-    const dayStart = parseTime(field(row, "day_start"));
     const reviewMs = count(field(row, "review_ms"));
     const reviews = count(field(row, "reviews"));
     const firstMs = count(field(row, "first_ms"));
     const firstAnswers = count(field(row, "first_answers"));
     if (
-      dayStart === null ||
       reviewMs === null ||
       reviews === null ||
       firstMs === null ||
@@ -255,9 +243,8 @@ async function readStudyDays(
       return { failure: "unreadable" };
     }
     days.push({ reviewMs, reviews, firstMs, firstAnswers });
-    times.push({ dayStart, ms: reviewMs + firstMs });
   }
-  return { days, times };
+  return { days };
 }
 
 /** [value] when it is a whole number at least zero, or null. */

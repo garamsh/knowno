@@ -650,9 +650,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get schedulingFailure => '이 카드의 다음 복습 일정을 계산하지 못했어요. 일정은 그대로예요.';
 
   @override
-  String get account => '설정';
-
-  @override
   String get accountTitle => '설정';
 
   @override

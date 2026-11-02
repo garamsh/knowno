@@ -376,8 +376,6 @@
   "@stopStudying": {"description": "The completion card's quiet button: closes the study screen."},
   "schedulingFailure": "이 카드의 다음 복습 일정을 계산하지 못했어요. 일정은 그대로예요.",
   "@schedulingFailure": {"description": "Shown when the scheduling engine refused a review."},
-  "account": "설정",
-  "@account": {"description": "Label of the home screen's avatar button, which opens the settings screen."},
   "accountTitle": "설정",
   "@accountTitle": {"description": "Title of the settings screen."},
   "welcomeBody": "밀어서 응답하고,\n잊을 때쯤 다시 만나는 암기 카드",

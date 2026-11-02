@@ -1141,12 +1141,6 @@ abstract class AppLocalizations {
   /// **'이 카드의 다음 복습 일정을 계산하지 못했어요. 일정은 그대로예요.'**
   String get schedulingFailure;
 
-  /// Label of the home screen's avatar button, which opens the settings screen.
-  ///
-  /// In ko, this message translates to:
-  /// **'설정'**
-  String get account;
-
   /// Title of the settings screen.
   ///
   /// In ko, this message translates to:

@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/study/src/model.dart';
-import 'package:knowno/study/src/overview.dart';
 import 'package:knowno/study/src/queue.dart';
 import 'package:knowno/study/src/rust/api/engine.dart';
 import 'package:knowno/study/src/scheduler.dart';
@@ -233,8 +232,7 @@ void main() {
           (card: answer.card, answer: answer.answer, at: answer.at),
       ],
     );
-    final goal = DailyGoal.of(plan);
-    expect((goal.done, goal.goal), (_today, _today));
+    expect((plan.done.length, plan.left), (_today, 0));
     expect(plan.extra, hasLength(2));
   });
 
@@ -270,9 +268,7 @@ void main() {
       for (final answer in await deck.study.answersSince(day.start))
         (card: answer.card, answer: answer.answer, at: answer.at),
     ]);
-    final goal = DailyGoal.of(plan);
-    expect((goal.done, goal.goal, goal.reached), (_today, _today, true));
-    expect(plan.left, 0);
+    expect((plan.done.length, plan.left), (_today, 0));
     expect(plan.extra, hasLength(10));
   });
 

@@ -150,8 +150,7 @@ void main() {
         tester.widget(groupOf(find.text('계정 삭제'))),
         isNot(same(tester.widget(groupOf(signOut)))),
       );
-      // No avatar, and sign-out and deletion are their words alone.
-      expect(find.byType(AccountAvatar), findsNothing);
+      // Sign-out and deletion are their words alone.
       for (final row in ['로그아웃', '계정 삭제']) {
         expect(find.widgetWithText(AppListRow, row), findsOneWidget);
         expect(
@@ -607,7 +606,6 @@ void main() {
       );
       // The mascot was the screen's one image.
       expect(find.byType(Image), findsNothing);
-      expect(find.byType(AccountAvatar), findsNothing);
     },
   );
 

@@ -659,9 +659,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t work out this card\'s next review. Its schedule did not change.';
 
   @override
-  String get account => 'Settings';
-
-  @override
   String get accountTitle => 'Settings';
 
   @override

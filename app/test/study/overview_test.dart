@@ -148,63 +148,7 @@ void main() {
     });
   });
 
-  group('the last seven days', () {
-    // The same history as web/src/app/(shell)/__tests__/today.test.tsx's
-    // last seven days, with the same figures.
-    test('count each study day\'s cards once and its time, each answer up to 30 s, across a gap, 04:00 and a change of offset, today partial', () {
-      StoredAnswer answer(String card, DateTime at, int seconds) => (
-        card: CardId(card),
-        answer: Answer.know,
-        at: at,
-        duration: Duration(seconds: seconds),
-      );
-      // 10:00 on 5 November 2025 in Los Angeles, after the change to UTC-8.
-      final now = DateTime.utc(2025, 11, 5, 18);
-      final week = lastWeek(
-        [
-          // 29 October, before the seven days.
-          answer('a', DateTime.utc(2025, 10, 29, 15), 10),
-          // 30 October: a twice and b, whose 45 s count as 30.
-          answer('a', DateTime.utc(2025, 10, 30, 18), 10),
-          answer('b', DateTime.utc(2025, 10, 30, 18, 5), 45),
-          answer('a', DateTime.utc(2025, 10, 30, 18, 10), 5),
-          // 03:59 on 1 November is still 31 October's.
-          answer('c', DateTime.utc(2025, 11, 1, 10, 59), 20),
-          // 04:00 on 1 November starts its day.
-          answer('d', DateTime.utc(2025, 11, 1, 11), 20),
-          // 03:30 on 2 November at UTC-8 is still 1 November's.
-          answer('e', DateTime.utc(2025, 11, 2, 11, 30), 10),
-          // 04:30 on 2 November.
-          answer('f', DateTime.utc(2025, 11, 2, 12, 30), 10),
-          // 3 November; 4 November has none.
-          answer('a', DateTime.utc(2025, 11, 3, 20), 10),
-          answer('b', DateTime.utc(2025, 11, 3, 20, 1), 10),
-          // Today so far, 90 s counting as 30.
-          answer('g', DateTime.utc(2025, 11, 5, 17), 30),
-          answer('h', DateTime.utc(2025, 11, 5, 17, 30), 90),
-        ],
-        studyDayStart(now, _pacific),
-        _pacific,
-      );
-      expect([for (final day in week) day.date.day], [30, 31, 1, 2, 3, 4, 5]);
-      expect([for (final day in week) day.cards], [2, 1, 2, 1, 2, 0, 2]);
-      expect(
-        [for (final day in week) day.time.inSeconds],
-        [45, 20, 30, 10, 20, 0, 60],
-      );
-      // Control: at a fixed UTC-7, 03:30 on 2 November would be 04:30, its
-      // own day's.
-      Duration summer(DateTime _) => const Duration(hours: -7);
-      final fixed = lastWeek(
-        [answer('e', DateTime.utc(2025, 11, 2, 11, 30), 10)],
-        studyDayStart(now, summer),
-        summer,
-      );
-      expect([for (final day in fixed) day.cards], [0, 0, 0, 1, 0, 0, 0]);
-    });
-  });
-
-  group('daily goal', () {
+  group("today's plan", () {
     final day = StudyDay.at(
       _now,
       firstAnswers: const {},
@@ -219,7 +163,7 @@ void main() {
     DayAnswer dontKnow(String name, DateTime at) =>
         (card: CardId(name), answer: Answer.dontKnow, at: at);
 
-    test("the goal is the day's cards done and left as today's list places them, a card on Don't know left until Know", () {
+    test("the plan is the day's cards done and left as today's list places them, a card on Don't know left until Know", () {
       final cards = [card('a'), card('b'), card('c')];
       final states = {
         const CardId('a'): dueAt(tomorrow),
@@ -228,32 +172,29 @@ void main() {
       };
       // a done; b answered "Don't know", which its state makes due tomorrow;
       // c due and not answered.
-      final goal = DailyGoal.of(
-        dayPlanOf(cards, states, day, [know('a', _now), dontKnow('b', _now)]),
-      );
-      expect((goal.done, goal.goal, goal.reached), (1, 3, false));
+      final plan = dayPlanOf(cards, states, day, [
+        know('a', _now),
+        dontKnow('b', _now),
+      ]);
+      expect((plan.done.length, plan.left), (1, 2));
       // Answered "Know" later, b is done.
-      final later = DailyGoal.of(
-        dayPlanOf(cards, states, day, [
-          know('a', _now),
-          dontKnow('b', _now),
-          know('b', _now.add(const Duration(minutes: 1))),
-        ]),
-      );
-      expect((later.done, later.goal), (2, 3));
+      final later = dayPlanOf(cards, states, day, [
+        know('a', _now),
+        dontKnow('b', _now),
+        know('b', _now.add(const Duration(minutes: 1))),
+      ]);
+      expect((later.done.length, later.left), (2, 1));
     });
 
     test('an answer counts from 04:00, not at 03:59, and before the next day starts', () {
       final cards = [card('a'), card('b'), card('c')];
       final states = {for (final card in cards) card.id: dueAt(tomorrow)};
-      final goal = DailyGoal.of(
-        dayPlanOf(cards, states, day, [
-          know('a', DateTime.utc(2026, 10, 14, 3, 59)),
-          know('b', DateTime.utc(2026, 10, 14, 4)),
-          know('c', DateTime.utc(2026, 10, 15, 4)),
-        ]),
-      );
-      expect((goal.done, goal.goal), (1, 1));
+      final plan = dayPlanOf(cards, states, day, [
+        know('a', DateTime.utc(2026, 10, 14, 3, 59)),
+        know('b', DateTime.utc(2026, 10, 14, 4)),
+        know('c', DateTime.utc(2026, 10, 15, 4)),
+      ]);
+      expect((plan.done.length, plan.left), (1, 0));
     });
 
     test(
@@ -275,35 +216,13 @@ void main() {
         final states = {
           for (final card in cards) card.id: dueAt(DateTime.utc(2026, 11, 3)),
         };
-        final goal = DailyGoal.of(
-          dayPlanOf(cards, states, november, [
-            // 03:00 PST: the day before, which a fixed UTC-7 would count.
-            know('a', DateTime.utc(2026, 11, 1, 11)),
-            know('b', DateTime.utc(2026, 11, 1, 12)),
-          ]),
-        );
-        expect((goal.done, goal.goal), (1, 1));
+        final plan = dayPlanOf(cards, states, november, [
+          // 03:00 PST: the day before, which a fixed UTC-7 would count.
+          know('a', DateTime.utc(2026, 11, 1, 11)),
+          know('b', DateTime.utc(2026, 11, 1, 12)),
+        ]);
+        expect((plan.done.length, plan.left), (1, 0));
       },
     );
-
-    test('the goal is reached when every card of it is done and none is left, and not on a day with none', () {
-      final cards = [card('a'), card('b')];
-      final states = {for (final card in cards) card.id: dueAt(tomorrow)};
-      final done = DailyGoal.of(
-        dayPlanOf(cards, states, day, [know('a', _now), know('b', _now)]),
-      );
-      expect((done.done, done.goal, done.reached), (2, 2, true));
-      // Control: a day that held no card has reached nothing.
-      final empty = DailyGoal.of(dayPlanOf(const [], const {}, day, const []));
-      expect((empty.done, empty.goal, empty.reached), (0, 0, false));
-    });
-  });
-
-  group('catch-up', () {
-    test('a backlog falls by the pace each day, to zero and not below', () {
-      expect(catchUp(84, 30), [84, 54, 24, 0, 0, 0, 0]);
-      // Control: a pace of one keeps a backlog of seven on every day.
-      expect(catchUp(7, 1), [7, 6, 5, 4, 3, 2, 1]);
-    });
   });
 }
