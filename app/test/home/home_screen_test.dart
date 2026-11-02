@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -12,8 +11,6 @@ import 'package:knowno/account/account.dart';
 import 'package:knowno/database/database.dart' hide DeckRow;
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_button.dart';
-import 'package:knowno/design/app_chip.dart';
-import 'package:knowno/design/app_list_row.dart';
 import 'package:knowno/design/mascot.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/home/src/deck_screen.dart';
