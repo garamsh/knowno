@@ -224,9 +224,7 @@ class _PeriodChoice extends StatelessWidget {
                     selected: value == period,
                     inMutuallyExclusiveGroup: true,
                     child: Material(
-                      color: value == period
-                          ? colors.primary
-                          : Colors.transparent,
+                      color: value == period ? colors.primary : colors.surface,
                       borderRadius: BorderRadius.circular(AppRadius.chip),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(AppRadius.chip),

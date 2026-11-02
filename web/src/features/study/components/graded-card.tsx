@@ -68,7 +68,7 @@ export function GradedFace({
     <span
       className={`flex size-full flex-col overflow-y-auto rounded-previous border-3 bg-surface p-4 text-center lg:p-6 ${grades[answer].line} ${className}`}
     >
-      <span className="mt-auto text-[26px]/[34px] font-extrabold break-keep wrap-break-word text-ink">
+      <span className="mt-auto text-deck-name break-keep wrap-break-word text-ink">
         {front}
       </span>
       {back !== undefined && (

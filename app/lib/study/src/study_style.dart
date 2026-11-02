@@ -37,10 +37,7 @@ abstract final class StudyStyle {
   static const previousLine = 3.0;
 
   /// A previous card's front, over its back: user text, so Pretendard.
-  static final previousFront = AppType.front.copyWith(
-    fontSize: 26,
-    height: 34 / 26,
-  );
+  static const previousFront = AppType.deckName;
   static const previousBack = AppType.cardBody;
 
   static const topBarHeight = 56.0;

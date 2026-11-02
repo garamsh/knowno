@@ -1366,10 +1366,10 @@ void main() {
           expect(paragraph.didExceedMaxLines, isFalse, reason: text);
         }
         // A finger scrolls the panel to its last action, inside its place.
-        await tester.drag(
+        await tester.dragUntilVisible(
+          shownText('Stop'),
           find.byType(CompletionCard),
-          const Offset(0, -600),
-          warnIfMissed: false,
+          const Offset(0, -100),
         );
         await tester.pumpAndSettle();
         expect(

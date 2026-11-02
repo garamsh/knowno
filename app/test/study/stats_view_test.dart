@@ -339,7 +339,7 @@ void main() {
         findsNothing,
       );
       expect(fill('30 days'), AppColors.light.primary);
-      expect(fill('7 days'), Colors.transparent);
+      expect(fill('7 days'), AppColors.light.surface);
       final semantics = tester.ensureSemantics();
       expect(
         tester.getSemantics(find.text('30 days')),
@@ -360,7 +360,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('50%'), findsOneWidget);
       expect(fill('7 days'), AppColors.light.primary);
-      expect(fill('30 days'), Colors.transparent);
+      expect(fill('30 days'), AppColors.light.surface);
       expect([
         for (final text in tester.widgetList<Text>(mastered)) text.data,
       ], before);
