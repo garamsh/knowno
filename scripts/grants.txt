@@ -1,0 +1,5 @@
+# Each program's grant, the narrowest it works with, which scripts/run.sh passes to deno run (ADR 0146).
+check-ios-client-id: --allow-read=app/config/dev.json,app/ios/Runner/Info.plist
+check-migration-order: --allow-run=git
+check-secrets: --allow-run=git --allow-read=.
+deno: --allow-run=git,deno --allow-read=TMPDIR --allow-write=TMPDIR

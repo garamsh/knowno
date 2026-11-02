@@ -88,6 +88,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # scripts/run.sh runs make lint-repo's checks, which are Deno programs.
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: 2.9.7
       - run: make lint-repo
 
   checks:
@@ -109,7 +113,7 @@ jobs:
           - { id: build, target: build-ios build-engine-web, node: true }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        # make lint-code's scripts/check-migration-order.sh reads main as the merge commit's first
+        # make lint-code's scripts/check-migration-order.ts reads main as the merge commit's first
         # parent.
         with:
           fetch-depth: 2
@@ -172,7 +176,7 @@ jobs:
         uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: 2.120.0
-      # make lint-code and format run deno over supabase/functions/ and tools/eval/.
+      # make lint-code and format run deno over supabase/functions/, tools/eval/ and scripts/.
       - if: matrix.deno
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
@@ -202,7 +206,7 @@ jobs:
       - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: 2.120.0
-      # make test-db runs deno test over supabase/functions/ and tools/eval/.
+      # make test-db runs deno test over supabase/functions/, tools/eval/ and scripts/.
       - if: matrix.deno
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
