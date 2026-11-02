@@ -503,7 +503,7 @@ export function SoundFields({
     holdRecorder(true);
     let stream: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
     } catch (cause) {
       setBusy(false);
       holdRecorder(false);
