@@ -85,6 +85,8 @@ export function outputLines({ stdout, stderr }: Ran): string[] {
 
 const HOST_TOOLS = [
   "basename",
+  "cat",
+  "cp",
   "deno",
   "diff",
   "dirname",
@@ -93,6 +95,9 @@ const HOST_TOOLS = [
   "rm",
   "sed",
   "sh",
+  "sleep",
+  "touch",
+  "wc",
   "which",
 ];
 

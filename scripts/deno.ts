@@ -141,13 +141,15 @@ async function test(): Promise<void> {
   if (scripts.length === 0) {
     fail(`no *_test.ts file was selected by: ${scopeText(SCRIPTS)}`);
   }
-  // Each test builds its fixture repository under the directory, and runs git and these programs.
+  // Each test builds its fixture repository under the directory, and runs git and these programs;
+  // a stack test listens on a local port.
   const ranScripts = await withTemporaryDirectory((dir) =>
     denoTest(
       [
         `--allow-read=scripts,${dir}`,
         `--allow-write=${dir}`,
         "--allow-run=env",
+        "--allow-net=127.0.0.1",
       ],
       scripts,
       { TMPDIR: dir },

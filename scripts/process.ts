@@ -198,3 +198,64 @@ export async function scopeFiles(
     ),
   );
 }
+
+/** The tool's exit code and stdout; its stderr passes through, or is dropped where `quiet` is set. */
+export async function captured(
+  command: string,
+  args: string[],
+  { quiet = false, ...options }: RunOptions & { quiet?: boolean } = {},
+): Promise<{ code: number; stdout: string }> {
+  const { code, stdout } = await new Deno.Command(command, {
+    args,
+    ...options,
+    stdout: "piped",
+    stderr: quiet ? "null" : "inherit",
+  }).output();
+  return { code, stdout: text.decode(stdout) };
+}
+
+/**
+ * Runs the tool with `input` on stdin, as a heredoc or a redirect feeds it, and returns its stdout,
+ * which it prints instead where `print` is set; a failure ends the program with its code.
+ */
+export async function fed(
+  command: string,
+  args: string[],
+  input: string,
+  options: RunOptions & { print?: boolean } = {},
+): Promise<string> {
+  const { print = false, ...rest } = options;
+  const child = new Deno.Command(command, {
+    args,
+    ...rest,
+    stdin: "piped",
+    stdout: print ? "inherit" : "piped",
+    stderr: "inherit",
+  }).spawn();
+  const writer = child.stdin.getWriter();
+  try {
+    await writer.write(new TextEncoder().encode(input));
+    await writer.close();
+  } catch (error) {
+    if (!(error instanceof Deno.errors.BrokenPipe)) throw error;
+  }
+  if (print) {
+    const { code } = await child.status;
+    if (code !== 0) throw new Stop(code);
+    return "";
+  }
+  const { code, stdout } = await child.output();
+  if (code !== 0) throw new Stop(code);
+  return text.decode(stdout);
+}
+
+/** A program's grant in scripts/grants.txt, as scripts/run.sh passes it, `<tmp>` being `tmp`. */
+export async function grantOf(
+  program: string,
+  tmp: string,
+): Promise<string[]> {
+  const grants = await Deno.readTextFile("scripts/grants.txt");
+  const line = grants.split("\n").find((l) => l.startsWith(`${program}: `));
+  if (line === undefined) fail(`scripts/grants.txt names no ${program}`);
+  return line.slice(program.length + 2).replaceAll("<tmp>", tmp).split(" ");
+}
