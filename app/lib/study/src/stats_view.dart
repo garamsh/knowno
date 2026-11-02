@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 
 import '../../deck/deck.dart'
     show DeckFailure, DeckSelection, deckRepositoryProvider, describeFailure;
-import '../../design/app_chip.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'failure.dart';
@@ -101,13 +100,14 @@ class _StatsViewState extends ConsumerState<StatsView> {
             ),
             AsyncSnapshot<_Read>(:final data?) => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: AppSpace.s12,
+              spacing: AppSpace.s16,
               children: [
-                _RetentionCard(
-                  read: data,
+                // It governs the retention alone, which comes next.
+                _PeriodChoice(
                   period: _period,
-                  onPeriod: (period) => setState(() => _period = period),
+                  onChanged: (period) => setState(() => _period = period),
                 ),
+                _RetentionCard(read: data, period: _period),
                 _RecallCard(bands: data.stats.recall),
                 _MasteredCard(weeks: data.stats.mastered),
                 _StudyDaysCard(stats: data.stats),
@@ -122,37 +122,24 @@ class _StatsViewState extends ConsumerState<StatsView> {
   }
 }
 
-/// A chart on the surface: its [title], an optional [trailing] line or
-/// [control] beside it, and the [content] under them.
+/// A chart on the surface, raised on its edge: its [title], an optional
+/// [trailing] line beside it, and the [content] under them.
 class _StatsCard extends StatelessWidget {
-  const _StatsCard({
-    required this.title,
-    required this.content,
-    this.trailing,
-    this.control,
-  });
+  const _StatsCard({required this.title, required this.content, this.trailing});
 
   final String title;
   final String? trailing;
-
-  /// What the chart follows, beside its heading, or under it where both do
-  /// not fit.
-  final Widget? control;
   final List<Widget> content;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final trailing = this.trailing;
-    final control = this.control;
-    final heading = Semantics(
-      header: true,
-      child: Text(title, style: AppType.label.copyWith(color: colors.ink)),
-    );
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.previous),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: AppShadow.card(colors),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpace.s16),
@@ -160,28 +147,26 @@ class _StatsCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: AppSpace.s12,
           children: [
-            if (control != null)
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: AppSpace.s12,
-                runSpacing: AppSpace.s8,
-                children: [heading, control],
-              )
-            else
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                spacing: AppSpace.s8,
-                children: [
-                  Expanded(child: heading),
-                  if (trailing != null)
-                    Text(
-                      trailing,
-                      style: AppType.caption.copyWith(color: colors.ink2),
-                    ),
-                ],
-              ),
+            // The line goes under the heading where both do not fit.
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: AppSpace.s8,
+              children: [
+                Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    style: AppType.label.copyWith(color: colors.ink),
+                  ),
+                ),
+                if (trailing != null)
+                  Text(
+                    trailing,
+                    style: AppType.caption.copyWith(color: colors.ink2),
+                  ),
+              ],
+            ),
             ...content,
           ],
         ),
@@ -201,7 +186,8 @@ String _date(BuildContext context, DateTime day, UtcOffsetAt zone) {
       .format(DateTime(wall.year, wall.month, wall.day));
 }
 
-/// 7일, 30일 and 전체, the periods the retention is read over.
+/// 7일, 30일 and 전체, the periods the retention is read over: one segmented
+/// control on its edge, the chosen period on the primary fill.
 class _PeriodChoice extends StatelessWidget {
   const _PeriodChoice({required this.period, required this.onChanged});
 
@@ -211,32 +197,123 @@ class _PeriodChoice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final colors = AppColors.of(context);
+    final segments = [
+      (StatsPeriod.week, l10n.statsPeriodWeek),
+      (StatsPeriod.month, l10n.statsPeriodMonth),
+      (StatsPeriod.all, l10n.statsPeriodAll),
+    ];
     return Semantics(
       container: true,
       label: l10n.statsPeriod,
-      child: SegmentedButton<StatsPeriod>(
-        showSelectedIcon: false,
-        style: SegmentedButton.styleFrom(
-          textStyle: AppType.section,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpace.s12),
-          minimumSize: const Size(AppSize.tapTarget, AppSize.tapTarget),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.field),
+          boxShadow: AppShadow.edge(colors.edge, AppSize.edgeRow),
         ),
-        segments: [
-          ButtonSegment(
-            value: StatsPeriod.week,
-            label: Text(l10n.statsPeriodWeek),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpace.s4),
+          child: Row(
+            spacing: AppSpace.s4,
+            children: [
+              for (final (value, name) in segments)
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    selected: value == period,
+                    inMutuallyExclusiveGroup: true,
+                    child: Material(
+                      color: value == period
+                          ? colors.primary
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppRadius.chip),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.chip),
+                        splashFactory: NoSplash.splashFactory,
+                        onTap: () => onChanged(value),
+                        child: ConstrainedBox(
+                          // Android's least tap target, as the
+                          // segmented button this replaced had.
+                          constraints: const BoxConstraints(
+                            minHeight: kMinInteractiveDimension,
+                          ),
+                          child: Center(
+                            child: Text(
+                              name,
+                              textAlign: TextAlign.center,
+                              style: AppType.label.copyWith(
+                                color: value == period
+                                    ? colors.onPrimary
+                                    : colors.ink2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
-          ButtonSegment(
-            value: StatsPeriod.month,
-            label: Text(l10n.statsPeriodMonth),
+        ),
+      ),
+    );
+  }
+}
+
+/// A figure with [pill] beside it, or under it where both do not fit.
+class _Figure extends StatelessWidget {
+  const _Figure({required this.value, required this.pill});
+
+  final String value;
+  final Widget? pill;
+
+  @override
+  Widget build(BuildContext context) {
+    final pill = this.pill;
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppSpace.s12,
+      runSpacing: AppSpace.s8,
+      children: [
+        Text(
+          value,
+          style: AppType.figure.copyWith(color: AppColors.of(context).ink),
+        ),
+        ?pill,
+      ],
+    );
+  }
+}
+
+/// A round pill beside a figure: a gain on the green tint, or a
+/// [shortfall] on the amber.
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label, this.shortfall = false});
+
+  final String label;
+  final bool shortfall;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: shortfall ? colors.tintAmber : colors.tintGreen,
+        shape: const StadiumBorder(),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.s12,
+          vertical: AppSpace.s4,
+        ),
+        child: Text(
+          label,
+          style: AppType.section.copyWith(
+            color: shortfall ? colors.ink : colors.onKnowTint,
           ),
-          ButtonSegment(
-            value: StatsPeriod.all,
-            label: Text(l10n.statsPeriodAll),
-          ),
-        ],
-        selected: {period},
-        onSelectionChanged: (selected) => onChanged(selected.single),
+        ),
       ),
     );
   }
@@ -245,21 +322,15 @@ class _PeriodChoice extends StatelessWidget {
 /// The retention over [period]: its value against the target with the gap,
 /// and a line of each study day's share against the dashed target.
 class _RetentionCard extends StatelessWidget {
-  const _RetentionCard({
-    required this.read,
-    required this.period,
-    required this.onPeriod,
-  });
+  const _RetentionCard({required this.read, required this.period});
 
   final _Read read;
   final StatsPeriod period;
-  final ValueChanged<StatsPeriod> onPeriod;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
-    final choice = _PeriodChoice(period: period, onChanged: onPeriod);
     final zone = read.zone;
     final days = retentionIn(
       read.stats.retention,
@@ -272,7 +343,6 @@ class _RetentionCard extends StatelessWidget {
     if (total == null) {
       return _StatsCard(
         title: l10n.retentionTitle,
-        control: choice,
         content: [
           Text(
             keepWords(l10n.retentionEmpty),
@@ -301,36 +371,20 @@ class _RetentionCard extends StatelessWidget {
       for (final (:day, :retention) in days)
         (x: index[day] ?? 0, share: retention.share),
     ];
-    final quiet = AppType.caption.copyWith(color: colors.muted);
+    final quiet = AppType.caption.copyWith(color: colors.ink2);
     return _StatsCard(
       title: l10n.retentionTitle,
-      control: choice,
       content: [
-        // The gap sits at the right, or under the figures where both do not
-        // fit.
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.end,
-          spacing: AppSpace.s16,
-          runSpacing: AppSpace.s8,
-          children: [
-            // The target is named once, on the chart's dashed line.
-            Text(
-              l10n.retentionPercent(value),
-              style: AppType.figure.copyWith(color: colors.ink),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpace.s8),
-              child: AppChip(
-                tone: gap < 0 ? AppChipTone.amber : AppChipTone.brand,
-                label: gap < 0
-                    ? l10n.retentionBelow(-gap)
-                    : gap > 0
-                    ? l10n.retentionAbove(gap)
-                    : l10n.retentionOnTarget,
-              ),
-            ),
-          ],
+        _Figure(
+          value: l10n.retentionPercent(value),
+          pill: _Pill(
+            shortfall: gap < 0,
+            label: gap < 0
+                ? l10n.retentionBelow(-gap)
+                : gap > 0
+                ? l10n.retentionAbove(gap)
+                : l10n.retentionOnTarget,
+          ),
         ),
         Semantics(
           container: true,
@@ -355,20 +409,18 @@ class _RetentionCard extends StatelessWidget {
                 span: span.length,
                 targetLabel: l10n.retentionTargetLine(target),
               ),
-              Padding(
-                padding: const EdgeInsets.only(
-                  left: StatsStyle.scaleWidth + AppSpace.s8,
-                ),
-                child: Row(
-                  children: [
-                    Text(switch (period.days) {
-                      final days? => l10n.retentionDaysAgo(days),
-                      null => _date(context, first, zone),
-                    }, style: quiet),
-                    const Spacer(),
-                    Text(l10n.statsToday, style: quiet),
-                  ],
-                ),
+              // Only the axis's ends are named, on two lines where one
+              // does not hold both.
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                spacing: AppSpace.s8,
+                children: [
+                  Text(switch (period.days) {
+                    final days? => l10n.retentionDaysAgo(days),
+                    null => _date(context, first, zone),
+                  }, style: quiet),
+                  Text(l10n.statsToday, style: quiet),
+                ],
               ),
             ],
           ),
@@ -379,10 +431,9 @@ class _RetentionCard extends StatelessWidget {
 }
 
 /// A line through each of [points], placed by its day from the first of
-/// [span] days and by its share, over a scale from at most
-/// [StatsStyle.retentionFloor] to 1, both ends labelled at its left, with the
-/// target dashed across it and named [targetLabel] in a row above the plot,
-/// where no line passes (issue #155).
+/// [span] days and by its share, over a soft fill, on a scale from at most
+/// [StatsStyle.retentionFloor] to 1, with the target dashed across it and
+/// named [targetLabel] on its line at the left, and today ringed.
 class _RetentionChart extends StatelessWidget {
   const _RetentionChart({
     required this.points,
@@ -396,63 +447,51 @@ class _RetentionChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
     final lowest = points.map((point) => point.share).reduce(min);
     final floor = min(StatsStyle.retentionFloor, (lowest * 10).floor() / 10);
-    final scale = AppType.micro.copyWith(color: colors.muted);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: AppSpace.s4,
-      children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            targetLabel,
-            style: AppType.micro.copyWith(
-              color: colors.onKnowTint,
-              fontWeight: FontWeight.w700,
+    final targetY =
+        StatsStyle.retentionHeight * (1 - targetRetention) / (1 - floor);
+    return SizedBox(
+      height: StatsStyle.retentionHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _RetentionPainter(
+                points: points,
+                span: span,
+                floor: floor,
+                target: colors.ink2,
+                line: colors.accent,
+                ring: colors.surface,
+              ),
             ),
           ),
-        ),
-        SizedBox(
-          height: StatsStyle.retentionHeight,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: AppSpace.s8,
-            children: [
-              SizedBox(
-                width: StatsStyle.scaleWidth,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(l10n.retentionPercent(100), style: scale),
-                    Text(
-                      l10n.retentionPercent((floor * 100).round()),
-                      style: scale,
+          // On the dashed line, its middle on the line's.
+          Positioned(
+            left: 0,
+            top: targetY,
+            child: FractionalTranslation(
+              translation: const Offset(0, -0.5),
+              child: ColoredBox(
+                color: colors.surface,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: AppSpace.s4),
+                  child: Text(
+                    targetLabel,
+                    style: AppType.micro.copyWith(
+                      color: colors.ink2,
+                      fontWeight: FontWeight.w700,
                     ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: CustomPaint(
-                  painter: _RetentionPainter(
-                    points: points,
-                    span: span,
-                    floor: floor,
-                    grid: colors.hairline,
-                    target: colors.know,
-                    line: colors.accent,
-                    area: colors.brandTint,
-                    ring: colors.surface,
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -462,20 +501,16 @@ class _RetentionPainter extends CustomPainter {
     required this.points,
     required this.span,
     required this.floor,
-    required this.grid,
     required this.target,
     required this.line,
-    required this.area,
     required this.ring,
   });
 
   final List<({int x, double share})> points;
   final int span;
   final double floor;
-  final Color grid;
   final Color target;
   final Color line;
-  final Color area;
   final Color ring;
 
   @override
@@ -483,18 +518,26 @@ class _RetentionPainter extends CustomPainter {
     double y(double share) => size.height * (1 - share) / (1 - floor);
     double x(int day) => span <= 1 ? size.width : size.width * day / (span - 1);
 
-    final gridPaint = Paint()..color = grid;
-    for (final share in [1.0, (1 + floor) / 2, floor]) {
-      canvas.drawLine(
-        Offset(0, y(share)),
-        Offset(size.width, y(share)),
-        gridPaint,
+    final offsets = [
+      for (final point in points) Offset(x(point.x), y(point.share)),
+    ];
+    if (offsets.length > 1) {
+      final fill = Path()..moveTo(offsets.first.dx, size.height);
+      for (final offset in offsets) {
+        fill.lineTo(offset.dx, offset.dy);
+      }
+      fill
+        ..lineTo(offsets.last.dx, size.height)
+        ..close();
+      canvas.drawPath(
+        fill,
+        Paint()..color = line.withValues(alpha: StatsStyle.retentionArea),
       );
     }
 
     final targetPaint = Paint()
       ..color = target
-      ..strokeWidth = StatsStyle.bandGap;
+      ..strokeWidth = StatsStyle.targetLine;
     final targetY = y(targetRetention);
     for (
       var start = 0.0;
@@ -508,21 +551,9 @@ class _RetentionPainter extends CustomPainter {
       );
     }
 
-    final offsets = [
-      for (final point in points) Offset(x(point.x), y(point.share)),
-    ];
-    final path = Path()..addPolygon(offsets, false);
     if (offsets.length > 1) {
-      final fill = Path()..moveTo(offsets.first.dx, size.height);
-      for (final offset in offsets) {
-        fill.lineTo(offset.dx, offset.dy);
-      }
-      fill
-        ..lineTo(offsets.last.dx, size.height)
-        ..close();
-      canvas.drawPath(fill, Paint()..color = area);
       canvas.drawPath(
-        path,
+        Path()..addPolygon(offsets, false),
         Paint()
           ..color = line
           ..style = PaintingStyle.stroke
@@ -532,11 +563,14 @@ class _RetentionPainter extends CustomPainter {
       );
     }
     canvas
-      ..drawCircle(offsets.last, StatsStyle.retentionDot, Paint()..color = ring)
+      ..drawCircle(offsets.last, StatsStyle.todayDot, Paint()..color = ring)
       ..drawCircle(
         offsets.last,
-        StatsStyle.retentionDot - StatsStyle.retentionDotRing,
-        Paint()..color = line,
+        StatsStyle.todayDot - StatsStyle.todayDotRing / 2,
+        Paint()
+          ..color = line
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = StatsStyle.todayDotRing,
       );
   }
 
@@ -545,15 +579,13 @@ class _RetentionPainter extends CustomPainter {
       !listEquals(old.points, points) ||
       old.span != span ||
       old.floor != floor ||
-      old.grid != grid ||
       old.target != target ||
       old.line != line ||
-      old.area != area ||
       old.ring != ring;
 }
 
-/// The recall bands now: one bar of the three bands' shares, their counts,
-/// and the mean.
+/// The recall bands now: one bar of the three bands' shares, a tile with
+/// each band's count, and the mean.
 class _RecallCard extends StatelessWidget {
   const _RecallCard({required this.bands});
 
@@ -597,67 +629,94 @@ class _RecallCard extends StatelessWidget {
             _percent(mean),
           ),
           excludeSemantics: true,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(StatsStyle.recallHeight),
-            child: SizedBox(
-              height: StatsStyle.recallHeight,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                spacing: StatsStyle.bandGap,
-                children: [
-                  for (final share in shares)
-                    if (share.count > 0)
-                      Expanded(
-                        flex: share.count,
-                        child: ColoredBox(color: share.colour),
+          child: SizedBox(
+            height: StatsStyle.recallHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: StatsStyle.bandGap,
+              children: [
+                for (final share in shares)
+                  if (share.count > 0)
+                    Expanded(
+                      flex: share.count,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: share.colour,
+                          borderRadius: BorderRadius.circular(
+                            StatsStyle.bandRadius,
+                          ),
+                        ),
                       ),
-                ],
-              ),
+                    ),
+              ],
             ),
           ),
         ),
         ExcludeSemantics(
-          child: Row(
-            spacing: AppSpace.s8,
-            children: [
-              for (final share in shares)
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    spacing: AppSpace.s4,
-                    children: [
-                      Row(
-                        spacing: AppSpace.s4,
-                        children: [
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: share.colour,
-                              borderRadius: BorderRadius.circular(
-                                StatsStyle.bandGap,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: AppSpace.s8,
+              children: [
+                for (final share in shares)
+                  Expanded(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.ground,
+                        borderRadius: BorderRadius.circular(AppRadius.field),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpace.s12,
+                          vertical: AppSpace.s8,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          spacing: AppSpace.s4,
+                          children: [
+                            Row(
+                              spacing: AppSpace.s4,
+                              children: [
+                                DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: share.colour,
+                                    borderRadius: BorderRadius.circular(
+                                      StatsStyle.swatchRadius,
+                                    ),
+                                  ),
+                                  child: const SizedBox.square(
+                                    dimension: StatsStyle.swatch,
+                                  ),
+                                ),
+                                Flexible(
+                                  child: Text(
+                                    share.name,
+                                    style: AppType.caption.copyWith(
+                                      color: colors.ink2,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // One line, shrunk to the tile where wider.
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: AlignmentDirectional.centerStart,
+                              child: Text(
+                                l10n.statsCards(share.count),
+                                style: AppType.display.copyWith(
+                                  color: colors.ink,
+                                ),
                               ),
                             ),
-                            child: const SizedBox.square(
-                              dimension: StatsStyle.swatch,
-                            ),
-                          ),
-                          Flexible(
-                            child: Text(
-                              share.name,
-                              style: AppType.caption.copyWith(
-                                color: colors.ink2,
-                              ),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      Text(
-                        l10n.statsCards(share.count),
-                        style: AppType.label.copyWith(color: colors.ink),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
@@ -665,9 +724,10 @@ class _RecallCard extends StatelessWidget {
   }
 }
 
-/// The mastered cards now as the figure, then at the end of each of the last
-/// eight weeks, this week's in ink, the first and the last week named under
-/// them, with the gain since the first of them beside the heading.
+/// The mastered cards now as the figure with the gain since the first of
+/// the last eight weeks beside it, then a bar at the end of each of those
+/// weeks, this week's in the accent, the first and the last week named under
+/// them.
 class _MasteredCard extends StatelessWidget {
   const _MasteredCard({required this.weeks});
 
@@ -679,7 +739,7 @@ class _MasteredCard extends StatelessWidget {
     final colors = AppColors.of(context);
     final most = weeks.reduce(max);
     final gain = masteredGain(weeks);
-    final quiet = AppType.caption.copyWith(color: colors.muted);
+    final quiet = AppType.caption.copyWith(color: colors.ink2);
     if (most == 0) {
       return _StatsCard(
         title: l10n.masteredTitle,
@@ -694,11 +754,12 @@ class _MasteredCard extends StatelessWidget {
     }
     return _StatsCard(
       title: l10n.masteredTitle,
-      trailing: gain == null ? null : l10n.masteredGain(weeks.length - 1, gain),
       content: [
-        Text(
-          l10n.statsCards(weeks.last),
-          style: AppType.figure.copyWith(color: colors.ink),
+        _Figure(
+          value: l10n.statsCards(weeks.last),
+          pill: gain == null
+              ? null
+              : _Pill(label: l10n.masteredGain(weeks.length - 1, gain)),
         ),
         Semantics(
           container: true,
@@ -719,8 +780,11 @@ class _MasteredCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: index == weeks.length - 1
                             ? colors.accent
-                            : colors.chartQuiet,
-                        borderRadius: BorderRadius.circular(AppSpace.s4),
+                            : colors.heat1,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(StatsStyle.barTop),
+                          bottom: Radius.circular(StatsStyle.barBottom),
+                        ),
                       ),
                       child: SizedBox(
                         height: StatsStyle.masteredHeight * count / most,
@@ -733,8 +797,9 @@ class _MasteredCard extends StatelessWidget {
         ),
         // The chart's label names every week; these name its two ends.
         ExcludeSemantics(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: AppSpace.s8,
             children: [
               Text(l10n.masteredWeeksAgo(weeks.length - 1), style: quiet),
               Text(l10n.masteredThisWeek, style: quiet),
@@ -747,9 +812,9 @@ class _MasteredCard extends StatelessWidget {
 }
 
 /// The last twelve weeks of study days, a column a week and a cell a day,
-/// shaded by the cards answered, today's ringed in ink, with the current and
-/// the best streak; under them the first day's date, the shades' key and
-/// 오늘.
+/// in four cobalt steps by the cards answered, today's outlined in ink, with
+/// the current and the best streak; under them the first day's date, the
+/// steps' key and 오늘.
 class _StudyDaysCard extends StatelessWidget {
   const _StudyDaysCard({required this.stats});
 
@@ -762,7 +827,7 @@ class _StudyDaysCard extends StatelessWidget {
     final days = stats.days;
     final most = days.map((day) => day.cards).reduce(max);
     final shades = StatsStyle.heat(colors);
-    final quiet = AppType.caption.copyWith(color: colors.muted);
+    final quiet = AppType.caption.copyWith(color: colors.ink2);
     final locale = Localizations.localeOf(context).toLanguageTag();
     final studied = [
       for (final (:date, :cards) in days)
@@ -773,6 +838,7 @@ class _StudyDaysCard extends StatelessWidget {
             cards,
           ),
     ];
+    const ring = StatsStyle.todayRing + StatsStyle.todayRingGap;
     return _StatsCard(
       title: l10n.studyDaysTitle,
       trailing: l10n.studyDaysStreak(stats.streak, stats.bestStreak),
@@ -795,24 +861,45 @@ class _StudyDaysCard extends StatelessWidget {
                       for (var day = 0; day < 7; day++)
                         AspectRatio(
                           aspectRatio: 1,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color:
-                                  shades[heatLevel(
-                                    days[week * 7 + day].cards,
-                                    most,
-                                  )],
-                              borderRadius: BorderRadius.circular(
-                                StatsStyle.cellRadius,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Positioned.fill(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color:
+                                        shades[heatLevel(
+                                          days[week * 7 + day].cards,
+                                          most,
+                                        )],
+                                    borderRadius: BorderRadius.circular(
+                                      StatsStyle.cellRadius,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              // Today, the grid's last cell.
-                              border: week * 7 + day == days.length - 1
-                                  ? Border.all(
-                                      color: colors.ink,
-                                      width: StatsStyle.todayRing,
-                                    )
-                                  : null,
-                            ),
+                              // Today, the grid's last cell, outlined
+                              // clear of its fill.
+                              if (week * 7 + day == days.length - 1)
+                                Positioned.fill(
+                                  left: -ring,
+                                  top: -ring,
+                                  right: -ring,
+                                  bottom: -ring,
+                                  child: DecoratedBox(
+                                    key: const Key('studyDaysToday'),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(
+                                        StatsStyle.cellRadius + ring,
+                                      ),
+                                      border: Border.all(
+                                        color: colors.ink,
+                                        width: StatsStyle.todayRing,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                     ],
@@ -822,7 +909,7 @@ class _StudyDaysCard extends StatelessWidget {
           ),
         ),
         // The label above reads every study day by its date; these place the
-        // grid in time and key its shades for the eye.
+        // grid in time and key its steps for the eye.
         ExcludeSemantics(
           child: Wrap(
             alignment: WrapAlignment.spaceBetween,
@@ -850,11 +937,11 @@ class _StudyDaysCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: shade,
                         borderRadius: BorderRadius.circular(
-                          StatsStyle.cellRadius / 2,
+                          StatsStyle.swatchRadius,
                         ),
                       ),
                       child: const SizedBox.square(
-                        dimension: StatsStyle.swatch + AppSpace.s4,
+                        dimension: StatsStyle.swatch + AppSpace.s4 / 2,
                       ),
                     ),
                   Text(l10n.studyDaysMore, style: quiet),

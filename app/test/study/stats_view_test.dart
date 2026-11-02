@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart' hide Card;
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/database/database.dart';
@@ -11,7 +12,6 @@ import 'package:knowno/l10n/app_localizations_en.dart';
 import 'package:knowno/study/src/failure.dart';
 import 'package:knowno/study/src/rust/api/engine.dart'
     show EngineError, Quantity;
-import 'package:knowno/study/src/stats.dart' show StatsPeriod;
 import 'package:knowno/study/src/stats_style.dart';
 import 'package:knowno/study/study.dart';
 
@@ -242,11 +242,12 @@ void main() {
   );
 
   testWidgets(
-    'the retention scale labels its top and its floor, and the target is named above the plot, clear of the line (#155)',
+    'the retention names the target on its dashed line at the left, and no scale: only the axis\'s two ends are labelled',
     (tester) async {
       await _pump(tester, await _seed(_history, recall: _recall));
 
-      // Over 30 days the lowest day is 0%, so the scale runs from 0% to 100%.
+      // Over 30 days the lowest day is 0%, so the scale runs from 0% to 100%
+      // and the target, 90%, sits a tenth of the way down.
       final plot = find.byWidgetPredicate(
         (widget) =>
             widget is CustomPaint &&
@@ -254,15 +255,19 @@ void main() {
       );
       expect(plot, findsOneWidget);
       final rect = tester.getRect(plot);
-      final top = tester.getRect(find.text('100%'));
-      final floor = tester.getRect(find.text('0%'));
-      expect(top.right, lessThanOrEqualTo(rect.left));
-      expect(floor.right, lessThanOrEqualTo(rect.left));
-      expect(floor.top, greaterThan(top.top));
-      expect(
-        tester.getRect(find.text('Target 90%')).bottom,
-        lessThanOrEqualTo(rect.top),
-      );
+      final target = tester.getRect(find.text('Target 90%'));
+      expect(target.left, rect.left);
+      expect(target.center.dy, closeTo(rect.top + rect.height * 0.1, 1));
+      // No scale at the side: the figure is the one percentage shown.
+      expect(find.text('100%'), findsNothing);
+      expect(find.text('0%'), findsNothing);
+      for (final end in ['30 days ago', 'Today']) {
+        expect(
+          tester.getRect(find.text(end).first).top,
+          greaterThanOrEqualTo(rect.bottom),
+          reason: end,
+        );
+      }
     },
   );
 
@@ -275,22 +280,16 @@ void main() {
           'a': [('good', _at(9, 1)), ('good', _at(10, 1))],
         }),
       );
-      // The figure, and the scale's top.
-      expect(find.text('100%'), findsNWidgets(2));
+      // The figure alone: the chart labels no scale.
+      expect(find.text('100%'), findsOneWidget);
       expect(find.text('10% above target'), findsOneWidget);
 
       await tester.tap(find.text('7 days'));
       await tester.pumpAndSettle();
       expect(shownText('No reviews in this period.'), findsOneWidget);
       expect(find.text('100%'), findsNothing);
-      // The period stays in the card, so another can be chosen.
-      expect(
-        find.descendant(
-          of: _card('Correct in reviews'),
-          matching: find.byType(SegmentedButton<StatsPeriod>),
-        ),
-        findsOneWidget,
-      );
+      // The period stays, so another can be chosen.
+      expect(find.text('30 days'), findsOneWidget);
     },
   );
 
@@ -310,36 +309,46 @@ void main() {
   );
 
   testWidgets(
-    'the period selector sits in the retention card beside its heading, not beside the tab\'s title, and governs the retention alone',
+    'the period selector sits under the tab\'s title, above the retention it alone governs, the chosen period on the primary fill',
     (tester) async {
       await _pump(tester, await _seed(_history, recall: _recall));
 
-      final selector = find.byType(SegmentedButton<StatsPeriod>);
-      expect(selector, findsOneWidget);
+      Rect segment(String name) => tester.getRect(find.text(name));
+      Color? fill(String name) => tester
+          .widget<Material>(
+            find
+                .ancestor(of: find.text(name), matching: find.byType(Material))
+                .first,
+          )
+          .color;
+      // One row of three, between the title and the retention's card.
+      expect(segment('7 days').center.dy, segment('All').center.dy);
       expect(
-        find.descendant(of: _card('Correct in reviews'), matching: selector),
-        findsOneWidget,
+        segment('7 days').top,
+        greaterThan(tester.getRect(find.text('Record')).bottom),
       );
-      // Beside the heading: in its row, which puts the selector at the
-      // card's right where both fit and under the heading where they do not.
-      final row = find
-          .ancestor(of: selector, matching: find.byType(Wrap))
-          .first;
       expect(
-        find.descendant(of: row, matching: find.text('Correct in reviews')),
-        findsOneWidget,
-      );
-      expect(
-        tester.getRect(selector).right,
-        tester.getRect(_card('Correct in reviews')).right - AppSpace.s16,
-      );
-      // Control: the tab's title stands alone above the cards.
-      expect(
-        tester.getRect(find.text('Record')).bottom,
+        segment('7 days').bottom,
         lessThan(tester.getRect(_card('Correct in reviews')).top),
       );
+      expect(
+        find.descendant(
+          of: _card('Correct in reviews'),
+          matching: find.text('7 days'),
+        ),
+        findsNothing,
+      );
+      expect(fill('30 days'), AppColors.light.primary);
+      expect(fill('7 days'), Colors.transparent);
+      final semantics = tester.ensureSemantics();
+      expect(
+        tester.getSemantics(find.text('30 days')),
+        isSemantics(isButton: true, isSelected: true, hasSelectedState: true),
+      );
+      semantics.dispose();
 
-      // Another period changes the retention, and no other card.
+      // Another period changes the retention and the fill, and no other
+      // card.
       final mastered = find.descendant(
         of: _card('Mastered cards'),
         matching: find.byType(Text),
@@ -350,6 +359,8 @@ void main() {
       await tester.tap(find.text('7 days'));
       await tester.pumpAndSettle();
       expect(find.text('50%'), findsOneWidget);
+      expect(fill('7 days'), AppColors.light.primary);
+      expect(fill('30 days'), Colors.transparent);
       expect([
         for (final text in tester.widgetList<Text>(mastered)) text.data,
       ], before);
@@ -357,7 +368,7 @@ void main() {
   );
 
   testWidgets(
-    'the mastered weeks show the cards mastered now as the figure and name the first and the last week under the bars, reading each week\'s count, with the gain since the first of them beside the heading',
+    'the mastered weeks show the cards mastered now as the figure, the gain since the first of the weeks beside it, and name the first and the last week under the bars, the past weeks in the heatmap\'s second step and this week in the accent, reading each week\'s count',
     (tester) async {
       await _pump(tester, await _seed(_history, recall: _recall));
 
@@ -386,8 +397,31 @@ void main() {
         'Mastered cards by week, from 7 weeks ago to this week: '
         '0 cards, 2 cards, 2 cards, 2 cards, 2 cards, 2 cards, 3 cards, 3 cards',
       );
-      // The gain spans the chart, from its first week, 0, to this week's 3.
-      expect(find.text('+3 since 7 weeks ago'), findsOneWidget);
+      // The gain spans the chart, from its first week, 0, to this week's 3,
+      // in the figure's row, beside it where both fit.
+      final gain = find.text('+3 since 7 weeks ago');
+      expect(gain, findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.ancestor(of: gain, matching: find.byType(Wrap)).first,
+          matching: find.text('3 cards'),
+        ),
+        findsOneWidget,
+      );
+      // The bars: each past week's in the second step, this week's accent.
+      final bars = [
+        for (final box in tester.widgetList<DecoratedBox>(
+          find.descendant(
+            of: find.bySemanticsLabel(RegExp('^Mastered cards by week')),
+            matching: find.byType(DecoratedBox),
+          ),
+        ))
+          (box.decoration as BoxDecoration).color,
+      ];
+      expect(bars, [
+        for (var week = 0; week < 7; week++) AppColors.light.heat1,
+        AppColors.light.accent,
+      ]);
     },
   );
 
@@ -448,7 +482,7 @@ void main() {
         find.descendant(of: card, matching: find.text('More')),
         findsOneWidget,
       );
-      // One cell ringed: the last, today's.
+      // One cell outlined in ink, clear of its fill: the last, today's.
       final ringed = find.descendant(
         of: card,
         matching: find.byWidgetPredicate(
@@ -459,6 +493,14 @@ void main() {
         ),
       );
       expect(ringed, findsOneWidget);
+      expect(
+        ((tester.widget<DecoratedBox>(ringed).decoration as BoxDecoration)
+                    .border!
+                as Border)
+            .top
+            .color,
+        AppColors.light.ink,
+      );
       final cells = find.descendant(
         of: card,
         matching: find.byType(AspectRatio),
@@ -466,10 +508,23 @@ void main() {
       expect(cells, findsNWidgets(84));
       expect(
         tester.getRect(ringed),
-        tester.getRect(
-          find.descendant(of: cells.last, matching: find.byType(DecoratedBox)),
-        ),
+        tester
+            .getRect(cells.last)
+            .inflate(StatsStyle.todayRing + StatsStyle.todayRingGap),
       );
+      // Each day in one of the theme's four cobalt steps.
+      final steps = [
+        AppColors.light.heat0,
+        AppColors.light.heat1,
+        AppColors.light.heat2,
+        AppColors.light.heat3,
+      ];
+      for (final box in tester.widgetList<DecoratedBox>(
+        find.descendant(of: cells, matching: find.byType(DecoratedBox)),
+      )) {
+        final colour = (box.decoration as BoxDecoration).color;
+        if (colour != null) expect(steps, contains(colour));
+      }
       expect(
         _label(tester, 'Studied on'),
         'Studied on 7 days in the last 12 weeks: Sep 1 2, Sep 10 1, Oct 1 1, '
@@ -492,6 +547,41 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('0-day streak · best 0'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'at text scale 2 nothing overflows or is cut: the periods, each figure, pill and band count on its line, and the key',
+    (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await _pump(tester, await _seed(_history, recall: _recall));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Average 87%'), findsOneWidget);
+      for (final text in [
+        '7 days',
+        '67%',
+        '23% below target',
+        '+3 since 7 weeks ago',
+        '2 cards',
+        'Fewer',
+      ]) {
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find
+              .descendant(
+                of: find.text(text).first,
+                matching: find.byType(RichText),
+              )
+              .first,
+        );
+        expect(paragraph.didExceedMaxLines, isFalse, reason: text);
+        expect(
+          tester.getRect(find.text(text).first).right,
+          lessThanOrEqualTo(390),
+          reason: text,
+        );
+      }
     },
   );
 
@@ -532,7 +622,7 @@ void main() {
     ('dark', AppColors.dark),
   ]) {
     test(
-      '$name: the recall bands and the quiet week are 3:1 on the surface but 보통 in light, the bands 45 degrees apart in hue, and the heatmap levels 1.5:1 apart in lightness',
+      '$name: the recall bands are 3:1 on the surface but 보통 in light, the bands 45 degrees apart in hue, and the heatmap\'s four steps 1.5:1 apart in lightness',
       () {
         final surface = colors.surface;
         final (strong, fair, fading) = StatsStyle.bands(colors);
@@ -541,12 +631,7 @@ void main() {
         ];
         // 보통 is under 3:1 on the light surface; its count in ink carries it
         // (ADR 0147).
-        for (final mark in [
-          bands[0],
-          if (name == 'dark') bands[1],
-          bands[2],
-          colors.chartQuiet,
-        ]) {
+        for (final mark in [bands[0], if (name == 'dark') bands[1], bands[2]]) {
           expect(
             _contrast(mark, surface),
             greaterThanOrEqualTo(3),
@@ -580,9 +665,15 @@ void main() {
           );
         }
         // Control: the edge, which a chart does not draw in, fails the
-        // check, and the accent and its tint sit under 45 degrees apart.
+        // check, the accent and its tint sit under 45 degrees apart, and the
+        // second step first proposed, which ADR 0151 darkened, is under 1.5:1
+        // from the first.
         expect(_contrast(colors.edge, surface), lessThan(3));
         expect(apart(colors.accent, colors.brandTint), lessThan(45));
+        final proposed = name == 'light'
+            ? const Color(0xFFB9C9F5)
+            : const Color(0xFF34508F);
+        expect(_contrast(colors.heat0, proposed), lessThan(1.5));
       },
     );
   }
