@@ -19,6 +19,12 @@ export type DeckColor = keyof typeof deckFills;
 /** The palette's colours, in the app's order. */
 export const deckColors = Object.keys(deckFills) as DeckColor[];
 
+/**
+ * The four note colours a note is given, t1 to t4 (ADR 0147, ADR 0150). A note that stored sky or
+ * amber keeps drawing it, and none is offered.
+ */
+export const offeredColors: readonly DeckColor[] = ["blue", "violet", "sand", "slate"];
+
 /** The colour [deck]'s tile takes: the one it stores, or none for no key this version knows. */
 export function deckColor(deck: Deck): DeckColor | undefined {
   const stored = deck.color;
