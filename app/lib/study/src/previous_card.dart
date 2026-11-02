@@ -29,15 +29,21 @@ Answer _other(Answer answer) => switch (answer) {
 /// answer it changes to that answer. A tap opens the whole card in a sheet. A
 /// screen reader changes it by its action instead of a drag, and plays its
 /// sound by "소리 듣기" when it holds one (ADR 0112).
+///
+/// A vertical drag scrolls a face taller than the card and changes nothing.
+/// [lean] follows how far a horizontal drag has moved the finger, for the
+/// mascot between the cards, and is back at zero once it is let go.
 class PreviousCardView extends StatefulWidget {
   const PreviousCardView({
     super.key,
     required this.card,
     required this.onRedecide,
+    this.lean,
   });
 
   final PreviousCard card;
   final void Function(Answer answer) onRedecide;
+  final ValueNotifier<double>? lean;
 
   @override
   State<PreviousCardView> createState() => _PreviousCardViewState();
@@ -62,6 +68,7 @@ class _PreviousCardViewState extends State<PreviousCardView>
 
   void _onDragUpdate(DragUpdateDetails details) {
     _finger += details.delta.dx;
+    widget.lean?.value = _finger;
     // A drag toward the answer the card already has follows the finger only
     // a little, and shows nothing behind it.
     _drag.value = _target(_finger) == widget.card.answer
@@ -87,6 +94,7 @@ class _PreviousCardViewState extends State<PreviousCardView>
 
   void _springBack() {
     _finger = 0;
+    widget.lean?.value = 0;
     if (MediaQuery.disableAnimationsOf(context)) {
       _drag.value = 0;
     } else {
@@ -106,10 +114,10 @@ class _PreviousCardViewState extends State<PreviousCardView>
     final (:front, :back) = _spokenSides(l10n, card.card);
     return Semantics(
       container: true,
-      label: l10n.previousCardSemantics(
+      label: l10n.previousCardLabel(
+        _answerName(l10n, card.answer),
         front,
         back,
-        _answerName(l10n, card.answer),
         card.changed ? 'yes' : 'no',
       ),
       customSemanticsActions: {
@@ -361,11 +369,11 @@ class _Reveal extends StatelessWidget {
   }
 }
 
-/// A previous card's face: its sides on the grade's fill inside the grade's
-/// line, at the current card's sizes and shrunk as far as their floors to fit
-/// their halves, then cut, or a whole card's 칸 in place, revealed, fitted to
-/// the card. The grade shows by the fill and the line alone; the
-/// card's semantics label names it.
+/// A previous card's face: its front over its back, or a whole card's 칸 in
+/// place, revealed, in one column centred both ways on the surface, scrolling
+/// inside the card from its top where it is taller. The grade shows by the
+/// line around it alone, in the grade's colour; the card's semantics label
+/// names it (ADR 0151).
 class _GradedCard extends StatelessWidget {
   const _GradedCard({
     required this.cells,
@@ -382,63 +390,63 @@ class _GradedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final (fill, line) = switch (answer) {
-      Answer.know => (colors.knowCard, colors.knowLine),
-      Answer.dontKnow => (colors.dontKnowCard, colors.dontKnowLine),
+    final line = switch (answer) {
+      Answer.know => colors.know,
+      Answer.dontKnow => colors.dontKnowText,
     };
+    final front = StudyStyle.previousFront.copyWith(color: colors.ink);
     return SizedBox.expand(
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: fill,
+          color: colors.surface,
           borderRadius: BorderRadius.circular(StudyStyle.previousRadius),
           border: Border.all(color: line, width: StudyStyle.previousLine),
+          boxShadow: StudyStyle.currentShadow(colors),
         ),
-        // The card is given its height, so its halves are laid out at
-        // it and each side reads the height its half leaves it.
-        child: isDrawnWhole(cells)
-            ? Padding(
-                padding: const EdgeInsets.all(StudyStyle.cardPadding),
-                child: LayoutBuilder(
-                  builder: (context, constraints) => Center(
-                    child: WholeCardView.cells(
-                      cells,
-                      revealed: true,
-                      style: AppType.front.copyWith(color: colors.ink),
-                      minFontSize: AppType.frontFloor,
-                      width: constraints.maxWidth,
-                      height: constraints.maxHeight,
-                    ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(
+            StudyStyle.previousRadius - StudyStyle.previousLine,
+          ),
+          child: CardScroll(
+            padding: StudyStyle.cardPadding,
+            builder: (context, width, _) => isDrawnWhole(cells)
+                ? WholeCardView.cells(
+                    cells,
+                    revealed: true,
+                    style: front,
+                    width: width,
+                  )
+                // Unbounded down, so a long side is never cut: the card
+                // scrolls instead.
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    spacing: AppSpace.s8,
+                    children: [
+                      ContentView(
+                        this.front,
+                        style: front,
+                        fit: ShrinkFit(
+                          minFontSize: AppType.frontFloor,
+                          width: width,
+                          height: double.infinity,
+                        ),
+                      ),
+                      ContentView(
+                        back,
+                        style: StudyStyle.previousBack.copyWith(
+                          color: colors.ink2,
+                        ),
+                        fit: ShrinkFit(
+                          minFontSize: AppType.backFloor,
+                          width: width,
+                          height: double.infinity,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              )
-            : SplitCard(
-                padding: StudyStyle.cardPadding,
-                dividerInset: StudyStyle.dividerInset,
-                dividerColor: line,
-                stackBelow: StudyStyle.minHalfWidth,
-                front: (context, width) => LayoutBuilder(
-                  builder: (context, constraints) => ContentView(
-                    front,
-                    style: AppType.front.copyWith(color: colors.ink),
-                    fit: ShrinkFit(
-                      minFontSize: AppType.frontFloor,
-                      width: width,
-                      height: constraints.maxHeight,
-                    ),
-                  ),
-                ),
-                back: (context, width) => LayoutBuilder(
-                  builder: (context, constraints) => ContentView(
-                    back,
-                    style: AppType.back.copyWith(color: colors.ink2),
-                    fit: ShrinkFit(
-                      minFontSize: AppType.backFloor,
-                      width: width,
-                      height: constraints.maxHeight,
-                    ),
-                  ),
-                ),
-              ),
+          ),
+        ),
       ),
     );
   }

@@ -21,8 +21,8 @@ enum AppChipTone {
 }
 
 /// The app's one chip (#454): a small label of radius [AppRadius.chip] in
-/// its [tone], in the section style, after an optional [leading] mark such
-/// as the streak's flame. It wraps inside itself where the line has no room.
+/// its [tone], in the section style. It wraps inside itself where the line
+/// has no room.
 ///
 /// [AppChip.action] is the same chip pressed to act or to toggle: a status
 /// chip, a filter chip and an editor tool chip differ in what they do, not
@@ -32,7 +32,6 @@ class AppChip extends StatelessWidget {
     super.key,
     required this.label,
     this.tone = AppChipTone.neutral,
-    this.leading,
   }) : onPressed = null,
        selected = null,
        tooltip = null,
@@ -48,12 +47,10 @@ class AppChip extends StatelessWidget {
     this.selected,
     this.tooltip,
   }) : tone = AppChipTone.neutral,
-       leading = null,
        _acts = true;
 
   final String label;
   final AppChipTone tone;
-  final Widget? leading;
   final VoidCallback? onPressed;
 
   /// Whether a toggling chip is on, or null where the chip does not toggle.
@@ -80,30 +77,19 @@ class AppChip extends StatelessWidget {
       ),
     };
     final enabled = !_acts || onPressed != null;
-    final leading = this.leading;
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.chip),
       side: BorderSide(color: outline),
-    );
-    final text = Text(
-      label,
-      style: AppType.section.copyWith(color: enabled ? ink : colors.muted),
     );
     final face = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpace.s12,
         vertical: AppSpace.s4,
       ),
-      child: leading == null
-          ? text
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: AppSpace.s4,
-              children: [
-                leading,
-                Flexible(child: text),
-              ],
-            ),
+      child: Text(
+        label,
+        style: AppType.section.copyWith(color: enabled ? ink : colors.muted),
+      ),
     );
     if (!_acts) {
       return DecoratedBox(

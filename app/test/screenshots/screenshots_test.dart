@@ -515,7 +515,10 @@ void main() {
       // The previous card, above the current one.
       final previous = find
           .bySemanticsLabel(
-            RegExp('^앞면: (ephemeral|meticulous|ubiquitous|resilient)\\. '),
+            RegExp(
+              '^방금 본 카드, (안다|모른다)\\. '
+              '앞면: (ephemeral|meticulous|ubiquitous|resilient)\\. ',
+            ),
           )
           .first;
       final gesture = await tester.startGesture(tester.getCenter(previous));

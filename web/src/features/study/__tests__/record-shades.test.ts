@@ -4,11 +4,11 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { bandShades, heatShades, quietWeekShade } from "../components/record-shades";
+import { bandShades, heatShades } from "../components/record-shades";
 
 // The 기록 page's chart shades read from the classes it draws them with, against the tokens of
-// src/styles/globals.css in each theme: each band and the quiet week 3:1 on the surface, and every
-// two bands and every two adjacent heatmap levels 1.5:1 apart in lightness, as on the phone.
+// src/styles/globals.css in each theme: each band 3:1 on the surface, every two bands 45 degrees
+// apart in hue, and every two adjacent heatmap steps 1.5:1 apart in lightness, as on the phone.
 
 const globalsCss = readFileSync(
   path.join(import.meta.dirname, "../../../styles/globals.css"),
@@ -83,7 +83,7 @@ function hueApart(a: Rgb, b: Rgb): number {
 
 describe("the 기록 page's chart shades", () => {
   it.each(["light", "dark"] as const)(
-    "in the %s theme: the bands and the quiet week are 3:1 on the surface but 보통 in light, the bands 45 degrees apart in hue, and adjacent heatmap levels 1.5:1 apart",
+    "in the %s theme: the bands are 3:1 on the surface but 보통 in light, the bands 45 degrees apart in hue, and adjacent heatmap steps 1.5:1 apart",
     (theme) => {
       const surface = rgb(themes[theme].get("surface") ?? "");
       const [strong, fair, fading] = [bandShades.strong, bandShades.fair, bandShades.fading].map(
@@ -91,12 +91,7 @@ describe("the 기록 page's chart shades", () => {
       );
       if (!strong || !fair || !fading) throw new Error("three bands are drawn");
       // 보통 is under 3:1 on the light surface; its count in ink carries it (ADR 0147).
-      for (const mark of [
-        strong,
-        ...(theme === "dark" ? [fair] : []),
-        fading,
-        drawn(quietWeekShade, theme),
-      ]) {
+      for (const mark of [strong, ...(theme === "dark" ? [fair] : []), fading]) {
         expect(contrast(mark, surface)).toBeGreaterThanOrEqual(3);
       }
       // The bands are told apart by hue, 45 degrees or more apart.
@@ -121,6 +116,10 @@ describe("the 기록 page's chart shades", () => {
       expect(contrast(drawn("bg-edge", theme), surface)).toBeLessThan(3);
       // Control: the accent and its tint share a hue, so the hue check can fail.
       expect(hueApart(drawn("bg-accent", theme), drawn("bg-brand-tint", theme))).toBeLessThan(45);
+      // Control: the second step first proposed, which ADR 0151 darkened, is under 1.5:1 from the
+      // first, so the step check can fail.
+      const proposed = { light: ["#e3e9f8", "#b9c9f5"], dark: ["#2c3858", "#34508f"] }[theme];
+      expect(contrast(rgb(proposed[0] ?? ""), rgb(proposed[1] ?? ""))).toBeLessThan(1.5);
     },
   );
 });

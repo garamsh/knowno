@@ -5,7 +5,6 @@ library;
 export 'src/autoplay.dart' show AutoplayAudioRow;
 export 'src/daily_minutes_sheet.dart' show DailyMinutesRow, FirstDailyMinutes;
 export 'src/model.dart' show CardState, FuzzFactor, Review;
-export 'src/streak_flame.dart' show streakFlamesMove;
 export 'src/providers.dart'
     show
         autoplayAudioKey,

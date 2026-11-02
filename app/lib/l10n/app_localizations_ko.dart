@@ -1781,4 +1781,21 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get saveAndAddCards => '저장하고 카드 추가';
+
+  @override
+  String previousCardLabel(
+    String answer,
+    String front,
+    String back,
+    String changed,
+  ) {
+    String _temp0 = intl.Intl.selectLogic(changed, {
+      'yes': '. 수정됨',
+      'other': '',
+    });
+    return '방금 본 카드, $answer. 앞면: $front. 뒷면: $back$_temp0';
+  }
+
+  @override
+  String get completionTimeLabel => '걸린 시간';
 }

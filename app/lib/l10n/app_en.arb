@@ -489,5 +489,7 @@
   "cardsHeading": "Cards {count}",
   "deckMasteredShort": "{count} learned",
   "newDeckColor": "Cover colour",
-  "saveAndAddCards": "Save and add cards"
+  "saveAndAddCards": "Save and add cards",
+  "previousCardLabel": "Card just seen, {answer}. Front: {front}. Back: {back}{changed, select, yes{. Changed} other{}}",
+  "completionTimeLabel": "Time"
 }
