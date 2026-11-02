@@ -59,7 +59,7 @@ export function DeckView({ deck, timeZone }: { deck: AdminDeck; timeZone: string
         <ReasonAction
           label="공유에서 영구 삭제"
           reasonLabel="삭제하는 이유"
-          question={`'${deck.name}' 덱을 공유에서 영구 삭제할까요? 덱은 주인에게 남고, 다시 공개할 수 없어요.`}
+          question={`'${deck.name}' 노트를 공유에서 영구 삭제할까요? 노트는 주인에게 남고, 다시 공개할 수 없어요.`}
           confirmLabel="영구 삭제"
           final
           action={removeDeck.bind(null, deck.id)}

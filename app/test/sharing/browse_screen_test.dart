@@ -62,13 +62,13 @@ void main() {
         server: _server(),
         myDecks: {'Mine': {}},
       );
-      await tester.ensureVisible(find.text('Browse public decks'));
-      final create = tester.getRect(find.text('Create a deck'));
-      final browse = tester.getRect(find.text('Browse public decks'));
+      await tester.ensureVisible(find.text('Browse public notes'));
+      final create = tester.getRect(find.text('Create a note'));
+      final browse = tester.getRect(find.text('Browse public notes'));
       expect(create.top, greaterThan(tester.getRect(find.text('Mine')).bottom));
       expect(browse.top, greaterThan(create.bottom));
 
-      await app.tapText('Create a deck');
+      await app.tapText('Create a note');
       // The new-deck sheet offers no second way to public decks: the row is
       // the one.
       expect(find.text('Enter by hand'), findsOneWidget);
@@ -84,7 +84,7 @@ void main() {
       await app.browse();
 
       // The screen is named for what the entry that opened it names.
-      expect(find.text('Public decks'), findsOneWidget);
+      expect(find.text('Public notes'), findsOneWidget);
       expect(find.text('Browse'), findsNothing);
       expect(_listed(tester), ['French', 'German', 'Spanish']);
       expect(shownText('Bea · 1 card · copied once'), findsOneWidget);
@@ -126,7 +126,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
     expect(_listed(tester), isEmpty);
-    expect(shownText('No decks match. Try other words.'), findsOneWidget);
+    expect(shownText('No notes match. Try other words.'), findsOneWidget);
     await app.close();
   });
 
@@ -137,7 +137,7 @@ void main() {
     await app.browse();
 
     expect(
-      shownText("You're offline. Public decks appear once you're connected."),
+      shownText("You're offline. Public notes appear once you're connected."),
       findsOneWidget,
     );
     expect(_listed(tester), isEmpty);

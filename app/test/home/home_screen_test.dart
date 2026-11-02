@@ -70,7 +70,7 @@ class _List {
   }
 
   /// Shows the decks tab.
-  Future<void> decks() => tap('Decks');
+  Future<void> decks() => tap('Notes');
 
   /// The daily study minutes stored, null while none is.
   Future<int?> storedMinutes() async => (await tester.runAsync<int?>(
@@ -81,10 +81,10 @@ class _List {
         ).read(studyRepositoryProvider).dailyMinutes(),
   ));
 
-  /// Taps "새 덱 만들기" under the deck rows, which opens the new-deck sheet.
+  /// Taps "새 노트 만들기" under the deck rows, which opens the new-deck sheet.
   Future<void> newDeck() async {
-    await tester.ensureVisible(find.text('Create a deck'));
-    await tap('Create a deck');
+    await tester.ensureVisible(find.text('Create a note'));
+    await tap('Create a note');
   }
 
   /// The row showing [deck].
@@ -283,7 +283,7 @@ void main() {
         );
 
         await list.decks();
-        expect(find.text('My decks 3'), findsOneWidget);
+        expect(find.text('My notes 3'), findsOneWidget);
         expect(find.text('Last 7 days'), findsNothing);
         await list.tap('Record');
         expect(find.text('Correct in reviews'), findsOneWidget);
@@ -298,7 +298,7 @@ void main() {
     );
   });
 
-  group('덱', () {
+  group('노트', () {
     testWidgets(
       "a deck row shows its mastered of all cards under its name over a bar whose screen reader label breaks them down, with no learning line, and a deck with no card shows 0 cards and no bar",
       (tester) async {
@@ -397,13 +397,13 @@ void main() {
     );
 
     testWidgets(
-      'with several decks and no card, its one primary shows the 덱 tab',
+      'with several decks and no card, its one primary shows the 노트 tab',
       (tester) async {
         final list = await _open(tester);
 
         expect(shownText('Make your first card?'), findsOneWidget);
-        await list.tap('Add cards in a deck');
-        expect(find.text('My decks 3'), findsOneWidget);
+        await list.tap('Add cards in a note');
+        expect(find.text('My notes 3'), findsOneWidget);
         await list.close();
       },
     );
@@ -728,7 +728,7 @@ void main() {
           later: {'Beta': 1},
         );
 
-        expect(find.text("Today's decks"), findsOneWidget);
+        expect(find.text("Today's notes"), findsOneWidget);
         expect(find.bySemanticsLabel('Study Alpha, 2 today'), findsOneWidget);
         // Control: a deck with nothing left today has no row.
         expect(find.bySemanticsLabel(RegExp('^Study Beta')), findsNothing);
@@ -768,10 +768,10 @@ void main() {
             ?.color;
 
         expect(tab('Today'), colors.accent);
-        expect(tab('Decks'), colors.ink2);
-        await list.tap('Decks');
+        expect(tab('Notes'), colors.ink2);
+        await list.tap('Notes');
         expect(tab('Today'), colors.ink2);
-        expect(tab('Decks'), colors.accent);
+        expect(tab('Notes'), colors.accent);
         await list.close();
       },
     );
@@ -1261,7 +1261,7 @@ void main() {
 
         await tester.enterText(find.byType(EditableText), 'zebra');
         await tester.pumpAndSettle();
-        expect(shownText('No deck matches. Try other words.'), findsOneWidget);
+        expect(shownText('No note matches. Try other words.'), findsOneWidget);
         await list.close();
       },
     );
@@ -1297,19 +1297,19 @@ void main() {
 
         await list.newDeck();
         // The sheet is titled by what it makes, over the entry that opened it.
-        expect(shownText('New deck'), findsOneWidget);
-        expect(shownText('Create a deck'), findsOneWidget);
+        expect(shownText('New note'), findsOneWidget);
+        expect(shownText('Create a note'), findsOneWidget);
         expect(find.text('Enter by hand'), findsOneWidget);
         expect(find.text('Take photo'), findsNothing);
         expect(find.text('Choose from album'), findsNothing);
         expect(find.text('Choose a file'), findsOneWidget);
         await list.tap('Enter by hand');
-        // The name sheet is "New deck", as photo import's is.
-        expect(shownText('New deck'), findsOneWidget);
+        // The name sheet is "New note", as photo import's is.
+        expect(shownText('New note'), findsOneWidget);
         await tester.enterText(find.byType(EditableText).last, 'Delta');
         await list.tap('Create');
-        // 덱 꾸미기 comes next, and the pair chosen there reaches the tile.
-        expect(shownText('Customize deck'), findsOneWidget);
+        // 노트 꾸미기 comes next, and the pair chosen there reaches the tile.
+        expect(shownText('Customize note'), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('Star'));
         await tester.pumpAndSettle();
         await list.tap('Save');
@@ -1327,7 +1327,7 @@ void main() {
         expect(shownText('No cards yet'), findsOneWidget);
         await tester.pageBack();
         await tester.pumpAndSettle();
-        expect(find.text('My decks 4'), findsOneWidget);
+        expect(find.text('My notes 4'), findsOneWidget);
         expect(find.text('Delta'), findsOneWidget);
         await list.close();
       },
@@ -1420,7 +1420,7 @@ void main() {
       await list.tap('left');
 
       expect(find.byType(HomeScreen), findsOneWidget);
-      expect(find.text('My decks 3'), findsOneWidget);
+      expect(find.text('My notes 3'), findsOneWidget);
       await list.close();
     });
 
@@ -1432,7 +1432,7 @@ void main() {
 
         final bar = find.byType(AppBar);
         expect(
-          find.descendant(of: bar, matching: find.text('My decks 3')),
+          find.descendant(of: bar, matching: find.text('My notes 3')),
           findsOneWidget,
         );
         expect(
@@ -1440,7 +1440,7 @@ void main() {
           findsNothing,
         );
         expect(find.text('Select'), findsNothing);
-        expect(find.text('New deck'), findsNothing);
+        expect(find.text('New note'), findsNothing);
 
         // With no selection mode, a long-press opens the deck as a tap does.
         await tester.longPress(find.text('Beta'));
@@ -1450,13 +1450,13 @@ void main() {
         await tester.pageBack();
         await tester.pumpAndSettle();
 
-        await tester.ensureVisible(shownText('Create a deck'));
+        await tester.ensureVisible(shownText('Create a note'));
         expect(
-          tester.getRect(shownText('Create a deck')).top,
+          tester.getRect(shownText('Create a note')).top,
           greaterThan(tester.getRect(find.text('Gamma')).bottom),
         );
         // Control: without sharing there is no way to public decks beside it.
-        expect(find.text('Browse public decks'), findsNothing);
+        expect(find.text('Browse public notes'), findsNothing);
         await list.close();
       },
     );
@@ -1502,7 +1502,7 @@ void main() {
         final list = await _open(tester);
         await list.decks();
 
-        final button = find.widgetWithText(AppButton, 'Create a deck');
+        final button = find.widgetWithText(AppButton, 'Create a note');
         expect(
           tester.widget<AppButton>(button).variant,
           AppButtonVariant.secondary,
@@ -1586,7 +1586,7 @@ void main() {
         await list.close();
 
         list = await _open(tester, decks: []);
-        expect(shownText('Shall we make your first deck?'), findsOneWidget);
+        expect(shownText('Shall we make your first note?'), findsOneWidget);
         expect(
           tester.widget<Mascot>(find.byType(Mascot)).expression,
           MascotExpression.thinking,

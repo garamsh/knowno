@@ -1530,7 +1530,7 @@ void main() {
         await import.extractCards(words);
 
         expect(_shown('Words found'), findsOneWidget);
-        expect(_shown("Adds to the deck '"), findsOneWidget);
+        expect(_shown("Adds to the note '"), findsOneWidget);
         expect(_shown('French'), findsOneWidget);
         expect(_shown('최빈출 단어 2'), findsOneWidget);
         expect(_shown('빈출 숙어 1'), findsOneWidget);
@@ -1812,7 +1812,7 @@ void main() {
         await import.extract({'chat': 'talk', 'chien': 'dog'});
 
         expect(import.included('chat'), isFalse);
-        expect(_shown('Already in the deck'), findsOneWidget);
+        expect(_shown('Already in the note'), findsOneWidget);
         expect(import.included('chien'), isTrue, reason: 'control');
 
         await import.tap(import.check('chat'));
@@ -1849,10 +1849,10 @@ void main() {
           ),
           findsOneWidget,
         );
-        expect(find.widgetWithText(AppListRow, 'New deck'), findsOneWidget);
+        expect(find.widgetWithText(AppListRow, 'New note'), findsOneWidget);
         await import.tap(_shown('Spanish'));
         expect(import.included('chat'), isTrue);
-        expect(_shown('Already in the deck'), findsNothing);
+        expect(_shown('Already in the note'), findsNothing);
         await import.tap(_shown('Add 2 cards'));
 
         expect(await import.cards(import.spanish), [
@@ -1860,8 +1860,8 @@ void main() {
           ('chien', 'dog', CardSource.import),
         ]);
         expect((import.popped! as Deck).id, import.spanish.id);
-        // An existing deck keeps its look: no 덱 꾸미기 on the way.
-        expect(_shown('Customize deck'), findsNothing);
+        // An existing deck keeps its look: no 노트 꾸미기 on the way.
+        expect(_shown('Customize note'), findsNothing);
         await import.close();
       },
     );
@@ -1871,20 +1871,20 @@ void main() {
     ) async {
       final import = await _Import.open(tester, deck: (_) => null);
       await import.extract({'chien': 'dog', 'chat': 'cat'});
-      expect(_shown('New deck'), findsOneWidget);
-      // The line says a new deck, not a deck named "New deck", as it says
+      expect(_shown('New note'), findsOneWidget);
+      // The line says a new deck, not a deck named "New note", as it says
       // a chosen deck's name in quotes.
       expect(_shown('Adds to '), findsOneWidget);
-      expect(_shown("Adds to the deck '"), findsNothing);
+      expect(_shown("Adds to the note '"), findsNothing);
       expect(await import.deckNames(), ['French', 'Spanish']);
 
       await import.tap(_shown('Add 2 cards'));
       await tester.enterText(find.byType(TextField), 'Page 12');
       await import.tap(_shown('Create'));
 
-      // 덱 꾸미기 follows the naming, as for a deck made by hand, and the
+      // 노트 꾸미기 follows the naming, as for a deck made by hand, and the
       // pair it saves is stored on the new deck.
-      expect(_shown('Customize deck'), findsOneWidget);
+      expect(_shown('Customize note'), findsOneWidget);
       expect(import.hasPopped, isFalse);
       await import.tap(find.bySemanticsLabel('Star'));
       await import.tap(_shown('Save'));
@@ -1899,19 +1899,19 @@ void main() {
     });
 
     testWidgets(
-      'dismissing 덱 꾸미기 after a new deck is named keeps its default look, and the cards are saved',
+      'dismissing 노트 꾸미기 after a new deck is named keeps its default look, and the cards are saved',
       (tester) async {
         final import = await _Import.open(tester, deck: (_) => null);
         await import.extract({'chien': 'dog'});
         await import.tap(_shown('Add 1 card'));
         await tester.enterText(find.byType(TextField), 'Page 13');
         await import.tap(_shown('Create'));
-        expect(_shown('Customize deck'), findsOneWidget);
+        expect(_shown('Customize note'), findsOneWidget);
 
         await tester.tapAt(const Offset(20, 20));
         await tester.pumpAndSettle();
 
-        expect(_shown('Customize deck'), findsNothing);
+        expect(_shown('Customize note'), findsNothing);
         final deck = await import.deck('Page 13');
         expect((deck.icon, deck.color), (null, null));
         expect((import.popped! as Deck).id, deck.id);
@@ -2435,7 +2435,7 @@ void main() {
         await import.tap(_shown('Done'));
 
         expect(import.included('chat'), isTrue);
-        expect(_shown('Already in the deck'), findsOneWidget);
+        expect(_shown('Already in the note'), findsOneWidget);
         await import.tap(_shown('Add 1 card'));
         expect(await import.cards(import.french), [
           ('chat', 'cat / dog', CardSource.manual),
@@ -2673,7 +2673,7 @@ void main() {
           });
           await tester.pumpAndSettle();
           await import.tap(import.check('cheval'));
-          expect(_shown('Already in the deck'), findsOneWidget);
+          expect(_shown('Already in the note'), findsOneWidget);
           expect(_shown('Add 1 card'), findsOneWidget);
           await check();
           await import.menu('Page');

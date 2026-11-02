@@ -84,7 +84,7 @@ void main() {
       const SheetColumns(front: 0, back: 1),
       header: false,
     );
-    await repository.addCards(const AddToNewDeck('덱'), [
+    await repository.addCards(const AddToNewDeck('노트'), [
       IncomingCard.framed(
         result.cards.single.cells,
         onDuplicate: DuplicateChoice.addNew,

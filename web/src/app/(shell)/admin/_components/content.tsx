@@ -122,8 +122,8 @@ export async function PublicDecksContent({
         <input
           type="search"
           name="q"
-          aria-label="덱 이름 검색"
-          placeholder="덱 이름 검색"
+          aria-label="노트 이름 검색"
+          placeholder="노트 이름 검색"
           defaultValue={search}
           className="h-search w-full rounded-field border border-outline bg-surface pr-4 pl-12 text-body placeholder:text-muted focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ink"
         />
@@ -136,8 +136,8 @@ export async function PublicDecksContent({
           timeZone={timeZone}
           empty={
             search
-              ? "찾는 덱이 없어요. 다른 단어로 검색해 보세요."
-              : "공개된 덱이 없어요. 사용자가 덱을 공개하면 여기에 보여요."
+              ? "찾는 노트가 없어요. 다른 단어로 검색해 보세요."
+              : "공개된 노트가 없어요. 사용자가 노트를 공개하면 여기에 보여요."
           }
         />
       )}

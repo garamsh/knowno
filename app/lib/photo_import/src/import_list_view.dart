@@ -297,7 +297,7 @@ final class _TargetChoice {
   final DeckId? deck;
 }
 
-/// "덱 '`name`'에 추가돼요", or "새 덱에 추가돼요" while no deck is chosen, the
+/// "노트 '`name`'에 추가돼요", or "새 노트에 추가돼요" while no deck is chosen, the
 /// name a button that opens the deck chooser.
 class _DeckLine extends StatelessWidget {
   const _DeckLine({required this.name, required this.onTap});
@@ -519,7 +519,7 @@ class _SectionHeader extends StatelessWidget {
 }
 
 /// One row: its check, its front at 44% and its back one line per sense, or
-/// a table or cloze card's front with its blanks filled, "이미 덱에 있어요"
+/// a table or cloze card's front with its blanks filled, "이미 노트에 있어요"
 /// under it when the deck holds it. A tap edits it, but for a table or cloze
 /// card, and a swipe left leaves it out.
 class _RowTile extends StatelessWidget {

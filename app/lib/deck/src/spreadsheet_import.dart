@@ -351,7 +351,7 @@ class _SpreadsheetImportScreenState
         for (final card in cards)
           IncomingCard.framed(card.cells, onDuplicate: DuplicateChoice.addNew),
       ], source: const FromFile());
-      // A new deck is offered 덱 꾸미기 once it exists, as one made by hand is.
+      // A new deck is offered 노트 꾸미기 once it exists, as one made by hand is.
       if (target is AddToNewDeck && mounted) {
         setState(() => _saving = false);
         final chosen = await showDeckAppearanceSheet(context, deck: added.deck);

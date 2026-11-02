@@ -109,7 +109,9 @@ describe("cards from a file", () => {
     const stored = structuredClone(db.rows.cards[0]);
     await openFile(new File(["front,back\nApple,사과\nbanana,바나나\n"], "words.csv"));
     await userEvent.click(screen.getByRole("button", { name: "2장 추가" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("2행은 이 덱에 이미 있는 카드예요");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "2행은 이 노트에 이미 있는 카드예요",
+    );
     expect(db.rows.cards).toHaveLength(1);
     await userEvent.click(screen.getByRole("button", { name: "2행 빼기" }));
     await userEvent.click(screen.getByRole("button", { name: "1장 추가" }));

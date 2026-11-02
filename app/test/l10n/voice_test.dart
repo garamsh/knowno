@@ -28,8 +28,8 @@ void main() {
   test('every Korean string is written in 해요체, with no 합쇼체 ending', () {
     expect(
       [
-        '아직 덱이 없습니다. 새 덱을 만들어 시작하세요.',
-        '=0{이 덱에는 카드가 없습니다.} other{카드 {count}장도 함께 삭제됩니다.}',
+        '아직 노트가 없습니다. 새 노트를 만들어 시작하세요.',
+        '=0{이 노트에는 카드가 없습니다.} other{카드 {count}장도 함께 삭제됩니다.}',
         '내용을 공개하지 않겠습니다',
         '삭제하시겠습니까?',
       ].where(_formal),
@@ -39,8 +39,8 @@ void main() {
     // Control: the same sentences in 해요체 pass, as do labels and 하세요.
     expect(
       [
-        '아직 덱이 없어요. 새 덱을 만들어 시작해 보세요.',
-        '=0{이 덱에는 카드가 없어요.} other{카드 {count}장도 함께 삭제돼요.}',
+        '아직 노트가 없어요. 새 노트를 만들어 시작해 보세요.',
+        '=0{이 노트에는 카드가 없어요.} other{카드 {count}장도 함께 삭제돼요.}',
         '이름을 입력하세요',
         '다니다 보면',
         '로그아웃',

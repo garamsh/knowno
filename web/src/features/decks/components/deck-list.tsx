@@ -35,7 +35,7 @@ export function DeckList({ rows }: { rows: DeckRow[] }) {
     ? rows.filter((row) => row.deck.name.toLocaleLowerCase().includes(needle))
     : rows;
   return (
-    <section aria-label="덱 목록" className="flex flex-col gap-3">
+    <section aria-label="노트 목록" className="flex flex-col gap-3">
       <div className="relative">
         <Search
           aria-hidden
@@ -44,8 +44,8 @@ export function DeckList({ rows }: { rows: DeckRow[] }) {
         />
         <input
           type="search"
-          aria-label="덱 검색"
-          placeholder="덱 검색"
+          aria-label="노트 검색"
+          placeholder="노트 검색"
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
@@ -55,7 +55,7 @@ export function DeckList({ rows }: { rows: DeckRow[] }) {
       </div>
       {shown.length === 0 ? (
         <p role="status" className="text-muted">
-          찾는 덱이 없어요. 다른 단어로 검색해 보세요.
+          찾는 노트가 없어요. 다른 단어로 검색해 보세요.
         </p>
       ) : (
         <ul className="grid gap-row-gap lg:grid-cols-2">

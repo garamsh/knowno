@@ -32,7 +32,7 @@ export async function createDeck(
       { onConflict: "id", ignoreDuplicates: true },
     )
     .abortSignal(AbortSignal.timeout(requestTimeoutMs));
-  if (write.error) return { saved: false, message: "덱을 만들지 못했어요. 다시 시도해 주세요." };
+  if (write.error) return { saved: false, message: "노트를 만들지 못했어요. 다시 시도해 주세요." };
   const read = await client
     .from("decks")
     .select("id,name")
@@ -45,7 +45,7 @@ export async function createDeck(
     !Array.isArray(read.data) ||
     !read.data.some((row: unknown) => field(row, "name") === name.trim())
   )
-    return { saved: false, message: "덱을 만들지 못했어요. 다시 시도해 주세요." };
+    return { saved: false, message: "노트를 만들지 못했어요. 다시 시도해 주세요." };
   revalidatePath("/", "layout");
   return { saved: true, deckId: id };
 }

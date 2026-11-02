@@ -18,7 +18,7 @@ import 'new_deck_sheet.dart';
 import 'record_tab.dart';
 import 'today_tab.dart';
 
-/// The signed-in app: the 오늘, 덱 and 기록 tabs over the user's decks, or the
+/// The signed-in app: the 오늘, 노트 and 기록 tabs over the user's decks, or the
 /// first-run home before the first deck. Back on another tab returns to 오늘.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -224,7 +224,7 @@ class _TabBar extends StatelessWidget {
   }
 }
 
-/// The first-run home: the mascot, what to do first, "덱 만들기", which opens
+/// The first-run home: the mascot, what to do first, "노트 만들기", which opens
 /// the new-deck sheet with every way to start one, and, with sharing, the
 /// public decks.
 class _EmptyHome extends StatelessWidget {

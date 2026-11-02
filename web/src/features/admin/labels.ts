@@ -8,9 +8,9 @@ export const reasonLabels: Record<string, string> = {
 
 /** What each recorded admin action reads as in the log; an action this version does not know shows its name. */
 export const actionLabels: Record<string, string> = {
-  hide_deck: "덱 숨기기",
-  unhide_deck: "덱 숨김 해제",
-  unpublish_deck: "덱 비공개로 전환",
+  hide_deck: "노트 숨기기",
+  unhide_deck: "노트 숨김 해제",
+  unpublish_deck: "노트 비공개로 전환",
   dismiss_reports: "신고 정리",
   grant_admin: "관리자 지정",
   revoke_admin: "관리자 해제",

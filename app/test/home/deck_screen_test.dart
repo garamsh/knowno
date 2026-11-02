@@ -162,8 +162,8 @@ void main() {
       );
       expect(header(LucideIcons.layers), findsOneWidget);
 
-      await screens.tap(find.byTooltip('Deck actions'));
-      await screens.tap(find.text('Customize deck'));
+      await screens.tap(find.byTooltip('Note actions'));
+      await screens.tap(find.text('Customize note'));
       // The sheet's option, apart from the card list's label "Cards".
       Finder sheetOption(String name) => find.descendant(
         of: find.byType(BottomSheet),
@@ -195,7 +195,7 @@ void main() {
       );
       await screens.tap(find.text('Save'));
 
-      expect(find.text('Customize deck'), findsNothing);
+      expect(find.text('Customize note'), findsNothing);
       expect(header(LucideIcons.bookOpen), findsOneWidget);
       expect(header(LucideIcons.layers), findsNothing);
       final stored = (await tester.runAsync(
@@ -212,8 +212,8 @@ void main() {
     final screens = await DeckScreens.open(tester, cards: cards);
     await screens.push((deck) => DeckScreen(deck: deck));
 
-    await screens.tap(find.byTooltip('Deck actions'));
-    await screens.tap(find.text('Customize deck'));
+    await screens.tap(find.byTooltip('Note actions'));
+    await screens.tap(find.text('Customize note'));
     await screens.tap(find.bySemanticsLabel('Book'));
     Finder onTile(IconData icon) =>
         find.descendant(of: find.byType(DeckTile), matching: find.byIcon(icon));
@@ -740,15 +740,15 @@ void main() {
   );
 
   testWidgets(
-    '"Delete deck" is drawn in the destructive text colour, where "Rename" is not',
+    '"Delete note" is drawn in the destructive text colour, where "Rename" is not',
     (tester) async {
       final screens = await DeckScreens.open(tester);
       await screens.push((deck) => DeckScreen(deck: deck));
-      await screens.tap(find.byTooltip('Deck actions'));
+      await screens.tap(find.byTooltip('Note actions'));
 
-      final colors = AppColors.of(tester.element(find.text('Delete deck')));
+      final colors = AppColors.of(tester.element(find.text('Delete note')));
       expect(
-        tester.widget<Text>(find.text('Delete deck')).style?.color,
+        tester.widget<Text>(find.text('Delete note')).style?.color,
         colors.dontKnowText,
       );
       expect(
@@ -874,9 +874,9 @@ void main() {
     final screens = await DeckScreens.open(tester);
     await screens.push((deck) => DeckScreen(deck: deck));
 
-    await screens.tap(find.byTooltip('Deck actions'));
+    await screens.tap(find.byTooltip('Note actions'));
     await screens.tap(find.text('Rename'));
-    await screens.enter('Deck name', 'Français');
+    await screens.enter('Note name', 'Français');
     await screens.tap(find.text('Save'));
 
     expect(find.text('Français'), findsOneWidget);
@@ -901,13 +901,13 @@ void main() {
       expect(find.text('Français'), findsOneWidget);
       expect(find.text('French'), findsNothing);
 
-      await screens.tap(find.byTooltip('Deck actions'));
+      await screens.tap(find.byTooltip('Note actions'));
       await screens.tap(find.text('Rename'));
       expect(
         tester
             .widget<EditableText>(
               find.descendant(
-                of: find.widgetWithText(AppTextField, 'Deck name'),
+                of: find.widgetWithText(AppTextField, 'Note name'),
                 matching: find.byType(EditableText),
               ),
             )
@@ -918,8 +918,8 @@ void main() {
       await tester.tapAt(const Offset(20, 100));
       await tester.pumpAndSettle();
 
-      await screens.tap(find.byTooltip('Deck actions'));
-      await screens.tap(find.text('Delete deck'));
+      await screens.tap(find.byTooltip('Note actions'));
+      await screens.tap(find.text('Delete note'));
       expect(shownText('Delete "Français"?'), findsOneWidget);
       await screens.tap(find.text('Cancel'));
 
@@ -936,24 +936,24 @@ void main() {
     (tester) async {
       final screens = await DeckScreens.open(tester);
       await screens.push((deck) => DeckScreen(deck: deck));
-      await screens.tap(find.byTooltip('Deck actions'));
+      await screens.tap(find.byTooltip('Note actions'));
       await screens.tap(find.text('Rename'));
       EditableText field() => tester.widget<EditableText>(
         find.descendant(
-          of: find.widgetWithText(AppTextField, 'Deck name'),
+          of: find.widgetWithText(AppTextField, 'Note name'),
           matching: find.byType(EditableText),
         ),
       );
       expect(field().focusNode.hasFocus, isTrue);
       expect(field().controller.text, 'French');
 
-      await screens.enter('Deck name', '  ');
+      await screens.enter('Note name', '  ');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(find.text('Enter a name'), findsOneWidget);
       expect(find.byType(BottomSheet), findsOneWidget);
 
-      await screens.enter('Deck name', 'Français');
+      await screens.enter('Note name', 'Français');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(find.byType(BottomSheet), findsNothing);
@@ -971,8 +971,8 @@ void main() {
       final screens = await DeckScreens.open(tester, cards: cards);
       await screens.push((deck) => DeckScreen(deck: deck));
 
-      await screens.tap(find.byTooltip('Deck actions'));
-      await screens.tap(find.text('Delete deck'));
+      await screens.tap(find.byTooltip('Note actions'));
+      await screens.tap(find.text('Delete note'));
       expect(shownText('Its 3 cards will be deleted too.'), findsOneWidget);
       await screens.tap(find.text('Delete'));
 

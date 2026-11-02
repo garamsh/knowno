@@ -7,7 +7,7 @@ import { AdminSkeleton } from "../_components/admin-skeleton";
 export default function Page({ searchParams }: PageProps<"/admin/decks">) {
   return (
     <>
-      <h1 className="text-display">공개 덱</h1>
+      <h1 className="text-display">공개 노트</h1>
       <Suspense fallback={<AdminSkeleton />}>
         <PublicDecksContent searchParams={searchParams} />
       </Suspense>

@@ -12,7 +12,7 @@ type Item = { href: string; label: string; Icon: LucideIcon; current: (path: str
 
 const items: readonly Item[] = [
   { href: "/", label: "오늘", Icon: Sun, current: (path) => path === "/" },
-  { href: "/decks", label: "덱", Icon: Layers, current: (path) => path.startsWith("/decks") },
+  { href: "/decks", label: "노트", Icon: Layers, current: (path) => path.startsWith("/decks") },
   {
     href: "/record",
     label: "기록",
@@ -35,7 +35,7 @@ function Pill({ selected, children }: { selected: boolean; children: ReactNode }
 }
 
 /**
- * The menu from 1024 px wide: the lockup, 오늘, 덱 and 기록, the current one a tinted pill
+ * The menu from 1024 px wide: the lockup, 오늘, 노트 and 기록, the current one a tinted pill
  * behind its icon beside a bold label and the others muted, as the tab bar draws them, and
  * [account], the account's link, at its foot.
  */
@@ -82,7 +82,7 @@ export function SideMenuAt({ path, account }: { path: string | null; account: Re
   );
 }
 
-/** The menu below 1024 px wide: 오늘, 덱 and 기록, their names alone, in a bar floating on its edge. */
+/** The menu below 1024 px wide: 오늘, 노트 and 기록, their names alone, in a bar floating on its edge. */
 export function TabBar() {
   return <TabBarAt path={usePathname()} />;
 }

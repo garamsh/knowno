@@ -174,14 +174,14 @@ void main() {
   /// Creates the deck "French" from the first-run home, which opens it, and
   /// goes back to the tabs.
   Future<void> createDeck(WidgetTester tester) async {
-    await tapAndSettle(tester, find.text('Create a deck'));
+    await tapAndSettle(tester, find.text('Create a note'));
     await tapAndSettle(tester, find.text('Enter by hand'));
     await tester.enterText(
-      find.widgetWithText(AppTextField, 'Deck name'),
+      find.widgetWithText(AppTextField, 'Note name'),
       'French',
     );
     await tapAndSettle(tester, find.text('Create'));
-    // Creating the deck offers 덱 꾸미기 before it opens.
+    // Creating the deck offers 노트 꾸미기 before it opens.
     await tapAndSettle(tester, find.text('Save'));
     await tester.pageBack();
     await tester.pumpAndSettle();
@@ -332,7 +332,7 @@ void main() {
         await tapAndSettle(tester, find.text('Study'));
       },
       'new-deck sheet': (tester) async {
-        await tapAndSettle(tester, find.text('Create a deck'));
+        await tapAndSettle(tester, find.text('Create a note'));
       },
       'account': (tester) async {
         await tapAndSettle(tester, find.text('Today'));
@@ -347,13 +347,13 @@ void main() {
           const SignedIn(userId: _ada, email: 'ada@example.com'),
         );
         await pumpApp(tester, account);
-        await tapAndSettle(tester, find.text('Create a deck'));
+        await tapAndSettle(tester, find.text('Create a note'));
         await tapAndSettle(tester, find.text('Enter by hand'));
         await tester.enterText(
-          find.widgetWithText(AppTextField, 'Deck name'),
+          find.widgetWithText(AppTextField, 'Note name'),
           'French',
         );
-        // Creating the deck offers 덱 꾸미기, then opens it.
+        // Creating the deck offers 노트 꾸미기, then opens it.
         await tapAndSettle(tester, find.text('Create'));
         await tapAndSettle(tester, find.text('Save'));
         await tapAndSettle(tester, find.text('Add card'));
@@ -366,7 +366,7 @@ void main() {
         // Back from the deck it opened, then to the deck list.
         await tester.pageBack();
         await tester.pumpAndSettle();
-        await tapAndSettle(tester, find.text('Decks'));
+        await tapAndSettle(tester, find.text('Notes'));
         await open(tester);
         final navigator = tester.state<NavigatorState>(find.byType(Navigator));
         // The setup reached a screen over the deck list.

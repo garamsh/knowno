@@ -104,19 +104,20 @@ function BackToDecks() {
       href="/decks"
       className="flex min-h-tap-target min-w-tap-target items-center w-fit gap-1 rounded-md pr-2 text-muted underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
     >
-      <ChevronLeft aria-hidden className="size-5" strokeWidth={2} />덱
+      <ChevronLeft aria-hidden className="size-5" strokeWidth={2} />
+      노트
     </Link>
   );
 }
 
-/** A failed read under the way back to 덱 and a heading saying the deck could not be read. */
+/** A failed read under the way back to 노트 and a heading saying the deck could not be read. */
 function Failure({ failure }: { failure: LibraryFailure }) {
   return (
     <>
       <nav aria-label="위치" className="text-secondary">
         <BackToDecks />
       </nav>
-      <h1 className="text-deck-title lg:text-display">덱을 불러오지 못했어요</h1>
+      <h1 className="text-deck-title lg:text-display">노트를 불러오지 못했어요</h1>
       <ReadFailure failure={failure} />
     </>
   );

@@ -64,14 +64,14 @@ void main() {
       expect(_publishButton(tester).onPressed, isNotNull);
       await app.tap(find.widgetWithText(FilledButton, 'Publish'));
 
-      expect(find.text('Deck published'), findsOneWidget);
+      expect(find.text('Note published'), findsOneWidget);
       expect(app.server.name?.value, 'Ada');
       expect(app.server.writes.single.description, 'Cats');
       final stored = await _stored(app);
       expect(stored.visibility, isA<PublicDeck>());
       expect(stored.description, 'Cats');
       expect(find.text('1 card · 0 mastered · Public'), findsOneWidget);
-      await tester.tap(find.byTooltip('Deck actions'));
+      await tester.tap(find.byTooltip('Note actions'));
       await tester.pumpAndSettle();
       expect(find.text('Make private'), findsOneWidget);
       expect(find.text('Publish'), findsNothing);
@@ -153,7 +153,7 @@ void main() {
       shownText("I won't publish inappropriate or copyrighted content"),
     );
     await app.tap(find.widgetWithText(FilledButton, 'Publish'));
-    expect(find.text('Deck published'), findsOneWidget);
+    expect(find.text('Note published'), findsOneWidget);
     await app.close();
   });
 
@@ -197,7 +197,7 @@ void main() {
 
     await app.deckMenu('Make private');
 
-    expect(find.text('Deck is private again'), findsOneWidget);
+    expect(find.text('Note is private again'), findsOneWidget);
     expect(find.text('1 card · 0 mastered · Public'), findsNothing);
     expect((await _stored(app)).visibility, isA<PrivateDeck>());
     expect(app.server.writes.last.visibility, isA<PrivateDeck>());
@@ -231,7 +231,7 @@ void main() {
     tester,
   ) async {
     final app = await _openFrench(tester, online: false);
-    await tester.tap(find.byTooltip('Deck actions'));
+    await tester.tap(find.byTooltip('Note actions'));
     await tester.pumpAndSettle();
 
     expect(find.text("Available when you're online"), findsOneWidget);
@@ -255,7 +255,7 @@ void main() {
       'in the ${mode.name} theme the deck menu, publish sheet and public chip meet the tap target and contrast guidelines',
       (tester) async {
         final app = await _openFrench(tester, themeMode: mode);
-        await tester.tap(find.byTooltip('Deck actions'));
+        await tester.tap(find.byTooltip('Note actions'));
         await tester.pumpAndSettle();
         await app.meetsGuidelines();
         await app.tapText('Publish');

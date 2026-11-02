@@ -9,9 +9,9 @@ import { DeckStateChips } from "./deck-state";
 /** Every live deck of a user, public or private, each opening the deck read-only. */
 export function UserDecks({ decks }: { decks: UserDeck[] }) {
   return (
-    <AdminSection label="덱">
+    <AdminSection label="노트">
       {decks.length === 0 ? (
-        <Empty>덱이 없어요. 이 사용자가 덱을 만들면 여기에 보여요.</Empty>
+        <Empty>노트가 없어요. 이 사용자가 노트를 만들면 여기에 보여요.</Empty>
       ) : (
         <ul className={`${group} overflow-hidden`}>
           {decks.map((deck) => (

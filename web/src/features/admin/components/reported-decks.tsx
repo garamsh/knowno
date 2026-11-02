@@ -10,7 +10,7 @@ import { DeckStateChips } from "./deck-state";
 /** The reported decks, the latest report first, each with its reasons, state and actions. */
 export function ReportedDecks({ decks, timeZone }: { decks: ReportedDeck[]; timeZone: string }) {
   if (decks.length === 0) {
-    return <Empty>신고된 덱이 없어요. 새 신고가 들어오면 여기에 보여요.</Empty>;
+    return <Empty>신고된 노트가 없어요. 새 신고가 들어오면 여기에 보여요.</Empty>;
   }
   return (
     <ul className={group}>

@@ -566,17 +566,17 @@ export function PhotoImport({
       )}
       {choosing && (
         <AuthoringSheet
-          title="추가할 덱"
+          title="추가할 노트"
           close={() => {
             setChoosing(false);
           }}
         >
           <div
             role="radiogroup"
-            aria-label="추가할 덱"
+            aria-label="추가할 노트"
             className="divide-y divide-hairline overflow-hidden rounded-group bg-surface"
           >
-            {[...choices, { id: "new", name: "새 덱" }].map((item) => (
+            {[...choices, { id: "new", name: "새 노트" }].map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -599,7 +599,7 @@ export function PhotoImport({
       )}
       {naming && (
         <AuthoringSheet
-          title="새 덱"
+          title="새 노트"
           close={() => {
             if (!busy.current) setNaming(false);
           }}

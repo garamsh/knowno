@@ -22,6 +22,6 @@ export async function removeDeck(deckId: string, reason: string): Promise<Action
   if (result.data) revalidatePath("/admin", "layout");
   return {
     changed: result.data,
-    message: result.data ? "공유에서 영구 삭제했어요." : "이미 공유에서 삭제된 덱이에요.",
+    message: result.data ? "공유에서 영구 삭제했어요." : "이미 공유에서 삭제된 노트예요.",
   };
 }

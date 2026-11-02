@@ -162,7 +162,7 @@ export function SpreadsheetImport({
               setMessage(
                 earlier
                   ? `${String(repeating.row)}행의 앞면이 ${String(earlier.row)}행과 같아요`
-                  : `${String(repeating.row)}행은 이 덱에 이미 있는 카드예요`,
+                  : `${String(repeating.row)}행은 이 노트에 이미 있는 카드예요`,
               );
             } else setMessage(written.message);
             return;
@@ -361,14 +361,14 @@ export function SpreadsheetImport({
             )}
             {cards.length > 0 && !deck && (
               <section className="flex min-w-0 flex-col gap-2">
-                <h3 className="text-section text-muted">추가할 덱</h3>
+                <h3 className="text-section text-muted">추가할 노트</h3>
                 <div className="divide-y divide-hairline overflow-hidden rounded-group bg-surface">
                   <Choice
-                    name="덱"
+                    name="노트"
                     value={target}
                     disabled={created || pending}
                     options={[
-                      ["new", "새 덱 만들기"],
+                      ["new", "새 노트 만들기"],
                       ...decks.map((item): [string, string] => [item.id, item.name]),
                     ]}
                     change={setTarget}
@@ -380,7 +380,7 @@ export function SpreadsheetImport({
                         value={name}
                         disabled={created || pending}
                         maxLength={500}
-                        placeholder="새 덱 이름"
+                        placeholder="새 노트 이름"
                         onChange={(event) => {
                           setName(event.target.value);
                         }}

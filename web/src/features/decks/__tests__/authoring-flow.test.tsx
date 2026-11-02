@@ -468,7 +468,7 @@ describe("photo import", () => {
       {},
     );
     await userEvent.click(
-      screen.getByRole("button", { name: from === "deck" ? "카드 추가" : "새 덱 만들기" }),
+      screen.getByRole("button", { name: from === "deck" ? "카드 추가" : "새 노트 만들기" }),
     );
     const picker = screen.getByLabelText("앨범에서 고르기", { selector: "input" });
     fireEvent.change(picker, {
@@ -748,7 +748,7 @@ describe("photo import", () => {
       expect(screen.getByRole("button", { name: "과일 카드 모양, 앞면에 단어" })).toHaveFocus();
       expect(screen.getByRole("heading", { name: "단어를 찾았어요" })).toBeInTheDocument();
     });
-    it("marks a card the deck holds 이미 덱에 있어요 and leaves it out, beside a new one included", async () => {
+    it("marks a card the deck holds 이미 노트에 있어요 and leaves it out, beside a new one included", async () => {
       db.seed("cards", cardRow("held", "deck", "수도"));
       answer({ status: 200, body: { cards: [card, { ...card, front: "인구", answer: "많음" }] } });
       await choose(1);
@@ -757,11 +757,11 @@ describe("photo import", () => {
         expect(screen.getByRole("checkbox", { name: "수도 선택" })).not.toBeChecked();
       });
       expect(screen.getByRole("button", { name: "수도 편집" })).toHaveTextContent(
-        "이미 덱에 있어요",
+        "이미 노트에 있어요",
       );
       expect(screen.getByRole("checkbox", { name: "인구 선택" })).toBeChecked();
       expect(screen.getByRole("button", { name: "인구 편집" })).not.toHaveTextContent(
-        "이미 덱에 있어요",
+        "이미 노트에 있어요",
       );
       await userEvent.click(screen.getByRole("checkbox", { name: "수도 선택" }));
       expect(screen.getByRole("checkbox", { name: "수도 선택" })).toBeChecked();
@@ -855,7 +855,7 @@ describe("photo import", () => {
       expect(
         screen.getByRole("button", { name: "과일 카드 모양, 앞면에 단어" }),
       ).toBeInTheDocument();
-      await userEvent.click(screen.getByRole("button", { name: "새 덱" }));
+      await userEvent.click(screen.getByRole("button", { name: "새 노트" }));
       await userEvent.click(screen.getByRole("radio", { name: "단어장" }));
       expect(screen.getByRole("button", { name: "과일 카드 모양, 앞면에 뜻" })).toBeInTheDocument();
     });
@@ -942,17 +942,17 @@ describe("photo import", () => {
       answer(read);
       await choose(1, "list");
       await screen.findByRole("heading", { name: "카드 1장을 만들었어요" });
-      expect(screen.getByText(/에 추가돼요$/u)).toHaveTextContent(/^새 덱에 추가돼요$/u);
-      await userEvent.click(screen.getByRole("button", { name: "새 덱" }));
-      const chooser = screen.getByRole("radiogroup", { name: "추가할 덱" });
-      expect(within(chooser).getByRole("radio", { name: "새 덱" })).toBeChecked();
+      expect(screen.getByText(/에 추가돼요$/u)).toHaveTextContent(/^새 노트에 추가돼요$/u);
+      await userEvent.click(screen.getByRole("button", { name: "새 노트" }));
+      const chooser = screen.getByRole("radiogroup", { name: "추가할 노트" });
+      expect(within(chooser).getByRole("radio", { name: "새 노트" })).toBeChecked();
       await userEvent.click(within(chooser).getByRole("radio", { name: "단어장" }));
       expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
-      expect(screen.getByText(/에 추가돼요$/u)).toHaveTextContent(/^덱 '단어장'에 추가돼요$/u);
+      expect(screen.getByText(/에 추가돼요$/u)).toHaveTextContent(/^노트 '단어장'에 추가돼요$/u);
       await userEvent.click(screen.getByRole("button", { name: "단어장" }));
-      await userEvent.click(screen.getByRole("radio", { name: "새 덱" }));
+      await userEvent.click(screen.getByRole("radio", { name: "새 노트" }));
       await userEvent.click(screen.getByRole("button", { name: "카드 1장 추가" }));
-      expect(screen.getByRole("heading", { name: "새 덱" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "새 노트" })).toBeInTheDocument();
       expect(db.rows.decks).toHaveLength(1);
       await userEvent.type(screen.getByRole("textbox", { name: "이름" }), "도시들");
       await userEvent.click(screen.getByRole("button", { name: "만들기" }));

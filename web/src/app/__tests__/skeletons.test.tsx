@@ -12,8 +12,8 @@ import { StudySkeleton } from "../study/_components/study-skeleton";
 
 const skeletons: [string, ReactElement, string][] = [
   ["the 오늘 page", <TodaySkeleton key="today" />, "오늘 할 카드를 불러오는 중이에요."],
-  ["the 덱 page", <DecksSkeleton key="decks" />, "덱을 불러오는 중이에요."],
-  ["a deck's page", <DeckSkeleton key="deck" />, "덱을 불러오는 중이에요."],
+  ["the 노트 page", <DecksSkeleton key="decks" />, "노트를 불러오는 중이에요."],
+  ["a deck's page", <DeckSkeleton key="deck" />, "노트를 불러오는 중이에요."],
   ["the study page", <StudySkeleton key="study" />, "카드를 불러오는 중이에요."],
   ["the settings page", <ProfileSkeleton key="account" />, "설정을 불러오는 중이에요."],
   ["the record page", <RecordSkeleton key="record" />, "기록을 불러오는 중이에요."],

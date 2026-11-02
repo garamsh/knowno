@@ -229,7 +229,7 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
   });
 
   await untilReacted(
-    () => page.getByRole("button", { name: "새 덱 만들기", exact: true }).click(),
+    () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
   await page.getByLabel("앨범에서 고르기", { exact: true }).setInputFiles([
@@ -268,7 +268,7 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
     { width: 800, height: 600 },
     { width: 2048, height: 1536 },
   ]);
-  await expect(page.getByText("새 덱에 추가돼요", { exact: true })).toBeVisible();
+  await expect(page.getByText("새 노트에 추가돼요", { exact: true })).toBeVisible();
   await capture(page, "list");
   await page.getByRole("button", { name: "사진 2, 카드 1장", exact: true }).click();
   await expect(page.getByRole("button", { name: "사진 2, 카드 1장", exact: true })).toHaveAttribute(
@@ -283,13 +283,13 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
   // The menu stays open through each capture: a viewport change does not close it.
   await capture(page, "menu");
   await page.getByRole("menuitemradio", { name: "양쪽 방향 모두", exact: true }).click();
-  await page.getByRole("button", { name: "새 덱", exact: true }).click();
+  await page.getByRole("button", { name: "새 노트", exact: true }).click();
   await capture(page, "deck-choice");
-  await page.getByRole("radio", { name: "새 덱", exact: true }).click();
+  await page.getByRole("radio", { name: "새 노트", exact: true }).click();
   await page.getByRole("button", { name: "카드 5장 추가", exact: true }).click();
-  await page.getByRole("textbox", { name: "이름", exact: true }).fill("사진 덱");
+  await page.getByRole("textbox", { name: "이름", exact: true }).fill("사진 노트");
   await page.getByRole("button", { name: "만들기", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "사진 덱", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "사진 노트", exact: true })).toBeVisible();
 
   const client = createClient(url, key, { auth: { persistSession: false } });
   expect((await client.auth.signInWithPassword({ email, password })).error).toBeNull();

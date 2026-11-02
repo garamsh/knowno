@@ -379,7 +379,7 @@ function TodayDecks({ rows }: { rows: { deck: Deck; today: number; mastered: num
       className="flex flex-col gap-1.5 rounded-card bg-surface p-5"
     >
       <h2 id="today-decks-title" className="text-body-strong">
-        오늘 할 덱
+        오늘 할 노트
       </h2>
       <ul className="flex flex-col">
         {rows.map(({ deck, today, mastered }) => (

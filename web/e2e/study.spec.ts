@@ -185,7 +185,7 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   ).toBeVisible();
   await page
     .getByRole("navigation", { name: "주 메뉴" })
-    .getByRole("link", { name: "덱", exact: true })
+    .getByRole("link", { name: "노트", exact: true })
     .click();
   const deckRow = page.getByRole("link", {
     name: "French, 카드 2장, 공개, 오늘 2, 2장 중 0장 익힘, 익힘 0장, 학습 중 0장, 새 카드 2장",
@@ -474,7 +474,7 @@ test("a user with no deck is invited to make one, and the theme they choose surv
 
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "첫 덱을 만들어 볼까요?", exact: true }),
+    page.getByRole("heading", { name: "첫 노트를 만들어 볼까요?", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "모두 학습" })).toHaveCount(0);
   await shot(page, "08-empty-home");
@@ -573,11 +573,11 @@ test("each page that waits on the server shows its skeleton, still under reduced
       content: "h1",
       held: 0,
     },
-    { path: "/decks", name: "decks", status: "덱을 불러오는 중이에요.", content: "h1", held: 0 },
+    { path: "/decks", name: "decks", status: "노트를 불러오는 중이에요.", content: "h1", held: 0 },
     {
       path: `/decks/${deckId}`,
       name: "deck",
-      status: "덱을 불러오는 중이에요.",
+      status: "노트를 불러오는 중이에요.",
       content: '[aria-label="위치"]',
       held: 0,
     },
@@ -1137,7 +1137,7 @@ test("the shell's menu sits at the side from 1024 px and at the foot below it, a
   await page.keyboard.press("Enter");
   await expect(page.locator("main")).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("searchbox", { name: "덱 검색" })).toBeFocused();
+  await expect(page.getByRole("searchbox", { name: "노트 검색" })).toBeFocused();
   // The landmarks: the menu, the content.
   await expect(page.getByRole("main")).toHaveCount(1);
   await page.goto("/record");
@@ -1195,11 +1195,11 @@ test("creates a deck and a card on mobile, warns on a duplicate and keeps saved 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/decks");
   await expect(
-    page.getByRole("heading", { name: "첫 덱을 만들어 볼까요?", exact: true }),
+    page.getByRole("heading", { name: "첫 노트를 만들어 볼까요?", exact: true }),
   ).toBeVisible();
   await capture(page, "authoring-empty");
   await untilReacted(
-    () => page.getByRole("button", { name: "새 덱 만들기", exact: true }).click(),
+    () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
   await page.getByRole("button", { name: "직접 입력", exact: true }).click();
@@ -1235,7 +1235,7 @@ test("creates a deck and a card on mobile, warns on a duplicate and keeps saved 
   await page.getByRole("textbox", { name: "뒷면", exact: true }).fill("different");
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByRole("dialog").getByRole("alert")).toHaveText(
-    "이 덱에 이미 있는 카드예요",
+    "이 노트에 이미 있는 카드예요",
   );
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "버리기", exact: true }).click();

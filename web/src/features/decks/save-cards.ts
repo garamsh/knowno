@@ -27,15 +27,15 @@ export type SaveCardsResult =
 const malformed = { saved: false as const, message: "카드 내용을 확인해 주세요" };
 const failed = { saved: false as const, message: "카드를 저장하지 못했어요. 다시 시도해 주세요." };
 const signedOut = { saved: false as const, message: "다시 로그인해 주세요" };
-const repeated = "이 덱에 이미 있는 카드예요";
+const repeated = "이 노트에 이미 있는 카드예요";
 const noDeck = {
   saved: false as const,
-  message: "덱을 찾을 수 없어요. 추가할 덱을 다시 골라 주세요.",
+  message: "노트를 찾을 수 없어요. 추가할 노트를 다시 골라 주세요.",
 };
-const gone = { saved: false as const, message: "카드를 찾을 수 없어요. 덱을 다시 열어 주세요." };
+const gone = { saved: false as const, message: "카드를 찾을 수 없어요. 노트를 다시 열어 주세요." };
 const later = {
   saved: false as const,
-  message: "다른 곳에서 더 나중에 고친 카드예요. 덱을 다시 열어 주세요.",
+  message: "다른 곳에서 더 나중에 고친 카드예요. 노트를 다시 열어 주세요.",
 };
 /** The phone's words for a card this build cannot edit. */
 const cardNeedsUpdate =

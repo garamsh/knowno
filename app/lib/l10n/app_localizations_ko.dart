@@ -13,19 +13,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get appTitle => '알아몰라';
 
   @override
-  String get newDeck => '새 덱';
+  String get newDeck => '새 노트';
 
   @override
-  String get deckActions => '덱 작업';
+  String get deckActions => '노트 작업';
 
   @override
   String get importActions => '사진 작업';
 
   @override
-  String get renameDeck => '덱 이름 바꾸기';
+  String get renameDeck => '노트 이름 바꾸기';
 
   @override
-  String get deckAppearance => '덱 꾸미기';
+  String get deckAppearance => '노트 꾸미기';
 
   @override
   String get deckAppearanceIcon => '아이콘';
@@ -85,11 +85,11 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get deleteDeck => '덱 삭제';
+  String get deleteDeck => '노트 삭제';
 
   @override
   String deleteDeckTitle(String name) {
-    return '\"$name\" 덱을 삭제할까요?';
+    return '\"$name\" 노트를 삭제할까요?';
   }
 
   @override
@@ -98,13 +98,13 @@ class AppLocalizationsKo extends AppLocalizations {
       count,
       locale: localeName,
       other: '카드 $count장도 함께 삭제돼요.',
-      zero: '이 덱에는 카드가 없어요.',
+      zero: '이 노트에는 카드가 없어요.',
     );
     return '$_temp0';
   }
 
   @override
-  String get deckName => '덱 이름';
+  String get deckName => '노트 이름';
 
   @override
   String get deckNameRequired => '이름을 입력해 주세요';
@@ -374,7 +374,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String cardDeck(String deck) {
-    return '$deck 덱';
+    return '$deck 노트';
   }
 
   @override
@@ -488,7 +488,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get duplicateTitle => '이 덱에 이미 있는 카드예요';
+  String get duplicateTitle => '이 노트에 이미 있는 카드예요';
 
   @override
   String get duplicateBody => '대소문자와 띄어쓰기는 구분하지 않아요.';
@@ -511,7 +511,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get storageFailure => '기기 저장소를 읽거나 쓰지 못했어요. 다시 시도해 주세요.';
 
   @override
-  String get unreadableCard => '이 덱에 읽을 수 없는 카드가 있어요.';
+  String get unreadableCard => '이 노트에 읽을 수 없는 카드가 있어요.';
 
   @override
   String get cancel => '취소';
@@ -713,7 +713,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String myDecks(int count) {
-    return '내 덱 $count';
+    return '내 노트 $count';
   }
 
   @override
@@ -765,7 +765,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get deleteAccountBody =>
-      '서버와 이 기기의 덱, 카드, 학습 기록이 모두 삭제되고, 다른 사람이 가져간 덱과 Google 계정은 남아요.';
+      '서버와 이 기기의 노트, 카드, 학습 기록이 모두 삭제되고, 다른 사람이 가져간 노트와 Google 계정은 남아요.';
 
   @override
   String get deletingAccount => '계정 삭제 중';
@@ -789,7 +789,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get syncRetry => '다시 시도';
 
   @override
-  String get photoTargetTitle => '추가할 덱';
+  String get photoTargetTitle => '추가할 노트';
 
   @override
   String get photoCamera => '사진 찍기';
@@ -973,13 +973,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get photoNotKept => '이 사진을 기기에 보관하지 못했어요. 저장 공간을 확인하고 다시 골라 주세요.';
 
   @override
-  String get deckDeleted => '이 덱은 삭제됐어요. 다른 덱을 골라 주세요.';
+  String get deckDeleted => '이 노트는 삭제됐어요. 다른 노트를 골라 주세요.';
 
   @override
-  String get browse => '공개 덱';
+  String get browse => '공개 노트';
 
   @override
-  String get publish => '덱 공개';
+  String get publish => '노트 공개';
 
   @override
   String get unpublish => '비공개로 전환';
@@ -991,7 +991,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get publicChip => '공개';
 
   @override
-  String get searchPublicDecks => '덱 이름이나 설명으로 검색';
+  String get searchPublicDecks => '노트 이름이나 설명으로 검색';
 
   @override
   String get sortNewest => '최신순';
@@ -1005,13 +1005,13 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get noPublicDecks => '아직 공개된 덱이 없어요. 내 덱을 공개해 처음으로 나눠 보세요.';
+  String get noPublicDecks => '아직 공개된 노트가 없어요. 내 노트를 공개해 처음으로 나눠 보세요.';
 
   @override
-  String get noPublicMatches => '찾는 덱이 없어요. 다른 단어로 검색해 보세요.';
+  String get noPublicMatches => '찾는 노트가 없어요. 다른 단어로 검색해 보세요.';
 
   @override
-  String get browseOffline => '인터넷에 연결되지 않았어요. 연결되면 공개 덱을 볼 수 있어요.';
+  String get browseOffline => '인터넷에 연결되지 않았어요. 연결되면 공개 노트를 볼 수 있어요.';
 
   @override
   String get loading => '불러오는 중';
@@ -1026,10 +1026,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get sharingFailed => '지금은 처리할 수 없어요. 잠시 후 다시 시도해 주세요.';
 
   @override
-  String get deckNoLongerPublic => '이 덱은 더 이상 공개되어 있지 않아요.';
+  String get deckNoLongerPublic => '이 노트는 더 이상 공개되어 있지 않아요.';
 
   @override
-  String get copyToMyDecks => '내 덱으로 가져오기';
+  String get copyToMyDecks => '내 노트로 가져오기';
 
   @override
   String previewFirstCards(int shown, int total) {
@@ -1037,7 +1037,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get reportDeck => '덱 신고';
+  String get reportDeck => '노트 신고';
 
   @override
   String get reportConfirm => '신고';
@@ -1064,7 +1064,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get reported => '신고했어요. 검토할게요.';
 
   @override
-  String get alreadyReported => '이미 신고한 덱이에요.';
+  String get alreadyReported => '이미 신고한 노트예요.';
 
   @override
   String blockTitle(String name) {
@@ -1072,7 +1072,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get blockBody => '이 사용자의 덱이 공개 덱에 더 이상 나오지 않아요.';
+  String get blockBody => '이 사용자의 노트가 공개 노트에 더 이상 나오지 않아요.';
 
   @override
   String get block => '차단';
@@ -1083,18 +1083,18 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get copyAsNewDeck => '새 덱으로';
+  String get copyAsNewDeck => '새 노트로';
 
   @override
-  String get copyIntoExistingDeck => '기존 덱에 추가';
+  String get copyIntoExistingDeck => '기존 노트에 추가';
 
   @override
   String copyNewDeckHint(String name) {
-    return '\"$name\" 덱을 새로 만들어 모든 카드를 가져와요.';
+    return '\"$name\" 노트를 새로 만들어 모든 카드를 가져와요.';
   }
 
   @override
-  String get copyTargetDeck => '덱';
+  String get copyTargetDeck => '노트';
 
   @override
   String get copyDuplicates => '이미 있는 카드는';
@@ -1122,7 +1122,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get displayName => '공개 이름';
 
   @override
-  String get displayNameHelp => '공개한 덱에 이 이름이 표시돼요. 이메일은 표시되지 않아요.';
+  String get displayNameHelp => '공개한 노트에 이 이름이 표시돼요. 이메일은 표시되지 않아요.';
 
   @override
   String get displayNameLength => '2~20자로 입력해 주세요';
@@ -1142,10 +1142,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get publishConfirm => '공개';
 
   @override
-  String get published => '덱을 공개했어요';
+  String get published => '노트를 공개했어요';
 
   @override
-  String get unpublished => '덱을 비공개로 전환했어요';
+  String get unpublished => '노트를 비공개로 전환했어요';
 
   @override
   String get todayTitle => '오늘 할 카드';
@@ -1154,19 +1154,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get noCardsTitle => '첫 카드를 만들어 볼까요?';
 
   @override
-  String get addCardsInDecks => '덱에서 카드 추가';
+  String get addCardsInDecks => '노트에서 카드 추가';
 
   @override
-  String get emptyHomeTitle => '첫 덱을 만들어 볼까요?';
+  String get emptyHomeTitle => '첫 노트를 만들어 볼까요?';
 
   @override
   String get createManually => '직접 입력';
 
   @override
-  String get browsePublicDecks => '공개 덱 둘러보기';
+  String get browsePublicDecks => '공개 노트 둘러보기';
 
   @override
-  String get newDeckTitle => '새 덱 만들기';
+  String get newDeckTitle => '새 노트 만들기';
 
   @override
   String get newDeckBody => '이름은 나중에도 바꿀 수 있어요.';
@@ -1200,7 +1200,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get tabToday => '오늘';
 
   @override
-  String get tabDecks => '덱';
+  String get tabDecks => '노트';
 
   @override
   String get tabRecord => '기록';
@@ -1209,10 +1209,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get tabsLabel => '탭';
 
   @override
-  String get searchDecks => '덱 검색';
+  String get searchDecks => '노트 검색';
 
   @override
-  String get noDeckMatches => '찾는 덱이 없어요. 다른 단어로 검색해 보세요.';
+  String get noDeckMatches => '찾는 노트가 없어요. 다른 단어로 검색해 보세요.';
 
   @override
   String deckMastered(int cards, int mastered) {
@@ -1315,7 +1315,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get todayDecks => '오늘 할 덱';
+  String get todayDecks => '오늘 할 노트';
 
   @override
   String deckDueCount(int count) {
@@ -1509,7 +1509,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String importDeck(String name) {
-    return '덱 \'$name\'에 추가돼요';
+    return '노트 \'$name\'에 추가돼요';
   }
 
   @override
@@ -1590,7 +1590,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get importRemove => '빼기';
 
   @override
-  String get importInDeck => '이미 덱에 있어요';
+  String get importInDeck => '이미 노트에 있어요';
 
   @override
   String get editTitle => '카드 편집';
@@ -1818,7 +1818,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String spreadsheetDuplicateStored(int row) {
-    return '$row행은 이 덱에 이미 있는 카드예요';
+    return '$row행은 이 노트에 이미 있는 카드예요';
   }
 
   @override

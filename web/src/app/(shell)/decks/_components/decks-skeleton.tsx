@@ -1,9 +1,9 @@
 import { Skeleton, SkeletonLine } from "@/design/skeleton";
 
-/** The 덱 page while it is read: the heading, the search and three deck rows, in their sizes. */
+/** The 노트 page while it is read: the heading, the search and three deck rows, in their sizes. */
 export function DecksSkeleton() {
   return (
-    <Skeleton status="덱을 불러오는 중이에요." className="flex flex-col gap-5">
+    <Skeleton status="노트를 불러오는 중이에요." className="flex flex-col gap-5">
       <SkeletonLine text="text-display" width="w-32" />
       <div className="flex flex-col gap-3">
         <span className="h-search rounded-field border border-outline bg-surface" />

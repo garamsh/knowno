@@ -107,13 +107,13 @@ abstract class AppLocalizations {
   /// Title of the new-deck sheet and of the sheet that names a new deck, and the deck choosers' new deck.
   ///
   /// In ko, this message translates to:
-  /// **'새 덱'**
+  /// **'새 노트'**
   String get newDeck;
 
   /// Label of the menu button on a deck.
   ///
   /// In ko, this message translates to:
-  /// **'덱 작업'**
+  /// **'노트 작업'**
   String get deckActions;
 
   /// Screen-reader name of the ⋯ menu in the photo import list's top bar, which holds the retake.
@@ -125,64 +125,64 @@ abstract class AppLocalizations {
   /// Menu item and dialog title for renaming a deck.
   ///
   /// In ko, this message translates to:
-  /// **'덱 이름 바꾸기'**
+  /// **'노트 이름 바꾸기'**
   String get renameDeck;
 
   /// The deck menu's item, and the title of the sheet in which the user chooses the icon and colour of a deck's tile.
   ///
   /// In ko, this message translates to:
-  /// **'덱 꾸미기'**
+  /// **'노트 꾸미기'**
   String get deckAppearance;
 
-  /// In the 덱 꾸미기 sheet: the heading over the icons a deck's tile can hold.
+  /// In the 노트 꾸미기 sheet: the heading over the icons a deck's tile can hold.
   ///
   /// In ko, this message translates to:
   /// **'아이콘'**
   String get deckAppearanceIcon;
 
-  /// In the 덱 꾸미기 sheet: the heading over the colours a deck's tile can take.
+  /// In the 노트 꾸미기 sheet: the heading over the colours a deck's tile can take.
   ///
   /// In ko, this message translates to:
   /// **'색'**
   String get deckAppearanceColor;
 
-  /// In the 덱 꾸미기 sheet: the heading over the ways to put a photo on a deck's tile in place of its icon.
+  /// In the 노트 꾸미기 sheet: the heading over the ways to put a photo on a deck's tile in place of its icon.
   ///
   /// In ko, this message translates to:
   /// **'사진 넣기'**
   String get deckAppearanceImage;
 
-  /// In the 덱 꾸미기 sheet: the button that picks the tile's photo from the photo library.
+  /// In the 노트 꾸미기 sheet: the button that picks the tile's photo from the photo library.
   ///
   /// In ko, this message translates to:
   /// **'앨범에서 고르기'**
   String get deckImageFromAlbum;
 
-  /// In the 덱 꾸미기 sheet: the button that takes the tile's photo with the camera.
+  /// In the 노트 꾸미기 sheet: the button that takes the tile's photo with the camera.
   ///
   /// In ko, this message translates to:
   /// **'사진 찍기'**
   String get deckImageFromCamera;
 
-  /// In the 덱 꾸미기 sheet: the button that takes the photo off the tile, which then shows its icon again.
+  /// In the 노트 꾸미기 sheet: the button that takes the photo off the tile, which then shows its icon again.
   ///
   /// In ko, this message translates to:
   /// **'사진 빼기'**
   String get deckImageRemove;
 
-  /// In the 덱 꾸미기 sheet: shown when the picked photo, the camera or the photo library could not be read.
+  /// In the 노트 꾸미기 sheet: shown when the picked photo, the camera or the photo library could not be read.
   ///
   /// In ko, this message translates to:
   /// **'사진을 불러오지 못했어요. 다시 시도해 주세요.'**
   String get deckImageUnreadable;
 
-  /// What a screen reader calls an icon in the 덱 꾸미기 sheet, by the icon's stored key.
+  /// What a screen reader calls an icon in the 노트 꾸미기 sheet, by the icon's stored key.
   ///
   /// In ko, this message translates to:
   /// **'{icon, select, layers{카드 묶음} book{책} languages{언어} pencil{연필} flask{실험} calculator{계산기} globe{지구본} music{음악} palette{팔레트} brain{두뇌} code{코드} landmark{건축물} briefcase{서류 가방} star{별} other{아이콘}}'**
   String deckIconName(String icon);
 
-  /// What a screen reader calls a colour in the 덱 꾸미기 sheet, by the colour's stored key.
+  /// What a screen reader calls a colour in the 노트 꾸미기 sheet, by the colour's stored key.
   ///
   /// In ko, this message translates to:
   /// **'{color, select, blue{파랑} sky{하늘} violet{복숭아} sand{모래} amber{노랑} slate{회색} other{색}}'**
@@ -191,25 +191,25 @@ abstract class AppLocalizations {
   /// Menu item for deleting a deck.
   ///
   /// In ko, this message translates to:
-  /// **'덱 삭제'**
+  /// **'노트 삭제'**
   String get deleteDeck;
 
   /// Title of the deck deletion confirmation.
   ///
   /// In ko, this message translates to:
-  /// **'\"{name}\" 덱을 삭제할까요?'**
+  /// **'\"{name}\" 노트를 삭제할까요?'**
   String deleteDeckTitle(String name);
 
   /// Body of the deck deletion confirmation, naming how many cards go with the deck.
   ///
   /// In ko, this message translates to:
-  /// **'{count, plural, =0{이 덱에는 카드가 없어요.} other{카드 {count}장도 함께 삭제돼요.}}'**
+  /// **'{count, plural, =0{이 노트에는 카드가 없어요.} other{카드 {count}장도 함께 삭제돼요.}}'**
   String deleteDeckBody(int count);
 
   /// Label of the deck name field.
   ///
   /// In ko, this message translates to:
-  /// **'덱 이름'**
+  /// **'노트 이름'**
   String get deckName;
 
   /// Error shown when a deck name is empty.
@@ -701,7 +701,7 @@ abstract class AppLocalizations {
   /// What a screen reader reads for the deck name at the top of the card editor.
   ///
   /// In ko, this message translates to:
-  /// **'{deck} 덱'**
+  /// **'{deck} 노트'**
   String cardDeck(String deck);
 
   /// The card editor's top-bar action that opens the card as study shows it, and that screen's title.
@@ -869,7 +869,7 @@ abstract class AppLocalizations {
   /// Title of the sheet shown when a card's front duplicates another in the deck.
   ///
   /// In ko, this message translates to:
-  /// **'이 덱에 이미 있는 카드예요'**
+  /// **'이 노트에 이미 있는 카드예요'**
   String get duplicateTitle;
 
   /// Line under the duplicate sheet's title: comparing fronts ignores case and spacing.
@@ -911,7 +911,7 @@ abstract class AppLocalizations {
   /// Shown when a stored card cannot be read.
   ///
   /// In ko, this message translates to:
-  /// **'이 덱에 읽을 수 없는 카드가 있어요.'**
+  /// **'이 노트에 읽을 수 없는 카드가 있어요.'**
   String get unreadableCard;
 
   /// Dismisses a dialog without acting.
@@ -1264,7 +1264,7 @@ abstract class AppLocalizations {
   /// Label above the deck rows, with how many decks there are.
   ///
   /// In ko, this message translates to:
-  /// **'내 덱 {count}'**
+  /// **'내 노트 {count}'**
   String myDecks(int count);
 
   /// How many cards a deck holds, under its name.
@@ -1354,7 +1354,7 @@ abstract class AppLocalizations {
   /// Body of the account deletion confirmation: what is removed, and what stays.
   ///
   /// In ko, this message translates to:
-  /// **'서버와 이 기기의 덱, 카드, 학습 기록이 모두 삭제되고, 다른 사람이 가져간 덱과 Google 계정은 남아요.'**
+  /// **'서버와 이 기기의 노트, 카드, 학습 기록이 모두 삭제되고, 다른 사람이 가져간 노트와 Google 계정은 남아요.'**
   String get deleteAccountBody;
 
   /// Accessible label of the progress indicator while deleting the account.
@@ -1402,7 +1402,7 @@ abstract class AppLocalizations {
   /// Title of the sheet on the photo review that chooses the deck the cards go into.
   ///
   /// In ko, this message translates to:
-  /// **'추가할 덱'**
+  /// **'추가할 노트'**
   String get photoTargetTitle;
 
   /// Row of the photo source sheet that opens the system camera.
@@ -1714,19 +1714,19 @@ abstract class AppLocalizations {
   /// Shown when cards are saved into a deck that was deleted meanwhile, such as on another device.
   ///
   /// In ko, this message translates to:
-  /// **'이 덱은 삭제됐어요. 다른 덱을 골라 주세요.'**
+  /// **'이 노트는 삭제됐어요. 다른 노트를 골라 주세요.'**
   String get deckDeleted;
 
   /// Opens other users' public decks; also the title of that screen.
   ///
   /// In ko, this message translates to:
-  /// **'공개 덱'**
+  /// **'공개 노트'**
   String get browse;
 
   /// Deck menu item that publishes the deck.
   ///
   /// In ko, this message translates to:
-  /// **'덱 공개'**
+  /// **'노트 공개'**
   String get publish;
 
   /// Deck menu item that makes a public deck private.
@@ -1750,7 +1750,7 @@ abstract class AppLocalizations {
   /// Hint of the search field on the browse screen.
   ///
   /// In ko, this message translates to:
-  /// **'덱 이름이나 설명으로 검색'**
+  /// **'노트 이름이나 설명으로 검색'**
   String get searchPublicDecks;
 
   /// Browse sort: most recently published first.
@@ -1774,19 +1774,19 @@ abstract class AppLocalizations {
   /// Browse screen with no public deck.
   ///
   /// In ko, this message translates to:
-  /// **'아직 공개된 덱이 없어요. 내 덱을 공개해 처음으로 나눠 보세요.'**
+  /// **'아직 공개된 노트가 없어요. 내 노트를 공개해 처음으로 나눠 보세요.'**
   String get noPublicDecks;
 
   /// Browse search with no match.
   ///
   /// In ko, this message translates to:
-  /// **'찾는 덱이 없어요. 다른 단어로 검색해 보세요.'**
+  /// **'찾는 노트가 없어요. 다른 단어로 검색해 보세요.'**
   String get noPublicMatches;
 
   /// Browse screen while offline.
   ///
   /// In ko, this message translates to:
-  /// **'인터넷에 연결되지 않았어요. 연결되면 공개 덱을 볼 수 있어요.'**
+  /// **'인터넷에 연결되지 않았어요. 연결되면 공개 노트를 볼 수 있어요.'**
   String get browseOffline;
 
   /// Label of a progress indicator.
@@ -1816,13 +1816,13 @@ abstract class AppLocalizations {
   /// Copying a deck its owner made private, deleted, or that was hidden.
   ///
   /// In ko, this message translates to:
-  /// **'이 덱은 더 이상 공개되어 있지 않아요.'**
+  /// **'이 노트는 더 이상 공개되어 있지 않아요.'**
   String get deckNoLongerPublic;
 
   /// Primary button of a public deck, and title of the sheet it opens.
   ///
   /// In ko, this message translates to:
-  /// **'내 덱으로 가져오기'**
+  /// **'내 노트로 가져오기'**
   String get copyToMyDecks;
 
   /// Below a public deck's preview when it holds more cards than shown.
@@ -1834,7 +1834,7 @@ abstract class AppLocalizations {
   /// Public deck menu item that opens the report sheet.
   ///
   /// In ko, this message translates to:
-  /// **'덱 신고'**
+  /// **'노트 신고'**
   String get reportDeck;
 
   /// The report sheet's final button, which sends the report.
@@ -1888,7 +1888,7 @@ abstract class AppLocalizations {
   /// After a second report of the same deck.
   ///
   /// In ko, this message translates to:
-  /// **'이미 신고한 덱이에요.'**
+  /// **'이미 신고한 노트예요.'**
   String get alreadyReported;
 
   /// Title of the block confirmation.
@@ -1900,7 +1900,7 @@ abstract class AppLocalizations {
   /// Body of the block confirmation.
   ///
   /// In ko, this message translates to:
-  /// **'이 사용자의 덱이 공개 덱에 더 이상 나오지 않아요.'**
+  /// **'이 사용자의 노트가 공개 노트에 더 이상 나오지 않아요.'**
   String get blockBody;
 
   /// Confirms blocking a user.
@@ -1918,25 +1918,25 @@ abstract class AppLocalizations {
   /// Copy option: into a new deck.
   ///
   /// In ko, this message translates to:
-  /// **'새 덱으로'**
+  /// **'새 노트로'**
   String get copyAsNewDeck;
 
   /// Copy option: into one of the user's decks.
   ///
   /// In ko, this message translates to:
-  /// **'기존 덱에 추가'**
+  /// **'기존 노트에 추가'**
   String get copyIntoExistingDeck;
 
   /// What copying into a new deck does.
   ///
   /// In ko, this message translates to:
-  /// **'\"{name}\" 덱을 새로 만들어 모든 카드를 가져와요.'**
+  /// **'\"{name}\" 노트를 새로 만들어 모든 카드를 가져와요.'**
   String copyNewDeckHint(String name);
 
   /// Label of the deck chooser when copying into a deck.
   ///
   /// In ko, this message translates to:
-  /// **'덱'**
+  /// **'노트'**
   String get copyTargetDeck;
 
   /// Heading of the duplicate options when copying into a deck.
@@ -1972,7 +1972,7 @@ abstract class AppLocalizations {
   /// Help below the display name field.
   ///
   /// In ko, this message translates to:
-  /// **'공개한 덱에 이 이름이 표시돼요. 이메일은 표시되지 않아요.'**
+  /// **'공개한 노트에 이 이름이 표시돼요. 이메일은 표시되지 않아요.'**
   String get displayNameHelp;
 
   /// Error for a display name of the wrong length.
@@ -2008,13 +2008,13 @@ abstract class AppLocalizations {
   /// After a deck was published.
   ///
   /// In ko, this message translates to:
-  /// **'덱을 공개했어요'**
+  /// **'노트를 공개했어요'**
   String get published;
 
   /// After a deck was made private.
   ///
   /// In ko, this message translates to:
-  /// **'덱을 비공개로 전환했어요'**
+  /// **'노트를 비공개로 전환했어요'**
   String get unpublished;
 
   /// Today card's heading on the home screen, above the count.
@@ -2029,16 +2029,16 @@ abstract class AppLocalizations {
   /// **'첫 카드를 만들어 볼까요?'**
   String get noCardsTitle;
 
-  /// Button on the 오늘 tab's no-cards state, with several decks, that shows the 덱 tab.
+  /// Button on the 오늘 tab's no-cards state, with several decks, that shows the 노트 tab.
   ///
   /// In ko, this message translates to:
-  /// **'덱에서 카드 추가'**
+  /// **'노트에서 카드 추가'**
   String get addCardsInDecks;
 
   /// Home screen heading before the user has any deck.
   ///
   /// In ko, this message translates to:
-  /// **'첫 덱을 만들어 볼까요?'**
+  /// **'첫 노트를 만들어 볼까요?'**
   String get emptyHomeTitle;
 
   /// The new-deck and add-card sheets' row that starts by typing: a deck named by hand, or a card in the editor.
@@ -2050,13 +2050,13 @@ abstract class AppLocalizations {
   /// Empty home screen button that opens the public decks.
   ///
   /// In ko, this message translates to:
-  /// **'공개 덱 둘러보기'**
+  /// **'공개 노트 둘러보기'**
   String get browsePublicDecks;
 
-  /// The entry that opens the new-deck sheet: the 덱 tab's button under the rows and the first-run home's primary.
+  /// The entry that opens the new-deck sheet: the 노트 tab's button under the rows and the first-run home's primary.
   ///
   /// In ko, this message translates to:
-  /// **'새 덱 만들기'**
+  /// **'새 노트 만들기'**
   String get newDeckTitle;
 
   /// Line under the new-deck sheet's title.
@@ -2116,7 +2116,7 @@ abstract class AppLocalizations {
   /// The bottom bar's second tab: the user's decks.
   ///
   /// In ko, this message translates to:
-  /// **'덱'**
+  /// **'노트'**
   String get tabDecks;
 
   /// The bottom bar's third tab: the study record.
@@ -2134,13 +2134,13 @@ abstract class AppLocalizations {
   /// The hint in the decks tab's search field, which filters decks by name.
   ///
   /// In ko, this message translates to:
-  /// **'덱 검색'**
+  /// **'노트 검색'**
   String get searchDecks;
 
   /// The decks tab when no deck name holds the search.
   ///
   /// In ko, this message translates to:
-  /// **'찾는 덱이 없어요. 다른 단어로 검색해 보세요.'**
+  /// **'찾는 노트가 없어요. 다른 단어로 검색해 보세요.'**
   String get noDeckMatches;
 
   /// Under a deck row's name and on the deck page's today card, over the progress bar: how many of the deck's cards are mastered (interval of 21 days or more).
@@ -2149,7 +2149,7 @@ abstract class AppLocalizations {
   /// **'{cards}장 중 {mastered}장 익힘'**
   String deckMastered(int cards, int mastered);
 
-  /// Under a deck row's name on the 덱 tab while its progress is read, and for a deck with no card: how many cards the deck holds.
+  /// Under a deck row's name on the 노트 tab while its progress is read, and for a deck with no card: how many cards the deck holds.
   ///
   /// In ko, this message translates to:
   /// **'{count}장'**
@@ -2290,7 +2290,7 @@ abstract class AppLocalizations {
   /// Heading over the decks that hold cards for today.
   ///
   /// In ko, this message translates to:
-  /// **'오늘 할 덱'**
+  /// **'오늘 할 노트'**
   String get todayDecks;
 
   /// A today's-deck row: how many of its cards are left today.
@@ -2572,7 +2572,7 @@ abstract class AppLocalizations {
   /// Line under the import list title naming the deck the cards go into; the name opens the deck chooser.
   ///
   /// In ko, this message translates to:
-  /// **'덱 \'{name}\'에 추가돼요'**
+  /// **'노트 \'{name}\'에 추가돼요'**
   String importDeck(String name);
 
   /// Line under the import list title while no deck is chosen: the cards go into a deck made on saving; name is newDeck, and opens the deck chooser.
@@ -2704,7 +2704,7 @@ abstract class AppLocalizations {
   /// Note under a row the deck already holds.
   ///
   /// In ko, this message translates to:
-  /// **'이미 덱에 있어요'**
+  /// **'이미 노트에 있어요'**
   String get importInDeck;
 
   /// Title of the sheet that edits one card.
@@ -3088,7 +3088,7 @@ abstract class AppLocalizations {
   /// A row repeating a stored card.
   ///
   /// In ko, this message translates to:
-  /// **'{row}행은 이 덱에 이미 있는 카드예요'**
+  /// **'{row}행은 이 노트에 이미 있는 카드예요'**
   String spreadsheetDuplicateStored(int row);
 
   /// A row repeating an earlier row.
