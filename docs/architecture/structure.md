@@ -66,7 +66,7 @@ Each top-level folder has one responsibility, and the lists are closed: an entry
 - **The drift database is a foundation.** `app/lib/database/database.dart` holds every domain's tables. A domain maps rows into its own types and does not export row classes.
 - **Every schema change goes through a migration.** The change raises `schemaVersion`. In `app/`, `dart run drift_dev make-migrations` then exports the new schema to `drift_schemas/` and its helpers to `test/drift/`, and the migration test there must pass.
 - **User-facing strings come from one ARB set.** It lives in `app/lib/l10n/`, with Korean as the template and default locale. No widget hardcodes a string the user reads.
-- **Generated code is committed and regenerated from its source.** This covers `database.g.dart` (via `dart run build_runner build`), the `gen-l10n` output (via `flutter gen-l10n`), the drift schema dumps, helpers and `database.steps.dart` (via `make-migrations`), and flutter_rust_bridge's Rust and Dart output (via `flutter_rust_bridge_codegen generate`, [ADR 0004](adr/0004-flutter-rust-bridge.md)). `make lint` runs `check-generated.sh`, which reruns every generator and fails when a committed file differs from what it writes.
+- **Generated code is committed and regenerated from its source.** This covers `database.g.dart` (via `dart run build_runner build`), the `gen-l10n` output (via `flutter gen-l10n`), the drift schema dumps, helpers and `database.steps.dart` (via `make-migrations`), and flutter_rust_bridge's Rust and Dart output (via `flutter_rust_bridge_codegen generate`, [ADR 0004](adr/0004-flutter-rust-bridge.md)). `make lint` runs `scripts/check-generated.sh`, which reruns every generator and fails when a committed file differs from what it writes.
 
 ### Composition
 

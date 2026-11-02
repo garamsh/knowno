@@ -20,7 +20,7 @@ jobs:
     name: make preview-migrations
     runs-on: ubuntu-24.04
     steps:
-      # The script reads main as the merge commit's first parent, as check-migration-order.sh does.
+      # The script reads main as the merge commit's first parent, as scripts/check-migration-order.sh does.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2

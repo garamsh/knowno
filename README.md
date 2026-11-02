@@ -15,7 +15,7 @@ A memorization app, 알아몰라 in Korean: decks of cards studied on a phone an
 - `app/rust/` — the flutter_rust_bridge crate through which the app calls the engine.
 - `engine/` — the Rust crate that schedules reviews with FSRS.
 - `engine-wasm/` — the engine as WebAssembly for the web app; its generated module, committed, is in `engine-wasm/pkg/`.
-- `web/` — the Next.js web app, its `Dockerfile`, and its e2e specs in `web/e2e/`; `web.sh` runs the checks over it.
+- `web/` — the Next.js web app, its `Dockerfile`, and its e2e specs in `web/e2e/`; `scripts/web.sh` runs the checks over it.
 - `supabase/` — the Supabase CLI project for the backend: its configuration, migrations in `supabase/migrations/`, and pgTAP tests in `supabase/tests/`.
 - `supabase/functions/extract-cards/` — the Edge Function that turns a photo of a study page, a vocabulary page or notes, into candidate cards, with its Deno tests.
 - `tools/eval/` — the eval that measures candidate models for that function, its generated sample set, and the generator.
@@ -27,7 +27,7 @@ A memorization app, 알아몰라 in Korean: decks of cards studied on a phone an
 - `docs/eval/` — the eval's latest report, which a run writes.
 - `docs/research/` — assessments made for an issue, such as moving the engine to FSRS-7.
 - `Makefile` — the entry points for the project's checks.
-- `check-*.sh` — the checks `make lint` and `make test` run (§Run the checks); `deno.sh`, `web.sh` and `wasm-bindgen.sh` run the Deno, web app and WebAssembly parts of the entry points.
+- `scripts/` — the scripts the entry points run (§Run the checks): the `scripts/check-*.sh` checks; `scripts/deno.sh`, `scripts/web.sh` and `scripts/wasm-bindgen.sh`, the Deno, web app and WebAssembly parts; the `scripts/test-*.sh` stack tests; and the migration preview. Where a step's tool or Docker is missing, a script skips the step and says so, and where `CI` is set it fails instead (`scripts/skip.sh`).
 - `.github/` — the CI workflow, Dependabot configuration, and issue and pull request templates.
 
 ## Requirements
@@ -44,7 +44,7 @@ A memorization app, 알아몰라 in Korean: decks of cards studied on a phone an
 - wasm-bindgen-cli at the release of the `wasm-bindgen` crate in `engine-wasm/Cargo.lock`, 0.2.129, for the engine's WebAssembly module and its tests: the prebuilt archive for this host from the 0.2.129 release at github.com/wasm-bindgen/wasm-bindgen/releases, its `wasm-bindgen` and `wasm-bindgen-test-runner` on the `PATH`. CI installs the same archive. A build of the same release from source (`cargo install wasm-bindgen-cli`) writes a different `.wasm`, which `make lint` reports as stale. Without it, `make lint` skips checking `engine-wasm/pkg/` and `make test` skips the WebAssembly tests, and each says so; another release fails both.
 - Node 24.22.0 to run the WebAssembly tests; CI installs the same release, set in `.github/workflows/ci.yml`. The PM bumps both when a new LTS release ships. Without it, `make test` skips those tests and says so.
 - jq, which `make lint` uses to list the engine's cargo targets, to read service-role keys' JWT payloads, and to read `app/config/dev.json`.
-- Node.js 24.22.0 for the web app, named in `web/.nvmrc`; CI runs it on the Node the WebAssembly tests install, and `web.sh` fails wherever the running Node differs from that file. The PM bumps it together with the `node:` base image in `web/Dockerfile`, whose digest Dependabot proposes; `make lint` fails while the two differ. Without Node.js, `make lint`, `make format`, `make test` and `make build` skip the web app and say so.
+- Node.js 24.22.0 for the web app, named in `web/.nvmrc`; CI installs that release in each job that runs `scripts/web.sh` or the WebAssembly tests, and `scripts/web.sh` fails wherever the running Node differs from that file. The PM bumps it together with the `node:` base image in `web/Dockerfile`, whose digest Dependabot proposes; `make lint` fails while the two differ. Without Node.js, `make lint`, `make format`, `make test` and `make build` skip the web app and say so.
 - docker-buildx, for the web app's image: on macOS, `brew install docker-buildx`, then link it into `~/.docker/cli-plugins/`. Without Docker and buildx, `make test` skips the web app's e2e specs and `make build` its image, and both say so.
 - uv, only to regenerate the engine's reference values and the eval's samples; it fetches the Python and the packages each generator pins.
 
@@ -86,15 +86,15 @@ docker run --rm -p 3000:3000 knowno-web
 ## Run the checks
 
 - `make lint` runs, in this order:
-  - `check-secrets.sh` — fails on a Supabase secret or service-role key in any file;
-  - `check-ios-client-id.sh` — the iOS URL scheme against the iOS client ID in `app/config/dev.json`;
-  - `check-generated.sh` — the app's committed generated code (flutter_rust_bridge's included) and `engine-wasm/pkg/` against their generators;
-  - `check-migration-order.sh` — each migration `main` lacks sorts after every migration on `main` (`docs/architecture/server.md`);
-  - `deno.sh lint` — lints and type-checks the TypeScript under `supabase/functions/` and `tools/eval/`;
-  - `web.sh lint` — lints and type-checks the web app with ESLint and `tsc`, and fails on Vercel-only code in it;
+  - `scripts/check-secrets.sh` — fails on a Supabase secret or service-role key in any file;
+  - `scripts/check-ios-client-id.sh` — the iOS URL scheme against the iOS client ID in `app/config/dev.json`;
+  - `scripts/check-generated.sh` — the app's committed generated code (flutter_rust_bridge's included) and `engine-wasm/pkg/` against their generators;
+  - `scripts/check-migration-order.sh` — each migration `main` lacks sorts after every migration on `main` (`docs/architecture/server.md`);
+  - `scripts/deno.sh lint` — lints and type-checks the TypeScript under `supabase/functions/` and `tools/eval/`;
+  - `scripts/web.sh lint` — lints and type-checks the web app with ESLint and `tsc`, and fails on Vercel-only code in it;
   - then `flutter analyze` over the app's Dart files, and clippy over the engine, the bridge crate and `engine-wasm/` with warnings denied.
 - `make format` — fails when a TypeScript file under `supabase/functions/` or `tools/eval/`, a file Prettier checks in the web app, a Dart file in the app, or a Rust file in the engine, the bridge crate or `engine-wasm/` is not formatted; `deno fmt`, `npx prettier --write .` in `web/`, `dart format` or `cargo fmt` fixes it.
-- `make test` — runs `check-migration-order.test.sh`, the migration order check against repositories it builds in a temporary directory, then builds the bridge crate for this host, then runs the app's tests, given `app/config/dev.json`, the engine's tests, the engine's WebAssembly tests in Node (`wasm-bindgen.sh test`), and the database tests in `supabase/tests/` on a throwaway local stack of their own (`supabase/test-db.sh`), stopped afterwards, so concurrent checkouts do not collide and a running local stack is left untouched. It then runs the two-device sync test, `app/test/sync/two_devices_test.dart`, against another throwaway stack with Auth and PostgREST (`supabase/test-sync.sh`). Without Docker it skips both and prints why. Then it runs the Deno tests of the Edge Function and the eval, with no network: OpenRouter and Supabase are faked. Then it runs the web app's Vitest suite, with Supabase faked, and, where Docker and buildx answer, builds the web app's image, runs it, checks it answers `/api/health` as a non-root user, and runs the Playwright specs in `web/e2e/` against it (`web.sh test`). Last, `supabase/test-web.sh` runs `web/e2e/study.spec.ts` against the web app built for another throwaway stack.
+- `make test` — runs `scripts/check-migration-order.test.sh`, the migration order check against repositories it builds in a temporary directory, then builds the bridge crate for this host, then runs the app's tests, given `app/config/dev.json`, the engine's tests, the engine's WebAssembly tests in Node (`scripts/wasm-bindgen.sh test`), and the database tests in `supabase/tests/` on a throwaway local stack of their own (`scripts/test-db.sh`), stopped afterwards, so concurrent checkouts do not collide and a running local stack is left untouched. It then runs the two-device sync test, `app/test/sync/two_devices_test.dart`, against another throwaway stack with Auth and PostgREST (`scripts/test-sync.sh`). Without Docker it skips both and prints why. Then it runs the Deno tests of the Edge Function and the eval, with no network: OpenRouter and Supabase are faked. Then it runs the web app's Vitest suite, with Supabase faked, and, where Docker and buildx answer, builds the web app's image, runs it, checks it answers `/api/health` as a non-root user, and runs the Playwright specs in `web/e2e/` against it (`scripts/web.sh test`). Last, `scripts/test-web.sh` runs every spec in `web/e2e/` against the web app built for another throwaway stack.
 - `make build` — builds, given `app/config/dev.json`, a debug Android APK holding the bridge library, on macOS also the iOS simulator app without code signing, the engine crate with its rustdoc, `engine-wasm/` for `wasm32-unknown-unknown` with its rustdoc, warnings denied, and the web app with `next build`, then its image where Docker and buildx answer. It reports which builds it ran. `make build BUILD=ios` builds the iOS simulator app alone, and fails on a host other than macOS.
 - `make ci` — runs all four in that order. CI's ubuntu job runs the same target, which skips the iOS simulator build there, and its macOS job runs `make build BUILD=ios`.
 

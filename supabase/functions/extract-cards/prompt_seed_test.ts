@@ -1,6 +1,6 @@
 // The prompt store's seed (ADR 0073) is the prompt the function served before the store, so the
 // deploy changes no user's prompt, and v9's activation (ADR 0080) saves prompt_v9.ts's text, which
-// its pgTAP test expects too. deno.sh grants this file read access to those three SQL files alone.
+// its pgTAP test expects too. scripts/deno.sh grants this file read access to those three SQL files alone.
 import assert from "node:assert/strict";
 import { SYSTEM_PROMPT } from "./prompt_v8.ts";
 import { SYSTEM_PROMPT as V9 } from "./prompt_v9.ts";

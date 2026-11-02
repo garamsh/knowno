@@ -8,7 +8,7 @@ set -euf
 config=app/config/dev.json
 plist=app/ios/Runner/Info.plist
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 client_id=$(jq -er '.GOOGLE_IOS_CLIENT_ID' "$config")
 expected="com.googleusercontent.apps.${client_id%.apps.googleusercontent.com}"

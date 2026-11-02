@@ -4,18 +4,19 @@
 # knowno stack never meet; it is stopped, with its data, however the run ends.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/skip.sh
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "skipped the database tests in supabase/tests/: they need Docker, and this host has no docker command"
+  skip "the database tests in supabase/tests/: they need Docker, and this host has no docker command"
   exit 0
 fi
 if ! docker info >/dev/null 2>&1; then
-  echo "skipped the database tests in supabase/tests/: they need Docker, and docker info reached no daemon on this host"
+  skip "the database tests in supabase/tests/: they need Docker, and docker info reached no daemon on this host"
   exit 0
 fi
 
 stack="the test stack"
-. supabase/test-stack.sh
+. scripts/test-stack.sh
 reserve port 54400 54499 || exit 1
 
 export SUPABASE_PROJECT_ID="knowno_test_$port" SUPABASE_DB_PORT="$port"

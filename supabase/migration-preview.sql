@@ -1,4 +1,4 @@
--- Functions of the migration preview (supabase/migration-preview.sh), created in its own schema on
+-- Functions of the migration preview (scripts/migration-preview.sh), created in its own schema on
 -- the preview's throwaway stack only: snapshot() records the columns and rows of every table in
 -- public, private and storage, and report() compares the database with that record.
 create schema migration_preview;

@@ -7,20 +7,21 @@
 # PostgREST and the API gateway, which the test signs in and syncs through.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/skip.sh
 
 test_files="test/sync/two_devices_test.dart test/sharing/sharing_server_test.dart test/account/suspension_test.dart"
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "skipped the stack tests in app/ ($test_files): they need Docker, and this host has no docker command"
+  skip "the stack tests in app/ ($test_files): they need Docker, and this host has no docker command"
   exit 0
 fi
 if ! docker info >/dev/null 2>&1; then
-  echo "skipped the stack tests in app/ ($test_files): they need Docker, and docker info reached no daemon on this host"
+  skip "the stack tests in app/ ($test_files): they need Docker, and docker info reached no daemon on this host"
   exit 0
 fi
 
 stack="the sync test stack"
-. supabase/test-stack.sh
+. scripts/test-stack.sh
 reserve db_port 54400 54499 || exit 1
 reserve api_port 54500 54599 || exit 1
 

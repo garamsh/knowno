@@ -36,7 +36,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<!-- GOOGLE_IOS_CLIENT_ID of app/config/dev.json, reversed; check-ios-client-id.sh compares the two. -->
+				<!-- GOOGLE_IOS_CLIENT_ID of app/config/dev.json, reversed; scripts/check-ios-client-id.sh compares the two. -->
 				<string>com.googleusercontent.apps.201216613268-0kgom9mhkgnqqi92bd10slg8o50a73sv</string>
 			</array>
 		</dict>

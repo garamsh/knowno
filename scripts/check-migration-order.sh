@@ -8,7 +8,7 @@
 # has no file of its name; its version is the 14 digits its name starts with.
 set -euf
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 dir=supabase/migrations
 
 # The versions of the migration file names on stdin, one per line; a name of another shape is

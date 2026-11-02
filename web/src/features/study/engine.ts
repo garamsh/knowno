@@ -30,7 +30,7 @@ export function engineLoaded(): boolean {
 
 /**
  * Loads the engine's WebAssembly module once per page. engine-wasm is a link to the
- * repository's engine-wasm/pkg/, the module `wasm-bindgen.sh generate` writes; its glue names
+ * repository's engine-wasm/pkg/, the module `scripts/wasm-bindgen.sh generate` writes; its glue names
  * the `.wasm` beside it, which the build serves as a static file and the glue fetches.
  */
 export function loadEngine(): Promise<void> {

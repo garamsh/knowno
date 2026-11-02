@@ -79,7 +79,7 @@ dev_dependencies:
   plugin_platform_interface: ^2.1.8
   shared_preferences_platform_interface: ^2.4.2
   # The launcher icons and the native splash are generated from assets/brand/
-  # by these, pinned exactly since their output is committed; check-generated.sh
+  # by these, pinned exactly since their output is committed; scripts/check-generated.sh
   # reruns both.
   flutter_launcher_icons: 0.14.4
   flutter_native_splash: 2.4.8

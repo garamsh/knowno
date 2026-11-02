@@ -4,7 +4,7 @@
 -- live cards, and returns no card content. A fixture id's first digit is its placement: 1 to 7,
 -- 8 for no blank, 9 for a card the migration leaves, 0 for a tombstone.
 --
--- `supabase test db` mounts this directory alone, so supabase/test-db.sh hands this test the
+-- `supabase test db` mounts this directory alone, so scripts/test-db.sh hands this test the
 -- query's file as the database setting `knowno.card_frame_dry_run`.
 begin;
 select plan(35);

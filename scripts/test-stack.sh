@@ -1,6 +1,6 @@
-# Sourced by the supabase/test-*.sh scripts: reserves the ports of a throwaway local stack and
-# stops the stack, with its data, however the run ends (ADR 0014). The sourcing script sets
-# $stack, the name its messages give the stack.
+# Sourced by scripts/test-*.sh and scripts/migration-preview.sh: reserves the ports of a throwaway
+# local stack and stops the stack, with its data, however the run ends (ADR 0014). The sourcing
+# script sets $stack, the name its messages give the stack.
 
 # A port is this run's once mkdir creates its directory, which is atomic between concurrent runs,
 # and nothing on the host listens on it.

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Tests check-migration-order.sh on repositories it builds in a temporary directory: a pull
+# Tests scripts/check-migration-order.sh on repositories it builds in a temporary directory: a pull
 # request's merge commit as CI checks it out (a clone two commits deep), and a branch beside
 # origin/main as a contributor runs it. Each refusal is read beside the case it accepts.
 set -euf
@@ -13,8 +13,8 @@ passed=0
 main_with() {
 	repo=$work/$1
 	git init -q -b main "$repo"
-	mkdir -p "$repo/supabase/migrations"
-	cp "$here/check-migration-order.sh" "$repo/"
+	mkdir -p "$repo/supabase/migrations" "$repo/scripts"
+	cp "$here/check-migration-order.sh" "$repo/scripts/"
 	for name in $2; do echo "select 1;" >"$repo/supabase/migrations/$name"; done
 	git -C "$repo" add -A
 	git -C "$repo" -c user.name=t -c user.email=t@t commit -q -m main
@@ -39,13 +39,13 @@ as_ci() {
 		exit 1
 	}
 	git -C "$work/$1-ci" remote remove origin
-	(cd "$work/$1-ci" && ./check-migration-order.sh 2>&1) && echo "exit 0" || echo "exit $?"
+	(cd "$work/$1-ci" && ./scripts/check-migration-order.sh 2>&1) && echo "exit 0" || echo "exit $?"
 }
 
 # The check's exit code and output on the branch of $1, beside an origin/main at main.
 as_contributor() {
 	git -C "$work/$1" update-ref refs/remotes/origin/main main
-	(cd "$work/$1" && ./check-migration-order.sh 2>&1) && echo "exit 0" || echo "exit $?"
+	(cd "$work/$1" && ./scripts/check-migration-order.sh 2>&1) && echo "exit 0" || echo "exit $?"
 }
 
 # Fails unless the output $2 of case $1 ends in exit $3 and holds the line $4.
@@ -107,4 +107,4 @@ expect "a migration whose name does not start with 14 digits" "$(as_ci named)" 1
 main_with pushed "$on_main"
 expect "main itself, after a merge, with nothing new" "$(as_contributor pushed)" 0 "checked 0 new migrations in supabase/migrations/, every file there that main lacks, against 20261018090000, the latest of 2 on main at $(git -C "$work/pushed" rev-parse main) (where HEAD left origin/main): each sorts after it"
 
-echo "passed $passed cases of check-migration-order.sh, each in a repository this script builds"
+echo "passed $passed cases of scripts/check-migration-order.sh, each in a repository this script builds"

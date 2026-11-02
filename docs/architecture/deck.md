@@ -73,9 +73,8 @@ The `deck` domain: decks, the cards inside them, card content, the card key, the
 - Stored vocabulary backs written as text with a printed label, such as `[명] 사과`, become senses blocks on the server (#228), by migration `20261019180003_senses_migration.sql` ([`server.md`](server.md), [ADR 0075](adr/0075-store-a-vocabulary-card-s-senses-as-a-typed-block-and-show-each-label-in-brackets-before-its-meaning.md)):
   - A card converts only when its back is one text block and every non-empty line is a sense line: a known short form, Korean or English (`명`, `동`, `n`, `adj` …), in brackets, in parentheses, with a dot, or bare and followed by a space and more text. Its back becomes one senses block, a sense per line, each labelled as the part of speech its short form names, with the label as printed.
   - A card with any other line is left alone, so a note or free text is never touched.
-  - The rules are SQL functions the migration defines, `private.senses_block` and those it calls, and the dry run calls the same ones.
-  - The dry run, `supabase/senses-dry-run.sh`, runs `supabase/senses-dry-run.sql` read-only against a running local stack, such as one holding a copy of production, and writes a report for the PM. The report counts the live cards, those that would convert and those left alone, by reason, and gives each form's cards, lines and up to five samples, every bare-form line, as its label may be a meaning's first word, and up to five mixed cards.
-  - `supabase/senses-dry-run.test.sh`, in `make test`, checks it on a fixture of each form, a mixed card, a note, an unrecognised label, a back of two blocks and a deleted card, that no row changes, and that the migration then converts as many cards as the report counts.
+  - The rules are SQL functions the migration defines, `private.senses_block` and those it calls.
+  - The senses dry run and its test served the one migration and were removed by #497 once it was applied; ADR 0114 made every card free, so nothing runs it again.
 
 ### Card key and duplicates
 

@@ -1,12 +1,13 @@
 #!/bin/sh
 # Runs make lint, format, test or build over the Next.js app in web/. Where node is not
-# installed it prints that the step was skipped and why. It installs web/'s locked packages
-# when they are missing or older than web/package-lock.json, and builds with the public
+# installed it skips the step and says why, or fails where CI is set (skip.sh). It installs web/'s
+# locked packages when they are missing or older than web/package-lock.json, and builds with the public
 # Supabase values of app/config/dev.json unless NEXT_PUBLIC_SUPABASE_* are already set.
 # Where Docker answers, test runs the e2e specs against the image and build builds it.
 set -euf
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
+. scripts/skip.sh
 
 # Every source file under web/ that git tracks or would track; ignored output such as
 # node_modules/ and .next/ stays out. Printed beside each count so the coverage reads true.
@@ -17,7 +18,7 @@ portability="@vercel/|runtime[[:space:]]*=[[:space:]]*[\"']edge[\"']"
 image=knowno-web:local
 
 if ! command -v node >/dev/null 2>&1; then
-	echo "skipped web $1 over web/: this host has no node command"
+	skip "web $1 over web/: this host has no node command"
 	exit 0
 fi
 want=$(cat web/.nvmrc)
@@ -102,7 +103,7 @@ test)
 	(cd web && npx vitest run)
 	echo "ran the tests vitest selects in web/: src/**/__tests__/*.test.{ts,tsx}"
 	if ! docker_answers; then
-		echo "skipped the e2e specs in web/e2e/: they run against the image, and docker or docker buildx does not answer"
+		skip "the e2e specs in web/e2e/: they run against the image, and docker or docker buildx does not answer"
 		exit 0
 	fi
 	build_image
@@ -126,7 +127,7 @@ test)
 	fi
 	echo "the image $image answers $url/api/health and runs as uid $uid"
 	(cd web && npx playwright install chromium >/dev/null && E2E_BASE_URL="$url" npx playwright test)
-	echo "ran the e2e specs Playwright selects in web/e2e/ against the image; web/e2e/study.spec.ts skips there and runs in supabase/test-web.sh"
+	echo "ran the e2e specs Playwright selects in web/e2e/ against the image; web/e2e/study.spec.ts skips there; scripts/test-web.sh runs every spec against a local stack"
 	;;
 build)
 	(cd web && npx next build)
@@ -135,7 +136,7 @@ build)
 		build_image
 		echo "built the image $image from web/Dockerfile"
 	else
-		echo "skipped the image build: docker or docker buildx does not answer"
+		skip "the image build: docker or docker buildx does not answer"
 	fi
 	;;
 *)

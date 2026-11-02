@@ -1,7 +1,7 @@
 #!/bin/sh
 # Runs deno lint, format or test, as make lint, format and test ask, over the TypeScript of the
 # Edge Functions in supabase/functions/ and the eval in tools/eval/. Where deno is not
-# installed it prints that the step was skipped and why. The tests run with read access to
+# installed it skips the step and says why, or fails where CI is set (skip.sh). The tests run with read access to
 # tools/eval/ and to the prompt files' copies in SQL, the store's seed, v9's activation and its
 # pgTAP test, which one test compares with the prompt files, only: no write, network or environment access, so a test that writes fails. A
 # *_io_test.ts file runs apart, writing only under a temporary directory this script removes,
@@ -10,10 +10,11 @@ set -euf
 
 scope="git ls-files --cached --others --exclude-standard -- 'supabase/functions/*.ts' 'tools/eval/*.ts'"
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
+. scripts/skip.sh
 
 if ! command -v deno >/dev/null 2>&1; then
-	echo "skipped deno $1 over supabase/functions/ and tools/eval/: this host has no deno command"
+	skip "deno $1 over supabase/functions/ and tools/eval/: this host has no deno command"
 	exit 0
 fi
 

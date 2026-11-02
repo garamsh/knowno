@@ -1,4 +1,4 @@
--- The senses migration (#228, ADR 0075) on the dry run's fixture (supabase/senses-dry-run.test.sh):
+-- The senses migration (#228, ADR 0075) on a fixture of its cases:
 -- each recognised form converts to a senses block, and a mixed card, a note, an unrecognised label,
 -- a back of two blocks and a deleted card are left alone; the original back is kept in the backup;
 -- no front, card key, edit time, review or card state changes, while the revision does; a second

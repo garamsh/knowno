@@ -1,30 +1,36 @@
 #!/usr/bin/env bash
-# Runs the web app's study e2e spec, web/e2e/study.spec.ts, against the built web app and a local
-# stack of its own, or says why it did not. The stack follows ADR 0014's pattern for the database
+# Runs every e2e spec in web/e2e/ against the built web app and a local stack of its own,
+# or says why it did not. The stack follows ADR 0014's pattern for the database
 # tests: its own project id and reserved ports, stopped with its data however the run ends. It
 # runs Postgres, Auth, PostgREST and the API gateway; the app is built with the stack's URL and
 # publishable key, which a build freezes, and served as the image serves it, by its standalone
 # server.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/skip.sh
 
-spec=e2e/study.spec.ts
+scope="git ls-files --cached --others --exclude-standard -- 'web/e2e/*.spec.ts'"
+specs=$(eval "$scope" | sed 's|^web/||')
+if [ -z "$specs" ]; then
+  echo "no e2e spec was selected by: $scope" >&2
+  exit 1
+fi
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "skipped the web e2e spec web/$spec: it needs Docker, and this host has no docker command"
+  skip "the web e2e specs in web/e2e/: they need Docker, and this host has no docker command"
   exit 0
 fi
 if ! docker info >/dev/null 2>&1; then
-  echo "skipped the web e2e spec web/$spec: it needs Docker, and docker info reached no daemon on this host"
+  skip "the web e2e specs in web/e2e/: they need Docker, and docker info reached no daemon on this host"
   exit 0
 fi
 if ! command -v node >/dev/null 2>&1; then
-  echo "skipped the web e2e spec web/$spec: this host has no node command"
+  skip "the web e2e specs in web/e2e/: this host has no node command"
   exit 0
 fi
 
 stack="the web e2e stack"
-. supabase/test-stack.sh
+. scripts/test-stack.sh
 reserve db_port 54400 54499 || exit 1
 reserve api_port 54500 54599 || exit 1
 
@@ -101,13 +107,22 @@ echo "the web app answers on port $web_port"
 
 output=$(cd web && npx playwright install chromium >/dev/null &&
   E2E_BASE_URL="$base" E2E_SUPABASE_URL="$url" E2E_SUPABASE_KEY="$key" \
-    npx playwright test "$spec" 2>&1) || { echo "$output"; echo "the web app's log:"; cat "$server_log"; exit 1; }
+    npx playwright test 2>&1) || { echo "$output"; echo "the web app's log:"; cat "$server_log"; exit 1; }
 echo "$output"
 
 # Playwright's list reporter ends with "<n> passed", and names any skipped test "<n> skipped".
 passed=$(echo "$output" | sed -n 's/^ *\([0-9]*\) passed.*$/\1/p' | tail -n 1)
 if [ -z "$passed" ] || [ "$passed" -eq 0 ] || echo "$output" | grep -qE '^ *[0-9]+ skipped'; then
-  echo "the web e2e spec skipped or ran no test against the stack $SUPABASE_PROJECT_ID" >&2
+  echo "the web e2e specs skipped or ran no test against the stack $SUPABASE_PROJECT_ID" >&2
   exit 1
 fi
-echo "ran $passed web e2e tests against the web app built for the stack $SUPABASE_PROJECT_ID, selected by: every test in web/$spec"
+# A passed test's line reads "✓ <n> [<project>] › e2e/<file>.spec.ts:<line>:<col> › <title>";
+# each selected spec must have one.
+ran=$(echo "$output" | sed -n 's/^ *✓ *[0-9]* \[[^]]*\] › \(e2e\/[^:]*\.spec\.ts\):.*$/\1/p' | sort -u)
+missed=$(comm -23 <(echo "$specs" | sort) <(echo "$ran"))
+if [ -n "$missed" ]; then
+  echo "these e2e specs ran no test against the stack $SUPABASE_PROJECT_ID:" >&2
+  echo "$missed" >&2
+  exit 1
+fi
+echo "ran $passed web e2e tests in $(echo "$specs" | wc -l | tr -d ' ') specs against the web app built for the stack $SUPABASE_PROJECT_ID, selected by: $scope"

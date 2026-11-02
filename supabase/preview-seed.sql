@@ -1,5 +1,5 @@
 -- Synthetic data the migration preview loads between main's migrations and a pull request's
--- (supabase/migration-preview.sh): rows in every table of public and private that the migrations
+-- (scripts/migration-preview.sh): rows in every table of public and private that the migrations
 -- leave empty, in each state the schema distinguishes. Every user is fictional, at example.com.
 -- supabase/seed.sql stays empty, since every `supabase start` loads it and the database tests'
 -- fixtures assume no rows.

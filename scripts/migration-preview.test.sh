@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests supabase/migration-preview.sh, or says why it did not, in a repository it builds in a
+# Tests scripts/migration-preview.sh, or says why it did not, in a repository it builds in a
 # temporary directory: main holds this repository's supabase/ migrations and preview seed, and a
 # merge commit, as CI checks a pull request out, adds a fixture migration and edits one of main's.
 # It reads the report: the seed filling every table of public and private, each schema change
@@ -7,9 +7,10 @@
 # listed and not applied.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/skip.sh
 
 if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
-  echo "skipped the migration preview test: it needs Docker, and docker reached no daemon on this host"
+  skip "the migration preview test: it needs Docker, and docker reached no daemon on this host"
   exit 0
 fi
 
@@ -18,9 +19,10 @@ trap 'rm -rf "${work:?}"' EXIT
 repo=$work/repo
 git() { command git -C "$repo" -c user.name=t -c user.email=t@t "$@"; }
 
-mkdir -p "$repo/supabase"
+mkdir -p "$repo/supabase" "$repo/scripts"
 cp -R supabase/config.toml supabase/seed.sql supabase/preview-seed.sql supabase/migrations \
-  supabase/test-stack.sh supabase/migration-preview.sh supabase/migration-preview.sql "$repo/supabase/"
+  supabase/migration-preview.sql "$repo/supabase/"
+cp scripts/test-stack.sh scripts/migration-preview.sh "$repo/scripts/"
 git init -q -b main
 git add -A
 git commit -q -m main
@@ -43,7 +45,7 @@ git commit -q -m branch
 git checkout -q main
 git merge -q --no-ff -m merge branch
 
-if ! log=$("$repo/supabase/migration-preview.sh" "$work/report" 2>&1); then
+if ! log=$("$repo/scripts/migration-preview.sh" "$work/report" 2>&1); then
   echo "$log" | tail -n 20 >&2
   echo "the migration preview failed on the fixture repository" >&2
   exit 1

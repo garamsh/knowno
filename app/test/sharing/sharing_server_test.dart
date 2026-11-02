@@ -17,7 +17,7 @@ import '../sync/bounded_auth.dart';
 import '../sync/device.dart';
 import 'fakes.dart';
 
-/// The local Supabase stack `supabase/test-sync.sh` starts, named by the
+/// The local Supabase stack `scripts/test-sync.sh` starts, named by the
 /// environment it runs this file in.
 const _urlVariable = 'KNOWNO_SYNC_TEST_URL';
 const _keyVariable = 'KNOWNO_SYNC_TEST_KEY';
@@ -39,7 +39,7 @@ void main() {
   final url = Platform.environment[_urlVariable];
   final key = Platform.environment[_keyVariable];
   final skip = url == null || key == null
-      ? 'needs the local Supabase stack that supabase/test-sync.sh starts, '
+      ? 'needs the local Supabase stack that scripts/test-sync.sh starts, '
             'which sets $_urlVariable and $_keyVariable'
       : null;
 

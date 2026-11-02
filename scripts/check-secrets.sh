@@ -8,7 +8,7 @@ set -euf
 
 scope="git ls-files --cached --others --exclude-standard"
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 count=0
 status=0

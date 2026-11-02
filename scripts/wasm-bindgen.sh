@@ -1,14 +1,16 @@
 #!/bin/sh
-# Generates engine-wasm/pkg/ or runs engine-wasm/'s tests as WebAssembly, as check-generated.sh
-# and make test ask. Both need the wasm-bindgen CLI at the release engine-wasm/Cargo.lock pins;
-# the tests also need node. Where either is missing it prints that the step was skipped and why.
+# Generates engine-wasm/pkg/ or runs engine-wasm/'s tests as WebAssembly, as
+# scripts/check-generated.sh and make test ask. Both need the wasm-bindgen CLI at the release
+# engine-wasm/Cargo.lock pins; the tests also need node. Where either is missing it skips the step
+# and says why, or fails where CI is set (skip.sh).
 set -euf
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
+. scripts/skip.sh
 root=$(pwd)
 
 if ! command -v wasm-bindgen >/dev/null 2>&1; then
-	echo "skipped wasm-bindgen ${1:-} in engine-wasm/: this host has no wasm-bindgen command"
+	skip "wasm-bindgen ${1:-} in engine-wasm/: this host has no wasm-bindgen command"
 	exit 0
 fi
 version=$(sed -n '/^name = "wasm-bindgen"$/{n;s/^version = "\(.*\)"$/\1/p;}' engine-wasm/Cargo.lock)
@@ -30,7 +32,7 @@ generate)
 	;;
 test)
 	if ! command -v node >/dev/null 2>&1; then
-		echo "skipped the WebAssembly tests in engine-wasm/: this host has no node command, which wasm-bindgen-test-runner runs them in"
+		skip "the WebAssembly tests in engine-wasm/: this host has no node command, which wasm-bindgen-test-runner runs them in"
 		exit 0
 	fi
 	output=$(cargo test --locked -- --nocapture 2>&1) || { echo "$output"; exit 1; }

@@ -6,14 +6,14 @@ import { createClient } from "@supabase/supabase-js";
 
 import { untilReacted } from "./until-reacted";
 
-// The local stack supabase/test-web.sh starts, whose URL and publishable key the app was built
+// The local stack scripts/test-web.sh starts, whose URL and publishable key the app was built
 // with. Password sign-up and sign-in are enabled on the local stack alone (supabase/config.toml).
 const supabaseUrl = process.env.E2E_SUPABASE_URL;
 const supabaseKey = process.env.E2E_SUPABASE_KEY;
 
 test.skip(
   !supabaseUrl || !supabaseKey,
-  "needs the local Supabase stack supabase/test-web.sh starts, which sets E2E_SUPABASE_URL and E2E_SUPABASE_KEY",
+  "needs the local Supabase stack scripts/test-web.sh starts, which sets E2E_SUPABASE_URL and E2E_SUPABASE_KEY",
 );
 
 // Where to save screenshots of each screen in both themes, for review; none are taken unless it

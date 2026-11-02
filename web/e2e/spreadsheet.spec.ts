@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import { xlsxOf } from "../src/testing/xlsx";
 import { untilReacted } from "./until-reacted";
 
-// The local stack supabase/test-web.sh starts, whose URL and publishable key the app was built with.
+// The local stack scripts/test-web.sh starts, whose URL and publishable key the app was built with.
 const url = process.env.E2E_SUPABASE_URL;
 const key = process.env.E2E_SUPABASE_KEY;
 test.skip(

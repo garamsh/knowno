@@ -6,11 +6,11 @@
 # <out>.md for the pull request. The stack is stopped, with its data, however the run ends
 # (ADR 0014). Production data never reaches it (server.md).
 #
-# The base is main as the change will meet it, as check-migration-order.sh reads it: the first
+# The base is main as the change will meet it, as scripts/check-migration-order.sh reads it: the first
 # parent of a merge commit, which is how CI checks a pull request out, or else where HEAD left
 # origin/main.
 #
-# Usage: supabase/migration-preview.sh <out path, without extension>
+# Usage: scripts/migration-preview.sh <out path, without extension>
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -47,7 +47,7 @@ if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
 fi
 
 stack="the migration preview stack"
-. supabase/test-stack.sh
+. scripts/test-stack.sh
 reserve port 54400 54499 || exit 1
 export SUPABASE_PROJECT_ID="knowno_preview_$port" SUPABASE_DB_PORT="$port"
 work=$(mktemp -d "${TMPDIR:-/tmp}/migration-preview.XXXXXX")

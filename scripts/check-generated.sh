@@ -8,7 +8,9 @@ set -euf
 
 scope="git ls-files --cached --others --exclude-standard -- 'lib/*.g.dart' 'lib/*.steps.dart' 'lib/l10n/app_localizations*.dart' 'drift_schemas' 'test/drift/*/generated/*' 'lib/study/src/rust' 'rust/src/frb_generated.rs'"
 
-cd "$(dirname "$0")/app"
+cd "$(dirname "$0")/.."
+. scripts/skip.sh
+cd app
 
 snapshot() {
 	eval "$1" | sort | while IFS= read -r file; do
@@ -54,10 +56,10 @@ after=$(snapshot "$scope")
 fail_if_stale "$before" "$after"
 echo "checked $(echo "$after" | wc -l | tr -d ' ') generated files in app/ against their generators, selected by: $scope"
 
-# The engine as WebAssembly for the web app (ADR 0018), which ../wasm-bindgen.sh generates.
+# The engine as WebAssembly for the web app (ADR 0018), which scripts/wasm-bindgen.sh generates.
 cd ..
 if ! command -v wasm-bindgen >/dev/null 2>&1; then
-	echo "skipped checking engine-wasm/pkg/: this host has no wasm-bindgen command"
+	skip "checking engine-wasm/pkg/: this host has no wasm-bindgen command"
 	exit 0
 fi
 wasm_scope="git ls-files --cached --others --exclude-standard -- 'engine-wasm/pkg'"
@@ -66,7 +68,7 @@ if [ -z "$before" ]; then
 	echo "no generated file was selected by: $wasm_scope" >&2
 	exit 1
 fi
-./wasm-bindgen.sh generate
+scripts/wasm-bindgen.sh generate
 after=$(snapshot "$wasm_scope")
 fail_if_stale "$before" "$after"
 echo "checked $(echo "$after" | wc -l | tr -d ' ') generated files in engine-wasm/pkg/ against wasm-bindgen, selected by: $wasm_scope"

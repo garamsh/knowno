@@ -1,5 +1,5 @@
 -- The migration to the 칸 frame (#549, ADR 0137 as amended by ADR 0140) on the shared fixtures,
--- supabase/fixtures/card-frame/conversion.json, which supabase/test-db.sh hands this test as the
+-- supabase/fixtures/card-frame/conversion.json, which scripts/test-db.sh hands this test as the
 -- database setting `knowno.card_frame_fixtures`: each placement converts as its expected list,
 -- what it leaves stays, the backup holds every changed row and no client reads it, a second run
 -- changes nothing, the revert restores an untouched row exactly and projects an edited one with

@@ -7,13 +7,30 @@ on:
 
 permissions: read-all
 
+# A new push to a pull request cancels its run still in progress; a run on main is in a group of
+# its own commit, so none is cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # make ci runs as parallel jobs, each calling the make targets that are its part: lint-repo, and
-# the parts in the matrix of `checks`, which together are make ci's lint, format, test and build.
-# `ios` runs make build BUILD=ios, which needs macOS. The required checks, ci (ubuntu) and
-# ci (macos), are the jobs `ubuntu` and `macos`: each waits on its jobs and fails when one of them
-# failed, was cancelled or was skipped without cause. A pull request that touches only docs/ or
-# *.md files skips `checks` and `ios`; lint-repo, which reads those files, still runs. A push to
-# main runs everything.
+# the parts in the matrices of `checks` and `stack-tests`, which together are make ci's lint,
+# format, test and build. `ios` runs make build BUILD=ios, which needs macOS. The required checks,
+# ci (ubuntu) and ci (macos), are the jobs `ubuntu` and `macos`: each waits on its jobs and fails
+# when one of them failed, was cancelled or was skipped without cause. A pull request that touches
+# only docs/ or *.md files skips `checks`, `stack-tests` and `ios`; lint-repo, which reads those
+# files, still runs.
+#
+# Each job installs only the tools its targets run. The scripts in scripts/ skip a step whose tool
+# is missing, and say so, on a contributor's machine; where CI is set, as GitHub sets it, they fail
+# instead (scripts/skip.sh), so a tool missing here fails the job rather than skipping its check.
+#
+# A push to main runs the whole set only on a pull request's tested head, which the merge left
+# equal to the tree it lands. What the push adds is the caches: an entry a pull request saves is
+# its own, and the ones every pull request restores are those a run on main saved. So a push runs
+# `checks` and `ios`, whose jobs save those caches, and only when it changed a file their keys are
+# computed from (`changes`, the filter `cache`); setup-gradle saves the Gradle cache on main alone.
+# lint-repo, `stack-tests`, which save no cache, and the two verdicts run on pull requests only.
 #
 # Each job runs on a versioned runner label, the image `-latest` named when it was set. A label
 # cannot be pinned to a digest, and Dependabot moves `uses:` references only, so the PM moves the
@@ -23,14 +40,15 @@ permissions: read-all
 # "Set up job" step logs the image it resolved to: its name, version and release.
 jobs:
   changes:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     outputs:
-      code: ${{ steps.filter.outputs.code }}
+      code: ${{ steps.code.outputs.code }}
+      cache: ${{ steps.cache.outputs.cache }}
     steps:
       # On a pull request the filter lists the changed files through the API, with no checkout.
-      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        id: filter
+      - if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: code
         with:
           predicate-quantifier: 'every'
           filters: |
@@ -38,9 +56,35 @@ jobs:
               - '**'
               - '!docs/**'
               - '!**/*.md'
+      # On a push the filter compares with the commit main held before it, through git.
+      - if: github.event_name == 'push'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The files the caches of `checks` and `ios` are keyed on, as each action documents its key:
+      # rust-cache, every Cargo.lock, Cargo.toml, rust-toolchain.toml and .cargo/config.toml;
+      # flutter-action, the Flutter release in app/pubspec.yaml and app/pubspec.lock; setup-gradle's
+      # basic provider, the Gradle build files; setup-node, web/package-lock.json; and this file,
+      # which sets the tools' versions.
+      - if: github.event_name == 'push'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: cache
+        with:
+          base: ${{ github.ref }}
+          filters: |
+            cache:
+              - '**/Cargo.lock'
+              - '**/Cargo.toml'
+              - '**/rust-toolchain.toml'
+              - '**/.cargo/config.toml'
+              - 'app/pubspec.yaml'
+              - 'app/pubspec.lock'
+              - '**/*.gradle*'
+              - '**/gradle-wrapper.properties'
+              - 'web/package-lock.json'
+              - '.github/workflows/ci.yml'
 
   lint-repo:
     name: make lint-repo
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -49,45 +93,46 @@ jobs:
   checks:
     name: make ${{ matrix.target }}
     needs: changes
-    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.outputs.code == 'true') }}
+    if: ${{ !cancelled() && (needs.changes.outputs.code == 'true' || needs.changes.outputs.cache == 'true') }}
     runs-on: ubuntu-24.04
     strategy:
       # Every part reports, whichever fails first.
       fail-fast: false
       matrix:
+        # The tools each target runs. build-ios needs no tool here: on Linux it reports that it
+        # skipped, and `ios` builds it.
         include:
-          - { id: lint, target: lint-code format }
-          - { id: test-app, target: test-app }
-          - { id: test-db, target: test-db }
-          - { id: test-sync, target: test-sync }
-          - { id: test-web, target: test-web }
-          - { id: build-apk, target: build-apk }
-          - { id: build, target: build-ios build-engine-web }
-    # Every job installs every tool make ci needs, as the single job did: the scripts skip a check
-    # whose tool is missing, and saying so is not running it. The one exception is the bridge
-    # codegen, which only check-generated.sh in make lint-code runs, and which fails without it.
+          - { id: lint, target: lint-code format, frb: true, wasm-bindgen: true, node: true, deno: true }
+          - { id: test-app, target: test-app, wasm-bindgen: true, node: true }
+          - { id: test-sync, target: test-sync, supabase: true }
+          - { id: build-apk, target: build-apk, java: true }
+          - { id: build, target: build-ios build-engine-web, node: true }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        # make lint-code's check-migration-order.sh reads main as the merge commit's first parent.
+        # make lint-code's scripts/check-migration-order.sh reads main as the merge commit's first
+        # parent.
         with:
           fetch-depth: 2
-      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+      - if: matrix.java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '17'
       # Caches Gradle's home for flutter build apk, through actions/cache (cache-provider basic). As
       # the action defaults, only a run on main saves it; a pull request restores main's.
-      - if: matrix.id == 'build-apk'
+      - if: matrix.java
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           cache-provider: basic
-      # cache: true caches the Flutter SDK and the pub packages.
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+      # cache: true caches the Flutter SDK and the pub packages. Every target but build runs
+      # Flutter or Dart.
+      - if: matrix.id != 'build'
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
           flutter-version-file: app/pubspec.yaml
           cache: true
-      # Caches the cargo registry and each crate's target/, per job.
+      # Caches the cargo registry and each crate's target/, per job. Every target builds Rust.
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
           rust-src-dir: engine
@@ -98,32 +143,68 @@ jobs:
           cache-key: ${{ matrix.id }}
       # The codegen release is the flutter_rust_bridge crate's in the bridge crate's lock file.
       - id: frb
-        if: matrix.id == 'lint'
+        if: matrix.frb
         run: echo "version=$(sed -n '/^name = "flutter_rust_bridge"$/{n;s/^version = "\(.*\)"$/\1/p;}' app/rust/Cargo.lock)" >> "$GITHUB_OUTPUT"
-      - if: matrix.id == 'lint'
+      - if: matrix.frb
         uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: flutter_rust_bridge_codegen@${{ steps.frb.outputs.version }}
           fallback: cargo-install
       # The wasm-bindgen CLI and its test runner, at the release engine-wasm/Cargo.lock pins.
       - id: wasm-bindgen
+        if: matrix.wasm-bindgen
         run: echo "version=$(sed -n '/^name = "wasm-bindgen"$/{n;s/^version = "\(.*\)"$/\1/p;}' engine-wasm/Cargo.lock)" >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+      - if: matrix.wasm-bindgen
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: wasm-bindgen@${{ steps.wasm-bindgen.outputs.version }}
-      # make test-app runs engine-wasm/'s tests in node, through wasm-bindgen-test-runner. The npm
-      # cache holds the downloads web.sh's npm ci installs from web/package-lock.json.
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      # scripts/web.sh runs on the release web/.nvmrc names, and make test-app runs engine-wasm/'s
+      # tests in node, through wasm-bindgen-test-runner. The npm cache holds the downloads
+      # scripts/web.sh's npm ci installs from web/package-lock.json.
+      - if: matrix.node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.22.0
           cache: npm
           cache-dependency-path: web/package-lock.json
       # The stack tests run where Docker is, which the ubuntu runner has.
+      - if: matrix.supabase
+        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.120.0
+      # make lint-code and format run deno over supabase/functions/ and tools/eval/.
+      - if: matrix.deno
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: 2.9.7
+      - run: make ${{ matrix.target }}
+
+  # The tests on a local stack that build no Rust and run no Flutter, so they save no cache.
+  stack-tests:
+    name: make ${{ matrix.target }}
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: test-db, deno: true }
+          - { target: test-web, node: true }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: matrix.node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.22.0
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: 2.120.0
-      # make lint-code, format and test-db run deno over supabase/functions/ and tools/eval/.
-      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+      # make test-db runs deno test over supabase/functions/ and tools/eval/.
+      - if: matrix.deno
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: 2.9.7
       - run: make ${{ matrix.target }}
@@ -131,7 +212,7 @@ jobs:
   ios:
     name: make build BUILD=ios
     needs: changes
-    if: ${{ !cancelled() && (github.event_name == 'push' || needs.changes.outputs.code == 'true') }}
+    if: ${{ !cancelled() && (needs.changes.outputs.code == 'true' || needs.changes.outputs.cache == 'true') }}
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -150,26 +231,24 @@ jobs:
 
   ubuntu:
     name: ci (ubuntu)
-    needs: [changes, lint-repo, checks]
-    if: always()
+    needs: [changes, lint-repo, checks, stack-tests]
+    if: ${{ always() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-24.04
     steps:
-      # A job passes when it succeeded. It may be skipped only as the docs-only filter or a push
-      # skips it: `changes` on a push, any job but lint-repo when no code changed.
+      # A job passes when it succeeded. It may be skipped only as the docs-only filter skips it:
+      # any job but lint-repo when no code changed.
       - &verdict
         env:
           NEEDS: ${{ toJSON(needs) }}
-          CODE: ${{ github.event_name == 'push' || needs.changes.outputs.code == 'true' }}
-          PUSH: ${{ github.event_name == 'push' }}
+          CODE: ${{ needs.changes.outputs.code == 'true' }}
         run: |
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
           [ "$CODE" = true ] || echo "no file outside docs/ and *.md changed, so only lint-repo ran"
-          failed=$(echo "$NEEDS" | jq -r --argjson code "$CODE" --argjson push "$PUSH" '
+          failed=$(echo "$NEEDS" | jq -r --argjson code "$CODE" '
             to_entries[]
             | select(.value.result != "success")
             | select(.value.result != "skipped"
-                or (.key == "changes" and ($push | not))
-                or (.key != "changes" and .key != "lint-repo" and $code))
+                or .key == "changes" or .key == "lint-repo" or $code)
             | .key')
           if [ -n "$failed" ]; then
             echo "did not pass: $(echo $failed)" >&2
@@ -179,7 +258,7 @@ jobs:
   macos:
     name: ci (macos)
     needs: [changes, ios]
-    if: always()
+    if: ${{ always() && github.event_name == 'pull_request' }}
     # It only reads ios's result; the build itself is on macos-26.
     runs-on: ubuntu-24.04
     steps:
