@@ -14,7 +14,7 @@ const sizes: Record<Mark, { width: number; height: number }> = {
 };
 
 /**
- * The brand's [mark], its words cocoa on a light theme and cream on a dark one, sized by [className].
+ * The brand's [mark], its words cobalt on a light theme and the dark accent on a dark one, sized by [className].
  * With [alt] it is read as that name; without, it is decorative.
  */
 export function BrandMark({

@@ -16,10 +16,11 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const sharp = createRequire(join(root, "web/package.json"))("sharp");
 
 const ink = "#3B2118";
-const inkOnDark = "#FFF1E3";
-const cream = "#FCEBD5";
 const cobalt = "#2547D0";
 const darkGround = "#111A2E";
+const darkCard = "#232F4E";
+const darkAccent = "#8AB4FF";
+const white = "#FFFFFF";
 
 /** What the drawing tools/brand/[name].svg holds inside its root. */
 const inner = (name) =>
@@ -42,15 +43,17 @@ const centred = (art, scale, ground = "") => {
   return `${ground}<g transform="translate(${inset} ${inset}) scale(${scale})">${art}</g>`;
 };
 
-const onCircle = centred(mark, 0.88, `<circle cx="512" cy="512" r="512" fill="${cream}"/>`);
+/** The mark on a circle of [fill]. */
+const onCircle = (fill) =>
+  centred(mark, 0.88, `<circle cx="512" cy="512" r="512" fill="${fill}"/>`);
 
 /** The mark close up on a full square of [ground], the ground showing around its head, its body running off the foot. */
 const onSquare = (ground) =>
   `<rect width="1024" height="1024" fill="${ground}"/><g transform="translate(-36 70) scale(1.08)">${mark}</g>`;
 
-/** The mark on the cream circle, in a box [size] across at ([x], [y]). */
-const circled = (x, y, size) =>
-  `<g transform="translate(${x} ${y}) scale(${size / 1024})">${onCircle}</g>`;
+/** The mark on a circle of [fill], in a box [size] across at ([x], [y]). */
+const circled = (x, y, size, fill) =>
+  `<g transform="translate(${x} ${y}) scale(${size / 1024})">${onCircle(fill)}</g>`;
 
 /** A wordmark [scale]d from its 1000-unit outline, its box's left and top at ([x], [y]). */
 const word = ({ d, x1, y1 }, x, y, scale, fill) =>
@@ -60,23 +63,23 @@ const lockupSize = { width: 981, height: 200 };
 const stackedSize = { width: 600, height: 484 };
 
 /** The mark on its circle, then 알아몰라 and knowno on one baseline. */
-const lockup = (ink) =>
+const lockup = (circle, words) =>
   svg(
     lockupSize.width,
     lockupSize.height,
-    circled(0, 0, 200) +
-      word(wordmarks.ko, 228, 46, 0.12, ink) +
-      word(wordmarks.en, 663, 92, 0.085, ink),
+    circled(0, 0, 200, circle) +
+      word(wordmarks.ko, 228, 46, 0.12, words) +
+      word(wordmarks.en, 663, 92, 0.085, words),
   );
 
 /** The mark on its circle over 알아몰라 over knowno. */
-const stacked = (ink) =>
+const stacked = (circle, words) =>
   svg(
     stackedSize.width,
     stackedSize.height,
-    circled(155, 0, 290) +
-      word(wordmarks.ko, 77, 304, 0.13, ink) +
-      word(wordmarks.en, 178, 431, 0.065, ink),
+    circled(155, 0, 290, circle) +
+      word(wordmarks.ko, 77, 304, 0.13, words) +
+      word(wordmarks.en, 178, 431, 0.065, words),
   );
 
 const canvas = (body) => svg(1024, 1024, body);
@@ -95,10 +98,10 @@ const vectors = {
   ...Object.fromEntries(
     Object.entries(expressions).map(([name, art]) => [`web/public/brand/knowno-${name}.svg`, art]),
   ),
-  "web/public/brand/knowno-lockup-light.svg": lockup(ink),
-  "web/public/brand/knowno-lockup-dark.svg": lockup(inkOnDark),
-  "web/public/brand/knowno-stacked-light.svg": stacked(ink),
-  "web/public/brand/knowno-stacked-dark.svg": stacked(inkOnDark),
+  "web/public/brand/knowno-lockup-light.svg": lockup(white, cobalt),
+  "web/public/brand/knowno-lockup-dark.svg": lockup(darkCard, darkAccent),
+  "web/public/brand/knowno-stacked-light.svg": stacked(white, cobalt),
+  "web/public/brand/knowno-stacked-dark.svg": stacked(darkCard, darkAccent),
 };
 
 /** The elements of an SVG fragment as a tree of { tag, attrs, children }; the drawings hold nothing else. */
@@ -296,9 +299,9 @@ const rasters = [
   // The splash's sources: the mark alone on the light ground, the circled mark on the dark one;
   // Android 12 crops to the middle 768 of 1152.
   square("app/assets/brand/splash/splash-light.png", canvas(centred(mark, 0.8)), 640),
-  square("app/assets/brand/splash/splash-dark.png", canvas(centred(onCircle, 0.8)), 640),
+  square("app/assets/brand/splash/splash-dark.png", canvas(centred(onCircle(darkCard), 0.8)), 640),
   square("app/assets/brand/splash/android12-light.png", canvas(centred(mark, 0.6)), 1152),
-  square("app/assets/brand/splash/android12-dark.png", canvas(centred(onCircle, 0.6)), 1152),
+  square("app/assets/brand/splash/android12-dark.png", canvas(centred(onCircle(darkCard), 0.6)), 1152),
   square("web/public/favicon-32.png", canvas(onSquare(cobalt)), 32, true),
   square("web/public/apple-touch-icon.png", canvas(onSquare(cobalt)), 180, true),
   square("web/public/icon-192.png", canvas(onSquare(cobalt)), 192, true),
