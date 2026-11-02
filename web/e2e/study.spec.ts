@@ -485,7 +485,7 @@ test("a user with no deck is invited to make one, and the theme they choose surv
   await expect(group.getByRole("radio", { name: "시스템", exact: true })).toBeChecked();
   // The system's dark mode, so 라이트 differs from it and 다크 from the default's light.
   await page.emulateMedia({ colorScheme: "dark" });
-  const ground = { light: "rgb(255, 246, 232)", dark: "rgb(31, 21, 18)" };
+  const ground = { light: "rgb(239, 250, 246)", dark: "rgb(16, 37, 31)" };
   for (const [choice, label, colour] of [
     ["light", "라이트", ground.light],
     ["dark", "다크", ground.dark],
@@ -965,7 +965,7 @@ test.describe("in UTC, where a study day runs from 04:00 to 04:00 UTC", () => {
         heights.viewport,
       );
       expect(heights.column, `the menu's column at ${String(width)}`).toBe(heights.document);
-      expect(heights.surface).toBe("rgb(255, 252, 247)");
+      expect(heights.surface).toBe("rgb(255, 255, 255)");
       await page.evaluate(() => {
         window.scrollTo(0, document.documentElement.scrollHeight);
       });

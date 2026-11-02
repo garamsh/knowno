@@ -452,6 +452,18 @@
   }
 }
 
+/* A solid object's edge belongs to it alone: a control inside a card inherits none. */
+@property --edge {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --edge-colour {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
 /* Every button and row's hover and pressed state, as the phone's AppButton shows pressed
    feedback (design.md §Details): a dim, a layer of the control's own text colour at 4% over its
    fill, with no change of size. A solid object sits on an edge of a darker colour, a hard offset
@@ -492,7 +504,7 @@
   @media (prefers-reduced-motion: no-preference) {
     .pressable:not(:disabled):active {
       box-shadow: 0 var(--spacing-edge-pressed) 0 var(--edge-colour);
-      transform: translateY(calc(var(--edge) - var(--spacing-edge-pressed)));
+      transform: translateY(max(0px, calc(var(--edge) - var(--spacing-edge-pressed))));
     }
   }
 }

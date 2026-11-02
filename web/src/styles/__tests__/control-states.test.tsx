@@ -61,7 +61,9 @@ describe("the controls' pointer, hover and pressed states", () => {
       /@media \(prefers-reduced-motion: no-preference\) \{\s*\.pressable:not\(:disabled\):active \{([^}]*)\}/.exec(
         globalsCss,
       )?.[1];
-    expect(motion).toContain("translateY(calc(var(--edge) - var(--spacing-edge-pressed)))");
+    expect(motion).toContain(
+      "translateY(max(0px, calc(var(--edge) - var(--spacing-edge-pressed))))",
+    );
     expect(motion).toContain("box-shadow: 0 var(--spacing-edge-pressed) 0 var(--edge-colour)");
     // Control: no rule outside that query moves a control, so reduce motion keeps the dim alone.
     const outside = globalsCss.replace(
@@ -69,6 +71,13 @@ describe("the controls' pointer, hover and pressed states", () => {
       "",
     );
     expect(outside).not.toMatch(/:active[^{]*\{[^}]*transform/);
+  });
+
+  it("gives an edge to the object that declares it and not to a control inside it", () => {
+    for (const name of ["--edge", "--edge-colour"]) {
+      const rule = new RegExp(`@property ${name} \\{([^}]*)\\}`).exec(globalsCss)?.[1];
+      expect(rule).toContain("inherits: false;");
+    }
   });
 
   it("sits a solid object on a hard edge with no blur", () => {
