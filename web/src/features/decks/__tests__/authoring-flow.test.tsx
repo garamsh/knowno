@@ -10,7 +10,6 @@ import { supabaseUrl, testAccessToken } from "@/testing/mocks/handlers";
 import { setRequestCookies } from "@/testing/next-headers";
 import { signedInCookies } from "@/testing/session";
 import { AuthoringButton } from "../components/authoring-button";
-import { PhotoImport } from "../components/photo-import";
 import { preparePhoto } from "../extract-photo";
 import { describeFailure } from "../photo-failure";
 import { readPhoto } from "../read-photo";
@@ -461,19 +460,9 @@ describe("photo import", () => {
     URL.createObjectURL = () => "blob:photo";
     URL.revokeObjectURL = () => undefined;
   });
-  /**
-   * Picks [count] photos from the album on the deck's 카드 추가 sheet, or, with "list", starts the
-   * import over the deck list with no deck chosen, as the import's own deck line can.
-   */
-  async function choose(count: number, from: "deck" | "list" = "deck") {
+  /** Picks [count] photos from the album on the deck's 카드 추가 sheet. */
+  async function choose(count: number) {
     const files = Array.from({ length: count }, (_, at) => new File([], `${String(at)}.jpg`));
-    if (from === "list") {
-      await render(
-        () => <PhotoImport decks={[deck]} camera={false} files={files} close={() => undefined} />,
-        {},
-      );
-      return;
-    }
     await render(() => <AuthoringButton deck={deck} />, {});
     await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
     const picker = screen.getByLabelText("앨범에서 고르기", { selector: "input" });
@@ -851,9 +840,18 @@ describe("photo import", () => {
       });
       cleanup();
       answer(words);
-      await choose(1, "list");
+      await choose(1);
       await screen.findByRole("heading", { name: "단어를 찾았어요" });
-      // A new deck has no remembered form; choosing the deck takes its own.
+      // The deck the import opens on takes its remembered form.
+      expect(screen.getByRole("button", { name: "과일 카드 모양, 앞면에 뜻" })).toBeInTheDocument();
+      // A new deck has no remembered form and keeps the one set; choosing the deck again takes its own.
+      await userEvent.click(screen.getByRole("button", { name: "단어장" }));
+      await userEvent.click(screen.getByRole("radio", { name: "새 노트" }));
+      await userEvent.click(
+        within(await openMenu("과일", "앞면에 뜻")).getByRole("menuitemradio", {
+          name: "앞면에 단어",
+        }),
+      );
       expect(
         screen.getByRole("button", { name: "과일 카드 모양, 앞면에 단어" }),
       ).toBeInTheDocument();
@@ -940,19 +938,17 @@ describe("photo import", () => {
       expect(first).toHaveAttribute("aria-expanded", "true");
       expect(screen.getByRole("checkbox", { name: "수도 선택" })).toBeInTheDocument();
     });
-    it("states the deck the cards go into, chooses another from its name, and names a new deck on saving", async () => {
+    it("states the deck the cards go into, chooses a new deck from its name, and names it on saving", async () => {
       answer(read);
-      await choose(1, "list");
+      await choose(1);
       await screen.findByRole("heading", { name: "카드 1장을 만들었어요" });
-      expect(screen.getByText(/에 추가돼요$/u)).toHaveTextContent(/^새 노트에 추가돼요$/u);
-      await userEvent.click(screen.getByRole("button", { name: "새 노트" }));
-      const chooser = screen.getByRole("radiogroup", { name: "추가할 노트" });
-      expect(within(chooser).getByRole("radio", { name: "새 노트" })).toBeChecked();
-      await userEvent.click(within(chooser).getByRole("radio", { name: "단어장" }));
-      expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
       expect(screen.getByText(/에 추가돼요$/u)).toHaveTextContent(/^노트 '단어장'에 추가돼요$/u);
       await userEvent.click(screen.getByRole("button", { name: "단어장" }));
-      await userEvent.click(screen.getByRole("radio", { name: "새 노트" }));
+      const chooser = screen.getByRole("radiogroup", { name: "추가할 노트" });
+      expect(within(chooser).getByRole("radio", { name: "단어장" })).toBeChecked();
+      await userEvent.click(within(chooser).getByRole("radio", { name: "새 노트" }));
+      expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+      expect(screen.getByText(/에 추가돼요$/u)).toHaveTextContent(/^새 노트에 추가돼요$/u);
       await userEvent.click(screen.getByRole("button", { name: "카드 1장 추가" }));
       expect(screen.getByRole("heading", { name: "새 노트" })).toBeInTheDocument();
       expect(db.rows.decks).toHaveLength(1);

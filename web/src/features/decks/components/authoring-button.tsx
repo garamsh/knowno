@@ -141,7 +141,6 @@ export function AuthoringButton({
       {screen === "file" && deck && (
         <SpreadsheetImport
           deck={deck}
-          decks={[]}
           close={() => {
             setScreen(null);
           }}
@@ -150,7 +149,6 @@ export function AuthoringButton({
       {screen === "photo" && deck && (
         <PhotoImport
           deck={deck}
-          decks={[]}
           camera={camera}
           files={photos}
           close={() => {

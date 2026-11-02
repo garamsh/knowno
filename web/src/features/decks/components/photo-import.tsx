@@ -49,17 +49,16 @@ const privacyNote = "사진은 카드를 만드는 데만 쓰고 서버에 남�
 
 /**
  * A browser-bound photo job drawn as the phone's photo import: one photo at 카드를 찾고 있어요 or
- * its failure, several at 사진 n장 중 k장 읽음 with a row per photo, then the list to review.
+ * its failure, several at 사진 n장 중 k장 읽음 with a row per photo, then the list to review, whose
+ * cards go into [deck] or a new deck.
  */
 export function PhotoImport({
   deck,
-  decks,
   camera,
   files,
   close,
 }: {
-  deck?: Deck;
-  decks: Deck[];
+  deck: Deck;
   camera: boolean;
   files: File[];
   close: () => void;
@@ -70,7 +69,7 @@ export function PhotoImport({
   const [note, setNote] = useState("");
   const [listOpen, setListOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [target, setTarget] = useState<string>(deck?.id ?? "new");
+  const [target, setTarget] = useState<string>(deck.id);
   const [name, setName] = useState("");
   const [naming, setNaming] = useState(false);
   const [choosing, setChoosing] = useState(false);
@@ -236,8 +235,6 @@ export function PhotoImport({
     sections: sectionsOf(photo.id, photo.state.kind === "read" ? photo.state.cards : []),
   }));
   const sections = groups.flatMap((group) => group.sections);
-  // The decks to choose from: the page's deck, which a deck's page reads alone, and the list's.
-  const choices = deck && !decks.some((item) => item.id === deck.id) ? [deck, ...decks] : decks;
   function formOf(section: Section): SectionForm {
     return (
       forms[section.id] ??
@@ -505,9 +502,7 @@ export function PhotoImport({
         <div className="flex min-w-0 flex-col">
           <ImportList
             groups={groups}
-            deckName={
-              target === "new" ? null : (choices.find((item) => item.id === target)?.name ?? null)
-            }
+            deckName={target === "new" ? null : deck.name}
             chooseDeck={() => {
               setChoosing(true);
             }}
@@ -576,7 +571,7 @@ export function PhotoImport({
             aria-label="추가할 노트"
             className="divide-y divide-hairline overflow-hidden rounded-group bg-surface"
           >
-            {[...choices, { id: "new", name: "새 노트" }].map((item) => (
+            {[deck, { id: "new", name: "새 노트" }].map((item) => (
               <button
                 key={item.id}
                 type="button"
