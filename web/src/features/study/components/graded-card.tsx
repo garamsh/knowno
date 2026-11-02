@@ -42,7 +42,7 @@ export function answerLabel(answer: Graded): string {
  * What a screen reader reads for the previous card: "방금 본 카드" and its grade first, then its
  * sides, as on the phone (ADR 0151).
  */
-export function previousLabel(answer: Graded): string {
+function previousLabel(answer: Graded): string {
   const front = answer.card.whole?.spokenFront ?? answer.card.text.front;
   const changed = answer.changed ? ". 수정됨" : "";
   return `방금 본 카드, ${grades[answer.answer].name}. 앞면: ${front}. 뒷면: ${answer.card.text.back}${changed}`;

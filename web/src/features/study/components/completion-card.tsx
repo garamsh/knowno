@@ -53,7 +53,6 @@ export function CompletionCard({
           <h2 id="completion-title" className="text-display">
             오늘 학습 완료
           </h2>
-          {/* No flame: on the hero it would draw in the light surface's colours (ADR 0151). */}
           <p className="text-label">{completion.streak}일 연속</p>
         </div>
       </div>
@@ -61,7 +60,7 @@ export function CompletionCard({
         {tiles.map((tile) => (
           <div
             key={tile.name}
-            className="flex flex-col-reverse justify-center rounded-row bg-surface px-2 py-3"
+            className="flex flex-col-reverse justify-center rounded-row bg-surface px-2 py-3 shadow-card"
           >
             <dt className="text-secondary font-bold text-ink">{tile.name}</dt>
             <dd className={`truncate text-display ${tile.colour}`}>{tile.count}</dd>

@@ -31,7 +31,15 @@ export const coachLines: Record<"pointer" | "touch", Record<CoachStep, string>> 
 };
 
 const button =
-  "pressable inline-flex min-h-tap-target items-center justify-center rounded-button px-5 text-secondary font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero";
+  "pressable inline-flex items-center justify-center rounded-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero";
+
+/**
+ * How the pointer coach marks the control its step names: a ring in the hero's colour, held, and
+ * a press of the control just before the card moves, as an answer by it does; under reduce motion
+ * the ring alone, held.
+ */
+export const coachHighlight =
+  "outline-3 outline-offset-3 outline-hero motion-safe:animate-coach-press";
 
 /**
  * The coach's caption on the hero surface in the answer buttons' place: the step's line, a dot
@@ -54,7 +62,7 @@ export function CoachCaption({
   return (
     <section
       aria-label="학습 사용 방법"
-      className="flex flex-col gap-2 rounded-card bg-hero px-5 pt-4 pb-3 text-on-hero shadow-card"
+      className="flex flex-col gap-2 rounded-card bg-hero pt-4 pr-4 pb-3 pl-5 text-on-hero"
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-body-strong">{coachLines[touch ? "touch" : "pointer"][step]}</p>
@@ -68,13 +76,17 @@ export function CoachCaption({
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <button type="button" onClick={onSkip} className={`${button} -ml-1 px-1 opacity-80`}>
+        <button
+          type="button"
+          onClick={onSkip}
+          className={`${button} min-h-tap-target px-3 text-label`}
+        >
           건너뛰기
         </button>
         <button
           type="button"
           onClick={onNext}
-          className={`${button} bg-hero-button text-on-hero-button`}
+          className={`${button} min-h-button bg-hero-button px-6 text-button text-on-hero-button`}
         >
           {last ? "시작하기" : "다음"}
         </button>
@@ -114,10 +126,20 @@ const demos = {
 
 /**
  * The coach's demonstration of [answer] on the current card, [children]: it moves toward the
- * answer and back over the answer's tint and name, under a finger, or under reduce motion holds
- * there. Hidden from screen readers, which read the caption.
+ * answer and back over the answer's tint and name, or under reduce motion holds there. By touch a
+ * finger drags it, as on the phone; with a pointer no finger shows, and the move follows the press
+ * of the answer's button, which the screen marks with [coachHighlight]. Hidden from screen
+ * readers, which read the caption.
  */
-export function CoachDemo({ answer, children }: { answer: Answer; children: ReactNode }) {
+export function CoachDemo({
+  answer,
+  touch,
+  children,
+}: {
+  answer: Answer;
+  touch: boolean;
+  children: ReactNode;
+}) {
   const demo = demos[answer];
   return (
     <div data-testid="coach-demo" data-answer={answer} className="relative grid">
@@ -129,18 +151,20 @@ export function CoachDemo({ answer, children }: { answer: Answer; children: Reac
       </div>
       <div className={`relative grid ${demo.card}`}>
         {children}
-        <Finger className="top-3/5 left-2/5" />
+        {touch && <Finger className="top-3/5 left-2/5" />}
       </div>
     </div>
   );
 }
 
 /**
- * The coach's last step in the previous card's place: a sample card answered "안다", dragged
- * toward "모른다" by a finger and back, over what that change shows behind it, or under reduce
- * motion held there. Hidden from screen readers, which read the caption.
+ * The coach's last step in the previous card's place: a sample card answered "안다", moved toward
+ * "모른다" and back, over what that change shows behind it, or under reduce motion held there. By
+ * touch a finger drags it; with a pointer the move follows the press of "마지막 응답 바꾸기",
+ * which the screen marks with [coachHighlight]. Hidden from screen readers, which read the
+ * caption.
  */
-export function CoachSample() {
+export function CoachSample({ touch }: { touch: boolean }) {
   return (
     <div aria-hidden data-testid="coach-sample" className="relative flex w-full">
       <div className="absolute inset-0 flex items-center justify-end rounded-previous bg-tint-red px-5 text-secondary font-bold text-on-dont-know-tint motion-safe:animate-coach-tint motion-reduce:animate-coach-tint-held">
@@ -148,7 +172,7 @@ export function CoachSample() {
       </div>
       <div className="relative flex w-full motion-safe:animate-coach-change motion-reduce:animate-coach-change-held">
         <GradedFace answer="know" front="deadline" back="마감 기한" />
-        <Finger className="right-16 bottom-8" />
+        {touch && <Finger className="right-16 bottom-8" />}
       </div>
     </div>
   );

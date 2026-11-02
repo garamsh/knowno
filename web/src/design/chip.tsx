@@ -11,7 +11,7 @@ const tones = {
 
 /**
  * The one chip, as the phone's `AppChip` draws it (ADR 0119): the `chip` radius, the `section`
- * type, 8 by 4 around its words, in a tone, after an optional leading mark such as the flame.
+ * type, 8 by 4 around its words, in a tone, after an optional leading mark such as a grade's.
  */
 export function Chip({
   tone = "neutral",

@@ -549,7 +549,7 @@ describe("the study page", () => {
       expect(screen.getByText("3/3")).toBeInTheDocument();
     });
 
-    it("says under the progress bar, as a status, that it goes on with the day when a card of it is done, and nothing on the day's first session", async () => {
+    it("says in the progress bar's place, as a status, that it goes on with the day when a card of it is done, and nothing on the day's first session", async () => {
       seedDeck(postgrest, "d1", ["un"]);
       postgrest.seed("cards", cardRow("deux", "d1", "deux"));
       postgrest.seed(
@@ -569,8 +569,11 @@ describe("the study page", () => {
       await waitFor(() => {
         expect(status).toHaveTextContent(/^이어서 해요 · 남은 1장 · 약 \d+분$/);
       });
-      // Under the progress bar.
-      expect(status.parentElement).toContainElement(screen.getByRole("progressbar"));
+      // In the progress bar's place, the bar hidden while it shows, as on the phone.
+      const bar = screen.getByRole("progressbar", { hidden: true });
+      expect(status.parentElement).toBe(bar.parentElement);
+      expect(status.className).toContain("absolute inset-0");
+      expect(bar.className).toContain("invisible");
       cleanup();
 
       // Control: with nothing done today, nothing is said.
@@ -613,10 +616,8 @@ describe("the study page", () => {
       ]);
       // The mascot between the cards goes with them.
       expect(document.querySelectorAll('img[src*="/brand/knowno-"]')).toHaveLength(1);
-      // The happy mascot (ADR 0141), and no icon: on the hero the streak is its words alone,
-      // since the flame's colours are the light surface's (ADR 0151).
+      // The happy mascot (ADR 0141).
       expect(completion.querySelector('img[src*="knowno-happy"]')).not.toBeNull();
-      expect(completion.querySelectorAll("svg")).toHaveLength(0);
       // No new card is left past today's, so the card says so and 그만하기 takes the focus.
       expect(screen.getByText("더 학습할 카드가 없어요")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "학습하기" })).not.toBeInTheDocument();
@@ -1479,13 +1480,14 @@ describe("the study page", () => {
     const announced = () => document.querySelector('[aria-live="polite"]')?.textContent;
     const answerButton = (name: string) =>
       screen.queryByRole("button", { name: new RegExp(`^${name}`) });
+    /** Whether the pointer coach marks [element] as the control its step names. */
+    const highlighted = (element: HTMLElement | null) =>
+      element?.className.includes("outline-hero") ?? false;
+    /** Whether [element] is left to screen readers, drawn nowhere. */
+    const unseen = (element: HTMLElement | null) => element?.classList.contains("sr-only");
 
-    beforeEach(() => {
-      // A device's first session.
-      window.localStorage.removeItem("studyCoachShown");
-    });
-
-    it("names the swipes in the phone's words where the page is used by touch", async () => {
+    /** Makes the page one used by touch, `(pointer: coarse)`, until the test's end. */
+    function byTouch() {
       // The code under test reads `matches` only; the deprecated addListener and removeListener
       // are left out of the stand-in.
       vi.stubGlobal(
@@ -1499,31 +1501,90 @@ describe("the study page", () => {
           dispatchEvent: () => false,
         }),
       );
-      try {
-        seedDeck(postgrest, "d1", ["un", "deux"]);
-        await open("d1");
-        await screen.findByRole("region", { name: "학습 사용 방법" });
-        const user = userEvent.setup();
+    }
 
-        expect(announced()).toBe("사용 방법, 3단계 중 1단계. 알면 오른쪽으로 밀어요");
-        expect(caption()).toHaveTextContent("알면 오른쪽으로 밀어요");
-        await user.click(screen.getByRole("button", { name: "다음" }));
-        expect(caption()).toHaveTextContent("모르면 왼쪽으로 밀어요");
-        await user.click(screen.getByRole("button", { name: "다음" }));
-        expect(caption()).toHaveTextContent(
-          "응답한 카드는 위로 올라와요. 밀어서 응답을 바꿀 수 있어요",
-        );
-      } finally {
-        vi.unstubAllGlobals();
-      }
+    beforeEach(() => {
+      // A device's first session.
+      window.localStorage.removeItem("studyCoachShown");
     });
 
-    it("on a device's first session shows three steps on the cards under a caption in the answer buttons' place, kept as shown once it shows", async () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("by touch teaches the phone's swipes under a finger, the caption in the controls' row", async () => {
+      byTouch();
+      expect(window.matchMedia("(pointer: coarse)").matches).toBe(true);
+      seedDeck(postgrest, "d1", ["un", "deux"]);
+      await open("d1");
+      await screen.findByRole("region", { name: "학습 사용 방법" });
+      const user = userEvent.setup();
+
+      expect(announced()).toBe("사용 방법, 3단계 중 1단계. 알면 오른쪽으로 밀어요");
+      expect(caption()).toHaveTextContent("알면 오른쪽으로 밀어요");
+      expect(within(screen.getByTestId("coach-demo")).getByTestId("coach-finger")).toBeVisible();
+      // No control beside the caption: the answers and the replay wait for it to end.
+      expect(answerButton("안다")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "안내 다시 보기" })).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      expect(caption()).toHaveTextContent("모르면 왼쪽으로 밀어요");
+      expect(within(screen.getByTestId("coach-demo")).getByTestId("coach-finger")).toBeVisible();
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      expect(caption()).toHaveTextContent(
+        "응답한 카드는 위로 올라와요. 밀어서 응답을 바꿀 수 있어요",
+      );
+      expect(within(screen.getByTestId("coach-sample")).getByTestId("coach-finger")).toBeVisible();
+      expect(screen.queryByRole("button", { name: /^마지막 응답 바꾸기/ })).not.toBeInTheDocument();
+    });
+
+    it("by touch draws no answer button, as the phone: 안내 다시 보기 alone, the answers and the change left to screen readers", async () => {
+      window.localStorage.setItem("studyCoachShown", "true");
+      byTouch();
+      expect(window.matchMedia("(pointer: coarse)").matches).toBe(true);
+      seedDeck(postgrest, "d1", ["un", "deux", "trois"]);
+      await open("d1");
+
+      expect(unseen(answerButton("모른다"))).toBe(true);
+      expect(unseen(answerButton("안다"))).toBe(true);
+      expect(unseen(screen.getByRole("button", { name: "안내 다시 보기" }))).toBe(false);
+      // The current card's swipe answers, as on the phone.
+      const current = screen.getByRole("region", { name: "현재 카드" });
+      fireEvent.pointerDown(current, { pointerId: 1, pointerType: "touch", clientX: 100 });
+      fireEvent.pointerMove(current, { pointerId: 1, pointerType: "touch", clientX: 260 });
+      fireEvent.pointerUp(current, { pointerId: 1, pointerType: "touch", clientX: 260 });
+      expect(shown()).toEqual([expect.stringMatching(/^방금 본 카드, 안다\. /)]);
+      expect(unseen(screen.getByRole("button", { name: /^마지막 응답 바꾸기/ }))).toBe(true);
+      // A screen reader still answers by the buttons it reaches.
+      await userEvent.setup().click(answerButton("모른다") ?? document.body);
+      expect(shown()).toEqual([expect.stringMatching(/^방금 본 카드, 모른다\. /)]);
+    });
+
+    it("with a pointer draws the answer buttons and 마지막 응답 바꾸기 with their keys", async () => {
+      window.localStorage.setItem("studyCoachShown", "true");
+      expect(typeof window.matchMedia).not.toBe("function");
+      seedDeck(postgrest, "d1", ["un", "deux"]);
+      await open("d1");
+      const user = userEvent.setup();
+
+      expect(answerButton("모른다")).toHaveTextContent("모른다 ←");
+      expect(answerButton("안다")).toHaveTextContent("안다 →");
+      expect(unseen(answerButton("모른다"))).toBe(false);
+      expect(unseen(answerButton("안다"))).toBe(false);
+      await user.click(answerButton("안다") ?? document.body);
+      const change = screen.getByRole("button", { name: /^마지막 응답 바꾸기/ });
+      expect(change).toHaveTextContent("마지막 응답 바꾸기 Z");
+      expect(unseen(change)).toBe(false);
+      expect(highlighted(change)).toBe(false);
+    });
+
+    it("with a pointer, on a device's first session, marks 안다 with →, then 모른다 with ←, then 마지막 응답 바꾸기 with Z, under a caption and with no finger, kept as shown once it shows", async () => {
+      expect(typeof window.matchMedia).not.toBe("function");
       seedDeck(postgrest, "d1", ["un", "deux"]);
       await open("d1");
       // The coach starts once the screen has mounted.
       await screen.findByRole("region", { name: "학습 사용 방법" });
       const user = userEvent.setup();
+      const change = () => screen.queryByRole("button", { name: /^마지막 응답 바꾸기/ });
 
       expect(caption()).toBeInTheDocument();
       // The flag is written by an effect after the render that shows the coach, so it is waited on.
@@ -1532,20 +1593,31 @@ describe("the study page", () => {
       });
       expect(announced()).toBe("사용 방법, 3단계 중 1단계. 알면 안다(→)를 눌러요");
       expect(caption()).toHaveTextContent("알면 안다(→)를 눌러요");
-      expect(answerButton("모른다")).not.toBeInTheDocument();
-      // The current card moves toward 안다 over its tint, under a finger.
+      // The control the step names, with its key, marked under the caption; the other not.
+      expect(answerButton("안다")).toHaveTextContent("안다 →");
+      expect(highlighted(answerButton("안다"))).toBe(true);
+      expect(highlighted(answerButton("모른다"))).toBe(false);
+      expect(caption()?.compareDocumentPosition(answerButton("안다") ?? document.body)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+      // The current card moves toward 안다 over its tint, with no finger and no drag.
       const demo = screen.getByTestId("coach-demo");
       expect(demo).toHaveAttribute("data-answer", "know");
       expect(demo).toContainElement(screen.getByRole("region", { name: "현재 카드" }));
-      expect(within(demo).getByTestId("coach-finger")).toBeInTheDocument();
+      expect(screen.queryByTestId("coach-finger")).not.toBeInTheDocument();
       // What is above it steps back.
       const place = screen.getByRole("region", { name: "응답한 카드가 여기에 쌓여요" });
       expect(place.parentElement?.className).toContain("opacity-45");
+      expect(change()).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "다음" }));
       expect(announced()).toBe("사용 방법, 3단계 중 2단계. 모르면 모른다(←)를 눌러요");
       expect(caption()).toHaveTextContent("모르면 모른다(←)를 눌러요");
       expect(screen.getByTestId("coach-demo")).toHaveAttribute("data-answer", "dontKnow");
+      expect(answerButton("모른다")).toHaveTextContent("모른다 ←");
+      expect(highlighted(answerButton("모른다"))).toBe(true);
+      expect(highlighted(answerButton("안다"))).toBe(false);
+      expect(screen.queryByTestId("coach-finger")).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "다음" }));
       expect(announced()).toBe(
@@ -1554,10 +1626,16 @@ describe("the study page", () => {
       expect(caption()).toHaveTextContent(
         "응답한 카드는 위로 올라와요. '마지막 응답 바꾸기'나 Z로 응답을 바꿀 수 있어요",
       );
+      // 마지막 응답 바꾸기 with Z shows before any answer, marked; the answers are not.
+      expect(change()).toHaveTextContent("마지막 응답 바꾸기 Z");
+      expect(highlighted(change())).toBe(true);
+      expect(highlighted(answerButton("안다"))).toBe(false);
+      expect(highlighted(answerButton("모른다"))).toBe(false);
       // A sample answered card in the previous card's place, changing toward 모른다.
       const sample = screen.getByTestId("coach-sample");
       expect(sample).toHaveTextContent("deadline");
       expect(sample).toHaveTextContent("모른다로 바꿔요");
+      expect(screen.queryByTestId("coach-finger")).not.toBeInTheDocument();
       // A previous card, so graded by its fill and line alone, with no chip.
       expect(within(sample).queryByText("안다")).not.toBeInTheDocument();
       expect(screen.queryByTestId("coach-demo")).not.toBeInTheDocument();
@@ -1569,6 +1647,9 @@ describe("the study page", () => {
       expect(caption()).not.toBeInTheDocument();
       expect(screen.queryByTestId("coach-sample")).not.toBeInTheDocument();
       expect(answerButton("안다")).toBeInTheDocument();
+      expect(highlighted(answerButton("안다"))).toBe(false);
+      // With nothing answered, 마지막 응답 바꾸기 goes with the coach.
+      expect(change()).not.toBeInTheDocument();
       expect(
         screen.getByRole("region", { name: "응답한 카드가 여기에 쌓여요" }),
       ).toBeInTheDocument();
@@ -1607,26 +1688,53 @@ describe("the study page", () => {
       expect(caption()).not.toBeInTheDocument();
     });
 
-    it("under reduce motion holds each step still where the card is out, and moves it otherwise", async () => {
+    /** The classes of whatever moves in [testId]'s demonstration. */
+    const moving = (testId: string) =>
+      [...screen.getByTestId(testId).querySelectorAll("[class*=animate-coach]")]
+        .map((element) => element.getAttribute("class") ?? "")
+        .join(" ");
+    const steps = [
+      ["coach-demo", "know", "안다"],
+      ["coach-demo", "dont-know", "모른다"],
+      ["coach-sample", "change", "마지막 응답 바꾸기"],
+    ] as const;
+
+    it("by touch, under reduce motion holds each step still where the card is out under its finger, and moves it otherwise", async () => {
+      byTouch();
+      expect(window.matchMedia("(pointer: coarse)").matches).toBe(true);
       seedDeck(postgrest, "d1", ["un", "deux"]);
       await open("d1");
       // The coach starts once the screen has mounted.
       await screen.findByRole("region", { name: "학습 사용 방법" });
       const user = userEvent.setup();
-      const moving = (testId: string) =>
-        [...screen.getByTestId(testId).querySelectorAll("[class*=animate-coach]")].map(
-          (element) => element.getAttribute("class") ?? "",
-        );
 
-      for (const [testId, name] of [
-        ["coach-demo", "know"],
-        ["coach-demo", "dont-know"],
-        ["coach-sample", "change"],
-      ] as const) {
-        const classes = moving(testId).join(" ");
+      for (const [testId, name] of steps) {
+        const classes = moving(testId);
         expect(classes).toContain(`motion-safe:animate-coach-${name} `);
         expect(classes).toContain(`motion-reduce:animate-coach-${name}-held`);
         expect(classes).toContain("motion-reduce:animate-coach-finger-held");
+        await user.click(screen.getByRole("button", { name: /^(다음|시작하기)$/ }));
+      }
+    });
+
+    it("with a pointer, under reduce motion holds the mark on its control and the card out, and presses the control before the card moves otherwise", async () => {
+      expect(typeof window.matchMedia).not.toBe("function");
+      seedDeck(postgrest, "d1", ["un", "deux"]);
+      await open("d1");
+      // The coach starts once the screen has mounted.
+      await screen.findByRole("region", { name: "학습 사용 방법" });
+      const user = userEvent.setup();
+
+      for (const [testId, name, control] of steps) {
+        const classes = moving(testId);
+        expect(classes).toContain(`motion-safe:animate-coach-${name} `);
+        expect(classes).toContain(`motion-reduce:animate-coach-${name}-held`);
+        expect(classes).not.toContain("coach-finger");
+        // The ring is not an animation, so it holds under reduce motion; the press moves alone.
+        const marked = screen.getByRole("button", { name: new RegExp(`^${control}`) }).className;
+        expect(marked).toContain("outline-hero");
+        expect(marked).toContain("motion-safe:animate-coach-press");
+        expect(marked).not.toContain("motion-reduce:animate");
         await user.click(screen.getByRole("button", { name: /^(다음|시작하기)$/ }));
       }
     });

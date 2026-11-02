@@ -38,6 +38,7 @@ import {
   CoachDemo,
   CoachSample,
   coachAnnouncement,
+  coachHighlight,
   type CoachStep,
   coachShownKey,
   coachSteps,
@@ -82,7 +83,10 @@ function shortcut(
   return null;
 }
 
-/** Whether the page is used by touch, so the coach names the swipe the cards take. */
+/**
+ * Whether the page is used by touch: then the screen is the phone's, answered and changed by the
+ * cards' swipes with no answer button drawn, and its coach names those swipes.
+ */
 function touchFirst(): boolean {
   return typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
 }
@@ -110,9 +114,9 @@ const noticeMs = 3000;
 
 /**
  * The study screen: the progress bar, and two cards of one size, the card answered just before,
- * split into front and back, above the current card, which shows its front alone, with
- * the two answer buttons under them. A click on the previous card opens it whole; a touch swipe
- * on it, Z or "마지막 응답 바꾸기" changes its answer. On a wide screen this session's answers are
+ * its front over its back, above the current card, which shows its front alone, with the two
+ * answer buttons under them where the page is used by a pointer. A click on the previous card
+ * opens it whole; a touch swipe on it, Z or "마지막 응답 바꾸기" changes its answer. On a wide screen this session's answers are
  * listed beside, each a button that changes it. Once no card is left today the completion card
  * takes the current card's place, and the new cards past today's go on from it. Every action
  * shows at once; its write runs behind it, and a write that fails is shown with a retry while
@@ -179,6 +183,8 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
   const [session] = useState(() => new StudySession(plan, Date.now, () => v7()));
   const [writes] = useState(() => new WriteQueue(saveAnswer));
   const [view, setView] = useState(() => session.view());
+  /** Whether the page is used by touch, read once as the session starts. */
+  const [touch] = useState(touchFirst);
   const [helpOpen, setHelpOpen] = useState(false);
   /** Whether the previous card is open whole. */
   const [detailOpen, setDetailOpen] = useState(false);
@@ -387,7 +393,9 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
   const current: ReactNode =
     view.kind === "studying" ? (
       demo ? (
-        <CoachDemo answer={demo}>{currentCard}</CoachDemo>
+        <CoachDemo answer={demo} touch={touch}>
+          {currentCard}
+        </CoachDemo>
       ) : (
         currentCard
       )
@@ -404,7 +412,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-6 px-gutter py-6">
-      <header className="relative flex items-center gap-4">
+      <header className="flex items-center gap-4">
         <Link
           ref={closeLink}
           href={back}
@@ -418,7 +426,18 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
         >
           <X aria-hidden className="size-5" strokeWidth={2.2} />
         </Link>
-        <div className="flex flex-1 items-center gap-3">
+        <div className="relative flex flex-1 items-center gap-3">
+          {/* In the progress bar's place while it shows, as on the phone (ADR 0093). */}
+          <div
+            role="status"
+            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+          >
+            {notice && (
+              <p className="rounded-full bg-hero px-4 py-2 text-secondary text-on-hero shadow-card motion-safe:animate-resume-notice">
+                {notice}
+              </p>
+            )}
+          </div>
           {view.kind !== "empty" && (
             <>
               <div
@@ -428,7 +447,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                 aria-valuemax={view.total}
                 aria-valuenow={view.done}
                 aria-valuetext={`${String(view.total)}장 중 ${String(view.done)}장 끝냄`}
-                className="h-progress flex-1 overflow-hidden rounded-full bg-edge"
+                className={`h-progress flex-1 overflow-hidden rounded-full bg-edge ${notice ? "invisible" : ""}`}
               >
                 <div
                   className="h-full rounded-full bg-accent motion-safe:transition-[width]"
@@ -463,19 +482,9 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
         >
           단축키 <Hint>?</Hint>
         </button>
-        <div
-          role="status"
-          className="pointer-events-none absolute inset-x-0 top-full z-10 mt-2 flex justify-center"
-        >
-          {notice && (
-            <p className="rounded-full bg-hero px-4 py-2 text-secondary text-on-hero shadow-card motion-safe:animate-resume-notice">
-              {notice}
-            </p>
-          )}
-        </div>
         {/* Mounted empty, so the coach's steps are announced as they show. */}
         <p aria-live="polite" className="sr-only">
-          {coach ? coachAnnouncement(coach, touchFirst()) : ""}
+          {coach ? coachAnnouncement(coach, touch) : ""}
         </p>
       </header>
 
@@ -497,7 +506,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
       <div className="flex flex-wrap items-start justify-center gap-7">
         <section
           aria-label="카드"
-          className="flex min-w-0 flex-[999_1_520px] flex-col items-center gap-3 pt-6"
+          className="flex min-w-0 flex-[999_1_520px] flex-col items-center gap-5 pt-5"
         >
           {view.kind === "empty" ? (
             <div className="flex w-full max-w-list flex-col items-stretch gap-4 py-16">
@@ -519,12 +528,12 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                   place holds the coach's sample in its last step; otherwise the card answered
                   last, or the day's last card from an earlier session, or while studying an
                   outline. */}
-              <div className="relative grid w-full max-w-study auto-rows-fr gap-7">
+              <div className="relative grid w-full max-w-study auto-rows-fr gap-4">
                 <div
                   className={`grid overflow-hidden ${cardHeight} motion-safe:transition-opacity ${demo ? "opacity-45" : ""}`}
                 >
                   {view.kind === "studying" && coach === "redecide" ? (
-                    <CoachSample />
+                    <CoachSample touch={touch} />
                   ) : newest ? (
                     <GradedCard
                       key={newest.position}
@@ -563,11 +572,11 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                 )}
               </div>
               {view.kind === "studying" && (
-                <div className="w-full max-w-study">
-                  {coach ? (
+                <div className="flex w-full max-w-study flex-col gap-3">
+                  {coach && (
                     <CoachCaption
                       step={coach}
-                      touch={touchFirst()}
+                      touch={touch}
                       onNext={() => {
                         setCoach(coachSteps[coachSteps.indexOf(coach) + 1] ?? null);
                       }}
@@ -575,8 +584,13 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                         setCoach(null);
                       }}
                     />
-                  ) : (
+                  )}
+                  {/* By touch the caption takes the controls' row, as on the phone; with a
+                      pointer the controls stay under it, and its step marks the one it names. */}
+                  {!(coach && touch) && (
                     <AnswerButtons
+                      touch={touch}
+                      highlight={coach}
                       onAnswer={answer}
                       onGuide={() => {
                         setCoach("know");
@@ -592,12 +606,16 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
         {view.previous.length > 0 && <AnswerList answers={view.previous} onToggle={toggle} />}
       </div>
 
-      {view.previous.length > 0 && (
+      {/* By touch the previous card's swipe changes it, as on the phone, so the button is left to
+          screen readers; with a pointer the coach's last step shows it before any answer. */}
+      {(view.previous.length > 0 || (coach === "redecide" && !touch)) && (
         <button
           type="button"
           onClick={toggleLast}
           aria-keyshortcuts="Z"
-          className={`${quiet} self-center`}
+          className={
+            touch ? "sr-only" : `${quiet} self-center ${coach === "redecide" ? coachHighlight : ""}`
+          }
         >
           마지막 응답 바꾸기 <Hint>Z</Hint>
         </button>
@@ -685,24 +703,35 @@ function CurrentCard({
   );
 }
 
-/** "모른다" and "안다" under the current card, each with its keys, and the coach's replay between. */
+/**
+ * "모른다" and "안다" under the current card, each with its keys, and the coach's replay between;
+ * [highlight], the pointer coach's step, marks the answer it names. By touch the answers are left
+ * to screen readers, as the phone gives them as actions, and the replay is alone under the card.
+ */
 function AnswerButtons({
+  touch,
+  highlight,
   onAnswer,
   onGuide,
 }: {
+  touch: boolean;
+  highlight: CoachStep | null;
   onAnswer: (answer: Answer) => void;
   onGuide: () => void;
 }) {
-  const answerButton = `${button} min-h-cta flex-1 text-body-strong`;
+  const answerButton = (step: CoachStep) =>
+    touch
+      ? "sr-only"
+      : `${button} min-h-cta flex-1 text-body-strong ${highlight === step ? coachHighlight : ""}`;
   return (
-    <div className="flex gap-3">
+    <div className="flex justify-center gap-3">
       <button
         type="button"
         onClick={() => {
           onAnswer("dontKnow");
         }}
         aria-keyshortcuts="ArrowLeft"
-        className={`${answerButton} bg-tint-red text-on-dont-know-tint`}
+        className={`${answerButton("dontKnow")} bg-tint-red text-on-dont-know-tint`}
       >
         모른다 <Hint>←</Hint>
       </button>
@@ -719,7 +748,7 @@ function AnswerButtons({
           onAnswer("know");
         }}
         aria-keyshortcuts="ArrowRight"
-        className={`${answerButton} bg-tint-green text-on-know-tint`}
+        className={`${answerButton("know")} bg-tint-green text-on-know-tint`}
       >
         안다 <Hint>→</Hint>
       </button>

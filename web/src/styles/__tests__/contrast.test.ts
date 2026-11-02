@@ -61,10 +61,6 @@ describe("the text the login, account and empty home pages draw", () => {
 const studyPairs: [string, string, string][] = [
   ["the guide's size on the ground", "ink", "ground"],
   ["the guide's lines on the ground", "ink-2", "ground"],
-  ["a 안다 card's front", "ink", "know-card"],
-  ["a 안다 card's back", "ink-2", "know-card"],
-  ["a 모른다 card's front", "ink", "dont-know-card"],
-  ["a 모른다 card's back", "ink-2", "dont-know-card"],
   ["the 안다 chip's word", "on-know", "know"],
   ["the 모른다 chip's word", "on-dont-know-text", "dont-know-text"],
   ["the 안다 button's word", "on-know-tint", "tint-green"],
@@ -73,11 +69,8 @@ const studyPairs: [string, string, string][] = [
 
 /** The marks the study screen draws, at 3:1 against what is around them. */
 const studyMarks: [string, string, string][] = [
-  ["the 안다 chip on its card", "know", "know-card"],
   ["the 안다 chip on the ground", "know", "ground"],
-  ["the 모른다 chip on its card", "dont-know-text", "dont-know-card"],
   ["the 모른다 chip on the ground", "dont-know-text", "ground"],
-  ["the streak's flame on the completion card", "streak", "surface"],
   ["a progress bar on its track", "accent", "edge"],
   ["a chart's stressed bar on the surface", "accent", "surface"],
   ["a chart's quiet bar on the surface", "chart-quiet", "surface"],
@@ -85,7 +78,7 @@ const studyMarks: [string, string, string][] = [
   ["the 곧 잊음 recall band on the surface", "recall-fading", "surface"],
 ];
 
-describe("the study screen's grades, answer buttons and streak", () => {
+describe("the study screen's grades and answer buttons", () => {
   it.each(["light", "dark"] as const)(
     "meet WCAG AA, 4.5:1 for text and 3:1 for marks, in the %s theme",
     (theme) => {
@@ -123,11 +116,7 @@ const statePairs: [string, string, string, string][] = [
   ["the 안다 button's word", "on-know-tint", "tint-green", "on-know-tint"],
   ["the 모른다 button's word", "on-dont-know-tint", "tint-red", "on-dont-know-tint"],
   ["안내 다시 보기 on the ground", "ink-2", "ground", "ink-2"],
-  ["the completion card's 그만하기", "ink-2", "surface", "ink-2"],
-  ["a 안다 card's front", "ink", "know-card", "ink"],
-  ["a 안다 card's back", "ink-2", "know-card", "ink"],
-  ["a 모른다 card's front", "ink", "dont-know-card", "ink"],
-  ["a 모른다 card's back", "ink-2", "dont-know-card", "ink"],
+  ["the completion panel's 그만하기 on the hero", "on-hero", "hero", "on-hero"],
   ["the coach's 건너뛰기 on the hero", "on-hero", "hero", "on-hero"],
   ["the coach's 다음 on its fill", "on-hero-button", "hero-button", "on-hero-button"],
   ["Google's label on its fill", "google-label", "google-fill", "google-label"],
