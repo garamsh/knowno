@@ -3,8 +3,8 @@
 // over the one body.svg, and wordmarks.json, the outlines of 알아몰라 and knowno in Pretendard
 // ExtraBold (app/assets/fonts/): the SVGs of web/public/, the PNGs of app/assets/brand/ and
 // web/public/, and the parts each client's Mascot moves, as Dart for the app and SVG markup for the
-// web. `make brand` runs it, then the launcher icon and
-// splash generators over its output. With --check it writes nothing and fails on a file that
+// web. A lockup holds one name: 알아몰라 on the web and for a Korean phone, knowno for any other.
+// `make brand` runs it, then the launcher icon and splash generators over its output. With --check it writes nothing and fails on a file that
 // differs from what it would write: an SVG or a source file by any byte, a PNG by a mean difference
 // per channel of 1 in 255 or more, since librsvg's anti-aliasing differs a little between platforms.
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
@@ -34,8 +34,9 @@ const drawing = (name) => inner(name).replaceAll('<use href="body.svg"/>', inner
 const mark = drawing("mark");
 const wordmarks = JSON.parse(readFileSync(join(root, "tools/brand/wordmarks.json"), "utf8"));
 
-const svg = (width, height, body, size = { width, height }) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${size.width}" height="${size.height}"><title>knowno</title>${body}</svg>\n`;
+/** An SVG [width] by [height] drawing [body], named [title] to a screen reader: the word a lockup shows. */
+const svg = (width, height, body, title = "knowno") =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}"><title>${title}</title>${body}</svg>\n`;
 
 /** The mark in a box of [scale] of a 1024 canvas, centred, over [ground]. */
 const centred = (art, scale, ground = "") => {
@@ -57,30 +58,70 @@ const circled = (x, y, size, fill) =>
 
 /** A wordmark [scale]d from its 1000-unit outline, its box's left and top at ([x], [y]). */
 const word = ({ d, x1, y1 }, x, y, scale, fill) =>
-  `<path fill="${fill}" transform="translate(${x - x1 * scale} ${y - y1 * scale}) scale(${scale})" d="${d}"/>`;
+  `<path fill="${fill}" transform="translate(${places(x - x1 * scale)} ${places(y - y1 * scale)}) scale(${scale})" d="${d}"/>`;
 
-const lockupSize = { width: 981, height: 200 };
-const stackedSize = { width: 600, height: 484 };
+/** [n] to three decimals, so a layout's arithmetic does not leave 77.99999999999999 in a file. */
+function places(n) {
+  return Math.round(n * 1000) / 1000;
+}
 
-/** The mark on its circle, then 알아몰라 and knowno on one baseline. */
-const lockup = (circle, words) =>
-  svg(
+/** How wide a lockup's word is drawn, whichever the name. */
+const wordWidth = 446;
+
+/** The scale at which [outline] is [wordWidth] across. */
+const wordScale = ({ x1, x2 }) => wordWidth / (x2 - x1);
+
+/** How high [outline] stands at [scale]. */
+const wordHeight = ({ y1, y2 }, scale) => (y2 - y1) * scale;
+
+/** The stacked lockup's circle across and the gap under it, then the horizontal lockup's circle and the gap beside it. */
+const circleSize = 290;
+const gap = 14;
+const lockupCircle = 200;
+const lockupGap = 28;
+
+/** The languages the phone draws a lockup in; the web, in Korean alone, draws 알아몰라. */
+const languages = ["ko", "en"];
+
+/** The canvas of the stacked lockup in [lang]: as wide as its word, as high as the circle, the gap and the word. */
+const stackedSize = (lang) => ({
+  width: wordWidth,
+  height: Math.ceil(circleSize + gap + wordHeight(wordmarks[lang], wordScale(wordmarks[lang]))),
+});
+
+/** The canvas of the horizontal lockup: the circle, its gap and the Korean word, as high as the circle. */
+const lockupSize = { width: lockupCircle + lockupGap + wordWidth, height: lockupCircle };
+
+/** The mark on its circle, then 알아몰라 beside it, centred on the circle. */
+const lockup = (circle, words) => {
+  const scale = wordScale(wordmarks.ko);
+  return svg(
     lockupSize.width,
     lockupSize.height,
-    circled(0, 0, 200, circle) +
-      word(wordmarks.ko, 228, 46, 0.12, words) +
-      word(wordmarks.en, 663, 92, 0.085, words),
+    circled(0, 0, lockupCircle, circle) +
+      word(
+        wordmarks.ko,
+        lockupCircle + lockupGap,
+        (lockupCircle - wordHeight(wordmarks.ko, scale)) / 2,
+        scale,
+        words,
+      ),
+    wordmarks.ko.text,
   );
+};
 
-/** The mark on its circle over 알아몰라 over knowno. */
-const stacked = (circle, words) =>
-  svg(
-    stackedSize.width,
-    stackedSize.height,
-    circled(155, 0, 290, circle) +
-      word(wordmarks.ko, 77, 304, 0.13, words) +
-      word(wordmarks.en, 178, 431, 0.065, words),
+/** The mark on its circle over the word of [lang], centred under it. */
+const stacked = (lang, circle, words) => {
+  const { width, height } = stackedSize(lang);
+  const scale = wordScale(wordmarks[lang]);
+  return svg(
+    width,
+    height,
+    circled((width - circleSize) / 2, 0, circleSize, circle) +
+      word(wordmarks[lang], 0, circleSize + gap, scale, words),
+    wordmarks[lang].text,
   );
+};
 
 const canvas = (body) => svg(1024, 1024, body);
 const markAlone = canvas(mark);
@@ -100,8 +141,8 @@ const vectors = {
   ),
   "web/public/brand/knowno-lockup-light.svg": lockup(white, cobalt),
   "web/public/brand/knowno-lockup-dark.svg": lockup(darkCard, darkAccent),
-  "web/public/brand/knowno-stacked-light.svg": stacked(white, cobalt),
-  "web/public/brand/knowno-stacked-dark.svg": stacked(darkCard, darkAccent),
+  "web/public/brand/knowno-stacked-light.svg": stacked("ko", white, cobalt),
+  "web/public/brand/knowno-stacked-dark.svg": stacked("ko", darkCard, darkAccent),
 };
 
 /** The elements of an SVG fragment as a tree of { tag, attrs, children }; the drawings hold nothing else. */
@@ -283,8 +324,15 @@ const square = (path, source, pixels, opaque = false) => ({
 });
 
 const rasters = [
-  ...densities("knowno-stacked-light", vectors["web/public/brand/knowno-stacked-light.svg"], stackedSize, { width: 200 }),
-  ...densities("knowno-stacked-dark", vectors["web/public/brand/knowno-stacked-dark.svg"], stackedSize, { width: 200 }),
+  // The phone's stacked lockup in each language and on each ground.
+  ...languages.flatMap((lang) =>
+    [
+      ["light", white, cobalt],
+      ["dark", darkCard, darkAccent],
+    ].flatMap(([ground, circle, words]) =>
+      densities(`knowno-stacked-${lang}-${ground}`, stacked(lang, circle, words), stackedSize(lang), { width: 150 }),
+    ),
+  ),
   ...Object.entries(expressions).flatMap(([name, art]) =>
     densities(`knowno-${name}`, art, { width: 1024, height: 1024 }, { width: 128 }),
   ),

@@ -55,7 +55,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         image: true,
                         label: l10n.appTitle,
                         child: Image.asset(
-                          AppBrand.stacked(brightness),
+                          AppBrand.stacked(
+                            brightness,
+                            Localizations.localeOf(context),
+                          ),
                           width: AppSize.stackedLockupWidth,
                           excludeFromSemantics: true,
                         ),

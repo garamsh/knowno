@@ -120,7 +120,7 @@ abstract final class AppSize {
   static const menuElevation = 12.0;
 
   /// The stacked lockup's width on the sign-in screen.
-  static const stackedLockupWidth = 200.0;
+  static const stackedLockupWidth = 150.0;
 
   /// The mascot where it heads the first-run home or a cardless 오늘 tab.
   static const mascotLarge = 128.0;
@@ -366,10 +366,12 @@ abstract final class AppType {
 
 /// The brand's marks, drawn from the files under `assets/brand/`.
 abstract final class AppBrand {
-  /// The mark on its circle over 알아몰라 and knowno, in a light-ground or a
-  /// dark-ground version.
-  static String stacked(Brightness brightness) =>
-      'assets/brand/knowno-stacked-${brightness.name}.png';
+  /// The mark on its circle over one name, 알아몰라 for a Korean [locale] and
+  /// knowno for any other, in a light-ground or a dark-ground version.
+  static String stacked(Brightness brightness, Locale locale) {
+    final name = locale.languageCode == 'ko' ? 'ko' : 'en';
+    return 'assets/brand/knowno-stacked-$name-${brightness.name}.png';
+  }
 
   /// The mascot in its [expression], the same on either ground.
   static String mascot(String expression) =>
