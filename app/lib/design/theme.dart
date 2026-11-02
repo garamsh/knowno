@@ -429,6 +429,10 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.recallStrong,
     required this.recallFair,
     required this.recallFading,
+    required this.heat0,
+    required this.heat1,
+    required this.heat2,
+    required this.heat3,
     required this.tintAmber,
     required this.tintGreen,
     required this.tintRed,
@@ -483,6 +487,10 @@ final class AppColors extends ThemeExtension<AppColors> {
     recallStrong: Color(0xFF1E9E6A),
     recallFair: Color(0xFFF5B731),
     recallFading: Color(0xFFE8516A),
+    heat0: Color(0xFFE3E9F8),
+    heat1: Color(0xFFAABEF3),
+    heat2: Color(0xFF7D98EA),
+    heat3: Color(0xFF2547D0),
     tintAmber: Color(0xFFFFE9A8),
     tintGreen: Color(0xFFBFF0DC),
     tintRed: Color(0xFFFFD2DE),
@@ -537,6 +545,10 @@ final class AppColors extends ThemeExtension<AppColors> {
     recallStrong: Color(0xFF4FD69C),
     recallFair: Color(0xFFF7C64F),
     recallFading: Color(0xFFFF7F96),
+    heat0: Color(0xFF2C3858),
+    heat1: Color(0xFF365292),
+    heat2: Color(0xFF5578C9),
+    heat3: Color(0xFF8AB4FF),
     tintAmber: Color(0xFF4A3B1E),
     tintGreen: Color(0xFF1F5A44),
     tintRed: Color(0xFF6B2331),
@@ -642,8 +654,8 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// The colour of every shadow, before its opacity.
   final Color shadow;
 
-  /// A mark with no count of its own: a past week's mastered bar, a deck's
-  /// learning share. 3:1 on [surface], where [edge] is not (ADR 0147).
+  /// A mark with no count of its own: a deck's learning share. 3:1 on
+  /// [surface], where [edge] is not (ADR 0147).
   final Color chartQuiet;
 
   /// The recall bands, 좋음, 보통 and 곧 잊음, told apart by hue, each
@@ -651,6 +663,14 @@ final class AppColors extends ThemeExtension<AppColors> {
   final Color recallStrong;
   final Color recallFair;
   final Color recallFading;
+
+  /// The study days' four cobalt steps, from a day without a card to the
+  /// busiest third, each 1.5:1 from the next; [heat1] is also a past week's
+  /// mastered bar (ADR 0151).
+  final Color heat0;
+  final Color heat1;
+  final Color heat2;
+  final Color heat3;
 
   /// An amber tint: the backlog card's check and a chart's shortfall.
   final Color tintAmber;
@@ -744,6 +764,10 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? recallStrong,
     Color? recallFair,
     Color? recallFading,
+    Color? heat0,
+    Color? heat1,
+    Color? heat2,
+    Color? heat3,
     Color? tintAmber,
     Color? tintGreen,
     Color? tintRed,
@@ -794,6 +818,10 @@ final class AppColors extends ThemeExtension<AppColors> {
     recallStrong: recallStrong ?? this.recallStrong,
     recallFair: recallFair ?? this.recallFair,
     recallFading: recallFading ?? this.recallFading,
+    heat0: heat0 ?? this.heat0,
+    heat1: heat1 ?? this.heat1,
+    heat2: heat2 ?? this.heat2,
+    heat3: heat3 ?? this.heat3,
     tintAmber: tintAmber ?? this.tintAmber,
     tintGreen: tintGreen ?? this.tintGreen,
     tintRed: tintRed ?? this.tintRed,
@@ -850,6 +878,10 @@ final class AppColors extends ThemeExtension<AppColors> {
       recallStrong: mix(recallStrong, other.recallStrong),
       recallFair: mix(recallFair, other.recallFair),
       recallFading: mix(recallFading, other.recallFading),
+      heat0: mix(heat0, other.heat0),
+      heat1: mix(heat1, other.heat1),
+      heat2: mix(heat2, other.heat2),
+      heat3: mix(heat3, other.heat3),
       tintAmber: mix(tintAmber, other.tintAmber),
       tintGreen: mix(tintGreen, other.tintGreen),
       tintRed: mix(tintRed, other.tintRed),
