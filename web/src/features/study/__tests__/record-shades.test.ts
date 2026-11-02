@@ -74,7 +74,6 @@ describe("the 기록 page's chart shades", () => {
         (shade) => drawn(shade, theme),
       );
       if (!strong || !fair || !fading) throw new Error("three bands are drawn");
-      const bands = [strong, fair, fading];
       // The fair band is under 3:1 on the light surface; its count in words carries it (ADR 0147).
       for (const mark of [strong, fading, drawn(quietWeekShade, theme)]) {
         expect(contrast(mark, surface)).toBeGreaterThanOrEqual(3);
