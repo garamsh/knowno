@@ -564,6 +564,20 @@ describe("photo import", () => {
       expect(sent.count).toBe(1);
     });
   });
+  it("reads every photo, with no note, when no limit applies", async () => {
+    server.use(
+      http.post(`${supabaseUrl}/rest/v1/rpc/extraction_allowance`, () =>
+        HttpResponse.json([{ photo_limit: null, used: 40, period: "month" }]),
+      ),
+    );
+    const sent = answer(read);
+    await choose(3);
+    await waitFor(() => {
+      expect(sent.count).toBe(3);
+    });
+    expect(screen.queryByText(/더 만들 수 있어요/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/다 썼어요/)).not.toBeInTheDocument();
+  });
   it("shows the period's limit before sending any photo when none is left", async () => {
     server.use(
       http.post(`${supabaseUrl}/rest/v1/rpc/extraction_allowance`, () =>

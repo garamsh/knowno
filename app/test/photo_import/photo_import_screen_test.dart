@@ -1013,6 +1013,45 @@ void main() {
     );
 
     testWidgets(
+      "with no limit every photo is read past the plan's count, and no note shows",
+      (tester) async {
+        final import = await _Import.open(
+          tester,
+          before: (import) => import.client.todayAllowance = (
+            limit: null,
+            period: LimitPeriod.month,
+            used: 40,
+          ),
+        );
+        await import.pickSeveral(3);
+        expect(find.textContaining('more this month'), findsNothing);
+        expect(find.bySemanticsLabel('Read 0 of 3 photos'), findsOneWidget);
+        await import.answerCall(0, {'chat': 'cat'});
+        await import.answerCall(1, {'chien': 'dog'});
+        await import.answerCall(2, {'gato': 'cat'});
+        expect(import.client.calls, hasLength(3));
+        await import.close();
+
+        final control = await _Import.open(
+          tester,
+          before: (import) => import.client.todayAllowance = (
+            limit: 40,
+            period: LimitPeriod.month,
+            used: 40,
+          ),
+        );
+        await control.pickSeveral(3);
+        await tester.pumpAndSettle();
+        expect(
+          control.client.calls,
+          isEmpty,
+          reason: 'control: the same count against a limit reads none',
+        );
+        await control.close();
+      },
+    );
+
+    testWidgets(
       "with today's allowance unknown, every photo is read and each refusal shows on its photo",
       (tester) async {
         final import = await _Import.open(tester);

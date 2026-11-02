@@ -153,13 +153,13 @@ final class ImportJob extends ChangeNotifier {
   /// photos added to a list, the period's limit is read first: with none
   /// left it resolves to [PhotoLimitReached] and adds nothing; with fewer
   /// left than picked, only the first ones are added and [limitLeft] says
-  /// so. Where the limit cannot be read, every photo is added.
+  /// so. Where no limit applies, or it cannot be read, every photo is added.
   Future<PhotoLimitReached?> add(List<PickedPhoto> picked) async {
     var take = picked;
     limitLeft = null;
     if (picked.length > 1 || list != null) {
       if (await _client.allowance() case (
-        :final limit,
+        limit: final int limit,
         :final period,
         :final used,
       )) {

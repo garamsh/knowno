@@ -713,8 +713,20 @@ void main() {
         ),
         (limit: 10, period: LimitPeriod.month, used: 4),
       );
+      expect(
+        await read(
+          () async => [
+            {'photo_limit': null, 'period': 'month', 'used': 40},
+          ],
+        ),
+        (limit: null, period: LimitPeriod.month, used: 40),
+        reason: 'no limit applies, which is an allowance, not one unread',
+      );
       for (final rows in <Object?>[
         null,
+        [
+          {'period': 'month', 'used': 40},
+        ],
         <Object>[],
         [
           {'photo_limit': 30, 'period': 'day'},

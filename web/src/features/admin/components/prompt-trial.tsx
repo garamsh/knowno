@@ -8,7 +8,7 @@ import { button, card } from "./admin-section";
 
 /**
  * Runs extract-cards on one photo as the signed-in admin, who is served [served]: the test version
- * when one is set, else the active one. The photo counts against the admin's own daily limit.
+ * when one is set, else the active one. No limit applies to an admin; the photo is still counted.
  */
 export function PromptTrial({ served }: { served: { id: number; test: boolean } }) {
   const [cards, setCards] = useState<TrialCard[] | null>(null);
@@ -19,8 +19,8 @@ export function PromptTrial({ served }: { served: { id: number; test: boolean } 
     <section aria-label="사진 한 장으로 시험" className={card}>
       <h2 className="text-body-strong text-ink-2">사진 한 장으로 시험</h2>
       <p className="text-caption text-ink-2">
-        {served.test ? "테스트" : "사용 중인"} 버전 {served.id}로 카드를 만들어요. 내 오늘 사진
-        한도에서 1장을 써요.
+        {served.test ? "테스트" : "사용 중인"} 버전 {served.id}로 카드를 만들어요. 관리자는 한도
+        없이 쓰고, 사진 1장으로 기록돼요.
       </p>
       <form
         className="flex flex-col gap-2"

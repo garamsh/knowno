@@ -140,6 +140,8 @@ export class FakeAdmin {
     string,
     { plan: string; endsAt: string | null; grantedBy: string | null }
   >();
+  /** Each user's 무제한 grant, ended or not. */
+  readonly unlimitedGrants = new Map<string, { endsAt: string | null; grantedBy: string | null }>();
   /** The functions called, as `<name> <args as JSON>`. */
   readonly calls: string[] = [];
 
@@ -581,6 +583,43 @@ export class FakeAdmin {
         this.record(admin, "revoke_plan", "user", id, {
           email: this.users.find((user) => user.id === id)?.email ?? "",
           plan: grant.plan,
+        });
+        return true;
+      }
+      case "admin_user_unlimited": {
+        const user = this.users.find((candidate) => candidate.id === args.user_id);
+        if (!user) return [];
+        const grant = this.unlimitedGrants.get(user.id);
+        const live = grant && (grant.endsAt === null || Date.parse(grant.endsAt) > Date.now());
+        return [
+          {
+            unlimited: this.admins.has(user.id) || live === true,
+            ends_at: grant?.endsAt ?? null,
+            granted_at: grant ? "2026-10-19T03:00:00Z" : null,
+            granted_by_email: this.users.find((u) => u.id === grant?.grantedBy)?.email ?? null,
+          },
+        ];
+      }
+      case "admin_grant_unlimited": {
+        const id = String(args.user_id);
+        if (!this.users.some((user) => user.id === id)) return "no_user";
+        const endsAt = typeof args.ends_at === "string" ? args.ends_at : null;
+        if (endsAt !== null && Date.parse(endsAt) <= Date.now()) return "bad_end";
+        this.unlimitedGrants.set(id, { endsAt, grantedBy: admin });
+        this.record(admin, "grant_unlimited", "user", id, {
+          email: this.users.find((user) => user.id === id)?.email ?? "",
+          ends_at: endsAt,
+        });
+        return "granted";
+      }
+      case "admin_revoke_unlimited": {
+        const id = String(args.user_id);
+        const grant = this.unlimitedGrants.get(id);
+        if (!grant) return false;
+        this.unlimitedGrants.delete(id);
+        this.record(admin, "revoke_unlimited", "user", id, {
+          email: this.users.find((user) => user.id === id)?.email ?? "",
+          ends_at: grant.endsAt,
         });
         return true;
       }

@@ -273,15 +273,8 @@ describe("the trial on one photo", () => {
     expect(calls).toEqual([{ user: testUser.id, image: "AQID" }]);
   });
 
-  it("says why when the function makes no card, the day's or the month's photos are used, or the photo cannot be read", async () => {
-    const answers = [
-      HttpResponse.json({ error: "no_cards" }, { status: 422 }),
-      HttpResponse.json({ error: "rate_limited", photo_limit: 30, period: "day" }, { status: 429 }),
-      HttpResponse.json(
-        { error: "rate_limited", photo_limit: 10, period: "month" },
-        { status: 429 },
-      ),
-    ];
+  it("says why when the function makes no card or the photo cannot be read", async () => {
+    const answers = [HttpResponse.json({ error: "no_cards" }, { status: 422 })];
     const calls = extractCards(() => answers.shift() ?? HttpResponse.json({}, { status: 500 }));
     const photo = (name: string) => {
       const data = new FormData();
@@ -291,13 +284,7 @@ describe("the trial on one photo", () => {
     expect(await tryPrompt(photo("a.jpg"))).toEqual({
       message: "이 사진에서 카드를 찾지 못했어요.",
     });
-    expect(await tryPrompt(photo("b.jpg"))).toEqual({
-      message: "오늘 쓸 수 있는 사진 30장을 다 썼어요.",
-    });
-    expect(await tryPrompt(photo("c.jpg"))).toEqual({
-      message: "이번 달 쓸 수 있는 사진 10장을 다 썼어요.",
-    });
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(1);
 
     const user = userEvent.setup();
     await render(AiContent, {});
