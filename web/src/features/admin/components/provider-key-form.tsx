@@ -2,7 +2,7 @@
 
 import { useActionState, useId } from "react";
 
-import { SignInButton } from "@/features/account";
+import { signOut, type SignOutState } from "@/features/account/actions";
 
 import type { AiFormState } from "../ai-settings";
 import { saveProviderKey } from "../save-provider-key";
@@ -14,7 +14,7 @@ const input = `${field} h-tap-target min-w-0 flex-1 px-2 text-right`;
 /**
  * Saves or replaces one provider's key (ADR 0162). The key is write-only: the field starts empty,
  * the page never shows it back, and it is stored only after one call with it and [model] parsed.
- * A sign-in older than 10 minutes is asked again, with Google's button.
+ * A sign-in older than 10 minutes is asked again: "다시 로그인" signs this browser out to `/login`.
  */
 export function ProviderKeyForm({
   provider,
@@ -31,6 +31,9 @@ export function ProviderKeyForm({
   const [state, action, pending] = useActionState<AiFormState, FormData>(saveProviderKey, {
     message: null,
     reauth: false,
+  });
+  const [signedOut, signOutAction, signingOut] = useActionState<SignOutState>(signOut, {
+    error: null,
   });
   const id = useId();
   return (
@@ -70,7 +73,18 @@ export function ProviderKeyForm({
       <p role="status" className="text-caption text-muted empty:hidden">
         {state.message}
       </p>
-      {state.reauth && <SignInButton />}
+      {state.reauth && (
+        <button
+          type="submit"
+          formAction={signOutAction}
+          formNoValidate
+          disabled={signingOut}
+          className={`${button.secondary} self-start`}
+        >
+          다시 로그인
+        </button>
+      )}
+      <p className="text-caption text-muted empty:hidden">{signedOut.error}</p>
     </form>
   );
 }
