@@ -202,7 +202,7 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
       {opened && (
         <>
           <div className="flex min-w-0 items-center justify-between gap-3">
-            <p className="min-w-0 truncate text-caption text-muted">{opened.name}</p>
+            <p className="min-w-0 truncate text-body-strong text-muted">{opened.name}</p>
             <label
               className={`pressable flex min-h-tap-target shrink-0 cursor-pointer items-center px-2 text-body text-ink-2 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ink ${opening || locked ? "pointer-events-none opacity-50" : ""}`}
             >
@@ -383,6 +383,7 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
   return (
     <AuthoringScreen
       title="카드 확인"
+      heading="body"
       close={leave}
       actions={
         cards.length > 0 && (

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "@/testing/render";
@@ -52,6 +52,26 @@ const fronts = () =>
   });
 
 describe("cards from a file", () => {
+  it("heads 카드 확인 at the top of its content under a bar of 닫기 alone, the file's name under it, as the phone does", async () => {
+    await render(() => <AuthoringButton deck={deck} />, {});
+    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+    await userEvent.click(screen.getByRole("button", { name: "엑셀·CSV 파일" }));
+    // Control: the sheet before it holds its title beside 닫기.
+    const sheet = within(screen.getByRole("dialog", { name: "파일에서 카드 추가" }));
+    expect(sheet.getByRole("button", { name: "닫기" }).parentElement).toContainElement(
+      sheet.getByRole("heading", { name: "파일에서 카드 추가" }),
+    );
+    fireEvent.change(screen.getByLabelText("파일 고르기", { selector: "input" }), {
+      target: { files: [new File(["단어,뜻\npear,배\n"], "words.csv", { type: "text/csv" })] },
+    });
+
+    const review = within(await screen.findByRole("dialog", { name: "카드 확인" }));
+    const heading = review.getByRole("heading", { name: "카드 확인" });
+    expect(review.getByRole("button", { name: "닫기" }).parentElement).not.toContainElement(heading);
+    expect(heading.nextElementSibling).toHaveTextContent(/^words\.csv/);
+    expect(review.getByText("words.csv")).toHaveClass("text-body-strong", "text-muted");
+  });
+
   it("maps columns under a detected header, counts skipped rows and saves only the chosen cards", async () => {
     await openFile(
       new File(
