@@ -50,7 +50,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - A note page or 홈 holding a deck with a photo makes one more Storage request.
 - A deck's signed URL lasts an hour; a tile drawn from one that has expired shows its icon until the page is read again.
 - The web writes without a transaction: a deletion is two statements, and a failure between storing a file and writing the deck leaves a row and a file the action then releases, or, if that fails too, files no live deck or card names.
-- The e2e stack runs no Storage, so the photo path is tested in process against a substitute of Storage's API, and against the real one only by hand.
+- The web's e2e stack runs Storage, which the sync stack leaves out (`scripts/stack.ts`'s `WITH_STORAGE`), so the photo path is tested against Storage's own policies; the unit tests keep a substitute of its API.
 
 ## Signs the decision was wrong
 
