@@ -12,7 +12,7 @@ import { WholeCells } from "./whole-card";
 
 /**
  * A note's page under its name, as the final screens draw it (ADR 0150): the name with a
- * magnifier, "카드 검색", that opens the search; [study]; then its cards as one group of rows
+ * magnifier, "카드 검색", that opens the search, and [settings], its ⋯; [study]; then its cards as one group of rows
  * under that search, which keeps the cards whose 칸 hold it, revealed, ignoring case (ADR 0118,
  * ADR 0137). Each row shows its front, and its back muted after it once shown; nothing stands for
  * a hidden back. "뒷면 보기", in a row pinned above the group beside "카드 n" and the [mastered]
@@ -25,11 +25,13 @@ export function CardGrid({
   cards,
   mastered = 0,
   study,
+  settings,
 }: {
   deck: Deck;
   cards: Card[];
   mastered?: number;
   study?: ReactNode;
+  settings?: ReactNode;
 }) {
   const [search, setSearch] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -57,19 +59,22 @@ export function CardGrid({
   const header = (
     <header className="flex items-center justify-between gap-3">
       <h1 className="min-w-0 text-deck-name break-words">{deck.name}</h1>
-      {cards.length > 0 && (
-        <button
-          type="button"
-          aria-label="카드 검색"
-          aria-expanded={search !== null}
-          onClick={() => {
-            setSearch(search === null ? "" : null);
-          }}
-          className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-chip bg-surface text-ink shadow-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-        >
-          <Search aria-hidden className="size-5" strokeWidth={2.4} />
-        </button>
-      )}
+      <span className="flex shrink-0 items-center gap-2">
+        {cards.length > 0 && (
+          <button
+            type="button"
+            aria-label="카드 검색"
+            aria-expanded={search !== null}
+            onClick={() => {
+              setSearch(search === null ? "" : null);
+            }}
+            className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-chip bg-surface text-ink shadow-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            <Search aria-hidden className="size-5" strokeWidth={2.4} />
+          </button>
+        )}
+        {settings}
+      </span>
     </header>
   );
   if (cards.length === 0) {

@@ -6,11 +6,12 @@ import { v7 } from "uuid";
 import { addCard, createDeck, editCard } from "../actions";
 import { builtCells, cellDraft, type CellDraft, emptyCell, encodeCells } from "../authoring";
 import { holdsBlank } from "../card-content";
-import { type DeckColor, deckFill, offeredColors } from "../deck-tint";
+import type { DeckColor } from "../deck-tint";
 import type { Card, Deck } from "../library";
 import { leaveThen } from "../hooks/use-back-entry";
 import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
 import { CellFields } from "./cell-fields";
+import { DeckColorPicker } from "./deck-color-picker";
 import { PhotoImport } from "./photo-import";
 import { SideText } from "./side-text";
 import { SpreadsheetImport } from "./spreadsheet-import";
@@ -23,16 +24,6 @@ const choices = [
   { choice: "앨범에서 고르기", open: "album" },
   { choice: "엑셀·CSV 파일", open: "file" },
 ] as const;
-
-/** The four offered note colours' names, as the phone's `deckColorName` says them. */
-const colorNames: Record<DeckColor, string> = {
-  blue: "파랑",
-  sky: "하늘",
-  violet: "복숭아",
-  sand: "모래",
-  amber: "노랑",
-  slate: "회색",
-};
 
 /** A pair of buttons on one line at a phone's width: the first sized to its label. */
 const pairClass = "grid grid-cols-[auto_minmax(0,1fr)] gap-3";
@@ -243,29 +234,7 @@ function NewNote({ close }: { close: () => void }) {
             className="min-h-field w-full rounded-field border border-outline bg-surface px-4 text-body text-ink focus:outline-2 focus:outline-ink"
           />
         </label>
-        <fieldset className="flex flex-col gap-3 rounded-group bg-surface px-4 py-4">
-          <legend className="float-left text-caption text-muted">표지 색</legend>
-          <div className="clear-left flex flex-wrap gap-3">
-            {offeredColors.map((offered) => (
-              <label
-                key={offered}
-                className={`flex size-tap-target cursor-pointer items-center justify-center rounded-chip ${deckFill(offered)} has-checked:outline-3 has-checked:outline-offset-2 has-checked:outline-accent has-focus-visible:outline-ink`}
-              >
-                <input
-                  type="radio"
-                  name="color"
-                  value={offered}
-                  aria-label={colorNames[offered]}
-                  checked={color === offered}
-                  onChange={() => {
-                    setColor(offered);
-                  }}
-                  className="sr-only"
-                />
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <DeckColorPicker legend="표지 색" selected={color} pick={setColor} />
         {message && (
           <p role="alert" className="text-caption text-dont-know-text">
             {message}

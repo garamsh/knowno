@@ -71,6 +71,11 @@ Deno.test("runs every spec against the app built for its stack, then stops the s
   assert.ok(calls.includes("node stopped\n"), calls);
   assert.ok(calls.trimEnd().endsWith("supabase stop --no-backup"), calls);
   assert.deepEqual(await reservationsLeft(tmp), []);
+  // The web stores media, so its stack runs Storage, which the sync stack leaves out.
+  const start = calls.match(/^supabase start --exclude (\S+)$/m)?.[1];
+  assert.ok(start, calls);
+  assert.ok(!start.split(",").includes("storage-api"), start);
+  assert.ok(start.split(",").includes("realtime"), start);
 });
 
 Deno.test("tries the next port when the server finds its port taken", async () => {

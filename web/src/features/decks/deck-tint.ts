@@ -16,6 +16,16 @@ const deckFills = {
 /** A colour of the deck palette, by the key a deck stores. */
 export type DeckColor = keyof typeof deckFills;
 
+/** Each colour's name, as the phone's `deckColorName` says it. */
+export const colorNames: Record<DeckColor, string> = {
+  blue: "파랑",
+  sky: "하늘",
+  violet: "복숭아",
+  sand: "모래",
+  amber: "노랑",
+  slate: "회색",
+};
+
 /** The palette's colours, in the app's order. */
 export const deckColors = Object.keys(deckFills) as DeckColor[];
 

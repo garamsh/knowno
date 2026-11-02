@@ -62,4 +62,14 @@ describe("a deck's tile", () => {
       fill: "bg-deck-amber",
     });
   });
+
+  it("draws a stored photo covering the tile, its icon under it for while the photo cannot be read, against a deck with none", () => {
+    const { box, icon } = tile({ icon: "book", imageUrl: "https://signed/photo" });
+    const photo = box?.querySelector("[style*='background-image']");
+    expect(photo).toHaveStyle({ backgroundImage: 'url("https://signed/photo")' });
+    expect(photo).toHaveClass("absolute", "inset-0", "bg-cover", "bg-center");
+    expect(box).toHaveClass("overflow-hidden", "rounded-field");
+    expect(icon).toBe("lucide-book-open");
+    expect(tile({ icon: "book" }).box?.querySelector("[style*='background-image']")).toBeNull();
+  });
 });

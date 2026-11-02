@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { type DeckIcon, parseDeckIcon } from "../deck-icon";
 import { deckColor, deckFill } from "../deck-tint";
 import type { Deck } from "../library";
 
@@ -24,11 +25,10 @@ import type { Deck } from "../library";
 type DrawIcon = (props: LucideProps) => ReactNode;
 
 /**
- * The icons a deck's tile can hold, by the key a deck stores: the app's `DeckIcon` keys, each
- * drawn with the Lucide icon the app draws for it (`deckIconData` in
- * app/lib/deck/src/deck_row.dart).
+ * Each icon a deck's tile can hold, drawn with the Lucide icon the app draws for its key
+ * (`deckIconData` in app/lib/deck/src/deck_row.dart).
  */
-const deckIcons: Record<string, DrawIcon> = {
+const drawings: Record<DeckIcon, DrawIcon> = {
   layers: (props) => <Layers {...props} />,
   book: (props) => <BookOpen {...props} />,
   languages: (props) => <Languages {...props} />,
@@ -45,26 +45,36 @@ const deckIcons: Record<string, DrawIcon> = {
   star: (props) => <Star {...props} />,
 };
 
-/** Draws [deck]'s icon: the one it stores, or `layers` for none or a key this version does not know. */
-function drawIcon(deck: Deck): DrawIcon {
-  const stored = deck.icon;
-  return (
-    (stored !== undefined && Object.hasOwn(deckIcons, stored) && deckIcons[stored]) ||
-    ((props) => <Layers {...props} />)
-  );
+/** [icon] drawn in ink at half the tile, as the tile and the 꾸미기 sheet's choices draw it. */
+export function IconDrawing({
+  icon,
+  className = "size-1/2",
+}: {
+  icon: DeckIcon;
+  className?: string;
+}) {
+  return drawings[icon]({ className, strokeWidth: 2 });
 }
 
 /**
- * A deck's icon in ink on its colour from the deck palette, as the app draws its tile (ADR 0103);
- * hidden from screen readers. [size] sizes the tile; the icon takes half of it.
+ * A deck's icon in ink on its colour from the deck palette, as the app draws its tile (ADR 0103):
+ * the icon it stores, or `layers` for none or a key this version does not know; with a photo, the
+ * photo covering the tile, the icon drawn under it while the photo is read and where it cannot be
+ * (ADR 0159). Hidden from screen readers. [size] sizes the tile; the icon takes half of it.
  */
 export function DeckTile({ deck, size = "size-deck-tile" }: { deck: Deck; size?: string }) {
   return (
     <span
       aria-hidden
-      className={`flex shrink-0 items-center justify-center rounded-field text-ink ${size} ${deckFill(deckColor(deck))}`}
+      className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-field text-ink ${size} ${deckFill(deckColor(deck))}`}
     >
-      {drawIcon(deck)({ className: "size-1/2", strokeWidth: 2 })}
+      <IconDrawing icon={parseDeckIcon(deck.icon) ?? "layers"} />
+      {deck.imageUrl && (
+        <span
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url("${deck.imageUrl}")` }}
+        />
+      )}
     </span>
   );
 }
