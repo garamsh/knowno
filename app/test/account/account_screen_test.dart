@@ -332,7 +332,7 @@ void main() {
         expect(shownText('계정을 삭제할까요?'), findsOneWidget);
         expect(
           shownText(
-            '서버와 이 기기의 덱, 카드, 학습 기록이 모두 삭제되고, 다른 사람이 가져간 덱과 Google 계정은 남아요.',
+            '서버와 이 기기의 노트, 카드, 학습 기록이 모두 삭제되고, 다른 사람이 가져간 노트와 Google 계정은 남아요.',
           ),
           findsOneWidget,
         );

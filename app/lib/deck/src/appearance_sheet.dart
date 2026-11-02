@@ -13,7 +13,7 @@ import 'failure_message.dart';
 import 'model.dart';
 import 'providers.dart';
 
-/// Asks for [deck]'s icon, colour and photo in the 덱 꾸미기 sheet, previewed
+/// Asks for [deck]'s icon, colour and photo in the 노트 꾸미기 sheet, previewed
 /// on its tile. On "저장" it stores the photo chosen, or its removal, and
 /// returns the icon and colour for the caller to store; null when the sheet
 /// is dismissed, which stores nothing.

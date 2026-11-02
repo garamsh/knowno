@@ -24,7 +24,7 @@ Widget _opener(
 Future<Object?> _openSheet(BuildContext context) => showAppSheet<String>(
   context,
   builder: (context) => AppSheet(
-    title: 'New deck',
+    title: 'New note',
     body: 'Name it after what you study.',
     content: const TextField(),
     actions: [
@@ -65,7 +65,7 @@ void main() {
               )
               .first,
         );
-        final title = tester.getRect(shownText('New deck'));
+        final title = tester.getRect(shownText('New note'));
         final body = tester.getRect(shownText('Name it after what you study.'));
         final content = tester.getRect(find.byType(TextField));
         final later = tester.getRect(
@@ -81,8 +81,8 @@ void main() {
         expect(create.width, sheet.width - AppSpace.gutter * 2);
         expect(create.height, AppSize.cta);
         expect(
-          tester.getSemantics(shownText('New deck')),
-          isSemantics(isHeader: true, label: 'New deck'),
+          tester.getSemantics(shownText('New note')),
+          isSemantics(isHeader: true, label: 'New note'),
         );
         final shape = tester
             .widget<Material>(
@@ -174,9 +174,9 @@ void main() {
         await tester.tap(find.text('open'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 16));
-        final early = tester.getRect(shownText('New deck')).top;
+        final early = tester.getRect(shownText('New note')).top;
         await tester.pumpAndSettle();
-        final settled = tester.getRect(shownText('New deck')).top;
+        final settled = tester.getRect(shownText('New note')).top;
 
         if (reduceMotion) {
           expect(early, settled);

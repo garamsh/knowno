@@ -13,19 +13,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'knowno';
 
   @override
-  String get newDeck => 'New deck';
+  String get newDeck => 'New note';
 
   @override
-  String get deckActions => 'Deck actions';
+  String get deckActions => 'Note actions';
 
   @override
   String get importActions => 'Photo actions';
 
   @override
-  String get renameDeck => 'Rename deck';
+  String get renameDeck => 'Rename note';
 
   @override
-  String get deckAppearance => 'Customize deck';
+  String get deckAppearance => 'Customize note';
 
   @override
   String get deckAppearanceIcon => 'Icon';
@@ -85,7 +85,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get deleteDeck => 'Delete deck';
+  String get deleteDeck => 'Delete note';
 
   @override
   String deleteDeckTitle(String name) {
@@ -99,13 +99,13 @@ class AppLocalizationsEn extends AppLocalizations {
       locale: localeName,
       other: 'Its $count cards will be deleted too.',
       one: 'Its 1 card will be deleted too.',
-      zero: 'This deck has no cards.',
+      zero: 'This note has no cards.',
     );
     return '$_temp0';
   }
 
   @override
-  String get deckName => 'Deck name';
+  String get deckName => 'Note name';
 
   @override
   String get deckNameRequired => 'Enter a name';
@@ -377,7 +377,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String cardDeck(String deck) {
-    return 'Deck $deck';
+    return 'Note $deck';
   }
 
   @override
@@ -492,7 +492,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get duplicateTitle => 'This deck already has this card';
+  String get duplicateTitle => 'This note already has this card';
 
   @override
   String get duplicateBody => 'Case and spacing are ignored when comparing.';
@@ -516,7 +516,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t read or write the device\'s storage. Please try again.';
 
   @override
-  String get unreadableCard => 'A card in this deck can\'t be read.';
+  String get unreadableCard => 'A card in this note can\'t be read.';
 
   @override
   String get cancel => 'Cancel';
@@ -731,7 +731,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String myDecks(int count) {
-    return 'My decks $count';
+    return 'My notes $count';
   }
 
   @override
@@ -791,7 +791,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteAccountBody =>
-      'Your decks, cards and study history are deleted from the server and this device, while decks others copied and your Google account stay.';
+      'Your notes, cards and study history are deleted from the server and this device, while notes others copied and your Google account stay.';
 
   @override
   String get deletingAccount => 'Deleting account';
@@ -1051,10 +1051,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t keep this photo on the device. Check the free space and choose it again.';
 
   @override
-  String get deckDeleted => 'This deck was deleted. Choose another deck.';
+  String get deckDeleted => 'This note was deleted. Choose another note.';
 
   @override
-  String get browse => 'Public decks';
+  String get browse => 'Public notes';
 
   @override
   String get publish => 'Publish';
@@ -1096,14 +1096,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noPublicDecks =>
-      'No public decks yet. Publish one of yours to be the first.';
+      'No public notes yet. Publish one of yours to be the first.';
 
   @override
-  String get noPublicMatches => 'No decks match. Try other words.';
+  String get noPublicMatches => 'No notes match. Try other words.';
 
   @override
   String get browseOffline =>
-      'You\'re offline. Public decks appear once you\'re connected.';
+      'You\'re offline. Public notes appear once you\'re connected.';
 
   @override
   String get loading => 'Loading';
@@ -1121,10 +1121,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Can\'t do that right now. Please try again in a moment.';
 
   @override
-  String get deckNoLongerPublic => 'This deck is no longer public.';
+  String get deckNoLongerPublic => 'This note is no longer public.';
 
   @override
-  String get copyToMyDecks => 'Add to my decks';
+  String get copyToMyDecks => 'Add to my notes';
 
   @override
   String previewFirstCards(int shown, int total) {
@@ -1132,7 +1132,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get reportDeck => 'Report deck';
+  String get reportDeck => 'Report note';
 
   @override
   String get reportConfirm => 'Report';
@@ -1141,7 +1141,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get blockUser => 'Block this user';
 
   @override
-  String get reportTitle => 'Why are you reporting this deck?';
+  String get reportTitle => 'Why are you reporting this note?';
 
   @override
   String get reportInappropriate => 'Inappropriate content';
@@ -1159,7 +1159,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reported => 'Reported. We\'ll review it.';
 
   @override
-  String get alreadyReported => 'You\'ve already reported this deck.';
+  String get alreadyReported => 'You\'ve already reported this note.';
 
   @override
   String blockTitle(String name) {
@@ -1167,7 +1167,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get blockBody => 'Their decks will no longer appear in public decks.';
+  String get blockBody => 'Their notes will no longer appear in public notes.';
 
   @override
   String get block => 'Block';
@@ -1178,21 +1178,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get copyAsNewDeck => 'As a new deck';
+  String get copyAsNewDeck => 'As a new note';
 
   @override
-  String get copyIntoExistingDeck => 'Into a deck';
+  String get copyIntoExistingDeck => 'Into a note';
 
   @override
   String copyNewDeckHint(String name) {
-    return 'Creates the deck \"$name\" with every card.';
+    return 'Creates the note \"$name\" with every card.';
   }
 
   @override
-  String get copyTargetDeck => 'Deck';
+  String get copyTargetDeck => 'Note';
 
   @override
-  String get copyDuplicates => 'Cards already in the deck';
+  String get copyDuplicates => 'Cards already in the note';
 
   @override
   String get copyConfirm => 'Add';
@@ -1219,7 +1219,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get displayNameHelp =>
-      'Shown with your public decks. Your email is never shown.';
+      'Shown with your public notes. Your email is never shown.';
 
   @override
   String get displayNameLength => 'Use 2 to 20 characters';
@@ -1240,10 +1240,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get publishConfirm => 'Publish';
 
   @override
-  String get published => 'Deck published';
+  String get published => 'Note published';
 
   @override
-  String get unpublished => 'Deck is private again';
+  String get unpublished => 'Note is private again';
 
   @override
   String get todayTitle => 'Today\'s cards';
@@ -1252,19 +1252,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noCardsTitle => 'Make your first card?';
 
   @override
-  String get addCardsInDecks => 'Add cards in a deck';
+  String get addCardsInDecks => 'Add cards in a note';
 
   @override
-  String get emptyHomeTitle => 'Shall we make your first deck?';
+  String get emptyHomeTitle => 'Shall we make your first note?';
 
   @override
   String get createManually => 'Enter by hand';
 
   @override
-  String get browsePublicDecks => 'Browse public decks';
+  String get browsePublicDecks => 'Browse public notes';
 
   @override
-  String get newDeckTitle => 'Create a deck';
+  String get newDeckTitle => 'Create a note';
 
   @override
   String get newDeckBody => 'You can change the name later.';
@@ -1298,7 +1298,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabToday => 'Today';
 
   @override
-  String get tabDecks => 'Decks';
+  String get tabDecks => 'Notes';
 
   @override
   String get tabRecord => 'Record';
@@ -1307,10 +1307,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabsLabel => 'Tabs';
 
   @override
-  String get searchDecks => 'Search decks';
+  String get searchDecks => 'Search notes';
 
   @override
-  String get noDeckMatches => 'No deck matches. Try other words.';
+  String get noDeckMatches => 'No note matches. Try other words.';
 
   @override
   String deckMastered(int cards, int mastered) {
@@ -1431,7 +1431,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get todayDecks => 'Today\'s decks';
+  String get todayDecks => 'Today\'s notes';
 
   @override
   String deckDueCount(int count) {
@@ -1637,7 +1637,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String importDeck(String name) {
-    return 'Adds to the deck \'$name\'';
+    return 'Adds to the note \'$name\'';
   }
 
   @override
@@ -1724,7 +1724,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get importRemove => 'Remove';
 
   @override
-  String get importInDeck => 'Already in the deck';
+  String get importInDeck => 'Already in the note';
 
   @override
   String get editTitle => 'Edit card';
@@ -1979,7 +1979,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String spreadsheetDuplicateStored(int row) {
-    return 'Row $row is already in this deck';
+    return 'Row $row is already in this note';
   }
 
   @override

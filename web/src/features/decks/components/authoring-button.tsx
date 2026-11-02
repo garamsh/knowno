@@ -39,7 +39,7 @@ export function AuthoringButton({
   );
   const [camera, setCamera] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
-  const label = deck ? "카드 추가" : "새 덱 만들기";
+  const label = deck ? "카드 추가" : "새 노트 만들기";
   return (
     <>
       <button
@@ -53,7 +53,7 @@ export function AuthoringButton({
       </button>
       {screen === "options" && (
         <AuthoringSheet
-          title={deck ? "카드 추가" : "새 덱"}
+          title={deck ? "카드 추가" : "새 노트"}
           close={() => {
             setScreen(null);
           }}
@@ -151,7 +151,7 @@ function NewDeck({ close }: { close: () => void }) {
   const busy = useRef(false);
   const router = useRouter();
   return (
-    <AuthoringSheet title="새 덱" close={close}>
+    <AuthoringSheet title="새 노트" close={close}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -166,7 +166,7 @@ function NewDeck({ close }: { close: () => void }) {
                 router.refresh();
               } else setMessage(result.message);
             } catch {
-              setMessage("덱을 만들지 못했어요. 다시 시도해 주세요.");
+              setMessage("노트를 만들지 못했어요. 다시 시도해 주세요.");
             } finally {
               busy.current = false;
             }
@@ -313,7 +313,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
         else close();
       }}
     >
-      <p aria-label={`${deck.name} 덱`} className="mb-4 truncate px-1 text-caption text-muted">
+      <p aria-label={`${deck.name} 노트`} className="mb-4 truncate px-1 text-caption text-muted">
         {deck.name}
       </p>
       <div ref={form}>

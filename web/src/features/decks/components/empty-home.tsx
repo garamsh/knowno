@@ -39,7 +39,7 @@ export function EmptyHome() {
     <>
       <FirstRun
         id="empty-home-title"
-        title="첫 덱을 만들어 볼까요?"
+        title="첫 노트를 만들어 볼까요?"
         mascot="thinking"
         size="size-mascot-large"
       />
@@ -85,7 +85,7 @@ export function NoCardsHome({ decks }: { decks: Deck[] }) {
           href="/decks"
           className="pressable flex min-h-cta items-center justify-center rounded-button bg-primary px-5 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
-          덱에서 카드 추가
+          노트에서 카드 추가
         </Link>
       )}
     </>

@@ -330,7 +330,7 @@ describe("editCard", () => {
     db.rows.cards.push(stored("card", { updated_at: later }));
     expect(await edit("card", draftOf("card", glue("New", "뒤")))).toEqual({
       saved: false,
-      message: "다른 곳에서 더 나중에 고친 카드예요. 덱을 다시 열어 주세요.",
+      message: "다른 곳에서 더 나중에 고친 카드예요. 노트를 다시 열어 주세요.",
     });
     expect(db.rows.cards[0]).toMatchObject({ card_key: "old", updated_at: later });
     // Control: the same edit over an earlier time is written.
@@ -349,7 +349,7 @@ describe("editCard", () => {
     for (const id of ["gone", "foreign", "other"])
       expect(await edit(id, draftOf(id, glue("New", "뒤")))).toEqual({
         saved: false,
-        message: "카드를 찾을 수 없어요. 덱을 다시 열어 주세요.",
+        message: "카드를 찾을 수 없어요. 노트를 다시 열어 주세요.",
       });
     expect(db.rows.cards.filter(({ card_key }) => card_key === "new")).toHaveLength(0);
     expect(await edit("live", draftOf("live", glue("New", "뒤")))).toEqual({ saved: true });
@@ -414,7 +414,7 @@ describe("editCard", () => {
     expect(await editCard(uuidOf("gone"), uuidOf("card"), draftOf("card", glue("a", "b")))).toEqual(
       {
         saved: false,
-        message: "덱을 찾을 수 없어요. 추가할 덱을 다시 골라 주세요.",
+        message: "노트를 찾을 수 없어요. 추가할 노트를 다시 골라 주세요.",
       },
     );
     expect(await edit("live", draftOf("live", glue("a", "b")))).toEqual({ saved: true });

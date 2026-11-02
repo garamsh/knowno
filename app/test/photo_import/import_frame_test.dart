@@ -95,7 +95,7 @@ void main() {
         "key the side it asks", () async {
       final list = _list([_rowCard()]);
       final added = await repository.addCards(
-        const AddToNewDeck('덱'),
+        const AddToNewDeck('노트'),
         list.toImport(),
       );
 
@@ -112,7 +112,7 @@ void main() {
     test('a repeated import of two senses merges nothing, against a new '
         'sense, which appends a 글 of a back alone', () async {
       final first = await repository.addCards(
-        const AddToNewDeck('덱'),
+        const AddToNewDeck('노트'),
         _list([_rowCard()]).toImport(),
       );
       final deck = AddToDeck(first.deck.id);
@@ -137,7 +137,7 @@ void main() {
 
     test('the same two senses repeated after a merge onto a card of two sides '
         'stay one back', () async {
-      final deck = await repository.createDeck('덱');
+      final deck = await repository.createDeck('노트');
       await repository.addCard(
         deck.id,
         front: const [TextContent('face')],
@@ -169,7 +169,7 @@ void main() {
         kind: 'note',
         type: 'cloze',
       );
-      final deck = await repository.createDeck('덱');
+      final deck = await repository.createDeck('노트');
       await repository.addCard(
         deck.id,
         front: const [

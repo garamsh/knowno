@@ -21,8 +21,8 @@ describe("the shell's menus", () => {
 
   it.each([
     ["/", "오늘"],
-    ["/decks", "덱"],
-    ["/decks/d-fr", "덱"],
+    ["/decks", "노트"],
+    ["/decks/d-fr", "노트"],
     ["/record", "기록"],
   ])("on %s mark %s as the current page, in the side menu and the tab bar", (at, current) => {
     path = at;
@@ -33,7 +33,7 @@ describe("the shell's menus", () => {
       </>,
     );
     const [side, tabs] = screen.getAllByRole("navigation", { name: "주 메뉴" });
-    const pages = ["오늘 → /", "덱 → /decks", "기록 → /record"].map((link) =>
+    const pages = ["오늘 → /", "노트 → /decks", "기록 → /record"].map((link) =>
       link.startsWith(current) ? `${link} (current)` : link,
     );
 
@@ -56,7 +56,7 @@ describe("the shell's menus", () => {
     const menus = screen.getAllByRole("navigation", { name: "주 메뉴" });
     expect(menus).toHaveLength(2);
     for (const menu of menus) {
-      const current = within(menu).getByRole("link", { name: "덱" });
+      const current = within(menu).getByRole("link", { name: "노트" });
       expect(current).toHaveClass("text-label", "text-accent");
       // Control: another page takes neither.
       const other = within(menu).getByRole("link", { name: "기록" });
@@ -67,7 +67,7 @@ describe("the shell's menus", () => {
     if (!side || !tabs) throw new Error("the two menus are checked above");
     const pill = (menu: HTMLElement, name: string) =>
       within(menu).getByRole("link", { name }).querySelector("svg")?.parentElement;
-    expect(pill(side, "덱")).toHaveClass("bg-brand-tint");
+    expect(pill(side, "노트")).toHaveClass("bg-brand-tint");
     expect(pill(side, "기록")).not.toHaveClass("bg-brand-tint");
     // The tab bar's tabs are their names alone.
     expect(tabs.querySelector("svg")).toBeNull();

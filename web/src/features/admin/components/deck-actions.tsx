@@ -26,14 +26,14 @@ export function DeckActions({
       {state.hidden ? (
         <ConfirmAction
           label="숨김 해제"
-          question={`'${name}' 덱을 공개 목록에 다시 보일까요?`}
+          question={`'${name}' 노트를 공개 목록에 다시 보일까요?`}
           confirmLabel="숨김 해제"
           action={unhideDeck.bind(null, id)}
         />
       ) : (
         <ConfirmAction
           label="숨기기"
-          question={`'${name}' 덱을 공개 목록에서 숨길까요?`}
+          question={`'${name}' 노트를 공개 목록에서 숨길까요?`}
           confirmLabel="숨기기"
           action={hideDeck.bind(null, id)}
         />
@@ -41,7 +41,7 @@ export function DeckActions({
       {state.visibility === "public" && (
         <ConfirmAction
           label="비공개로 전환"
-          question={`'${name}' 덱을 비공개로 바꿀까요? 주인이 다시 공개할 수 있어요.`}
+          question={`'${name}' 노트를 비공개로 바꿀까요? 주인이 다시 공개할 수 있어요.`}
           confirmLabel="비공개로 전환"
           action={unpublishDeck.bind(null, id)}
         />
@@ -49,7 +49,7 @@ export function DeckActions({
       {reports > 0 && (
         <ConfirmAction
           label="신고 정리"
-          question={`'${name}' 덱의 신고 ${String(reports)}건을 정리할까요? 숨김은 그대로예요.`}
+          question={`'${name}' 노트의 신고 ${String(reports)}건을 정리할까요? 숨김은 그대로예요.`}
           confirmLabel="신고 정리"
           action={dismissReports.bind(null, id)}
         />

@@ -723,7 +723,7 @@ void main() {
       await typeBlock(tester, '  CHAT ');
       await typeBlock(tester, 'chat (talk)', 1);
       await screens.tap(find.text('Save'));
-      expect(shownText('This deck already has this card'), findsOneWidget);
+      expect(shownText('This note already has this card'), findsOneWidget);
       expect(
         shownText('Case and spacing are ignored when comparing.'),
         findsOneWidget,

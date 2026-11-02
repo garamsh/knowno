@@ -6,7 +6,7 @@ import { Skeleton, SkeletonLine } from "@/design/skeleton";
  */
 export function DeckSkeleton() {
   return (
-    <Skeleton status="덱을 불러오는 중이에요." className="flex flex-col gap-5">
+    <Skeleton status="노트를 불러오는 중이에요." className="flex flex-col gap-5">
       <span className="min-h-tap-target" />
       <div className="flex items-center gap-3.5">
         <span className="size-13 shrink-0 rounded-field bg-hairline" />

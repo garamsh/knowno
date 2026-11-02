@@ -17,7 +17,7 @@ export function UserView({ user, timeZone }: { user: AdminUser; timeZone: string
       "마지막 학습",
       user.lastAnswerAt === null ? "없어요" : formatTime(user.lastAnswerAt, timeZone),
     ],
-    ["덱", `${String(user.decks)}개`],
+    ["노트", `${String(user.decks)}개`],
     ["카드", `${String(user.cards)}장`],
     ...(user.plan.entitlement === null
       ? []
@@ -45,11 +45,11 @@ export function UserView({ user, timeZone }: { user: AdminUser; timeZone: string
       </dl>
       <UserPlan userId={user.id} email={user.email} plan={user.plan} timeZone={timeZone} />
       <UserDecks decks={user.allDecks} />
-      <AdminSection label="공개 덱">
+      <AdminSection label="공개 노트">
         <PublicDecks
           decks={user.publicDecks}
           timeZone={timeZone}
-          empty="공개한 덱이 없어요. 이 사용자가 덱을 공개하면 여기에 보여요."
+          empty="공개한 노트가 없어요. 이 사용자가 노트를 공개하면 여기에 보여요."
         />
       </AdminSection>
       <UserSuspension

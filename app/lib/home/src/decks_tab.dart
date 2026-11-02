@@ -15,8 +15,8 @@ import 'new_deck_sheet.dart';
 import 'progress_bar.dart';
 import '../../design/word_break.dart';
 
-/// The 덱 tab: "내 덱 n", a search by name, a row per deck with its progress
-/// and today's count, then "새 덱 만들기", which opens the new-deck sheet, and
+/// The 노트 tab: "내 노트 n", a search by name, a row per deck with its progress
+/// and today's count, then "새 노트 만들기", which opens the new-deck sheet, and
 /// the public decks.
 class DecksTab extends ConsumerStatefulWidget {
   const DecksTab({super.key, required this.decks, required this.counts});

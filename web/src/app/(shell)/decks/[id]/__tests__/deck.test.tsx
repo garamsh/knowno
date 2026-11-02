@@ -101,7 +101,7 @@ describe("the deck page", () => {
       "text-on-primary",
     );
     expectTextReadable(card);
-    expect(screen.getByRole("link", { name: "덱" })).toHaveAttribute("href", "/decks");
+    expect(screen.getByRole("link", { name: "노트" })).toHaveAttribute("href", "/decks");
   });
 
   it("draws the cards as one group of rows, a hidden back as nothing, and names the deck once", async () => {
@@ -221,14 +221,14 @@ describe("the deck page", () => {
     expect(typeSizesOf(document.body)).toEqual([13, 16, 28]);
   });
 
-  it("keeps the way back to 덱 and a heading above a failed read, with 다시 시도", async () => {
+  it("keeps the way back to 노트 and a heading above a failed read, with 다시 시도", async () => {
     server.use(supabaseUnreachable);
     await open("d-fr");
 
     expect(
-      within(screen.getByRole("navigation", { name: "위치" })).getByRole("link", { name: "덱" }),
+      within(screen.getByRole("navigation", { name: "위치" })).getByRole("link", { name: "노트" }),
     ).toHaveAttribute("href", "/decks");
-    const heading = screen.getByRole("heading", { level: 1, name: "덱을 불러오지 못했어요" });
+    const heading = screen.getByRole("heading", { level: 1, name: "노트를 불러오지 못했어요" });
     const alert = screen.getByRole("alert");
     expect(heading.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(alert).toHaveTextContent("서버에 연결할 수 없어요.");
@@ -560,11 +560,11 @@ describe("the deck page", () => {
     expect(rows()).toEqual(["Chat, 뒷면 가려짐", "chien, 뒷면 가려짐", "oiseau, 뒷면 가려짐"]);
   });
 
-  it("leads back to 덱 with a chevron, on a target at least the tap target high and wide", async () => {
+  it("leads back to 노트 with a chevron, on a target at least the tap target high and wide", async () => {
     await open("d-fr");
 
     const back = within(screen.getByRole("navigation", { name: "위치" })).getByRole("link", {
-      name: "덱",
+      name: "노트",
     });
     expect(back).toHaveAttribute("href", "/decks");
     expect(back.querySelector("svg")).toHaveAttribute("aria-hidden", "true");

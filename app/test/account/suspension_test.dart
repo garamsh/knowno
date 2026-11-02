@@ -78,7 +78,7 @@ void main() {
         .pushDecks(UserId(client.auth.currentUser!.id), [
           DeckRow(
             id: const Uuid().v7(),
-            name: 'Deck',
+            name: 'Note',
             visibility: 'private',
             createdAt: now,
             updatedAt: now,

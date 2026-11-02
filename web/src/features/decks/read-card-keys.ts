@@ -9,7 +9,7 @@ import { parseDeckId } from "./library";
 
 /**
  * The card keys the signed-in user's deck [deckId] holds, which the photo review list marks
- * "이미 덱에 있어요"; null when the deck or the session cannot be read.
+ * "이미 노트에 있어요"; null when the deck or the session cannot be read.
  */
 export async function readCardKeys(deckId: string): Promise<string[] | null> {
   if (!parseDeckId(deckId)) return null;

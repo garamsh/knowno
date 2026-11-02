@@ -99,7 +99,7 @@ describe("the admin area's gate", () => {
     ).toEqual([
       "개요",
       "신고",
-      "공개 덱",
+      "공개 노트",
       "사용자",
       "요금제",
       "프롬프트",
@@ -243,7 +243,7 @@ describe("the reports page", () => {
     const user = userEvent.setup();
     await render(ReportsContent, {});
     await user.click(screen.getByRole("button", { name: "숨기기" }));
-    const question = screen.getByRole("group", { name: "'French' 덱을 공개 목록에서 숨길까요?" });
+    const question = screen.getByRole("group", { name: "'French' 노트를 공개 목록에서 숨길까요?" });
     expect(within(question).getByRole("button", { name: "숨기기" })).toHaveFocus();
     // A reversible action's confirm comes last, after 취소, in the ink fill.
     expect(
@@ -264,7 +264,7 @@ describe("the reports page", () => {
         name: "숨기기",
       }),
     );
-    expect(await screen.findByText("덱을 숨겼어요.")).toHaveAttribute("role", "status");
+    expect(await screen.findByText("노트를 숨겼어요.")).toHaveAttribute("role", "status");
     expect(admin.decks[0]?.hidden).toBe(true);
     expect(admin.audit).toMatchObject([{ action: "hide_deck", target_id: french }]);
     expect(revalidated).toEqual(["/admin"]);
@@ -274,7 +274,7 @@ describe("the reports page", () => {
     admin.decks.length = 0;
     await render(ReportsContent, {});
     expect(
-      screen.getByText("신고된 덱이 없어요. 새 신고가 들어오면 여기에 보여요."),
+      screen.getByText("신고된 노트가 없어요. 새 신고가 들어오면 여기에 보여요."),
     ).toBeInTheDocument();
   });
 });
@@ -292,12 +292,12 @@ describe("the moderation actions", () => {
   });
 
   it("each change the deck for an admin, and say when there was nothing to change", async () => {
-    expect(await hideDeck(french)).toEqual({ changed: true, message: "덱을 숨겼어요." });
-    expect(await hideDeck(french)).toEqual({ changed: false, message: "이미 숨겨진 덱이에요." });
+    expect(await hideDeck(french)).toEqual({ changed: true, message: "노트를 숨겼어요." });
+    expect(await hideDeck(french)).toEqual({ changed: false, message: "이미 숨겨진 노트예요." });
     expect(await unpublishDeck(french)).toEqual({ changed: true, message: "비공개로 바꿨어요." });
     expect(await unpublishDeck(french)).toEqual({
       changed: false,
-      message: "이미 비공개인 덱이에요.",
+      message: "이미 비공개인 노트예요.",
     });
     expect(await dismissReports(french)).toEqual({
       changed: true,
@@ -345,7 +345,7 @@ describe("the public decks page", () => {
     expect(screen.queryByText("Diary")).not.toBeInTheDocument();
 
     await render(PublicDecksContent, { searchParams: Promise.resolve({ q: "spanish" }) });
-    expect(screen.getByText("찾는 덱이 없어요. 다른 단어로 검색해 보세요.")).toBeInTheDocument();
+    expect(screen.getByText("찾는 노트가 없어요. 다른 단어로 검색해 보세요.")).toBeInTheDocument();
   });
 });
 
@@ -478,7 +478,7 @@ describe("removing a deck from sharing", () => {
     });
     expect(await removeDeck(french, "spam")).toEqual({
       changed: false,
-      message: "이미 공유에서 삭제된 덱이에요.",
+      message: "이미 공유에서 삭제된 노트예요.",
     });
     expect(admin.audit).toHaveLength(1);
   });
@@ -519,7 +519,9 @@ describe("the users pages", () => {
     expect(screen.getByText("이번 달 사진 추출").nextSibling).toHaveTextContent("4장 / 한 달 10장");
     expect(screen.getByText("마지막 학습").nextSibling).toHaveTextContent("2026-10-18 09:30");
     expect(
-      within(screen.getByRole("region", { name: "공개 덱" })).getByRole("link", { name: "French" }),
+      within(screen.getByRole("region", { name: "공개 노트" })).getByRole("link", {
+        name: "French",
+      }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /삭제|편집/ })).not.toBeInTheDocument();
   });
@@ -611,7 +613,7 @@ describe("the users pages", () => {
 
   it("lists every live deck of a user, private ones too, each opening the deck", async () => {
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
-    const decks = within(screen.getByRole("region", { name: "덱" }));
+    const decks = within(screen.getByRole("region", { name: "노트" }));
     expect(decks.getByRole("link", { name: /Diary/ })).toHaveAttribute(
       "href",
       `/admin/decks/${diary}`,
@@ -747,7 +749,7 @@ describe("the audit log", () => {
     await render(AuditContent, {});
     expect(screen.getAllByRole("listitem").map((entry) => entry.firstChild?.textContent)).toEqual([
       "관리자 지정 · other@example.com",
-      "덱 숨기기 · French",
+      "노트 숨기기 · French",
     ]);
     expect(screen.getByRole("link", { name: "French" })).toHaveAttribute(
       "href",

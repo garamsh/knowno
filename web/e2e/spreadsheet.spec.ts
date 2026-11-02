@@ -84,7 +84,7 @@ test("adds a deck's cards from a small .xlsx after review, and the server holds 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/decks");
   await untilReacted(
-    () => page.getByRole("button", { name: "새 덱 만들기", exact: true }).click(),
+    () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
   await page.getByRole("button", { name: "파일에서 고르기", exact: true }).click();

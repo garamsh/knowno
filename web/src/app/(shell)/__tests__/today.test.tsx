@@ -18,7 +18,7 @@ import { Study } from "../../study/_components/study";
 import { Today } from "../_components/today";
 import { Decks } from "../decks/_components/decks";
 
-/** The 오늘 page's content and the 덱 page's, rendered one after the other. */
+/** The 오늘 page's content and the 노트 page's, rendered one after the other. */
 const renderBoth = () =>
   render(
     async () => (
@@ -42,7 +42,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const due = { stability: 3, difficulty: 5, lastReview: start - 4 * day, due: start - day };
 const notDue = { stability: 30, difficulty: 5, lastReview: start - day, due: start + 9 * day };
 
-describe("the 오늘 and 덱 pages", () => {
+describe("the 오늘 and 노트 pages", () => {
   let postgrest: FakePostgrest;
   beforeEach(async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -56,7 +56,7 @@ describe("the 오늘 and 덱 pages", () => {
   });
 
   /** The row of the deck named [name]: a link named for the deck, its count and its chip. */
-  const deckList = () => within(screen.getByRole("region", { name: "덱 목록" }));
+  const deckList = () => within(screen.getByRole("region", { name: "노트 목록" }));
   const row = (name: string) =>
     deckList().getByRole("link", { name: new RegExp(`^${name}, 카드`) });
   /**
@@ -99,7 +99,7 @@ describe("the 오늘 and 덱 pages", () => {
       "href",
       `/study?decks=${uuidOf("d-fr")},${uuidOf("d-es")}`,
     );
-    expect(screen.getByRole("heading", { name: "내 덱 2" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "내 노트 2" })).toBeInTheDocument();
     expect(rowNames()).toEqual(["French, 카드 3장, 오늘 2", "Spanish, 카드 1장"]);
     expect(row("French")).toHaveAttribute("href", `/decks/${uuidOf("d-fr")}`);
   });
@@ -212,7 +212,7 @@ describe("the 오늘 and 덱 pages", () => {
     expect(rowNames()).toEqual(["French, 카드 1장, 오늘 1"]);
     expect(cardsLeft()).toBe(1);
     // Control: the live deck and its live card are read and shown.
-    expect(screen.getByRole("heading", { name: "내 덱 1" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "내 노트 1" })).toBeInTheDocument();
   });
 
   it("leaves out another user's public deck, which row-level security lets it read", async () => {
@@ -413,7 +413,7 @@ describe("the 오늘 and 덱 pages", () => {
     await renderBoth();
 
     // Control: the deck list itself rendered.
-    expect(screen.getByRole("heading", { name: "내 덱 1" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "내 노트 1" })).toBeInTheDocument();
     expect(screen.queryByText(testUser.email, { exact: false })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "로그아웃" })).not.toBeInTheDocument();
   });
@@ -455,13 +455,13 @@ describe("the 오늘 and 덱 pages", () => {
     await render(Decks, {});
     const user = userEvent.setup();
 
-    await user.type(screen.getByRole("searchbox", { name: "덱 검색" }), "fre");
+    await user.type(screen.getByRole("searchbox", { name: "노트 검색" }), "fre");
     expect(rowNames()).toEqual(["French, 카드 0장"]);
 
-    await user.clear(screen.getByRole("searchbox", { name: "덱 검색" }));
-    await user.type(screen.getByRole("searchbox", { name: "덱 검색" }), "zèbre");
+    await user.clear(screen.getByRole("searchbox", { name: "노트 검색" }));
+    await user.type(screen.getByRole("searchbox", { name: "노트 검색" }), "zèbre");
     expect(screen.getByRole("status")).toHaveTextContent(
-      "찾는 덱이 없어요. 다른 단어로 검색해 보세요.",
+      "찾는 노트가 없어요. 다른 단어로 검색해 보세요.",
     );
   });
 
@@ -750,7 +750,7 @@ describe("the 오늘 and 덱 pages", () => {
     postgrest.seed("card_states", stateRow("fr-due", due), stateRow("es-later", notDue));
     await render(Today, {});
 
-    const decks = within(screen.getByRole("region", { name: "오늘 할 덱" }));
+    const decks = within(screen.getByRole("region", { name: "오늘 할 노트" }));
     expect(decks.getAllByRole("link").map((link) => link.getAttribute("aria-label"))).toEqual([
       "French, 오늘 2장 학습",
     ]);
@@ -770,7 +770,7 @@ describe("the 오늘 and 덱 pages", () => {
 
     expect(study).toHaveAttribute("aria-keyshortcuts", "Enter");
     // Control: Enter on another link is that link's own.
-    within(screen.getByRole("region", { name: "오늘 할 덱" }))
+    within(screen.getByRole("region", { name: "오늘 할 노트" }))
       .getByRole("link")
       .focus();
     await user.keyboard("{Enter}");
@@ -829,15 +829,15 @@ describe("the 오늘 and 덱 pages", () => {
     );
   });
 
-  it("shows the first-run invitation in place of the today card on 오늘 and of the list on 덱 when there is no deck", async () => {
-    const title = "첫 덱을 만들어 볼까요?";
+  it("shows the first-run invitation in place of the today card on 오늘 and of the list on 노트 when there is no deck", async () => {
+    const title = "첫 노트를 만들어 볼까요?";
     // Control: a user with one deck, its card not due, sees the done card and the list, and no
     // invitation.
     postgrest.seed("decks", deckRow("d-fr", "French"));
     postgrest.seed("cards", cardRow("c-chat", "d-fr", "chat"));
     postgrest.seed("card_states", stateRow("c-chat", notDue));
     await renderBoth();
-    expect(screen.getByRole("heading", { name: "내 덱 1" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "내 노트 1" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "오늘 할 카드를 다 했어요" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: title })).not.toBeInTheDocument();
     cleanup();
@@ -851,10 +851,10 @@ describe("the 오늘 and 덱 pages", () => {
       // The first-run home is headed by the mark, the thinking mascot.
       expect(document.querySelector('img[src*="knowno-thinking"]')).not.toBeNull();
       expect(screen.queryByRole("heading", { name: /^오늘 할 카드/ })).not.toBeInTheDocument();
-      expect(screen.queryByRole("region", { name: "덱 목록" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "노트 목록" })).not.toBeInTheDocument();
       // First-run creation is available on the web.
       expect(screen.queryByRole("link")).not.toBeInTheDocument();
-      const create = screen.getByRole("button", { name: "새 덱 만들기" });
+      const create = screen.getByRole("button", { name: "새 노트 만들기" });
       // On 오늘 the first deck is the page's one way on, in the coral fill.
       if (page === Today) expect(create).toHaveClass("bg-primary");
       cleanup();
@@ -880,7 +880,7 @@ describe("the 오늘 and 덱 pages", () => {
     // With several decks, it leads to the deck list instead.
     postgrest.seed("decks", deckRow("d-de", "German"));
     await render(Today, {});
-    expect(screen.getByRole("link", { name: "덱에서 카드 추가" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "노트에서 카드 추가" })).toHaveAttribute(
       "href",
       "/decks",
     );
@@ -922,7 +922,7 @@ describe("the 오늘 and 덱 pages", () => {
     expect(bars("bg-streak")).toBe(0);
   });
 
-  it("draws 오늘 and 덱 in three sizes, the title, the body and the caption, in every state", async () => {
+  it("draws 오늘 and 노트 in three sizes, the title, the body and the caption, in every state", async () => {
     const overdue = {
       stability: 30,
       difficulty: 5,
@@ -930,7 +930,7 @@ describe("the 오늘 and 덱 pages", () => {
       due: start - day,
     };
     const states: [string, () => void][] = [
-      ["첫 덱을 만들어 볼까요?", () => undefined],
+      ["첫 노트를 만들어 볼까요?", () => undefined],
       [
         "첫 카드를 만들어 볼까요?",
         () => {
@@ -980,7 +980,7 @@ describe("the 오늘 and 덱 pages", () => {
           state,
           // A first run is its heading, one sentence and one action: it draws no caption.
           sizes:
-            state === "첫 덱을 만들어 볼까요?" || (state.startsWith("첫 ") && page === Today)
+            state === "첫 노트를 만들어 볼까요?" || (state.startsWith("첫 ") && page === Today)
               ? [16, 28]
               : [13, 16, 28],
         });

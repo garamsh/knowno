@@ -137,9 +137,9 @@ void main() {
     (tester) async {
       final app = await _openSpanish(tester);
 
-      await app.tapText('Add to my decks');
+      await app.tapText('Add to my notes');
       expect(
-        find.text('Creates the deck "Spanish" with every card.'),
+        find.text('Creates the note "Spanish" with every card.'),
         findsOneWidget,
       );
       await app.tapText('Add');
@@ -187,8 +187,8 @@ void main() {
       (tester) async {
         final app = await _openSpanish(tester);
 
-        await app.tapText('Add to my decks');
-        await app.tapText('Into a deck');
+        await app.tapText('Add to my notes');
+        await app.tapText('Into a note');
         // Nothing is chosen yet, so nothing can be added.
         expect(
           tester
@@ -222,10 +222,10 @@ void main() {
       final app = await _openSpanish(tester);
       app.server.decks = [];
 
-      await app.tapText('Add to my decks');
+      await app.tapText('Add to my notes');
       await app.tapText('Add');
 
-      expect(find.text('This deck is no longer public.'), findsOneWidget);
+      expect(find.text('This note is no longer public.'), findsOneWidget);
       final names = await tester.runAsync(
         () async => [
           for (final deck in await app.decks.watchDecks().first) deck.name,
@@ -241,7 +241,7 @@ void main() {
   ) async {
     final app = await _openSpanish(tester);
 
-    await app.deckMenu('Report deck');
+    await app.deckMenu('Report note');
     final report = find.widgetWithText(FilledButton, 'Report');
     expect(tester.widget<FilledButton>(report).onPressed, isNull);
     // The sheet is dismissed by a drag or the scrim, so it offers no cancel.
@@ -262,10 +262,10 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
 
-    await app.deckMenu('Report deck');
+    await app.deckMenu('Report note');
     await app.tapText('Other');
     await app.tap(find.widgetWithText(FilledButton, 'Report'));
-    expect(find.text("You've already reported this deck."), findsOneWidget);
+    expect(find.text("You've already reported this note."), findsOneWidget);
     expect(app.server.reports, hasLength(1));
     await app.close();
   });
@@ -300,7 +300,7 @@ void main() {
     await app.tapText('Cancel');
 
     expect(app.server.blocked, isEmpty);
-    expect(find.text('Add to my decks'), findsOneWidget);
+    expect(find.text('Add to my notes'), findsOneWidget);
     await app.close();
   });
 
@@ -310,13 +310,13 @@ void main() {
       (tester) async {
         final app = await _openSpanish(tester, themeMode: mode);
         await app.meetsGuidelines();
-        await app.tapText('Add to my decks');
+        await app.tapText('Add to my notes');
         await app.meetsGuidelines();
-        await app.tapText('Into a deck');
+        await app.tapText('Into a note');
         await app.meetsGuidelines();
         await tester.tapAt(const Offset(10, 10));
         await tester.pumpAndSettle();
-        await app.deckMenu('Report deck');
+        await app.deckMenu('Report note');
         await app.meetsGuidelines();
         await app.close();
       },

@@ -141,7 +141,7 @@ export function ImportList({
 }
 
 /**
- * "덱 'name'에 추가돼요", or "새 덱에 추가돼요" while no deck is chosen, the name a button that
+ * "노트 'name'에 추가돼요", or "새 노트에 추가돼요" while no deck is chosen, the name a button that
  * opens the deck chooser, as the phone's `_DeckLine`.
  */
 function DeckLine({ name, choose }: { name: string | null; choose: () => void }) {
@@ -151,12 +151,12 @@ function DeckLine({ name, choose }: { name: string | null; choose: () => void })
       onClick={choose}
       className="pressable inline-flex min-h-tap-target items-center font-semibold text-ink underline underline-offset-4"
     >
-      {name ?? "새 덱"}
+      {name ?? "새 노트"}
     </button>
   );
   return (
     <p className="text-label break-keep text-muted">
-      {name === null ? <>{button}에 추가돼요</> : <>덱 &apos;{button}&apos;에 추가돼요</>}
+      {name === null ? <>{button}에 추가돼요</> : <>노트 &apos;{button}&apos;에 추가돼요</>}
     </p>
   );
 }
@@ -164,7 +164,7 @@ function DeckLine({ name, choose }: { name: string | null; choose: () => void })
 /**
  * A candidate's row, as the phone's `_RowTile`: its round check, then its first card in its
  * section's form, the front at 44% of the row beside its back, or a whole card's front; muted
- * while left out, and "이미 덱에 있어요" under it while the chosen deck holds it.
+ * while left out, and "이미 노트에 있어요" under it while the chosen deck holds it.
  */
 function CandidateRow({
   card,
@@ -184,7 +184,7 @@ function CandidateRow({
   const [shown] = cardsOf(card, form);
   const { front, back } = sidesOf(parseCells(shown?.blocks) ?? []);
   const note = inDeck && (
-    <span className="mt-1 block text-caption text-muted">이미 덱에 있어요</span>
+    <span className="mt-1 block text-caption text-muted">이미 노트에 있어요</span>
   );
   return (
     <li className="flex min-w-0 items-start">

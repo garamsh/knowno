@@ -360,7 +360,7 @@ void main() {
       await tap(tester, find.text(ko.createManually));
       await shot(tester, '03-new-deck-sheet');
       await enter(ko.deckName, '영단어 기본');
-      // Creating the deck offers 덱 꾸미기, then opens it, empty, adding a
+      // Creating the deck offers 노트 꾸미기, then opens it, empty, adding a
       // card its one primary.
       await tap(tester, find.text(ko.create));
       await tap(tester, find.bySemanticsLabel(ko.deckIconName('languages')));
@@ -377,7 +377,7 @@ void main() {
       await tap(tester, find.text(ko.createManually));
       await enter(ko.deckName, '일본어 N3 한자');
       await tap(tester, find.text(ko.create));
-      // Dismissing 덱 꾸미기 keeps this deck's default tile.
+      // Dismissing 노트 꾸미기 keeps this deck's default tile.
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await tester.binding.handlePopRoute();
@@ -2068,7 +2068,7 @@ void main() {
       await tap(tester, find.text(ko.createManually));
       await tester.enterText(find.byType(EditableText), '영단어 기본');
       await tap(tester, find.text(ko.create));
-      // Dismissing 덱 꾸미기 keeps the default tile and opens the deck, which
+      // Dismissing 노트 꾸미기 keeps the default tile and opens the deck, which
       // back leaves.
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();

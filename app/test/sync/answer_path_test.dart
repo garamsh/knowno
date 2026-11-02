@@ -76,13 +76,13 @@ void main() {
       tester.element(find.byType(HomeScreen)),
     ).read(syncControllerProvider);
 
-    await tapAndSettle(tester, 'Create a deck');
+    await tapAndSettle(tester, 'Create a note');
     await tapAndSettle(tester, 'Enter by hand');
     await tester.enterText(
-      find.widgetWithText(AppTextField, 'Deck name'),
+      find.widgetWithText(AppTextField, 'Note name'),
       'French',
     );
-    // Creating the deck offers 덱 꾸미기, then opens it.
+    // Creating the deck offers 노트 꾸미기, then opens it.
     await tapAndSettle(tester, 'Create');
     await tapAndSettle(tester, 'Save');
     for (final (front, back) in [('Chat', 'cat'), ('Chien', 'dog')]) {

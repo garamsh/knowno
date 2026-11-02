@@ -91,7 +91,7 @@ class DeckRow extends StatelessWidget {
 /// device shows the icon until it is.
 ///
 /// [icon], [color] and [image] are drawn in place of the deck's own, as the
-/// 덱 꾸미기 sheet previews a choice; [size] is the tile's side.
+/// 노트 꾸미기 sheet previews a choice; [size] is the tile's side.
 class DeckTile extends StatelessWidget {
   const DeckTile({
     super.key,

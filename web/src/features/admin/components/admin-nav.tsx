@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const sections = [
   { href: "/admin", label: "개요" },
   { href: "/admin/reports", label: "신고" },
-  { href: "/admin/decks", label: "공개 덱" },
+  { href: "/admin/decks", label: "공개 노트" },
   { href: "/admin/users", label: "사용자" },
   { href: "/admin/plans", label: "요금제" },
   { href: "/admin/prompts", label: "프롬프트" },

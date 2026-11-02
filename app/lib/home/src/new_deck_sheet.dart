@@ -70,7 +70,7 @@ Future<void> showNewDeckSheet(BuildContext context, WidgetRef ref) async {
   }
 }
 
-/// Asks for a name, creates an empty deck with it, offers 덱 꾸미기 on it,
+/// Asks for a name, creates an empty deck with it, offers 노트 꾸미기 on it,
 /// whose dismissal keeps the default tile, and opens it, as a photo import
 /// opens the deck it saved into.
 Future<void> createDeckByHand(BuildContext context, WidgetRef ref) async {

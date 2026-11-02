@@ -18,9 +18,9 @@ describe("the error page", () => {
 });
 
 describe("the not-found page", () => {
-  it("links 덱 목록 to the deck list it names", () => {
+  it("links 노트 목록 to the deck list it names", () => {
     render(<NotFound />);
 
-    expect(screen.getByRole("link", { name: "덱 목록" })).toHaveAttribute("href", "/decks");
+    expect(screen.getByRole("link", { name: "노트 목록" })).toHaveAttribute("href", "/decks");
   });
 });

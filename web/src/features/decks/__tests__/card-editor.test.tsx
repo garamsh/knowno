@@ -368,7 +368,7 @@ describe("a stored card", () => {
     await userEvent.clear(screen.getByRole("textbox", { name: "앞면" }));
     await userEvent.type(screen.getByRole("textbox", { name: "앞면" }), "New");
     await userEvent.click(screen.getByRole("button", { name: "저장" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("이 덱에 이미 있는 카드예요");
+    expect(await screen.findByRole("alert")).toHaveTextContent("이 노트에 이미 있는 카드예요");
     await userEvent.click(screen.getByRole("button", { name: "그래도 저장" }));
     await waitFor(() => {
       expect(db.rows.cards.find(({ id }) => id === uuidOf("card"))?.card_key).toBe("new");

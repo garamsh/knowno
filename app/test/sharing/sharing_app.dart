@@ -95,7 +95,7 @@ class SharingApp {
     );
     await tester.pumpAndSettle();
     // The decks tab, where the user's decks are listed, once there is one.
-    if (find.text('Decks').evaluate().isNotEmpty) await app.tapText('Decks');
+    if (find.text('Notes').evaluate().isNotEmpty) await app.tapText('Notes');
     return app;
   }
 
@@ -108,11 +108,11 @@ class SharingApp {
 
   /// Opens the browse screen from the decks tab, or from the first-run home
   /// before the first deck.
-  Future<void> browse() => tapText('Browse public decks');
+  Future<void> browse() => tapText('Browse public notes');
 
   /// Opens the deck menu of the open screen, then the item [item].
   Future<void> deckMenu(String item) async {
-    await tap(find.byTooltip('Deck actions'));
+    await tap(find.byTooltip('Note actions'));
     await tapText(item);
   }
 

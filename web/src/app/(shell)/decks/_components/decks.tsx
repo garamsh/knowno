@@ -13,7 +13,7 @@ export async function Decks() {
   const [read, today] = await Promise.all([readDeckList(), readToday()]);
   const failure = (failure: LibraryFailure) => (
     <>
-      <h1 className="text-display">내 덱</h1>
+      <h1 className="text-display">내 노트</h1>
       <ReadFailure failure={failure} />
     </>
   );
@@ -23,7 +23,7 @@ export async function Decks() {
   const { day, states, answers } = today.today;
   const heading = (
     <h1 className="text-display">
-      내 덱 <span className="text-muted">{decks.length}</span>
+      내 노트 <span className="text-muted">{decks.length}</span>
     </h1>
   );
   if (decks.length === 0) {

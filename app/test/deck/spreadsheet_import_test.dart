@@ -358,7 +358,7 @@ void main() {
           () => Future<void>.delayed(const Duration(milliseconds: 50)),
         );
         await tester.pumpAndSettle();
-        // A new deck is offered 덱 꾸미기, whose dismissal keeps the default.
+        // A new deck is offered 노트 꾸미기, whose dismissal keeps the default.
         expect(find.bySemanticsLabel(ko.deckAppearance), findsOneWidget);
         await tester.tapAt(const Offset(195, 8));
         await tester.pumpAndSettle();

@@ -1,6 +1,6 @@
 # ADR 0118: Name each concept once, write each role in one form, hold every screen to one set of visual details, and redraw settings and the deck screen by them
 
-> Status: accepted
+> Status: accepted; its term 덱 superseded by ADR-0148
 > Date: 2026-10-27
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

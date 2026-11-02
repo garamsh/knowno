@@ -404,7 +404,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     });
   }
 
-  /// Opens 덱 꾸미기 on [deck] as stored now, and stores the pair chosen.
+  /// Opens 노트 꾸미기 on [deck] as stored now, and stores the pair chosen.
   Future<void> _customize(Deck deck) async {
     final repository = ref.read(deckRepositoryProvider);
     final chosen = await showDeckAppearanceSheet(context, deck: deck);

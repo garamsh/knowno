@@ -25,7 +25,7 @@ import 'first_run.dart';
 /// card with 학습하기 and the last seven days. The last seven days open 기록
 /// through [onShowRecord]. While no deck holds a card, by
 /// [counts], how to start: with one deck, adding cards to it; with more,
-/// [onShowDecks], which shows the 덱 tab. Showing a day with cards, it asks for
+/// [onShowDecks], which shows the 노트 tab. Showing a day with cards, it asks for
 /// the daily study minutes once ([FirstDailyMinutes]).
 class TodayTab extends StatelessWidget {
   const TodayTab({
@@ -128,7 +128,7 @@ class TodayTab extends StatelessWidget {
 }
 
 /// How to start while no deck holds a card, the mascot glad of the deck just
-/// made: add cards to the one deck; with more decks, go to the 덱 tab to add
+/// made: add cards to the one deck; with more decks, go to the 노트 tab to add
 /// cards in one of them.
 class _NoCards extends StatelessWidget {
   const _NoCards({required this.decks, required this.onShowDecks});
@@ -699,7 +699,7 @@ class _DayBars extends StatelessWidget {
   }
 }
 
-/// "오늘 할 덱" and a row for each deck with cards left today, which studies
+/// "오늘 할 노트" and a row for each deck with cards left today, which studies
 /// that deck.
 class _TodayDecks extends StatelessWidget {
   const _TodayDecks({required this.decks});

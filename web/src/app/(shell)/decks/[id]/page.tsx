@@ -10,13 +10,13 @@ import { readDeck } from "./_components/read-deck";
 
 /**
  * The deck's name as the page's title, from the read the page makes; a deck that does not exist
- * is not found, as on the page, and a failed read leaves the title 덱's.
+ * is not found, as on the page, and a failed read leaves the title 노트's.
  */
 export async function generateMetadata({ params }: PageProps<"/decks/[id]">): Promise<Metadata> {
   const deckId = parseDeckId((await params).id);
   if (!deckId) notFound();
   const read = await readDeck(deckId);
-  if ("failure" in read) return { title: "덱 · 알아몰라" };
+  if ("failure" in read) return { title: "노트 · 알아몰라" };
   const deck = read.library.decks.find((candidate) => candidate.id === deckId);
   if (!deck) notFound();
   return { title: `${deck.name} · 알아몰라` };
