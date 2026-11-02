@@ -18,6 +18,7 @@ import {
   uuidOf,
 } from "@/testing/library";
 import { chipTone } from "@/testing/chip";
+import { layOutLines, zoomOf } from "@/testing/line-widths";
 import { supabaseUrl, testUser } from "@/testing/mocks/handlers";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { server } from "@/testing/mocks/server";
@@ -562,6 +563,8 @@ describe("the study page", () => {
         }),
       );
       postgrest.seed("reviews", reviewRow("r-deux", "deux", start - hour, 1_000));
+      // A place 100 px wide, narrower than the notice's line.
+      const restore = layOutLines(100);
       await open("d1");
       // It arrives once the status region is there, and leaves after 3 s, which
       // `live-regions.test.tsx` times with fake timers.
@@ -574,6 +577,9 @@ describe("the study page", () => {
       expect(status.parentElement).toBe(bar.parentElement);
       expect(status.className).toContain("absolute inset-0");
       expect(bar.className).toContain("invisible");
+      // On one line, shrunk to the place, as the phone fits it.
+      expect(zoomOf(within(status).getByText(/^이어서 해요/))).toBeLessThan(1);
+      restore();
       cleanup();
 
       // Control: with nothing done today, nothing is said.

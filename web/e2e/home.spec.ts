@@ -111,6 +111,40 @@ function clipped(page: Page): Promise<string[]> {
   );
 }
 
+/**
+ * Checks that [control] sits on its 7 px button edge in the colour of the token [token], at 390
+ * and 1280 px in both themes, as the phone's `AppButton` draws its variant's edge. It leaves the
+ * page at 390 px in the light theme.
+ */
+async function expectEdge(page: Page, control: Locator, token: string) {
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme });
+      const { edge, colour } = await control.evaluate((element, name) => {
+        const probe = document.createElement("span");
+        probe.style.color = `var(${name})`;
+        document.body.append(probe);
+        const resolved = getComputedStyle(probe).color;
+        probe.remove();
+        return { edge: getComputedStyle(element).boxShadow, colour: resolved };
+      }, token);
+      expect(edge, `${token} at ${String(width)} in ${colorScheme}`).toBe(
+        `${colour} 0px 7px 0px 0px`,
+      );
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "light" });
+}
+
+/** The height [field] is drawn at, in px. */
+async function fieldHeight(field: Locator): Promise<number> {
+  const box = await field.boundingBox();
+  if (!box) throw new Error("the field is drawn");
+  return box.height;
+}
+
 /** How many lines [button]'s label takes. */
 function labelLines(button: Locator): Promise<number> {
   return button.evaluate((element) => {
@@ -131,11 +165,30 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   test.setTimeout(120_000);
 
   const fresh = await browser.newContext({ baseURL });
-  await signUp(fresh, baseURL, "first");
+  const firstUser = await signUp(fresh, baseURL, "first");
   const first = await fresh.newPage();
   await first.goto("/");
   await expect(first.getByRole("heading", { name: "첫 노트를 만들어 볼까요?" })).toBeVisible();
   await capture(first, "first-run");
+  // With a note and no card, 홈's hero leads to adding one on the hero button's own edge.
+  const empty = await firstUser.db.from("decks").insert({
+    id: randomUUID(),
+    user_id: firstUser.userId,
+    name: "빈 노트",
+    color: "blue",
+    visibility: "private",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+  expect(empty.error).toBeNull();
+  await first.goto("/");
+  await expect(first.getByRole("heading", { name: "첫 카드를 만들어 볼까요?" })).toBeVisible();
+  await expectEdge(
+    first,
+    first.getByRole("link", { name: "카드 추가", exact: true }),
+    "--color-on-hero-edge",
+  );
+  await capture(first, "no-cards");
   await fresh.close();
 
   const { userId, db } = await signUp(context, baseURL, "home");
@@ -187,16 +240,25 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   if (!tabBar || !firstRow || !secondRow) throw new Error("the tab bar and the rows are drawn");
   expect(firstRow.y + firstRow.height).toBeLessThanOrEqual(tabBar.y);
   expect(secondRow.y).toBeGreaterThanOrEqual(tabBar.y);
+  await expectEdge(
+    page,
+    page.getByRole("link", { name: "시작", exact: true }),
+    "--color-on-hero-edge",
+  );
   await capture(page, "home");
   await untilReacted(
     () => page.getByRole("button", { name: "노트 검색", exact: true }).click(),
     () => page.getByRole("searchbox", { name: "노트 검색" }).isVisible(),
   );
   await page.getByRole("searchbox", { name: "노트 검색" }).fill("한");
+  // Control for the fields below: a search over a list is the phone's search height.
+  expect(await fieldHeight(page.getByRole("searchbox", { name: "노트 검색" }))).toBe(46);
   await capture(page, "drawer-search");
 
   await page.goto(`/decks/${decks[0]?.id ?? ""}`);
   await expect(page.getByRole("heading", { level: 1, name: "영단어 기본" })).toBeVisible();
+  // Control: off the hero, the study link is the primary fill on the primary's edge.
+  await expectEdge(page, page.getByRole("link", { name: /^이 노트 학습/ }), "--color-primary-edge");
   await capture(page, "note");
 
   await untilReacted(
@@ -208,6 +270,8 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   const editor = page.getByRole("dialog", { name: "새 카드" });
   await expect(editor).toBeVisible();
   await expectScreenAtWidths(page, editor);
+  // Each text field is the phone's AppTextField height, as are the ones below.
+  expect(await fieldHeight(editor.getByRole("textbox", { name: "앞면", exact: true }))).toBe(50);
   await capture(page, "new-card");
   // At 100% on a phone, each of the pair's labels takes one line.
   for (const label of ["저장", "저장하고 다음 카드"]) {
@@ -223,6 +287,7 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
   );
   const note = page.getByRole("dialog", { name: "새 노트" });
   await note.getByRole("textbox", { name: "이름", exact: true }).fill("토익 900");
+  expect(await fieldHeight(note.getByRole("textbox", { name: "이름", exact: true }))).toBe(50);
   for (const label of ["저장", "저장하고 카드 추가"]) {
     expect(await labelLines(note.getByRole("button", { name: label, exact: true })), label).toBe(1);
   }

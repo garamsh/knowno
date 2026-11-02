@@ -1,6 +1,8 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { layOutLines, zoomOf } from "@/testing/line-widths";
+
 import { SideMenu, TabBar } from "../_components/shell-menu";
 
 let path = "/";
@@ -86,5 +88,24 @@ describe("the shell's menus", () => {
     expect(side?.parentElement).toHaveClass("hidden", "lg:block");
     expect(tabs).toHaveClass("lg:hidden");
     expect(tabs).not.toHaveClass("hidden");
+  });
+
+  it("keep each tab's name on one line, shrunk to its tab only where wider", () => {
+    // Each name is two characters, 40 px: a 30 px tab shrinks it, a 40 px one holds it.
+    for (const [tab, zoom] of [
+      [30, 0.75],
+      [40, 1],
+    ] as const) {
+      const restore = layOutLines(tab);
+      render(<TabBar />);
+      const tabs = screen.getByRole("navigation", { name: "주 메뉴" });
+      for (const name of ["기록", "설정"]) {
+        expect(zoomOf(within(tabs).getByText(name)), `${name} in a ${String(tab)} px tab`).toBe(
+          zoom,
+        );
+      }
+      restore();
+      cleanup();
+    }
   });
 });

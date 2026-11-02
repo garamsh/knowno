@@ -5,7 +5,7 @@ import { labelShown, parseContent } from "../card-content";
 import { WholeCard } from "./whole-card";
 
 const fieldClass =
-  "min-h-field w-full min-w-0 resize-y rounded-field bg-transparent p-2 text-body placeholder:text-muted focus:outline-2 focus:-outline-offset-2 focus:outline-ink";
+  "min-h-field w-full min-w-0 resize-y rounded-field bg-transparent field-padding text-body placeholder:text-muted focus:outline-2 focus:-outline-offset-2 focus:outline-ink";
 
 /** Front/back groups edit only the chosen blocks, retaining all other stored fields. */
 export function CardFields({

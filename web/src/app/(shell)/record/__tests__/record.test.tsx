@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,6 +6,7 @@ import { otherUser } from "@/testing/mocks/handlers";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { server } from "@/testing/mocks/server";
 import { cardRow, day, deckRow, reviewRow, start, stateRow } from "@/testing/library";
+import { layOutLines, zoomOf } from "@/testing/line-widths";
 import { setRequestCookies } from "@/testing/next-headers";
 import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
@@ -227,6 +228,25 @@ describe("the record page", () => {
 
     // a, b, c and d: the deleted card's state is not one of them.
     expect(label("\\d+장 중")).toMatch(/^4장 중 좋음 \d장, 보통 \d장, 곧 잊음 \d장, 평균 \d+%$/);
+  });
+
+  it("keeps each band's count on one line, shrunk to its tile only where wider", async () => {
+    seedHistory();
+    // Each count, "n장", is 40 px: a 20 px tile shrinks it, a 40 px one holds it.
+    for (const [tile, zoom] of [
+      [20, 0.5],
+      [40, 1],
+    ] as const) {
+      const restore = layOutLines(tile);
+      await render(RecordContent, {});
+      const bands = screen.getByText("곧 잊음").closest("dl");
+      if (!bands) throw new Error("the bands' tiles are drawn");
+      const counts = within(bands).getAllByText(/^\d장$/);
+      expect(counts).toHaveLength(3);
+      for (const count of counts) expect(zoomOf(count), `in a ${String(tile)} px tile`).toBe(zoom);
+      restore();
+      cleanup();
+    }
   });
 
   it("counts every stored answer in the study days and the streaks, the deleted card's included", async () => {

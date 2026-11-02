@@ -86,7 +86,7 @@ export function NoCardsHome({ decks }: { decks: Deck[] }) {
         href={
           decks.length === 1 && only ? `/decks/${encodeURIComponent(only.id)}?adding=1` : "#notes"
         }
-        className="pressable mt-3 flex min-h-cta w-full max-w-56 items-center justify-center rounded-button bg-hero-button px-6 text-button text-on-hero-button [--edge-colour:var(--color-primary-edge)] [--edge:var(--spacing-edge-button)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero"
+        className="pressable mt-3 flex min-h-cta w-full max-w-56 items-center justify-center rounded-button bg-hero-button px-6 text-button text-on-hero-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero"
       >
         {decks.length === 1 ? "카드 추가" : "노트에서 카드 추가"}
       </Link>

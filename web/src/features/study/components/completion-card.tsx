@@ -6,6 +6,7 @@ import { type MouseEvent, useEffect, useRef } from "react";
 import type { Completion } from "../session";
 
 import { Mascot } from "@/design/brand";
+import { FittedLine } from "@/design/fitted-line";
 
 /**
  * The completion panel in the current card's place once no card is left today, on the hero
@@ -63,7 +64,9 @@ export function CompletionCard({
             className="flex flex-col-reverse justify-center rounded-row bg-surface px-2 py-3 shadow-card"
           >
             <dt className="text-secondary font-bold text-ink">{tile.name}</dt>
-            <dd className={`truncate text-display ${tile.colour}`}>{tile.count}</dd>
+            <dd className={`text-display ${tile.colour}`}>
+              <FittedLine>{tile.count}</FittedLine>
+            </dd>
           </div>
         ))}
       </dl>

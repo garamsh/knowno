@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { BrandMark } from "@/design/brand";
+import { FittedLine } from "@/design/fitted-line";
 
 /** A page the menus open, and whether a path is that page or below it. */
 type Item = { href: string; label: string; Icon: LucideIcon; current: (path: string) => boolean };
@@ -111,7 +112,7 @@ export function TabBarAt({ path }: { path: string | null }) {
             aria-current={selected ? "page" : undefined}
             className={`pressable flex items-center justify-center rounded-button text-label ${selected ? "text-accent" : "text-ink-2"} ${focus} focus-visible:-outline-offset-2`}
           >
-            {label}
+            <FittedLine className="text-center">{label}</FittedLine>
           </Link>
         );
       })}

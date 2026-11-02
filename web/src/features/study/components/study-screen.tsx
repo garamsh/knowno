@@ -15,6 +15,7 @@ import { v7 } from "uuid";
 
 import { Mascot, type MascotExpression } from "@/design/brand";
 import { Chip } from "@/design/chip";
+import { FittedLine } from "@/design/fitted-line";
 
 import type { Answer, AnswerWrite } from "../answer-write";
 import { engineLoaded, loadEngine } from "../engine";
@@ -433,9 +434,11 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
             className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
           >
             {notice && (
-              <p className="rounded-full bg-hero px-4 py-2 text-secondary text-on-hero shadow-card motion-safe:animate-resume-notice">
-                {notice}
-              </p>
+              <FittedLine className="text-center">
+                <span className="inline-block rounded-full bg-hero px-4 py-2 text-secondary text-on-hero shadow-card motion-safe:animate-resume-notice">
+                  {notice}
+                </span>
+              </FittedLine>
             )}
           </div>
           {view.kind !== "empty" && (

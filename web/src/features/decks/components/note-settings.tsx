@@ -443,7 +443,7 @@ function PublishSheet({
               onChange={(event) => {
                 setDescription(event.target.value);
               }}
-              className={`${field} min-h-24 py-3`}
+              className={`${field} min-h-24 field-padding`}
             />
           </label>
           {tooLong && (

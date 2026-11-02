@@ -2,6 +2,8 @@
 
 import { type ReactNode, useId, useState } from "react";
 
+import { FittedLine } from "@/design/fitted-line";
+
 import { studyDayStart } from "../queue";
 import {
   calendarDate,
@@ -345,7 +347,9 @@ function RecallCard({ bands }: { bands: RecallBands }) {
               <span className={`size-2.5 shrink-0 rounded-xs ${band.shade}`} />
               {band.name}
             </dt>
-            <dd className="truncate text-display text-ink">{band.count}장</dd>
+            <dd className="text-display text-ink">
+              <FittedLine>{band.count}장</FittedLine>
+            </dd>
           </div>
         ))}
       </dl>
