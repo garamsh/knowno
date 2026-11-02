@@ -16,7 +16,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newDeck => 'New note';
 
   @override
-  String get deckActions => 'Note actions';
+  String get deckActions => 'Note settings';
 
   @override
   String get importActions => 'Photo actions';
@@ -534,20 +534,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get delete => 'Delete';
 
   @override
-  String todayCards(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count cards for today',
-      one: '1 card for today',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get studyAll => 'Study all';
-
-  @override
   String get know => 'Know';
 
   @override
@@ -992,13 +978,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pickAnother => 'Pick another photo';
 
   @override
-  String get photoCameraBody =>
-      'Take a photo of a vocabulary page and we\'ll find the cards';
-
-  @override
-  String get photoAlbumBody => 'We\'ll find the cards in the photo you pick';
-
-  @override
   String get retry => 'Try again';
 
   @override
@@ -1246,9 +1225,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unpublished => 'Note is private again';
 
   @override
-  String get todayTitle => 'Today\'s cards';
-
-  @override
   String get noCardsTitle => 'Make your first card?';
 
   @override
@@ -1265,9 +1241,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get newDeckTitle => 'Create a note';
-
-  @override
-  String get newDeckBody => 'You can change the name later.';
 
   @override
   String consentNotice(String terms, String privacy) {
@@ -1293,12 +1266,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get todayStudy => 'Study';
-
-  @override
-  String get tabToday => 'Today';
-
-  @override
-  String get tabDecks => 'Notes';
 
   @override
   String get tabRecord => 'Record';
@@ -1334,47 +1301,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String deckSummary(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count cards',
-      one: '1 card',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String deckMasteredCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count mastered',
-      one: '1 mastered',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get deckTodayTitle => 'Study today';
-
-  @override
-  String get deckTodayUnit => ' cards';
-
-  @override
-  String get studyDeck => 'Study';
-
-  @override
   String get searchCardsAction => 'Search cards';
 
   @override
   String get closeSearch => 'Close search';
-
-  @override
-  String get addCardManuallyBody => 'Write the front and the back';
-
-  @override
-  String get cardListTitle => 'Cards';
 
   @override
   String get showMeanings => 'Show backs';
@@ -1390,31 +1320,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String todayOfGoal(int goal) {
-    return ' / $goal';
-  }
-
-  @override
-  String todayAbout(int minutes) {
-    return 'About $minutes min';
-  }
-
-  @override
-  String todayAboutLeft(int minutes) {
-    return 'About $minutes min left';
-  }
-
-  @override
-  String todayProgress(int goal, int done) {
-    return '$done of $goal cards';
-  }
-
-  @override
-  String goalReached(int goal) {
-    return 'Goal of $goal reached';
-  }
-
-  @override
   String streakDays(int days) {
     return '$days-day streak';
   }
@@ -1424,24 +1329,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dayTomorrow => 'Tomorrow';
-
-  @override
-  String dayCount(String day, int count) {
-    return '$day $count';
-  }
-
-  @override
-  String get todayDecks => 'Today\'s notes';
-
-  @override
-  String deckDueCount(int count) {
-    return '$count';
-  }
-
-  @override
-  String studyDeckToday(String name, int count) {
-    return 'Study $name, $count today';
-  }
 
   @override
   String nextReview(String day, int cards, int minutes) {
@@ -1457,16 +1344,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String backlogBody(int count) {
     return '$count overdue reviews, most urgent first. New cards wait for now.';
-  }
-
-  @override
-  String catchUpTitle(int perDay, int days) {
-    return 'At $perDay a day you catch up in $days days';
-  }
-
-  @override
-  String catchUpSemantics(String days) {
-    return 'Overdue reviews expected: $days';
   }
 
   @override
@@ -1821,34 +1698,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String todayExtra(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count more cards today',
-      one: '1 more card today',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get weekTitle => 'Last 7 days';
-
-  @override
-  String weekSemantics(int cards, int minutes) {
-    String _temp0 = intl.Intl.pluralLogic(
-      cards,
-      locale: localeName,
-      other: 'Studied $cards cards in $minutes min over the last 7 days',
-      one: 'Studied 1 card in $minutes min over the last 7 days',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get weekOpenRecord => 'open Record';
-
-  @override
   String get dailyMinutesUnit => 'min';
 
   @override
@@ -1900,11 +1749,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get keepWriting => 'Keep writing';
 
   @override
-  String get spreadsheetPick => 'Choose a file';
-
-  @override
-  String get spreadsheetPickBody =>
-      'Turn the rows of an Excel or CSV file into cards';
+  String get spreadsheetPick => 'Excel or CSV file';
 
   @override
   String get spreadsheetStartTitle => 'Add cards from a file';
@@ -2023,4 +1868,59 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get spreadsheetNotRead =>
       'The file could not be read. Choose it again.';
+
+  @override
+  String get tabHome => 'Home';
+
+  @override
+  String get tabSettings => 'Settings';
+
+  @override
+  String homeToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cards today',
+      one: '1 card today',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String homeMinutes(int minutes) {
+    return 'About $minutes min';
+  }
+
+  @override
+  String get homeStart => 'Start';
+
+  @override
+  String get drawerOpen => 'Pull up to see all';
+
+  @override
+  String get drawerClose => 'Collapse';
+
+  @override
+  String studyThisDeck(int count) {
+    return 'Study this note · $count';
+  }
+
+  @override
+  String get studyThisDeckPlain => 'Study this note';
+
+  @override
+  String cardsHeading(int count) {
+    return 'Cards $count';
+  }
+
+  @override
+  String deckMasteredShort(int count) {
+    return '$count learned';
+  }
+
+  @override
+  String get newDeckColor => 'Cover colour';
+
+  @override
+  String get saveAndAddCards => 'Save and add cards';
 }

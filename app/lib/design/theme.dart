@@ -134,6 +134,9 @@ abstract final class AppSize {
   /// The mascot where it heads the first-run home or a cardless 오늘 tab.
   static const mascotLarge = 128.0;
 
+  /// The mascot on the hero that fills 홈's first screen.
+  static const mascotHero = 210.0;
+
   /// The mascot over a card's or a screen's words.
   static const mascotMedium = 96.0;
 
@@ -217,6 +220,15 @@ abstract final class AppType {
     height: 46 / 38,
     fontWeight: FontWeight.w400,
     fontFeatures: _tabularDigits,
+  );
+
+  /// Today's count on 홈's hero: 58/68, Jua.
+  static const heroFigure = TextStyle(
+    fontFamily: appDisplayFontFamily,
+    fontFamilyFallback: _displayFallback,
+    fontSize: 58,
+    height: 68 / 58,
+    fontWeight: FontWeight.w400,
   );
 
   /// A section's title and a figure's unit: 20/28, Jua.

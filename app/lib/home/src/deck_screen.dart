@@ -12,7 +12,7 @@ import '../../design/app_text_field.dart';
 import '../../design/bottom_actions.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
-import 'hero.dart';
+import 'above_menu.dart';
 import 'option_sheet.dart';
 import '../../l10n/app_localizations.dart';
 import '../../photo_import/photo_import.dart';
@@ -20,12 +20,13 @@ import '../../sharing/sharing.dart';
 import '../../study/study.dart';
 import '../../design/word_break.dart';
 
-/// A deck's page: its tile, name, card and mastered counts, the white card
-/// that studies it, and its cards as one group under a pinned row whose
-/// "뒷면 보기" switch shows or hides every back, searchable from the top bar;
-/// adds a card, opens one for editing on a tap, and the deck for renaming or
-/// deleting. While the deck holds no card, adding one is its one primary
-/// action and there is nothing to study.
+/// A deck's page, above the menu: its name in the top bar with "카드 검색"
+/// and "노트 설정", "이 노트 학습" at the top, then its cards as one group under
+/// a pinned row of their count, the mastered count and the "뒷면 보기" switch,
+/// and "카드 추가" fixed at the foot. A tap opens a card for editing; 노트 설정
+/// renames, decorates, publishes or deletes the deck. While the deck holds no
+/// card, adding one is its one primary action and there is nothing to
+/// study.
 class DeckScreen extends ConsumerStatefulWidget {
   const DeckScreen({super.key, required this.deck, this.addingCard = false});
 
@@ -38,8 +39,6 @@ class DeckScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<DeckScreen> createState() => _DeckScreenState();
 }
-
-enum _DeckAction { rename, appearance, publish, unpublish, delete }
 
 /// The ways the add sheet offers to add a card.
 enum _Add { byHand, camera, album, file }
@@ -87,7 +86,10 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: query == null
-              ? null
+              ? Semantics(
+                  header: true,
+                  child: Text(current.name, style: AppType.deckName),
+                )
               : AppTextField(
                   hint: l10n.searchCards,
                   prefixIcon: const Icon(LucideIcons.search),
@@ -96,103 +98,96 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
                   onChanged: (query) => setState(() => _query = query),
                 ),
           actions: [
-            if (query == null)
-              IconButton(
-                tooltip: l10n.searchCardsAction,
-                icon: const Icon(LucideIcons.search),
-                onPressed: () => setState(() => _query = ''),
-              )
-            else
-              IconButton(
-                tooltip: l10n.closeSearch,
-                icon: const Icon(LucideIcons.x),
-                onPressed: () => setState(() => _query = null),
-              ),
-            PopupMenuButton<_DeckAction>(
-              tooltip: l10n.deckActions,
-              icon: const Icon(LucideIcons.ellipsisVertical),
-              onSelected: (action) => switch (action) {
-                _DeckAction.rename => _rename(),
-                _DeckAction.appearance => _customize(current),
-                _DeckAction.publish => sharing?.publish(context, current),
-                _DeckAction.unpublish => sharing?.unpublish(context, current),
-                _DeckAction.delete => _delete(),
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(
-                  value: _DeckAction.rename,
-                  child: Text(l10n.rename),
-                ),
-                PopupMenuItem(
-                  value: _DeckAction.appearance,
-                  child: Text(l10n.deckAppearance),
-                ),
-                if (sharing != null)
-                  PopupMenuItem(
-                    value: public ? _DeckAction.unpublish : _DeckAction.publish,
-                    enabled: online,
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      enabled: online,
-                      title: Text(public ? l10n.unpublish : l10n.publish),
-                      subtitle: online ? null : Text(l10n.publishNeedsNetwork),
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpace.s8),
+              child: query == null
+                  ? RaisedIconButton(
+                      tooltip: l10n.searchCardsAction,
+                      icon: LucideIcons.search,
+                      onPressed: () => setState(() => _query = ''),
+                    )
+                  : RaisedIconButton(
+                      tooltip: l10n.closeSearch,
+                      icon: LucideIcons.x,
+                      onPressed: () => setState(() => _query = null),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpace.gutter),
+              child: MenuAnchor(
+                alignmentOffset: const Offset(0, AppSpace.s4),
+                menuChildren: [
+                  MenuItemButton(onPressed: _rename, child: Text(l10n.rename)),
+                  MenuItemButton(
+                    onPressed: () => _customize(current),
+                    child: Text(l10n.deckAppearance),
+                  ),
+                  if (sharing != null)
+                    MenuItemButton(
+                      onPressed: online
+                          ? () => public
+                                ? sharing.unpublish(aboveMenu(context), current)
+                                : sharing.publish(aboveMenu(context), current)
+                          : null,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(public ? l10n.unpublish : l10n.publish),
+                          if (!online)
+                            Text(
+                              l10n.publishNeedsNetwork,
+                              style: AppType.caption.copyWith(
+                                color: colors.muted,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  MenuItemButton(
+                    onPressed: _delete,
+                    child: Text(
+                      l10n.deleteDeck,
+                      style: TextStyle(color: colors.dontKnowText),
                     ),
                   ),
-                PopupMenuItem(
-                  value: _DeckAction.delete,
-                  child: Text(
-                    l10n.deleteDeck,
-                    style: TextStyle(color: colors.dontKnowText),
-                  ),
+                ],
+                builder: (context, menu, _) => RaisedIconButton(
+                  tooltip: l10n.deckActions,
+                  icon: LucideIcons.ellipsis,
+                  onPressed: () => menu.isOpen ? menu.close() : menu.open(),
                 ),
-              ],
+              ),
             ),
           ],
         ),
         body: switch (cards) {
           AsyncData(:final value) => CustomScrollView(
             slivers: [
-              // While searching, the matches start under the top bar.
-              if (query == null)
+              // While searching, the matches start under the top bar; with no
+              // card, the empty line and "카드 추가" are the screen's content.
+              if (query == null && !empty)
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpace.gutter,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpace.gutter,
+                    AppSpace.s8,
+                    AppSpace.gutter,
+                    AppSpace.s16,
                   ),
-                  sliver: SliverList.list(
-                    children: [
-                      Row(
-                        spacing: AppSpace.s12,
-                        children: [
-                          DeckTile(deck: current),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Semantics(
-                                  header: true,
-                                  child: Text(
-                                    current.name,
-                                    style: AppType.deckName,
-                                  ),
-                                ),
-                                _DeckSummary(
-                                  deck: widget.deck.id,
-                                  cards: value.length,
-                                  public: public,
-                                ),
-                              ],
-                            ),
+                  sliver: SliverToBoxAdapter(
+                    child: TodayCounter(
+                      decks: DeckSelection(widget.deck.id),
+                      builder: (context, count) => AppButton(
+                        label: switch (count) {
+                          TodayCounted(:final total) => l10n.studyThisDeck(
+                            total,
                           ),
-                        ],
+                          _ => l10n.studyThisDeckPlain,
+                        },
+                        size: AppButtonSize.cta,
+                        onPressed: _study,
                       ),
-                      const SizedBox(height: AppSpace.s16),
-                      // With no card, the empty line and "카드 추가" are the
-                      // screen's content, with no count of zeros above them.
-                      if (!empty) ...[
-                        _DeckTodayCard(deck: widget.deck.id, onStudy: _study),
-                        const SizedBox(height: AppSpace.s12),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
               if (value.isEmpty)
@@ -220,7 +215,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
                   ),
                 )
               else
-                ..._cardList(l10n, value),
+                ..._cardList(l10n, value, public: public),
             ],
           ),
           AsyncError(:final error, :final stackTrace) => Center(
@@ -234,7 +229,6 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
         bottomNavigationBar: BottomActions(
           secondary: AppButton(
             label: l10n.newCard,
-            icon: LucideIcons.plus,
             // With no card, adding one is the screen's one primary action.
             variant: empty
                 ? AppButtonVariant.primary
@@ -247,11 +241,16 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     );
   }
 
-  /// The pinned "카드" row with its "뒷면 보기" switch, then, as one group, a
+  /// The pinned row of the cards' count, how many are mastered and the
+  /// "뒷면 보기" switch, then, as one group, a
   /// row for each card whose studied text holds the search, ignoring case,
   /// its back shown as the switch is. Every 칸 is searched, revealed, since
   /// none is hidden from study.
-  List<Widget> _cardList(AppLocalizations l10n, List<Card> cards) {
+  List<Widget> _cardList(
+    AppLocalizations l10n,
+    List<Card> cards, {
+    required bool public,
+  }) {
     final query = (_query ?? '').trim().toLowerCase();
     final rows = [
       for (final card in cards)
@@ -264,6 +263,9 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     return [
       PinnedHeaderSliver(
         child: _CardListHeader(
+          deck: widget.deck.id,
+          cards: cards.length,
+          public: public,
           showAll: _showAll,
           onShowAll: (show) => setState(() => _showAll = show),
         ),
@@ -301,38 +303,22 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     ];
   }
 
-  /// Offers the ways to add a card, named as the new-deck sheet names them:
-  /// by hand, with photo import from a photo taken with the camera or picked
+  /// Offers the ways to add a card over the menu, each its name alone: by
+  /// hand, with photo import from a photo taken with the camera or picked
   /// from the album, or from a spreadsheet.
   Future<void> _addCard() async {
     final l10n = AppLocalizations.of(context);
     final photoImport = ref.read(photoImportProvider);
     final choice = await showOptionSheet<_Add>(
-      context,
+      aboveMenu(context),
       title: l10n.newCard,
       options: [
-        (
-          title: l10n.createManually,
-          body: l10n.addCardManuallyBody,
-          value: _Add.byHand,
-        ),
+        (title: l10n.createManually, value: _Add.byHand),
         if (photoImport != null) ...[
-          (
-            title: l10n.photoCamera,
-            body: l10n.photoCameraBody,
-            value: _Add.camera,
-          ),
-          (
-            title: l10n.photoAlbum,
-            body: l10n.photoAlbumBody,
-            value: _Add.album,
-          ),
+          (title: l10n.photoCamera, value: _Add.camera),
+          (title: l10n.photoAlbum, value: _Add.album),
         ],
-        (
-          title: l10n.spreadsheetPick,
-          body: l10n.spreadsheetPickBody,
-          value: _Add.file,
-        ),
+        (title: l10n.spreadsheetPick, value: _Add.file),
       ],
     );
     if (!mounted) return;
@@ -344,7 +330,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
       case _Add.album:
         await _importPhoto(PhotoOrigin.album);
       case _Add.file:
-        await importFromSpreadsheet(context, widget.deck.id);
+        await importFromSpreadsheet(aboveMenu(context), widget.deck.id);
       case null:
         return;
     }
@@ -356,7 +342,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     final photoImport = ref.read(photoImportProvider);
     if (photoImport == null) return;
     final navigator = Navigator.of(context);
-    final deck = await photoImport(context, widget.deck.id, origin);
+    final deck = await photoImport(aboveMenu(context), widget.deck.id, origin);
     if (deck == null || deck.id == widget.deck.id || !mounted) return;
     await navigator.pushReplacement(
       MaterialPageRoute<void>(builder: (_) => DeckScreen(deck: deck)),
@@ -373,9 +359,10 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
   /// The deck's name as stored now.
   String get _name => _stored(ref.read(deckProvider(widget.deck.id))).name;
 
-  void _study() => unawaited(openStudy(context, DeckSelection(widget.deck.id)));
+  void _study() =>
+      unawaited(openStudy(aboveMenu(context), DeckSelection(widget.deck.id)));
 
-  Future<void> _open(Card? card) => Navigator.of(context).push(
+  Future<void> _open(Card? card) => Navigator.of(aboveMenu(context)).push(
     MaterialPageRoute<void>(
       builder: (_) => CardEditorScreen(
         deck: Deck(
@@ -393,7 +380,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     final repository = ref.read(deckRepositoryProvider);
     final l10n = AppLocalizations.of(context);
     final name = await showNameSheet(
-      context,
+      aboveMenu(context),
       title: l10n.renameDeck,
       action: l10n.save,
       initial: _name,
@@ -407,7 +394,10 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
   /// Opens 노트 꾸미기 on [deck] as stored now, and stores the pair chosen.
   Future<void> _customize(Deck deck) async {
     final repository = ref.read(deckRepositoryProvider);
-    final chosen = await showDeckAppearanceSheet(context, deck: deck);
+    final chosen = await showDeckAppearanceSheet(
+      aboveMenu(context),
+      deck: deck,
+    );
     if (chosen == null || !mounted) return;
     final (icon, color) = chosen;
     await reportingFailure(context, () async {
@@ -422,7 +412,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
       if (!mounted) return;
       final l10n = AppLocalizations.of(context);
       final confirmed = await showAppConfirm(
-        context,
+        aboveMenu(context),
         title: l10n.deleteDeckTitle(_name),
         titleWritten: true,
         consequence: l10n.deleteDeckBody(cardCount),
@@ -435,11 +425,21 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
   }
 }
 
-/// The row pinned above the card list: the section label "카드", and the
+/// The row pinned above the card list: "카드 n", read as a heading, with how
+/// many are mastered once read and "공개" while the deck is published, and the
 /// "뒷면 보기" switch, whose label stays while the switch shows its state.
 class _CardListHeader extends StatelessWidget {
-  const _CardListHeader({required this.showAll, required this.onShowAll});
+  const _CardListHeader({
+    required this.deck,
+    required this.cards,
+    required this.public,
+    required this.showAll,
+    required this.onShowAll,
+  });
 
+  final DeckId deck;
+  final int cards;
+  final bool public;
   final bool showAll;
   final ValueChanged<bool> onShowAll;
 
@@ -447,6 +447,7 @@ class _CardListHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
+    final quiet = AppType.secondary.copyWith(color: colors.ink2);
     // At the right, the switch's own margin brings its track to the gutter.
     return ColoredBox(
       color: colors.ground,
@@ -462,12 +463,29 @@ class _CardListHeader extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(left: AppSpace.s4),
-                child: Semantics(
-                  header: true,
-                  child: Text(
-                    l10n.cardListTitle,
-                    style: AppType.section.copyWith(color: colors.muted),
-                  ),
+                child: Wrap(
+                  spacing: AppSpace.s8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        l10n.cardsHeading(cards),
+                        style: AppType.headline.copyWith(color: colors.ink),
+                      ),
+                    ),
+                    ProgressCounter(
+                      decks: DeckSelection(deck),
+                      builder: (context, progress) => Text(
+                        [
+                          if (progress != null)
+                            l10n.deckMasteredShort(progress.mastered),
+                          if (public) l10n.publicChip,
+                        ].join(' · '),
+                        style: quiet,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -476,113 +494,11 @@ class _CardListHeader extends StatelessWidget {
                 children: [
                   GestureDetector(
                     onTap: () => onShowAll(!showAll),
-                    child: Text(
-                      l10n.showMeanings,
-                      style: AppType.secondary.copyWith(color: colors.ink2),
-                    ),
+                    child: Text(l10n.showMeanings, style: quiet),
                   ),
                   Switch(value: showAll, onChanged: onShowAll),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The line under the deck's name: its cards, the page's one count of them,
-/// then how many are mastered once read while it holds any, and "공개" while
-/// it is published.
-class _DeckSummary extends StatelessWidget {
-  const _DeckSummary({
-    required this.deck,
-    required this.cards,
-    required this.public,
-  });
-
-  final DeckId deck;
-  final int cards;
-  final bool public;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return ProgressCounter(
-      decks: DeckSelection(deck),
-      builder: (context, progress) => Text(
-        [
-          l10n.deckSummary(cards),
-          if (progress != null && cards > 0)
-            l10n.deckMasteredCount(progress.mastered),
-          if (public) l10n.publicChip,
-        ].join(' · '),
-        style: AppType.secondary.copyWith(color: AppColors.of(context).muted),
-      ),
-    );
-  }
-}
-
-/// The deck's white card: "오늘 학습" with the minutes at its right, today's
-/// count large, and the button that studies the deck.
-class _DeckTodayCard extends StatelessWidget {
-  const _DeckTodayCard({required this.deck, required this.onStudy});
-
-  final DeckId deck;
-  final VoidCallback onStudy;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final colors = AppColors.of(context);
-    final quiet = AppType.secondary.copyWith(color: colors.muted);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        boxShadow: AppShadow.card(colors),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpace.s20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: AppSpace.s12,
-          children: [
-            TodayCounter(
-              decks: DeckSelection(deck),
-              builder: (context, count) => Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                spacing: AppSpace.s4,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(l10n.deckTodayTitle, style: quiet)),
-                      if (count case TodayCounted(:final minutes))
-                        Text(l10n.todayAbout(minutes), style: quiet),
-                    ],
-                  ),
-                  switch (count) {
-                    TodayCounted(:final total) => HeroCount(
-                      count: total,
-                      unit: l10n.deckTodayUnit,
-                      semantics: l10n.todayCards(total),
-                    ),
-                    TodayUnavailable(:final message) => Text(
-                      message,
-                      style: quiet,
-                    ),
-                    TodayPending() => const SizedBox(height: AppSpace.s40),
-                  },
-                  if (count case TodayCounted(backlog: true))
-                    Text(l10n.backlogPaused, style: quiet),
-                ],
-              ),
-            ),
-            AppButton(
-              label: l10n.studyDeck,
-              icon: LucideIcons.play,
-              onPressed: onStudy,
             ),
           ],
         ),

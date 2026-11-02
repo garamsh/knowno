@@ -130,18 +130,9 @@ class _AppearanceSheetState extends ConsumerState<_AppearanceSheet> {
             ],
           ),
           AppSectionLabel(l10n.deckAppearanceColor),
-          Wrap(
-            spacing: AppSpace.s8,
-            runSpacing: AppSpace.s8,
-            children: [
-              for (final color in DeckColor.values)
-                _Option(
-                  label: l10n.deckColorName(color.key),
-                  selected: color == _color,
-                  onTap: () => setState(() => _color = color),
-                  fill: deckTileColor(colors, color),
-                ),
-            ],
+          DeckColorPicker(
+            selected: _color,
+            onPick: (color) => setState(() => _color = color),
           ),
           AppSectionLabel(l10n.deckAppearanceImage),
           Wrap(
@@ -184,6 +175,38 @@ class _AppearanceSheetState extends ConsumerState<_AppearanceSheet> {
           size: AppButtonSize.cta,
           onPressed: _busy ? null : _save,
         ),
+      ],
+    );
+  }
+}
+
+/// The colours [DeckColor.offered] as named choices, [selected] ringed; a tap
+/// hands its colour to [onPick].
+class DeckColorPicker extends StatelessWidget {
+  const DeckColorPicker({
+    super.key,
+    required this.selected,
+    required this.onPick,
+  });
+
+  final DeckColor? selected;
+  final ValueChanged<DeckColor> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colors = AppColors.of(context);
+    return Wrap(
+      spacing: AppSpace.s8,
+      runSpacing: AppSpace.s8,
+      children: [
+        for (final color in DeckColor.offered)
+          _Option(
+            label: l10n.deckColorName(color.key),
+            selected: color == selected,
+            onTap: () => onPick(color),
+            fill: deckTileColor(colors, color),
+          ),
       ],
     );
   }
