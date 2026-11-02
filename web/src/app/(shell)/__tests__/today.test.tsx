@@ -564,7 +564,7 @@ describe("the 오늘 and 노트 pages", () => {
     }
     await render(Today, {});
 
-    expect(hero()).toHaveClass("bg-hero", "min-h-[calc(100dvh-26rem)]");
+    expect(hero()).toHaveClass("bg-hero", "h-[calc(100dvh-26rem)]");
     expect(hero().querySelector('img[src*="knowno-happy"]')).not.toBeNull();
     const study = within(hero()).getByRole("link", { name: "학습하기" });
     expect(study).toHaveClass("bg-hero-button");
@@ -575,8 +575,8 @@ describe("the 오늘 and 노트 pages", () => {
     postgrest.seed("cards", cardRow("fr-new", "d-fr", "chat"));
     await render(Today, {});
     const today = screen.getByRole("region", { name: "오늘 1장" });
-    expect(today).toHaveClass("min-h-[calc(100dvh-13.5rem)]");
-    expect(today).not.toHaveClass("min-h-[calc(100dvh-26rem)]");
+    expect(today).toHaveClass("h-[calc(100dvh-13.5rem)]");
+    expect(today).not.toHaveClass("h-[calc(100dvh-26rem)]");
   });
 
   it("draws the streak on the hero as a card in the accent, and none before a first study day", async () => {
@@ -684,7 +684,7 @@ describe("the 오늘 and 노트 pages", () => {
     await render(Today, {});
 
     const hero = screen.getByRole("region", { name: title });
-    expect(hero).toHaveClass("bg-hero", "min-h-[calc(100dvh-26rem)]");
+    expect(hero).toHaveClass("bg-hero", "h-[calc(100dvh-26rem)]");
     // The happy mascot, glad of the note just made (ADR 0141).
     expect(hero.querySelector('img[src*="knowno-happy"]')).not.toBeNull();
     // Its one action opens the one note with its 카드 추가 sheet up.

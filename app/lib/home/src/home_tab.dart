@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -369,8 +370,9 @@ class StreakBadge extends StatelessWidget {
   }
 }
 
-/// The hero's face, centred in its space and scrolled where a large text
-/// size makes it taller: the mascot, the words, and the action.
+/// The hero's face in its space: the mascot as large as the words leave room
+/// for, the group centred, scrolling only where the words leave no room for
+/// the mascot at its floor.
 class _Hero extends StatelessWidget {
   const _Hero({required this.face});
 
@@ -386,20 +388,20 @@ class _Hero extends StatelessWidget {
       builder: (context, constraints) => SingleChildScrollView(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpace.gutter,
-          vertical: AppSpace.s16,
+          vertical: AppSpace.s8,
         ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: max(0, constraints.maxHeight - AppSpace.s32),
+        child: _HeroFit(
+          height: constraints.maxHeight - AppSpace.s16,
+          mascot: LayoutBuilder(
+            builder: (context, constraints) => Mascot(
+              expression: face?.mascot ?? MascotExpression.thinking,
+              size: constraints.maxWidth,
+            ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          words: Column(
+            mainAxisSize: MainAxisSize.min,
             spacing: AppSpace.s8,
             children: [
-              Mascot(
-                expression: face?.mascot ?? MascotExpression.thinking,
-                size: AppSize.mascotHero,
-              ),
               if (title != null)
                 Semantics(
                   header: true,
@@ -438,6 +440,83 @@ class _Hero extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The [mascot] over the [words] in [height]: the words at their own size,
+/// and the mascot square in what they leave, from [AppSize.mascotHero] down
+/// to [AppSize.mascotMedium], the two centred as a group. Taller than
+/// [height] only where the words leave less than the floor.
+class _HeroFit extends MultiChildRenderObjectWidget {
+  _HeroFit({
+    required this.height,
+    required Widget mascot,
+    required Widget words,
+  }) : super(children: [mascot, words]);
+
+  final double height;
+
+  @override
+  _RenderHeroFit createRenderObject(BuildContext context) =>
+      _RenderHeroFit(height);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderHeroFit renderObject) =>
+      renderObject.height = height;
+}
+
+final class _HeroFitData extends ContainerBoxParentData<RenderBox> {}
+
+class _RenderHeroFit extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _HeroFitData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _HeroFitData> {
+  _RenderHeroFit(this._height);
+
+  double _height;
+  set height(double value) {
+    if (value == _height) return;
+    _height = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _HeroFitData) {
+      child.parentData = _HeroFitData();
+    }
+  }
+
+  @override
+  void performLayout() {
+    final mascot = firstChild!;
+    final words = lastChild!;
+    final width = constraints.maxWidth;
+    words.layout(BoxConstraints.tightFor(width: width), parentUsesSize: true);
+    final side = (_height - AppSpace.s8 - words.size.height).clamp(
+      AppSize.mascotMedium,
+      AppSize.mascotHero,
+    );
+    mascot.layout(BoxConstraints.tight(Size.square(side)));
+    final group = side + AppSpace.s8 + words.size.height;
+    size = constraints.constrain(Size(width, max(_height, group)));
+    final top = (size.height - group) / 2;
+    (mascot.parentData! as _HeroFitData).offset = Offset(
+      (width - side) / 2,
+      top,
+    );
+    (words.parentData! as _HeroFitData).offset = Offset(
+      0,
+      top + side + AppSpace.s8,
+    );
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) =>
+      defaultPaint(context, offset);
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      defaultHitTestChildren(result, position: position);
 }
 
 /// The hero in a band over the open drawer: the mascot small, the words, and

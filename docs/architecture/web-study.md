@@ -13,8 +13,8 @@ The web's `study` feature: 홈's hero, the study page and its session, the 기�
 
 ### Pages
 
-- `/` (홈), titled "홈 · 알아몰라": today on the `hero` surface in `on-hero`, as the phone's 홈 draws it ([`home.md`](home.md), [ADR 0150](adr/0150-open-on-a-home-of-today-on-the-hero-with-the-notes-in-a-drawer-keep-the-menu-on-a-note-and-make-a-note-on-a-full-screen.md)): "알아몰라" and, while the streak is above zero, "n일 연속" on a `surface` card in `accent`; then the mascot and the day:
-  - with cards left, "오늘 n장" in `hero-figure` under the mascot at `mascot-hero`, "약 m분이면 끝나요" and "시작", a link to the study page over every deck with its Enter key;
+- `/` (홈), titled "홈 · 알아몰라": today on the `hero` surface in `on-hero`, as the phone's 홈 draws it ([`home.md`](home.md), [ADR 0150](adr/0150-open-on-a-home-of-today-on-the-hero-with-the-notes-in-a-drawer-keep-the-menu-on-a-note-and-make-a-note-on-a-full-screen.md)): "알아몰라" and, while the streak is above zero, "n일 연속" on a `surface` card in `accent`; then the mascot and the day, below 1024 px in the height the drawer leaves, the mascot square in what the words and the action leave, from `mascot-hero` down to `mascot-medium`, and the hero growing past that height only where the words leave less, as the phone's does ([ADR 0164](adr/0164-fit-home-s-hero-to-the-height-above-the-drawer-the-mascot-giving-way-from-210-to-96-before-any-word.md)):
+  - with cards left, "오늘 n장" in `hero-figure` under the mascot, "약 m분이면 끝나요" and "시작", a link to the study page over every deck with its Enter key;
   - in a backlog, "다시 시작하면 돼요", "밀린 복습 n장을 급한 것부터 해요. 새 카드는 잠시 쉬어요." and "시작";
   - with nothing left, "오늘 할 카드를 다 했어요", "다음 복습은 내일 · n장, 약 m분", or the weekday, or "앞으로 7일 동안 복습할 카드가 없어요" (`nextReviewOf`), and "학습하기", the notes under it starting higher;
   - with decks but no card in any, "첫 카드를 만들어 볼까요?" and "카드 추가" with one deck, or "노트에서 카드 추가", which leads to the notes, with several ([ADR 0066](adr/0066-open-a-deck-made-by-hand-and-lead-an-empty-deck-and-a-cardless-today-tab-to-adding-cards.md));

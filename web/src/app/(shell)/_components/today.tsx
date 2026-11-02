@@ -24,6 +24,7 @@ import {
 import { Mascot } from "@/design/brand";
 
 import { EnterLink } from "./enter-link";
+import { heroFit, heroFitGroup } from "./hero-fit";
 
 /** Noon of the study day starting at [start], which names its calendar date in any zone. */
 const noon = (start: number) => start + 12 * 3_600_000;
@@ -54,7 +55,7 @@ export async function Today() {
     <Home
       hero={
         <>
-          <Mascot expression="thinking" className="size-mascot-large" />
+          <Mascot expression="thinking" className="" />
           <h2 id="hero-title" className="sr-only">
             오늘 할 카드
           </h2>
@@ -113,7 +114,7 @@ export async function Today() {
         decks={rows}
         hero={
           <>
-            <Mascot expression="happy" className="size-mascot-hero" />
+            <Mascot expression="happy" className="" />
             <h2 id="hero-title" className="text-display break-keep">
               오늘 할 카드를 다 했어요
             </h2>
@@ -137,7 +138,7 @@ export async function Today() {
       hero={
         count.backlog ? (
           <>
-            <Mascot expression="thinking" className="size-mascot-large" />
+            <Mascot expression="thinking" className="" />
             <h2 id="hero-title" className="text-display break-keep">
               다시 시작하면 돼요
             </h2>
@@ -148,7 +149,7 @@ export async function Today() {
           </>
         ) : (
           <>
-            <Mascot expression="happy" className="size-mascot-hero" />
+            <Mascot expression="happy" className="" />
             <h2 id="hero-title" className="font-display text-hero-figure tabular-nums">
               오늘 {total}장
             </h2>
@@ -177,6 +178,11 @@ function StartLink({ href, label = "시작" }: { href: string; label?: string })
  * streak on a card in the accent; under it the notes, a drawer below 1024 px that the page's
  * scroll pulls up, which starts higher when [raised], and from 1024 px a column under the hero
  * card. The drawer holds [notice] above the rows and "새 노트" beside its search.
+ *
+ * Below 1024 px the hero is the height the drawer leaves, and its first item, the mascot, takes
+ * what the words and the action leave of it, from `mascot-hero` down to `mascot-medium`, the
+ * group centred; only where the words leave less does the hero grow and the page scroll. It holds
+ * the mascot and at most three items under it.
  */
 function Home({
   hero,
@@ -195,9 +201,9 @@ function Home({
     <div className="flex flex-col">
       <section
         aria-labelledby="hero-title"
-        className={`-mx-gutter -mt-6 flex flex-col bg-hero px-gutter pt-6 pb-14 text-on-hero lg:mx-0 lg:mt-0 lg:min-h-0 lg:rounded-card lg:p-8 ${raised ? "min-h-[calc(100dvh-26rem)]" : "min-h-[calc(100dvh-13.5rem)]"}`}
+        className={`${heroFit} -mx-gutter -mt-6 bg-hero px-gutter pt-6 pb-20 text-on-hero lg:mx-0 lg:mt-0 lg:rounded-card lg:p-8 ${raised ? "h-[calc(100dvh-26rem)]" : "h-[calc(100dvh-13.5rem)]"}`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-display">알아몰라</h1>
           {streak > 0 && (
             <span className="rounded-chip bg-surface px-3.5 py-1.5 text-label text-accent shadow-row">
@@ -205,9 +211,7 @@ function Home({
             </span>
           )}
         </div>
-        <div className="flex flex-1 flex-col items-center justify-center gap-1 py-6 text-center">
-          {hero}
-        </div>
+        <div className={heroFitGroup}>{hero}</div>
       </section>
       <div className="relative -mx-gutter -mt-8 flex flex-col gap-3 rounded-t-sheet bg-ground px-gutter pt-3 lg:mx-0 lg:mt-6 lg:rounded-none lg:p-0">
         <span aria-hidden className="mx-auto block h-1.5 w-11 rounded-full bg-edge lg:hidden" />

@@ -6,7 +6,6 @@ import 'dart:math';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart' hide Card;
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,6 +28,8 @@ import 'package:knowno/study/study.dart';
 import 'package:knowno/sync/sync.dart';
 
 import '../account/fake_account_service.dart';
+import '../app_fonts.dart';
+import '../home/hero_states.dart';
 import '../home/home_data.dart';
 import '../photo_import/fakes.dart';
 import '../sharing/fakes.dart';
@@ -75,47 +76,6 @@ Future<void> _swipeCurrent(WidgetTester tester, double dx) async {
 }
 
 const _density = 2.0;
-
-/// Loads the bundled font, Lucide's icons and Material's, which tests
-/// otherwise draw as boxes.
-Future<void> _loadFonts() async {
-  Future<ByteData> bytes(String path) async =>
-      ByteData.sublistView(await File(path).readAsBytes());
-  final pretendard = FontLoader(appFontFamily);
-  for (final weight in ['Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold']) {
-    pretendard.addFont(bytes('assets/fonts/Pretendard-$weight.otf'));
-  }
-  await pretendard.load();
-  await (FontLoader(
-    appDisplayFallbackFamily,
-  )..addFont(bytes('assets/fonts/Pretendard-ExtraBold.otf'))).load();
-  await (FontLoader(
-    appDisplayFontFamily,
-  )..addFont(bytes('assets/fonts/Jua-Regular.ttf'))).load();
-  await (FontLoader('packages/lucide_icons_flutter/Lucide')..addFont(
-        rootBundle.load('packages/lucide_icons_flutter/assets/lucide.ttf'),
-      ))
-      .load();
-  await (FontLoader('MaterialIcons')..addFont(
-        bytes(
-          '${_flutterRoot()}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
-        ),
-      ))
-      .load();
-}
-
-/// The Flutter SDK running this test, found above the test runner.
-String _flutterRoot() {
-  var dir = File(Platform.resolvedExecutable).parent;
-  while (dir.parent.path != dir.path) {
-    if (Directory('${dir.path}/bin/cache/artifacts/material_fonts')
-        .existsSync()) {
-      return dir.path;
-    }
-    dir = dir.parent;
-  }
-  throw StateError('no Flutter SDK above ${Platform.resolvedExecutable}');
-}
 
 /// The widgets whose text a screen's three sizes leave out: a card's own
 /// content on the study and preview cards, which `design.md` §Details leaves
@@ -225,7 +185,7 @@ void main() {
   setUpAll(() async {
     if (!_capture) return;
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
-    await _loadFonts();
+    await loadAppFonts();
     scheduler = await Scheduler.load();
     for (final mode in ['light', 'dark']) {
       File('build/screenshots/$mode/type-sizes.txt')
@@ -717,6 +677,71 @@ void main() {
       await shot(tester, '16d-today-backlog');
       await unmount(tester);
     });
+
+    for (final device in heroPhones) {
+      for (final MapEntry(key: state, value: (_, setup))
+          in heroStates.entries) {
+        testWidgets('홈 $state on a ${device.name} in $mode', skip: !_capture, (
+          tester,
+        ) async {
+          phone(tester);
+          tester.view.physicalSize = device.size * _density;
+          tester.view.padding = FakeViewPadding(
+            top: device.top * _density,
+            bottom: device.bottom * _density,
+          );
+          tester.view.viewPadding = tester.view.padding;
+          final db = AppDatabase(NativeDatabase.memory());
+          addTearDown(db.close);
+          var ids = 0;
+          final repository = DeckRepository(
+            db,
+            clock: () => homeNow.subtract(const Duration(days: 5)),
+            newId: () => 'id${ids++}',
+          );
+          await tester.runAsync(() async {
+            final decks = [
+              for (final name in heroNotes)
+                (await repository.createDeck(name)).id,
+            ];
+            final minutes = await setup(db, repository, decks);
+            if (minutes != null) {
+              await StudyRepository(
+                db,
+                newId: () => 'setting',
+              ).setDailyMinutes(minutes, at: homeNow);
+            }
+          });
+          final storage = await openStudyStorage(tester);
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                deckRepositoryProvider.overrideWithValue(repository),
+                ...homeOverrides(db, storage: storage),
+              ],
+              child: MaterialApp(
+                theme: lightTheme,
+                darkTheme: darkTheme,
+                themeMode: ThemeMode.values.byName(mode),
+                locale: const Locale('ko'),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: const HomeScreen(),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await shot(
+            tester,
+            '16m-home-$state-${device.size.height.toInt()}'.replaceAll(
+              ' ',
+              '-',
+            ),
+          );
+          await unmount(tester);
+        });
+      }
+    }
 
     testWidgets(
       'the today tab at twice the text size in $mode',

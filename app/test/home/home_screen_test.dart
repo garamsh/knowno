@@ -346,6 +346,9 @@ void main() {
           fresh: {'Alpha': 2, 'Gamma': 1},
           due: {'Alpha': 1, 'Beta': 3},
           pace: const Duration(seconds: 25),
+          // Tall enough that the test font's words leave the mascot its
+          // full size.
+          screen: const Size(390, 1400),
         );
         final colors = AppColors.of(tester.element(find.byType(HomeTab)));
         expect(

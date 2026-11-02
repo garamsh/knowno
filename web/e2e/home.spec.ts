@@ -394,3 +394,105 @@ test("answers the browser's back on an authoring screen as the phone's back, and
   await expect(page).toHaveURL(`${baseURL}/`);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+test("fits 홈's hero above the drawer at a phone's heights, the mascot giving way before 시작", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  // The owner's case on #610: 481 cards due today over four notes, on a three-day streak.
+  const { userId, db } = await signUp(context, baseURL, "fit");
+  const day = 86_400_000;
+  const time = new Date(Date.now() - day).toISOString();
+  const decks = ["영단어 기본", "토익 빈출", "일본어 N3", "회화 표현"].map((name) => ({
+    id: randomUUID(),
+    user_id: userId,
+    name,
+    visibility: "private",
+    created_at: time,
+    updated_at: time,
+  }));
+  expect((await db.from("decks").insert(decks)).error).toBeNull();
+  const cards = Array.from({ length: 481 }, (_, at) => ({
+    id: randomUUID(),
+    deck_id: decks[at % decks.length]?.id,
+    user_id: userId,
+    front: [text("f", `word ${String(at)}`)],
+    back: [text("b", `뜻 ${String(at)}`)],
+    card_key: `word ${String(at)}`,
+    source: "manual",
+    template: "free",
+    template_version: 2,
+    created_at: time,
+    updated_at: time,
+  }));
+  expect((await db.from("cards").insert(cards)).error).toBeNull();
+  // Due an hour ago after a day's interval: today's reviews, a day's load, so not a backlog.
+  const states = await db.from("card_states").insert(
+    cards.map((card) => ({
+      user_id: userId,
+      card_id: card.id,
+      stability: 1,
+      difficulty: 5,
+      last_review: time,
+      due: new Date(Date.now() - 3_600_000).toISOString(),
+      updated_at: time,
+    })),
+  );
+  expect(states.error).toBeNull();
+  const reviews = await db.from("reviews").insert(
+    [1, 2, 3].map((daysAgo, at) => ({
+      id: randomUUID(),
+      card_id: cards[at]?.id,
+      user_id: userId,
+      rating: "good",
+      reviewed_at: new Date(Date.now() - daysAgo * day).toISOString(),
+      duration_ms: 3000,
+      updated_at: time,
+    })),
+  );
+  expect(reviews.error).toBeNull();
+
+  await page.goto("/");
+  const hero = page.getByRole("region", { name: "오늘 481장" });
+  await expect(hero.getByRole("heading", { name: "오늘 481장", exact: true })).toBeVisible();
+  await expect(hero.getByText("3일 연속", { exact: true })).toBeVisible();
+  const start = hero.getByRole("link", { name: "시작", exact: true });
+  const mascot = hero.locator("img, svg").first();
+  const drawer = page.locator("#notes").locator("xpath=..");
+  const directory = process.env.E2E_SCREENSHOTS;
+  for (const [width, height] of [
+    [390, 844],
+    [375, 667],
+    [430, 932],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme });
+      const at = `at ${String(width)} × ${String(height)} in ${colorScheme}`;
+      const [button, drawn, peek, tabBar] = await Promise.all([
+        start.boundingBox(),
+        mascot.boundingBox(),
+        drawer.boundingBox(),
+        page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox(),
+      ]);
+      if (!button || !drawn || !peek || !tabBar) throw new Error("the hero and drawer are drawn");
+      // 시작 is whole on the first screen, above the drawer's edge, with no scroll.
+      expect(button.y, at).toBeGreaterThanOrEqual(0);
+      expect(button.y + button.height, at).toBeLessThanOrEqual(peek.y);
+      expect(peek.y, at).toBeLessThan(tabBar.y);
+      // The mascot gives way, from 210 down to its floor of 96, square.
+      expect(drawn.height, at).toBeGreaterThanOrEqual(96);
+      expect(drawn.height, at).toBeLessThanOrEqual(210);
+      expect(drawn.width, at).toBeCloseTo(drawn.height, 0);
+      if (directory)
+        await page.screenshot({
+          path: `${directory}/${colorScheme}/web-home-fit-${String(height)}.png`,
+        });
+    }
+  }
+  // Control: given the room, the mascot is drawn at its full 210.
+  await page.setViewportSize({ width: 430, height: 1200 });
+  expect((await mascot.boundingBox())?.height).toBe(210);
+});
