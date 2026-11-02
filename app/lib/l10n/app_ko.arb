@@ -1089,5 +1089,9 @@
   "newDeckColor": "표지 색",
   "@newDeckColor": {"description": "The new note screen's colour group."},
   "saveAndAddCards": "저장하고 카드 추가",
-  "@saveAndAddCards": {"description": "Saves the new note and opens it with the add-card sheet up."}
+  "@saveAndAddCards": {"description": "Saves the new note and opens it with the add-card sheet up."},
+  "previousCardLabel": "방금 본 카드, {answer}. 앞면: {front}. 뒷면: {back}{changed, select, yes{. 수정됨} other{}}",
+  "@previousCardLabel": {"description": "Accessibility label of the previous study card, the card answered just before the current one: its grade first, then its sides; changed is 'yes' when the answer differs from the one first given.", "placeholders": {"answer": {"type": "String"}, "front": {"type": "String"}, "back": {"type": "String"}, "changed": {"type": "String"}}},
+  "completionTimeLabel": "걸린 시간",
+  "@completionTimeLabel": {"description": "Under the minutes on the completion panel's third tile, beside the tiles of answers known and not known."}
 }

@@ -198,7 +198,7 @@ void main() {
         ('framed', framed),
         ('in two sides', _earlier(fixture)),
       ]) {
-        testWidgets('split, the same blocks in each half, $kind: $name', (
+        testWidgets('split, the same blocks on each side, $kind: $name', (
           tester,
         ) async {
           List<List<Content>> drawn() => [
@@ -212,9 +212,9 @@ void main() {
           expect(find.byType(WholeCardView), findsNothing);
           expect(drawn(), [card.front]);
 
+          // The previous card draws the front over the back (ADR 0151).
           await _pump(tester, _previous(card));
           expect(find.byType(WholeCardView), findsNothing);
-          expect(find.byType(SplitCard), findsOneWidget);
           expect(drawn(), [card.front, card.back]);
         });
       }

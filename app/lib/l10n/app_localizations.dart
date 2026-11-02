@@ -3042,6 +3042,23 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'저장하고 카드 추가'**
   String get saveAndAddCards;
+
+  /// Accessibility label of the previous study card, the card answered just before the current one: its grade first, then its sides; changed is 'yes' when the answer differs from the one first given.
+  ///
+  /// In ko, this message translates to:
+  /// **'방금 본 카드, {answer}. 앞면: {front}. 뒷면: {back}{changed, select, yes{. 수정됨} other{}}'**
+  String previousCardLabel(
+    String answer,
+    String front,
+    String back,
+    String changed,
+  );
+
+  /// Under the minutes on the completion panel's third tile, beside the tiles of answers known and not known.
+  ///
+  /// In ko, this message translates to:
+  /// **'걸린 시간'**
+  String get completionTimeLabel;
 }
 
 class _AppLocalizationsDelegate

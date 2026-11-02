@@ -1920,4 +1920,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get saveAndAddCards => 'Save and add cards';
+
+  @override
+  String previousCardLabel(
+    String answer,
+    String front,
+    String back,
+    String changed,
+  ) {
+    String _temp0 = intl.Intl.selectLogic(changed, {
+      'yes': '. Changed',
+      'other': '',
+    });
+    return 'Card just seen, $answer. Front: $front. Back: $back$_temp0';
+  }
+
+  @override
+  String get completionTimeLabel => 'Time';
 }

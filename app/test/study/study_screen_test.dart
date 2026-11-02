@@ -385,8 +385,19 @@ Future<_Study> _open(
 Finder _previous(String front) => find.byWidgetPredicate(
   (widget) =>
       widget is Semantics &&
-      (widget.properties.label?.startsWith('Front: $front. Back:') ?? false),
+      (widget.properties.label?.startsWith(_justSeen) ?? false) &&
+      widget.properties.label!.contains('. Front: $front. Back:'),
   skipOffstage: false,
+);
+
+/// How the previous card's label begins, before its grade (ADR 0151).
+const _justSeen = 'Card just seen, ';
+
+/// A previous card's label naming [answer] first, and "Changed" last when
+/// [changed].
+Matcher _gradedAs(String answer, {bool changed = false}) => allOf(
+  startsWith('$_justSeen$answer. Front: '),
+  changed ? endsWith('. Changed') : isNot(endsWith('. Changed')),
 );
 
 String? _label(WidgetTester tester, Finder finder) =>
@@ -401,12 +412,6 @@ double _dragOffset(WidgetTester tester, Finder card) => tester
     .getTranslation()
     .x;
 
-/// The vertical centre of the half of a split card that holds [text].
-double _halfCenter(WidgetTester tester, Finder text) => tester
-    .getRect(find.ancestor(of: text, matching: find.byType(Expanded)).first)
-    .center
-    .dy;
-
 /// The previous card on screen.
 final _previousCard = find.byType(PreviousCardView);
 
@@ -418,11 +423,13 @@ List<String> _built(WidgetTester tester) => [
           .byWidgetPredicate(
             (widget) =>
                 widget is Semantics &&
-                (widget.properties.label?.contains('. Response: ') ?? false),
+                ((widget.properties.label?.startsWith(_justSeen) ?? false) ||
+                    (widget.properties.label?.contains('. Response: ') ??
+                        false)),
             skipOffstage: false,
           )
           .evaluate())
-    RegExp(r'^Front: (.*?)\. Back:')
+    RegExp(r'Front: (.*?)\. Back:')
         .firstMatch((element.widget as Semantics).properties.label!)![1]!,
   if (_currentCard.evaluate().isNotEmpty) 'current',
 ];
@@ -634,14 +641,11 @@ void main() {
 
       await study.swipe(StudyStyle.commitDistance + 10);
       expect(study.current, 'b front');
-      expect(_label(tester, _previous('a front')), endsWith('Response: Know'));
+      expect(_label(tester, _previous('a front')), _gradedAs('Know'));
 
       await study.swipe(-(StudyStyle.commitDistance + 10));
       expect(study.current, 'c front');
-      expect(
-        _label(tester, _previous('b front')),
-        endsWith("Response: Don't know"),
-      );
+      expect(_label(tester, _previous('b front')), _gradedAs("Don't know"));
       // Done counts the cards whose latest answer today is "Know".
       expect(shownText('1/3'), findsOneWidget);
     },
@@ -689,10 +693,7 @@ void main() {
     await tester.fling(_currentCard, const Offset(-60, 0), 1500);
     await tester.pumpAndSettle();
     expect(study.current, 'b front');
-    expect(
-      _label(tester, _previous('a front')),
-      endsWith("Response: Don't know"),
-    );
+    expect(_label(tester, _previous('a front')), _gradedAs("Don't know"));
 
     // Control: the same distance without the speed springs back.
     await study.swipe(60);
@@ -773,41 +774,70 @@ void main() {
   }
 
   testWidgets(
-    'a previous card shrinks long sides as far as their floors, then cuts them, and a tap shows the whole card in a sheet titled as the card, its front and back under labels of one rank, with no action',
+    'a previous card holds long sides whole, front over back, scrolling inside from its top: a vertical drag scrolls it and neither answers nor re-decides, a horizontal drag re-decides, and a tap shows the whole card in a sheet titled as the card, its front and back under labels of one rank, with no action',
     (tester) async {
       final long = _sentence * 12;
+      final scheduler = _RecordingScheduler();
       final study = await _open(
         tester,
-        ['long', 'b'],
+        ['long', 'b', 'c'],
+        scheduler: scheduler,
         sides: {
           'long': ([TextContent('long front $long')], [TextContent(long)]),
         },
       );
       await study.know();
+      scheduler.answers.clear();
 
-      // The two sides, and nothing else: no grade's chip.
-      final paragraphs = tester
-          .renderObjectList<RenderParagraph>(
-            find.descendant(of: _previousCard, matching: find.byType(RichText)),
-          )
-          .where((paragraph) => paragraph.maxLines != null)
-          .toList();
-      expect(paragraphs, hasLength(2));
-      for (final (paragraph, floor) in [
-        (paragraphs[0], AppType.frontFloor),
-        (paragraphs[1], AppType.backFloor),
-      ]) {
-        expect(paragraph.text.style!.fontSize, floor);
-        expect(paragraph.overflow, TextOverflow.ellipsis);
-        expect(paragraph.didExceedMaxLines, isTrue);
-        // Cut to the lines that fit inside its half.
+      // The two sides, whole and uncut, the front over the back, the front's
+      // top inside the card: the card scrolls to show the rest.
+      final front = find.descendant(
+        of: find.descendant(
+          of: _previousCard,
+          matching: shownText('long front $long'),
+        ),
+        matching: find.byType(RichText),
+      );
+      final back = find.descendant(
+        of: find.descendant(of: _previousCard, matching: shownText(long)),
+        matching: find.byType(RichText),
+      );
+      for (final side in [front, back]) {
         expect(
-          paragraph.size.height,
-          lessThanOrEqualTo(
-            tester.getSize(_previousCard).height - 2 * StudyStyle.cardPadding,
-          ),
+          tester.renderObject<RenderParagraph>(side).didExceedMaxLines,
+          isFalse,
         );
       }
+      expect(tester.getRect(back).top, greaterThan(tester.getRect(front).top));
+      final card = tester.getRect(_previousCard);
+      expect(tester.getRect(front).top, greaterThanOrEqualTo(card.top));
+      final scroll = find.descendant(
+        of: _previousCard,
+        matching: find.byType(Scrollable),
+      );
+      final position = tester.state<ScrollableState>(scroll).position;
+      expect(position.maxScrollExtent, greaterThan(0));
+      expect(position.pixels, 0);
+
+      // A vertical drag scrolls the card, and changes nothing.
+      final at = tester.getCenter(_previousCard);
+      await tester.dragFrom(at, const Offset(0, -150));
+      await tester.pumpAndSettle();
+      expect(position.pixels, greaterThan(0));
+      expect(_dragOffset(tester, _previousCard), 0);
+      expect(_label(tester, _previous('long front $long')), _gradedAs('Know'));
+      expect(study.current, 'b front', reason: 'a scroll answers nothing');
+      expect(scheduler.answers, isEmpty);
+
+      // Control: a horizontal drag on the same card re-decides it.
+      await tester.dragFrom(at, const Offset(-200, 0));
+      await tester.pumpAndSettle();
+      expect(
+        _label(tester, _previous('long front $long')),
+        _gradedAs("Don't know", changed: true),
+      );
+      expect(study.current, 'b front');
+      expect(scheduler.answers, [Answer.dontKnow]);
 
       await tester.tap(_previous('long front $long'));
       await tester.pumpAndSettle();
@@ -848,13 +878,13 @@ void main() {
       expect(study.current, 'b front', reason: 'a tap changes nothing');
       expect(
         _label(tester, _previous('long front $long')),
-        endsWith('Response: Know'),
+        _gradedAs("Don't know", changed: true),
       );
     },
   );
 
   testWidgets(
-    'short text keeps its full size, centred on the current card and in each half of the previous card',
+    'short text keeps its full size, centred on the current card, and on the previous card the front over the back, centred both ways',
     (tester) async {
       // Words narrow enough for each half at full size in the test font.
       final study = await _open(
@@ -879,27 +909,31 @@ void main() {
         tester.renderObject<RenderParagraph>(dog).text.style!.fontSize,
         AppType.front.fontSize,
       );
-      for (final (card, front, back) in [(_previousCard, 'cat', 'chat')]) {
-        for (final (side, size) in [
-          (front, AppType.front.fontSize),
-          (back, AppType.back.fontSize),
-        ]) {
-          final text = find.descendant(
-            of: find.descendant(of: card, matching: shownText(side)),
+      // The previous card: its front over its back, in one column centred
+      // both ways.
+      final [cat, chat] = [
+        for (final side in ['cat', 'chat'])
+          find.descendant(
+            of: find.descendant(of: _previousCard, matching: shownText(side)),
             matching: find.byType(RichText),
-          );
-          expect(
-            tester.getCenter(text).dy,
-            closeTo(_halfCenter(tester, text), 1),
-            reason: side,
-          );
-          expect(
-            tester.renderObject<RenderParagraph>(text).text.style!.fontSize,
-            size,
-            reason: side,
-          );
-        }
+          ),
+      ];
+      final card = tester.getRect(_previousCard);
+      for (final (text, size) in [
+        (cat, StudyStyle.previousFront.fontSize),
+        (chat, StudyStyle.previousBack.fontSize),
+      ]) {
+        expect(tester.getCenter(text).dx, closeTo(card.center.dx, 1));
+        expect(
+          tester.renderObject<RenderParagraph>(text).text.style!.fontSize,
+          size,
+        );
       }
+      expect(tester.getRect(chat).top, greaterThan(tester.getRect(cat).bottom));
+      expect(
+        (tester.getRect(cat).top + tester.getRect(chat).bottom) / 2,
+        closeTo(card.center.dy, 1),
+      );
     },
   );
 
@@ -965,7 +999,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       await gesture.up();
       await tester.pumpAndSettle();
-      expect(_label(tester, _previous('b front')), endsWith('Response: Know'));
+      expect(_label(tester, _previous('b front')), _gradedAs('Know'));
       expect(scheduler.answers, isEmpty);
 
       // Dragged left, it shows what it would become behind it, and the
@@ -984,7 +1018,7 @@ void main() {
 
       expect(
         _label(tester, _previous('b front')),
-        endsWith("Response: Don't know. Changed"),
+        _gradedAs("Don't know", changed: true),
       );
       expect(shownText("Change to Don't know"), findsNothing);
       expect(_dragOffset(tester, _previousCard), 0);
@@ -1013,7 +1047,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       await gesture.up();
       await tester.pumpAndSettle();
-      expect(_label(tester, _previous('c front')), endsWith('Response: Know'));
+      expect(_label(tester, _previous('c front')), _gradedAs('Know'));
     },
   );
 
@@ -1026,14 +1060,14 @@ void main() {
       await _act(tester, _previous('a front'), "Change to Don't know");
       expect(
         _label(tester, _previous('a front')),
-        endsWith("Response: Don't know. Changed"),
+        _gradedAs("Don't know", changed: true),
       );
 
       await study.dontKnow();
       await _act(tester, _previous('b front'), 'Change to Know');
       expect(
         _label(tester, _previous('b front')),
-        endsWith('Response: Know. Changed'),
+        _gradedAs('Know', changed: true),
       );
       semantics.dispose();
     },
@@ -1226,34 +1260,37 @@ void main() {
     (ThemeMode.dark, AppColors.dark),
   ]) {
     testWidgets(
-      'in ${mode.name} each previous card shows its grade by its fill and line alone, Know green and Don\'t know red, with no chip, and its label names it',
+      'in ${mode.name} each previous card shows its grade by a 3 px line alone on the surface, Know green and Don\'t know red, which a re-decide changes, with no word or chip, and its label names it first',
       (tester) async {
         final study = await _open(tester, ['a', 'b', 'c'], themeMode: mode);
+        BoxDecoration faceOf(Finder card) =>
+            tester
+                    .widget<DecoratedBox>(
+                      find
+                          .descendant(
+                            of: card,
+                            matching: find.byType(DecoratedBox),
+                          )
+                          .first,
+                    )
+                    .decoration
+                as BoxDecoration;
 
-        for (final (name, answer, fill, line) in [
-          ('a', 'Know', colors.knowCard, colors.knowLine),
-          ('b', "Don't know", colors.dontKnowCard, colors.dontKnowLine),
+        for (final (name, answer, line) in [
+          ('a', 'Know', colors.know),
+          ('b', "Don't know", colors.dontKnowText),
         ]) {
           await (answer == 'Know' ? study.know() : study.dontKnow());
           final card = _previous('$name front');
           expect(
             _label(tester, card),
-            'Front: $name front. Back: $name back. Response: $answer',
+            '$_justSeen$answer. Front: $name front. Back: $name back',
           );
-          final face =
-              tester
-                      .widget<DecoratedBox>(
-                        find
-                            .descendant(
-                              of: card,
-                              matching: find.byType(DecoratedBox),
-                            )
-                            .first,
-                      )
-                      .decoration
-                  as BoxDecoration;
-          expect(face.color, fill, reason: name);
-          expect((face.border! as Border).top.color, line, reason: name);
+          final face = faceOf(card);
+          expect(face.color, colors.surface, reason: name);
+          final border = face.border! as Border;
+          expect(border.top.color, line, reason: name);
+          expect(border.top.width, 3, reason: name);
           // Nothing on the card but its sides: no word or icon of the grade.
           expect(
             find.descendant(of: card, matching: shownText(answer)),
@@ -1266,6 +1303,17 @@ void main() {
             reason: name,
           );
         }
+
+        // Re-decided to Know, its line turns green.
+        await tester.dragFrom(
+          tester.getCenter(_previousCard),
+          const Offset(200, 0),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          (faceOf(_previous('b front')).border! as Border).top.color,
+          colors.know,
+        );
       },
     );
   }
@@ -1290,7 +1338,88 @@ void main() {
         expect(replay.bottom, lessThanOrEqualTo(_phone.height));
       },
     );
+
+    testWidgets(
+      'at text scale $textScale the completion panel keeps its place under the previous card, with no overflow, scrolling inside to its last action',
+      (tester) async {
+        final study = await _open(tester, ['a'], textScale: textScale);
+        await study.know();
+        expect(find.byType(CompletionCard), findsOneWidget);
+
+        expect(tester.takeException(), isNull);
+        final panel = tester.getRect(find.byType(CompletionCard));
+        expect(panel.top, greaterThan(tester.getRect(_previousCard).bottom));
+        expect(panel.bottom, lessThanOrEqualTo(_phone.height));
+        // Every word of its own whole: the heading and the tiles' names.
+        for (final text in ['Done for today', 'Know', "Don't know", 'Time']) {
+          final paragraph = tester.renderObject<RenderParagraph>(
+            find
+                .descendant(
+                  of: find.descendant(
+                    of: find.byType(CompletionCard),
+                    matching: find.text(text),
+                  ),
+                  matching: find.byType(RichText),
+                )
+                .first,
+          );
+          expect(paragraph.didExceedMaxLines, isFalse, reason: text);
+        }
+        // A finger scrolls the panel to its last action, inside its place.
+        await tester.drag(
+          find.byType(CompletionCard),
+          const Offset(0, -600),
+          warnIfMissed: false,
+        );
+        await tester.pumpAndSettle();
+        expect(
+          tester.getRect(shownText('Stop')).bottom,
+          lessThanOrEqualTo(panel.bottom),
+        );
+      },
+    );
   }
+
+  testWidgets(
+    'the mascot sits between the cards and reacts to a drag of either: happy toward Know, sad toward Don\'t know, and thinking at rest',
+    (tester) async {
+      final study = await _open(tester, ['a', 'b', 'c']);
+      await study.know();
+      MascotExpression face() =>
+          tester.widget<Mascot>(find.byType(Mascot)).expression;
+      final mascot = tester.getRect(find.byType(Mascot));
+      expect(
+        mascot.center.dy,
+        closeTo(
+          (tester.getRect(_previousCard).bottom + tester.getRect(_face).top) /
+              2,
+          1,
+        ),
+      );
+      expect(face(), MascotExpression.thinking);
+
+      for (final (card, dx, expression) in [
+        (_face, 60.0, MascotExpression.happy),
+        (_face, -60.0, MascotExpression.sad),
+        (_previousCard, -60.0, MascotExpression.sad),
+        (_previousCard, 60.0, MascotExpression.happy),
+      ]) {
+        final gesture = await tester.startGesture(tester.getCenter(card));
+        for (var moved = 0; moved < 6; moved++) {
+          await gesture.moveBy(Offset(dx / 6, 0));
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        expect(face(), expression, reason: '$card by $dx');
+        // Short of an answer: let go, the card and the mascot come back.
+        await gesture.up();
+        await tester.pumpAndSettle();
+        expect(face(), MascotExpression.thinking, reason: '$card let go');
+      }
+      // Control: no drag answered or re-decided anything.
+      expect(study.current, 'b front');
+      expect(_label(tester, _previous('a front')), _gradedAs('Know'));
+    },
+  );
 
   testWidgets(
     'with reduce motion the card does not fly off and the next one cross-fades in',
@@ -1355,7 +1484,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(
           _label(tester, _previous('a front')),
-          endsWith("Response: Don't know. Changed"),
+          _gradedAs("Don't know", changed: true),
         );
 
         await tester.timedDrag(
@@ -1455,14 +1584,14 @@ void main() {
       await act('모른다');
       expect(
         find.semantics
-            .byLabel('앞면: a front. 뒷면: a back. 응답: 모른다')
+            .byLabel('방금 본 카드, 모른다. 앞면: a front. 뒷면: a back')
             .evaluate()
             .single,
         isSemantics(isButton: true, hasTapAction: true),
       );
-      expect(actions('앞면: a front. 뒷면: a back. 응답: 모른다'), '안다로 바꾸기');
+      expect(actions('방금 본 카드, 모른다. 앞면: a front. 뒷면: a back'), '안다로 바꾸기');
       await act('안다');
-      expect(actions('앞면: b front. 뒷면: b back. 응답: 안다'), '모른다로 바꾸기');
+      expect(actions('방금 본 카드, 안다. 앞면: b front. 뒷면: b back'), '모른다로 바꾸기');
       await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
       await expectLater(tester, meetsGuideline(textContrastGuideline));
       expectScreenTextReadable(tester);
@@ -1490,17 +1619,16 @@ void main() {
   );
 
   testWidgets(
-    'once no card is left the completion card takes the current card\'s place, below the stack, with today\'s answers, time and streak as a run, and with no new card left past today\'s, stopping as its one primary',
+    'once no card is left the completion panel takes the current card\'s place on the hero surface, below the stack, with today\'s streak as a run and three tiles of its answers and time, and with no new card left past today\'s, stopping as its one primary',
     (tester) async {
       final study = await _open(tester, ['a', 'b']);
 
-      // Never on a study card: only the completion card draws the mascot.
+      // While studying, the one mascot is the one between the cards.
       expect(study.current, 'a front');
-      expect(find.byType(Mascot), findsNothing);
+      expect(find.byType(Mascot), findsOneWidget);
       await study.dontKnow(elapsed: const Duration(seconds: 10));
       await study.know(elapsed: const Duration(seconds: 10));
       expect(study.current, 'a front');
-      expect(find.byType(Mascot), findsNothing);
       await study.know(elapsed: const Duration(seconds: 45));
 
       expect(shownText('Done for today'), findsOneWidget);
@@ -1543,6 +1671,51 @@ void main() {
         1,
       );
       expect(shownText('2/2'), findsOneWidget);
+      // On the hero surface, in the place the current card had.
+      expect(
+        tester
+            .widgetList<DecoratedBox>(
+              find.descendant(
+                of: find.byType(CompletionCard),
+                matching: find.byType(DecoratedBox),
+              ),
+            )
+            .map((box) => (box.decoration as BoxDecoration).color)
+            .first,
+        AppColors.light.hero,
+      );
+      expect(
+        tester.getSize(find.byType(CompletionCard)).height,
+        greaterThan(_cardHeight),
+      );
+      // Three tiles: the answers known in green, not known in red, and the
+      // time, each over its name.
+      for (final (count, colour, name) in [
+        ('2', AppColors.light.know, 'Know'),
+        ('1', AppColors.light.dontKnowText, "Don't know"),
+        ('2 min', AppColors.light.ink, 'Time'),
+      ]) {
+        final shown = find.descendant(
+          of: find.byType(CompletionCard),
+          matching: find.text(count),
+        );
+        expect(shown, findsOneWidget, reason: name);
+        expect(tester.widget<Text>(shown).style!.color, colour, reason: name);
+        expect(
+          tester.getRect(shown).bottom,
+          lessThanOrEqualTo(
+            tester
+                .getRect(
+                  find.descendant(
+                    of: find.byType(CompletionCard),
+                    matching: find.text(name),
+                  ),
+                )
+                .top,
+          ),
+          reason: name,
+        );
+      }
       // The previous card stays above the completion card.
       expect(
         tester.getRect(_previous('a front').last).bottom,
@@ -1551,11 +1724,12 @@ void main() {
       // No new card is left past today's, so nothing to go on with.
       expect(shownText('No more cards to study'), findsOneWidget);
       expect(find.widgetWithText(AppButton, 'Study'), findsNothing);
-      // Stopping is the one thing left, so it is the card's primary.
+      // Stopping is the one thing left, so it is the panel's primary, the
+      // fill a button takes on the hero.
       final stop = tester.widget<AppButton>(
         find.widgetWithText(AppButton, 'Stop'),
       );
-      expect(stop.variant, AppButtonVariant.primary);
+      expect(stop.variant, AppButtonVariant.onHero);
       expect(stop.size, AppButtonSize.cta);
 
       // Changing the last answer to "Don't know" studies the card again.
@@ -1776,13 +1950,13 @@ void main() {
         tester
             .widget<AppButton>(find.widgetWithText(AppButton, 'Study'))
             .variant,
-        AppButtonVariant.primary,
+        AppButtonVariant.onHero,
       );
       expect(
         tester
             .widget<AppButton>(find.widgetWithText(AppButton, 'Stop'))
             .variant,
-        AppButtonVariant.text,
+        AppButtonVariant.onHeroText,
       );
       final screen = tester.state(find.byType(StudyScreen));
       final route = ModalRoute.of(tester.element(find.byType(StudyScreen)));
@@ -1816,6 +1990,7 @@ void main() {
       expect(reviews, hasLength(_quota - 2 + 4));
 
       // Control: the completion card's other choice closes the screen.
+      await tester.ensureVisible(shownText('Stop'));
       await tester.tap(shownText('Stop'));
       await tester.pumpAndSettle();
       expect(find.byType(StudyScreen), findsNothing);
@@ -2097,10 +2272,7 @@ void main() {
         final study = await _open(tester, ['a', 'b', 'c'], coachShown: false);
         await study.know();
         expect(find.byType(StudyCoach), findsNothing);
-        expect(
-          _label(tester, _previous('a front')),
-          endsWith('Response: Know'),
-        );
+        expect(_label(tester, _previous('a front')), _gradedAs('Know'));
 
         // "Show the guide again" starts it again at its first step.
         await tester.tap(
@@ -2117,7 +2289,7 @@ void main() {
         await tester.pump(const Duration(seconds: 1));
         expect(
           _label(tester, _previous('a front')),
-          endsWith("Response: Don't know. Changed"),
+          _gradedAs("Don't know", changed: true),
         );
         expect(shownText('Swipe right if you know it'), findsOneWidget);
         // A tap opens it whole, and the coach runs on.
@@ -2398,8 +2570,8 @@ void main() {
         );
         expect(
           _label(tester, _previous('The capital of France is blank')),
-          'Front: The capital of France is blank. '
-          'Back: The capital of France is Paris. Response: Know',
+          '${_justSeen}Know. Front: The capital of France is blank. '
+          'Back: The capital of France is Paris',
         );
 
         await tester.tap(_previousCard);
@@ -2435,8 +2607,8 @@ void main() {
           await study.know();
           expect(
             _label(tester, _previous('The capital of France is blank')),
-            'Front: The capital of France is blank. '
-            'Back: $read. Response: Know',
+            '${_justSeen}Know. Front: The capital of France is blank. '
+            'Back: $read',
           );
 
           // Reopened, it is the day's last card from an earlier session.
