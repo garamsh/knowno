@@ -8,7 +8,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 ## Context
 
 - **Issue #498.** The owner, 2026-10-29: "저런 쉘스크릅티 류는 좀 깨지기 쉬운 구조라고 생각하거든. 코드로 지원되는 툴이라면 모를까."
-- **The scripts held logic no type or unit test reached.** #497 moved every script to `scripts/`, and its inventory in pull request #502 found parsing, hashing, diffing, port reservation and retries in 13 of them. The inventory's definition of logic is the one this ADR adopts.
+- **The scripts held logic no type or unit test reached.** #497 moved every script to `scripts/`, and its inventory in pull request #502 marked 14 of its 16 rows as holding parsing, hashing, diffing, port reservation, retries or text built for another tool, or as tests to replace with them. The inventory's definition of logic is the one this ADR adopts.
 - **A shell check can stop working without saying so.** `check-secrets.sh` read JWT payloads through `jq … || true`, so on a host with no `jq` it reported no service-role key and exited 0, with one in the file.
 - **Deno is already here.** The repository runs it for the Edge Functions and `tools/eval/`, and `deno test` and `deno lint` already run in `make`, so the language adds no toolchain.
 - **A program needs `deno` where a script needed only `sh`.** `make lint-repo` installed nothing in CI, and it runs on a pull request that touches only documents.
