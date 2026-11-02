@@ -37,13 +37,13 @@ endif
 lint: lint-repo lint-code
 
 lint-repo:
-	scripts/check-secrets.sh
-	scripts/check-ios-client-id.sh
+	scripts/run.sh check-secrets
+	scripts/run.sh check-ios-client-id
 
 lint-code:
 	scripts/check-generated.sh
-	scripts/check-migration-order.sh
-	scripts/deno.sh lint
+	scripts/run.sh check-migration-order
+	scripts/run.sh deno lint
 	scripts/web.sh lint
 	cd app && $(DART_FILES); \
 	flutter analyze $$files && \
@@ -57,7 +57,7 @@ lint-code:
 	done
 
 format:
-	scripts/deno.sh format
+	scripts/run.sh deno format
 	scripts/web.sh format
 	cd app && $(DART_FILES); \
 	dart format --output=none --set-exit-if-changed $$files && \
@@ -77,8 +77,6 @@ bridge:
 	echo "built the bridge library into app/rust/target/release/, where flutter_rust_bridge loads it under flutter test"
 
 test-app: bridge
-	scripts/check-migration-order.test.sh
-	scripts/skip.test.sh
 	cd app && flutter test --reporter expanded $(APP_CONFIG) && \
 	echo "ran the tests flutter test selects by default: app/test/**/*_test.dart"
 	cd engine && cargo test --locked && \
@@ -88,7 +86,7 @@ test-app: bridge
 test-db:
 	scripts/test-db.sh
 	scripts/migration-preview.test.sh
-	scripts/deno.sh test
+	scripts/run.sh deno test
 
 # Writes the brand's SVGs and PNGs from tools/brand/, then the launcher icons and the splash from
 # them. Not part of make ci, which checks them through scripts/web.sh lint. Revert the two edits the
