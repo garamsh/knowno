@@ -45,19 +45,67 @@ export async function read(
   return text.decode(stdout);
 }
 
-/** Runs the tool on this terminal; a failure ends the program with its code. */
-export async function attached(
+/** Runs the tool on this terminal and returns its exit code. */
+export async function status(
   command: string,
   args: string[],
   options: RunOptions = {},
-): Promise<void> {
+): Promise<number> {
   const { code } = await new Deno.Command(command, {
     args,
     ...options,
     stdout: "inherit",
     stderr: "inherit",
   }).output();
+  return code;
+}
+
+/** Runs the tool on this terminal; a failure ends the program with its code. */
+export async function attached(
+  command: string,
+  args: string[],
+  options: RunOptions = {},
+): Promise<void> {
+  const code = await status(command, args, options);
   if (code !== 0) throw new Stop(code);
+}
+
+/** The tool's stdout, trimmed; nothing where it fails or is not installed. */
+export async function reported(
+  command: string,
+  args: string[],
+  options: RunOptions = {},
+): Promise<string> {
+  try {
+    const { stdout } = await new Deno.Command(command, {
+      args,
+      ...options,
+      stdout: "piped",
+      stderr: "inherit",
+    }).output();
+    return text.decode(stdout).trim();
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return "";
+    throw error;
+  }
+}
+
+/** The lines of `input` the tool prints, fed to it on stdin, as a filter in a pipe. */
+export async function filtered(
+  command: string,
+  args: string[],
+  input: string,
+): Promise<string[]> {
+  const child = new Deno.Command(command, {
+    args,
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "inherit",
+  }).spawn();
+  const writer = child.stdin.getWriter();
+  await writer.write(new TextEncoder().encode(input));
+  await writer.close();
+  return lines(text.decode((await child.output()).stdout));
 }
 
 /** Whether the tool exits 0, printing nothing; a tool not installed does not. */
@@ -80,19 +128,13 @@ export async function succeeds(
   }
 }
 
-/** Whether this host can start the tool, whatever it then exits with. */
+/**
+ * Whether the tool is installed, as `command -v` asks. Starting it cannot tell, and neither can PATH
+ * alone: where node is missing, Deno adds a directory of its own holding a node that answers for it.
+ */
 export async function hasCommand(command: string): Promise<boolean> {
-  try {
-    await new Deno.Command(command, {
-      args: ["--version"],
-      stdout: "null",
-      stderr: "null",
-    }).output();
-    return true;
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return false;
-    throw error;
-  }
+  const { code, output } = await merged("which", [command]);
+  return code === 0 && !output.includes("/node_compat_bin/");
 }
 
 /** The tool's exit code, and its stdout and stderr in the order they arrived, as `2>&1` reads. */
