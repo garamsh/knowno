@@ -218,8 +218,10 @@ final class _Answered {
 ///
 /// Every answer and every toggle changes the session at once. The engine calls
 /// and the write that follow run afterwards, one at a time in the order given,
-/// and a [StudyFailure] they raise goes to [onFailure]. Any other error is
-/// reported to [FlutterError.reportError], and the writes after it still run.
+/// behind those of every session over the same [StudyRepository], which holds
+/// its reads until they land; a [StudyFailure] they raise goes to [onFailure].
+/// Any other error [StudyRepository.queueWrite] reports, and the writes after
+/// it still run.
 class StudySession extends ChangeNotifier {
   StudySession({
     required DeckSelection decks,
@@ -577,7 +579,8 @@ class StudySession extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Queues the rescheduling of [card], behind every earlier write: its
+  /// Queues the rescheduling of [card] behind every earlier write to the
+  /// repository, this session's and any closed one's: its
   /// written answers in this session, as they stand now, replayed from its
   /// state when the session opened, then written with that state.
   void _write(CardId card) {
@@ -586,7 +589,7 @@ class StudySession extends ChangeNotifier {
         if (answered.card.id == card) answered.review,
     ];
     final before = _before[card];
-    _writes = _writes.then((_) async {
+    _writes = _repository.queueWrite(() async {
       try {
         var after = await _scheduler.review(
           before,
@@ -605,17 +608,6 @@ class StudySession extends ChangeNotifier {
         await _repository.record(card, history, after, at: _clock());
       } on StudyFailure catch (failure) {
         _onFailure(failure);
-      } catch (error, stackTrace) {
-        // Reported as uncaught rather than rethrown: an errored future would
-        // skip every write queued behind it.
-        FlutterError.reportError(
-          FlutterErrorDetails(
-            exception: error,
-            stack: stackTrace,
-            library: 'study',
-            context: ErrorDescription('while recording an answer'),
-          ),
-        );
       }
     });
   }
