@@ -255,74 +255,63 @@ void main() {
     ('light', AppColors.light),
     ('dark', AppColors.dark),
   ]) {
-    test(
-      '$name text tokens meet WCAG AA, and answer marks and the streak 3:1',
-      () {
-        // Text, at 4.5:1: the pairs the screens draw text in, including the
-        // answer chips over a dragged card, which no semantics node reaches.
-        for (final (text, ground) in [
-          (colors.ink, colors.surface),
-          (colors.ink, colors.ground),
-          (colors.ink, colors.raised),
-          (colors.ink2, colors.surface),
-          (colors.ink2, colors.ground),
-          (colors.muted, colors.surface),
-          (colors.muted, colors.ground),
-          (colors.muted, colors.raised),
-          (colors.onPrimary, colors.primary),
-          (colors.onInk, colors.ink),
-          (colors.ink, colors.brandTint),
-          (colors.onHero, colors.hero),
-          (colors.brand, colors.onHero),
-          (colors.know, colors.surface),
-          (colors.know, colors.ground),
-          (colors.onKnow, colors.know),
-          (colors.onDontKnowText, colors.dontKnowText),
-          (colors.dontKnowText, colors.surface),
-          (colors.dontKnowText, colors.ground),
-          // A deck tile's icon on each colour of the deck palette.
-          for (final fill in [
-            colors.deckBlue,
-            colors.deckSky,
-            colors.deckPeach,
-            colors.deckAmber,
-            colors.deckSlate,
-            colors.deckSand,
-          ])
-            (colors.ink, fill),
-          // A previous card's sides on its grade's fill, and the answers'
-          // words on the green and red tints behind a dragged card.
-          for (final card in [colors.knowCard, colors.dontKnowCard]) ...[
-            (colors.ink, card),
-            (colors.ink2, card),
-          ],
-          (colors.onKnowTint, colors.tintGreen),
-          (colors.onDontKnowTint, colors.tintRed),
-        ]) {
-          expect(
-            contrast(text, ground),
-            greaterThanOrEqualTo(4.5),
-            reason: '$text on $ground',
-          );
-        }
-        // Non-text, at 3:1: an answer's mark in its colour on a grade's fill
-        // and on the ground, as the web's grade chip draws it, and the streak
-        // flame on the completion card.
-        for (final (mark, ground) in [
-          (colors.know, colors.knowCard),
-          (colors.know, colors.ground),
-          (colors.dontKnowText, colors.dontKnowCard),
-          (colors.dontKnowText, colors.ground),
-          (colors.streak, colors.surface),
-        ]) {
-          expect(
-            contrast(mark, ground),
-            greaterThanOrEqualTo(3),
-            reason: '$mark on $ground',
-          );
-        }
-      },
-    );
+    test('$name text tokens meet WCAG AA, and answer marks 3:1', () {
+      // Text, at 4.5:1: the pairs the screens draw text in, including the
+      // answer chips over a dragged card, which no semantics node reaches.
+      for (final (text, ground) in [
+        (colors.ink, colors.surface),
+        (colors.ink, colors.ground),
+        (colors.ink, colors.raised),
+        (colors.ink2, colors.surface),
+        (colors.ink2, colors.ground),
+        (colors.muted, colors.surface),
+        (colors.muted, colors.ground),
+        (colors.muted, colors.raised),
+        (colors.onPrimary, colors.primary),
+        (colors.onInk, colors.ink),
+        (colors.ink, colors.brandTint),
+        (colors.onHero, colors.hero),
+        (colors.brand, colors.onHero),
+        (colors.know, colors.surface),
+        (colors.know, colors.ground),
+        (colors.onKnow, colors.know),
+        (colors.onDontKnowText, colors.dontKnowText),
+        (colors.dontKnowText, colors.surface),
+        (colors.dontKnowText, colors.ground),
+        // A deck tile's icon on each colour of the deck palette.
+        for (final fill in [
+          colors.deckBlue,
+          colors.deckSky,
+          colors.deckPeach,
+          colors.deckAmber,
+          colors.deckSlate,
+          colors.deckSand,
+        ])
+          (colors.ink, fill),
+        // The answers' words on the green and red tints behind a dragged
+        // card.
+        (colors.onKnowTint, colors.tintGreen),
+        (colors.onDontKnowTint, colors.tintRed),
+      ]) {
+        expect(
+          contrast(text, ground),
+          greaterThanOrEqualTo(4.5),
+          reason: '$text on $ground',
+        );
+      }
+      // Non-text, at 3:1: an answer's mark in its colour on the ground, as
+      // the web's grade chip draws it.
+      for (final (mark, ground) in [
+        (colors.know, colors.ground),
+        (colors.dontKnowText, colors.ground),
+      ]) {
+        expect(
+          contrast(mark, ground),
+          greaterThanOrEqualTo(3),
+          reason: '$mark on $ground',
+        );
+      }
+    });
   }
 
   for (final (name, theme, colors) in [

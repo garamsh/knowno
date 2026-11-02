@@ -13,7 +13,6 @@ import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_button.dart';
 import 'package:knowno/design/app_section_label.dart';
-import 'package:knowno/study/src/streak_flame.dart';
 import 'package:knowno/study/src/completion_card.dart';
 import 'package:knowno/study/src/study_coach.dart';
 import 'package:knowno/design/mascot.dart';
@@ -1664,16 +1663,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      // On the hero the streak is its words alone, in the hero's text
-      // colour: the flame's stages are drawn for a light surface and fade
-      // into the hero (ADR 0151).
-      expect(
-        find.descendant(
-          of: find.byType(CompletionCard),
-          matching: find.byType(StreakFlame),
-        ),
-        findsNothing,
-      );
+      // On the hero the streak is in the hero's text colour.
       expect(
         tester
             .widget<Text>(

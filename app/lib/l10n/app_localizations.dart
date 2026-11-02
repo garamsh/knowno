@@ -1105,7 +1105,7 @@ abstract class AppLocalizations {
   /// **'{minutes}분'**
   String completionMinutes(int minutes);
 
-  /// The completion card's streak, after a flame icon: study days in a row.
+  /// The completion panel's streak, under its heading: study days in a row.
   ///
   /// In ko, this message translates to:
   /// **'{days}일 연속'**

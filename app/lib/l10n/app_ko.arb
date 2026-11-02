@@ -360,7 +360,7 @@
   },
   "completionStreak": "{days}일 연속",
   "@completionStreak": {
-    "description": "The completion card's streak, after a flame icon: study days in a row.",
+    "description": "The completion panel's streak, under its heading: study days in a row.",
     "placeholders": {"days": {"type": "int"}}
   },
   "completionSemantics": "안다 {know}, 모른다 {dontKnow}, {minutes}분, {days}일 연속",

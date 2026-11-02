@@ -436,13 +436,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.tintAmber,
     required this.tintGreen,
     required this.tintRed,
-    required this.knowCard,
-    required this.knowLine,
     required this.onKnowTint,
-    required this.dontKnowCard,
-    required this.dontKnowLine,
     required this.onDontKnowTint,
-    required this.streak,
     required this.deckBlue,
     required this.deckSky,
     required this.deckPeach,
@@ -494,13 +489,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     tintAmber: Color(0xFFFFE9A8),
     tintGreen: Color(0xFFBFF0DC),
     tintRed: Color(0xFFFFD2DE),
-    knowCard: Color(0xFFBFF0DC),
-    knowLine: Color(0xFF86D5B7),
     onKnowTint: Color(0xFF14683F),
-    dontKnowCard: Color(0xFFFFD2DE),
-    dontKnowLine: Color(0xFFF0A3B8),
     onDontKnowTint: Color(0xFFA3202F),
-    streak: Color(0xFFC26A0A),
     deckBlue: Color(0xFFDCE6FF),
     deckSky: Color(0xFFE0F0FA),
     deckPeach: Color(0xFFFFE3DC),
@@ -552,13 +542,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     tintAmber: Color(0xFF4A3B1E),
     tintGreen: Color(0xFF1F5A44),
     tintRed: Color(0xFF6B2331),
-    knowCard: Color(0xFF1B4A3B),
-    knowLine: Color(0xFF2C6B57),
     onKnowTint: Color(0xFF8CE6BC),
-    dontKnowCard: Color(0xFF52202F),
-    dontKnowLine: Color(0xFF7A3049),
     onDontKnowTint: Color(0xFFFFA8BA),
-    streak: Color(0xFFF5A623),
     deckBlue: Color(0xFF2C3A66),
     deckSky: Color(0xFF1D3A50),
     deckPeach: Color(0xFF4A3330),
@@ -681,38 +666,17 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// A red tint, behind a study card dragged toward "Don't know".
   final Color tintRed;
 
-  /// A previous card answered "Know": its fill and its line.
-  final Color knowCard;
-  final Color knowLine;
-
   /// "Know" as text on [tintGreen], the tint behind a card dragged toward it.
   final Color onKnowTint;
-
-  /// A previous card answered "Don't know": its fill and its line.
-  final Color dontKnowCard;
-  final Color dontKnowLine;
 
   /// "Don't know" as text on [tintRed], the tint behind a card dragged toward
   /// it.
   final Color onDontKnowTint;
 
-  /// The streak flame's body, on the 오늘 tab.
-  final Color streak;
-
   /// What a pressed row draws over itself: [ink] at the 10% a pressed
   /// button's label colour is drawn at, so a press dims either alike.
   /// Derived, so the web's token set needs no colour of its own.
   Color get pressed => ink.withValues(alpha: 0.1);
-
-  /// The streak flame's line at its first stage, before it takes [streak].
-  Color get flameOutline => muted;
-
-  /// The streak flame's warm core, from its fourth stage: [streak] halfway
-  /// toward white, so the web's token set needs no flame of its own.
-  Color get flameCore => Color.lerp(streak, const Color(0xFFFFFFFF), 0.5)!;
-
-  /// The streak flame's glow, from its fourth stage.
-  Color get flameGlow => streak.withValues(alpha: 0.35);
 
   /// The deck palette, the colours a deck's tile takes: blue, sky, peach,
   /// amber, slate and sand, none green or red, which mean "Know" and "Don't
@@ -771,13 +735,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? tintAmber,
     Color? tintGreen,
     Color? tintRed,
-    Color? knowCard,
-    Color? knowLine,
     Color? onKnowTint,
-    Color? dontKnowCard,
-    Color? dontKnowLine,
     Color? onDontKnowTint,
-    Color? streak,
     Color? deckBlue,
     Color? deckSky,
     Color? deckPeach,
@@ -825,13 +784,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     tintAmber: tintAmber ?? this.tintAmber,
     tintGreen: tintGreen ?? this.tintGreen,
     tintRed: tintRed ?? this.tintRed,
-    knowCard: knowCard ?? this.knowCard,
-    knowLine: knowLine ?? this.knowLine,
     onKnowTint: onKnowTint ?? this.onKnowTint,
-    dontKnowCard: dontKnowCard ?? this.dontKnowCard,
-    dontKnowLine: dontKnowLine ?? this.dontKnowLine,
     onDontKnowTint: onDontKnowTint ?? this.onDontKnowTint,
-    streak: streak ?? this.streak,
     deckBlue: deckBlue ?? this.deckBlue,
     deckSky: deckSky ?? this.deckSky,
     deckPeach: deckPeach ?? this.deckPeach,
@@ -885,13 +839,8 @@ final class AppColors extends ThemeExtension<AppColors> {
       tintAmber: mix(tintAmber, other.tintAmber),
       tintGreen: mix(tintGreen, other.tintGreen),
       tintRed: mix(tintRed, other.tintRed),
-      knowCard: mix(knowCard, other.knowCard),
-      knowLine: mix(knowLine, other.knowLine),
       onKnowTint: mix(onKnowTint, other.onKnowTint),
-      dontKnowCard: mix(dontKnowCard, other.dontKnowCard),
-      dontKnowLine: mix(dontKnowLine, other.dontKnowLine),
       onDontKnowTint: mix(onDontKnowTint, other.onDontKnowTint),
-      streak: mix(streak, other.streak),
       deckBlue: mix(deckBlue, other.deckBlue),
       deckSky: mix(deckSky, other.deckSky),
       deckPeach: mix(deckPeach, other.deckPeach),

@@ -66,8 +66,6 @@ class CompletionCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // No flame: its stages are drawn for a light
-                        // surface and fade into the hero (ADR 0151).
                         ExcludeSemantics(
                           child: Text(
                             l10n.completionStreak(completion.streak),
