@@ -2,7 +2,6 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { chipTone } from "@/testing/chip";
 import { otherUser } from "@/testing/mocks/handlers";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { server } from "@/testing/mocks/server";
@@ -93,7 +92,8 @@ describe("the record page", () => {
     // 30 days: a's "안다" 20 days back, and a's and the deleted card's "안다" and b's "모른다" 3 days back.
     expect(screen.getByRole("radio", { name: "30일" })).toBeChecked();
     expect(screen.getByText("75%")).toBeInTheDocument();
-    expect(chipTone(screen.getByText("목표보다 15% 낮아요"))).toBe("tint-amber");
+    // A shortfall's pill is amber; a gain's is green (ADR 0151).
+    expect(screen.getByText("목표보다 15% 낮아요")).toHaveClass("bg-tint-amber");
     expect(label("복습에서 맞힌 비율")).toBe(
       "복습에서 맞힌 비율, 목표 90%: 12월 26일 100%, 1월 12일 67%",
     );
@@ -108,34 +108,34 @@ describe("the record page", () => {
     expect(screen.getByText("목표보다 30% 낮아요")).toBeInTheDocument();
   });
 
-  it("draws its charts below the page's title in two sizes, the body and the caption, the figures apart", async () => {
+  it("draws its charts below the page's title in three sizes, the caption, the body and the display the bands' counts share with the title, the figures apart", async () => {
     seedHistory();
     await render(RecordContent, {});
 
     // The state it asked for: the retention with its target, which drew a fourth size.
     expect(screen.getByText("75%")).toBeInTheDocument();
     expect(screen.getByText("목표 90%")).toBeInTheDocument();
-    expect(typeSizesOf(document.body)).toEqual([13, 16]);
+    expect(typeSizesOf(document.body)).toEqual([13, 16, 28]);
   });
 
-  it("puts the period selector in the retention card beside its heading, which alone follows it", async () => {
+  it("puts the period selector above the retention, which alone follows it, the chosen period on the primary fill", async () => {
     seedHistory();
     await render(RecordContent, {});
 
-    const retention = within(screen.getByRole("region", { name: "복습에서 맞힌 비율" }));
-    const choice = retention.getByRole("radiogroup", { name: "기간" });
-    // One selector on the page, in the heading's row: the heading's next siblings hold it.
+    const region = screen.getByRole("region", { name: "복습에서 맞힌 비율" });
+    const retention = within(region);
+    const choice = screen.getByRole("radiogroup", { name: "기간" });
+    // One selector on the page, before the retention's card and outside it.
     expect(screen.getAllByRole("radiogroup")).toHaveLength(1);
-    expect(retention.getByRole("heading", { name: "복습에서 맞힌 비율" }).parentElement).toBe(
-      choice.parentElement,
-    );
-    // Nothing in it floats, so the chosen period draws no shadow, only the raised fill.
-    expect(choice.querySelector('[class*="shadow"]')).toBeNull();
-    expect(choice.querySelector('[class*="peer-checked:bg-raised"]')).not.toBeNull();
+    expect(region.contains(choice)).toBe(false);
+    expect(choice.compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The chosen period takes the primary fill and its label.
+    expect(choice.querySelector('[class*="peer-checked:bg-primary"]')).not.toBeNull();
+    expect(choice.querySelector('[class*="peer-checked:text-on-primary"]')).not.toBeNull();
     // Another period changes the retention, and no other card.
     const mastered = screen.getByRole("region", { name: "익힌 카드" }).textContent;
     const days = screen.getByRole("region", { name: "학습한 날" }).textContent;
-    await userEvent.click(retention.getByRole("radio", { name: "7일" }));
+    await userEvent.click(within(choice).getByRole("radio", { name: "7일" }));
     expect(retention.getByText("67%")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "익힌 카드" }).textContent).toBe(mastered);
     expect(screen.getByRole("region", { name: "학습한 날" }).textContent).toBe(days);
@@ -151,6 +151,12 @@ describe("the record page", () => {
     expect(card.getByText(`${String(now)}장`)).toHaveClass("text-figure");
     expect(card.getByText("7주 전")).toBeInTheDocument();
     expect(card.getByText("이번 주")).toBeInTheDocument();
+    // The past weeks in the heatmap's second step, this week in the accent (ADR 0151).
+    const bars = [...card.getByRole("img", { name: /^주별 익힌 카드/ }).children];
+    expect(bars.map((bar) => bar.className.match(/\bbg-(heat-1|accent)\b/)?.[0])).toEqual([
+      ...Array<string>(7).fill("bg-heat-1"),
+      "bg-accent",
+    ]);
   });
 
   it.each([
@@ -185,26 +191,34 @@ describe("the record page", () => {
     expect(card.getByText(/적게/)).toHaveTextContent("적게많이");
     const cells = [...card.getByRole("img", { name: /^최근 12주/ }).children];
     expect(cells).toHaveLength(84);
-    // Only the last cell, today's, is ringed.
-    expect(cells.filter((cell) => cell.classList.contains("ring-2"))).toEqual([cells.at(-1)]);
+    // Only the last cell, today's, is outlined in ink, clear of its fill.
+    expect(
+      cells.filter((cell) =>
+        ["outline-2", "outline-offset-1", "outline-ink"].every((name) =>
+          cell.classList.contains(name),
+        ),
+      ),
+    ).toEqual([cells.at(-1)]);
+    // Each cell in one of the four cobalt steps.
+    for (const cell of cells) {
+      expect([...cell.classList].filter((name) => /^bg-heat-[0-3]$/.test(name))).toHaveLength(1);
+    }
   });
 
-  it("labels the retention scale's floor and names the target above the plot, clear of the line (#155)", async () => {
+  it("names the target on its dashed line at the plot's left and labels no scale, only the axis's ends", async () => {
     seedHistory();
     await render(RecordContent, {});
 
     const chart = screen.getByRole("img", { name: /^복습에서 맞힌 비율/ });
-    // The lowest day, 67%, takes the scale down to 60%, and the floor says so.
-    expect(chart).toHaveTextContent("100%");
-    expect(chart).toHaveTextContent("60%");
-    // The target's name sits in its own row above the plot's svg, not inside it.
-    const target = screen.getByText("목표 90%");
+    // The lowest day, 67%, takes the scale down to 60%, which no label names.
+    expect(chart).not.toHaveTextContent("100%");
+    expect(chart).not.toHaveTextContent("60%");
+    // The target's name sits on its line, a quarter of the way down from 100% to 60%, at the left.
+    const target = within(chart).getByText("목표 90%");
     expect(target.closest("svg")).toBeNull();
-    const plot = chart.querySelector("svg[preserveAspectRatio]");
-    expect(plot).not.toBeNull();
-    expect(
-      target.compareDocumentPosition(plot ?? target) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(target).toHaveClass("left-0");
+    expect(Number.parseFloat(target.style.top)).toBeCloseTo(25);
+    expect(chart).toHaveTextContent(/30일 전.*오늘/);
   });
 
   it("shows the recall bands of the cards in the decks, the deleted card's state left out", async () => {
@@ -230,12 +244,8 @@ describe("the record page", () => {
     await render(RecordContent, {});
 
     expect(screen.getByText("이 기간에 복습한 카드가 없어요.")).toBeInTheDocument();
-    // The period stays in the card, so another can be chosen.
-    expect(
-      within(screen.getByRole("region", { name: "복습에서 맞힌 비율" })).getByRole("radiogroup", {
-        name: "기간",
-      }),
-    ).toBeInTheDocument();
+    // The period stays, so another can be chosen.
+    expect(screen.getByRole("radiogroup", { name: "기간" })).toBeInTheDocument();
     expect(screen.getByText("아직 복습한 카드가 없어요.")).toBeInTheDocument();
     expect(screen.getByText("아직 익힌 카드가 없어요.")).toBeInTheDocument();
     expect(label("최근 12주")).toBe("최근 12주 동안 학습한 날이 없어요");
