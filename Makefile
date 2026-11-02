@@ -84,8 +84,8 @@ test-app: bridge
 	scripts/run.sh wasm-bindgen test
 
 test-db:
-	scripts/test-db.sh
-	scripts/migration-preview.test.sh
+	scripts/run.sh test-db
+	scripts/run.sh test-migration-preview
 	scripts/run.sh deno test
 
 # Writes the brand's SVGs and PNGs from tools/brand/, then the launcher icons and the splash from
@@ -97,16 +97,17 @@ brand:
 
 # Writes $(PREVIEW).json and $(PREVIEW).md: what the migrations this branch adds do to main's
 # schema holding supabase/preview-seed.sql (server.md). Not part of make ci: it reports, it checks nothing.
-PREVIEW := $(or $(TMPDIR),/tmp)/migration-preview
+# The temporary directory by its real path, the one scripts/migration-preview.ts may write in.
+PREVIEW := $(shell cd "$${TMPDIR:-/tmp}" && pwd -P)/migration-preview
 preview-migrations:
-	scripts/migration-preview.sh $(PREVIEW)
+	scripts/run.sh migration-preview $(PREVIEW)
 
 test-sync: bridge
-	scripts/test-sync.sh
+	scripts/run.sh test-sync
 
 test-web:
 	scripts/run.sh web test
-	scripts/test-web.sh
+	scripts/run.sh test-web
 
 # build is the sum of its parts; CI runs build-apk and build-ios build-engine-web as parallel jobs.
 ifeq ($(BUILD),all)
