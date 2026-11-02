@@ -108,7 +108,7 @@ jobs:
         include:
           - { id: lint, target: lint-code format, frb: true, wasm-bindgen: true, node: true, deno: true }
           - { id: test-app, target: test-app, wasm-bindgen: true, node: true, deno: true }
-          - { id: test-sync, target: test-sync, supabase: true }
+          - { id: test-sync, target: test-sync, supabase: true, deno: true }
           - { id: build-apk, target: build-apk, java: true }
           - { id: build, target: build-ios build-engine-web, node: true, deno: true }
     steps:

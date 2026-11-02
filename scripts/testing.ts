@@ -85,14 +85,20 @@ export function outputLines({ stdout, stderr }: Ran): string[] {
 
 const HOST_TOOLS = [
   "basename",
+  "cat",
+  "cp",
   "deno",
   "diff",
   "dirname",
   "git",
   "grep",
+  "realpath",
   "rm",
   "sed",
   "sh",
+  "sleep",
+  "touch",
+  "wc",
   "which",
 ];
 

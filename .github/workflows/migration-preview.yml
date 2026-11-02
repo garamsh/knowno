@@ -6,8 +6,8 @@ name: migration preview
 # (server.md). It is not a required check: it fails when a migration fails on the seeded data, and
 # its report is for the reviewer. It reads only the repository, so it holds no secret.
 #
-# Dependabot moves the `uses:` pins. The runner label and the CLI version are those of ci.yml's
-# ubuntu jobs, and move in the same pull request as theirs.
+# Dependabot moves the `uses:` pins. The runner label and the CLI and Deno versions are those of
+# ci.yml's ubuntu jobs, and move in the same pull request as theirs.
 on:
   pull_request:
     paths:
@@ -27,5 +27,11 @@ jobs:
       - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: 2.120.0
+      # scripts/run.sh runs the preview, a Deno program, which writes only under TMPDIR.
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: 2.9.7
       - run: make preview-migrations PREVIEW="$RUNNER_TEMP/migration-preview"
+        env:
+          TMPDIR: ${{ runner.temp }}
       - run: cat "$RUNNER_TEMP/migration-preview.md" >> "$GITHUB_STEP_SUMMARY"

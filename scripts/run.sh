@@ -11,7 +11,7 @@ program=${1:-}
 # The temporary directory by its real path, which is how Deno compares a grant.
 TMPDIR=$(cd "${TMPDIR:-/tmp}" && pwd -P)
 export TMPDIR
-allow=$(sed -n "s|^$program: ||p" scripts/grants.txt | sed "s|TMPDIR|$TMPDIR|g")
+allow=$(sed -n "s|^$program: ||p" scripts/grants.txt | sed "s|<tmp>|$TMPDIR|g")
 if [ -z "$allow" ]; then
 	echo "usage: $0 <program> [arguments]; no program is named ${program:-here}" >&2
 	exit 2

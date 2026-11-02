@@ -229,7 +229,7 @@ async function testImage(container: string, env: Env): Promise<void> {
     env: { ...env, E2E_BASE_URL: url },
   });
   console.log(
-    "ran the e2e specs Playwright selects in web/e2e/ against the image; web/e2e/study.spec.ts skips there; scripts/test-web.sh runs every spec against a local stack",
+    "ran the e2e specs Playwright selects in web/e2e/ against the image; web/e2e/study.spec.ts skips there; scripts/test-web.ts runs every spec against a local stack",
   );
 }
 
