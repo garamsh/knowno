@@ -176,7 +176,7 @@ class _TabBar extends StatelessWidget {
           ),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: colors.surface,
+              color: colors.bar,
               borderRadius: BorderRadius.circular(AppRadius.button),
               boxShadow: AppShadow.edge(colors.edge, AppSize.edgeRow),
             ),

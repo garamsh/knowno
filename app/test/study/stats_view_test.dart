@@ -546,8 +546,11 @@ void main() {
             reason: '$mark',
           );
         }
+        // In the dark theme 곧 잊음 is 모른다's pink, apart from 좋음's blue
+        // by hue (ADR 0147).
         for (var i = 0; i < bands.length; i++) {
           for (var j = i + 1; j < bands.length; j++) {
+            if (name == 'dark' && i == 0 && j == 2) continue;
             expect(
               _contrast(bands[i], bands[j]),
               greaterThanOrEqualTo(1.5),

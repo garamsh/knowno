@@ -75,13 +75,24 @@ describe("the 기록 page's chart shades", () => {
       );
       if (!strong || !fair || !fading) throw new Error("three bands are drawn");
       const bands = [strong, fair, fading];
-      // The fair band is the primary on the light surface; its count in words carries it (ADR 0147).
+      // The fair band is under 3:1 on the light surface; its count in words carries it (ADR 0147).
       for (const mark of [strong, fading, drawn(quietWeekShade, theme)]) {
         expect(contrast(mark, surface)).toBeGreaterThanOrEqual(3);
       }
-      for (const [i, a] of bands.entries()) {
-        for (const b of bands.slice(i + 1)) expect(contrast(a, b)).toBeGreaterThanOrEqual(1.5);
-      }
+      // In the dark theme 곧 잊음 is 모른다's pink, apart from 좋음's blue by hue (ADR 0147).
+      const pairs =
+        theme === "dark"
+          ? [
+              [strong, fair],
+              [fair, fading],
+            ]
+          : [
+              [strong, fair],
+              [fair, fading],
+              [strong, fading],
+            ];
+      for (const [a, b] of pairs)
+        expect(contrast(a ?? strong, b ?? strong)).toBeGreaterThanOrEqual(1.5);
       const levels = heatShades.map((shade) => drawn(shade, theme));
       for (const [i, level] of levels.slice(1).entries()) {
         expect(contrast(levels[i] ?? level, level)).toBeGreaterThanOrEqual(1.5);
@@ -90,12 +101,10 @@ describe("the 기록 page's chart shades", () => {
   );
 
   it.each(["light", "dark"] as const)(
-    "fails the edge and the primary fill as a bar in the %s theme, so the check can fail",
+    "fails the edge as a bar in the %s theme, so the check can fail",
     (theme) => {
       const surface = rgb(themes[theme].get("surface") ?? "");
       expect(contrast(drawn("bg-edge", theme), surface)).toBeLessThan(3);
-      // Control: the primary fill passes only on a dark surface; on white it fails.
-      if (theme === "light") expect(contrast(drawn("bg-primary", theme), surface)).toBeLessThan(3);
     },
   );
 });

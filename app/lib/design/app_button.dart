@@ -9,7 +9,7 @@ enum AppButtonVariant {
   /// edge.
   primary,
 
-  /// The study coach's action: the [AppColors.onHero] fill on its edge.
+  /// The study coach's action: the [AppColors.heroButton] fill on its edge.
   onHero,
 
   /// An action beside the primary one: the surface on its edge.
@@ -87,7 +87,7 @@ class AppButton extends StatelessWidget {
     final pressed = loading ? null : onPressed;
     final (fill, onFill) = switch (variant) {
       AppButtonVariant.primary => (colors.primary, colors.onPrimary),
-      AppButtonVariant.onHero => (colors.onHero, colors.brand),
+      AppButtonVariant.onHero => (colors.heroButton, colors.onHeroButton),
       AppButtonVariant.destructiveFinal => (
         colors.dontKnowText,
         colors.onDontKnowText,

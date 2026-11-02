@@ -417,6 +417,9 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.hero,
     required this.onHero,
     required this.onHeroEdge,
+    required this.heroButton,
+    required this.onHeroButton,
+    required this.bar,
     required this.brand,
     required this.know,
     required this.onKnow,
@@ -446,38 +449,41 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.deckSand,
   });
 
-  /// Light tokens: deep teal ink on white surfaces over an aqua ground, each
+  /// Light tokens: navy ink on white surfaces over a pale blue ground, each
   /// solid object on a darker [edge]; coral is the mascot's alone.
   static const light = AppColors(
-    ground: Color(0xFFEDFAFC),
+    ground: Color(0xFFEEF3FF),
     surface: Color(0xFFFFFFFF),
     raised: Color(0xFFFFFFFF),
-    ink: Color(0xFF0F3138),
+    ink: Color(0xFF13224A),
     onInk: Color(0xFFFFFFFF),
-    primary: Color(0xFF5FD0E0),
-    primaryEdge: Color(0xFF2FA6B8),
-    onPrimary: Color(0xFF0F3138),
-    accent: Color(0xFF0A6B7B),
-    edge: Color(0xFFBCE8EF),
-    ink2: Color(0xFF3B5D65),
-    muted: Color(0xFF3B5D65),
-    hairline: Color(0xFFDCF2F6),
-    outline: Color(0xFFBCE8EF),
-    brandTint: Color(0xFFDCF2F6),
-    hero: Color(0xFF0A6B7B),
+    primary: Color(0xFF2547D0),
+    primaryEdge: Color(0xFF172E94),
+    onPrimary: Color(0xFFFFFFFF),
+    accent: Color(0xFF2547D0),
+    edge: Color(0xFFC9D6FB),
+    ink2: Color(0xFF44527A),
+    muted: Color(0xFF44527A),
+    hairline: Color(0xFFDCE5FD),
+    outline: Color(0xFFC9D6FB),
+    brandTint: Color(0xFFDCE5FD),
+    hero: Color(0xFF2547D0),
     onHero: Color(0xFFFFFFFF),
-    onHeroEdge: Color(0xFF2FA6B8),
-    brand: Color(0xFF0A6B7B),
+    onHeroEdge: Color(0xFFC9D6FB),
+    heroButton: Color(0xFFFFFFFF),
+    onHeroButton: Color(0xFF2547D0),
+    bar: Color(0xFFFFFFFF),
+    brand: Color(0xFF2547D0),
     know: Color(0xFF14683F),
     onKnow: Color(0xFFFFFFFF),
     dontKnow: Color(0xFFA3202F),
     dontKnowText: Color(0xFFA3202F),
     dontKnowEdge: Color(0xFF7A1622),
     onDontKnowText: Color(0xFFFFFFFF),
-    shadow: Color(0xFF0F3138),
-    chartOther: Color(0xFF5FD0E0),
-    chartQuiet: Color(0xFF5B9DAB),
-    chartFading: Color(0xFF7A1622),
+    shadow: Color(0xFF13224A),
+    chartOther: Color(0xFF9DB1F0),
+    chartQuiet: Color(0xFF6F86D9),
+    chartFading: Color(0xFF6B1320),
     tintAmber: Color(0xFFFFE9A8),
     tintGreen: Color(0xFFBFF0DC),
     tintRed: Color(0xFFFFD2DE),
@@ -488,36 +494,39 @@ final class AppColors extends ThemeExtension<AppColors> {
     dontKnowLine: Color(0xFFF0A3B8),
     onDontKnowTint: Color(0xFFA3202F),
     streak: Color(0xFFC26A0A),
-    deckBlue: Color(0xFFC9E2FF),
+    deckBlue: Color(0xFFDCE6FF),
     deckSky: Color(0xFFE0F0FA),
-    deckPeach: Color(0xFFFFD9C2),
+    deckPeach: Color(0xFFFFE3DC),
     deckAmber: Color(0xFFFFE9A8),
-    deckSlate: Color(0xFFE9ECF1),
-    deckSand: Color(0xFFF4ECDF),
+    deckSlate: Color(0xFFE3E8F2),
+    deckSand: Color(0xFFF2EAD8),
   );
 
-  /// Dark tokens: pale ink on deep teal surfaces, the same aqua primary, and
+  /// Dark tokens: pale ink on deep navy surfaces, the primary lightened, and
   /// the greens and reds lightened to meet WCAG AA on [surface].
   static const dark = AppColors(
-    ground: Color(0xFF0F2429),
-    surface: Color(0xFF1A343B),
-    raised: Color(0xFF2B4A52),
-    ink: Color(0xFFE8F7FA),
-    onInk: Color(0xFF0F2429),
-    primary: Color(0xFF5FD0E0),
-    primaryEdge: Color(0xFF2FA6B8),
-    onPrimary: Color(0xFF0F2429),
-    accent: Color(0xFF5FD0E0),
-    edge: Color(0xFF091619),
-    ink2: Color(0xFFA6C8D0),
-    muted: Color(0xFFA6C8D0),
-    hairline: Color(0xFF2B4A52),
-    outline: Color(0xFF2B4A52),
-    brandTint: Color(0xFF2B4A52),
-    hero: Color(0xFF0A6B7B),
+    ground: Color(0xFF111A2E),
+    surface: Color(0xFF232F4E),
+    raised: Color(0xFF2E3B60),
+    ink: Color(0xFFEEF2FF),
+    onInk: Color(0xFF0D1424),
+    primary: Color(0xFF8AB4FF),
+    primaryEdge: Color(0xFF4A78D6),
+    onPrimary: Color(0xFF0D1424),
+    accent: Color(0xFF8AB4FF),
+    edge: Color(0xFF0A1020),
+    ink2: Color(0xFFB3BEDC),
+    muted: Color(0xFFB3BEDC),
+    hairline: Color(0xFF34405F),
+    outline: Color(0xFF34405F),
+    brandTint: Color(0xFF34405F),
+    hero: Color(0xFF1A2F78),
     onHero: Color(0xFFFFFFFF),
-    onHeroEdge: Color(0xFF2FA6B8),
-    brand: Color(0xFF0A6B7B),
+    onHeroEdge: Color(0xFF4A78D6),
+    heroButton: Color(0xFF8AB4FF),
+    onHeroButton: Color(0xFF0D1424),
+    bar: Color(0xFF2C3A60),
+    brand: Color(0xFF1A2F78),
     know: Color(0xFF8CE6BC),
     onKnow: Color(0xFF1D1833),
     dontKnow: Color(0xFFFFA8BA),
@@ -525,9 +534,9 @@ final class AppColors extends ThemeExtension<AppColors> {
     dontKnowEdge: Color(0xFFD97C92),
     onDontKnowText: Color(0xFF1D1833),
     shadow: Color(0xFF000000),
-    chartOther: Color(0xFF62A3B2),
-    chartQuiet: Color(0xFF62A3B2),
-    chartFading: Color(0xFFCF4A63),
+    chartOther: Color(0xFF3D568F),
+    chartQuiet: Color(0xFF6890E2),
+    chartFading: Color(0xFFFFA8BA),
     tintAmber: Color(0xFF4A3B1E),
     tintGreen: Color(0xFF1F5A44),
     tintRed: Color(0xFF6B2331),
@@ -538,12 +547,12 @@ final class AppColors extends ThemeExtension<AppColors> {
     dontKnowLine: Color(0xFF7A3049),
     onDontKnowTint: Color(0xFFFFA8BA),
     streak: Color(0xFFF5A623),
-    deckBlue: Color(0xFF2F5A86),
+    deckBlue: Color(0xFF2C3A66),
     deckSky: Color(0xFF1D3A50),
-    deckPeach: Color(0xFF5A3E30),
+    deckPeach: Color(0xFF4A3330),
     deckAmber: Color(0xFF4A3B1E),
-    deckSlate: Color(0xFF2D3445),
-    deckSand: Color(0xFF3F3527),
+    deckSlate: Color(0xFF323B52),
+    deckSand: Color(0xFF433C30),
   );
 
   /// The screen's background, under every surface.
@@ -561,9 +570,8 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// Text and icons on an [ink] fill.
   final Color onInk;
 
-  /// The primary action's fill. Aqua falls short on a light [surface], so
-  /// its [onPrimary] label and [primaryEdge] carry the button, and text and
-  /// marks take [accent] (ADR 0147).
+  /// The primary action's fill, under its [onPrimary] label; text and marks
+  /// take [accent] (ADR 0147).
   final Color primary;
 
   /// The edge [primary] sits on.
@@ -595,16 +603,26 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// A quiet tint of the ground: a chip, an avatar's circle, a filled blank.
   final Color brandTint;
 
-  /// The study coach's fill and the study screen's notice.
+  /// A full-screen colour surface, and the study coach's fill and the study
+  /// screen's notice, apart from [primary].
   final Color hero;
 
   /// Text and the button fill on [hero].
   final Color onHero;
 
-  /// The edge a button filled in [onHero] sits on.
+  /// The edge a button on [hero] sits on.
   final Color onHeroEdge;
 
-  /// [hero]'s colour as the label of a button filled in [onHero].
+  /// A button or a chip on [hero], and its label: never white under a
+  /// light blue.
+  final Color heroButton;
+  final Color onHeroButton;
+
+  /// The tab bar's fill: the surface in the light theme, a step lighter in
+  /// the dark.
+  final Color bar;
+
+  /// A photo's box outline and its hidden fill.
   final Color brand;
 
   /// "Know", as text and icons on [surface] or [ground], and as a fill under [onKnow].
@@ -625,8 +643,7 @@ final class AppColors extends ThemeExtension<AppColors> {
   final Color shadow;
 
   /// A chart's bar or segment that is not the one it stresses, beside its
-  /// own count, which carries it: the primary in the light theme, and a
-  /// step from [accent] in the dark, where the two are one colour.
+  /// own count, which carries it: 1.5:1 from [accent].
   final Color chartOther;
 
   /// A mark with no count of its own: a past week's mastered bar, a deck's
@@ -634,7 +651,8 @@ final class AppColors extends ThemeExtension<AppColors> {
   final Color chartQuiet;
 
   /// The recall band that is fading: 3:1 on [surface], and 1.5:1 from
-  /// [accent] and [chartOther].
+  /// [chartOther]; in the dark theme it is 모른다's colour, apart from
+  /// [accent] by hue (ADR 0147).
   final Color chartFading;
 
   /// An amber tint: the backlog card's check and a chart's shortfall.
@@ -714,6 +732,9 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? hero,
     Color? onHero,
     Color? onHeroEdge,
+    Color? heroButton,
+    Color? onHeroButton,
+    Color? bar,
     Color? brand,
     Color? know,
     Color? onKnow,
@@ -760,6 +781,9 @@ final class AppColors extends ThemeExtension<AppColors> {
     hero: hero ?? this.hero,
     onHero: onHero ?? this.onHero,
     onHeroEdge: onHeroEdge ?? this.onHeroEdge,
+    heroButton: heroButton ?? this.heroButton,
+    onHeroButton: onHeroButton ?? this.onHeroButton,
+    bar: bar ?? this.bar,
     brand: brand ?? this.brand,
     know: know ?? this.know,
     onKnow: onKnow ?? this.onKnow,
@@ -812,6 +836,9 @@ final class AppColors extends ThemeExtension<AppColors> {
       hero: mix(hero, other.hero),
       onHero: mix(onHero, other.onHero),
       onHeroEdge: mix(onHeroEdge, other.onHeroEdge),
+      heroButton: mix(heroButton, other.heroButton),
+      onHeroButton: mix(onHeroButton, other.onHeroButton),
+      bar: mix(bar, other.bar),
       brand: mix(brand, other.brand),
       know: mix(know, other.know),
       onKnow: mix(onKnow, other.onKnow),

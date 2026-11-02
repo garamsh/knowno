@@ -92,7 +92,7 @@ export function TabBarAt({ path }: { path: string | null }) {
   return (
     <nav
       aria-label="주 메뉴"
-      className="fixed inset-x-4 bottom-4 z-10 grid min-h-tab-bar grid-cols-3 rounded-button bg-surface shadow-row lg:hidden"
+      className="fixed inset-x-4 bottom-4 z-10 grid min-h-tab-bar grid-cols-3 rounded-button bg-bar shadow-row lg:hidden"
     >
       {items.map(({ href, label, current }) => {
         const selected = path !== null && current(path);

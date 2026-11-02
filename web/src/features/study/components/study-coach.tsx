@@ -71,7 +71,11 @@ export function CoachCaption({
         <button type="button" onClick={onSkip} className={`${button} -ml-1 px-1 opacity-80`}>
           건너뛰기
         </button>
-        <button type="button" onClick={onNext} className={`${button} bg-on-hero text-hero`}>
+        <button
+          type="button"
+          onClick={onNext}
+          className={`${button} bg-hero-button text-on-hero-button`}
+        >
           {last ? "시작하기" : "다음"}
         </button>
       </div>

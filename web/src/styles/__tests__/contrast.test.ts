@@ -24,7 +24,8 @@ const pairs: [string, string, string][] = [
   ["the empty home's title on the ground", "ink", "ground"],
   ["the side menu's other pages on the surface", "ink-2", "surface"],
   ["the side menu's current page on its tint", "accent", "brand-tint"],
-  ["the tab bar's current page on the surface", "accent", "surface"],
+  ["the tab bar's current page on the bar", "accent", "bar"],
+  ["the tab bar's other pages on the bar", "ink-2", "bar"],
   ["a count on the ground", "accent", "ground"],
   ["the tab bar's other pages on the surface", "muted", "surface"],
   ["the today, backlog and deck page cards' figures and pills on the surface", "ink", "surface"],
@@ -134,7 +135,7 @@ const statePairs: [string, string, string, string][] = [
   ["a 모른다 card's front", "ink", "dont-know-card", "ink"],
   ["a 모른다 card's back", "ink-2", "dont-know-card", "ink"],
   ["the coach's 건너뛰기 on the hero", "on-hero", "hero", "on-hero"],
-  ["the coach's 다음 on its fill", "hero", "on-hero", "hero"],
+  ["the coach's 다음 on its fill", "on-hero-button", "hero-button", "on-hero-button"],
   ["Google's label on its fill", "google-label", "google-fill", "google-label"],
 ];
 
