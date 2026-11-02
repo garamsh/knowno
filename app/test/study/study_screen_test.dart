@@ -1365,13 +1365,19 @@ void main() {
           );
           expect(paragraph.didExceedMaxLines, isFalse, reason: text);
         }
-        // A finger scrolls the panel to its last action, inside its place.
-        await tester.dragUntilVisible(
-          shownText('Stop'),
-          find.byType(CompletionCard),
-          const Offset(0, -100),
-        );
-        await tester.pumpAndSettle();
+        // A finger on the panel's heading scrolls it to its last action,
+        // inside its place.
+        for (
+          var drags = 0;
+          drags < 8 && tester.getRect(shownText('Stop')).bottom > panel.bottom;
+          drags++
+        ) {
+          await tester.dragFrom(
+            Offset(panel.center.dx, panel.top + 40),
+            const Offset(0, -100),
+          );
+          await tester.pumpAndSettle();
+        }
         expect(
           tester.getRect(shownText('Stop')).bottom,
           lessThanOrEqualTo(panel.bottom),
