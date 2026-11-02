@@ -346,6 +346,13 @@
   font-family: var(--font-display);
 }
 
+/* A text field's padding, as AppTextField's contentPadding: 16 across, and down the field's
+   height past one line of body text, halved. */
+@utility field-padding {
+  padding-inline: calc(var(--spacing) * 4);
+  padding-block: calc((var(--spacing-field) - var(--text-body--line-height)) / 2);
+}
+
 /* The dark set: chosen on the account page (data-theme, src/design/theme.ts), or by the system
    while the choice is the system's. */
 @media (prefers-color-scheme: dark) {
