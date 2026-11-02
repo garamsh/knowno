@@ -234,12 +234,7 @@ async function readStudyDays(
     const reviews = count(field(row, "reviews"));
     const firstMs = count(field(row, "first_ms"));
     const firstAnswers = count(field(row, "first_answers"));
-    if (
-      reviewMs === null ||
-      reviews === null ||
-      firstMs === null ||
-      firstAnswers === null
-    ) {
+    if (reviewMs === null || reviews === null || firstMs === null || firstAnswers === null) {
       return { failure: "unreadable" };
     }
     days.push({ reviewMs, reviews, firstMs, firstAnswers });
