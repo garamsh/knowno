@@ -5,8 +5,10 @@ import { parseDeckId } from "@/features/decks";
 
 import {
   AdminFailureMessage,
+  type AdminFailure,
   AdminList,
   adminTimeZone,
+  AiSettingsView,
   AiView,
   AuditLog,
   DeckView,
@@ -24,9 +26,11 @@ import {
   readDeck,
   readExtractionBreakdown,
   readExtractionOutcomes,
+  readAiConfigurations,
   readNotes,
   readOpenReports,
   readPlanVersions,
+  readProviderKeys,
   readPromptLabels,
   readPromptVersion,
   readPromptVersions,
@@ -66,23 +70,25 @@ function utcToday(): string {
 }
 
 export async function TodoContent() {
-  const [reports, failures, labels, week, breakdown, plans] = await Promise.all([
+  const [reports, failures, labels, week, breakdown, configurations] = await Promise.all([
     readOpenReports(),
     readExtractionOutcomes(7),
     readPromptLabels(),
     readWeekActivity(),
     readExtractionBreakdown(weekUsageDays),
-    readPlanVersions(),
+    readAiConfigurations(),
   ]);
   if ("failure" in reports) return <AdminFailureMessage failure={reports.failure} />;
   if ("failure" in failures) return <AdminFailureMessage failure={failures.failure} />;
   if ("failure" in labels) return <AdminFailureMessage failure={labels.failure} />;
   if ("failure" in week) return <AdminFailureMessage failure={week.failure} />;
   if ("failure" in breakdown) return <AdminFailureMessage failure={breakdown.failure} />;
-  if ("failure" in plans) return <AdminFailureMessage failure={plans.failure} />;
-  // A photo counted before calls were recorded is costed at the model of Free's current version.
+  if ("failure" in configurations) {
+    return <AdminFailureMessage failure={configurations.failure} />;
+  }
+  // A photo counted before calls were recorded is costed at the model serving Free now.
   const free =
-    plans.data.find((version) => version.plan === "free" && version.current)?.model ?? null;
+    configurations.data.find((c) => c.plan === "free" && c.label === "active")?.model ?? null;
   const today = utcToday();
   return (
     <TodoView
@@ -280,12 +286,13 @@ export async function PromptContent({
 }
 
 /** 설정's three pages, each an address of its own. */
-function SettingsSwitch({ current }: { current: "plans" | "admins" | "audit" }) {
+function SettingsSwitch({ current }: { current: "plans" | "ai" | "admins" | "audit" }) {
   return (
     <ViewSwitch
       label="설정 보기"
       views={[
         { href: "/admin/settings", label: "요금제", current: current === "plans" },
+        { href: "/admin/settings/ai", label: "AI 제공자", current: current === "ai" },
         { href: "/admin/settings/admins", label: "관리자", current: current === "admins" },
         { href: "/admin/settings/audit", label: "작업 기록", current: current === "audit" },
       ]}
@@ -303,6 +310,42 @@ export async function PlansContent() {
       ) : (
         <PlansView versions={read.data} timeZone={timeZone} />
       )}
+    </>
+  );
+}
+
+export async function AiSettingsContent() {
+  const [keys, configurations, labels, timeZone] = await Promise.all([
+    readProviderKeys(),
+    readAiConfigurations(),
+    readPromptLabels(),
+    adminTimeZone(),
+  ]);
+  const failed = (failure: AdminFailure) => (
+    <>
+      <SettingsSwitch current="ai" />
+      <AdminFailureMessage failure={failure} />
+    </>
+  );
+  if ("failure" in keys) return failed(keys.failure);
+  if ("failure" in configurations) return failed(configurations.failure);
+  if ("failure" in labels) return failed(labels.failure);
+  // An admin's trial is served the test prompt while one is set (ADR 0073).
+  const test = labels.data.find((label) => label.label === "test");
+  const served = test ?? labels.data.find((label) => label.label === "active");
+  return (
+    <>
+      <SettingsSwitch current="ai" />
+      <AiSettingsView
+        keys={keys.data}
+        configurations={configurations.data}
+        prompt={
+          served === undefined
+            ? "사용 중인 버전"
+            : `${test === undefined ? "사용 중" : "테스트"} 버전 ${String(served.versionId)}`
+        }
+        timeZone={timeZone}
+      />
     </>
   );
 }

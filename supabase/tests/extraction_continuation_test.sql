@@ -5,6 +5,10 @@
 begin;
 select plan(14);
 
+-- An OpenRouter key in Vault, so the plans' OpenRouter configurations can be served (ADR 0162).
+insert into private.provider_keys (provider, secret_id, last_four)
+  values ('openrouter', vault.create_secret('sk-or-test-key-0000'), '0000');
+
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000b', 'b@example.com'),
   ('00000000-0000-4000-8000-00000000000c', 'c@example.com');

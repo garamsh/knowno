@@ -18,8 +18,16 @@ import {
   extractCards,
   type Extraction,
   type ModelId,
-} from "./openrouter.ts";
+} from "./model.ts";
+import type { Keys } from "./keys.ts";
+import type { Provider } from "./providers.ts";
 import { type ExtractRequest, parseRequest } from "./request.ts";
+import {
+  saveDraft,
+  saveKey,
+  type SettingsOutcome,
+  settingsStatus,
+} from "./settings.ts";
 import { authenticate, type UserId } from "../_shared/auth.ts";
 import {
   type AttemptFailure,
@@ -43,6 +51,7 @@ export type Outcome =
   | "too_large"
   | "unsupported_type"
   | "rate_limited"
+  | "unavailable"
   | "cursor_expired"
   | "no_cards"
   | "model_error"
@@ -56,6 +65,8 @@ export type LogEntry = {
   readonly user_id: UserId | null;
   /** The caller's plan, or null when it was not read. */
   readonly plan: Plan | null;
+  /** The provider of the calls made, or null when none was. */
+  readonly provider: Provider | null;
   /** The model of the call made, or null when none was. */
   readonly model: string | null;
   /** The id of the prompt version the call was made with, or null when none was made. */
@@ -71,10 +82,18 @@ export type LogEntry = {
   readonly outcome: Outcome;
 };
 
+/** The one line logged per settings request: which, by whom, and how it ended; never a key. */
+export type SettingsLogEntry = {
+  readonly settings: "key" | "configuration";
+  readonly outcome: SettingsOutcome["kind"] | "internal";
+};
+
 export type HandlerDeps = {
   readonly config: Config;
   readonly fetch: typeof fetch;
-  readonly log: (entry: LogEntry) => void;
+  readonly log: (entry: LogEntry | SettingsLogEntry) => void;
+  /** The providers' keys, `vaultKeys` when deployed. */
+  readonly keys: Keys;
   /** Milliseconds from a monotonic clock. */
   readonly now: () => number;
   /** How long the model call may take before it is a model error. */
@@ -117,6 +136,7 @@ export function status(outcome: Outcome): number {
     case "model_error":
       return 502;
     case "not_configured":
+    case "unavailable":
       return 503;
   }
 }
@@ -125,6 +145,7 @@ type Result = {
   readonly outcome: Outcome;
   readonly userId: UserId | null;
   readonly plan?: Plan;
+  readonly provider?: Provider;
   readonly promptVersion?: number;
   /** The photo limit and its period, which a `rate_limited` answer states. */
   readonly limit?: { readonly photos: number; readonly period: Period };
@@ -144,6 +165,12 @@ export function createHandler(
   deps: HandlerDeps,
 ): (request: Request) => Promise<Response> {
   return async (request) => {
+    const route = new URL(request.url).pathname.match(
+      /\/settings\/(key|configuration)$/,
+    )?.[1];
+    if (route === "key" || route === "configuration") {
+      return await settings(request, route, deps);
+    }
     const started = deps.now();
     let result: Result;
     try {
@@ -210,8 +237,14 @@ async function handle(
       supabase,
     });
   }
-  const start = await beginExtraction(userId, supabase);
+  const start = await beginExtraction(userId, {
+    configurationId: parsed.request.configuration,
+    secretProviders: config.openRouterSecret === null ? [] : ["openrouter"],
+  }, supabase);
   if (start.kind === "not_configured") return refused("not_configured", userId);
+  if (start.kind === "unavailable") {
+    return { ...refused("unavailable", userId), plan: start.plan };
+  }
   if (start.kind === "rate_limited") {
     return {
       outcome: "rate_limited",
@@ -223,11 +256,11 @@ async function handle(
   }
   const plan = start.plan;
   const promptVersion = start.prompt.versionId;
+  const apiKey = await deps.keys.get(start.provider);
+  // Only a key removed since begin_extraction read it; the photo stays counted with no outcome.
+  if (apiKey === null) return { ...refused("unavailable", userId), plan };
 
-  const extract = caller(parsed.request, start.model, start.prompt.text, {
-    deps,
-    config,
-  });
+  const extract = caller(parsed.request, start, apiKey, deps);
   const first = await extract();
   const firstFailure = failureOf(first);
   // A retry starts only early enough to end, at its own timeout, inside the Edge Function's limit.
@@ -275,7 +308,14 @@ async function handle(
     ...extraction.attempts,
     ...(on?.attempts ?? []),
   ];
-  const served = { userId, plan, promptVersion, attempts, recorded };
+  const served = {
+    userId,
+    plan,
+    provider: start.provider,
+    promptVersion,
+    attempts,
+    recorded,
+  };
   switch (extraction.kind) {
     case "cards":
       return {
@@ -323,7 +363,11 @@ async function resume(
       attempts: [],
     };
   }
-  const extract = caller(request, resumed.model, resumed.prompt.text, context);
+  const apiKey = await deps.keys.get(resumed.provider);
+  if (apiKey === null) {
+    return { outcome: "unavailable", userId, plan: resumed.plan, attempts: [] };
+  }
+  const extract = caller(request, resumed, apiKey, deps);
   const on = await readOn(extract, {
     read: resumed.cardsRead,
     fronts: cursor.fronts,
@@ -343,6 +387,7 @@ async function resume(
   const served = {
     userId,
     plan: resumed.plan,
+    provider: resumed.provider,
     promptVersion: resumed.prompt.versionId,
     attempts: on.attempts,
     recorded,
@@ -374,20 +419,80 @@ function offered(
     : { cursor: { token, fronts: lastFronts(fronts) } };
 }
 
-/** One model call reading [request]'s photo, asking after the photo for [followUp] when given. */
+/**
+ * One model call reading [request]'s photo with [serving]'s provider, model and prompt, asking
+ * after the photo for [followUp] when given.
+ */
 function caller(
   request: ExtractRequest,
-  model: ModelId,
-  prompt: string,
-  context: { readonly deps: HandlerDeps; readonly config: Configured },
+  serving: {
+    readonly provider: Provider;
+    readonly model: ModelId;
+    readonly prompt: { readonly text: string };
+  },
+  apiKey: string,
+  deps: HandlerDeps,
 ): (followUp?: string) => Promise<Extraction> {
   return (followUp) =>
-    extractCards(request.image, request.languages, model, prompt, {
-      apiKey: context.config.openRouterApiKey,
-      fetch: context.deps.fetch,
-      now: context.deps.now,
-      timeoutMs: context.deps.modelTimeoutMs,
-    }, followUp === undefined ? {} : { followUp });
+    extractCards(
+      request.image,
+      request.languages,
+      serving.model,
+      serving.prompt.text,
+      {
+        provider: serving.provider,
+        apiKey,
+        fetch: deps.fetch,
+        now: deps.now,
+        timeoutMs: deps.modelTimeoutMs,
+      },
+      followUp === undefined ? {} : { followUp },
+    );
+}
+
+/** A settings request (`settings.ts`), answered with its outcome's code and logged in one line. */
+async function settings(
+  request: Request,
+  route: "key" | "configuration",
+  deps: HandlerDeps,
+): Promise<Response> {
+  if (request.method !== "POST") {
+    return Response.json({ error: "method_not_allowed" }, { status: 405 });
+  }
+  const config = deps.config;
+  if (config.kind === "not_configured") {
+    return Response.json({ error: "not_configured" }, { status: 503 });
+  }
+  const context = {
+    supabase: {
+      url: config.supabaseUrl,
+      serviceRoleKey: config.serviceRoleKey,
+      fetch: deps.fetch,
+    },
+    keys: deps.keys,
+    fetch: deps.fetch,
+    now: deps.now,
+    modelTimeoutMs: deps.modelTimeoutMs,
+  };
+  let outcome: SettingsOutcome;
+  try {
+    outcome = route === "key"
+      ? await saveKey(request, context)
+      : await saveDraft(request, context);
+  } catch (error) {
+    deps.log({ settings: route, outcome: "internal" });
+    throw error;
+  }
+  deps.log({ settings: route, outcome: outcome.kind });
+  const body = outcome.kind === "saved"
+    ? {
+      saved: true,
+      ...(outcome.configurationId === undefined
+        ? {}
+        : { configuration_id: outcome.configurationId }),
+    }
+    : { error: outcome.kind };
+  return Response.json(body, { status: settingsStatus(outcome) });
 }
 
 /** Whether a model call may still start, early enough to end inside the Edge Function's limit. */
@@ -421,6 +526,7 @@ function log(deps: HandlerDeps, started: number, result: Result): void {
   deps.log({
     user_id: result.userId,
     plan: result.plan ?? null,
+    provider: result.provider ?? null,
     model: result.attempts.at(-1)?.model ?? null,
     prompt_version: result.promptVersion ?? null,
     latency_ms: Math.round(deps.now() - started),

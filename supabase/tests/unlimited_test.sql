@@ -5,14 +5,25 @@
 begin;
 select plan(32);
 
+-- An OpenRouter key in Vault, so the plans' OpenRouter configurations can be served (ADR 0162).
+insert into private.provider_keys (provider, secret_id, last_four)
+  values ('openrouter', vault.create_secret('sk-or-test-key-0000'), '0000');
+
 delete from private.admin_audit;
 
 -- Each plan on one version from before this month: Free 1 a month and Pro 1 a day.
 delete from private.plan_versions;
-insert into private.plan_versions (plan, quota, amount, model, starts_at) values
-  ('free', 'monthly', 1, 'vendor/free-model', date_trunc('month', now(), 'Asia/Seoul') - interval '40 days'),
-  ('pro', 'daily', 1, 'vendor/pro-model', date_trunc('month', now(), 'Asia/Seoul') - interval '40 days'),
-  ('max', 'unlimited', 1, 'vendor/max-model', date_trunc('month', now(), 'Asia/Seoul') - interval '40 days');
+insert into private.plan_versions (plan, quota, amount, starts_at) values
+  ('free', 'monthly', 1, date_trunc('month', now(), 'Asia/Seoul') - interval '40 days'),
+  ('pro', 'daily', 1, date_trunc('month', now(), 'Asia/Seoul') - interval '40 days'),
+  ('max', 'unlimited', 1, date_trunc('month', now(), 'Asia/Seoul') - interval '40 days');
+with c as (
+  insert into private.ai_configurations (plan, provider, model) values ('free', 'openrouter', 'vendor/free-model'), ('pro', 'openrouter', 'vendor/pro-model'), ('max', 'openrouter', 'vendor/max-model')
+  returning id, plan
+)
+insert into private.ai_configuration_labels (plan, label, configuration_id)
+  select c.plan, 'active', c.id from c
+  on conflict (plan, label) do update set configuration_id = excluded.configuration_id;
 
 -- A is an admin on Free; B a Free user; C a Free user granted 무제한 without an end; D a Pro user
 -- whose 무제한 has ended; E a Free user whose 무제한 ends tomorrow. Each has used its period's one

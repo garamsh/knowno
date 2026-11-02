@@ -33,8 +33,8 @@ import {
   type Extraction,
   MAX_OUTPUT_TOKENS,
   MODEL_TIMEOUT_MS,
-  OPENROUTER_URL,
-} from "../../supabase/functions/extract-cards/openrouter.ts";
+} from "../../supabase/functions/extract-cards/model.ts";
+import { OPENROUTER_URL } from "../../supabase/functions/extract-cards/providers.ts";
 import * as v9 from "../../supabase/functions/extract-cards/prompt_v9.ts";
 import * as v10 from "../../supabase/functions/extract-cards/prompt_v10.ts";
 import type {
@@ -572,7 +572,7 @@ export async function runEval(
         sample.languages,
         candidate.primary.id,
         deps.prompt.text,
-        { ...deps, fetch: recording(deps.fetch, calls) },
+        { ...deps, provider: "openrouter", fetch: recording(deps.fetch, calls) },
       );
       errorsInRow = extraction.kind === "model_error" ? errorsInRow + 1 : 0;
       let costUsd = 0;

@@ -19,8 +19,8 @@ with usage as (
     ('00000000-0000-4000-8000-00000000000b', date_trunc('day', now(), 'UTC') + interval '3 hours')
   returning id
 ), numbered as (select id, row_number() over (order by id) as n from usage)
-insert into private.extraction_calls (usage_id, plan, model, prompt_version_id)
-  select id, case when n < 3 then 'free' else 'pro' end,
+insert into private.extraction_calls (usage_id, plan, provider, model, prompt_version_id)
+  select id, case when n < 3 then 'free' else 'pro' end, 'openrouter',
     case when n < 3 then 'vendor/free-model' else 'vendor/pro-model' end,
     case when n < 3 then 1 else (select max(id) from private.prompt_versions) end
   from numbered;

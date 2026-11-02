@@ -134,15 +134,28 @@ with usage as (
     ('5eed0000-0000-4000-8000-0000000000a1', now() - interval '2 hours')
   returning id, user_id
 )
-insert into private.extraction_calls (usage_id, plan, model, prompt_version_id)
+insert into private.extraction_calls (usage_id, plan, provider, model, prompt_version_id)
 select usage.id, case when usage.user_id = '5eed0000-0000-4000-8000-0000000000a2' then 'pro' else 'free' end,
-  'anthropic/claude-haiku-5.5', (select version_id from private.prompt_labels where label = 'active')
+  'openrouter', 'anthropic/claude-haiku-5.5', (select version_id from private.prompt_labels where label = 'active')
 from usage;
 insert into private.extraction_calls_before_versions (usage_id)
 select min(usage_id) from private.extraction_calls;
 insert into private.extraction_cursors (token, usage_id, expires_at)
 select '5eed0000-0000-4000-8000-0000000000e1', max(usage_id), now() + interval '10 minutes'
 from private.extraction_calls;
+
+-- A draft for Pro on OpenAI, beside the seeded active configurations, and an OpenAI key in Vault
+-- that is no real key.
+with draft as (
+  insert into private.ai_configurations (plan, provider, model, created_by)
+  values ('pro', 'openai', 'gpt-seed-model', '5eed0000-0000-4000-8000-0000000000a3')
+  returning id, plan
+)
+insert into private.ai_configuration_labels (plan, label, configuration_id, set_by)
+select draft.plan, 'test', draft.id, '5eed0000-0000-4000-8000-0000000000a3' from draft;
+insert into private.provider_keys (provider, secret_id, last_four, set_by)
+values ('openai', vault.create_secret('seed-not-a-real-key-0000', 'knowno_provider_key_openai'),
+  '0000', '5eed0000-0000-4000-8000-0000000000a3');
 
 insert into private.revision_marks (taken_at, revision)
 select now() - interval '1 day', coalesce(max(revision), 0) from public.cards;

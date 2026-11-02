@@ -3,7 +3,7 @@
 import {
   type ModelId,
   modelId,
-} from "../../supabase/functions/extract-cards/openrouter.ts";
+} from "../../supabase/functions/extract-cards/model.ts";
 
 export const MODELS_URL = "https://openrouter.ai/api/v1/models";
 
@@ -51,7 +51,7 @@ export function parseModels(body: unknown): Model[] {
       !isRecord(entry) || typeof entry.id !== "string" ||
       typeof entry.created !== "number"
     ) return [];
-    const id = modelId(entry.id);
+    const id = modelId("openrouter", entry.id);
     const inputs = isRecord(entry.architecture)
       ? entry.architecture.input_modalities
       : undefined;

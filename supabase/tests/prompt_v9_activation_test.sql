@@ -4,6 +4,10 @@
 begin;
 select plan(13);
 
+-- An OpenRouter key in Vault, so the plans' OpenRouter configurations can be served (ADR 0162).
+insert into private.provider_keys (provider, secret_id, last_four)
+  values ('openrouter', vault.create_secret('sk-or-test-key-0000'), '0000');
+
 -- prompt_v9.ts's SYSTEM_PROMPT, character for character; prompt_seed_test.ts compares the two.
 create temp table expected as select $prompt$You turn one photo of a study page into flashcards for memorising what the page teaches, each card small enough to recall and grade at once.
 

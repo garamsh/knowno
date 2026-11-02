@@ -45,13 +45,12 @@ type FakePlanVersion = {
   plan: string;
   quota: string;
   amount: number;
-  model: string;
   starts_at: string;
   applies_to_all: boolean;
   created_by: string | null;
 };
 
-/** A version of [plan] on Haiku 5.5 from [startsAt], for existing users at their renewal. */
+/** A version of [plan] from [startsAt], for existing users at their renewal. */
 function version(
   id: number,
   plan: string,
@@ -64,7 +63,6 @@ function version(
     plan,
     quota,
     amount,
-    model: "anthropic/claude-haiku-5.5",
     starts_at: startsAt,
     applies_to_all: false,
     created_by: null,
@@ -121,6 +119,29 @@ export class FakeAdmin {
     { ...version(5, "pro", "daily", 100, "2026-10-26T00:00:00Z"), applies_to_all: true },
     { ...version(6, "max", "unlimited", 1000, "2026-10-26T00:00:00Z"), applies_to_all: true },
   ];
+  /**
+   * The saved AI configurations (ADR 0162), each plan's active one first as the migration seeds
+   * them, and any draft an admin saved through extract-cards, labelled `test`.
+   */
+  readonly aiConfigurations: {
+    id: number;
+    plan: string;
+    label: "active" | "test";
+    provider: string;
+    model: string;
+    created_by: string | null;
+  }[] = ["free", "pro", "max"].map((plan, index) => ({
+    id: index + 1,
+    plan,
+    label: "active",
+    provider: "openrouter",
+    model: "anthropic/claude-haiku-5.5",
+    created_by: null,
+  }));
+  /** The providers whose key Vault holds, with its last four characters; never the key. */
+  readonly providerKeys = new Map<string, { lastFour: string; setBy: string }>();
+  /** Whether the admin's session is from a sign-in within the last 10 minutes. */
+  recentSignIn = true;
   /** The saved prompt versions, oldest first; the seed, prompt v8, is version 1. */
   readonly prompts: { id: number; text: string; note: string; by: string | null }[] = [
     { id: 1, text: "Prompt v8.\nKeep each fact.", note: "prompt v8", by: null },
@@ -462,6 +483,75 @@ export class FakeAdmin {
         this.record(admin, "clear_test_prompt", "prompt", String(test), {});
         return true;
       }
+      case "admin_ai_session":
+        return this.recentSignIn;
+      case "admin_provider_keys":
+        return ["openrouter", "openai", "anthropic"].map((provider) => {
+          const key = this.providerKeys.get(provider);
+          return {
+            provider,
+            last_four: key?.lastFour ?? null,
+            set_at: key ? "2026-11-03T01:00:00Z" : null,
+            set_by_email: this.users.find((user) => user.id === key?.setBy)?.email ?? null,
+            in_use: this.aiConfigurations.some(
+              (entry) => entry.label === "active" && entry.provider === provider,
+            ),
+          };
+        });
+      case "admin_ai_configurations":
+        return this.aiConfigurations.map((entry) => ({
+          plan: entry.plan,
+          label: entry.label,
+          configuration_id: entry.id,
+          provider: entry.provider,
+          model: entry.model,
+          created_at: "2026-11-03T01:00:00Z",
+          created_by_email: this.users.find((user) => user.id === entry.created_by)?.email ?? null,
+          set_at: "2026-11-03T01:00:00Z",
+        }));
+      case "admin_activate_ai_configuration": {
+        const draft = this.aiConfigurations.find(
+          (entry) => entry.plan === args.plan && entry.label === "test",
+        );
+        if (draft === undefined) return "no_test";
+        if (draft.provider !== "openrouter" && !this.providerKeys.has(draft.provider)) {
+          return "no_key";
+        }
+        const before = this.aiConfigurations.findIndex(
+          (entry) => entry.plan === args.plan && entry.label === "active",
+        );
+        if (before >= 0) this.aiConfigurations.splice(before, 1);
+        draft.label = "active";
+        this.record(admin, "activate_ai_configuration", "plan", draft.plan, {
+          configuration_id: draft.id,
+          provider: draft.provider,
+          model: draft.model,
+        });
+        return "activated";
+      }
+      case "admin_clear_ai_test": {
+        const draft = this.aiConfigurations.findIndex(
+          (entry) => entry.plan === args.plan && entry.label === "test",
+        );
+        if (draft < 0) return false;
+        this.aiConfigurations.splice(draft, 1);
+        this.record(admin, "clear_ai_test", "plan", String(args.plan), {});
+        return true;
+      }
+      case "admin_remove_provider_key": {
+        const provider = String(args.provider);
+        if (!this.recentSignIn) return "reauth";
+        if (
+          this.aiConfigurations.some(
+            (entry) => entry.label === "active" && entry.provider === provider,
+          )
+        ) {
+          return "in_use";
+        }
+        if (!this.providerKeys.delete(provider)) return "none";
+        this.record(admin, "remove_provider_key", "provider", provider, {});
+        return "removed";
+      }
       case "admin_plan_versions": {
         const rank = (plan: string) => ["free", "pro", "max"].indexOf(plan);
         return [...this.planVersions]
@@ -488,8 +578,7 @@ export class FakeAdmin {
         if (
           previous &&
           previous.quota === args.quota &&
-          previous.amount === args.amount &&
-          previous.model === args.model
+          previous.amount === args.amount
         ) {
           return "unchanged";
         }
@@ -499,8 +588,7 @@ export class FakeAdmin {
           this.planVersions.some(
             (entry) =>
               entry.plan === plan &&
-              (entry.model !== args.model ||
-                quotas.indexOf(entry.quota) > quotas.indexOf(String(args.quota)) ||
+              (quotas.indexOf(entry.quota) > quotas.indexOf(String(args.quota)) ||
                 entry.amount > Number(args.amount)),
           )
         ) {
@@ -514,7 +602,6 @@ export class FakeAdmin {
             Number(args.amount),
             starts,
           ),
-          model: String(args.model),
           applies_to_all: args.applies_to_all === true,
           created_by: admin,
         };
@@ -523,12 +610,10 @@ export class FakeAdmin {
           version_id: added.id,
           quota: added.quota,
           amount: added.amount,
-          model: added.model,
           starts_at: added.starts_at,
           applies_to_all: added.applies_to_all,
           quota_before: previous?.quota ?? null,
           amount_before: previous?.amount ?? null,
-          model_before: previous?.model ?? null,
         });
         return "created";
       }
@@ -541,13 +626,17 @@ export class FakeAdmin {
             ? grant.plan
             : "free";
         const terms = this.currentVersion(active);
+        const serving = this.aiConfigurations.find(
+          (entry) => entry.plan === terms?.plan && entry.label === "active",
+        );
         return [
           {
             plan: terms?.plan ?? null,
             version_id: terms?.id ?? null,
             quota: terms?.quota ?? null,
             amount: terms?.amount ?? null,
-            model: terms?.model ?? null,
+            provider: serving?.provider ?? null,
+            model: serving?.model ?? null,
             used: terms ? user.extractionsToday : null,
             granted_plan: grant?.plan ?? null,
             ends_at: grant?.endsAt ?? null,

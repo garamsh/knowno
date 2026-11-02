@@ -5,10 +5,10 @@ import {
   type Extraction,
   type ModelId,
   modelId,
-} from "./openrouter.ts";
+} from "./model.ts";
 import type { Image } from "./request.ts";
 
-const MODEL = modelId("vendor/model") as ModelId;
+const MODEL = modelId("openrouter", "vendor/model") as ModelId;
 const PHOTO: Image = { type: "image/png", base64: "AAAA" };
 const CARD = {
   kind: "note",
@@ -27,6 +27,7 @@ const CARD = {
 /** One call answered with `body`, or with a failure when `status` is not 200. */
 function extractWith(body: unknown, status = 200): Promise<Extraction> {
   return extractCards(PHOTO, {}, MODEL, "instructions", {
+    provider: "openrouter",
     apiKey: "key",
     now: () => 0,
     fetch: () => Promise.resolve(Response.json(body, { status })),
@@ -91,7 +92,12 @@ Deno.test("a reply reporting no cost records none, and one without usage records
 });
 
 Deno.test("a call whose request or reply body never ends is a model error at its timeout, marked timed out", async () => {
-  const deps = { apiKey: "key", now: () => 0, timeoutMs: 20 };
+  const deps = {
+    provider: "openrouter" as const,
+    apiKey: "key",
+    now: () => 0,
+    timeoutMs: 20,
+  };
   const neverAnswers = await extractCards(PHOTO, {}, MODEL, "instructions", {
     ...deps,
     fetch: () => new Promise<Response>(() => {}),
@@ -120,6 +126,7 @@ Deno.test("a call whose request or reply body never ends is a model error at its
 Deno.test("a call aborts its request at the timeout", async () => {
   let signal: AbortSignal | null | undefined;
   await extractCards(PHOTO, {}, MODEL, "instructions", {
+    provider: "openrouter",
     apiKey: "key",
     now: () => 0,
     timeoutMs: 20,

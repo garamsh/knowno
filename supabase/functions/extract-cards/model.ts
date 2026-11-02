@@ -1,4 +1,4 @@
-/** Extracts cards from an image through one OpenRouter chat completion. */
+/** Extracts cards from an image through one model call to the provider a configuration names. */
 
 import {
   type Card,
@@ -10,10 +10,9 @@ import {
   type ParsedReply,
   parseReply,
 } from "./cards.ts";
-import { userPrompt } from "./prompt_v8.ts";
+import { ADAPTERS, type ModelRequest, type Provider } from "./providers.ts";
 import type { Image, LanguageHints } from "./request.ts";
 
-export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // Bounds one call's cost; a reply cut off at it keeps the cards it completed (ADR 0135).
 export const MAX_OUTPUT_TOKENS = 16384;
 /**
@@ -23,15 +22,21 @@ export const MAX_OUTPUT_TOKENS = 16384;
  */
 export const MODEL_TIMEOUT_MS = 60_000;
 
-/** An OpenRouter model ID, such as `anthropic/claude-haiku-5.5`. */
+/**
+ * A provider's model ID: OpenRouter's `vendor/model`, such as `anthropic/claude-haiku-5.5`, or
+ * OpenAI's and Anthropic's bare one, such as `claude-haiku-5-5`, as `private.model_fits` checks it.
+ */
 export type ModelId = string & { readonly __brand: "ModelId" };
 
-export function modelId(value: string): ModelId | null {
-  return /^[\w.-]+\/[\w.:-]+$/.test(value) ? value as ModelId : null;
+export function modelId(provider: Provider, value: string): ModelId | null {
+  const form = provider === "openrouter"
+    ? /^[\w.-]+\/[\w.:-]+$/
+    : /^[\w.:-]+$/;
+  return form.test(value) && value.length <= 200 ? value as ModelId : null;
 }
 
 /**
- * What OpenRouter reported for one call; `costUsd` is null when it reported no cost, and
+ * What the provider reported for one call; `costUsd` is null when it reported no cost, and
  * otherwise the call's whole price: OpenRouter's `cost` plus the provider's `upstream_inference_cost`.
  */
 export type Usage = {
@@ -103,6 +108,8 @@ export type CallOptions = {
 };
 
 export type ExtractDeps = {
+  /** The provider called, and its key, which nothing logs or returns. */
+  readonly provider: Provider;
   readonly apiKey: string;
   readonly fetch: typeof fetch;
   /** Milliseconds from a monotonic clock. */
@@ -126,14 +133,14 @@ export async function extractCards(
   options: CallOptions = {},
 ): Promise<Extraction> {
   const form = options.form ?? CARD_LIST;
-  const call = await callModel(
+  const call = await callModel({
     model,
-    composeInstructions(prompt, form.contract),
+    instructions: composeInstructions(prompt, form.contract),
     image,
     languages,
-    { form, followUp: options.followUp },
-    deps,
-  );
+    form,
+    followUp: options.followUp,
+  }, deps);
   const attempts = [call.attempt];
   if (call.reply === null) return { kind: "model_error", attempts };
   const whole = form.parse(call.reply);
@@ -153,22 +160,24 @@ export async function extractCards(
     : { kind: "invalid_output", dropped, cut, attempts };
 }
 
-/** One call's attempt, its message text or null when the call failed, and whether it hit the cap. */
-type Call = {
+/**
+ * One call's attempt, its message text or null when the call failed, whether it hit the cap, the
+ * answer's HTTP status, null when none arrived, and a refusal's body, which nothing logs or returns.
+ */
+export type Call = {
   readonly attempt: Attempt;
   readonly reply: string | null;
   readonly cut: boolean;
+  readonly status: number | null;
+  readonly refusal: unknown;
 };
 
-/** Sends one request; `reply` is the message text, or null when the call itself failed. */
-async function callModel(
-  model: ModelId,
-  instructions: string,
-  image: Image,
-  languages: LanguageHints,
-  request: { readonly form: ReplyForm; readonly followUp?: string },
+/** Sends one request through [provider]'s adapter; `reply` is null when the call itself failed. */
+export async function callModel(
+  request: ModelRequest,
   deps: ExtractDeps,
 ): Promise<Call> {
+  const adapter = ADAPTERS[deps.provider];
   const started = deps.now();
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -181,46 +190,14 @@ async function callModel(
     }, deps.timeoutMs);
   });
   const read = async (): Promise<Read> => {
-    const response = await deps.fetch(OPENROUTER_URL, {
+    const response = await deps.fetch(adapter.url, {
       method: "POST",
       signal: controller.signal,
-      headers: {
-        "Authorization": `Bearer ${deps.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: instructions },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: userPrompt(languages) },
-              {
-                type: "image_url",
-                image_url: { url: `data:${image.type};base64,${image.base64}` },
-              },
-              ...(request.followUp === undefined
-                ? []
-                : [{ type: "text", text: request.followUp }]),
-            ],
-          },
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "cards",
-            strict: true,
-            schema: request.form.schema,
-          },
-        },
-        // Route only to providers that honour the schema rather than ignore it.
-        provider: { require_parameters: true },
-        max_tokens: request.form.maxTokens,
-      }),
+      headers: adapter.headers(deps.apiKey),
+      body: JSON.stringify(adapter.body(request)),
     });
     const body: unknown = await response.json().catch(() => null);
-    return { ok: response.ok, body };
+    return { status: response.status, ok: response.ok, body };
   };
   let result: Read | "failed" | "timed_out";
   try {
@@ -231,6 +208,7 @@ async function callModel(
     clearTimeout(timer);
   }
   const latencyMs = deps.now() - started;
+  const model = request.model;
   if (result === "failed" || result === "timed_out") {
     return {
       attempt: {
@@ -241,60 +219,39 @@ async function callModel(
       },
       reply: null,
       cut: false,
+      status: null,
+      refusal: null,
     };
   }
   const attempt = {
     model,
     latencyMs,
-    usage: readUsage(result.body),
+    usage: adapter.usage(result.body),
     timedOut: false,
   };
-  if (!result.ok) return { attempt, reply: null, cut: false };
-  const message = readReply(result.body);
+  if (!result.ok) {
+    return {
+      attempt,
+      reply: null,
+      cut: false,
+      status: result.status,
+      refusal: result.body,
+    };
+  }
+  const message = adapter.reply(result.body);
   // A 200 whose body carries no message text is treated as invalid output.
   return {
     attempt,
     reply: message?.text ?? "",
-    cut: message?.finishReason === "length",
+    cut: message?.cut ?? false,
+    status: result.status,
+    refusal: null,
   };
 }
 
-/** A call's answer: whether its status was a success, and its body, null when not JSON. */
-type Read = { readonly ok: boolean; readonly body: unknown };
-
-/** The first choice's message text and why it finished, or null when it carries no text. */
-function readReply(
-  body: unknown,
-): { readonly text: string; readonly finishReason: unknown } | null {
-  if (!isRecord(body) || !Array.isArray(body.choices)) return null;
-  const choice: unknown = body.choices[0];
-  if (!isRecord(choice) || !isRecord(choice.message)) return null;
-  return typeof choice.message.content === "string"
-    ? { text: choice.message.content, finishReason: choice.finish_reason }
-    : null;
-}
-
-function readUsage(body: unknown): Usage | null {
-  if (!isRecord(body) || !isRecord(body.usage)) return null;
-  const { prompt_tokens, completion_tokens, cost, cost_details } = body.usage;
-  if (
-    typeof prompt_tokens !== "number" || typeof completion_tokens !== "number"
-  ) return null;
-  // A call billed through the owner's own provider key (BYOK) reports the provider's price here,
-  // and only OpenRouter's own fee in `cost`.
-  const upstream = isRecord(cost_details)
-    ? cost_details.upstream_inference_cost
-    : undefined;
-  const parts = [cost, upstream].filter((part) => typeof part === "number");
-  return {
-    promptTokens: prompt_tokens,
-    completionTokens: completion_tokens,
-    costUsd: parts.length === 0
-      ? null
-      : parts.reduce((total, part) => total + part, 0),
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+/** A call's answer: its status, whether it was a success, and its body, null when not JSON. */
+type Read = {
+  readonly status: number;
+  readonly ok: boolean;
+  readonly body: unknown;
+};

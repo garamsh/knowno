@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   extractCards,
   modelId,
-} from "../../supabase/functions/extract-cards/openrouter.ts";
+} from "../../supabase/functions/extract-cards/model.ts";
 import { callUsd } from "./budget.ts";
 import type { Pricing } from "./models.ts";
 
@@ -35,9 +35,10 @@ async function counted(usage: unknown): Promise<number> {
   const extraction = await extractCards(
     { type: "image/png", base64: "AAAA" },
     {},
-    modelId("vendor/model")!,
+    modelId("openrouter", "vendor/model")!,
     "instructions",
     {
+      provider: "openrouter",
       apiKey: "key",
       now: () => 0,
       timeoutMs: 1000,

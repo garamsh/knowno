@@ -25,7 +25,7 @@ import {
   MAX_OUTPUT_TOKENS,
   type ModelId,
   type ReplyForm,
-} from "../../supabase/functions/extract-cards/openrouter.ts";
+} from "../../supabase/functions/extract-cards/model.ts";
 import type {
   Image,
   LanguageHints,

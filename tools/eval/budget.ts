@@ -1,6 +1,6 @@
 /** The eval's spend cap: the ledger of past runs, the dry estimate, and the per-call guard. */
 
-import { MAX_OUTPUT_TOKENS } from "../../supabase/functions/extract-cards/openrouter.ts";
+import { MAX_OUTPUT_TOKENS } from "../../supabase/functions/extract-cards/model.ts";
 import type { Candidate, Pricing } from "./models.ts";
 
 /** The committed record of every run's spend; `budgetUsd` is the cap across all runs. */

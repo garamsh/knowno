@@ -1,9 +1,7 @@
 // The two-stage eval end to end, with OpenRouter and the file system replaced by in-memory fakes.
 import assert from "node:assert/strict";
-import {
-  type ModelId,
-  OPENROUTER_URL,
-} from "../../supabase/functions/extract-cards/openrouter.ts";
+import type { ModelId } from "../../supabase/functions/extract-cards/model.ts";
+import { OPENROUTER_URL } from "../../supabase/functions/extract-cards/providers.ts";
 import { MODELS_URL } from "./models.ts";
 import { type Io, PATHS } from "./run.ts";
 import { linesOf, parseTruthSections, spanText } from "./sections.ts";

@@ -222,8 +222,8 @@ with usage as (
 ), numbered as (
   select id, row_number() over (order by id desc) as n from usage
 ), recorded as (
-  insert into private.extraction_calls (usage_id, plan, model, prompt_version_id)
-    select id, 'free', 'vendor/model', case when n = 2 then (select id from second) else 1 end
+  insert into private.extraction_calls (usage_id, plan, provider, model, prompt_version_id)
+    select id, 'free', 'openrouter', 'vendor/model', case when n = 2 then (select id from second) else 1 end
     from numbered
   returning usage_id
 )
