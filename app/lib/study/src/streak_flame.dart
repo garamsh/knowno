@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'theme.dart';
+import '../../design/theme.dart';
 
 /// Whether streak flames move. A seam: the tests set it false, so a screen
 /// with a flame settles, and the flame's own tests set it back to true.

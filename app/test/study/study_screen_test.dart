@@ -13,7 +13,7 @@ import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_button.dart';
 import 'package:knowno/design/app_section_label.dart';
-import 'package:knowno/design/streak_flame.dart';
+import 'package:knowno/study/src/streak_flame.dart';
 import 'package:knowno/study/src/completion_card.dart';
 import 'package:knowno/study/src/study_coach.dart';
 import 'package:knowno/design/mascot.dart';

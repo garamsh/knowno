@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../design/app_button.dart';
 import '../../design/mascot.dart';
-import '../../design/streak_flame.dart';
+import 'streak_flame.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'session.dart';
