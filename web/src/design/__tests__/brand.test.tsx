@@ -29,8 +29,8 @@ function show(width: number, onScreen = true) {
   const live = observers.filter((o) => !o.disconnected);
   expect(live).toHaveLength(1);
   const [observer] = live;
-  const target = observer.observed.at(-1);
-  if (!target) throw new Error("the observer watches nothing");
+  const target = observer?.observed.at(-1);
+  if (!observer || !target) throw new Error("no observer watches the mascot");
   act(() => {
     observer.callback(
       [
@@ -46,12 +46,16 @@ function show(width: number, onScreen = true) {
 }
 
 /** The system's reduce motion setting, which a test turns on and off. */
-const reduce = { on: false, changed: new Set<() => void>() };
+const reduce = { on: false, changed: new Set<EventListenerOrEventListenerObject>() };
 
 function setReduceMotion(on: boolean) {
   reduce.on = on;
+  const event = new Event("change");
   act(() => {
-    for (const changed of reduce.changed) changed();
+    for (const changed of reduce.changed) {
+      if (typeof changed === "function") changed(event);
+      else changed.handleEvent(event);
+    }
   });
 }
 
@@ -78,10 +82,10 @@ beforeEach(() => {
       },
       media: query,
       onchange: null,
-      addEventListener: (_: string, changed: () => void) => {
+      addEventListener: (_: string, changed: EventListenerOrEventListenerObject) => {
         reduce.changed.add(changed);
       },
-      removeEventListener: (_: string, changed: () => void) => {
+      removeEventListener: (_: string, changed: EventListenerOrEventListenerObject) => {
         reduce.changed.delete(changed);
       },
       dispatchEvent: () => false,
