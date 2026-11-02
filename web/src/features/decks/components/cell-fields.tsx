@@ -35,8 +35,7 @@ import { WholeCard } from "./whole-card";
 type Draft<K extends CellDraft["kind"]> = Extract<CellDraft, { kind: K }>;
 
 /** A field's box, padded as the phone's `AppTextField`: 16 across, and down the field's height past a line. */
-const fieldBox =
-  "min-h-field whitespace-pre-wrap break-words field-padding text-body";
+const fieldBox = "min-h-field whitespace-pre-wrap break-words field-padding text-body";
 /** A table cell's box, padded 12 on every side as the phone's table pads a cell's field. */
 const cellBox = "whitespace-pre-wrap break-words p-3 text-body";
 /** A small outlined control, its target the tap target's height past what it draws. */
