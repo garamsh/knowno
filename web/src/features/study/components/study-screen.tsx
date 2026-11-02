@@ -566,13 +566,6 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                   )}
                 </div>
                 {current}
-                {/* Over the gap between the cards, its middle on the gap's. */}
-                {view.kind === "studying" && (
-                  <Mascot
-                    expression={leanExpression(lean)}
-                    className="pointer-events-none absolute top-1/2 left-1/2 size-mascot-guide -translate-1/2"
-                  />
-                )}
               </div>
               {view.kind === "studying" && (
                 <div className="flex w-full max-w-study flex-col gap-3">

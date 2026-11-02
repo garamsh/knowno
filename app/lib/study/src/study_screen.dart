@@ -392,7 +392,7 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
                   StudyStyle.currentBottomGap) /
               2,
         );
-        final cards = Padding(
+        return Padding(
           padding: const EdgeInsets.fromLTRB(
             StudyStyle.cardMargin,
             StudyStyle.topGap,
@@ -416,32 +416,6 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
               Expanded(child: switcher(current, _emerge)),
             ],
           ),
-        );
-        if (state is! SessionStudying) return cards;
-        // Over the gap between the cards, its middle on the gap's.
-        return Stack(
-          children: [
-            Positioned.fill(child: cards),
-            Positioned(
-              left: 0,
-              right: 0,
-              top:
-                  StudyStyle.topGap +
-                  card +
-                  (StudyStyle.cardGap - StudyStyle.mascot) / 2,
-              child: IgnorePointer(
-                child: Center(
-                  child: ValueListenableBuilder(
-                    valueListenable: _lean,
-                    builder: (context, lean, _) => Mascot(
-                      expression: leanExpression(lean),
-                      size: StudyStyle.mascot,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
         );
       },
     );
