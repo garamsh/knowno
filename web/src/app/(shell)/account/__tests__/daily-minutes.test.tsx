@@ -7,6 +7,7 @@ import { testUser } from "@/testing/mocks/handlers";
 import { testRouter } from "@/testing/router";
 import { server } from "@/testing/mocks/server";
 import { cardRow, deckRow, start } from "@/testing/library";
+import { layOutLines, zoomOf } from "@/testing/line-widths";
 import { setRequestCookies } from "@/testing/next-headers";
 import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
@@ -139,6 +140,25 @@ describe("the daily study minutes", () => {
     await render(Today, {});
     expect(document.getElementById("hero-title")).toHaveTextContent("오늘 30장");
     expect(document.getElementById("hero-time")).toHaveTextContent("약 5분");
+  });
+
+  it("keep the number and its unit on one line, shrunk between the steps only where wider", async () => {
+    seedNew(3);
+    await render(Profile, {});
+    const user = userEvent.setup();
+    // "20분" is 60 px: a 30 px place shrinks it, a 60 px one holds it.
+    for (const [place, zoom] of [
+      [30, 0.5],
+      [60, 1],
+    ] as const) {
+      const restore = layOutLines(place);
+      const { dialog, number } = await openDialog(user);
+      expect(zoomOf(within(number(20)).getByText("20")), `in a ${String(place)} px place`).toBe(
+        zoom,
+      );
+      await user.click(dialog.getByRole("button", { name: "닫기" }));
+      restore();
+    }
   });
 
   it("commit a typed number when the field is left, as Enter does", async () => {

@@ -4,6 +4,7 @@ import { ChevronRight, Minus, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
+import { FittedLine } from "@/design/fitted-line";
 import { keepFocusInside } from "@/design/focus-trap";
 
 import { saveDailyMinutes } from "../actions";
@@ -191,10 +192,12 @@ function MinutesDialog({
               onClick={() => {
                 setTyped(String(chosen));
               }}
-              className="pressable flex min-h-cta flex-1 items-baseline justify-center gap-1 rounded-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="pressable flex min-h-cta min-w-0 flex-1 items-center rounded-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              <span className="text-figure">{chosen}</span>
-              <span className="text-headline text-ink-2">분</span>
+              <FittedLine className="text-center">
+                <span className="text-figure">{chosen}</span>
+                <span className="ml-1 text-headline text-ink-2">분</span>
+              </FittedLine>
             </button>
           ) : (
             <span className="flex flex-1 items-baseline justify-center gap-1">
