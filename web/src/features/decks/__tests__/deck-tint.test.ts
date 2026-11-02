@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 
-import { deckColor, deckColors, deckFill } from "../deck-tint";
+import { deckColor, deckColors, deckFill, offeredColors } from "../deck-tint";
 import type { DeckId } from "../library";
 
 const id = "00000000-0000-4000-8000-000000000001" as DeckId;
@@ -18,6 +18,22 @@ describe("a deck's colour", () => {
       "bg-deck-slate",
       "bg-deck-sand",
     ]);
+  });
+
+  it("is offered as the four note colours t1 to t4, while a stored sky and amber still draw", () => {
+    expect(offeredColors.map(deckFill)).toEqual([
+      "bg-deck-blue",
+      "bg-deck-peach",
+      "bg-deck-sand",
+      "bg-deck-slate",
+    ]);
+    for (const [color, fill] of [
+      ["sky", "bg-deck-sky"],
+      ["amber", "bg-deck-amber"],
+    ]) {
+      expect(offeredColors).not.toContain(color);
+      expect(deckFill(deckColor({ id, name: "", public: false, color }))).toBe(fill);
+    }
   });
 
   it("is the stored one when this version knows it, and otherwise none, on the brand tint", () => {

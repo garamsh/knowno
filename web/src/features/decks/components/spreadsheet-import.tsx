@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { v5, v7 } from "uuid";
-import { createDeck, saveCards } from "../actions";
+import { saveCards } from "../actions";
 import { describeContent, parseCells, sidesOf } from "../card-content";
 import type { Deck } from "../library";
 import type { SheetRow, Spreadsheet } from "../spreadsheet";
@@ -28,16 +28,11 @@ const roles: { role: Role; name: string; optional: boolean }[] = [
 /** The most cards one save request carries, `saveCards`' own bound. */
 const batch = 100;
 
-/** Cards from a spreadsheet's rows, read in the browser, mapped by column and saved only once reviewed. */
-export function SpreadsheetImport({
-  deck,
-  decks,
-  close,
-}: {
-  deck?: Deck;
-  decks: Deck[];
-  close: () => void;
-}) {
+/**
+ * Cards from a spreadsheet's rows, read in the browser, mapped by column and saved into [deck] only
+ * once reviewed.
+ */
+export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => void }) {
   const [opened, setOpened] = useState<Opened | null>(null);
   const [opening, setOpening] = useState(false);
   const [sheet, setSheet] = useState(0);
@@ -52,13 +47,9 @@ export function SpreadsheetImport({
   const [saved, setSaved] = useState<ReadonlySet<string>>(new Set());
   const [message, setMessage] = useState("");
   const [duplicateRow, setDuplicateRow] = useState<number | null>(null);
-  const [target, setTarget] = useState(deck?.id ?? "new");
-  const [name, setName] = useState("");
-  const [created, setCreated] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [pending, start] = useTransition();
   const busy = useRef(false);
-  const newDeckId = useRef(v7());
   const [job] = useState(() => v7());
   const router = useRouter();
 
@@ -133,23 +124,11 @@ export function SpreadsheetImport({
     reset();
     start(async () => {
       try {
-        let deckId = target;
-        if (target === "new") {
-          deckId = newDeckId.current;
-          if (!created) {
-            const made = await createDeck(deckId, name);
-            if (!made.saved) {
-              setMessage(made.message);
-              return;
-            }
-            setCreated(true);
-          }
-        }
         const pendingCards = unsaved;
         for (let offset = 0; offset < pendingCards.length; offset += batch) {
           const part = pendingCards.slice(offset, offset + batch);
           const written = await saveCards(
-            deckId,
+            deck.id,
             part.map(({ id, blocks }) => ({ id, blocks })),
             "import",
             allowDuplicate,
@@ -170,7 +149,7 @@ export function SpreadsheetImport({
           setSaved((current) => new Set([...current, ...part.map((card) => card.id)]));
         }
         close();
-        router.push(`/decks/${deckId}`);
+        router.push(`/decks/${deck.id}`);
         router.refresh();
       } catch {
         setMessage("카드를 저장하지 못했어요. 다시 시도해 주세요.");
@@ -359,38 +338,6 @@ export function SpreadsheetImport({
                 </section>
               )
             )}
-            {cards.length > 0 && !deck && (
-              <section className="flex min-w-0 flex-col gap-2">
-                <h3 className="text-section text-muted">추가할 노트</h3>
-                <div className="divide-y divide-hairline overflow-hidden rounded-group bg-surface">
-                  <Choice
-                    name="노트"
-                    value={target}
-                    disabled={created || pending}
-                    options={[
-                      ["new", "새 노트 만들기"],
-                      ...decks.map((item): [string, string] => [item.id, item.name]),
-                    ]}
-                    change={setTarget}
-                  />
-                  {target === "new" && (
-                    <label className="flex min-h-button min-w-0 items-center justify-between gap-3 px-4">
-                      <span className="shrink-0 text-body">이름</span>
-                      <input
-                        value={name}
-                        disabled={created || pending}
-                        maxLength={500}
-                        placeholder="새 노트 이름"
-                        onChange={(event) => {
-                          setName(event.target.value);
-                        }}
-                        className="min-h-tap-target min-w-0 flex-1 rounded-field bg-transparent px-2 text-right text-body text-ink placeholder:text-muted focus:outline-[1.5px] focus:outline-ink"
-                      />
-                    </label>
-                  )}
-                </div>
-              </section>
-            )}
           </>
         )}
         {message && (
@@ -429,7 +376,7 @@ export function SpreadsheetImport({
           <div className="sticky bottom-0 bg-ground py-3">
             <button
               type="button"
-              disabled={pending || unsaved.length === 0 || (target === "new" && !name.trim())}
+              disabled={pending || unsaved.length === 0}
               onClick={() => {
                 save(false);
               }}

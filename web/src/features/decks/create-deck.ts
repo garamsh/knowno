@@ -5,15 +5,24 @@ import { createClient } from "@/supabase/server";
 import { readUserId } from "@/supabase/session";
 import { requestTimeoutMs } from "@/supabase/failure";
 import { field } from "@/supabase/row";
+import { offeredColors } from "./deck-tint";
 import { parseDeckId } from "./library";
 
-/** Creation never overwrites a row; a retry keeps its original id. */
+/**
+ * Creation never overwrites a row; a retry keeps its original id. [color], when given, is one of
+ * the four offered note colours, stored as its key.
+ */
 export async function createDeck(
   id: string,
   name: string,
+  color?: string,
 ): Promise<{ saved: true; deckId: string } | { saved: false; message: string }> {
   if (!parseDeckId(id) || typeof name !== "string" || !name.trim() || name.length > 500)
     return { saved: false, message: "이름을 입력해 주세요" };
+  // The argument crosses the network; only an offered key is stored.
+  const offered = offeredColors.find((key) => key === color);
+  if (color !== undefined && !offered)
+    return { saved: false, message: "노트를 만들지 못했어요. 다시 시도해 주세요." };
   const client = await createClient();
   const session = await readUserId(client);
   if ("failure" in session) return { saved: false, message: "다시 로그인해 주세요" };
@@ -26,6 +35,7 @@ export async function createDeck(
         user_id: session.userId,
         name: name.trim(),
         visibility: "private",
+        ...(offered && { color: offered }),
         created_at: now,
         updated_at: now,
       },

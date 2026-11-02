@@ -8,7 +8,6 @@ import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { supabaseUnreachable } from "@/testing/mocks/handlers";
 import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
-import { expectTextReadable } from "@/testing/contrast";
 import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 import { typeSizesOf } from "@/testing/type-sizes";
@@ -35,15 +34,24 @@ vi.mock("next/headers", () => import("@/testing/next-headers"));
 /** Opens the page of the deck named [name]. */
 const open = (name: string) => render(Deck, { params: Promise.resolve({ id: uuidOf(name) }) });
 
-/** What the page says of the deck: its card count under the name, and today's cards for it. */
+/** The page's one study link, "이 노트 학습 · n장". */
+const studyLink = () => screen.getByRole("link", { name: /^이 노트 학습 · \d+장$/ });
+
+/** What the page says of the deck: its card count over the cards, and today's cards for it. */
 const summary = () => ({
-  cards: /카드 (\d+)장/.exec(screen.getByRole("banner").textContent)?.[1],
-  today: /오늘 할 카드 (\d+)장/.exec(
-    within(screen.getByRole("region", { name: "오늘 학습" }))
-      .getByLabelText(/^오늘 할 카드/)
-      .getAttribute("aria-label") ?? "",
+  cards: /^카드 (\d+)$/.exec(
+    screen.getByRole("heading", { level: 2, name: /^카드/ }).textContent,
   )?.[1],
+  today: /(\d+)장/.exec(studyLink().textContent)?.[1],
 });
+
+/** The card search's field, opened from its magnifier first where it is closed. */
+async function searchBox() {
+  const open = screen.queryByRole("searchbox", { name: "카드 검색" });
+  if (open) return open;
+  await userEvent.click(screen.getByRole("button", { name: "카드 검색" }));
+  return screen.getByRole("searchbox", { name: "카드 검색" });
+}
 
 /** The cards on screen, each as its button names it: its front, and its answer or that it is hidden. */
 const rows = () =>
@@ -77,31 +85,71 @@ describe("the deck page", () => {
     vi.useRealTimers();
   });
 
-  it("shows the name, today's line, the study button and the live cards, oldest first", async () => {
+  it("shows the name, 이 노트 학습 at the top, and the live cards, oldest first", async () => {
     await open("d-fr");
 
-    expect(screen.getByRole("heading", { name: "French" })).toBeInTheDocument();
+    const name = screen.getByRole("heading", { level: 1, name: "French" });
+    expect(name).toHaveClass("text-deck-name");
     expect(summary()).toEqual({ cards: "3", today: "2" });
-    expect(screen.getByRole("link", { name: "학습하기" })).toHaveAttribute(
-      "href",
-      `/study?decks=${uuidOf("d-fr")}&from=deck`,
-    );
-    expect(screen.getByRole("link", { name: "학습하기" })).toHaveAttribute(
-      "aria-keyshortcuts",
-      "Enter",
-    );
+    // The study link comes first under the name, before the cards.
+    expect(
+      name.compareDocumentPosition(studyLink()) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      studyLink().compareDocumentPosition(screen.getByRole("region", { name: "카드" })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(studyLink()).toHaveAttribute("href", `/study?decks=${uuidOf("d-fr")}&from=deck`);
+    expect(studyLink()).toHaveAttribute("aria-keyshortcuts", "Enter");
     // Every answer hidden until it is asked for.
     expect(rows()).toEqual(["Chat, 뒷면 가려짐", "chien, 뒷면 가려짐", "oiseau, 뒷면 가려짐"]);
-    // The white card "오늘 학습": the minutes at its right, the count with its unit, and its button.
-    const card = screen.getByRole("region", { name: "오늘 학습" });
-    expect(card).toHaveClass("bg-surface", "text-ink", "shadow-card");
-    expect(card).toHaveTextContent(/^오늘 학습약 \d+분2장학습하기/);
-    expect(screen.getByRole("link", { name: "학습하기" })).toHaveClass(
-      "bg-primary",
-      "text-on-primary",
+    expect(studyLink()).toHaveClass("bg-primary", "text-on-primary");
+    // No tile, no white card and no way back: the name heads the page, and the menu leads home.
+    expect(screen.queryByRole("region", { name: "오늘 학습" })).not.toBeInTheDocument();
+    expect(document.querySelector('[class*="size-13"]')).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "위치" })).not.toBeInTheDocument();
+  });
+
+  it("opens the card search from a raised magnifier beside the name, which closes it again", async () => {
+    await open("d-fr");
+    const user = userEvent.setup();
+
+    expect(screen.queryByRole("searchbox", { name: "카드 검색" })).not.toBeInTheDocument();
+    const magnifier = screen.getByRole("button", { name: "카드 검색" });
+    expect(magnifier).toHaveClass("size-tap-target", "shadow-row", "bg-surface");
+    expect(magnifier.closest("header")).toBe(
+      screen.getByRole("heading", { level: 1, name: "French" }).closest("header"),
     );
-    expectTextReadable(card);
-    expect(screen.getByRole("link", { name: "노트" })).toHaveAttribute("href", "/decks");
+    await user.click(magnifier);
+    expect(magnifier).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("searchbox", { name: "카드 검색" })).toHaveFocus();
+    await user.click(magnifier);
+    expect(screen.queryByRole("searchbox", { name: "카드 검색" })).not.toBeInTheDocument();
+  });
+
+  it("opens the 카드 추가 sheet on arrival from 새 노트's 저장하고 카드 추가, and not otherwise", async () => {
+    await open("d-fr");
+    // Control: a plain arrival leaves the sheet closed.
+    expect(screen.queryByRole("dialog", { name: "카드 추가" })).not.toBeInTheDocument();
+    cleanup();
+
+    await render(Deck, {
+      params: Promise.resolve({ id: uuidOf("d-fr") }),
+      searchParams: Promise.resolve({ adding: "1" }),
+    });
+    const sheet = within(screen.getByRole("dialog", { name: "카드 추가" }));
+    // Its rows are their names alone, the four ways the web has.
+    expect(
+      sheet
+        .getAllByRole("button")
+        .filter((row) => row.getAttribute("aria-label") !== "닫기")
+        .map((row) => row.textContent),
+    ).toEqual(["직접 입력", "엑셀·CSV 파일"]);
+    expect(
+      ["사진 찍기", "앨범에서 고르기"].map(
+        (name) => sheet.getByLabelText(name, { selector: "input" }).closest("label")?.textContent,
+      ),
+    ).toEqual(["사진 찍기", "앨범에서 고르기"]);
   });
 
   it("draws the cards as one group of rows, a hidden back as nothing, and names the deck once", async () => {
@@ -123,7 +171,7 @@ describe("the deck page", () => {
       /^chienchien back$/,
     );
     // The section label alone above the cards, the count being under the deck's name.
-    expect(screen.getByRole("heading", { level: 2, name: "카드" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "카드 3" })).toBeInTheDocument();
     // The deck's name is its heading alone: the way back does not repeat it.
     expect(screen.getAllByText("French")).toHaveLength(1);
   });
@@ -150,7 +198,7 @@ describe("the deck page", () => {
       await open("d-done");
 
       expect(summary(), answered).toEqual({ cards: "1", today: "0" });
-      const href = screen.getByRole("link", { name: "학습하기" }).getAttribute("href");
+      const href = studyLink().getAttribute("href");
       expect(href, answered).toBe(`/study?decks=${uuidOf("d-done")}&from=deck`);
 
       cleanup();
@@ -179,13 +227,13 @@ describe("the deck page", () => {
   it("offers no 학습하기 on a deck with no card, which has nothing to study", async () => {
     // Control: the deck with cards links it.
     await open("d-fr");
-    expect(screen.getByRole("link", { name: "학습하기" })).toBeInTheDocument();
+    expect(studyLink()).toBeInTheDocument();
     cleanup();
 
     postgrest.seed("decks", deckRow("d-empty", "Empty"));
     await open("d-empty");
     expect(screen.getByRole("heading", { name: "Empty" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "학습하기" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^이 노트 학습/ })).not.toBeInTheDocument();
   });
 
   it("shows an empty deck as the first run does, with the phone's words and where cards are added", async () => {
@@ -218,16 +266,14 @@ describe("the deck page", () => {
     postgrest.seed("decks", deckRow("d-empty", "Empty"));
     await open("d-empty");
     expect(screen.getByRole("region", { name: "아직 카드가 없어요" })).toBeInTheDocument();
-    expect(typeSizesOf(document.body)).toEqual([13, 16, 28]);
+    // An empty note is its name, one sentence and one action: it draws no caption.
+    expect(typeSizesOf(document.body)).toEqual([16, 28]);
   });
 
-  it("keeps the way back to 노트 and a heading above a failed read, with 다시 시도", async () => {
+  it("keeps a heading above a failed read, with 다시 시도", async () => {
     server.use(supabaseUnreachable);
     await open("d-fr");
 
-    expect(
-      within(screen.getByRole("navigation", { name: "위치" })).getByRole("link", { name: "노트" }),
-    ).toHaveAttribute("href", "/decks");
     const heading = screen.getByRole("heading", { level: 1, name: "노트를 불러오지 못했어요" });
     const alert = screen.getByRole("alert");
     expect(heading.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -235,7 +281,7 @@ describe("the deck page", () => {
     expect(within(alert).getByRole("button", { name: "다시 시도" })).toBeInTheDocument();
   });
 
-  it("states its cards and those mastered once, under its name, with no bar, and a deck with no card its cards alone and no white card", async () => {
+  it("states its cards and those mastered once, over the cards, with no bar, and a deck with no card neither nor its study link", async () => {
     // One card past 21 days between its last review and its due day: mastered.
     postgrest.seed(
       "card_states",
@@ -247,69 +293,31 @@ describe("the deck page", () => {
       }),
     );
     await open("d-fr");
-    expect(screen.getByText("카드 3장 · 익힌 카드 1장")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "카드 3" })).toBeInTheDocument();
+    expect(screen.getByText("1장 익힘")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
-    expect(screen.queryByText(/익힘/)).not.toBeInTheDocument();
     cleanup();
 
     postgrest.seed("decks", deckRow("d-empty", "Empty"));
     await open("d-empty");
-    expect(screen.getByText("카드 0장")).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "오늘 학습" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: /^카드/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^이 노트 학습/ })).not.toBeInTheDocument();
   });
 
-  it("draws the tile the server's icon and colour keys name, and layers on the brand tint for keys it does not know", async () => {
-    /** The header tile's fill and its icon's Lucide name. */
-    const tile = () => {
-      const box = screen.getByRole("banner").querySelector("[aria-hidden]");
-      return {
-        fill: box?.className.split(" ").find((name) => name.startsWith("bg-")),
-        icon: box
-          ?.querySelector("svg")
-          ?.getAttribute("class")
-          ?.split(" ")
-          .find((name) => name.startsWith("lucide-")),
-      };
-    };
-    postgrest.seed(
-      "decks",
-      { ...deckRow("d-tiled", "Tiled"), icon: "book", color: "violet" },
-      { ...deckRow("d-newer", "Newer"), icon: "rocket", color: "teal" },
-    );
-
-    await open("d-tiled");
-    expect(tile()).toEqual({ icon: "lucide-book-open", fill: "bg-deck-peach" });
-    // The read asks for both keys: the fake answers whole rows whatever is selected.
-    expect(postgrest.selected.filter((read) => read.startsWith("decks: "))).toContain(
-      "decks: id,name,visibility,icon,color",
-    );
-    cleanup();
-    await open("d-newer");
-    // A key this version does not know is no choice, so the tile is the brand tint.
-    expect(tile()).toEqual({ icon: "lucide-layers", fill: "bg-brand-tint" });
-  });
-
-  it("marks a deck its owner published with 공개 under its name", async () => {
-    // Control: the private deck carries no chip.
+  it("marks a deck its owner published with 공개 beside its mastered count", async () => {
+    // Control: the private deck says no 공개.
     await open("d-fr");
-    expect(screen.getByRole("heading", { name: "French" })).toBeInTheDocument();
-    expect(screen.getByText("카드 3장 · 익힌 카드 0장")).toBeInTheDocument();
+    expect(screen.getByText("0장 익힘")).toBeInTheDocument();
     cleanup();
 
     postgrest.seed("decks", deckRow("d-pub", "Shared", false, "public"));
+    postgrest.seed("cards", cardRow("c-pub", "d-pub", "pub"));
     await open("d-pub");
-    expect(screen.getByRole("heading", { name: "Shared" })).toBeInTheDocument();
-    expect(screen.getByText("카드 0장 · 공개")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Shared" })).toBeInTheDocument();
+    expect(screen.getByText("0장 익힘 · 공개")).toBeInTheDocument();
   });
 
-  it("says new cards wait while more than three days of reviews are due, and not otherwise", async () => {
-    const paused = "밀린 복습을 마칠 때까지 새 카드는 쉬어요.";
-    // Control: one card due every four days and one every day are not a backlog.
-    await open("d-fr");
-    expect(summary()).toEqual({ cards: "3", today: "2" });
-    expect(screen.queryByText(paused)).not.toBeInTheDocument();
-    cleanup();
-
+  it("counts a backlog's reviews in its study link", async () => {
     // Four more due after 30 days: five due against a load of about 1.4 a day.
     const overdue = ["un", "deux", "trois", "quatre"];
     postgrest.seed("cards", ...overdue.map((front) => cardRow(`c-${front}`, "d-fr", front)));
@@ -327,23 +335,21 @@ describe("the deck page", () => {
     await open("d-fr");
 
     expect(summary()).toEqual({ cards: "7", today: "5" });
-    expect(screen.getByText(paused)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "학습하기" })).toBeInTheDocument();
   });
 
   it("keeps the cards whose front or back holds the search, ignoring case", async () => {
     await open("d-fr");
     const user = userEvent.setup();
 
-    await user.type(screen.getByRole("searchbox", { name: "카드 검색" }), "CH");
+    await user.type(await searchBox(), "CH");
     expect(rows()).toEqual(["Chat, 뒷면 가려짐", "chien, 뒷면 가려짐"]);
     // The results follow the switch.
     await user.click(screen.getByRole("switch", { name: "뒷면 보기" }));
     expect(rows()).toEqual(["Chat, 뒷면 Chat back", "chien, 뒷면 chien back"]);
-    expect(screen.getByRole("heading", { name: "카드" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "카드 3" })).toBeInTheDocument();
 
-    await user.clear(screen.getByRole("searchbox", { name: "카드 검색" }));
-    await user.type(screen.getByRole("searchbox", { name: "카드 검색" }), "zèbre");
+    await user.clear(await searchBox());
+    await user.type(await searchBox(), "zèbre");
     expect(rows()).toEqual([]);
     expect(screen.getByRole("status")).toHaveTextContent(
       "찾는 카드가 없어요. 다른 단어로 검색해 보세요.",
@@ -428,7 +434,7 @@ describe("the deck page", () => {
     });
     await open("d-fr");
     const user = userEvent.setup();
-    const search = screen.getByRole("searchbox", { name: "카드 검색" });
+    const search = await searchBox();
     const cloze = "The capital of Italy is 빈칸, 뒷면 가려짐";
 
     // Its words find it, the blank's answer and the kept back among them.
@@ -512,7 +518,7 @@ describe("the deck page", () => {
       "cards: id,deck_id,front,back,template,template_version,created_at",
     );
     const user = userEvent.setup();
-    const search = screen.getByRole("searchbox", { name: "카드 검색" });
+    const search = await searchBox();
 
     await user.type(search, "a city");
     expect(rows()).toEqual(["Lyon, 뒷면 가려짐"]);
@@ -547,7 +553,7 @@ describe("the deck page", () => {
     const user = userEvent.setup();
     const answers = screen.getByRole("switch", { name: "뒷면 보기" });
     expect(answers).toHaveAttribute("aria-checked", "false");
-    expect(screen.getByRole("heading", { name: "카드" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "카드 3" })).toBeInTheDocument();
 
     await user.click(answers);
     expect(answers).toHaveAttribute("aria-checked", "true");
@@ -558,19 +564,6 @@ describe("the deck page", () => {
     ]);
     await user.click(answers);
     expect(rows()).toEqual(["Chat, 뒷면 가려짐", "chien, 뒷면 가려짐", "oiseau, 뒷면 가려짐"]);
-  });
-
-  it("leads back to 노트 with a chevron, on a target at least the tap target high and wide", async () => {
-    await open("d-fr");
-
-    const back = within(screen.getByRole("navigation", { name: "위치" })).getByRole("link", {
-      name: "노트",
-    });
-    expect(back).toHaveAttribute("href", "/decks");
-    expect(back.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
-    expect(back.className.split(" ")).toEqual(
-      expect.arrayContaining(["min-h-tap-target", "min-w-tap-target"]),
-    );
   });
 
   it("is not found for a deleted deck, and found for a live one", async () => {

@@ -6,6 +6,7 @@ import { v7 } from "uuid";
 import { addCard, createDeck, editCard } from "../actions";
 import { builtCells, cellDraft, type CellDraft, emptyCell, encodeCells } from "../authoring";
 import { holdsBlank } from "../card-content";
+import { type DeckColor, deckFill, offeredColors } from "../deck-tint";
 import type { Card, Deck } from "../library";
 import { AuthoringSheet } from "./authoring-sheet";
 import { CellFields } from "./cell-fields";
@@ -14,60 +15,81 @@ import { SideText } from "./side-text";
 import { SpreadsheetImport } from "./spreadsheet-import";
 import { WholeCells } from "./whole-card";
 
+// The ways to add a card, each its name alone (ADR 0150): the web has all four.
 const choices = [
-  { choice: "직접 입력", line: "", open: "manual" },
-  { choice: "사진 찍기", line: "단어장을 찍으면 카드를 찾아 드려요", open: "camera" },
-  { choice: "앨범에서 고르기", line: "사진에서 카드를 찾아 드려요", open: "album" },
-  { choice: "파일에서 고르기", line: "엑셀이나 CSV 파일의 행을 카드로 만들어요", open: "file" },
+  { choice: "직접 입력", open: "manual" },
+  { choice: "사진 찍기", open: "camera" },
+  { choice: "앨범에서 고르기", open: "album" },
+  { choice: "엑셀·CSV 파일", open: "file" },
 ] as const;
 
+/** The four offered note colours' names, as the phone's `deckColorName` says them. */
+const colorNames: Record<DeckColor, string> = {
+  blue: "파랑",
+  sky: "하늘",
+  violet: "복숭아",
+  sand: "모래",
+  amber: "노랑",
+  slate: "회색",
+};
+
+/** A pair of buttons on one line at a phone's width: the first sized to its label. */
+const pairClass = "grid grid-cols-[auto_minmax(0,1fr)] gap-3";
+
 /**
- * A creation entry opens the phone's three choices and a spreadsheet file without leaving the page.
- * It is outlined, or the coral fill with [primary], where it is the page's one way on.
+ * With [deck], "카드 추가", which opens the 카드 추가 sheet of the ways to add a card, open on
+ * arrival with [adding]; outlined, or the primary fill with [primary], where it is the page's one
+ * way on. Without one, "새 노트 만들기" in the primary fill, or "새 노트" as a chip with
+ * [compact], which opens 새 노트.
  */
 export function AuthoringButton({
   deck,
-  decks = [],
   primary = false,
+  compact = false,
+  adding = false,
 }: {
   deck?: Deck;
-  decks?: Deck[];
   primary?: boolean;
+  compact?: boolean;
+  adding?: boolean;
 }) {
-  const [screen, setScreen] = useState<"options" | "name" | "manual" | "photo" | "file" | null>(
-    null,
+  const [screen, setScreen] = useState<"options" | "manual" | "photo" | "file" | "name" | null>(
+    deck && adding ? "options" : null,
   );
   const [camera, setCamera] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
-  const label = deck ? "카드 추가" : "새 노트 만들기";
+  const label = deck ? "카드 추가" : compact ? "새 노트" : "새 노트 만들기";
   return (
     <>
       <button
         type="button"
         onClick={() => {
-          setScreen("options");
+          setScreen(deck ? "options" : "name");
         }}
-        className={`pressable min-h-cta w-full rounded-button px-5 text-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${primary ? "bg-primary text-on-primary" : "bg-surface"}`}
+        className={
+          compact
+            ? "pressable flex min-h-tap-target shrink-0 items-center rounded-chip bg-surface px-4 text-label text-ink shadow-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            : `pressable min-h-cta w-full rounded-button px-5 text-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${primary ? "bg-primary text-on-primary" : "bg-surface"}`
+        }
       >
         {label}
       </button>
-      {screen === "options" && (
+      {screen === "options" && deck && (
         <AuthoringSheet
-          title={deck ? "카드 추가" : "새 노트"}
+          title="카드 추가"
           close={() => {
             setScreen(null);
           }}
         >
-          <div className="divide-y divide-hairline overflow-hidden rounded-group bg-surface">
-            {choices.map(({ choice, line, open }) =>
+          <div className="flex flex-col gap-3 pb-2">
+            {choices.map(({ choice, open }) =>
               open === "camera" || open === "album" ? (
                 // The picker opens from the row itself, as the phone's does; a cancel opens nothing.
                 <label
                   key={choice}
-                  className="pressable flex min-h-button w-full cursor-pointer flex-col items-start px-4 py-4 text-left text-body focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-ink"
+                  className="pressable flex min-h-cta w-full cursor-pointer items-center rounded-row bg-surface px-4 text-left text-body-strong focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-ink"
                 >
                   {choice}
-                  <span className="text-caption text-muted">{line}</span>
                   <input
                     aria-label={choice}
                     type="file"
@@ -89,15 +111,12 @@ export function AuthoringButton({
                 <button
                   type="button"
                   key={choice}
-                  aria-label={choice}
-                  className="pressable flex min-h-button w-full flex-col items-start px-4 py-4 text-left text-body"
+                  className="pressable flex min-h-cta w-full items-center rounded-row bg-surface px-4 text-left text-body-strong"
                   onClick={() => {
-                    if (open === "manual") setScreen(deck ? "manual" : "name");
-                    else setScreen("file");
+                    setScreen(open);
                   }}
                 >
                   {choice}
-                  {line && <span className="text-caption text-muted">{line}</span>}
                 </button>
               ),
             )}
@@ -105,7 +124,7 @@ export function AuthoringButton({
         </AuthoringSheet>
       )}
       {screen === "name" && (
-        <NewDeck
+        <NewNote
           close={() => {
             setScreen(null);
           }}
@@ -119,19 +138,17 @@ export function AuthoringButton({
           }}
         />
       )}
-      {screen === "file" && (
+      {screen === "file" && deck && (
         <SpreadsheetImport
           deck={deck}
-          decks={decks}
           close={() => {
             setScreen(null);
           }}
         />
       )}
-      {screen === "photo" && (
+      {screen === "photo" && deck && (
         <PhotoImport
           deck={deck}
-          decks={decks}
           camera={camera}
           files={photos}
           close={() => {
@@ -143,38 +160,48 @@ export function AuthoringButton({
   );
 }
 
-function NewDeck({ close }: { close: () => void }) {
+/**
+ * 새 노트, the shape of 새 카드 (ADR 0150): its name and its 표지 색, one of the four note colours,
+ * each in a group, over "저장", which opens the new note, and "저장하고 카드 추가", which opens it
+ * with its 카드 추가 sheet up.
+ */
+function NewNote({ close }: { close: () => void }) {
   const [name, setName] = useState("");
+  const [color, setColor] = useState<DeckColor>("blue");
   const [message, setMessage] = useState("");
   const [pending, start] = useTransition();
   const id = useRef(v7());
   const busy = useRef(false);
   const router = useRouter();
+  function save(adding: boolean) {
+    if (busy.current) return;
+    busy.current = true;
+    start(async () => {
+      try {
+        const result = await createDeck(id.current, name, color);
+        if (result.saved) {
+          close();
+          router.push(`/decks/${result.deckId}${adding ? "?adding=1" : ""}`);
+          router.refresh();
+        } else setMessage(result.message);
+      } catch {
+        setMessage("노트를 만들지 못했어요. 다시 시도해 주세요.");
+      } finally {
+        busy.current = false;
+      }
+    });
+  }
   return (
     <AuthoringSheet title="새 노트" close={close}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (busy.current) return;
-          busy.current = true;
-          start(async () => {
-            try {
-              const result = await createDeck(id.current, name);
-              if (result.saved) {
-                close();
-                router.push(`/decks/${result.deckId}`);
-                router.refresh();
-              } else setMessage(result.message);
-            } catch {
-              setMessage("노트를 만들지 못했어요. 다시 시도해 주세요.");
-            } finally {
-              busy.current = false;
-            }
-          });
+          const submitter = event.nativeEvent.submitter;
+          save(submitter instanceof HTMLButtonElement && submitter.value === "adding");
         }}
         className="flex flex-col gap-4"
       >
-        <label className="text-section text-muted">
+        <label className="flex flex-col gap-2 rounded-group bg-surface px-4 py-4 text-caption text-muted">
           이름
           <input
             autoFocus
@@ -184,24 +211,58 @@ function NewDeck({ close }: { close: () => void }) {
             onChange={(event) => {
               setName(event.target.value);
             }}
-            className="mt-2 min-h-field w-full rounded-field border border-outline bg-surface px-4 text-body text-ink focus:outline-2 focus:outline-ink"
+            className="min-h-field w-full rounded-field border border-outline bg-surface px-4 text-body text-ink focus:outline-2 focus:outline-ink"
           />
         </label>
+        <fieldset className="flex flex-col gap-3 rounded-group bg-surface px-4 py-4">
+          <legend className="float-left text-caption text-muted">표지 색</legend>
+          <div className="clear-left flex flex-wrap gap-3">
+            {offeredColors.map((offered) => (
+              <label
+                key={offered}
+                className={`flex size-tap-target cursor-pointer items-center justify-center rounded-chip ${deckFill(offered)} has-checked:outline-3 has-checked:outline-offset-2 has-checked:outline-accent has-focus-visible:outline-ink`}
+              >
+                <input
+                  type="radio"
+                  name="color"
+                  value={offered}
+                  aria-label={colorNames[offered]}
+                  checked={color === offered}
+                  onChange={() => {
+                    setColor(offered);
+                  }}
+                  className="sr-only"
+                />
+              </label>
+            ))}
+          </div>
+        </fieldset>
         {message && (
-          <p role="alert" className="text-caption text-dont-know">
+          <p role="alert" className="text-caption text-dont-know-text">
             {message}
           </p>
         )}
-        <button
-          disabled={pending}
-          className="pressable min-h-cta rounded-button bg-primary px-5 text-button text-on-primary disabled:opacity-50"
-        >
-          {pending ? "만드는 중" : "만들기"}
-        </button>
+        <div className={`sticky bottom-0 bg-ground py-3 ${pairClass}`}>
+          <button
+            value="saved"
+            disabled={pending}
+            className="pressable min-h-cta rounded-button bg-surface px-6 text-button break-keep disabled:opacity-50"
+          >
+            저장
+          </button>
+          <button
+            value="adding"
+            disabled={pending}
+            className="pressable min-h-cta rounded-button bg-primary px-4 text-button break-keep text-on-primary disabled:opacity-50"
+          >
+            {pending ? "만드는 중" : "저장하고 카드 추가"}
+          </button>
+        </div>
       </form>
     </AuthoringSheet>
   );
 }
+
 const cellChoices = [
   { kind: "text", name: "글", line: "" },
   { kind: "word", name: "단어", line: "단어와 뜻을 함께 적어요" },
@@ -352,7 +413,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
           {card ? "그래도 저장" : "그래도 추가"}
         </button>
       )}
-      <div className="sticky bottom-0 mt-5 flex gap-3 bg-ground py-3">
+      <div className={`sticky bottom-0 mt-5 bg-ground py-3 ${card ? "flex" : pairClass}`}>
         <button
           type="button"
           disabled={pending}
@@ -362,7 +423,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
           className={
             card
               ? "pressable min-h-cta flex-1 rounded-button bg-primary px-3 text-button text-on-primary disabled:opacity-50"
-              : "pressable min-h-cta flex-1 rounded-button bg-surface px-3 text-button disabled:opacity-50"
+              : "pressable min-h-cta rounded-button bg-surface px-6 text-button break-keep disabled:opacity-50"
           }
         >
           {card && pending ? "저장 중" : "저장"}
@@ -374,7 +435,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
             onClick={() => {
               save(true);
             }}
-            className="pressable min-h-cta flex-1 rounded-button bg-primary px-3 text-button text-on-primary disabled:opacity-50"
+            className="pressable min-h-cta rounded-button bg-primary px-4 text-button break-keep text-on-primary disabled:opacity-50"
           >
             {pending ? "저장 중" : "저장하고 다음 카드"}
           </button>

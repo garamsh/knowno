@@ -16,7 +16,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get newDeck => '새 노트';
 
   @override
-  String get deckActions => '노트 작업';
+  String get deckActions => '노트 설정';
 
   @override
   String get importActions => '사진 작업';
@@ -529,14 +529,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get delete => '삭제';
 
   @override
-  String todayCards(int count) {
-    return '오늘 할 카드 $count장';
-  }
-
-  @override
-  String get studyAll => '모두 학습';
-
-  @override
   String get know => '안다';
 
   @override
@@ -656,9 +648,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get schedulingFailure => '이 카드의 다음 복습 일정을 계산하지 못했어요. 일정은 그대로예요.';
-
-  @override
-  String get account => '설정';
 
   @override
   String get accountTitle => '설정';
@@ -924,12 +913,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get pickAnother => '다른 사진 고르기';
 
   @override
-  String get photoCameraBody => '단어장을 찍으면 카드를 찾아 드려요';
-
-  @override
-  String get photoAlbumBody => '고른 사진에서 카드를 찾아 드려요';
-
-  @override
   String get retry => '다시 시도';
 
   @override
@@ -1148,9 +1131,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get unpublished => '노트를 비공개로 전환했어요';
 
   @override
-  String get todayTitle => '오늘 할 카드';
-
-  @override
   String get noCardsTitle => '첫 카드를 만들어 볼까요?';
 
   @override
@@ -1167,9 +1147,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get newDeckTitle => '새 노트 만들기';
-
-  @override
-  String get newDeckBody => '이름은 나중에도 바꿀 수 있어요.';
 
   @override
   String consentNotice(String terms, String privacy) {
@@ -1195,12 +1172,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get todayStudy => '학습하기';
-
-  @override
-  String get tabToday => '오늘';
-
-  @override
-  String get tabDecks => '노트';
 
   @override
   String get tabRecord => '기록';
@@ -1230,35 +1201,10 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String deckSummary(int count) {
-    return '카드 $count장';
-  }
-
-  @override
-  String deckMasteredCount(int count) {
-    return '익힌 카드 $count장';
-  }
-
-  @override
-  String get deckTodayTitle => '오늘 학습';
-
-  @override
-  String get deckTodayUnit => '장';
-
-  @override
-  String get studyDeck => '학습하기';
-
-  @override
   String get searchCardsAction => '카드 검색';
 
   @override
   String get closeSearch => '검색 닫기';
-
-  @override
-  String get addCardManuallyBody => '앞면과 뒷면을 하나씩 적어요';
-
-  @override
-  String get cardListTitle => '카드';
 
   @override
   String get showMeanings => '뒷면 보기';
@@ -1274,31 +1220,6 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String todayOfGoal(int goal) {
-    return ' / $goal장';
-  }
-
-  @override
-  String todayAbout(int minutes) {
-    return '약 $minutes분';
-  }
-
-  @override
-  String todayAboutLeft(int minutes) {
-    return '약 $minutes분 남음';
-  }
-
-  @override
-  String todayProgress(int goal, int done) {
-    return '$goal장 중 $done장';
-  }
-
-  @override
-  String goalReached(int goal) {
-    return '목표 $goal장 달성';
-  }
-
-  @override
   String streakDays(int days) {
     return '$days일 연속';
   }
@@ -1308,24 +1229,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dayTomorrow => '내일';
-
-  @override
-  String dayCount(String day, int count) {
-    return '$day $count장';
-  }
-
-  @override
-  String get todayDecks => '오늘 할 노트';
-
-  @override
-  String deckDueCount(int count) {
-    return '$count장';
-  }
-
-  @override
-  String studyDeckToday(String name, int count) {
-    return '$name, 오늘 $count장 학습';
-  }
 
   @override
   String nextReview(String day, int cards, int minutes) {
@@ -1341,16 +1244,6 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String backlogBody(int count) {
     return '밀린 복습 $count장을 급한 것부터 해요. 새 카드는 잠시 쉬어요.';
-  }
-
-  @override
-  String catchUpTitle(int perDay, int days) {
-    return '하루 $perDay장씩 하면 $days일이면 따라잡아요';
-  }
-
-  @override
-  String catchUpSemantics(String days) {
-    return '밀린 복습 예상: $days';
   }
 
   @override
@@ -1679,22 +1572,6 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String todayExtra(int count) {
-    return '오늘 $count장 더 했어요';
-  }
-
-  @override
-  String get weekTitle => '지난 7일';
-
-  @override
-  String weekSemantics(int cards, int minutes) {
-    return '지난 7일 동안 $cards장을 $minutes분 학습했어요';
-  }
-
-  @override
-  String get weekOpenRecord => '기록 열기';
-
-  @override
   String get dailyMinutesUnit => '분';
 
   @override
@@ -1740,10 +1617,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get keepWriting => '계속 쓰기';
 
   @override
-  String get spreadsheetPick => '파일에서 고르기';
-
-  @override
-  String get spreadsheetPickBody => '엑셀이나 CSV 파일의 행을 카드로 만들어요';
+  String get spreadsheetPick => '엑셀·CSV 파일';
 
   @override
   String get spreadsheetStartTitle => '파일에서 카드 추가';
@@ -1858,4 +1732,53 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get spreadsheetNotRead => '파일을 읽지 못했어요. 다시 골라 주세요.';
+
+  @override
+  String get tabHome => '홈';
+
+  @override
+  String get tabSettings => '설정';
+
+  @override
+  String homeToday(int count) {
+    return '오늘 $count장';
+  }
+
+  @override
+  String homeMinutes(int minutes) {
+    return '약 $minutes분이면 끝나요';
+  }
+
+  @override
+  String get homeStart => '시작';
+
+  @override
+  String get drawerOpen => '올려서 보기';
+
+  @override
+  String get drawerClose => '접기';
+
+  @override
+  String studyThisDeck(int count) {
+    return '이 노트 학습 · $count장';
+  }
+
+  @override
+  String get studyThisDeckPlain => '이 노트 학습';
+
+  @override
+  String cardsHeading(int count) {
+    return '카드 $count';
+  }
+
+  @override
+  String deckMasteredShort(int count) {
+    return '$count장 익힘';
+  }
+
+  @override
+  String get newDeckColor => '표지 색';
+
+  @override
+  String get saveAndAddCards => '저장하고 카드 추가';
 }

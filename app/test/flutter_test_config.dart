@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:knowno/design/mascot.dart';
-import 'package:knowno/design/streak_flame.dart';
 import 'package:knowno/study/study.dart';
 
 /// Loads the engine library once before every test file, as the composition

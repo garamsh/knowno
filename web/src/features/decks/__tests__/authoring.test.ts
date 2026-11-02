@@ -61,6 +61,18 @@ describe("web authoring writes", () => {
       expect.objectContaining({ kind: "word", term: " Apple ", senses: appleSenses, ask: "term" }),
     ]);
   });
+  it("stores an offered note colour with a new deck, and refuses one it does not offer", async () => {
+    expect(await createDeck(uuidOf("peach"), "단어장", "violet")).toEqual({
+      saved: true,
+      deckId: uuidOf("peach"),
+    });
+    expect(db.rows.decks[0]).toMatchObject({ name: "단어장", color: "violet" });
+    // Control: a removed colour and an unknown key write nothing.
+    for (const color of ["sky", "constructor"]) {
+      expect(await createDeck(uuidOf(color), "단어장", color)).toMatchObject({ saved: false });
+    }
+    expect(db.rows.decks).toHaveLength(1);
+  });
   it("warns on the phone's normalized duplicate without overwriting it, and permits an explicit extra card", async () => {
     db.rows.decks.push(deckRow("deck", "Deck"));
     const first = draft("Ａpple");

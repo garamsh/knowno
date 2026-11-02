@@ -13,7 +13,7 @@ import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_button.dart';
 import 'package:knowno/design/app_section_label.dart';
-import 'package:knowno/design/streak_flame.dart';
+import 'package:knowno/study/src/streak_flame.dart';
 import 'package:knowno/study/src/completion_card.dart';
 import 'package:knowno/study/src/study_coach.dart';
 import 'package:knowno/design/mascot.dart';
@@ -1663,7 +1663,7 @@ void main() {
   );
 
   testWidgets(
-    "the 오늘 tab's goal and count agree with the study bar, a card on Don't know left in both",
+    "홈's count agrees with the study bar, a card on Don't know left in it",
     (tester) async {
       final study = await _open(
         tester,
@@ -1677,9 +1677,7 @@ void main() {
 
       await study.close();
       final overview = await study.overview();
-      // a is done; b, answered Don't know, is left in the goal and the count.
-      expect((overview.goal.done, overview.goal.goal), (1, 2));
-      expect(overview.goal.reached, isFalse);
+      // a is done; b, answered Don't know, is left in the count.
       expect(overview.count.total, 1);
 
       await study.reopen();
@@ -1689,10 +1687,6 @@ void main() {
       expect(shownText('2/2'), findsOneWidget);
       await study.close();
       final after = await study.overview();
-      expect(
-        (after.goal.done, after.goal.goal, after.goal.reached),
-        (2, 2, true),
-      );
       expect(after.count.total, 0);
     },
   );

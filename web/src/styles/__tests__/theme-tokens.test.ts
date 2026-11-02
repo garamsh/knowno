@@ -66,12 +66,12 @@ const onlyGoogle = <T>(tokens: Map<string, T>) => new Map([...tokens].filter(isG
 
 describe("the web theme's colour tokens", () => {
   it("are the light tokens of app/lib/design/theme.dart", () => {
-    expect(dartColors("light").size).toBe(50);
+    expect(dartColors("light").size).toBe(49);
     expect(withoutGoogle(cssColors(lightCss))).toEqual(dartColors("light"));
   });
 
   it("are the dark tokens of app/lib/design/theme.dart, for the system's dark mode and for 다크", () => {
-    expect(dartColors("dark").size).toBe(50);
+    expect(dartColors("dark").size).toBe(49);
     expect(withoutGoogle(cssColors(systemDarkCss))).toEqual(dartColors("dark"));
     expect(withoutGoogle(cssColors(chosenDarkCss))).toEqual(dartColors("dark"));
   });
@@ -228,7 +228,7 @@ function cssType(): Map<string, TypeStyle> {
 describe("the web theme's type tokens", () => {
   it("are the styles of app/lib/design/theme.dart's AppType: size, line height, weight and tracking", () => {
     // Control: both sides read every style, the front's tracking among them.
-    expect(dartType().size).toBe(19);
+    expect(dartType().size).toBe(20);
     expect(dartType().get("front")).toEqual({
       size: 42,
       lineHeight: 46,
@@ -292,7 +292,7 @@ describe("the web theme's size tokens", () => {
     const web = [...withoutGoogle(cssSpacing)].filter(([name]) => !namedGaps.includes(name));
     // Control: both sides read their sizes, the button's height among them.
     expect(sizes.get("button")).toBe(64);
-    expect(web.length).toBe(20);
+    expect(web.length).toBe(17);
 
     for (const [name, value] of web) {
       expect({ name, value }).toEqual({ name, value: sizes.get(name) });

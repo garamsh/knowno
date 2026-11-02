@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../design/app_chip.dart';
 import '../../design/app_list_row.dart';
 import '../../design/theme.dart';
+import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import '../../media/media.dart';
 import 'model.dart';
@@ -61,7 +62,11 @@ class DeckRow extends StatelessWidget {
                       spacing: AppSpace.s8,
                       children: [
                         Expanded(
-                          child: Text(deck.name, style: AppType.bodyStrong),
+                          child: Text(
+                            keepWords(deck.name),
+                            semanticsLabel: deck.name,
+                            style: AppType.bodyStrong,
+                          ),
                         ),
                         if (deck.visibility is PublicDeck)
                           AppChip(label: l10n.publicChip),

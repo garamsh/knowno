@@ -31,18 +31,22 @@ function FirstRun({
 }
 
 /**
- * The home page of a user with no deck, as the phone's first run draws it: the mascot, the
- * invitation, and where decks are made, with its creation action.
+ * 홈 for a user with no note, as the final screens draw it (ADR 0150): the thinking mascot, the
+ * invitation in the title's size, and "새 노트 만들기" in the primary fill, which opens 새 노트.
  */
 export function EmptyHome() {
   return (
     <>
-      <FirstRun
-        id="empty-home-title"
-        title="첫 노트를 만들어 볼까요?"
-        mascot="thinking"
-        size="size-mascot-large"
-      />
+      <h1 className="text-display">알아몰라</h1>
+      <section
+        aria-labelledby="empty-home-title"
+        className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center"
+      >
+        <Mascot expression="thinking" className="size-mascot-large" />
+        <h2 id="empty-home-title" className="text-display break-keep">
+          첫 노트를 만들어 볼까요?
+        </h2>
+      </section>
       <AuthoringButton primary />
     </>
   );
@@ -65,29 +69,27 @@ export function EmptyDeck() {
 }
 
 /**
- * The 오늘 page of a user whose decks hold no card, as the phone's 오늘 tab draws it, the mascot
- * glad of the deck just made: how to start rather than a finished day, and the one way there:
- * adding a card to the one deck, or, with several, the deck list.
+ * 홈's hero while no note holds a card, in the hero's colours (ADR 0150): the mascot glad of the
+ * note just made, "첫 카드를 만들어 볼까요?" and the one way there: with one note, "카드 추가",
+ * which opens it with its 카드 추가 sheet up; with several, "노트에서 카드 추가", which leads to
+ * the notes under the hero.
  */
 export function NoCardsHome({ decks }: { decks: Deck[] }) {
+  const [only] = decks;
   return (
     <>
-      <FirstRun
-        id="no-cards-title"
-        title="첫 카드를 만들어 볼까요?"
-        mascot="happy"
-        size="size-mascot-large"
-      />
-      {decks.length === 1 && decks[0] ? (
-        <AuthoringButton deck={decks[0]} primary />
-      ) : (
-        <Link
-          href="/decks"
-          className="pressable flex min-h-cta items-center justify-center rounded-button bg-primary px-5 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-        >
-          노트에서 카드 추가
-        </Link>
-      )}
+      <Mascot expression="happy" className="size-mascot-large" />
+      <h2 id="hero-title" className="text-display break-keep">
+        첫 카드를 만들어 볼까요?
+      </h2>
+      <Link
+        href={
+          decks.length === 1 && only ? `/decks/${encodeURIComponent(only.id)}?adding=1` : "#notes"
+        }
+        className="pressable mt-3 flex min-h-cta w-full max-w-56 items-center justify-center rounded-button bg-hero-button px-6 text-button text-on-hero-button [--edge-colour:var(--color-primary-edge)] [--edge:var(--spacing-edge-button)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero"
+      >
+        {decks.length === 1 ? "카드 추가" : "노트에서 카드 추가"}
+      </Link>
     </>
   );
 }

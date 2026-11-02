@@ -8,7 +8,6 @@ import type { CardId } from "@/features/decks";
 
 import {
   deckProgress,
-  catchUp,
   chartDays,
   masteredIntervalDays,
   progressOf,
@@ -90,14 +89,6 @@ describe("the next review", () => {
         "America/Los_Angeles",
       ),
     ).toEqual({ after: 1, cards: 2 });
-  });
-});
-
-describe("the catch-up", () => {
-  it("falls by the pace each day, to zero and not below", () => {
-    expect(catchUp(84, 30)).toEqual([84, 54, 24, 0, 0, 0, 0]);
-    // Control: a pace of one keeps a backlog of seven on every day.
-    expect(catchUp(7, 1)).toEqual([7, 6, 5, 4, 3, 2, 1]);
   });
 });
 

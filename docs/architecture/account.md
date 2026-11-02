@@ -14,10 +14,10 @@ The `account` domain: signing in with Google through Supabase Auth, the session 
   - `AccountData`, `AccountDataNotCleared` and `accountDataProvider`, the device's data that sign-out pushes and clears, which the composition site overrides with the `sync` domain's, so this domain does not depend on it, a seam that breaks a behavioural cycle ([`sync.md`](sync.md));
   - the failures: `AccountFailure`, `AccountOffline`, `AccountMisconfigured`, `AccountRejected`;
   - `AccountGate`, the app's home, which takes the app it opens while signed in as a constructor argument: the composition site passes `home/`'s `HomeScreen`, so this domain depends on no other ([ADR 0017](adr/0017-require-sign-in-through-an-account-gate.md), [ADR 0039](adr/0039-name-every-top-level-folder-by-its-responsibility-compose-across-domains-in-a-home-shell-and-keep-seams-off-screens.md));
-  - `AccountScreen`, the settings screen, which takes the sync status and the study settings' rows it shows as constructor arguments, and `AccountAvatar`, the account's initial in a circle, which the 오늘 tab draws;
+  - `AccountScreen`, the settings screen, which takes the sync status and the study settings' rows it shows as constructor arguments;
   - `appVersionProvider`, the version the settings screen names, which the composition site overrides.
 - It is the only domain that imports `google_sign_in` ([ADR 0006](adr/0006-account-native-google-sign-in.md)). `sync` and `sharing` also import `supabase_flutter`, for PostgREST with the client `connectAccount` returns ([ADR 0015](adr/0015-sync-protocol-and-conflict-policy.md), [ADR 0020](adr/0020-public-decks-in-a-sharing-domain.md)).
-- `home/`'s home screen shows `AccountAvatar` on its account button, named "설정", and opens `AccountScreen` with `sync`'s `SyncStatusView`, and `study`'s `DailyMinutesRow`, `study`'s `AutoplayAudioRow` and `deck`'s `PartOfSpeechPresetsRow`, in that order, as its study settings' rows ([`home.md`](home.md)).
+- `home/`'s home screen shows `AccountScreen` as its 설정 tab, with `sync`'s `SyncStatusView`, and `study`'s `DailyMinutesRow`, `study`'s `AutoplayAudioRow` and `deck`'s `PartOfSpeechPresetsRow`, in that order, as its study settings' rows ([`home.md`](home.md)).
 
 ### Gate
 
@@ -79,7 +79,7 @@ The `account` domain: signing in with Google through Supabase Auth, the session 
 
 ### Interface
 
-- Every string comes from the shared ARB set. The buttons, the sign-out row and the deletion row are labelled by their text; the Google mark and the avatar are excluded from semantics, the Apple slot is read out as a disabled button, the section labels are headings, the app's name on the sign-in screen is a heading, and the progress indicator shown while signing in or out, or deleting, carries a semantic label.
+- Every string comes from the shared ARB set. The buttons, the sign-out row and the deletion row are labelled by their text; the Google mark is excluded from semantics, the Apple slot is read out as a disabled button, the section labels are headings, the app's name on the sign-in screen is a heading, and the progress indicator shown while signing in or out, or deleting, carries a semantic label.
 - The settings screen's "테마" row opens a sheet, "테마", of 시스템, 라이트 and 다크, the current one read as selected with a check in ink; a choice applies at once and closes the sheet, and a dismissal keeps the theme. The choice belongs to the shared theme ([`design.md`](design.md)); this screen only shows it.
 
 ### Tests

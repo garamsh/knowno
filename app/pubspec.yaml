@@ -118,7 +118,7 @@ flutter:
   # 6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec (SHA-256
   # 769677aef240bfc3b9965f2b50748075bff885e6c6992fc591a3fb268279f898).
   # Google's "G" mark, from its Sign in with Google assets (docs/architecture/design.md).
-  # The brand's lockups and circled mark (docs/architecture/design.md).
+  # The brand's stacked lockup and circled mark (docs/architecture/design.md).
   assets:
     - assets/fonts/OFL.txt
     - assets/fonts/OFL-Jua.txt

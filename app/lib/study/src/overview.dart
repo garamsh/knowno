@@ -1,9 +1,6 @@
-import 'dart:math';
-
 import '../../deck/deck.dart';
 import 'model.dart';
 import 'queue.dart';
-import 'today.dart';
 
 /// The interval from which a reviewed card counts as mastered (익힘).
 const masteredInterval = Duration(days: 21);
@@ -65,8 +62,7 @@ final class DeckProgress {
   int get total => mastered + learning + fresh;
 }
 
-/// How many study days the 오늘 tab's charts cover, today included: the last
-/// seven, and in a backlog the catch-up's seven.
+/// How many study days the next review looks ahead over, today included.
 const chartDays = 7;
 
 /// The first study day after [day], within [chartDays] of it, on which one of
@@ -93,65 +89,3 @@ const chartDays = 7;
   }
   return null;
 }
-
-/// One of the last [chartDays] study days: when it starts, the calendar date
-/// it starts on at midnight UTC, the cards answered in it, each once, and the
-/// time its answers took, each up to [answerCapMs].
-typedef WeekDay = ({DateTime start, DateTime date, int cards, Duration time});
-
-/// The last [chartDays] study days, oldest first, ending with the one starting
-/// at [todayStart], from the stored [answers] given in them, in the time zone
-/// [offsetAt] gives. A day without an answer has no cards and no time.
-List<WeekDay> lastWeek(
-  Iterable<StoredAnswer> answers,
-  DateTime todayStart, [
-  UtcOffsetAt offsetAt = localOffsetAt,
-]) {
-  final starts = [todayStart];
-  while (starts.length < chartDays) {
-    starts.insert(0, studyDayBefore(starts.first, offsetAt));
-  }
-  final cards = <DateTime, Set<CardId>>{};
-  final times = <DateTime, int>{};
-  for (final answer in answers) {
-    final start = studyDayStart(answer.at, offsetAt);
-    (cards[start] ??= {}).add(answer.card);
-    final ms = min(answer.duration.inMilliseconds, answerCapMs);
-    times.update(start, (sum) => sum + ms, ifAbsent: () => ms);
-  }
-  return [
-    for (final start in starts)
-      if (start.toUtc().add(offsetAt(start)) case final wall)
-        (
-          start: start,
-          date: DateTime.utc(wall.year, wall.month, wall.day),
-          cards: cards[start]?.length ?? 0,
-          time: Duration(milliseconds: times[start] ?? 0),
-        ),
-  ];
-}
-
-/// The daily goal: [done] of the [goal] cards the study day held.
-final class DailyGoal {
-  const DailyGoal({required this.done, required this.goal});
-
-  /// The goal of a study day from its [plan], as today's list places the
-  /// cards: those done, answered "Know" last today, and those left, the
-  /// selection and the cards still on "Don't know". A card answered "Don't
-  /// know" is left until it is answered "Know".
-  factory DailyGoal.of(DayPlan plan) =>
-      DailyGoal(done: plan.done.length, goal: plan.done.length + plan.left);
-
-  final int done;
-  final int goal;
-
-  /// Whether every card of the goal is done, and there was one.
-  bool get reached => goal > 0 && done == goal;
-}
-
-/// The overdue reviews left at the start of each of the [chartDays] study
-/// days from today, when [backlog] are overdue today and the user clears
-/// [perDay] of them a day: the catch-up a backlog card projects.
-List<int> catchUp(int backlog, int perDay) => [
-  for (var day = 0; day < chartDays; day++) max(0, backlog - day * perDay),
-];

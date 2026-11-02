@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,46 +28,25 @@ final class OverviewUnavailable extends TodayOverviewRead {
   final String message;
 }
 
-/// Today's [count], the daily [goal], the [streak] of study days, the
-/// [nextReview], the last seven study days ([week]), and the [extra] cards
-/// studied past the day's plan.
+/// Today's [count], the [streak] of study days and the [nextReview].
 final class TodayOverview extends TodayOverviewRead {
   const TodayOverview({
     required this.count,
-    required this.goal,
     required this.streak,
     required this.nextReview,
-    required this.week,
     required this.days,
-    required this.load,
-    required this.extra,
   });
 
   final TodayCounted count;
-  final DailyGoal goal;
   final int streak;
 
   /// The first later day with a card due within [chartDays], as
   /// [nextReviewOf] finds it; null when none has one.
   final ({int after, int cards})? nextReview;
 
-  /// The last [chartDays] study days, oldest first, today last ([lastWeek]).
-  final List<WeekDay> week;
-
   /// The calendar date each of the [chartDays] study days from today starts
-  /// on, at midnight UTC: the days the catch-up and the next review name.
+  /// on, at midnight UTC: the days the next review names.
   final List<DateTime> days;
-
-  /// The reviews an average day asks for at the cards' current intervals,
-  /// rounded up, at least one: the pace a backlog's catch-up is projected at.
-  final int load;
-
-  /// How many cards were studied today past the day's plan, never in [goal].
-  final int extra;
-
-  /// In a backlog, the overdue reviews left at the start of each of [days]
-  /// when the user clears [load] of them a day ([catchUp]).
-  List<int> get backlogLeft => catchUp(count.total, load);
 
   /// The whole minutes [cards] reviews take at the user's pace, rounded up.
   int minutesFor(int cards) => count.pace.minutes(reviews: cards, fresh: 0);
@@ -81,9 +58,8 @@ typedef TodayOverviewBuilder = Widget Function(
   TodayOverviewRead overview,
 );
 
-/// Reads [decks]' [TodayOverview]: [TodayCounter]'s count, the daily goal
-/// from the answers recorded today, the streak as the completion card counts
-/// it, the next review, and the last seven study days; shows it through
+/// Reads [decks]' [TodayOverview]: [TodayCounter]'s count, the streak as the
+/// completion card counts it, and the next review; shows it through
 /// [builder].
 ///
 /// It is read again when [decks] changes and whenever the route that shows it
@@ -113,23 +89,15 @@ class _TodayOverviewReaderState extends ConsumerState<TodayOverviewReader> {
     final now = ref.read(studyClockProvider)();
     final zone = ref.read(studyZoneProvider);
     final start = today.day.start;
-    var weekStart = start;
-    for (var day = 1; day < chartDays; day++) {
-      weekStart = studyDayBefore(weekStart, zone);
-    }
-    final recent = await repository.answersSince(weekStart);
+    final recent = await repository.answersSince(start);
     final days = <DateTime>[start];
     while (days.length < chartDays) {
       days.add(studyDayEnd(days.last, zone));
     }
     return TodayOverview(
       count: today.count,
-      goal: DailyGoal.of(today.plan),
       streak: streak(
-        [
-          for (final answer in recent)
-            if (!answer.at.isBefore(start)) answer.at,
-        ],
+        [for (final answer in recent) answer.at],
         now,
         since: start,
         daysBefore: await studyDaysBefore(
@@ -140,9 +108,6 @@ class _TodayOverviewReaderState extends ConsumerState<TodayOverviewReader> {
         offsetAt: zone,
       ),
       nextReview: nextReviewOf(today.states.values, today.day, offsetAt: zone),
-      week: lastWeek(recent, start, zone),
-      load: max(1, dailyLoad(today.states.values).ceil()),
-      extra: today.plan.extra.length,
       days: [
         for (final day in days)
           if (day.toUtc().add(zone(day)) case final wall)

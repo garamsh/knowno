@@ -2,24 +2,24 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../account/account.dart';
 import '../../deck/deck.dart';
-import '../../design/app_button.dart';
-import '../../design/mascot.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../photo_import/photo_import.dart';
-import '../../sharing/sharing.dart';
+import '../../study/study.dart';
+import '../../sync/sync.dart';
 import 'deck_screen.dart';
-import 'decks_tab.dart';
-import 'first_run.dart';
-import 'new_deck_sheet.dart';
+import 'home_tab.dart';
 import 'record_tab.dart';
-import 'today_tab.dart';
 
-/// The signed-in app: the 오늘, 노트 and 기록 tabs over the user's decks, or the
-/// first-run home before the first deck. Back on another tab returns to 오늘.
+/// The tabs, in the order the bar shows them.
+enum _Tab { record, home, settings }
+
+/// The signed-in app: the 기록, 홈 and 설정 tabs, opening on 홈. 홈 keeps a
+/// navigator of its own, so a note opens above the menu. Back on another tab
+/// returns to 홈; on 홈 it closes what 홈 opened, then is left to the platform.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -28,10 +28,26 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _tab = 0;
+  var _tab = _Tab.home;
 
-  /// Whether the 기록 tab was shown: it reads every review, so not before.
-  bool _recordShown = false;
+  /// The tabs shown so far, each built the first time: 기록 reads every
+  /// review, and 설정 the account and its sync.
+  final _shown = {_Tab.home};
+
+  final _homeNavigator = GlobalKey<NavigatorState>();
+
+  /// Whether 홈's navigator holds a screen over its first.
+  var _homeOpened = false;
+
+  late final _homeObserver = _DepthObserver(() {
+    // A navigator reports during its own update, so the state changes after.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final opened = _homeNavigator.currentState?.canPop() ?? false;
+      if (mounted && opened != _homeOpened) {
+        setState(() => _homeOpened = opened);
+      }
+    });
+  });
 
   @override
   void initState() {
@@ -50,90 +66,86 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  /// Opens the photo import under way, then the deck it saved into.
+  /// Opens the photo import under way, then, on 홈, the deck it saved into.
   Future<void> _openImport(PhotoImports imports) async {
-    final navigator = Navigator.of(context);
     final deck = await openPhotoImport(context, imports);
     if (deck == null || !mounted) return;
-    await navigator.push(
+    _select(_Tab.home);
+    await _homeNavigator.currentState?.push(
       MaterialPageRoute<void>(builder: (_) => DeckScreen(deck: deck)),
     );
+  }
+
+  /// Shows [tab]; 홈 again, while it shows a screen it opened, returns to its
+  /// first.
+  void _select(_Tab tab) {
+    if (tab == _Tab.home && _tab == _Tab.home) {
+      _homeNavigator.currentState?.popUntil((route) => route.isFirst);
+    }
+    setState(() {
+      _tab = tab;
+      _shown.add(tab);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
-    final sharing = ref.watch(sharingServiceProvider);
     final imports = ref.watch(photoImportsProvider);
     final importBar = imports == null
         ? null
         : PhotoImportBar(imports: imports, onOpen: () => _openImport(imports));
-    return switch ((ref.watch(decksProvider), ref.watch(cardCountsProvider))) {
-      (AsyncData(value: final decks), AsyncData(value: final counts)) =>
-        decks.isEmpty
-            ? Scaffold(
-                appBar: AppBar(
-                  titleSpacing: AppSpace.gutter,
-                  title: const BrandTitle(),
-                  actions: const [AccountButton()],
-                ),
-                bottomNavigationBar: importBar == null
-                    ? null
-                    : SafeArea(child: importBar),
-                body: _EmptyHome(
-                  onCreate: () => showNewDeckSheet(context, ref),
-                  onBrowse: sharing == null
-                      ? null
-                      : () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => sharing.browseScreen(),
-                          ),
-                        ),
-                ),
-              )
-            : PopScope(
-                canPop: _tab == 0,
-                onPopInvokedWithResult: (popped, _) {
-                  if (!popped) setState(() => _tab = 0);
-                },
-                child: Scaffold(
-                  body: IndexedStack(
-                    index: _tab,
-                    children: [
-                      TodayTab(
-                        decks: decks,
-                        counts: counts,
-                        onShowDecks: () => setState(() => _tab = 1),
-                        onShowRecord: () => setState(() {
-                          _tab = 2;
-                          _recordShown = true;
-                        }),
-                      ),
-                      DecksTab(decks: decks, counts: counts),
-                      if (_recordShown)
-                        RecordTab(decks: decks)
-                      else
-                        const SizedBox.shrink(),
-                    ],
-                  ),
-                  bottomNavigationBar: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ?importBar,
-                      _TabBar(
-                        selected: _tab,
-                        onSelect: (tab) => setState(() {
-                          _tab = tab;
-                          _recordShown |= tab == 2;
-                        }),
-                      ),
-                    ],
-                  ),
+    return switch (ref.watch(decksProvider)) {
+      AsyncData(value: final decks) => PopScope(
+        canPop: _tab == _Tab.home && !_homeOpened,
+        onPopInvokedWithResult: (popped, _) {
+          if (popped) return;
+          if (_tab != _Tab.home) {
+            setState(() => _tab = _Tab.home);
+          } else {
+            unawaited(_homeNavigator.currentState?.maybePop());
+          }
+        },
+        child: Scaffold(
+          body: IndexedStack(
+            index: _tab.index,
+            children: [
+              if (_shown.contains(_Tab.record))
+                RecordTab(decks: decks)
+              else
+                const SizedBox.shrink(),
+              HeroControllerScope.none(
+                child: Navigator(
+                  key: _homeNavigator,
+                  observers: [_homeObserver],
+                  onGenerateRoute: (_) =>
+                      MaterialPageRoute<void>(builder: (_) => const HomeTab()),
                 ),
               ),
-      (AsyncError(:final error, :final stackTrace), _) ||
-      (_, AsyncError(:final error, :final stackTrace)) => Scaffold(
+              if (_shown.contains(_Tab.settings))
+                const AccountScreen(
+                  syncStatus: SyncStatusView(),
+                  studySettings: [
+                    DailyMinutesRow(),
+                    AutoplayAudioRow(),
+                    PartOfSpeechPresetsRow(),
+                  ],
+                )
+              else
+                const SizedBox.shrink(),
+            ],
+          ),
+          bottomNavigationBar: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ?importBar,
+              _TabBar(selected: _tab, onSelect: _select),
+            ],
+          ),
+        ),
+      ),
+      AsyncError(:final error, :final stackTrace) => Scaffold(
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(AppSpace.gutter),
@@ -149,19 +161,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
+/// Calls [onChange] whenever its navigator's stack changes.
+final class _DepthObserver extends NavigatorObserver {
+  _DepthObserver(this.onChange);
+
+  final VoidCallback onChange;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      onChange();
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      onChange();
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      onChange();
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      onChange();
+}
+
 /// The three tabs at the foot of the screen, on one surface floating on its
-/// edge: each its name alone, the current one in the primary colour.
+/// edge: each its name alone, the current one in the accent.
 class _TabBar extends StatelessWidget {
   const _TabBar({required this.selected, required this.onSelect});
 
-  final int selected;
-  final ValueChanged<int> onSelect;
+  final _Tab selected;
+  final ValueChanged<_Tab> onSelect;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
-    final tabs = [l10n.tabToday, l10n.tabDecks, l10n.tabRecord];
+    String name(_Tab tab) => switch (tab) {
+      _Tab.record => l10n.tabRecord,
+      _Tab.home => l10n.tabHome,
+      _Tab.settings => l10n.tabSettings,
+    };
     return Semantics(
       container: true,
       label: l10n.tabsLabel,
@@ -182,14 +221,14 @@ class _TabBar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                for (final (index, tab) in tabs.indexed)
+                for (final tab in _Tab.values)
                   Expanded(
                     child: Semantics(
-                      selected: index == selected,
+                      selected: tab == selected,
                       button: true,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(AppRadius.button),
-                        onTap: () => onSelect(index),
+                        onTap: () => onSelect(tab),
                         // At least its height; taller where a larger text
                         // size needs it, so the label is never cut.
                         child: ConstrainedBox(
@@ -202,9 +241,9 @@ class _TabBar extends StatelessWidget {
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                tab,
+                                name(tab),
                                 style: AppType.label.copyWith(
-                                  color: index == selected
+                                  color: tab == selected
                                       ? colors.accent
                                       : colors.ink2,
                                 ),
@@ -220,40 +259,6 @@ class _TabBar extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// The first-run home: the mascot, what to do first, "노트 만들기", which opens
-/// the new-deck sheet with every way to start one, and, with sharing, the
-/// public decks.
-class _EmptyHome extends StatelessWidget {
-  const _EmptyHome({required this.onCreate, required this.onBrowse});
-
-  final VoidCallback onCreate;
-  final VoidCallback? onBrowse;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final onBrowse = this.onBrowse;
-    return FirstRun(
-      mascot: MascotExpression.thinking,
-      title: l10n.emptyHomeTitle,
-      actions: [
-        AppButton(
-          label: l10n.newDeckTitle,
-          icon: LucideIcons.plus,
-          size: AppButtonSize.cta,
-          onPressed: onCreate,
-        ),
-        if (onBrowse != null)
-          AppButton(
-            label: l10n.browsePublicDecks,
-            variant: AppButtonVariant.text,
-            onPressed: onBrowse,
-          ),
-      ],
     );
   }
 }

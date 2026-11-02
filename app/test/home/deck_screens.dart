@@ -9,6 +9,7 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_text_field.dart';
 import 'package:knowno/design/keyboard_dismissal.dart';
 import 'package:knowno/design/theme.dart';
+import 'package:knowno/home/src/home_screen.dart';
 import 'package:knowno/l10n/app_localizations.dart';
 import 'package:knowno/photo_import/photo_import.dart';
 import 'package:knowno/study/study.dart';
@@ -37,7 +38,7 @@ class DeckScreens {
   Future<List<Card>> cards() async =>
       (await tester.runAsync(() => repository.listCards(deck.id)))!;
 
-  /// Pushes the screen [build] makes over the empty home route.
+  /// Pushes the screen [build] makes over the home route.
   Future<void> push(Widget Function(Deck deck) build) async {
     navigator.currentState!.push(
       MaterialPageRoute<void>(builder: (_) => build(deck)),
@@ -72,6 +73,8 @@ class DeckScreens {
   /// such as a media store. [asAppRoot] wraps every route in
   /// `KeyboardDismissal`, as the app root does, and draws the theme for the
   /// test's target platform, which the shared themes fix at their first use.
+  /// [fromHome] opens the signed-in app on 홈 under the screens pushed, in
+  /// place of an empty route.
   static Future<DeckScreens> open(
     WidgetTester tester, {
     Map<String, String> cards = const {},
@@ -86,6 +89,7 @@ class DeckScreens {
     Locale locale = const Locale('en'),
     List<Override> overrides = const [],
     bool asAppRoot = false,
+    bool fromHome = false,
   }) async {
     // A phone's screen, so every card of a short deck is on it under the
     // pinned row.
@@ -168,7 +172,7 @@ class DeckScreens {
           locale: locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const Scaffold(),
+          home: fromHome ? const HomeScreen() : const Scaffold(),
         ),
       ),
     );

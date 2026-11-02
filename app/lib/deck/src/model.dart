@@ -88,6 +88,10 @@ enum DeckColor {
   /// What the deck stores for the colour.
   final String key;
 
+  /// The colours a picker offers, t1 to t4. A deck that stored [sky] or
+  /// [amber], offered before, still draws it.
+  static const offered = [blue, violet, sand, slate];
+
   /// The colour stored as [key]; null for none, or for a key this build
   /// does not know, such as one a newer app wrote.
   static DeckColor? fromKey(String? key) {

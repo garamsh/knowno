@@ -3,7 +3,6 @@ import { beforeAll, describe, expect, it } from "vitest";
 import type { CardId } from "@/features/decks";
 
 import { loadEngine } from "../engine";
-import { dailyGoal } from "../overview";
 import { studyDay } from "../queue";
 import { countDay, dayPlanOf, leftOf, todayOf } from "../today-list";
 
@@ -148,7 +147,7 @@ const now = Date.UTC(2026, 9, 14, 9);
 const goalDay = studyDay(now, [], "UTC", 20);
 const msPerDay = 86_400_000;
 
-describe("the daily goal", () => {
+describe("today's plan", () => {
   it("is the day's cards done and left as today's list places them, a card on 모른다 left until 안다", () => {
     const card = (value: string) => ({ id: id(value), createdAt: now - 30 * msPerDay });
     const later = { stability: 3, difficulty: 5, lastReview: now, due: now + msPerDay };
@@ -166,12 +165,14 @@ describe("the daily goal", () => {
     ];
     const cards = ["a", "b", "c", "z"].map(card);
     // a is done; b, answered 모른다, and c, due, are left.
-    expect(dailyGoal(dayPlanOf(cards, states, goalDay, answers))).toEqual({ done: 1, goal: 3 });
+    const plan = dayPlanOf(cards, states, goalDay, answers);
+    expect([plan.done.size, leftOf(plan)]).toEqual([1, 2]);
     // Answered 안다 later, b is done.
     const known = [
       ...answers,
       { cardId: id("b"), answer: "know" as const, reviewedAt: goalDay.start + 4000 },
     ];
-    expect(dailyGoal(dayPlanOf(cards, states, goalDay, known))).toEqual({ done: 2, goal: 3 });
+    const answered = dayPlanOf(cards, states, goalDay, known);
+    expect([answered.done.size, leftOf(answered)]).toEqual([2, 1]);
   });
 });

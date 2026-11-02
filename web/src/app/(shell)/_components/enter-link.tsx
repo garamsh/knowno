@@ -1,23 +1,22 @@
 "use client";
 
-import { Play } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 
 /**
- * The page's one study button, [label], in the ink fill, which opens [href], showing its Enter
- * key from 1024 px wide: sized as a row inside a white card, or with [onGround] across the page's
- * two columns on its ground. Enter opens it from anywhere on the page but a control or a field,
- * which keep their own Enter.
+ * The page's one study button, [label], which opens [href], showing its Enter key from 1024 px
+ * wide: in the primary fill across the page's column, or with [onHero] in the hero button's
+ * colours, sized to its label, on its edge. Enter opens it from anywhere on the page but a
+ * control or a field, which keep their own Enter.
  */
 export function EnterLink({
   href,
   label,
-  onGround = false,
+  onHero = false,
 }: {
   href: string;
   label: string;
-  onGround?: boolean;
+  onHero?: boolean;
 }) {
   const link = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
@@ -44,15 +43,16 @@ export function EnterLink({
       ref={link}
       href={href}
       aria-keyshortcuts="Enter"
-      className={`pressable flex min-h-cta items-center justify-center gap-2 rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
-        onGround ? "lg:col-span-2" : "flex-[1_1_100%] whitespace-nowrap sm:min-w-60 sm:flex-none"
+      className={`pressable flex min-h-cta items-center justify-center gap-2 rounded-button px-6 text-button break-keep focus-visible:outline-2 focus-visible:outline-offset-2 ${
+        onHero
+          ? "w-full max-w-56 bg-hero-button text-on-hero-button [--edge-colour:var(--color-primary-edge)] [--edge:var(--spacing-edge-button)] focus-visible:outline-on-hero"
+          : "w-full bg-primary text-on-primary focus-visible:outline-ink"
       }`}
     >
-      <Play aria-hidden className="size-small-icon" strokeWidth={2} />
       {label}
       <kbd
         aria-hidden
-        className="hidden rounded-md border border-outline px-1.5 text-micro font-bold lg:inline"
+        className="hidden rounded-md border border-current px-1.5 text-micro font-bold lg:inline"
       >
         Enter
       </kbd>

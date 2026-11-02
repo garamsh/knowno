@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowno/design/streak_flame.dart';
+import 'package:knowno/study/src/streak_flame.dart';
 
-import 'harness.dart';
+import '../design/harness.dart';
 
 /// The flame of a streak of [days], at 16 square.
 Widget _flame(int days) => StreakFlame(days: days, size: 16);

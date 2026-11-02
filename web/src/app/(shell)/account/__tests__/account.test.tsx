@@ -10,7 +10,6 @@ import { redirectTarget } from "@/testing/redirect";
 import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 
-import { AccountLink } from "../../_components/account-link";
 import { Profile } from "../_components/profile";
 import AccountPage from "../page";
 
@@ -125,33 +124,5 @@ describe("the account page", () => {
       "href",
       "/privacy",
     );
-  });
-});
-
-describe("the shell's account link", () => {
-  beforeEach(async () => {
-    setRequestCookies(await signedInCookies());
-  });
-
-  it("is the signed-in account's initial, and opens the account page", async () => {
-    await render(AccountLink, {});
-
-    const link = screen.getByRole("link", { name: "설정" });
-    expect(link).toHaveAttribute("href", "/account");
-    expect(link).toHaveTextContent(testUser.email.charAt(0).toLocaleUpperCase());
-  });
-
-  it("in the side menu, names 설정 beside the initial", async () => {
-    await render(AccountLink, { labelled: true });
-
-    const link = screen.getByRole("link", { name: /설정$/ });
-    expect(link).toHaveAttribute("href", "/account");
-    expect(link).toHaveTextContent(`${testUser.email.charAt(0).toLocaleUpperCase()}설정`);
-  });
-
-  it("redirects to /login without a session", async () => {
-    setRequestCookies([]);
-
-    expect(await redirectTarget(render(AccountLink, {}))).toBe("/login");
   });
 });

@@ -2,7 +2,6 @@
 /// session that sign-in starts.
 library;
 
-export 'src/account_avatar.dart' show AccountAvatar;
 export 'src/account_data.dart'
     show AccountData, AccountDataNotCleared, accountDataProvider;
 export 'src/account_gate.dart' show AccountGate;

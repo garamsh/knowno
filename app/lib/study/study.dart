@@ -5,6 +5,7 @@ library;
 export 'src/autoplay.dart' show AutoplayAudioRow;
 export 'src/daily_minutes_sheet.dart' show DailyMinutesRow, FirstDailyMinutes;
 export 'src/model.dart' show CardState, FuzzFactor, Review;
+export 'src/streak_flame.dart' show streakFlamesMove;
 export 'src/providers.dart'
     show
         autoplayAudioKey,
@@ -17,7 +18,7 @@ export 'src/providers.dart'
         studyStorageKeys,
         studyStorageProvider,
         studyZoneProvider;
-export 'src/overview.dart' show DailyGoal, DeckProgress, WeekDay;
+export 'src/overview.dart' show DeckProgress;
 export 'src/progress_counter.dart' show ProgressBuilder, ProgressCounter;
 export 'src/rust/api/engine.dart' show Answer;
 export 'src/queue.dart' show localOffsetAt;

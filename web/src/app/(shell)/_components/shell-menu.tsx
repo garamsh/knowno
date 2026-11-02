@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartColumn, Layers, type LucideIcon, Sun } from "lucide-react";
+import { ChartColumn, House, type LucideIcon, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -10,14 +10,25 @@ import { BrandMark } from "@/design/brand";
 /** A page the menus open, and whether a path is that page or below it. */
 type Item = { href: string; label: string; Icon: LucideIcon; current: (path: string) => boolean };
 
+// 홈 sits in the middle, and is current on a note's page too (ADR 0150).
 const items: readonly Item[] = [
-  { href: "/", label: "오늘", Icon: Sun, current: (path) => path === "/" },
-  { href: "/decks", label: "노트", Icon: Layers, current: (path) => path.startsWith("/decks") },
   {
     href: "/record",
     label: "기록",
     Icon: ChartColumn,
     current: (path) => path.startsWith("/record"),
+  },
+  {
+    href: "/",
+    label: "홈",
+    Icon: House,
+    current: (path) => path === "/" || path.startsWith("/decks"),
+  },
+  {
+    href: "/account",
+    label: "설정",
+    Icon: Settings,
+    current: (path) => path.startsWith("/account"),
   },
 ];
 
@@ -35,12 +46,11 @@ function Pill({ selected, children }: { selected: boolean; children: ReactNode }
 }
 
 /**
- * The menu from 1024 px wide: the lockup, 오늘, 노트 and 기록, the current one a tinted pill
- * behind its icon beside a bold label and the others muted, as the tab bar draws them, and
- * [account], the account's link, at its foot.
+ * The menu from 1024 px wide: the lockup, then 기록, 홈 and 설정, the current one a tinted pill
+ * behind its icon beside a bold label and the others muted, as the tab bar draws them.
  */
-export function SideMenu({ account }: { account: ReactNode }) {
-  return <SideMenuAt path={usePathname()} account={account} />;
+export function SideMenu() {
+  return <SideMenuAt path={usePathname()} />;
 }
 
 /**
@@ -48,13 +58,13 @@ export function SideMenu({ account }: { account: ReactNode }) {
  * the surface and the border down the page's whole height, and the menu inside it stays pinned in
  * view as the page scrolls (ADR 0038).
  */
-export function SideMenuAt({ path, account }: { path: string | null; account: ReactNode }) {
+export function SideMenuAt({ path }: { path: string | null }) {
   return (
     <div className="hidden w-60 shrink-0 border-r border-hairline bg-surface lg:block">
       <nav aria-label="주 메뉴" className="sticky top-0 flex h-dvh flex-col gap-1.5 px-4 py-7">
         <Link
           href="/"
-          aria-label="알아몰라, 오늘"
+          aria-label="알아몰라, 홈"
           className={`mx-2.5 mb-5 self-start rounded-field ${focus}`}
         >
           <BrandMark mark="lockup" alt="" className="h-7 w-auto" />
@@ -75,14 +85,12 @@ export function SideMenuAt({ path, account }: { path: string | null; account: Re
             </Link>
           );
         })}
-        <span className="min-h-4 flex-1" />
-        {account}
       </nav>
     </div>
   );
 }
 
-/** The menu below 1024 px wide: 오늘, 노트 and 기록, their names alone, in a bar floating on its edge. */
+/** The menu below 1024 px wide: 기록, 홈 and 설정, their names alone, in a bar floating on its edge. */
 export function TabBar() {
   return <TabBarAt path={usePathname()} />;
 }

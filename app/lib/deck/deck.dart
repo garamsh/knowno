@@ -17,6 +17,7 @@ export 'src/add_cards.dart'
         mergeBack;
 export 'src/audio_block.dart' show playAudio;
 export 'src/card_editor_screen.dart' show CardEditorScreen;
+export 'src/new_deck_screen.dart' show NewDeck, NewDeckScreen;
 export 'src/card_frame.dart'
     show
         BlankCell,

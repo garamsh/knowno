@@ -137,8 +137,8 @@ describe("the daily study minutes", () => {
     expect(control(5)).toHaveTextContent("5분");
     cleanup();
     await render(Today, {});
-    expect(document.getElementById("today-count")).toHaveTextContent("0 / 30장");
-    expect(document.getElementById("today-time")).toHaveTextContent("약 5분");
+    expect(document.getElementById("hero-title")).toHaveTextContent("오늘 30장");
+    expect(document.getElementById("hero-time")).toHaveTextContent("약 5분");
   });
 
   it("commit a typed number when the field is left, as Enter does", async () => {

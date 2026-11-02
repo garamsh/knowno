@@ -31,7 +31,6 @@
   --color-dont-know-edge: #7a1622;
   --color-on-dont-know-text: #ffffff;
   --color-shadow: #13224a;
-  --color-chart-other: #9db1f0;
   --color-chart-quiet: #6f86d9;
   --color-recall-strong: #1e9e6a;
   --color-recall-fair: #f5b731;
@@ -85,6 +84,9 @@
   --text-figure: 38px;
   --text-figure--line-height: 46px;
   --text-figure--font-weight: 800;
+  --text-hero-figure: 58px;
+  --text-hero-figure--line-height: 68px;
+  --text-hero-figure--font-weight: 800;
   --text-headline: 20px;
   --text-headline--line-height: 28px;
   --text-headline--font-weight: 800;
@@ -145,17 +147,14 @@
   --spacing-button: 64px;
   --spacing-search: 46px;
   --spacing-tap-target: 44px;
-  --spacing-avatar: 56px;
-  --spacing-small-avatar: 32px;
   --spacing-deck-tile: 46px;
   --spacing-small-icon: 18px;
-  --spacing-lockup-height: 30px;
   --spacing-mascot-medium: 96px;
   --spacing-mascot-guide: 64px;
-  --spacing-hero-symbol: 120px;
   --spacing-progress: 10px;
   --spacing-stacked-lockup-width: 200px;
   --spacing-mascot-large: 128px;
+  --spacing-mascot-hero: 210px;
   --spacing-tab-bar: 66px;
   --spacing-edge-card: 6px;
   --spacing-edge-button: 7px;
@@ -366,7 +365,6 @@
     --color-dont-know-edge: #d97c92;
     --color-on-dont-know-text: #1d1833;
     --color-shadow: #000000;
-    --color-chart-other: #3d568f;
     --color-chart-quiet: #6890e2;
     --color-recall-strong: #4fd69c;
     --color-recall-fair: #f7c64f;
@@ -423,7 +421,6 @@
   --color-dont-know-edge: #d97c92;
   --color-on-dont-know-text: #1d1833;
   --color-shadow: #000000;
-  --color-chart-other: #3d568f;
   --color-chart-quiet: #6890e2;
   --color-recall-strong: #4fd69c;
   --color-recall-fair: #f7c64f;
@@ -532,8 +529,11 @@
    data-eyes for a blink, and --glance-x and --glance-y for a glance; each eye closes about the
    centre its transform-origin names. */
 @layer components {
+  /* No wider than its box, as preflight holds the still <img> it replaces; the viewBox keeps
+     the drawing's proportions. */
   .mascot {
     overflow: visible;
+    max-width: 100%;
   }
   .mascot .breath {
     transform-box: view-box;
