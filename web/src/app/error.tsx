@@ -24,7 +24,7 @@ export default function ErrorPage({
         href="/"
         className="pressable flex min-h-button items-center justify-center rounded-button bg-surface px-6 text-button text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
-        오늘로 가기
+        홈으로 가기
       </Link>
     </main>
   );
