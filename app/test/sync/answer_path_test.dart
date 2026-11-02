@@ -77,13 +77,11 @@ void main() {
     ).read(syncControllerProvider);
 
     await tapAndSettle(tester, 'Create a note');
-    await tapAndSettle(tester, 'Enter by hand');
     await tester.enterText(
       find.widgetWithText(AppTextField, 'Note name'),
       'French',
     );
-    // Creating the deck offers 노트 꾸미기, then opens it.
-    await tapAndSettle(tester, 'Create');
+    // Saving 새 노트 makes the deck and opens it.
     await tapAndSettle(tester, 'Save');
     for (final (front, back) in [('Chat', 'cat'), ('Chien', 'dog')]) {
       await tapAndSettle(tester, 'Add card');
@@ -93,7 +91,8 @@ void main() {
       await tester.enterText(find.byType(TextField).at(1), back);
       await tapAndSettle(tester, 'Save');
     }
-    await tapAndSettle(tester, 'Study');
+    await tester.tap(find.textContaining('Study this note'));
+    await tester.pumpAndSettle();
     // The run that started with the app is still waiting on the server.
     expect(sync.status.value, isA<Syncing>());
     expect(server.requests, isEmpty);

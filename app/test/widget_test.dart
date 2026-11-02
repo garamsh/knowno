@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show QueryExecutor;
@@ -17,6 +16,7 @@ import 'package:knowno/design/app_chip.dart';
 import 'package:knowno/design/app_text_field.dart';
 import 'package:knowno/design/theme_choice.dart';
 import 'package:knowno/home/home.dart';
+import 'package:knowno/home/src/deck_screen.dart';
 import 'package:knowno/main.dart';
 import 'package:knowno/media/media.dart';
 import 'package:knowno/photo_import/photo_import.dart';
@@ -140,32 +140,46 @@ void main() {
   Future<void> enterBack(WidgetTester tester, String text) =>
       tester.enterText(back, text);
 
-  /// Shows the tab named [label].
+  /// Shows the tab named [label], tapping it in the tab bar.
   Future<void> showTab(WidgetTester tester, String label) async {
-    await tester.tap(find.text(label));
+    final semantics = tester.ensureSemantics();
+    await tester.tap(
+      find.descendant(
+        of: find.bySemanticsLabel('Tabs'),
+        matching: find.text(label),
+      ),
+    );
+    semantics.dispose();
+    await tester.pumpAndSettle();
+  }
+
+  /// Pulls up 홈's drawer of decks, unless it is up.
+  Future<void> openDrawer(WidgetTester tester) async {
+    if (find.text('Pull up to see all').evaluate().isEmpty) return;
+    await tester.tap(find.text('Pull up to see all'));
     await tester.pumpAndSettle();
   }
 
   Future<void> createDeckAndOpen(WidgetTester tester, String name) async {
-    // The first deck is made from the first-run home's new-deck sheet, later
-    // ones from the decks tab's.
+    // The first deck is made from the first-run home's "Create a note",
+    // later ones from the drawer's "New note"; each opens 새 노트.
     if (find.text('Create a note').evaluate().isNotEmpty) {
       await tester.tap(find.text('Create a note'));
     } else {
-      await showTab(tester, 'Notes');
-      await tester.tap(find.text('Create a note'));
+      await openDrawer(tester);
+      await tester.tap(find.text('New note'));
     }
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Enter by hand'));
-    await tester.pumpAndSettle();
     await enterText(tester, 'Note name', name);
-    // Creating the deck offers 노트 꾸미기, then opens it.
-    await tester.tap(find.text('Create'));
-    await tester.pumpAndSettle();
+    // Saving makes the deck and opens it.
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
+    expect(find.byType(DeckScreen), findsOneWidget);
     expect(find.text(name), findsOneWidget);
   }
+
+  /// The deck page's "이 노트 학습", with its count or without.
+  final studyThisDeck = find.textContaining('Study this note');
 
   Future<void> addCard(WidgetTester tester, String front, String back) async {
     await tester.tap(find.text('Add card'));
@@ -182,7 +196,8 @@ void main() {
     tester,
   ) async {
     await pumpApp(tester);
-    await tester.tap(find.text('Create a note'));
+    await createDeckAndOpen(tester, 'French');
+    await tester.tap(find.text('Add card'));
     await tester.pumpAndSettle();
     expect(find.text('Enter by hand'), findsOneWidget);
     expect(find.text('Take photo'), findsNothing);
@@ -190,7 +205,8 @@ void main() {
     await unmountApp(tester);
 
     await pumpApp(tester, extraction: _NoExtraction());
-    await tester.tap(find.text('Create a note'));
+    await createDeckAndOpen(tester, 'French');
+    await tester.tap(find.text('Add card'));
     await tester.pumpAndSettle();
     expect(find.text('Take photo'), findsOneWidget);
     expect(find.text('Choose from album'), findsOneWidget);
@@ -262,22 +278,20 @@ void main() {
 
   testWidgets('sharing is offered only with a sharing server', (tester) async {
     await pumpApp(tester);
-    expect(find.byTooltip('Settings'), findsOneWidget);
+    expect(find.text('Create a note'), findsOneWidget);
     expect(find.text('Browse public notes'), findsNothing);
     await createDeckAndOpen(tester, 'French');
-    await tester.tap(find.byTooltip('Note actions'));
+    await tester.tap(find.byTooltip('Note settings'));
     await tester.pumpAndSettle();
     expect(find.text('Rename'), findsOneWidget);
     expect(find.text('Publish'), findsNothing);
-    await tester.tapAt(const Offset(20, 20));
+    await tester.tapAt(const Offset(20, 300));
     await tester.pumpAndSettle();
     await tester.pageBack();
     await tester.pumpAndSettle();
-    await showTab(tester, 'Notes');
+    await openDrawer(tester);
+    expect(find.text('New note'), findsOneWidget);
     expect(find.text('Browse public notes'), findsNothing);
-    await tester.tap(find.text('Create a note'));
-    await tester.pumpAndSettle();
-    expect(find.text('Copy a public deck'), findsNothing);
     await unmountApp(tester);
 
     await pumpApp(tester, sharing: FakeSharingServer());
@@ -290,20 +304,15 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     await createDeckAndOpen(tester, 'French');
-    await tester.tap(find.byTooltip('Note actions'));
+    await tester.tap(find.byTooltip('Note settings'));
     await tester.pumpAndSettle();
     expect(find.text('Publish'), findsOneWidget);
-    await tester.tapAt(const Offset(20, 20));
+    await tester.tapAt(const Offset(20, 300));
     await tester.pumpAndSettle();
     await tester.pageBack();
     await tester.pumpAndSettle();
-    await showTab(tester, 'Notes');
+    await openDrawer(tester);
     expect(find.text('Browse public notes'), findsOneWidget);
-    // The public decks have that one way in: the new-deck sheet offers none.
-    await tester.tap(find.text('Create a note'));
-    await tester.pumpAndSettle();
-    expect(find.text('Enter by hand'), findsOneWidget);
-    expect(find.text('Copy a public deck'), findsNothing);
     await unmountApp(tester);
   });
 
@@ -314,12 +323,12 @@ void main() {
 
       expect(find.bySemanticsLabel('knowno'), findsOneWidget);
       expect(shownText('Shall we make your first note?'), findsOneWidget);
-      // One sentence and one primary, which opens the new-deck sheet with every way to start.
-      // The decks tab's way to a new deck, of the same name, waits for the
-      // first deck.
+      // One sentence and one primary, which opens 새 노트.
       expect(find.text('Create a note'), findsOneWidget);
-      expect(find.text('Enter by hand'), findsNothing);
       expect(find.text('Browse public notes'), findsNothing);
+      await tester.tap(find.text('Create a note'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(AppTextField, 'Note name'), findsOneWidget);
       await unmountApp(tester);
 
       await pumpApp(
@@ -540,14 +549,14 @@ void main() {
     await unmountApp(tester);
   });
 
-  testWidgets("a deck's Study button opens a session on its cards", (
+  testWidgets("a deck's Study this note opens a session on its cards", (
     tester,
   ) async {
     await pumpApp(tester);
     await createDeckAndOpen(tester, 'French');
     await addCard(tester, 'Chat', 'cat');
 
-    await tester.tap(find.text('Study'));
+    await tester.tap(studyThisDeck);
     await tester.pumpAndSettle();
 
     expect(shownText('Chat'), findsOneWidget);
@@ -557,7 +566,7 @@ void main() {
   });
 
   testWidgets(
-    "the today card counts today's cards across every deck, and Study all studies them in one session",
+    "홈's hero counts today's cards across every deck, and Start studies them in one session",
     (tester) async {
       await pumpApp(tester);
       await createDeckAndOpen(tester, 'French');
@@ -569,10 +578,11 @@ void main() {
       await addCard(tester, 'Hund', 'dog');
       await tester.pageBack();
       await tester.pumpAndSettle();
-      await showTab(tester, 'Today');
 
-      expect(find.bySemanticsLabel('0 of 3 cards'), findsOneWidget);
-      await tester.tap(find.text('Study all'));
+      expect(shownText('3 cards today'), findsOneWidget);
+      await tester.ensureVisible(find.text('Start'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start'));
       await tester.pumpAndSettle();
 
       expect(find.text('0/3'), findsOneWidget);
@@ -581,19 +591,21 @@ void main() {
   );
 
   testWidgets(
-    'a deck made by hand opens empty, offering a card to add and no Study, and the 오늘 tab shows how to start until a card is added',
+    'a deck made by hand opens empty, offering a card to add and no Study this note, and 홈 shows how to start until a card is added',
     (tester) async {
       await pumpApp(tester);
       await createDeckAndOpen(tester, 'French');
 
-      expect(find.text('Study'), findsNothing);
+      expect(studyThisDeck, findsNothing);
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(shownText('Make your first card?'), findsOneWidget);
       expect(find.text("You've done today's cards"), findsNothing);
 
-      // Its one primary opens the deck's card editor; with a card added, the
-      // tab shows the day.
+      // Its one primary opens the deck with its add sheet up; with a card
+      // added, 홈 shows the day.
+      await tester.ensureVisible(find.text('Add card'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Add card'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Enter by hand'));
@@ -605,32 +617,29 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(shownText('Make your first card?'), findsNothing);
-      expect(find.text('Study all'), findsOneWidget);
+      expect(shownText('1 card today'), findsOneWidget);
+      expect(find.text('Start'), findsOneWidget);
       await unmountApp(tester);
     },
   );
 
   testWidgets(
-    "the first-run daily minutes step waits for the 오늘 tab: none over the deck screen or on the 노트 tab when a deck gets its first card, then once on 오늘",
+    "the first-run daily minutes step waits for 홈: none over the deck screen or on 기록 when a deck gets its first card, then once back on 홈",
     (tester) async {
       await pumpApp(tester, minutesAsked: false);
       await createDeckAndOpen(tester, 'French');
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Notes'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('French'));
-      await tester.pumpAndSettle();
       await addCard(tester, 'Chat', 'cat');
       expect(find.byType(BottomSheet), findsNothing);
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      // Back on the 노트 tab, the 오늘 tab behind it now has a card.
-      expect(find.text('My notes 1'), findsOneWidget);
+      // On 기록, 홈 behind it now has a card.
+      await showTab(tester, 'Record');
+      expect(find.byType(BottomSheet), findsNothing);
+      // 홈 again shows the deck it opened, over its first screen.
+      await showTab(tester, 'Home');
+      expect(find.byType(DeckScreen), findsOneWidget);
       expect(find.byType(BottomSheet), findsNothing);
 
-      await tester.tap(find.text('Today'));
+      await tester.pageBack();
       await tester.pumpAndSettle();
       await waitForPicker(tester);
       expect(
@@ -642,12 +651,12 @@ void main() {
   );
 
   testWidgets(
-    'with no card left and one answered today, the today card\'s Study and the deck\'s Study open the completion card',
+    'with no card left and one answered today, the deck\'s Study this note and 홈\'s Study open the completion card',
     (tester) async {
       await pumpApp(tester);
       await createDeckAndOpen(tester, 'French');
       await addCard(tester, 'Chat', 'cat');
-      await tester.tap(find.text('Study'));
+      await tester.tap(studyThisDeck);
       await tester.pumpAndSettle();
       // Answered "Know" by a swipe of the current card.
       await tester.timedDrag(
@@ -675,30 +684,19 @@ void main() {
       await tester.tap(find.text('Stop'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Study'));
+      await tester.tap(studyThisDeck);
       await tester.pumpAndSettle();
       expect(find.text('Done for today'), findsOneWidget);
       await tester.ensureVisible(find.text('Stop'));
       await tester.tap(find.text('Stop'));
       await tester.pumpAndSettle();
-      // Back from the deck it made, the user is on the 오늘 tab.
+      // Back from the deck it made, the user is on 홈.
       await tester.pageBack();
       await tester.pumpAndSettle();
 
-      expect(find.text("You've done today's cards"), findsOneWidget);
-      // The done card's study button is below the rows the list builds first.
-      await tester.scrollUntilVisible(
-        find.text('Study'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
-      // Centred, so the tab bar does not cover it.
-      unawaited(
-        Scrollable.ensureVisible(
-          tester.element(find.text('Study')),
-          alignment: 0.5,
-        ),
-      );
+      expect(shownText("You've done today's cards"), findsOneWidget);
+      // The hero scrolls where the test font makes it taller than its space.
+      await tester.ensureVisible(find.text('Study'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Study'));
       await tester.pumpAndSettle();
@@ -707,13 +705,10 @@ void main() {
     },
   );
 
-  testWidgets('the deck list opens the account screen, signed in', (
-    tester,
-  ) async {
+  testWidgets('the 설정 tab is the account screen, signed in', (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.byTooltip('Settings'));
-    await tester.pumpAndSettle();
+    await showTab(tester, 'Settings');
 
     expect(find.byType(AccountScreen), findsOneWidget);
     expect(find.text('ada@example.com'), findsOneWidget);
@@ -725,8 +720,7 @@ void main() {
     (tester) async {
       await pumpApp(tester);
 
-      await tester.tap(find.byTooltip('Settings'));
-      await tester.pumpAndSettle();
+      await showTab(tester, 'Settings');
       expect(find.text('Study'), findsOneWidget);
       await tester.tap(find.text('Daily study time'));
       await waitForPicker(tester);
@@ -747,8 +741,7 @@ void main() {
     (tester) async {
       await pumpApp(tester);
 
-      await tester.tap(find.byTooltip('Settings'));
-      await tester.pumpAndSettle();
+      await showTab(tester, 'Settings');
       expect(
         tester.getRect(find.text('Labels')).top,
         greaterThan(tester.getRect(find.text('Daily study time')).bottom),
@@ -773,25 +766,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(brightness(tester), Brightness.light);
 
-    await tester.tap(find.byTooltip('Settings'));
+    await showTab(tester, 'Settings');
+    await tester.ensureVisible(find.text('Theme'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Theme'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Dark'));
     await tester.pumpAndSettle();
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+    await showTab(tester, 'Home');
     expect(brightness(tester), Brightness.dark);
 
-    await tester.tap(find.byTooltip('Settings'));
-    await tester.pumpAndSettle();
+    await showTab(tester, 'Settings');
     await tester.tap(find.text('Theme'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Light'));
     await tester.pumpAndSettle();
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+    await showTab(tester, 'Home');
     expect(brightness(tester), Brightness.light);
     await unmountApp(tester);
   });
@@ -830,42 +821,40 @@ void main() {
         await meetsGuidelines();
         await tester.tap(find.text('Create a note'));
         await tester.pumpAndSettle();
-        await meetsGuidelines();
-        await tester.tap(find.text('Enter by hand'));
-        await tester.pumpAndSettle();
+        // 새 노트, its name field and the four colours.
         expect(shownText('New note'), findsOneWidget);
-        expect(shownText('You can change the name later.'), findsOneWidget);
         await meetsGuidelines();
         await enterText(tester, 'Note name', 'French');
-        await tester.tap(find.text('Create'));
-        await tester.pumpAndSettle();
-        // 노트 꾸미기, which creating a deck offers.
-        expect(shownText('Customize note'), findsOneWidget);
-        await meetsGuidelines();
         await tester.tap(find.text('Save'));
         await tester.pumpAndSettle();
-        // The new deck, empty, then the 오늘 tab showing how to start, and the
-        // 기록 and 노트 tabs.
+        // The new deck, empty, then 홈 showing how to start, its drawer
+        // pulled up, and the 기록 tab.
         await meetsGuidelines();
         await tester.pageBack();
         await tester.pumpAndSettle();
         await meetsGuidelines();
+        await openDrawer(tester);
+        await meetsGuidelines();
         await showTab(tester, 'Record');
         await meetsGuidelines();
-        await showTab(tester, 'Notes');
-        await meetsGuidelines();
-        await tester.tap(find.text('Create a note'));
-        await tester.pumpAndSettle();
-        await meetsGuidelines();
-        await tester.tapAt(const Offset(20, 20));
-        await tester.pumpAndSettle();
+        await showTab(tester, 'Home');
         await tester.tap(find.text('French'));
         await tester.pumpAndSettle();
         await meetsGuidelines();
         await addCard(tester, 'Chat', 'cat');
         await meetsGuidelines();
 
-        await tester.tap(find.byTooltip('Note actions'));
+        // 노트 꾸미기, from the menu.
+        await tester.tap(find.byTooltip('Note settings'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Customize note'));
+        await tester.pumpAndSettle();
+        expect(shownText('Customize note'), findsOneWidget);
+        await meetsGuidelines();
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byTooltip('Note settings'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Rename'));
         await tester.pumpAndSettle();
@@ -873,7 +862,7 @@ void main() {
         await meetsGuidelines();
         await tester.tapAt(const Offset(20, 20));
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('Note actions'));
+        await tester.tap(find.byTooltip('Note settings'));
         await tester.pumpAndSettle();
         // The menu, its "Delete note" in the destructive text colour.
         await meetsGuidelines();
@@ -884,8 +873,10 @@ void main() {
         await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();
 
+        // The add sheet, then by hand.
         await tester.tap(find.text('Add card'));
         await tester.pumpAndSettle();
+        await meetsGuidelines();
         await tester.tap(find.text('Enter by hand'));
         await tester.pumpAndSettle();
         await enterFront(tester, 'Chien');
@@ -935,15 +926,15 @@ void main() {
         await tester.pumpAndSettle();
         await tester.pageBack();
         await tester.pumpAndSettle();
-        // The decks tab with a deck row and its progress.
+        // 홈's drawer with a deck row and its progress, then 홈 with today
+        // on its hero.
         await meetsGuidelines();
-
-        // The 오늘 tab with its today card, the next seven days and a deck.
-        await showTab(tester, 'Today');
-        await meetsGuidelines();
-
-        await tester.tap(find.byTooltip('Settings'));
+        await tester.drag(find.text('My notes 1'), const Offset(0, 200));
         await tester.pumpAndSettle();
+        expect(find.text('Pull up to see all'), findsOneWidget);
+        await meetsGuidelines();
+
+        await showTab(tester, 'Settings');
         await meetsGuidelines();
         // The foot is below the rows the screen builds first.
         await tester.scrollUntilVisible(

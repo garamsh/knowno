@@ -28,8 +28,9 @@ class SharingApp {
   final SemanticsHandle _semantics;
   var _closed = false;
 
-  /// Opens the deck list holding a deck for each of [myDecks], each with a
-  /// card for each of its entries, front to back.
+  /// Opens 홈 holding a deck for each of [myDecks], each with a card for
+  /// each of its entries, front to back, its drawer of decks pulled up once
+  /// there is one.
   static Future<SharingApp> open(
     WidgetTester tester, {
     FakeSharingServer? server,
@@ -94,8 +95,10 @@ class SharingApp {
       ),
     );
     await tester.pumpAndSettle();
-    // The decks tab, where the user's decks are listed, once there is one.
-    if (find.text('Notes').evaluate().isNotEmpty) await app.tapText('Notes');
+    // 홈's drawer, where the user's decks are listed, once there is one.
+    if (find.text('Pull up to see all').evaluate().isNotEmpty) {
+      await app.tapText('Pull up to see all');
+    }
     return app;
   }
 
@@ -106,13 +109,17 @@ class SharingApp {
 
   Future<void> tapText(String text) => tap(find.text(text));
 
-  /// Opens the browse screen from the decks tab, or from the first-run home
+  /// Opens the browse screen from 홈's drawer, or from the first-run home
   /// before the first deck.
-  Future<void> browse() => tapText('Browse public notes');
+  Future<void> browse() async {
+    await tester.ensureVisible(find.text('Browse public notes'));
+    await tester.pumpAndSettle();
+    await tapText('Browse public notes');
+  }
 
   /// Opens the deck menu of the open screen, then the item [item].
   Future<void> deckMenu(String item) async {
-    await tap(find.byTooltip('Note actions'));
+    await tap(find.byTooltip('Note settings'));
     await tapText(item);
   }
 

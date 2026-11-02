@@ -12,7 +12,7 @@ const _french = {
   'French': {'chat': 'cat'},
 };
 
-/// Opens the deck list over "French", then French's card list.
+/// Opens 홈's drawer over "French", then French's card list.
 Future<SharingApp> _openFrench(
   WidgetTester tester, {
   FakeSharingServer? server,
@@ -70,8 +70,8 @@ void main() {
       final stored = await _stored(app);
       expect(stored.visibility, isA<PublicDeck>());
       expect(stored.description, 'Cats');
-      expect(find.text('1 card · 0 mastered · Public'), findsOneWidget);
-      await tester.tap(find.byTooltip('Note actions'));
+      expect(find.text('0 learned · Public'), findsOneWidget);
+      await tester.tap(find.byTooltip('Note settings'));
       await tester.pumpAndSettle();
       expect(find.text('Make private'), findsOneWidget);
       expect(find.text('Publish'), findsNothing);
@@ -190,7 +190,7 @@ void main() {
       shownText("I won't publish inappropriate or copyrighted content"),
     );
     await app.tap(find.widgetWithText(FilledButton, 'Publish'));
-    expect(find.text('1 card · 0 mastered · Public'), findsOneWidget);
+    expect(find.text('0 learned · Public'), findsOneWidget);
     // Snack bars queue; the first leaves before the second shows.
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
@@ -198,13 +198,13 @@ void main() {
     await app.deckMenu('Make private');
 
     expect(find.text('Note is private again'), findsOneWidget);
-    expect(find.text('1 card · 0 mastered · Public'), findsNothing);
+    expect(find.text('0 learned · Public'), findsNothing);
     expect((await _stored(app)).visibility, isA<PrivateDeck>());
     expect(app.server.writes.last.visibility, isA<PrivateDeck>());
     await app.close();
   });
 
-  testWidgets('the deck list shows the chip on a public deck only', (
+  testWidgets('the drawer shows the chip on a public deck only', (
     tester,
   ) async {
     final app = await SharingApp.open(
@@ -231,7 +231,7 @@ void main() {
     tester,
   ) async {
     final app = await _openFrench(tester, online: false);
-    await tester.tap(find.byTooltip('Note actions'));
+    await tester.tap(find.byTooltip('Note settings'));
     await tester.pumpAndSettle();
 
     expect(find.text("Available when you're online"), findsOneWidget);
@@ -239,8 +239,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(shownText('Publish "French"'), findsNothing);
     expect(app.server.writes, isEmpty);
-    await tester.tapAt(const Offset(10, 10));
+    // The menu's button closes it again.
+    await tester.tap(find.byTooltip('Note settings'));
     await tester.pumpAndSettle();
+    expect(find.text('Publish'), findsNothing, reason: 'the menu closed');
 
     // Control: back online, the same item opens the sheet.
     app.network.online = true;
@@ -255,7 +257,7 @@ void main() {
       'in the ${mode.name} theme the deck menu, publish sheet and public chip meet the tap target and contrast guidelines',
       (tester) async {
         final app = await _openFrench(tester, themeMode: mode);
-        await tester.tap(find.byTooltip('Note actions'));
+        await tester.tap(find.byTooltip('Note settings'));
         await tester.pumpAndSettle();
         await app.meetsGuidelines();
         await app.tapText('Publish');
@@ -274,7 +276,7 @@ void main() {
           'Ada',
         );
         await app.tap(find.widgetWithText(FilledButton, 'Publish'));
-        expect(find.text('1 card · 0 mastered · Public'), findsOneWidget);
+        expect(find.text('0 learned · Public'), findsOneWidget);
         await app.meetsGuidelines();
         await tester.pageBack();
         await tester.pumpAndSettle();

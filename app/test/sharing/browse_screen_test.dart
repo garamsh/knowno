@@ -55,7 +55,7 @@ List<String> _listed(WidgetTester tester) =>
 
 void main() {
   testWidgets(
-    'under the deck rows come Create a deck, which opens the new-deck sheet, then Browse public decks',
+    'the drawer pulled up offers New note over the deck rows, which opens 새 노트, and Browse public notes under them',
     (tester) async {
       final app = await SharingApp.open(
         tester,
@@ -63,22 +63,20 @@ void main() {
         myDecks: {'Mine': {}},
       );
       await tester.ensureVisible(find.text('Browse public notes'));
-      final create = tester.getRect(find.text('Create a note'));
+      final mine = tester.getRect(find.text('Mine'));
+      final create = tester.getRect(find.text('New note'));
       final browse = tester.getRect(find.text('Browse public notes'));
-      expect(create.top, greaterThan(tester.getRect(find.text('Mine')).bottom));
-      expect(browse.top, greaterThan(create.bottom));
+      expect(create.bottom, lessThan(mine.top));
+      expect(browse.top, greaterThan(mine.bottom));
 
-      await app.tapText('Create a note');
-      // The new-deck sheet offers no second way to public decks: the row is
-      // the one.
-      expect(find.text('Enter by hand'), findsOneWidget);
-      expect(find.text('Copy a public deck'), findsNothing);
+      await app.tapText('New note');
+      expect(find.text('Note name'), findsOneWidget);
       await app.close();
     },
   );
 
   testWidgets(
-    'the deck list opens browse, titled Public decks, which lists public decks newest first with owner and counts',
+    'the first-run home opens browse, titled Public notes, which lists public decks newest first with owner and counts',
     (tester) async {
       final app = await SharingApp.open(tester, server: _server());
       await app.browse();

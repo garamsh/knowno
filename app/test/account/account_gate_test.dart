@@ -21,6 +21,7 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_text_field.dart';
 import 'package:knowno/design/theme_choice.dart';
 import 'package:knowno/home/home.dart';
+import 'package:knowno/home/src/deck_screen.dart';
 import 'package:knowno/main.dart';
 import 'package:knowno/media/media.dart';
 import 'package:knowno/photo_import/photo_import.dart';
@@ -171,20 +172,36 @@ void main() {
     return rows.single['n']! as int;
   }
 
-  /// Creates the deck "French" from the first-run home, which opens it, and
-  /// goes back to the tabs.
-  Future<void> createDeck(WidgetTester tester) async {
+  /// Makes the deck "French" on 새 노트 from the first-run home, which then
+  /// opens it.
+  Future<void> createAndOpenDeck(WidgetTester tester) async {
     await tapAndSettle(tester, find.text('Create a note'));
-    await tapAndSettle(tester, find.text('Enter by hand'));
     await tester.enterText(
       find.widgetWithText(AppTextField, 'Note name'),
       'French',
     );
-    await tapAndSettle(tester, find.text('Create'));
-    // Creating the deck offers 노트 꾸미기 before it opens.
     await tapAndSettle(tester, find.text('Save'));
+  }
+
+  /// Creates the deck "French" from the first-run home, which opens it, and
+  /// goes back to 홈.
+  Future<void> createDeck(WidgetTester tester) async {
+    await createAndOpenDeck(tester);
     await tester.pageBack();
     await tester.pumpAndSettle();
+  }
+
+  /// The tab named [name] in the tab bar.
+  Finder tab(String name) => find.descendant(
+    of: find.bySemanticsLabel('Tabs'),
+    matching: find.text(name),
+  );
+
+  /// Shows the 설정 tab, the account screen.
+  Future<void> showSettings(WidgetTester tester) async {
+    final semantics = tester.ensureSemantics();
+    await tapAndSettle(tester, tab('Settings'));
+    semantics.dispose();
   }
 
   /// The buttons on screen that respond to a tap.
@@ -214,12 +231,11 @@ void main() {
       // Besides Google's button, only the links to the terms answer a tap.
       expect(enabledButtons(tester), ['Google로 계속하기', '이용약관', '개인정보 처리방침']);
       expect(find.byType(HomeScreen), findsNothing);
-      expect(find.byTooltip('계정'), findsNothing);
       await unmountApp(tester);
     },
   );
 
-  testWidgets('signing in shows the deck list', (tester) async {
+  testWidgets('signing in shows 홈', (tester) async {
     final account = FakeAccountService();
     await pumpApp(tester, account);
 
@@ -261,7 +277,7 @@ void main() {
     );
     await pumpApp(tester, account);
 
-    await tapAndSettle(tester, find.byTooltip('Settings'));
+    await showSettings(tester);
     await tapAndSettle(tester, find.text('Sign out'));
 
     expect(account.state, isA<SignedOut>());
@@ -284,7 +300,7 @@ void main() {
       // The setup put a deck on the device.
       expect(await deviceRows(tester), greaterThan(0));
 
-      await tapAndSettle(tester, find.byTooltip('Settings'));
+      await showSettings(tester);
       await tapAndSettle(tester, find.text('Sign out'));
 
       expect(find.byType(SignInScreen), findsOneWidget);
@@ -304,7 +320,7 @@ void main() {
       await createDeck(tester);
       expect(await deviceRows(tester), greaterThan(0));
 
-      await tapAndSettle(tester, find.byTooltip('Settings'));
+      await showSettings(tester);
       await tapAndSettle(tester, find.text('Delete account'));
       await tapAndSettle(tester, find.text('Delete'));
 
@@ -319,27 +335,41 @@ void main() {
   );
 
   group('no deck or study screen is reachable while signed out', () {
-    /// Each screen the deck list leads to, and how to open it from there.
-    final routes = <String, Future<void> Function(WidgetTester)>{
-      'card list': (tester) => tapAndSettle(tester, find.text('French')),
-      'card editor': (tester) async {
-        await tapAndSettle(tester, find.text('French'));
-        await tapAndSettle(tester, find.text('Add card'));
-        await tapAndSettle(tester, find.text('Enter by hand'));
-      },
-      'study': (tester) async {
-        await tapAndSettle(tester, find.text('French'));
-        await tapAndSettle(tester, find.text('Study'));
-      },
-      'new-deck sheet': (tester) async {
-        await tapAndSettle(tester, find.text('Create a note'));
-      },
-      'account': (tester) async {
-        await tapAndSettle(tester, find.text('Today'));
-        await tapAndSettle(tester, find.byTooltip('Settings'));
-      },
-    };
-    for (final MapEntry(key: name, value: open) in routes.entries) {
+    /// Each screen 홈 leads to, how to open it from there, and the screen.
+    final routes =
+        <String, (Future<void> Function(WidgetTester), Finder Function())>{
+          'card list': (
+            (tester) => tapAndSettle(tester, find.text('French')),
+            () => find.byType(DeckScreen),
+          ),
+          'card editor': (
+            (tester) async {
+              await tapAndSettle(tester, find.text('French'));
+              await tapAndSettle(tester, find.text('Add card'));
+              await tapAndSettle(tester, find.text('Enter by hand'));
+            },
+            () => find.byType(CardEditorScreen),
+          ),
+          'study': (
+            (tester) async {
+              await tapAndSettle(tester, find.text('French'));
+              await tapAndSettle(
+                tester,
+                find.textContaining('Study this note'),
+              );
+            },
+            () => find.byType(StudyScreen),
+          ),
+          'new note': (
+            (tester) async {
+              await tapAndSettle(tester, find.text('Pull up to see all'));
+              await tapAndSettle(tester, find.text('New note'));
+            },
+            () => find.byType(NewDeckScreen),
+          ),
+          'account': (showSettings, () => find.byType(AccountScreen)),
+        };
+    for (final MapEntry(key: name, value: (open, screen)) in routes.entries) {
       testWidgets('the $name screen closes when the session ends', (
         tester,
       ) async {
@@ -347,15 +377,7 @@ void main() {
           const SignedIn(userId: _ada, email: 'ada@example.com'),
         );
         await pumpApp(tester, account);
-        await tapAndSettle(tester, find.text('Create a note'));
-        await tapAndSettle(tester, find.text('Enter by hand'));
-        await tester.enterText(
-          find.widgetWithText(AppTextField, 'Note name'),
-          'French',
-        );
-        // Creating the deck offers 노트 꾸미기, then opens it.
-        await tapAndSettle(tester, find.text('Create'));
-        await tapAndSettle(tester, find.text('Save'));
+        await createAndOpenDeck(tester);
         await tapAndSettle(tester, find.text('Add card'));
         // With photo import, Add card asks how.
         await tapAndSettle(tester, find.text('Enter by hand'));
@@ -363,19 +385,22 @@ void main() {
         await tester.enterText(find.byType(TextField).at(0), 'Chat');
         await tester.enterText(find.byType(TextField).at(1), 'cat');
         await tapAndSettle(tester, find.text('Save'));
-        // Back from the deck it opened, then to the deck list.
+        // Back from the deck it opened, to 홈.
         await tester.pageBack();
         await tester.pumpAndSettle();
-        await tapAndSettle(tester, find.text('Notes'));
         await open(tester);
-        final navigator = tester.state<NavigatorState>(find.byType(Navigator));
-        // The setup reached a screen over the deck list.
-        expect(navigator.canPop(), isTrue);
+        // The app's own navigator, 홈's above it.
+        final navigator = tester.state<NavigatorState>(
+          find.byType(Navigator).first,
+        );
+        // The setup reached the screen.
+        expect(screen(), findsOneWidget);
 
         // The session ends outside the app, as an expired refresh token does.
         await account.signOut();
         await tester.pumpAndSettle();
 
+        expect(screen(), findsNothing);
         expect(navigator.canPop(), isFalse);
         expect(find.byType(SignInScreen), findsOneWidget);
         expect(enabledButtons(tester), [
