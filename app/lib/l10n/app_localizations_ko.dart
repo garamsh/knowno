@@ -939,6 +939,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get signInRequired => '로그인이 필요해요. 설정에서 다시 로그인해 주세요.';
 
   @override
+  String get extractionUnavailable =>
+      '지금은 사진으로 카드를 만들 수 없어요. 직접 입력이나 엑셀·CSV로 추가해 주세요.';
+
+  @override
   String get serviceFailed => '지금은 사진으로 카드를 만들 수 없어요. 잠시 후 다시 시도해 주세요.';
 
   @override

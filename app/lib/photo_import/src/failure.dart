@@ -57,6 +57,16 @@ final class PhotoLimitReached extends PhotoImportFailure {
   String toString() => 'PhotoLimitReached($limit a ${period.name})';
 }
 
+/// No AI configuration can read photos now (`503`, `unavailable`, ADR 0162):
+/// the plan's provider has no key. Cards are still added by hand or from a
+/// spreadsheet.
+final class ExtractionUnavailable extends PhotoImportFailure {
+  const ExtractionUnavailable();
+
+  @override
+  String toString() => 'ExtractionUnavailable';
+}
+
 /// The model failed or answered invalidly twice (`502`).
 final class ModelFailed extends PhotoImportFailure {
   const ModelFailed();

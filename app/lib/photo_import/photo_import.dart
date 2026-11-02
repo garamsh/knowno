@@ -18,6 +18,7 @@ export 'src/failure.dart'
         AccountSuspendedFailure,
         CameraUnavailable,
         ExtractionOffline,
+        ExtractionUnavailable,
         LimitPeriod,
         ModelFailed,
         NoCardsFound,

@@ -1062,8 +1062,7 @@ describe("the plans page", () => {
       await create({ plan: "free", quota: "monthly", amount: "30", starts_on: "2020-01-01" }),
     ).toEqual({ message: "시작일은 내일 이후로 정하거나, 지금부터면 비워 두세요." });
     const unfavoured = {
-      message:
-        "기존 사용자에게 바로 적용할 수 있는 건 사진을 줄이지 않는 변경뿐이에요.",
+      message: "기존 사용자에게 바로 적용할 수 있는 건 사진을 줄이지 않는 변경뿐이에요.",
     };
     expect(
       await create({ plan: "max", quota: "unlimited", amount: "500", applies_to_all: "on" }),
@@ -1089,7 +1088,10 @@ describe("the plans page", () => {
     expect(admin.planVersions).toHaveLength(versions);
     expect(admin.calls.some((call) => call.startsWith("admin_create_plan_version"))).toBe(false);
     expect(
-      await createPlanVersion({ message: null }, form({ plan: "free", quota: "daily", amount: "5" })),
+      await createPlanVersion(
+        { message: null },
+        form({ plan: "free", quota: "daily", amount: "5" }),
+      ),
     ).toEqual({ message: "새 버전을 만들었어요." });
     expect(admin.planVersions, "control: a whole number is saved").toHaveLength(versions + 1);
   });

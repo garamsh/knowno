@@ -20,7 +20,8 @@ export async function tryAiConfiguration(
   activeId: number,
   form: FormData,
 ): Promise<ComparedTrial> {
-  if (!isId(draftId) || !isId(activeId)) return { message: "하지 못했어요. 잠시 후 다시 시도해 주세요." };
+  if (!isId(draftId) || !isId(activeId))
+    return { message: "하지 못했어요. 잠시 후 다시 시도해 주세요." };
   const photo = trialPhoto(form);
   if (photo === null) return { message: "JPEG, PNG 또는 WebP 사진을 골라 주세요." };
   const admin = await adminToken();

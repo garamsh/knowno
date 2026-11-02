@@ -90,7 +90,8 @@ export async function parseRequest(
   const configuration = value.configuration_id ?? null;
   if (
     configuration !== null &&
-    !(typeof configuration === "number" && Number.isSafeInteger(configuration) &&
+    !(typeof configuration === "number" &&
+      Number.isSafeInteger(configuration) &&
       configuration > 0)
   ) return refuse("bad_request");
   return {

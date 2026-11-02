@@ -1,6 +1,6 @@
 # ADR 0013: Extract cards in a dependency-free Deno Edge Function limited per user in SQL, and choose its model with an eval in `tools/eval/`
 
-> Status: accepted; its eval of vocabulary pages alone and its recommendation on F1 alone superseded by ADR-0051; its retry, its `CARD_RETRY_MODEL` and its model as a secret superseded by ADR-0071; its prompt as a versioned file superseded by ADR-0073
+> Status: accepted; its eval of vocabulary pages alone and its recommendation on F1 alone superseded by ADR-0051; its retry, its `CARD_RETRY_MODEL` and its model as a secret superseded by ADR-0071; its prompt as a versioned file superseded by ADR-0073; its OpenRouter-only call and its key as a secret superseded by ADR-0162
 > Date: 2026-10-15
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

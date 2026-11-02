@@ -572,7 +572,11 @@ export async function runEval(
         sample.languages,
         candidate.primary.id,
         deps.prompt.text,
-        { ...deps, provider: "openrouter", fetch: recording(deps.fetch, calls) },
+        {
+          ...deps,
+          provider: "openrouter",
+          fetch: recording(deps.fetch, calls),
+        },
       );
       errorsInRow = extraction.kind === "model_error" ? errorsInRow + 1 : 0;
       let costUsd = 0;

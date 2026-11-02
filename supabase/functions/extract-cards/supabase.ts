@@ -277,7 +277,8 @@ export async function resumeExtraction(
   } = row as Record<string, unknown>;
   const provider = parseProvider(providerName);
   if (
-    (plan !== "free" && plan !== "pro" && plan !== "max") || provider === null ||
+    (plan !== "free" && plan !== "pro" && plan !== "max") ||
+    provider === null ||
     !isCount(usageId) || !isCount(versionId) || typeof prompt !== "string" ||
     !isCount(cardsRead) || !isCount(continuations)
   ) {

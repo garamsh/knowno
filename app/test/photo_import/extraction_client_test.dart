@@ -515,6 +515,7 @@ void main() {
       (429, {'error': 'rate_limited', 'photo_limit': 30, 'period': 'day'}):
           isA<PhotoLimitReached>(),
       (502, {'error': 'model_error'}): isA<ModelFailed>(),
+      (503, {'error': 'unavailable'}): isA<ExtractionUnavailable>(),
       (503, {'error': 'not_configured'}): isA<ServiceFailed>(),
       (403, {'error': 'suspended'}): isA<AccountSuspendedFailure>(),
       (403, {'error': 'forbidden'}): isA<ServiceFailed>(),

@@ -30,9 +30,9 @@ function Target({ entry }: { entry: AuditEntry }) {
           ? "/admin/settings"
           : entry.targetKind === "plan" || entry.targetKind === "provider"
             ? "/admin/settings/ai"
-          : entry.targetKind === "prompt"
-            ? `/admin/ai/${entry.targetId}`
-            : null;
+            : entry.targetKind === "prompt"
+              ? `/admin/ai/${entry.targetId}`
+              : null;
   return href === null ? (
     <span>{words}</span>
   ) : (

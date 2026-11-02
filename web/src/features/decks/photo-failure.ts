@@ -4,6 +4,7 @@ export type PhotoFailure =
   | { kind: "refused" }
   | { kind: "noCards" }
   | { kind: "suspended" }
+  | { kind: "unavailable" }
   | { kind: "limit"; limit: number; period: "day" | "month" }
   | { kind: "model" }
   | { kind: "signIn" }
@@ -21,6 +22,8 @@ export function describeFailure(failure: PhotoFailure): string {
       return "카드를 찾지 못했어요. 더 밝고 반듯하게 찍어 보세요.";
     case "suspended":
       return "이 계정은 이용이 정지됐어요. 문의는 sauce@garam.sh로 보내 주세요.";
+    case "unavailable":
+      return "지금은 사진으로 카드를 만들 수 없어요. 직접 입력이나 엑셀·CSV로 추가해 주세요.";
     case "limit":
       return failure.period === "day"
         ? `오늘 사진으로 만들 수 있는 ${String(failure.limit)}장을 다 썼어요. 내일 다시 시도해 주세요.`
@@ -44,5 +47,10 @@ export function isRetryable(failure: PhotoFailure): boolean {
 
 /** Whether a new photo can succeed where this one failed, as the phone's `isRetakeable`. */
 export function isRetakeable(failure: PhotoFailure): boolean {
-  return failure.kind !== "limit" && failure.kind !== "signIn" && failure.kind !== "suspended";
+  return (
+    failure.kind !== "limit" &&
+    failure.kind !== "signIn" &&
+    failure.kind !== "suspended" &&
+    failure.kind !== "unavailable"
+  );
 }

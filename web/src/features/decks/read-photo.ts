@@ -138,5 +138,9 @@ function parseExtraction(status: number, body: unknown, resumed: boolean): Extra
       return { failure: { kind: "limit", limit, period } };
   }
   if (status === 502) return { failure: { kind: "model" } };
+  // No AI configuration can read photos now (ADR 0162); the photo was not counted.
+  if (status === 503 && field(body, "error") === "unavailable") {
+    return { failure: { kind: "unavailable" } };
+  }
   return { failure: { kind: "service" } };
 }

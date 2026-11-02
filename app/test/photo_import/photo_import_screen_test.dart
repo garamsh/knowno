@@ -2517,6 +2517,12 @@ void main() {
         false,
       ),
       (
+        const ExtractionUnavailable(),
+        "Can't make cards from photos right now. Add them by hand or from an Excel or CSV file.",
+        false,
+        false,
+      ),
+      (
         const AccountSuspendedFailure(),
         'This account is suspended. Write to sauce@garam.sh with any questions.',
         false,

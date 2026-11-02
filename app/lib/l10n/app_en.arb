@@ -258,6 +258,7 @@
   "monthlyLimitReachedOf": "You've used this month's {limit} photos. Try again on the 1st of next month.",
   "modelFailed": "Couldn't read the cards. Please try again in a moment.",
   "signInRequired": "You need to sign in. Sign in again from Settings.",
+  "extractionUnavailable": "Can't make cards from photos right now. Add them by hand or from an Excel or CSV file.",
   "serviceFailed": "Can't make cards from photos right now. Please try again in a moment.",
   "photoUnreadable": "Couldn't read this photo. Choose another one.",
   "photoNotKept": "Couldn't keep this photo on the device. Check the free space and choose it again.",

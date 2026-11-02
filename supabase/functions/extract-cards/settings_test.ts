@@ -53,7 +53,9 @@ function fakeFetch(fake: Fake): typeof fetch {
     if (url === `${SUPABASE_URL}/rest/v1/rpc/save_provider_key`) {
       return reply("saved");
     }
-    if (url === `${SUPABASE_URL}/rest/v1/rpc/save_ai_configuration`) return reply(7);
+    if (url === `${SUPABASE_URL}/rest/v1/rpc/save_ai_configuration`) {
+      return reply(7);
+    }
     if (url === OPENAI_URL || url === ANTHROPIC_URL || url === OPENROUTER_URL) {
       return reply(fake.provider.body, fake.provider.status);
     }
@@ -102,14 +104,18 @@ async function post(
   const printed: string[] = [];
   const saved = { ...console };
   for (const level of ["log", "info", "warn", "error", "debug"] as const) {
-    console[level] = (...args: unknown[]) => printed.push(args.map(String).join(" "));
+    console[level] = (...args: unknown[]) =>
+      printed.push(args.map(String).join(" "));
   }
   let response: Response;
   try {
     response = await handler(
       new Request(`https://functions.test/extract-cards/settings/${route}`, {
         method: "POST",
-        headers: { Authorization: SIGNED_IN, "Content-Type": "application/json" },
+        headers: {
+          Authorization: SIGNED_IN,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(body),
       }),
     );
@@ -142,26 +148,50 @@ Deno.test("a provider's key is stored only after one call with it, its model, an
   assert.deepEqual(r.body, { saved: true });
   assert.equal(r.modelCalls.length, 1);
   const call = r.modelCalls[0];
-  assert.equal(new Headers(call.init?.headers).get("Authorization"), `Bearer ${NEW_KEY}`);
+  assert.equal(
+    new Headers(call.init?.headers).get("Authorization"),
+    `Bearer ${NEW_KEY}`,
+  );
   const sent = JSON.parse(String(call.init?.body));
   assert.equal(sent.model, "gpt-model");
   assert.equal(sent.response_format.json_schema.strict, true);
-  assert.ok(JSON.stringify(sent.messages).includes(CHECK_IMAGE.base64), "the check image");
+  assert.ok(
+    JSON.stringify(sent.messages).includes(CHECK_IMAGE.base64),
+    "the check image",
+  );
   assert.ok(sent.messages[0].content.includes("cards"), "the output contract");
-  assert.deepEqual(r.saves, [{ admin_id: ADMIN_ID, provider: "openai", key: NEW_KEY }]);
+  assert.deepEqual(r.saves, [{
+    admin_id: ADMIN_ID,
+    provider: "openai",
+    key: NEW_KEY,
+  }]);
 });
 
 Deno.test("a key whose check call fails is not stored, and the answer names why", async () => {
   const cases: [Answer, string][] = [
-    [{ status: 401, body: { error: { message: "Incorrect API key" } } }, "key_refused"],
-    [{ status: 404, body: { error: { message: "The model does not exist" } } }, "model_not_found"],
     [
-      { status: 400, body: { error: { message: "This model does not support image input" } } },
+      { status: 401, body: { error: { message: "Incorrect API key" } } },
+      "key_refused",
+    ],
+    [
+      { status: 404, body: { error: { message: "The model does not exist" } } },
+      "model_not_found",
+    ],
+    [
+      {
+        status: 400,
+        body: { error: { message: "This model does not support image input" } },
+      },
       "no_image_input",
     ],
     [{
       status: 200,
-      body: { choices: [{ finish_reason: "stop", message: { content: "here are your cards" } }] },
+      body: {
+        choices: [{
+          finish_reason: "stop",
+          message: { content: "here are your cards" },
+        }],
+      },
     }, "bad_output"],
     [{ status: 500, body: {} }, "call_failed"],
   ];
@@ -173,7 +203,11 @@ Deno.test("a key whose check call fails is not stored, and the answer names why"
     assert.equal(r.saves.length, 0, `${code}: nothing is stored`);
   }
   const control = await post("key", keyBody);
-  assert.equal(control.saves.length, 1, "control: a call that parses stores the key");
+  assert.equal(
+    control.saves.length,
+    1,
+    "control: a call that parses stores the key",
+  );
 });
 
 Deno.test("saving a key needs an admin who signed in within 10 minutes, and calls no provider before", async () => {
@@ -185,7 +219,9 @@ Deno.test("saving a key needs an admin who signed in within 10 minutes, and call
   assert.equal(user.status, 403);
   assert.deepEqual(user.body, { error: "forbidden" });
   assert.equal(user.modelCalls.length + user.saves.length, 0);
-  const session = user.fake.calls.find((call) => call.url.endsWith("/rpc/admin_ai_session"));
+  const session = user.fake.calls.find((call) =>
+    call.url.endsWith("/rpc/admin_ai_session")
+  );
   assert.equal(
     new Headers(session?.init?.headers).get("Authorization"),
     SIGNED_IN,
@@ -197,21 +233,42 @@ Deno.test("saving a key needs an admin who signed in within 10 minutes, and call
 
 Deno.test("a key appears in no log line, printed line, answer or error", async () => {
   for (
-    const answer of [parsed, { status: 401, body: { error: { message: `bad key ${NEW_KEY}` } } }]
+    const answer of [parsed, {
+      status: 401,
+      body: { error: { message: `bad key ${NEW_KEY}` } },
+    }]
   ) {
     const r = await post("key", keyBody, { provider: answer });
     assert.ok(!r.text.includes(NEW_KEY), "not in the answer");
-    assert.ok(!JSON.stringify(r.settingsLogs).includes(NEW_KEY), "not in the log line");
-    assert.ok(!r.printed.join("\n").includes(NEW_KEY), "nothing else printed holds it");
+    assert.ok(
+      !JSON.stringify(r.settingsLogs).includes(NEW_KEY),
+      "not in the log line",
+    );
+    assert.ok(
+      !r.printed.join("\n").includes(NEW_KEY),
+      "nothing else printed holds it",
+    );
     assert.equal(r.settingsLogs.length, 1);
-    assert.deepEqual(Object.keys(r.settingsLogs[0]).sort(), ["outcome", "settings"]);
+    assert.deepEqual(Object.keys(r.settingsLogs[0]).sort(), [
+      "outcome",
+      "settings",
+    ]);
   }
-  const sent = (await post("key", keyBody)).fake.calls.map((call) => String(call.init?.body));
-  assert.ok(sent.some((body) => body.includes(NEW_KEY)), "control: the key was in the requests");
+  const sent = (await post("key", keyBody)).fake.calls.map((call) =>
+    String(call.init?.body)
+  );
+  assert.ok(
+    sent.some((body) => body.includes(NEW_KEY)),
+    "control: the key was in the requests",
+  );
 });
 
 Deno.test("a plan's provider and model are saved as its draft only after a call with the key in use parsed", async () => {
-  const body = { plan: "pro", provider: "anthropic", model: "claude-haiku-5-5" };
+  const body = {
+    plan: "pro",
+    provider: "anthropic",
+    model: "claude-haiku-5-5",
+  };
   const anthropicReply: Answer = {
     status: 200,
     body: {
@@ -227,13 +284,19 @@ Deno.test("a plan's provider and model are saved as its draft only after a call 
   });
   assert.equal(r.status, 200);
   assert.deepEqual(r.body, { saved: true, configuration_id: 7 });
-  assert.equal(new Headers(r.modelCalls[0].init?.headers).get("x-api-key"), VAULT_KEY);
+  assert.equal(
+    new Headers(r.modelCalls[0].init?.headers).get("x-api-key"),
+    VAULT_KEY,
+  );
   assert.deepEqual(r.saves, [{ admin_id: ADMIN_ID, ...body }]);
   assert.ok(!r.text.includes(VAULT_KEY));
 
   const failing = await post("configuration", body, {
     vault: { anthropic: VAULT_KEY },
-    provider: { status: 404, body: { type: "error", error: { message: "model: not found" } } },
+    provider: {
+      status: 404,
+      body: { type: "error", error: { message: "model: not found" } },
+    },
   });
   assert.deepEqual(failing.body, { error: "model_not_found" });
   assert.equal(failing.saves.length, 0, "a draft that fails is not saved");
@@ -243,7 +306,10 @@ Deno.test("a plan's provider and model are saved as its draft only after a call 
   assert.deepEqual(keyless.body, { error: "no_key" });
   assert.equal(keyless.modelCalls.length + keyless.saves.length, 0);
 
-  const malformed = await post("configuration", { ...body, model: "anthropic/claude" }, {
+  const malformed = await post("configuration", {
+    ...body,
+    model: "anthropic/claude",
+  }, {
     vault: { anthropic: VAULT_KEY },
   });
   assert.equal(malformed.status, 400, "a model id of another provider's form");

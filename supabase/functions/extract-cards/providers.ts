@@ -48,7 +48,14 @@ const UNSUPPORTED: Readonly<Record<Provider, readonly string[]>> = {
   // developers.openai.com/api/docs/guides/structured-outputs, "Supported schemas", read 2026-11-03.
   openai: ["minLength", "maxLength"],
   // The structured outputs' JSON schema limitations, Claude API docs, read 2026-11-03.
-  anthropic: ["minLength", "maxLength", "minItems", "maxItems", "minimum", "maximum"],
+  anthropic: [
+    "minLength",
+    "maxLength",
+    "minItems",
+    "maxItems",
+    "minimum",
+    "maximum",
+  ],
 };
 
 /** [schema] without the keywords [provider]'s structured outputs refuse. */

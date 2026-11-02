@@ -3,7 +3,12 @@
  * as its draft, each only after one real call with them parsed under the output contract.
  */
 
-import { cardsSchema, composeInstructions, OUTPUT_CONTRACT, parseReply } from "./cards.ts";
+import {
+  cardsSchema,
+  composeInstructions,
+  OUTPUT_CONTRACT,
+  parseReply,
+} from "./cards.ts";
 import type { Keys } from "./keys.ts";
 import { callModel, type ExtractDeps, type ModelId, modelId } from "./model.ts";
 import { parseProvider, type Provider } from "./providers.ts";
@@ -14,7 +19,11 @@ import {
   saveConfiguration,
   saveProviderKey,
 } from "./supabase.ts";
-import { authenticate, type SupabaseDeps, type UserId } from "../_shared/auth.ts";
+import {
+  authenticate,
+  type SupabaseDeps,
+  type UserId,
+} from "../_shared/auth.ts";
 
 /** A white 64 by 32 PNG: the image the check call sends, which holds nothing to read. */
 export const CHECK_IMAGE: Image = {
@@ -153,7 +162,9 @@ export async function saveKey(
   const value = await body(request);
   const chosen = value === null ? null : target(value);
   const key = typeof value?.key === "string" ? value.key.trim() : "";
-  if (chosen === null || key.length < 8 || key.length > 1000 || /\s/.test(key)) {
+  if (
+    chosen === null || key.length < 8 || key.length > 1000 || /\s/.test(key)
+  ) {
     return { kind: "bad_request" };
   }
   const failure = await checkCall(
@@ -181,7 +192,9 @@ export async function saveDraft(
   const value = await body(request);
   const chosen = value === null ? null : target(value);
   const plan = value?.plan;
-  if (chosen === null || (plan !== "free" && plan !== "pro" && plan !== "max")) {
+  if (
+    chosen === null || (plan !== "free" && plan !== "pro" && plan !== "max")
+  ) {
     return { kind: "bad_request" };
   }
   const key = await deps.keys.get(chosen.provider);

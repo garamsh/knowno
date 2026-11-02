@@ -46,7 +46,10 @@ const answers: Record<Provider, (cut: boolean) => unknown> = {
     usage: { prompt_tokens: 10, completion_tokens: 5 },
   }),
   anthropic: (cut) => ({
-    content: [{ type: "thinking", thinking: "" }, { type: "text", text: reply }],
+    content: [{ type: "thinking", thinking: "" }, {
+      type: "text",
+      text: reply,
+    }],
     stop_reason: cut ? "max_tokens" : "end_turn",
     usage: { input_tokens: 10, output_tokens: 5 },
   }),
@@ -65,7 +68,11 @@ const models: Record<Provider, string> = {
 };
 
 async function call(provider: Provider, cut = false) {
-  const sent: { url: string; headers: Headers; body: Record<string, unknown> }[] = [];
+  const sent: {
+    url: string;
+    headers: Headers;
+    body: Record<string, unknown>;
+  }[] = [];
   const extraction = await extractCards(
     PHOTO,
     {},
@@ -93,7 +100,9 @@ async function call(provider: Provider, cut = false) {
 function keysIn(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(keysIn);
   if (typeof value !== "object" || value === null) return [];
-  return Object.entries(value).flatMap(([key, inner]) => [key, ...keysIn(inner)]);
+  return Object.entries(value).flatMap((
+    [key, inner],
+  ) => [key, ...keysIn(inner)]);
 }
 
 Deno.test("each provider is called at its own address with its key and the model, and its reply read into cards", async () => {
@@ -133,22 +142,31 @@ Deno.test("each provider sends the image, the instructions and the strict schema
     json_schema: { strict: boolean; schema: unknown };
   };
   assert.equal(openaiFormat.json_schema.strict, true);
-  assert.ok(JSON.stringify(openai.messages).includes("data:image/png;base64,iVBORw0KGgo="));
+  assert.ok(
+    JSON.stringify(openai.messages).includes(
+      "data:image/png;base64,iVBORw0KGgo=",
+    ),
+  );
 
   const anthropic = (await call("anthropic")).sent[0].body;
   const content = JSON.stringify(anthropic.messages);
   assert.ok(content.includes('"type":"base64"'), "the image as a base64 block");
   assert.ok(content.includes('"data":"iVBORw0KGgo="'));
   assert.ok(
-    typeof anthropic.system === "string" && anthropic.system.startsWith("instructions"),
+    typeof anthropic.system === "string" &&
+      anthropic.system.startsWith("instructions"),
   );
-  const format = (anthropic.output_config as { format: { type: string } }).format;
+  const format =
+    (anthropic.output_config as { format: { type: string } }).format;
   assert.equal(format.type, "json_schema");
 });
 
 Deno.test("each provider's schema leaves out only the keywords its structured outputs refuse", () => {
   const whole = keysIn(cardsSchema);
-  assert.ok(whole.includes("minLength") && whole.includes("maxItems"), "control");
+  assert.ok(
+    whole.includes("minLength") && whole.includes("maxItems"),
+    "control",
+  );
   const openai = keysIn(schemaFor("openai", cardsSchema));
   assert.ok(!openai.includes("minLength") && !openai.includes("maxLength"));
   assert.ok(openai.includes("maxItems"), "OpenAI keeps array sizes");
@@ -156,14 +174,21 @@ Deno.test("each provider's schema leaves out only the keywords its structured ou
   for (const dropped of ["minLength", "maxLength", "maxItems", "minItems"]) {
     assert.ok(!anthropic.includes(dropped), dropped);
   }
-  assert.ok(anthropic.includes("additionalProperties"), "the strict shape stays");
+  assert.ok(
+    anthropic.includes("additionalProperties"),
+    "the strict shape stays",
+  );
   assert.deepEqual(schemaFor("openrouter", cardsSchema), cardsSchema);
 });
 
 Deno.test("each provider's reply stopped at the output cap is read as cut, against a whole one", async () => {
   for (const provider of ["openrouter", "openai", "anthropic"] as const) {
     const cut = (await call(provider, true)).extraction;
-    assert.equal(cut.kind === "cards" && cut.cut, false, "a whole JSON reply is not cut");
+    assert.equal(
+      cut.kind === "cards" && cut.cut,
+      false,
+      "a whole JSON reply is not cut",
+    );
   }
   const anthropicCut = await extractCards(
     PHOTO,
@@ -183,7 +208,11 @@ Deno.test("each provider's reply stopped at the output cap is read as cut, again
         })),
     },
   );
-  assert.equal(anthropicCut.kind, "cards", "the completed card is kept from a cut reply");
+  assert.equal(
+    anthropicCut.kind,
+    "cards",
+    "the completed card is kept from a cut reply",
+  );
   assert.equal(anthropicCut.kind === "cards" && anthropicCut.cut, true);
   const ended = await extractCards(
     PHOTO,
@@ -203,7 +232,11 @@ Deno.test("each provider's reply stopped at the output cap is read as cut, again
         })),
     },
   );
-  assert.equal(ended.kind, "invalid_output", "control: the same text not at the cap is invalid");
+  assert.equal(
+    ended.kind,
+    "invalid_output",
+    "control: the same text not at the cap is invalid",
+  );
 });
 
 Deno.test("a model id takes its provider's form", () => {

@@ -108,8 +108,7 @@ export function AiSettingsView({
         {plans.map((plan) => {
           const name = planLabels[plan] ?? plan;
           const serving = active(plan);
-          const draft =
-            configurations.find((c) => c.plan === plan && c.label === "test") ?? null;
+          const draft = configurations.find((c) => c.plan === plan && c.label === "test") ?? null;
           return (
             <AdminSection key={plan} label={name}>
               <div className={group}>

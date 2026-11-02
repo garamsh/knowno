@@ -29,9 +29,7 @@ export const MODEL_TIMEOUT_MS = 60_000;
 export type ModelId = string & { readonly __brand: "ModelId" };
 
 export function modelId(provider: Provider, value: string): ModelId | null {
-  const form = provider === "openrouter"
-    ? /^[\w.-]+\/[\w.:-]+$/
-    : /^[\w.:-]+$/;
+  const form = provider === "openrouter" ? /^[\w.-]+\/[\w.:-]+$/ : /^[\w.:-]+$/;
   return form.test(value) && value.length <= 200 ? value as ModelId : null;
 }
 

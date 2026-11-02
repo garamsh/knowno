@@ -575,11 +575,7 @@ export class FakeAdmin {
         if (Date.parse(starts) < Date.now() - 1000) return "past_start";
         const plan = String(args.plan);
         const previous = this.currentVersion(plan, Date.parse(starts));
-        if (
-          previous &&
-          previous.quota === args.quota &&
-          previous.amount === args.amount
-        ) {
+        if (previous && previous.quota === args.quota && previous.amount === args.amount) {
           return "unchanged";
         }
         const quotas = ["monthly", "daily", "unlimited"];

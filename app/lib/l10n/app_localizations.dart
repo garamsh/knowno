@@ -1651,6 +1651,12 @@ abstract class AppLocalizations {
   /// **'로그인이 필요해요. 설정에서 다시 로그인해 주세요.'**
   String get signInRequired;
 
+  /// Photo import failure: no AI configuration can read photos now (503 unavailable); cards are still added by hand or from a spreadsheet.
+  ///
+  /// In ko, this message translates to:
+  /// **'지금은 사진으로 카드를 만들 수 없어요. 직접 입력이나 엑셀·CSV로 추가해 주세요.'**
+  String get extractionUnavailable;
+
   /// Photo import failure: the server answered unexpectedly.
   ///
   /// In ko, this message translates to:

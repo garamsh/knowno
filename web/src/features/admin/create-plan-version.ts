@@ -58,8 +58,7 @@ export async function createPlanVersion(
       return { message: "시작일은 내일 이후로 정하거나, 지금부터면 비워 두세요." };
     case "not_in_favour":
       return {
-        message:
-          "기존 사용자에게 바로 적용할 수 있는 건 사진을 줄이지 않는 변경뿐이에요.",
+        message: "기존 사용자에게 바로 적용할 수 있는 건 사진을 줄이지 않는 변경뿐이에요.",
       };
     default:
       return { message: failureMessages.unreadable };

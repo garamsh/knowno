@@ -260,6 +260,8 @@ describe("photo request", () => {
   it.each([
     [502, {}, { kind: "model" }],
     [503, {}, { kind: "service" }],
+    [503, { error: "unavailable" }, { kind: "unavailable" }],
+    [503, { error: "not_configured" }, { kind: "service" }],
     [403, { error: "suspended" }, { kind: "suspended" }],
     [403, { error: "forbidden" }, { kind: "service" }],
     [413, {}, { kind: "refused" }],
@@ -931,6 +933,28 @@ describe("photo import", () => {
       expect(bodies.map((body) => field(body, "cursor"))).toEqual([undefined, "stale", undefined]);
       expect(screen.getByRole("checkbox", { name: "수도 선택" })).toBeInTheDocument();
       expect(screen.getByRole("checkbox", { name: "강 선택" })).toBeInTheDocument();
+    });
+    it("shows the unavailable sentence with neither a retry nor a retake when no AI configuration can read photos, against a service failure that offers a retry", async () => {
+      const answers = [
+        HttpResponse.json({ error: "unavailable" }, { status: 503 }),
+        HttpResponse.json({ error: "not_configured" }, { status: 503 }),
+      ];
+      server.use(http.post(`${supabaseUrl}/functions/v1/extract-cards`, () => answers.shift()));
+      await choose(1);
+      expect(
+        await screen.findByText(
+          "지금은 사진으로 카드를 만들 수 없어요. 직접 입력이나 엑셀·CSV로 추가해 주세요.",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "다시 시도" })).not.toBeInTheDocument();
+      expect(screen.queryByText("다른 사진 고르기")).not.toBeInTheDocument();
+      cleanup();
+      await choose(1);
+      expect(await screen.findByText(describeFailure({ kind: "service" }))).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "다시 시도" }),
+        "control: another 503 is the retryable service failure",
+      ).toBeInTheDocument();
     });
     it("collapses and expands each photo's group from its header, leaving the other photos' rows", async () => {
       answer(read, { status: 200, body: { cards: [{ ...card, front: "강", answer: "한강" }] } });

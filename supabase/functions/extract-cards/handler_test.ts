@@ -336,13 +336,17 @@ async function run(
     : options.authorization;
   if (authorization !== null) headers.set("Authorization", authorization);
   const method = options.method ?? "POST";
-  const request = new Request(options.url ?? "https://functions.test/extract-cards", {
-    method,
-    headers,
-    body: method === "POST"
-      ? options.rawBody ?? JSON.stringify(options.body ?? { image: image(PNG) })
-      : undefined,
-  });
+  const request = new Request(
+    options.url ?? "https://functions.test/extract-cards",
+    {
+      method,
+      headers,
+      body: method === "POST"
+        ? options.rawBody ??
+          JSON.stringify(options.body ?? { image: image(PNG) })
+        : undefined,
+    },
+  );
 
   const printed: string[] = [];
   const saved = { ...console };
@@ -1444,7 +1448,7 @@ Deno.test("a provider without a key answers 503 unavailable before the photo is 
     assert.equal(r.fake.finishes.length, 0, label);
     assert.equal(r.logs[0].outcome, "unavailable");
     const begun = JSON.parse(String(usageCalls(r)[0].init?.body));
-    const provider = 'plan' in options ? options.plan.provider : 'openrouter';
+    const provider = "plan" in options ? options.plan.provider : "openrouter";
     assert.ok(
       !begun.secret_providers.includes(provider),
       "no secret is offered for the provider",
@@ -1456,7 +1460,11 @@ Deno.test("a provider without a key answers 503 unavailable before the photo is 
     env: { CARD_MODEL: undefined, CARD_RETRY_MODEL: "not a model id" },
     replies: [cardsReply(twoCards)],
   });
-  assert.equal(control.status, 200, "control: the same plan once Vault holds its key");
+  assert.equal(
+    control.status,
+    200,
+    "control: the same plan once Vault holds its key",
+  );
 });
 
 Deno.test("the platform's variables alone configure the function; without them it answers 503 not_configured", async () => {
@@ -1639,7 +1647,9 @@ Deno.test("an admin's trial names its configuration to begin_extraction, and a m
     12,
   );
   for (const configuration_id of [0, -1, 1.5, "12"]) {
-    const refused = await run({ body: { image: image(PNG), configuration_id } });
+    const refused = await run({
+      body: { image: image(PNG), configuration_id },
+    });
     assert.equal(refused.status, 400, String(configuration_id));
     assert.equal(usageCalls(refused).length, 0);
   }
