@@ -67,7 +67,7 @@ Deno.test("run.sh skips a program on a host with no deno, and fails where CI is 
   assert.equal(local.code, 0, local.stderr);
   assert.equal(
     local.stdout,
-    "skipped scripts/check-secrets.ts : this host has no deno command\n",
+    "skipped scripts/check-secrets.ts: this host has no deno command\n",
   );
 
   const ci = await program(repo, "check-secrets", [], {
@@ -77,7 +77,7 @@ Deno.test("run.sh skips a program on a host with no deno, and fails where CI is 
   assert.equal(ci.code, 1);
   assert.match(
     ci.stderr,
-    /^did not run scripts\/check-secrets\.ts : this host/,
+    /^did not run scripts\/check-secrets\.ts: this host/,
   );
 });
 

@@ -18,7 +18,7 @@ if [ -z "$allow" ]; then
 fi
 
 if ! command -v deno >/dev/null 2>&1; then
-	what="scripts/$program.ts ${2:-}"
+	what="scripts/$program.ts${2:+ $2}"
 	[ "$program" != deno ] || what="deno ${2:-} over supabase/functions/ and tools/eval/"
 	skip "$what: this host has no deno command"
 	exit 0
