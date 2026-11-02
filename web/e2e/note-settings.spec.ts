@@ -138,8 +138,9 @@ test("renames, decorates, publishes, makes private and deletes a note as the use
   // 노트 꾸미기's icon and colour.
   await choose(page, "노트 꾸미기");
   const decorate = page.getByRole("dialog", { name: "노트 꾸미기" });
-  await decorate.getByRole("radio", { name: "별" }).check();
-  await decorate.getByRole("radio", { name: "모래" }).check();
+  // Each radio is visually hidden inside its choice, which takes the pointer.
+  await decorate.getByRole("radio", { name: "별" }).check({ force: true });
+  await decorate.getByRole("radio", { name: "모래" }).check({ force: true });
   await capture(page, "decorate");
   await decorate.getByRole("button", { name: "저장", exact: true }).click();
   await expect(decorate).toBeHidden();

@@ -10,6 +10,9 @@ import { parseCardContent } from "./card-content";
 import type { Card, CardEntry, CardId, Deck, DeckId, Library } from "./library";
 import { type MediaId, parseMediaId, signMedia } from "./media";
 
+/** How long a deck's signed photo URL stays valid, in seconds. */
+const imageUrlSeconds = 60 * 60;
+
 /** Why the library could not be read: a server failure, or a row this version cannot read. */
 export type LibraryFailure = ServerFailure | "unreadable";
 
@@ -87,7 +90,7 @@ async function read<C extends CardEntry>(
     const id = field(row, "id");
     if (image && typeof id === "string") images.set(id, image);
   }
-  const signed = await signMedia(supabase, userId, [...images.values()]);
+  const signed = await signMedia(supabase, userId, [...images.values()], imageUrlSeconds);
   const liveDecks: Deck[] = [];
   for (const row of deckRows.rows) {
     const deck = parseDeck(row);

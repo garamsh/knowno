@@ -22,3 +22,4 @@ export { type LibraryFailure, readDeckList, readLibrary } from "./read-library";
 export { AuthoringButton } from "./components/authoring-button";
 export { NoteSettings } from "./components/note-settings";
 export { readDisplayName } from "./read-display-name";
+export { signMedia } from "./media";

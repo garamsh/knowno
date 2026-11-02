@@ -24,8 +24,6 @@ export type StoredImage = { bytes: Uint8Array; sha256: string };
 const bucket = "media";
 /** The server's ceiling for one file (`server.md` §Media storage). */
 const maxBytes = 10 * 1024 * 1024;
-/** How long a signed URL a page draws an image from stays valid. */
-const signedSeconds = 60 * 60;
 
 /**
  * [file] as an image to store: a JPEG of 1 byte to the server's ceiling whose SHA-256 is
@@ -146,21 +144,22 @@ export async function releaseUnheld(
 
 /**
  * A signed URL for each of [ids] in [userId]'s folder that Storage holds and lets the user read,
- * valid for an hour; an id it refuses, or every id when signing fails, has none, and is drawn as
- * the phone draws a file it cannot read: by its fallback.
+ * valid for [seconds], in one request; an id it refuses, or every id when signing fails, has none,
+ * and is drawn as the phone draws a file it cannot read: by its fallback.
  */
 export async function signMedia(
   client: SupabaseClient,
   userId: string,
-  ids: readonly MediaId[],
-): Promise<Map<MediaId, string>> {
-  const signed = new Map<MediaId, string>();
+  ids: readonly string[],
+  seconds: number,
+): Promise<Map<string, string>> {
+  const signed = new Map<string, string>();
   const wanted = [...new Set(ids)];
   if (wanted.length === 0) return signed;
   const answer = await bounded(
     client.storage.from(bucket).createSignedUrls(
       wanted.map((id) => `${userId}/${id}`),
-      signedSeconds,
+      seconds,
     ),
   );
   if (answer.error || !("data" in answer)) return signed;
