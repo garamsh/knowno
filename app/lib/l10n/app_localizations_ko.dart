@@ -1521,9 +1521,6 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get coachSkip => '건너뛰기';
-
-  @override
   String get coachNext => '다음';
 
   @override
@@ -1798,4 +1795,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get completionTimeLabel => '걸린 시간';
+
+  @override
+  String get coachPrevious => '이전';
 }

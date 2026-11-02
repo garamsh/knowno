@@ -1,5 +1,6 @@
-import { Pointer } from "lucide-react";
 import type { ReactNode } from "react";
+
+import { Mascot } from "@/design/brand";
 
 import type { Answer } from "../answer-write";
 import { answerTints, GradedFace, grades } from "./graded-card";
@@ -31,7 +32,7 @@ export const coachLines: Record<"pointer" | "touch", Record<CoachStep, string>> 
 };
 
 const button =
-  "pressable inline-flex items-center justify-center rounded-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero";
+  "pressable inline-flex items-center justify-center rounded-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 /**
  * How the pointer coach marks the control its step names: a ring in the hero's colour, held, and
@@ -42,54 +43,70 @@ export const coachHighlight =
   "outline-3 outline-offset-3 outline-hero motion-safe:animate-coach-press";
 
 /**
- * The coach's caption on the hero surface in the answer buttons' place: the step's line, a dot
- * for each step with this one drawn long, "건너뛰기" and "다음", the last step's "시작하기". What
- * a screen reader hears as the step changes is [coachAnnouncement], in a live region the screen
- * keeps mounted.
+ * The coach, presented by the mascot in its own face: its caption a speech bubble beside it, on the
+ * surface on its edge with a tail toward it, in the answer buttons' place. The bubble holds the
+ * step's line, then "이전", off on the first step, a dot for each step with this one drawn long,
+ * and "다음", the last step's "시작하기". The mascot and the bubble rise in as the coach starts,
+ * or show at once under reduce motion. What a screen reader hears as the step changes is
+ * [coachAnnouncement], in a live region the screen keeps mounted.
  */
 export function CoachCaption({
   step,
   touch,
+  onPrevious,
   onNext,
-  onSkip,
 }: {
   step: CoachStep;
   touch: boolean;
+  onPrevious: () => void;
   onNext: () => void;
-  onSkip: () => void;
 }) {
-  const last = coachSteps.indexOf(step) === coachSteps.length - 1;
+  const index = coachSteps.indexOf(step);
+  const last = index === coachSteps.length - 1;
   return (
     <section
       aria-label="학습 사용 방법"
-      className="flex flex-col gap-2 rounded-card bg-hero pt-4 pr-4 pb-3 pl-5 text-on-hero"
+      className="flex items-end gap-2 motion-safe:transition-[opacity,translate] motion-safe:duration-300 motion-safe:ease-out motion-safe:starting:translate-y-4 motion-safe:starting:opacity-0"
     >
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-body-strong">{coachLines[touch ? "touch" : "pointer"][step]}</p>
-        <div aria-hidden className="flex shrink-0 gap-1">
-          {coachSteps.map((dot) => (
-            <span
-              key={dot}
-              className={`h-1.5 rounded-full bg-on-hero motion-safe:transition-[width] ${dot === step ? "w-4" : "w-1.5 opacity-40"}`}
-            />
-          ))}
+      <Mascot expression="thinking" className="size-14 shrink-0" />
+      <div
+        data-testid="coach-bubble"
+        className="relative min-w-0 flex-1 rounded-row bg-surface px-3 pt-3 pb-2"
+      >
+        {/* The tail toward the mascot, a square turned on its corner. */}
+        <span
+          aria-hidden
+          className="absolute bottom-4 -left-2 size-4.5 rotate-45 rounded-xs bg-surface"
+        />
+        <p className="relative text-body-strong text-ink">
+          {coachLines[touch ? "touch" : "pointer"][step]}
+        </p>
+        {/* In one row where they fit; wrapped where a large text size leaves them no room. */}
+        <div className="relative mt-2 flex flex-wrap items-center justify-between gap-x-2">
+          <button
+            type="button"
+            onClick={onPrevious}
+            disabled={index === 0}
+            className={`${button} min-h-tap-target px-3 text-label text-ink-2 disabled:opacity-35`}
+          >
+            이전
+          </button>
+          <div aria-hidden className="flex shrink-0 gap-1">
+            {coachSteps.map((dot) => (
+              <span
+                key={dot}
+                className={`h-1.5 rounded-full motion-safe:transition-[width] ${dot === step ? "w-4 bg-accent" : "w-1.5 bg-edge"}`}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={onNext}
+            className={`${button} min-h-button bg-primary px-6 text-button text-on-primary`}
+          >
+            {last ? "시작하기" : "다음"}
+          </button>
         </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onSkip}
-          className={`${button} min-h-tap-target px-3 text-label`}
-        >
-          건너뛰기
-        </button>
-        <button
-          type="button"
-          onClick={onNext}
-          className={`${button} min-h-button bg-hero-button px-6 text-button text-on-hero-button`}
-        >
-          {last ? "시작하기" : "다음"}
-        </button>
       </div>
     </section>
   );
@@ -100,15 +117,33 @@ export function coachAnnouncement(step: CoachStep, touch: boolean): string {
   return `사용 방법, ${String(coachSteps.length)}단계 중 ${String(coachSteps.indexOf(step) + 1)}단계. ${coachLines[touch ? "touch" : "pointer"][step]}`;
 }
 
-/** The coach's finger, moving with the card it demonstrates on; hidden from screen readers. */
-function Finger({ className }: { className: string }) {
+/**
+ * The coach's touch, moving with the card it demonstrates on: the brand's pointing hand, tilted,
+ * its fingertip on a ring in the accent around a solid dot, over a soft fill, on a hard edge, and a
+ * dashed trail [trail] long back to where the touch began, toward [from], drawn out as the card
+ * moves; under reduce motion held where the card is out. Hidden from screen readers.
+ */
+function Touch({ className, from, trail }: { className: string; from: "left" | "right"; trail: string }) {
   return (
-    <Pointer
+    <div
       aria-hidden
-      data-testid="coach-finger"
-      className={`pointer-events-none absolute size-8 fill-surface text-ink drop-shadow-md motion-safe:animate-coach-finger motion-reduce:animate-coach-finger-held ${className}`}
-      strokeWidth={1.4}
-    />
+      data-testid="coach-touch"
+      className={`pointer-events-none absolute size-10 motion-safe:animate-coach-touch motion-reduce:animate-coach-touch-held ${className}`}
+    >
+      <span
+        data-testid="coach-trail"
+        className={`absolute top-1/2 h-1.5 -translate-y-1/2 bg-[repeating-linear-gradient(90deg,var(--color-accent)_0_10px,transparent_10px_18px)] opacity-55 motion-safe:animate-coach-trail motion-reduce:animate-coach-trail-held ${trail} ${from === "left" ? "right-1/2 origin-right" : "left-1/2 origin-left"}`}
+      />
+      <span className="absolute inset-0 flex items-center justify-center rounded-full border-4 border-accent bg-accent/18 shadow-[0_4px_0_color-mix(in_srgb,var(--color-primary-edge)_35%,transparent)]">
+        <span className="size-3 rounded-full bg-accent" />
+      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element -- a fixed brand drawing, as the mascot's still image is */}
+      <img
+        src="/brand/knowno-coach-hand.svg"
+        alt=""
+        className="absolute top-[calc(50%-16px)] left-[calc(50%-14px)] w-17.5 max-w-none"
+      />
+    </div>
   );
 }
 
@@ -127,7 +162,7 @@ const demos = {
 /**
  * The coach's demonstration of [answer] on the current card, [children]: it moves toward the
  * answer and back over the answer's tint and name, or under reduce motion holds there. By touch a
- * finger drags it, as on the phone; with a pointer no finger shows, and the move follows the press
+ * hand drags it, as on the phone; with a pointer no hand shows, and the move follows the press
  * of the answer's button, which the screen marks with [coachHighlight]. Hidden from screen
  * readers, which read the caption.
  */
@@ -151,7 +186,13 @@ export function CoachDemo({
       </div>
       <div className={`relative grid ${demo.card}`}>
         {children}
-        {touch && <Finger className="top-3/5 left-2/5" />}
+        {touch && (
+          <Touch
+            className="top-3/5 left-2/5"
+            from={answer === "know" ? "left" : "right"}
+            trail="w-24"
+          />
+        )}
       </div>
     </div>
   );
@@ -160,7 +201,7 @@ export function CoachDemo({
 /**
  * The coach's last step in the previous card's place: a sample card answered "안다", moved toward
  * "모른다" and back, over what that change shows behind it, or under reduce motion held there. By
- * touch a finger drags it; with a pointer the move follows the press of "마지막 응답 바꾸기",
+ * touch a hand drags it; with a pointer the move follows the press of "마지막 응답 바꾸기",
  * which the screen marks with [coachHighlight]. Hidden from screen readers, which read the
  * caption.
  */
@@ -172,7 +213,7 @@ export function CoachSample({ touch }: { touch: boolean }) {
       </div>
       <div className="relative flex w-full motion-safe:animate-coach-change motion-reduce:animate-coach-change-held">
         <GradedFace answer="know" front="deadline" back="마감 기한" />
-        {touch && <Finger className="right-16 bottom-8" />}
+        {touch && <Touch className="right-16 bottom-8" from="right" trail="w-35" />}
       </div>
     </div>
   );

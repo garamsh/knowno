@@ -1636,9 +1636,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get coachSkip => 'Skip';
-
-  @override
   String get coachNext => 'Next';
 
   @override
@@ -1937,4 +1934,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get completionTimeLabel => 'Time';
+
+  @override
+  String get coachPrevious => 'Back';
 }

@@ -14,9 +14,6 @@ abstract final class StudyStyle {
   /// The completion panel's least height.
   static const completionMinHeight = 200.0;
 
-  /// The mascot between the two cards, over the gap that parts them.
-  static const mascot = AppSize.mascotGuide;
-
   /// Space above the previous card.
   static const topGap = AppSpace.s20;
 
@@ -86,19 +83,45 @@ abstract final class StudyStyle {
   /// enough that the change's name shows whole behind it.
   static const coachPreviousPeek = 140.0;
 
-  /// How far the coach's finger sits in from the card's side it pushes from.
-  static const coachFingerInset = 70.0;
+  /// How far the coach's touch sits in from the card's side it pushes from.
+  static const coachTouchInset = 70.0;
 
-  /// How far above the sample previous card's bottom the coach's finger sits,
+  /// How far above the sample previous card's bottom the coach's touch sits,
   /// below its sides.
-  static const coachFingerLift = 32.0;
+  static const coachTouchLift = 32.0;
 
-  /// How far below the current card's centre the coach's finger rests.
-  static const coachFingerDrop = 56.0;
+  /// How far below the current card's centre the coach's touch rests.
+  static const coachTouchDrop = 56.0;
 
   /// The opacity of what is above the current card while the coach shows its
   /// answers.
   static const coachDim = 0.45;
+
+  /// The coach's touch: a ring this wide, its line, its centre dot, the edge
+  /// under it, and its dashed trail's thickness, dashes and gaps.
+  static const coachTouch = 40.0;
+  static const coachTouchLine = 4.0;
+  static const coachTouchDot = 12.0;
+  static const coachTouchEdge = 4.0;
+  static const coachTrail = 6.0;
+  static const coachTrailDash = 10.0;
+  static const coachTrailGap = 8.0;
+
+  /// The coach's hand, this wide, and where on it its fingertip presses.
+  static const coachHand = 70.0;
+  static const coachHandTip = Offset(14, 16);
+
+  /// The mascot that presents the coach, beside its bubble.
+  static const coachMascot = 56.0;
+
+  /// Half the bubble's tail toward the mascot, and the gap between them.
+  static const coachTail = 9.0;
+
+  /// How far below its place the coach's mascot and bubble rise in from.
+  static const coachRise = 16.0;
+
+  /// The opacity of the coach's "이전" on its first step, where it is off.
+  static const coachPreviousDisabled = 0.35;
 
   /// Where in its cycle the coach holds under reduce motion: the card out.
   static const coachStill = 0.54;

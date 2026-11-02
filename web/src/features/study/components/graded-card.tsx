@@ -112,8 +112,7 @@ const reveals = {
  * card with its blanks filled, its grade by its line alone, with no chip: its accessible name names
  * the grade first. A click opens the whole card. A horizontal touch swipe ([useSwipe]) follows the
  * finger, shows the answer it would give behind it, and toward the other answer changes to it; a
- * vertical one scrolls the card where it is taller, and the page otherwise. [onLean] follows how
- * far a swipe has moved it. Without [onRedecide] it is not changed from here, and [label] names it
+ * vertical one scrolls the card where it is taller, and the page otherwise. Without [onRedecide] it is not changed from here, and [label] names it
  * above its sides.
  */
 export function GradedCard({
@@ -122,19 +121,16 @@ export function GradedCard({
   onOpen,
   openRef,
   label,
-  onLean,
 }: {
   answer: Graded;
   onRedecide?: (answer: Answer) => void;
   onOpen: () => void;
   openRef?: Ref<HTMLButtonElement>;
   label?: string;
-  onLean?: (offset: number) => void;
 }) {
   const { offset, dragging, toward, handlers, endsSwipe } = useSwipe({
     held: answer.answer,
     onCommit: onRedecide,
-    onMove: onLean,
   });
   const reveal = toward !== null && toward !== answer.answer ? reveals[toward] : null;
 

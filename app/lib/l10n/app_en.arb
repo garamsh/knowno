@@ -416,7 +416,6 @@
   "editMoveSense": "Meaning {number} menu",
   "editDone": "Done",
   "coachStep": "How to use, step {step} of {total}",
-  "coachSkip": "Skip",
   "coachNext": "Next",
   "coachStart": "Start",
   "dailyMinutesTitle": "Daily study time",
@@ -491,5 +490,6 @@
   "newDeckColor": "Cover colour",
   "saveAndAddCards": "Save and add cards",
   "previousCardLabel": "Card just seen, {answer}. Front: {front}. Back: {back}{changed, select, yes{. Changed} other{}}",
-  "completionTimeLabel": "Time"
+  "completionTimeLabel": "Time",
+  "coachPrevious": "Back"
 }

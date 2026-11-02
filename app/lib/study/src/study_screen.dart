@@ -40,6 +40,13 @@ enum _CoachStep {
     dontKnow => redecide,
     redecide => null,
   };
+
+  /// The step before this one; the first is its own.
+  _CoachStep get previous => switch (this) {
+    know => know,
+    dontKnow => know,
+    redecide => dontKnow,
+  };
 }
 
 /// How long the notice that a session goes on with the day stays.
@@ -83,10 +90,6 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
 
   /// Drives the coach's demonstration, one cycle after another.
   late final _demo = AnimationController(vsync: this, duration: coachCycle);
-
-  /// How far a drag has moved either card, which the mascot between them
-  /// reacts to.
-  final _lean = ValueNotifier<double>(0);
 
   /// Whether the session has been studied on screen, after which the coach
   /// is no longer started on its own.
@@ -153,7 +156,6 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
     stopSound(_providers);
     _resumeTimer?.cancel();
     _demo.dispose();
-    _lean.dispose();
     _lifecycle.dispose();
     _session.dispose();
     super.dispose();
@@ -268,7 +270,6 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
             onAnswer: _answer,
             onGuide: () => setState(_startCoach),
             onDragStart: () => _setCoach(null),
-            lean: _lean,
             demo: switch (_coach) {
               _CoachStep.know => Answer.know,
               _CoachStep.dontKnow => Answer.dontKnow,
@@ -364,7 +365,6 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
         key: ValueKey(newest.position),
         card: newest,
         onRedecide: (answer) => _session.redecide(newest.position, answer),
-        lean: _lean,
       ),
       _ when earlier != null => EarlierCardView(
         key: const ValueKey('earlier'),
@@ -440,22 +440,11 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
       }),
       step: step.index,
       steps: _CoachStep.values.length,
+      onPrevious: () => _setCoach(step.previous),
       onNext: () => _setCoach(step.next),
-      onSkip: () => _setCoach(null),
     );
   }
 }
-
-/// The mascot's face for a drag that has moved a card [lean] across: happy
-/// past [StudyStyle.dragFeedbackDistance] to the right, toward "Know", sad
-/// past it to the left, and thinking otherwise.
-@visibleForTesting
-MascotExpression leanExpression(double lean) =>
-    lean >= StudyStyle.dragFeedbackDistance
-    ? MascotExpression.happy
-    : lean <= -StudyStyle.dragFeedbackDistance
-    ? MascotExpression.sad
-    : MascotExpression.thinking;
 
 /// Rises the card answered just now into the previous card's place.
 Widget _rise(Widget child, Animation<double> animation) => AnimatedBuilder(

@@ -117,8 +117,8 @@ const statePairs: [string, string, string, string][] = [
   ["the 모른다 button's word", "on-dont-know-tint", "tint-red", "on-dont-know-tint"],
   ["안내 다시 보기 on the ground", "ink-2", "ground", "ink-2"],
   ["the completion panel's 그만하기 on the hero", "on-hero", "hero", "on-hero"],
-  ["the coach's 건너뛰기 on the hero", "on-hero", "hero", "on-hero"],
-  ["the coach's 다음 on its fill", "on-hero-button", "hero-button", "on-hero-button"],
+  ["the coach's 이전 in its bubble", "ink-2", "surface", "ink-2"],
+  ["the coach's 다음 on its fill", "on-primary", "primary", "on-primary"],
   ["Google's label on its fill", "google-label", "google-fill", "google-label"],
 ];
 
