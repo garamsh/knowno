@@ -111,7 +111,7 @@ describe("the deck page", () => {
     const header = screen.getByRole("heading", { level: 1, name: "French" }).closest("header");
     const add = screen.getByRole("button", { name: "카드 추가" });
     expect(add.closest("header")).toBe(header);
-    expect(add).toHaveClass("bg-primary", "min-h-tap-target");
+    expect(add).toHaveClass("bg-primary", "min-h-tap-target", "text-label");
     expect(add.querySelector("svg")).not.toBeNull();
     const search = screen.getByRole("searchbox", { name: "카드 검색" });
     expect(search.closest("header")).toBeNull();

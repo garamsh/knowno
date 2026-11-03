@@ -818,8 +818,8 @@ describe("홈 and the 노트 page", () => {
       await renderNotes();
       expect({ state, notes: typeSizesOf(document.body) }).toEqual({
         state,
-        // With no note, the title alone beside + 새 노트, a button's label, which the sizes leave out.
-        notes: state === "첫 노트를 만들어 볼까요?" ? [28] : [13, 16, 28],
+        // With no note, the title and + 새 노트 alone.
+        notes: state === "첫 노트를 만들어 볼까요?" ? [16, 28] : [13, 16, 28],
       });
       cleanup();
     }

@@ -66,7 +66,7 @@ export function AuthoringButton({
         }}
         className={
           deck || compact
-            ? "pressable flex min-h-tap-target shrink-0 items-center gap-1.5 rounded-button bg-primary px-4 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            ? "pressable flex min-h-tap-target shrink-0 items-center gap-1.5 rounded-button bg-primary px-4 text-label text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             : "pressable min-h-cta w-full rounded-button bg-primary px-5 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         }
       >

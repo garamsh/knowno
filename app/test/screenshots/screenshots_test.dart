@@ -49,6 +49,19 @@ import '../word_breaks.dart';
 /// run in `app/`, writes them to `app/build/screenshots/<theme>/`.
 const _capture = bool.fromEnvironment('SCREENSHOTS');
 
+/// Hands out [photo] on each pick.
+final class _OnePick implements ImagePick {
+  const _OnePick(this.photo);
+
+  final PreparedImage photo;
+
+  @override
+  Future<PreparedImage?> pick(
+    ImageOrigin origin, {
+    ImageShape shape = ImageShape.square,
+  }) async => photo;
+}
+
 /// Hands out [file] as the file picked.
 final class _FileToPick implements SpreadsheetPick {
   _FileToPick(this.file);
@@ -340,19 +353,6 @@ void main() {
       await tap(tester, find.text(ko.signInWithGoogle));
       await shot(tester, '02-deck-list-empty');
 
-      Future<void> enter(String label, String text) async {
-        await tester.enterText(
-          find.descendant(
-            of: find
-                .ancestor(of: find.text(label), matching: find.byType(Column))
-                .first,
-            matching: find.byType(EditableText),
-          ),
-          text,
-        );
-        await tester.pumpAndSettle();
-      }
-
       // Types a new card's [front] and [back] into its two 글, the editor's only
       // fields: the front's first, then the back's.
       Future<void> enterSides(String front, String back) async {
@@ -364,7 +364,8 @@ void main() {
 
       // The first-run home's one primary opens 새 노트.
       await tap(tester, find.text(ko.newDeckTitle));
-      await enter(ko.deckName, '영단어 기본');
+      await tester.enterText(find.byType(EditableText), '영단어 기본');
+      await tester.pumpAndSettle();
       await tap(tester, find.bySemanticsLabel(ko.deckColorName('blue')));
       await shot(tester, '03-new-deck');
       // Saving opens the deck, empty, adding a card its one primary.
@@ -377,7 +378,8 @@ void main() {
       await shot(tester, '16-today-no-cards');
       await showNotes(tester);
       await tap(tester, find.text(ko.newDeck));
-      await enter(ko.deckName, '일본어 N3 한자');
+      await tester.enterText(find.byType(EditableText), '일본어 N3 한자');
+      await tester.pumpAndSettle();
       await tap(tester, find.bySemanticsLabel(ko.deckColorName('violet')));
       await tap(tester, find.text(ko.save));
       await tester.binding.handlePopRoute();
@@ -411,11 +413,13 @@ void main() {
       await tap(tester, find.byTooltip(ko.close));
       await tap(tester, find.text(ko.discardCard));
       await shot(tester, '07-card-list');
-      await tap(tester, find.byTooltip(ko.searchCardsAction));
-      await tester.enterText(find.byType(EditableText), 'ent');
+      final cardSearch = find.widgetWithText(AppTextField, ko.searchCards);
+      await tester.enterText(cardSearch, 'ent');
       await tester.pumpAndSettle();
       await shot(tester, '07c-card-search');
-      await tap(tester, find.byTooltip(ko.closeSearch));
+      await tester.enterText(cardSearch, '');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
       await tap(tester, find.byType(Switch));
       await shot(tester, '07d-card-list-answers-shown');
       await tap(tester, find.byType(Switch));
@@ -2069,6 +2073,85 @@ void main() {
       semantics.dispose();
     });
 
+    for (final (scale, suffix) in [(1.0, ''), (3.12, '-largest-text')]) {
+      testWidgets('새 노트 at text scale $scale in $mode', skip: !_capture, (
+        tester,
+      ) async {
+        phone(tester);
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        final db = AppDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        final directory = newMediaDirectory();
+        addTearDown(() => deleteMediaDirectory(directory));
+        var ids = 0;
+        final media = MediaStore(
+          db,
+          FakeMediaServer(),
+          directory: directory,
+          clock: DateTime.now,
+          newId: () => 'media${ids++}',
+        );
+        final repository = DeckRepository(
+          db,
+          clock: DateTime.now,
+          newId: () => 'id${ids++}',
+          media: media,
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              deckRepositoryProvider.overrideWithValue(repository),
+              mediaStoreProvider.overrideWithValue(media),
+              imagePickProvider.overrideWithValue(_OnePick(preparedImage(4))),
+            ],
+            child: MaterialApp(
+              theme: lightTheme,
+              darkTheme: darkTheme,
+              themeMode: ThemeMode.values.byName(mode),
+              locale: const Locale('ko'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: const NewDeckScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await shot(tester, '03d-new-deck-open$suffix');
+        if (scale > 1) {
+          await tester.drag(
+            find.byType(Scrollable).first,
+            const Offset(0, -900),
+          );
+          await tester.pumpAndSettle();
+          await shot(tester, '03d-new-deck-open$suffix-below');
+          await unmount(tester);
+          return;
+        }
+        await tester.enterText(find.byType(EditableText), '화학 기초');
+        await tap(tester, find.bySemanticsLabel(ko.deckIconName('flask')));
+        await tester.ensureVisible(
+          find.bySemanticsLabel(ko.deckColorName('violet')),
+        );
+        await tester.pumpAndSettle();
+        await tap(tester, find.bySemanticsLabel(ko.deckColorName('violet')));
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, 900));
+        await tester.pumpAndSettle();
+        await shot(tester, '03e-new-deck-chosen');
+        await tester.ensureVisible(find.text(ko.deckImageFromAlbum));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(ko.deckImageFromAlbum));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pumpAndSettle();
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, 900));
+        await tester.pumpAndSettle();
+        await shot(tester, '03f-new-deck-photo');
+        await unmount(tester);
+      });
+    }
+
     testWidgets('several photos in $mode', skip: !_capture, (tester) async {
       final semantics = tester.ensureSemantics();
       phone(tester);
@@ -2351,8 +2434,8 @@ void main() {
       await tester.pumpAndSettle();
       await shot(tester, '28-deck-list-public');
 
-      await tester.ensureVisible(find.text(ko.browsePublicDecks));
-      await tester.pumpAndSettle();
+      await tap(tester, find.byTooltip(ko.notesActions));
+      await shot(tester, '28b-notes-menu');
       await tap(tester, find.text(ko.browsePublicDecks));
       await shot(tester, '29-browse');
       await tap(tester, find.text('스페인어 동물'));

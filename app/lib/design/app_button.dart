@@ -38,7 +38,8 @@ enum AppButtonSize {
   /// [AppSize.cta], for the actions at the bottom of a screen or a sheet.
   cta,
 
-  /// [AppSize.tapTarget], for the action beside a screen's title.
+  /// [AppSize.tapTarget], in [AppType.label], for the action beside a
+  /// screen's title.
   header,
 }
 
@@ -89,6 +90,9 @@ class AppButton extends StatelessWidget {
       (_, AppButtonSize.regular) => AppSize.button,
     };
     final minimumSize = Size(AppSize.tapTarget, height);
+    final (textStyle, padding) = size == AppButtonSize.header
+        ? (AppType.label, const EdgeInsets.symmetric(horizontal: AppSpace.s16))
+        : (null, null);
     final pressed = loading ? null : onPressed;
     final (fill, onFill) = switch (variant) {
       AppButtonVariant.primary => (colors.primary, colors.onPrimary),
@@ -144,6 +148,8 @@ class AppButton extends StatelessWidget {
           statesController: states,
           style: FilledButton.styleFrom(
             minimumSize: minimumSize,
+            textStyle: textStyle,
+            padding: padding,
             backgroundColor: fill,
             foregroundColor: onFill,
           ),
@@ -152,7 +158,11 @@ class AppButton extends StatelessWidget {
         ),
         AppButtonVariant.secondary => OutlinedButton(
           statesController: states,
-          style: OutlinedButton.styleFrom(minimumSize: minimumSize),
+          style: OutlinedButton.styleFrom(
+            minimumSize: minimumSize,
+            textStyle: textStyle,
+            padding: padding,
+          ),
           onPressed: pressed,
           child: child,
         ),
@@ -161,6 +171,8 @@ class AppButton extends StatelessWidget {
         AppButtonVariant.onHeroText => TextButton(
           style: TextButton.styleFrom(
             minimumSize: minimumSize,
+            textStyle: textStyle,
+            padding: padding,
             foregroundColor: onFill,
           ),
           onPressed: pressed,

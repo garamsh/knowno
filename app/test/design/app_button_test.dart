@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/design/app_button.dart';
@@ -166,6 +167,14 @@ void main() {
       expect(height('cta'), AppSize.cta);
       expect(height('regular'), AppSize.button);
       expect(height('header'), AppSize.tapTarget);
+      // A header action's label is the label type, against the button type.
+      double label(String text) => tester
+          .renderObject<RenderParagraph>(find.text(text))
+          .text
+          .style!
+          .fontSize!;
+      expect(label('header'), AppType.label.fontSize);
+      expect(label('regular'), AppType.button.fontSize);
       expect(height('text'), AppSize.tapTarget);
     },
   );
