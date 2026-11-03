@@ -68,6 +68,66 @@ void main() {
     });
   }
 
+  for (final MapEntry(key: themeMode, value: colors) in themeModes.entries) {
+    testWidgets('on study\'s cards an empty blank is a box on the hatch three '
+        'ems wide at its line\'s height whatever its answer, with no '
+        'underline and no answer, and a filled one its answer on the hatch, '
+        'in ${themeMode.name} (#635)', (tester) async {
+      const short = ClozeContent('$clozeBlank is short', ['A']);
+      const long = ClozeContent('$clozeBlank is long', [
+        'A much longer answer',
+      ]);
+      for (final block in [short, long]) {
+        await pumpComponent(
+          tester,
+          WholeCardView.studied(
+            [BlankCell(block)],
+            revealed: false,
+            style: AppType.back,
+          ),
+          themeMode: themeMode,
+        );
+        final card = find.byType(WholeCardView);
+        expect(boxedBlanksUnder(card), 1);
+        final hatch = tester.widget<DecoratedBox>(
+          find.descendant(
+            of: find.byKey(const Key('hatchedBlank')),
+            matching: find.byType(DecoratedBox),
+          ),
+        );
+        expect(
+          hatch.decoration,
+          isA<HatchDecoration>().having((it) => it.colors, 'colors', colors),
+        );
+        final box = tester.getSize(find.byKey(const Key('hatchedBlank')));
+        expect(box.width, AppType.back.fontSize! * blankEms);
+        expect(
+          box.height,
+          AppType.back.fontSize! * AppType.back.height! - AppSpace.s4,
+        );
+        // No underline and no answer anywhere in the sentence.
+        expect(blanksUnder(card), isEmpty);
+        expect(find.textContaining(block.answers.single), findsNothing);
+      }
+
+      // Control: revealed, the answer is drawn on the hatch's paint, and the
+      // box is gone.
+      await pumpComponent(
+        tester,
+        const WholeCardView.studied(
+          [BlankCell(long)],
+          revealed: true,
+          style: AppType.back,
+        ),
+        themeMode: themeMode,
+      );
+      expect(boxedBlanksUnder(find.byType(WholeCardView)), 0);
+      expect(hatchedBlanksUnder(find.byType(WholeCardView)), [
+        'A much longer answer',
+      ]);
+    });
+  }
+
   testWidgets('a Korean cloze sentence breaks only between words, its blank '
       'included, and reads as written (#454)', (tester) async {
     const korean = ClozeContent(

@@ -410,7 +410,7 @@ class GradedCard extends StatelessWidget {
           child: CardScroll(
             padding: StudyStyle.cardPadding,
             builder: (context, width, _) => isDrawnWhole(cells)
-                ? WholeCardView.cells(
+                ? WholeCardView.studied(
                     cells,
                     revealed: true,
                     style: front,
@@ -463,7 +463,7 @@ void _showWholeCard(BuildContext context, Card card) {
     builder: (context) => AppSheet(
       title: l10n.wholeCard,
       content: isDrawnWhole(cells)
-          ? WholeCardView.cells(cells, revealed: true, style: AppType.body)
+          ? WholeCardView.studied(cells, revealed: true, style: AppType.body)
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

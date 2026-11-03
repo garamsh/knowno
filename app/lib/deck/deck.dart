@@ -110,6 +110,8 @@ export 'src/whole_card_view.dart'
     show
         SteppedWholeCardView,
         WholeCardView,
+        blankEms,
         cellsToDraw,
         drawnCellsOf,
+        faceLength,
         isDrawnWhole;

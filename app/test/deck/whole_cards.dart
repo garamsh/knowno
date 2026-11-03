@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:knowno/design/theme.dart';
 
 /// Each blank of a whole card drawn under [of], by its answer: true where it
 /// is filled on its fill, false where it is empty, its answer not drawn over
@@ -47,4 +48,23 @@ List<String> hatchedBlanksUnder(Finder of) {
     });
   }
   return answers;
+}
+
+/// How many empty blanks study's cards draw under [of] as a box on the
+/// hatch, with no answer in it (#635).
+int boxedBlanksUnder(Finder of) {
+  final boxes = find.descendant(
+    of: of,
+    matching: find.byKey(const Key('hatchedBlank')),
+  );
+  for (final box in boxes.evaluate()) {
+    final decorations = <Decoration>[];
+    box.visitChildElements((child) {
+      if (child.widget case DecoratedBox(:final decoration)) {
+        decorations.add(decoration);
+      }
+    });
+    expect(decorations.single, isA<HatchDecoration>(), reason: 'on the hatch');
+  }
+  return boxes.evaluate().length;
 }

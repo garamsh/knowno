@@ -155,14 +155,19 @@ double _widestWord(
   return widest;
 }
 
-/// The three sizes a card side steps down through, largest first, in
-/// [style]'s colour (ADR 0123): a front from [AppType.front], a back from
-/// [AppType.back], each down to [AppType.cardBody].
-List<TextStyle> cardSteps(TextStyle style) => [
-  if ((style.fontSize ?? 0) >= AppType.front.fontSize!) AppType.front,
-  AppType.back,
-  AppType.cardBody,
-].map((step) => step.copyWith(color: style.color)).toList();
+/// The sizes a card side steps down through, largest first, in [style]'s
+/// colour: [AppType.front], [AppType.deckName], [AppType.back] and
+/// [AppType.cardBody], from the first no larger than [style], always down to
+/// [AppType.cardBody] (ADR 0123, #635).
+List<TextStyle> cardSteps(TextStyle style) =>
+    [AppType.front, AppType.deckName, AppType.back, AppType.cardBody]
+        .where(
+          (step) =>
+              step == AppType.cardBody ||
+              step.fontSize! <= (style.fontSize ?? 0),
+        )
+        .map((step) => step.copyWith(color: style.color))
+        .toList();
 
 /// The largest of [steps] at which [span] fits a box [width] wide and
 /// [height] high, its widest word inside [width]; the last when none does,

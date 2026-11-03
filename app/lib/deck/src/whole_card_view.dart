@@ -66,6 +66,12 @@ List<CardPart> partsOf(List<Cell> cells, {required bool revealed}) => [
 /// reveal and, when [revealed], the part the reveal adds under it at the
 /// back's size in `ink2` (ADR 0137).
 ///
+/// [WholeCardView.studied] draws them as study's cards and the card editor's
+/// preview do: as [WholeCardView.cells], but each empty blank, a table's
+/// hidden cell included, a box on [AppHatch] [blankEms] wide at its line's
+/// height, whatever its answer, a filled one its answer on [AppHatch], and
+/// each photo's box on [AppHatch], its answer on it once revealed (#635).
+///
 /// [WholeCardView.listed] draws them as a note's card list does: every 칸
 /// revealed, and what study hides until the reveal on [AppHatch], each blank
 /// and each photo's box, each added part in a hatched box, a shown part cut
@@ -82,7 +88,7 @@ class WholeCardView extends StatelessWidget {
     this.height,
     this.textAlign = TextAlign.center,
   }) : cells = null,
-       listed = false;
+       _look = _Look.card;
 
   const WholeCardView.cells(
     List<Cell> this.cells, {
@@ -94,7 +100,19 @@ class WholeCardView extends StatelessWidget {
     this.height,
     this.textAlign = TextAlign.center,
   }) : blocks = const [],
-       listed = false;
+       _look = _Look.card;
+
+  const WholeCardView.studied(
+    List<Cell> this.cells, {
+    super.key,
+    required this.revealed,
+    required this.style,
+    this.minFontSize,
+    this.width,
+    this.height,
+    this.textAlign = TextAlign.center,
+  }) : blocks = const [],
+       _look = _Look.studied;
 
   const WholeCardView.listed(
     List<Cell> this.cells, {
@@ -102,7 +120,7 @@ class WholeCardView extends StatelessWidget {
     required this.style,
   }) : blocks = const [],
        revealed = true,
-       listed = true,
+       _look = _Look.listed,
        minFontSize = null,
        width = null,
        height = null,
@@ -117,8 +135,10 @@ class WholeCardView extends StatelessWidget {
   final double? height;
   final TextAlign textAlign;
 
+  final _Look _look;
+
   /// Whether it is drawn as a card list's row draws it.
-  final bool listed;
+  bool get listed => _look == _Look.listed;
 
   @override
   Widget build(BuildContext context) {
@@ -162,6 +182,10 @@ class WholeCardView extends StatelessWidget {
             // Inside [width] and [height] itself, so the photo alone is
             // not scaled down with the face and its boxes' chrome stays
             // its size.
+            ImageContent() when _look == _Look.studied => _studiedImage(
+              context,
+              block,
+            ),
             ImageContent() => ImageBlockView(
               block,
               revealed: revealed,
@@ -312,15 +336,27 @@ class WholeCardView extends StatelessWidget {
   /// Whether [style] is smaller than a card's, as a list row's is.
   bool get _inRow => (style.fontSize ?? 0) < (AppType.headline.fontSize ?? 0);
 
+  /// Whether an empty blank is drawn as a box [blankEms] wide.
+  bool get _boxed => _look == _Look.studied && !revealed;
+
   Widget _cloze(BuildContext context, ClozeContent cloze) {
     final parts = cloze.text.split(clozeBlank);
     final span = TextSpan(
       children: [
         for (final (index, part) in parts.indexed) ...[
-          // Korean breaks only between words (#454).
-          TextSpan(text: keepWords(part)),
+          // Korean breaks only between words (#454); a box keeps to the
+          // word it is written against.
+          TextSpan(
+            text: _boxed
+                ? _joined(
+                    part,
+                    before: index > 0,
+                    after: index < cloze.answers.length,
+                  )
+                : keepWords(part),
+          ),
           if (index < cloze.answers.length)
-            _blank(context, cloze.answers[index]),
+            _blank(context, cloze.answers[index], style),
         ],
       ],
     );
@@ -339,7 +375,7 @@ class WholeCardView extends StatelessWidget {
       return Text.rich(span, style: style, textAlign: textAlign);
     }
     return CardText(
-      cloze.filled,
+      _boxed ? boxedText(cloze) : cloze.filled,
       span: span,
       style: style,
       minFontSize: minFontSize,
@@ -383,7 +419,11 @@ class WholeCardView extends StatelessWidget {
                       children: [
                         for (final run in table.cellRuns(row, column))
                           run.blank
-                              ? _blank(context, run.text)
+                              ? _blank(
+                                  context,
+                                  run.text,
+                                  column == 0 ? header : cell,
+                                )
                               : TextSpan(text: run.text),
                       ],
                     ),
@@ -412,14 +452,34 @@ class WholeCardView extends StatelessWidget {
     );
   }
 
-  /// A blank of [answer]: an empty gap of the answer's width over a muted
-  /// underline, so hidden content shows as nothing (#454), or filled on the
-  /// brand tint; in a card list's row, filled on [AppHatch].
-  TextSpan _blank(BuildContext context, String answer) {
+  /// A blank of [answer] in [style]: an empty gap of the answer's width over
+  /// a muted underline, so hidden content shows as nothing (#454), or filled
+  /// on the brand tint; in a card list's row, filled on [AppHatch]; on
+  /// study's cards, a box on [AppHatch] [blankEms] wide at the line's
+  /// height, or filled on [AppHatch] (#635).
+  InlineSpan _blank(BuildContext context, String answer, TextStyle style) {
     final colors = AppColors.of(context);
+    if (_boxed) {
+      final textScaler = MediaQuery.textScalerOf(context);
+      final em = textScaler.scale(style.fontSize ?? AppType.body.fontSize!);
+      return WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: SizedBox(
+          key: const Key('hatchedBlank'),
+          width: em * blankEms,
+          height: em * (style.height ?? 1) - AppSpace.s4,
+          child: DecoratedBox(
+            decoration: HatchDecoration(
+              colors,
+              borderRadius: BorderRadius.circular(AppSpace.s4),
+            ),
+          ),
+        ),
+      );
+    }
     return TextSpan(
-      text: ' ${keepWords(answer)} ',
-      style: listed
+      text: ' ${keepWords(answer)} ',
+      style: _look != _Look.card
           ? TextStyle(background: AppHatch.paint(colors))
           : revealed
           ? TextStyle(backgroundColor: colors.brandTint)
@@ -430,6 +490,128 @@ class WholeCardView extends StatelessWidget {
             ),
     );
   }
+
+  /// A photo on study's cards: drawn whole as [ImageBlockView] draws it,
+  /// each box on [AppHatch] over what it hides, and once [revealed] its
+  /// answer on the same hatch (#635).
+  Widget _studiedImage(BuildContext context, ImageContent image) {
+    final colors = AppColors.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = imageFrame(
+          image,
+          Size(
+            width ??
+                (constraints.hasBoundedWidth
+                    ? constraints.maxWidth
+                    : image.width.toDouble()),
+            height ?? constraints.maxHeight,
+          ),
+        );
+        return Center(
+          child: SizedBox.fromSize(
+            size: size,
+            child: Stack(
+              children: [
+                Positioned.fill(child: ImagePhoto(image)),
+                for (final box in image.boxes)
+                  Positioned.fromRect(
+                    key: ValueKey(('studied box', box.id)),
+                    rect: box.rectIn(size),
+                    child: DecoratedBox(
+                      decoration: HatchDecoration(
+                        colors,
+                        borderRadius: BorderRadius.circular(AppSpace.s4),
+                      ),
+                      child: switch (box.answer) {
+                        final answer?
+                            when revealed && answer.trim().isNotEmpty =>
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpace.s4),
+                            child: Center(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  answer,
+                                  style: AppType.caption.copyWith(
+                                    color: colors.ink,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        _ => null,
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// How a whole card is drawn: as the card editor draws a card,
+/// [WholeCardView.cells]; as study's cards, [WholeCardView.studied]; or as a
+/// card list's row, [WholeCardView.listed].
+enum _Look { card, studied, listed }
+
+/// How wide an empty blank's box is on study's cards, in ems of its text,
+/// whatever its answer's length (#635).
+const blankEms = 3;
+
+/// An empty blank's box as measured: [blankEms] ideographic spaces, each an
+/// em wide, joined so no line breaks inside it.
+final _boxMeasure = List.filled(blankEms, '\u3000').join('\u2060');
+
+/// [part] of a sentence with boxes, its lines broken only between words, and
+/// joined to a box [before] or [after] it that it touches, so a box keeps to
+/// its word and its punctuation.
+String _joined(String part, {required bool before, required bool after}) {
+  bool space(String char) => char.trim().isEmpty;
+  var text = keepWords(part);
+  if (before && part.isNotEmpty && !space(part[0])) {
+    text = '\u2060$text';
+  }
+  if (after && part.isNotEmpty && !space(part[part.length - 1])) {
+    text = '$text\u2060';
+  }
+  return text;
+}
+
+/// How long a card of [cells] reads before the reveal, in characters: what
+/// each 칸 shows, each empty blank counted as [blankEms], its box's width
+/// (#635).
+int faceLength(List<Cell> cells) => [
+  for (final (:block, added: _) in partsOf(cells, revealed: false))
+    switch (block) {
+      TextContent(:final text) => text.length,
+      SensesContent(:final lines) => lines.length,
+      ClozeContent(:final text, :final answers) =>
+        text.replaceAll(clozeBlank, '').length + answers.length * blankEms,
+      TableContent() => [
+        for (final (row, cells) in block.rows.indexed)
+          for (final (column, _) in cells.indexed)
+            for (final run in block.cellRuns(row, column))
+              run.blank ? blankEms : run.text.length,
+        for (final column in block.columns) column.length,
+      ].fold(0, (sum, length) => sum + length),
+      ImageContent() || AudioContent() || UnsupportedContent() => 0,
+    },
+].fold(0, (sum, length) => sum + length);
+
+/// [cloze]'s text with each blank a box, as study's cards measure it.
+String boxedText(ClozeContent cloze) {
+  final parts = cloze.text.split(clozeBlank);
+  return [
+    for (final (index, part) in parts.indexed) ...[
+      part,
+      if (index < cloze.answers.length) _boxMeasure,
+    ],
+  ].join();
 }
 
 /// A whole card's 칸 as the current card and the card preview draw them: in
@@ -454,11 +636,16 @@ class SteppedWholeCardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The face's text with each blank filled, whose width an empty blank's
-    // gap keeps.
-    final plain = describeContent(AppLocalizations.of(context), [
-      for (final part in partsOf(cells, revealed: revealed)) part.block,
-    ]);
+    // The face's text, each empty blank as wide as its box and each filled
+    // one as its answer.
+    final l10n = AppLocalizations.of(context);
+    final plain = [
+      for (final (:block, added: _) in partsOf(cells, revealed: revealed))
+        switch (block) {
+          ClozeContent() when !revealed => boxedText(block),
+          _ => describeContent(l10n, [block]),
+        },
+    ].join(' ');
     final stepped = steppedStyle(
       TextSpan(text: keepWords(plain)),
       plain,
@@ -468,7 +655,7 @@ class SteppedWholeCardView extends StatelessWidget {
       textScaler: MediaQuery.textScalerOf(context),
       textDirection: Directionality.of(context),
     );
-    return WholeCardView.cells(
+    return WholeCardView.studied(
       cells,
       revealed: revealed,
       style: stepped,
