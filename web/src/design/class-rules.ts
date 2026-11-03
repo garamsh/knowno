@@ -79,4 +79,8 @@ export const sharedRules: Restriction[] = [
       'JSXElement[openingElement.name.name="section"] > JSXElement[openingElement.name.name="h2"] > JSXOpeningElement > JSXAttribute[name.name="className"][value.value=/text-section/]',
     message: "A label over a group is Section of @/design/section.",
   },
+  {
+    selector: 'JSXAttribute[name.name="aria-modal"]',
+    message: "A modal is Sheet of @/design/sheet, or Confirm of @/design/confirm.",
+  },
 ];

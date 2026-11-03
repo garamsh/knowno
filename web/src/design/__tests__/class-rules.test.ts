@@ -58,6 +58,15 @@ describe("the design's class rules", () => {
     expect(refusals('const a = <input type="text" />;', sharedRules)).toEqual([]);
   });
 
+  it("refuses a modal drawn by hand, and passes another dialog", () => {
+    expect(
+      refusals('const a = <div role="dialog" aria-modal="true" />;', sharedRules),
+    ).toHaveLength(1);
+    expect(refusals('const a = <div role="dialog" aria-label="안내" />;', sharedRules)).toEqual(
+      [],
+    );
+  });
+
   it("refuses a section's label drawn by hand, and passes a heading in another place", () => {
     const section = (heading: string) =>
       `const a = <section aria-labelledby="s">${heading}<div /></section>;`;

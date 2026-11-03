@@ -40,8 +40,7 @@ export function Confirm({
     cancel.current?.focus();
   }, []);
   return (
-    <Sheet title={title} close={close}>
-      <p className="text-secondary break-keep text-muted">{consequence}</p>
+    <Sheet title={title} description={consequence} close={close}>
       {children}
       <div className="mt-4 flex flex-col gap-2">
         <button

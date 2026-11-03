@@ -18,7 +18,7 @@ describe("the confirm", () => {
     );
 
     const dialog = screen.getByRole("dialog", { name: "노트를 삭제할까요?" });
-    expect(dialog).toHaveTextContent("카드 3장도 함께 삭제돼요.");
+    expect(dialog).toHaveAccessibleDescription("카드 3장도 함께 삭제돼요.");
     const [cancel, confirm] = within(dialog)
       .getAllByRole("button")
       .filter((button) => button.textContent !== "");

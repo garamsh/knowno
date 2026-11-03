@@ -66,23 +66,28 @@ export function useModalDialog(close: () => void) {
 
 /**
  * The one modal sheet, as the phone's `AppSheet`: at the foot below 1024 px and centred from it,
- * its [title] beside "닫기", over its scrolling [children]; a click on the scrim closes it.
+ * its [title] beside "닫기", over its scrolling [description], which the dialog is described by,
+ * and [children]; a click on the scrim closes it.
  */
 export function Sheet({
   title,
+  description,
   children,
   close,
 }: {
   title: string;
+  description?: string;
   children: ReactNode;
   close: () => void;
 }) {
   const dialog = useModalDialog(close);
   const heading = useId();
+  const described = useId();
   return (
     <dialog
       {...dialog}
       aria-labelledby={heading}
+      aria-describedby={description === undefined ? undefined : described}
       onClick={(event) => {
         if (event.target === event.currentTarget) close();
       }}
@@ -102,7 +107,14 @@ export function Sheet({
             <X aria-hidden className="size-5" />
           </button>
         </header>
-        <div className="min-h-0 overflow-y-auto overscroll-contain px-gutter pb-4">{children}</div>
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-gutter pb-4">
+          {description !== undefined && (
+            <p id={described} className="text-secondary break-keep text-muted">
+              {description}
+            </p>
+          )}
+          {children}
+        </div>
       </div>
     </dialog>
   );

@@ -855,7 +855,8 @@ describe("the study page", () => {
       // Control: a click inside the card keeps it open.
       await user.click(within(detail).getByRole("heading", { name: "카드" }));
       expect(screen.getByRole("dialog", { name: "카드" })).toBeInTheDocument();
-      await user.click(detail.parentElement ?? detail);
+      // A click on the scrim lands on the dialog itself, outside its content.
+      await user.click(detail);
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(face).toHaveFocus();
@@ -1420,7 +1421,8 @@ describe("the study page", () => {
       // Control: a click inside the list keeps it open.
       await user.click(within(help).getByText("마지막 응답 바꾸기"));
       expect(screen.getByRole("dialog", { name: "단축키" })).toBeInTheDocument();
-      await user.click(help.parentElement ?? help);
+      // A click on the scrim lands on the dialog itself, outside its content.
+      await user.click(help);
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "단축키" })).toHaveFocus();
@@ -1451,6 +1453,21 @@ describe("the study page", () => {
       await user.keyboard("{Escape}");
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(screen.getByRole("group", { name: "앞면" })).toBeInTheDocument();
+    });
+
+    it("closes the shortcut list on ? again, with the focus back on 단축키", async () => {
+      const user = userEvent.setup();
+      await user.keyboard("?");
+      expect(
+        within(screen.getByRole("dialog", { name: "단축키" })).getByRole("button", {
+          name: "닫기",
+        }),
+      ).toHaveFocus();
+
+      await user.keyboard("?");
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "단축키" })).toHaveFocus();
     });
 
     it("mirrors each shortcut with a visible control", async () => {
