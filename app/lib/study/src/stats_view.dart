@@ -678,76 +678,108 @@ class _RecallCard extends StatelessWidget {
           ),
         ),
         ExcludeSemantics(
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: AppSpace.s8,
-              children: [
-                for (final share in shares)
-                  Expanded(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colors.ground,
-                        borderRadius: BorderRadius.circular(AppRadius.field),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpace.s12,
-                          vertical: AppSpace.s8,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          spacing: AppSpace.s4,
-                          children: [
-                            Row(
-                              spacing: AppSpace.s4,
-                              children: [
-                                DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: share.colour,
-                                    borderRadius: BorderRadius.circular(
-                                      StatsStyle.swatchRadius,
-                                    ),
-                                  ),
-                                  child: const SizedBox.square(
-                                    dimension: StatsStyle.swatch,
-                                  ),
-                                ),
-                                Flexible(
-                                  child: Text(
-                                    share.name,
-                                    style: AppType.caption.copyWith(
-                                      color: colors.ink2,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // One line, shrunk to the tile where wider.
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: AlignmentDirectional.centerStart,
-                              child: Text(
-                                l10n.statsCards(share.count),
-                                style: AppType.display.copyWith(
-                                  color: colors.ink,
-                                ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              Widget tile(_Share share) => DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.ground,
+                  borderRadius: BorderRadius.circular(AppRadius.field),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpace.s12,
+                    vertical: AppSpace.s8,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: AppSpace.s4,
+                    children: [
+                      Row(
+                        spacing: AppSpace.s4,
+                        children: [
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: share.colour,
+                              borderRadius: BorderRadius.circular(
+                                StatsStyle.swatchRadius,
                               ),
                             ),
-                          ],
+                            child: const SizedBox.square(
+                              dimension: StatsStyle.swatch,
+                            ),
+                          ),
+                          Flexible(
+                            child: Text(
+                              keepWords(share.name),
+                              style: _bandName.copyWith(color: colors.ink2),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // One line, shrunk to the tile where wider.
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(
+                          l10n.statsCards(share.count),
+                          style: AppType.display.copyWith(color: colors.ink),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-              ],
-            ),
+                ),
+              );
+              // A tile's line: a third of the row less the gaps and its
+              // insets, less the swatch before the name.
+              final line =
+                  (constraints.maxWidth - 2 * AppSpace.s8) / 3 -
+                  2 * AppSpace.s12 -
+                  StatsStyle.swatch -
+                  AppSpace.s4;
+              return shares.every(
+                    (share) => _widestWord(context, share.name) <= line,
+                  )
+                  ? IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        spacing: AppSpace.s8,
+                        children: [
+                          for (final share in shares)
+                            Expanded(child: tile(share)),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: AppSpace.s8,
+                      children: [for (final share in shares) tile(share)],
+                    );
+            },
           ),
         ),
       ],
     );
   }
 }
+
+/// A recall band's share: its count, its colour and its name.
+typedef _Share = ({int count, Color colour, String name});
+
+/// The width of the widest word of a band's [name], as its tile draws it at
+/// the text size of [context].
+double _widestWord(BuildContext context, String name) {
+  final painter = TextPainter(
+    text: TextSpan(text: keepWords(name), style: _bandName),
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout();
+  final width = painter.minIntrinsicWidth;
+  painter.dispose();
+  return width;
+}
+
+/// A band's name in its tile, before its colour.
+final _bandName = AppType.caption.copyWith(fontWeight: FontWeight.w700);
 
 /// The mastered cards now as the figure with the gain since the first of
 /// the last eight weeks beside it, then a bar at the end of each of those
