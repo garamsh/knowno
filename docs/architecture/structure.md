@@ -21,7 +21,7 @@ Each top-level folder has one responsibility, and the lists are closed: an entry
 - `web/src/`:
   - `app/` — routes, the App Router files, their `_components/` and `__tests__/`; the signed-in pages and their shell's menus in the `(shell)` route group ([`web.md`](web.md)); the legal documents in the `(legal)` route group.
   - `features/` — `account`, `admin`, `decks`, `study` and `legal`.
-  - `design/` — the brand's marks, the skeleton, the theme choice and its store, "다시 시도", and the dialogs' focus trap.
+  - `design/` — the brand's marks, the skeleton, the theme choice and its store, "다시 시도", the dialogs' focus trap, and the canvas JPEG encoder.
   - `supabase/` — the Supabase adapter, the one vendor adapter.
   - `styles/` — the global stylesheet, the fonts link and the token tests.
   - `testing/` — test infrastructure, imported by tests alone.

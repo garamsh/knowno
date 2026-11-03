@@ -58,12 +58,10 @@ function stubBrowserImages({
     if (!isDrawingContext(context)) throw new Error("the stub lacks what prepareImage draws with");
     return context;
   });
-  vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(
-    (callback: BlobCallback, type?: string, quality?: number) => {
-      encodings.push({ type, quality });
-      const blob = new Blob([encoded], { type });
-      Object.defineProperty(blob, "arrayBuffer", { value: () => Promise.resolve(encoded.buffer) });
-      callback(blob);
+  vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockImplementation(
+    (type?: string, quality?: unknown) => {
+      encodings.push({ type, quality: typeof quality === "number" ? quality : undefined });
+      return `data:${type ?? ""};base64,${Buffer.from(encoded).toString("base64")}`;
     },
   );
   return { drawn, encodings };

@@ -174,17 +174,13 @@ function stubBrowserImages({
     if (!isDrawingContext(context)) throw new Error("the stub lacks what preparePhoto draws with");
     return context;
   });
-  vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(
-    (callback: BlobCallback, type?: string, quality?: number) => {
-      qualities.push(quality ?? 1);
+  vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockImplementation(
+    (type?: string, quality?: unknown) => {
+      qualities.push(typeof quality === "number" ? quality : 1);
       const size = sizes[qualities.length - 1] ?? 1000;
       const bytes = new Uint8Array(size);
       bytes.set(jpegBytes);
-      const blob = new Blob([bytes], { type });
-      Object.defineProperty(blob, "arrayBuffer", {
-        value: () => Promise.resolve(bytes.buffer),
-      });
-      callback(blob);
+      return `data:${type ?? ""};base64,${Buffer.from(bytes).toString("base64")}`;
     },
   );
   return { drawn, qualities };
@@ -791,8 +787,10 @@ describe("photo import", () => {
         ]);
       });
       expect(db.rows.cards[0]?.id).toBe(uuidOf("held"));
-      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "카드 2장 추가" })).not.toBeInTheDocument();
+      // The rows are written before the action answers; the screen closes once it has.
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
     });
     it("counts two photos' cards of one key as one on the add button, and saves one card", async () => {
       answer({ status: 200, body: { cards: [card] } });
