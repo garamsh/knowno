@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { render } from "@/testing/render";
 import { cardRow, deckRow, side, uuidOf } from "@/testing/library";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
@@ -1002,6 +1002,28 @@ describe("photo import", () => {
       expect(screen.queryByRole("button", { name: "취소" })).not.toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
       expect(await screen.findByRole("dialog", { name: "새 카드" })).toBeInTheDocument();
+    });
+    it("draws one photo's 카드를 찾고 있어요 in the row between its thumbnail and the mascot, over the bar, the dialog named by it", async () => {
+      server.use(
+        http.post(`${supabaseUrl}/functions/v1/extract-cards`, async () => {
+          await delay("infinite");
+          return HttpResponse.json({});
+        }),
+      );
+      await choose(1);
+      const dialog = await screen.findByRole("dialog", { name: "카드를 찾고 있어요" });
+      expect(within(dialog).getByRole("heading", { name: "카드를 찾고 있어요" })).toHaveClass(
+        "sr-only",
+      );
+      const drawn = within(dialog).getByText("카드를 찾고 있어요", { selector: "p" });
+      const row = drawn.parentElement;
+      expect(
+        row?.querySelector('[data-expression="thinking"], img[src*="knowno-thinking"]'),
+        "the mascot ends the row",
+      ).not.toBeNull();
+      const bar = within(dialog).getByRole("progressbar", { name: "카드를 찾고 있어요" });
+      expect(row?.contains(bar), "the bar is under the row").toBe(false);
+      expect(row?.compareDocumentPosition(bar)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     });
     it("names the failure screen for a screen reader alone, the mascot and the sentence heading it as the phone's, while the list heads its content", async () => {
       answer(failed502, read);

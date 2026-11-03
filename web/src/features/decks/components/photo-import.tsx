@@ -492,7 +492,9 @@ export function PhotoImport({
     <AuthoringScreen
       title={title}
       // The phone heads each of these screens' content, and its failure screen has no title.
-      heading={failure ? "none" : "body"}
+      // The phone heads these screens' content: one photo's title in the row beside its
+      // thumbnail, which the screen draws itself, and its failure screen has no title.
+      heading={failure || single ? "none" : "body"}
       menu={retakeMenu}
       actions={actions}
       close={unfinished && !failure ? cancel : leave}
@@ -526,17 +528,21 @@ export function PhotoImport({
           )}
         </div>
       ) : single ? (
-        <div className="flex min-w-0 flex-col gap-5 pt-4">
+        <div className="flex min-w-0 flex-col gap-5">
           <div className="flex items-center gap-4">
             <Thumbnail url={single.url} className="h-24 w-18" />
-            <div
-              role="progressbar"
-              aria-label="카드를 찾고 있어요"
-              className="h-2 flex-1 overflow-hidden rounded-full bg-edge"
-            >
-              <div className="h-full w-full rounded-full bg-accent motion-safe:animate-skeleton" />
-            </div>
+            {/* The dialog's own heading names the screen; this draws it, as the phone's row. */}
+            <p aria-hidden className="min-w-0 flex-1 text-title break-keep">
+              {title}
+            </p>
             <Mascot expression="thinking" className="size-mascot-guide shrink-0" />
+          </div>
+          <div
+            role="progressbar"
+            aria-label="카드를 찾고 있어요"
+            className="h-2 overflow-hidden rounded-full bg-edge"
+          >
+            <div className="h-full w-full rounded-full bg-accent motion-safe:animate-skeleton" />
           </div>
           {note && <p className="text-body break-keep text-ink-2">{note}</p>}
           <div aria-hidden className="flex flex-col gap-row-gap">
