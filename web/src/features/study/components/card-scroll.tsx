@@ -2,19 +2,33 @@
 
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 
-/** The three sizes a front steps down through, largest first (ADR 0123). */
-const steps = ["text-front", "text-back", "text-card-body"] as const;
+/** The sizes a front steps down through, largest first, the body size last (#635). */
+const steps = ["text-front", "text-deck-name", "text-back", "text-card-body"] as const;
 
 /**
- * A card front's content in the largest of the front's three sizes at which it fits the face
- * whole, its lines broken only between words: centred above the body size, start-aligned at it,
- * and past it scrolling inside the face from the top, its bottom edge fading into the surface
- * while more is below (ADR 0123), as the phone's `CardScroll`.
+ * The longest a front starts at each step but the last, by `faceLength`, as the phone's
+ * `StudyStyle.frontSteps` (#635).
  */
-export function CardScroll({ children }: { children: ReactNode }) {
+const startLengths = [12, 40, 100];
+
+/** The step a front of [length] characters starts at. */
+function startOf(length: number): number {
+  const start = startLengths.findIndex((longest) => length <= longest);
+  return start < 0 ? steps.length - 1 : start;
+}
+
+/**
+ * A card front's content, [length] characters long (`faceLength`), in the largest of the front's
+ * sizes from the one its length starts at (#635) at which it fits the face whole, its lines
+ * broken only between words: centred above the body size, start-aligned at it, and past it
+ * scrolling inside the face from the top, its bottom edge fading into the surface while more is
+ * below (ADR 0123), as the phone's `CardScroll`.
+ */
+export function CardScroll({ length, children }: { length: number; children: ReactNode }) {
   const frame = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
-  const [index, setIndex] = useState(0);
+  const start = startOf(length);
+  const [index, setIndex] = useState(start);
   const [more, setMore] = useState(false);
   // The frame's size the step was fitted to. A resize sets it as well as the step, so the fit runs
   // again where the step was already the largest and setting it alone would render nothing.
@@ -35,7 +49,7 @@ export function CardScroll({ children }: { children: ReactNode }) {
     setMore(face.scrollHeight - face.scrollTop - face.clientHeight > 1);
   }, [index, last, children, frameSize]);
 
-  // A face of a new size fits its content again from the largest step. The frame is watched,
+  // A face of a new size fits its content again from the step its length starts at. The frame is watched,
   // not the scrolling face, whose width changes as its own scrollbar comes and goes.
   useLayoutEffect(() => {
     const outer = frame.current;
@@ -47,13 +61,13 @@ export function CardScroll({ children }: { children: ReactNode }) {
       width = outer.offsetWidth;
       height = outer.offsetHeight;
       setFrameSize(`${String(width)}x${String(height)}`);
-      setIndex(0);
+      setIndex(start);
     });
     observer.observe(outer);
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [start]);
 
   const body = index >= last;
   return (

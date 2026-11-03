@@ -67,8 +67,8 @@ export async function Study({
     ...(holdsBlank(cells) && {
       whole: {
         spokenFront: spokenCells(cells, false),
-        empty: <WholeCells cells={cells} revealed={false} />,
-        filled: <WholeCells cells={cells} revealed />,
+        empty: <WholeCells cells={cells} revealed={false} studied />,
+        filled: <WholeCells cells={cells} revealed studied />,
       },
     }),
     // A senses block's labels and a photo with no box are drawn as decks draws a side.

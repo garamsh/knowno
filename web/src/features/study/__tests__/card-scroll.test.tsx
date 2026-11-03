@@ -38,8 +38,8 @@ afterEach(() => {
 
 describe("a card's face", () => {
   it("keeps a front that fits at the front size there, centred, with no fade", () => {
-    heights = { "text-front": 120, "text-back": 80, "text-card-body": 60 };
-    render(<CardScroll>짧은 앞면</CardScroll>);
+    heights = { "text-front": 120, "text-deck-name": 100, "text-back": 80, "text-card-body": 60 };
+    render(<CardScroll length={5}>짧은 앞면</CardScroll>);
 
     expect(face().dataset.cardStep).toBe("text-front");
     expect(screen.getByText("짧은 앞면").className).toContain("text-center");
@@ -48,17 +48,35 @@ describe("a card's face", () => {
   });
 
   it("steps a front down to the first size it fits whole, still centred", () => {
-    heights = { "text-front": 320, "text-back": 180, "text-card-body": 150 };
-    render(<CardScroll>중간 앞면</CardScroll>);
+    heights = { "text-front": 320, "text-deck-name": 250, "text-back": 180, "text-card-body": 150 };
+    render(<CardScroll length={5}>중간 앞면</CardScroll>);
 
     expect(face().dataset.cardStep).toBe("text-back");
     expect(screen.getByText("중간 앞면").className).toContain("text-center");
     expect(document.querySelector("[data-card-fade]")).toBeNull();
   });
 
+  it("starts a longer front at a smaller step though a larger one fits, never below the body size (#635)", () => {
+    // Every step fits, so only the length moves the size.
+    heights = { "text-front": 120, "text-deck-name": 100, "text-back": 80, "text-card-body": 60 };
+    for (const [length, step] of [
+      [5, "text-front"],
+      [12, "text-front"],
+      [30, "text-deck-name"],
+      [60, "text-back"],
+      [100, "text-back"],
+      [300, "text-card-body"],
+      [5000, "text-card-body"],
+    ] as const) {
+      const { unmount } = render(<CardScroll length={length}>앞면</CardScroll>);
+      expect(face().dataset.cardStep, String(length)).toBe(step);
+      unmount();
+    }
+  });
+
   it("past the body size scrolls start-aligned with a fading edge, which goes at the end", () => {
-    heights = { "text-front": 900, "text-back": 600, "text-card-body": 500 };
-    render(<CardScroll>긴 앞면</CardScroll>);
+    heights = { "text-front": 900, "text-deck-name": 800, "text-back": 600, "text-card-body": 500 };
+    render(<CardScroll length={300}>긴 앞면</CardScroll>);
 
     expect(face().dataset.cardStep).toBe("text-card-body");
     expect(face().className).toContain("overflow-y-auto");
@@ -88,13 +106,13 @@ describe("a card's face", () => {
     let frameWidth = 720;
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(() => frameWidth);
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(() => faceHeight);
-    heights = { "text-front": 120, "text-back": 80, "text-card-body": 60 };
-    render(<CardScroll>좁아지는 앞면</CardScroll>);
+    heights = { "text-front": 120, "text-deck-name": 100, "text-back": 80, "text-card-body": 60 };
+    render(<CardScroll length={5}>좁아지는 앞면</CardScroll>);
     expect(face().dataset.cardStep).toBe("text-front");
 
     // At 350 px the front wraps to more lines than the face holds at the front size.
     frameWidth = 350;
-    heights = { "text-front": 320, "text-back": 180, "text-card-body": 150 };
+    heights = { "text-front": 320, "text-deck-name": 250, "text-back": 180, "text-card-body": 150 };
     act(() => {
       resized?.();
     });

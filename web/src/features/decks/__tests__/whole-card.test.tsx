@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { blanksUnder } from "@/testing/whole-cards";
 
 import type { Cell, Content } from "../card-content";
-import { WholeCard, WholeCells } from "../components/whole-card";
+import { faceLength, WholeCard, WholeCells } from "../components/whole-card";
 
 // A wide photo and a tall one, each with a box near the top left holding an answer and one near
 // the bottom right without, as the app's `image_block_test.dart` draws them (ADR 0109).
@@ -175,6 +175,80 @@ describe("a blank on a whole card", () => {
     expect(filled).toContain("bg-brand-tint");
     expect(filled).not.toContain("text-transparent");
     expect(filled).not.toContain("underline");
+  });
+});
+
+// Study's cards, as the app's `whole_card_view_test.dart` and `study_screen_test.dart` check them
+// (#635).
+describe("a whole card on study's cards", () => {
+  const cells = (answer: string): Cell[] => [
+    { kind: "blank", block: { kind: "cloze", text: "Le ___ dort", answers: [answer] } },
+  ];
+
+  it("draws an empty blank as a box on the hatch three ems wide whatever its answer, with no underline and no answer, and a filled one its answer on the hatch", () => {
+    for (const answer of ["a", "un chat très grand"]) {
+      const { container, unmount } = render(
+        <WholeCells cells={cells(answer)} revealed={false} studied />,
+      );
+      const blank = container.querySelector<HTMLElement>("[data-blank]");
+      expect(blank?.dataset.blank).toBe("boxed");
+      const names = blank?.className.split(" ") ?? [];
+      expect(names).toEqual(expect.arrayContaining(["hatch", "inline-block"]));
+      expect(names).not.toContain("underline");
+      expect(blank?.style.width).toBe("3em");
+      expect(blank?.textContent).toBe("");
+      expect(container.textContent).not.toContain(answer);
+      unmount();
+    }
+    // Control: revealed, the answer is on the same hatch.
+    const { container } = render(<WholeCells cells={cells("chat")} revealed studied />);
+    const filled = container.querySelector<HTMLElement>("[data-blank]");
+    expect(filled?.className.split(" ")).toContain("hatch");
+    expect(filled?.textContent).toBe("chat");
+  });
+
+  it("draws a table's hidden cell as the same box, and a photo's boxes on the hatch with the answer on it once revealed", () => {
+    const table: Cell[] = [
+      {
+        kind: "blank",
+        block: {
+          kind: "table",
+          columns: ["Capital", "Country"],
+          rows: [["Paris", "France"]],
+          blanks: [{ row: 0, column: 0 }],
+          spans: [],
+        },
+      },
+    ];
+    const hidden = render(<WholeCells cells={table} revealed={false} studied />);
+    expect(
+      [...hidden.container.querySelectorAll<HTMLElement>("[data-blank]")].map(
+        (blank) => blank.dataset.blank,
+      ),
+    ).toEqual(["boxed"]);
+    expect(hidden.container.textContent).not.toContain("Paris");
+    hidden.unmount();
+
+    const [photo] = photos;
+    if (photo?.kind !== "image") throw new Error("the wide photo");
+    const photoCells: Cell[] = [{ kind: "blank", block: photo }];
+    for (const revealed of [false, true]) {
+      const { container, unmount } = render(
+        <WholeCells cells={photoCells} revealed={revealed} studied />,
+      );
+      const marks = [...container.querySelectorAll<HTMLElement>("[data-box]")];
+      expect(marks.every((mark) => mark.className.split(" ").includes("hatch"))).toBe(true);
+      expect(marks.some((mark) => mark.className.includes("bg-hero"))).toBe(false);
+      expect(marks[0]?.textContent).toBe(revealed ? "Paris" : "");
+      unmount();
+    }
+  });
+
+  it("counts a front's length with each blank as its box's width", () => {
+    expect(faceLength([{ kind: "text", text: "사과" }])).toBe(2);
+    expect(
+      faceLength([{ kind: "cloze", text: "Le ___ dort", answers: ["un chat très grand"] }]),
+    ).toBe("Le  dort".length + 3);
   });
 });
 
