@@ -11,11 +11,13 @@ import { todayOf } from "./today-list";
 /**
  * A card of the session: `decks`' card, its sides without the 칸 they read as, with each side as
  * the one line of text `decks` describes it as, a whole card's back as its revealed reading, and,
- * for a card holding a blank, its [WholeFaces], which the server adds, since a client module
+ * for a card holding a blank, its [WholeFaces]; and its front's length, as `decks`' `faceLength`
+ * counts it, which sizes the current card (#635). The server adds these, since a client module
  * cannot import `decks`' entry point.
  */
 export type StudyCard = Omit<Card, "cells"> & {
   text: { front: string; back: string };
+  frontLength: number;
   whole?: WholeFaces;
   sides?: SideViews;
   sounds?: SoundViews;

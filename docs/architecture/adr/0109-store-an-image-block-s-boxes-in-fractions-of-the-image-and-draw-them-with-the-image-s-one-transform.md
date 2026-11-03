@@ -1,6 +1,6 @@
 # ADR 0109: Store an image block's boxes in fractions of the image and draw them with the image's one transform
 
-> Status: accepted; its read of a public card's photo refined by ADR-0112 to cover a card's sound, and its copy keeping the owner's media id by ADR-0113
+> Status: accepted; its read of a public card's photo refined by ADR-0112 to cover a card's sound, and its copy keeping the owner's media id by ADR-0113; its filled hidden box and outlined revealed one, on study's cards, superseded by ADR 0176
 > Date: 2026-10-27
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

@@ -34,6 +34,7 @@ describe("the previous card's focus ring", () => {
             back: [{ kind: "text", text: "cat" }],
             createdAt: 0,
             text: { front: "chat", back: "cat" },
+            frontLength: 4,
           },
           answer: "know",
         }}

@@ -870,8 +870,9 @@ test("a card of 100, 200 and 400 characters, and one of several senses, are stud
   await page.goto(`/study?decks=${deckId}`);
   const front = page.getByRole("group", { name: "앞면", exact: true });
   await expect(front).toBeVisible();
-  const face = page.locator("[data-card-step]");
-  const fade = page.locator("[data-card-fade]");
+  // The current card's face: the previous card steps and fades the same way (#635).
+  const face = front.locator("[data-card-step]");
+  const fade = front.locator("[data-card-fade]");
   const seen = new Set<string>();
   for (const step of [1, 2, 3, 4]) {
     for (const width of [390, 1280]) {

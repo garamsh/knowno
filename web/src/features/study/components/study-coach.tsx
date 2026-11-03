@@ -241,7 +241,7 @@ export function CoachSample({ touch }: { touch: boolean }) {
         모른다로 바꿔요
       </div>
       <div className="relative flex w-full motion-safe:animate-coach-change motion-reduce:animate-coach-change-held">
-        <GradedFace answer="know" front="deadline" back="마감 기한" />
+        <GradedFace answer="know" length={"deadline".length} front="deadline" back="마감 기한" />
         {touch && <Touch className="right-16 bottom-8" from="right" trail="w-35" />}
       </div>
     </div>

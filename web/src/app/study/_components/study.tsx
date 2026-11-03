@@ -6,6 +6,7 @@ import {
   audioOf,
   type Content,
   describeContent,
+  faceLength,
   holdsBlank,
   type LibraryFailure,
   ReadFailure,
@@ -60,6 +61,7 @@ export async function Study({
   // point.
   const cards = read.library.cards.map(({ cells, ...card }) => ({
     ...card,
+    frontLength: faceLength(card.front),
     text: {
       front: describeContent(card.front),
       back: holdsBlank(cells) ? spokenCells(cells, true) : describeContent(card.back),
@@ -67,8 +69,8 @@ export async function Study({
     ...(holdsBlank(cells) && {
       whole: {
         spokenFront: spokenCells(cells, false),
-        empty: <WholeCells cells={cells} revealed={false} />,
-        filled: <WholeCells cells={cells} revealed />,
+        empty: <WholeCells cells={cells} revealed={false} studied />,
+        filled: <WholeCells cells={cells} revealed studied />,
       },
     }),
     // A senses block's labels and a photo with no box are drawn as decks draws a side.
