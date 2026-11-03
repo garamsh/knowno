@@ -367,7 +367,7 @@ void main() {
         await tapPick(tester, shownText('Choose a file'));
         await stored(tester);
         await tapVisible(tester, shownText('Delete sound'));
-        expect(find.text('Sound deleted'), findsOneWidget);
+        expect(shownText('Sound deleted'), findsOneWidget);
         expect(shownText('Choose a file'), findsOneWidget);
         await tapVisible(tester, find.text('Undo'));
         expect(shownText('Delete sound'), findsOneWidget);
@@ -395,7 +395,7 @@ void main() {
       await tapPick(tester, shownText('Choose a file'));
       await stored(tester);
       await tapVisible(tester, shownText('Delete sound'));
-      expect(find.text('Sound deleted'), findsOneWidget);
+      expect(shownText('Sound deleted'), findsOneWidget);
       await tapVisible(
         tester,
         find.descendant(
@@ -407,7 +407,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Sound deleted'), findsNothing);
+      expect(shownText('Sound deleted'), findsNothing);
       expect(find.text('Undo'), findsNothing);
     });
 

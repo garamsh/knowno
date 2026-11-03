@@ -50,7 +50,7 @@ void main() {
     );
     await tester.tap(shownText('Delete'));
     await tester.pumpAndSettle();
-    expect(find.text('Gone'), findsOneWidget);
+    expect(shownText('Gone'), findsOneWidget);
   }
 
   /// Lets the whole offer's time pass, then its bar's exit.
@@ -64,9 +64,9 @@ void main() {
   ) async {
     await offer(tester);
     await tester.pump(undoDuration - const Duration(milliseconds: 100));
-    expect(find.text('Gone'), findsOneWidget);
+    expect(shownText('Gone'), findsOneWidget);
     await outlast(tester);
-    expect(find.text('Gone'), findsNothing);
+    expect(shownText('Gone'), findsNothing);
     expect((undone, gone), (0, 1));
   });
 
@@ -81,12 +81,12 @@ void main() {
       await offer(tester);
       await outlast(tester);
       await outlast(tester);
-      expect(find.text('Gone'), findsOneWidget);
+      expect(shownText('Gone'), findsOneWidget);
 
       tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
       await tester.pump();
       await outlast(tester);
-      expect(find.text('Gone'), findsNothing);
+      expect(shownText('Gone'), findsNothing);
       expect((undone, gone), (0, 1));
     },
   );
@@ -100,12 +100,12 @@ void main() {
       expect(Focus.of(tester.element(find.text('Undo'))).hasFocus, isTrue);
       await outlast(tester);
       await outlast(tester);
-      expect(find.text('Gone'), findsOneWidget);
+      expect(shownText('Gone'), findsOneWidget);
 
       Focus.of(tester.element(shownText('Delete'))).requestFocus();
       await tester.pump();
       await outlast(tester);
-      expect(find.text('Gone'), findsNothing);
+      expect(shownText('Gone'), findsNothing);
       expect((undone, gone), (0, 1));
     },
   );
@@ -116,7 +116,7 @@ void main() {
     await offer(tester, endOn: edits);
     edits.value++;
     await tester.pumpAndSettle();
-    expect(find.text('Gone'), findsNothing);
+    expect(shownText('Gone'), findsNothing);
     expect((undone, gone), (0, 1));
   });
 
@@ -142,8 +142,46 @@ void main() {
       );
       await tester.tap(find.text('Undo'));
       await tester.pumpAndSettle();
-      expect(find.text('Gone'), findsNothing);
+      expect(shownText('Gone'), findsNothing);
       expect((undone, gone), (1, 0));
     },
   );
+
+  for (final scale in [1.0, 3.12]) {
+    testWidgets(
+      'on a 390 wide phone at text scale $scale the message sits beside Undo '
+      'while both fit on a line, and otherwise above it, breaking only '
+      'between words',
+      (tester) async {
+        tester.view
+          ..physicalSize = const Size(390, 844)
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        const message = '삭제한 칸을 되돌릴 수 있어요';
+        await pumpComponent(
+          tester,
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () =>
+                  showUndoSnackBar(context, message: message, onUndo: () {}),
+              child: const Text('Delete'),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+
+        final said = tester.getRect(shownText(message));
+        final undo = tester.getRect(find.text('Undo'));
+        if (scale == 1.0) {
+          expect(undo.top, lessThan(said.bottom), reason: 'one line');
+        } else {
+          expect(undo.top, greaterThanOrEqualTo(said.bottom), reason: 'below');
+          expectBreaksBetweenWords(tester, message);
+        }
+      },
+    );
+  }
 }

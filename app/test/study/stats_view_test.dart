@@ -175,7 +175,7 @@ String _label(WidgetTester tester, String prefix) {
 
 /// The card headed [title], the surface nearest its heading.
 Finder _card(String title) => find
-    .ancestor(of: find.text(title), matching: find.byType(DecoratedBox))
+    .ancestor(of: shownText(title), matching: find.byType(DecoratedBox))
     .first;
 
 void main() {
@@ -190,17 +190,17 @@ void main() {
         locale: const Locale('ko'),
       );
 
-      expect(find.text('목표보다 23% 낮아요'), findsOneWidget);
+      expect(shownText('목표보다 23% 낮아요'), findsOneWidget);
       expect(find.textContaining('%p'), findsNothing);
       // The target is named on the chart alone.
       expect(find.textContaining('90%'), findsOneWidget);
       expect(find.text('목표 90%'), findsOneWidget);
-      expect(find.text('기억 상태'), findsOneWidget);
+      expect(shownText('기억 상태'), findsOneWidget);
       expect(find.text('지금 기억하고 있을 확률'), findsNothing);
       expect(find.text('좋음'), findsOneWidget);
       expect(find.text('단단함'), findsNothing);
       expect(find.text('7주 전'), findsOneWidget);
-      expect(find.text('7주 전보다 +3장'), findsOneWidget);
+      expect(shownText('7주 전보다 +3장'), findsOneWidget);
     },
   );
 
@@ -211,7 +211,7 @@ void main() {
 
       // 30 days: a's "Know" on 1 and 14 October, b's "Don't know" on 13.
       expect(find.text('67%'), findsOneWidget);
-      expect(find.text('23% below target'), findsOneWidget);
+      expect(shownText('23% below target'), findsOneWidget);
       expect(find.text('30 days ago'), findsOneWidget);
       // The target is named once, on the chart's line, not beside the figure.
       expect(find.text('Target 90%'), findsOneWidget);
@@ -225,7 +225,7 @@ void main() {
       await tester.tap(find.text('7 days'));
       await tester.pumpAndSettle();
       expect(find.text('50%'), findsOneWidget);
-      expect(find.text('40% below target'), findsOneWidget);
+      expect(shownText('40% below target'), findsOneWidget);
       expect(find.text('7 days ago'), findsOneWidget);
       expect(
         _label(tester, 'Correct in reviews, target'),
@@ -236,7 +236,7 @@ void main() {
       await tester.tap(find.text('All'));
       await tester.pumpAndSettle();
       expect(find.text('75%'), findsOneWidget);
-      expect(find.text('15% below target'), findsOneWidget);
+      expect(shownText('15% below target'), findsOneWidget);
       expect(find.text('Sep 10'), findsOneWidget);
     },
   );
@@ -282,7 +282,7 @@ void main() {
       );
       // The figure alone: the chart labels no scale.
       expect(find.text('100%'), findsOneWidget);
-      expect(find.text('10% above target'), findsOneWidget);
+      expect(shownText('10% above target'), findsOneWidget);
 
       await tester.tap(find.text('7 days'));
       await tester.pumpAndSettle();
@@ -399,7 +399,7 @@ void main() {
       );
       // The gain spans the chart, from its first week, 0, to this week's 3,
       // in the figure's row, beside it where both fit.
-      final gain = find.text('+3 since 7 weeks ago');
+      final gain = shownText('+3 since 7 weeks ago');
       expect(gain, findsOneWidget);
       expect(
         find.descendant(
@@ -570,14 +570,14 @@ void main() {
         final paragraph = tester.renderObject<RenderParagraph>(
           find
               .descendant(
-                of: find.text(text).first,
+                of: shownText(text).first,
                 matching: find.byType(RichText),
               )
               .first,
         );
         expect(paragraph.didExceedMaxLines, isFalse, reason: text);
         expect(
-          tester.getRect(find.text(text).first).right,
+          tester.getRect(shownText(text).first).right,
           lessThanOrEqualTo(390),
           reason: text,
         );
@@ -595,7 +595,7 @@ void main() {
     );
 
     expect(find.text(AppLocalizationsEn().schedulingFailure), findsOneWidget);
-    expect(find.text('Correct in reviews'), findsNothing);
+    expect(shownText('Correct in reviews'), findsNothing);
   });
 
   for (final (name, theme) in [('light', lightTheme), ('dark', darkTheme)]) {

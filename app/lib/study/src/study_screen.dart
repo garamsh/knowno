@@ -485,69 +485,84 @@ class _TopBar extends StatelessWidget {
         height: StudyStyle.topBarHeight,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpace.s8),
-          child: Row(
-            spacing: AppSpace.s12,
-            children: [
-              IconButton(
-                tooltip: l10n.close,
-                icon: const Icon(LucideIcons.x),
-                onPressed: onClose,
-              ),
-              Expanded(
-                child: _ResumeNotice(
-                  text: notice,
-                  otherwise: progress == null
-                      ? const SizedBox.shrink()
-                      : LinearProgressIndicator(
-                          value: progress.total == 0
-                              ? 1
-                              : progress.done / progress.total,
-                          minHeight: StudyStyle.progressHeight,
-                          color: colors.accent,
-                          backgroundColor: colors.edge,
-                          borderRadius: BorderRadius.circular(
-                            StudyStyle.progressHeight,
-                          ),
-                          semanticsLabel: l10n.studyProgressSemantics(
-                            progress.done,
-                            progress.total,
-                          ),
-                        ),
+          child: LayoutBuilder(
+            builder: (context, bar) => Row(
+              spacing: AppSpace.s12,
+              children: [
+                IconButton(
+                  tooltip: l10n.close,
+                  icon: const Icon(LucideIcons.x),
+                  onPressed: onClose,
                 ),
-              ),
-              if (progress != null) ...[
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpace.s12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: AppSpace.s8,
-                    children: [
-                      ExcludeSemantics(
-                        child: Text(
-                          l10n.studyProgress(progress.done, progress.total),
-                          style: AppType.secondary.copyWith(
-                            color: colors.ink,
-                            fontWeight: FontWeight.w700,
-                            fontFeatures: const [FontFeature.tabularFigures()],
+                Expanded(
+                  child: _ResumeNotice(
+                    text: notice,
+                    otherwise: progress == null
+                        ? const SizedBox.shrink()
+                        : LinearProgressIndicator(
+                            value: progress.total == 0
+                                ? 1
+                                : progress.done / progress.total,
+                            minHeight: StudyStyle.progressHeight,
+                            color: colors.accent,
+                            backgroundColor: colors.edge,
+                            borderRadius: BorderRadius.circular(
+                              StudyStyle.progressHeight,
+                            ),
+                            semanticsLabel: l10n.studyProgressSemantics(
+                              progress.done,
+                              progress.total,
+                            ),
                           ),
-                        ),
-                      ),
-                      // Cards past the day's plan are counted apart, so the
-                      // day's bar never shrinks as they are taken.
-                      if (progress.extra > 0)
-                        Semantics(
-                          label: l10n.studyExtraSemantics(progress.extra),
-                          excludeSemantics: true,
-                          child: AppChip(
-                            label: l10n.studyExtra(progress.extra),
-                            tone: AppChipTone.brand,
-                          ),
-                        ),
-                    ],
                   ),
                 ),
+                if (progress != null) ...[
+                  // On one line in at most half the bar, shrunk only where a
+                  // large text size makes the counts wider or taller than that.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: bar.maxWidth / 2),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: AppSpace.s12),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          spacing: AppSpace.s8,
+                          children: [
+                            ExcludeSemantics(
+                              child: Text(
+                                l10n.studyProgress(
+                                  progress.done,
+                                  progress.total,
+                                ),
+                                style: AppType.secondary.copyWith(
+                                  color: colors.ink,
+                                  fontWeight: FontWeight.w700,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // Cards past the day's plan are counted apart, so the
+                            // day's bar never shrinks as they are taken.
+                            if (progress.extra > 0)
+                              Semantics(
+                                label: l10n.studyExtraSemantics(progress.extra),
+                                excludeSemantics: true,
+                                child: AppChip(
+                                  label: l10n.studyExtra(progress.extra),
+                                  tone: AppChipTone.brand,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

@@ -650,7 +650,7 @@ void main() {
         expect(_target('Blank 1'), findsOneWidget, reason: 'its blank kept');
 
         await tapVisible(tester, shownText('Delete photo'));
-        expect(find.text('Photo deleted'), findsOneWidget);
+        expect(shownText('Photo deleted'), findsOneWidget);
         expect(find.byType(ImagePhoto), findsNothing);
         expect(shownText('Choose from album'), findsOneWidget);
         await tapVisible(tester, find.text('Undo'));
@@ -681,11 +681,11 @@ void main() {
       (tester) async {
         await openWithPhoto(tester);
         await tapVisible(tester, shownText('Delete photo'));
-        expect(find.text('Photo deleted'), findsOneWidget);
+        expect(shownText('Photo deleted'), findsOneWidget);
         await typeBlock(tester, 'more');
         await tester.pumpAndSettle();
         expect(
-          find.text('Photo deleted'),
+          shownText('Photo deleted'),
           findsOneWidget,
           reason: "the Text's edit is outside the photo's group",
         );
@@ -700,7 +700,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('Photo deleted'), findsNothing);
+        expect(shownText('Photo deleted'), findsNothing);
         expect(find.text('Undo'), findsNothing);
       },
     );

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../../design/theme.dart';
+import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 
 /// How long an undo snack bar offers "되돌리기".
@@ -25,16 +27,22 @@ void showUndoSnackBar(
   final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
   final bar = messenger.showSnackBar(
     SnackBar(
-      content: _UndoMessage(message: message, endOn: endOn),
+      content: _UndoMessage(
+        message: message,
+        endOn: endOn,
+        // In the content, not the bar's action slot, so the message and
+        // "되돌리기" stack where a large text size leaves no room for both
+        // on a line.
+        action: SnackBarAction(
+          label: AppLocalizations.of(context).undo,
+          onPressed: () {
+            undone = true;
+            onUndo();
+          },
+        ),
+      ),
       // [_UndoMessage] times the bar, so the messenger never does.
       persist: true,
-      action: SnackBarAction(
-        label: AppLocalizations.of(context).undo,
-        onPressed: () {
-          undone = true;
-          onUndo();
-        },
-      ),
     ),
   );
   if (onGone != null) {
@@ -44,13 +52,19 @@ void showUndoSnackBar(
   }
 }
 
-/// An undo bar's message, which hides its bar after [undoDuration] unheld,
-/// or as soon as [endOn] notifies.
+/// An undo bar's message and its [action], side by side where both fit on a
+/// line and stacked otherwise, which hides its bar after [undoDuration]
+/// unheld, or as soon as [endOn] notifies.
 class _UndoMessage extends StatefulWidget {
-  const _UndoMessage({required this.message, required this.endOn});
+  const _UndoMessage({
+    required this.message,
+    required this.endOn,
+    required this.action,
+  });
 
   final String message;
   final Listenable? endOn;
+  final Widget action;
 
   @override
   State<_UndoMessage> createState() => _UndoMessageState();
@@ -145,5 +159,13 @@ class _UndoMessageState extends State<_UndoMessage> {
   }
 
   @override
-  Widget build(BuildContext context) => Text(widget.message);
+  Widget build(BuildContext context) => OverflowBar(
+    alignment: MainAxisAlignment.spaceBetween,
+    overflowAlignment: OverflowBarAlignment.start,
+    spacing: AppSpace.s8,
+    children: [
+      Text(keepWords(widget.message), semanticsLabel: widget.message),
+      widget.action,
+    ],
+  );
 }

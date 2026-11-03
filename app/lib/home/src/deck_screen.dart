@@ -73,7 +73,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     };
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: ListHeaderActions.barHeight(context),
+        toolbarHeight: AppButton.barHeight(context),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: AppSpace.gutter),

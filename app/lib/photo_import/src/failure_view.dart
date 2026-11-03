@@ -65,8 +65,10 @@ class FailureView extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
+      // Centred, and scrolled where a large text size makes it taller than
+      // the screen.
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpace.s24),
           child: Column(
             mainAxisSize: MainAxisSize.min,

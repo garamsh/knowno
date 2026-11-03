@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../design/app_button.dart';
 import '../../design/theme.dart';
+import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'account_state.dart';
 import 'failure.dart';
@@ -32,105 +33,135 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final brightness = Theme.of(context).brightness;
     return Scaffold(
       backgroundColor: colors.surface,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: colors.ground,
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(AppRadius.panel),
-                ),
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpace.gutter),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Semantics(
-                        header: true,
-                        image: true,
-                        label: l10n.appTitle,
-                        child: Image.asset(
-                          AppBrand.stacked(
-                            brightness,
-                            Localizations.localeOf(context),
-                          ),
-                          width: AppSize.stackedLockupWidth,
-                          excludeFromSemantics: true,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpace.s24),
-                      Text(
-                        l10n.welcomeBody,
-                        textAlign: TextAlign.center,
-                        style: AppType.body.copyWith(color: colors.ink2),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpace.gutter,
-                AppSpace.s32,
-                AppSpace.gutter,
-                AppSpace.s16,
-              ),
+      // The panel takes what the sign-in column leaves of the screen; where a
+      // large text size leaves it too little, the whole screen scrolls.
+      body: LayoutBuilder(
+        builder: (context, viewport) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: viewport.maxHeight),
+            child: IntrinsicHeight(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  ...switch (state) {
-                    AccountUnavailable(:final failure) => [
-                      Text(
-                        describeAccountFailure(l10n, failure),
-                        textAlign: TextAlign.center,
-                        style: AppType.body,
+                  Expanded(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.ground,
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(AppRadius.panel),
+                        ),
                       ),
-                    ],
-                    _ when _busy => [
-                      SizedBox(
-                        height: AppSize.cta + AppSpace.s8 + AppSize.tapTarget,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            semanticsLabel: l10n.signingIn,
+                      child: SafeArea(
+                        bottom: false,
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpace.gutter),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Semantics(
+                                header: true,
+                                image: true,
+                                label: l10n.appTitle,
+                                // In a row, so the height the scroll
+                                // measures is the logo's at its own width,
+                                // not at the screen's.
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Image.asset(
+                                      AppBrand.stacked(
+                                        brightness,
+                                        Localizations.localeOf(context),
+                                      ),
+                                      width: AppSize.stackedLockupWidth,
+                                      excludeFromSemantics: true,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: AppSpace.s24),
+                              Text(
+                                keepWords(l10n.welcomeBody),
+                                semanticsLabel: l10n.welcomeBody,
+                                textAlign: TextAlign.center,
+                                style: AppType.body.copyWith(
+                                  color: colors.ink2,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                    _ => [
-                      GoogleSignInButton(
-                        label: l10n.signInWithGoogle,
-                        onPressed: _signIn,
-                      ),
-                      const SizedBox(height: AppSpace.s8),
-                      // Apple sign-in (M4b) fills this slot.
-                      AppButton(
-                        label: l10n.signInWithAppleSoon,
-                        variant: AppButtonVariant.text,
-                        onPressed: null,
-                      ),
-                    ],
-                  },
-                  const SizedBox(height: AppSpace.s16),
-                  Text(
-                    l10n.consentNotice(l10n.termsOfService, l10n.privacyPolicy),
-                    textAlign: TextAlign.center,
-                    style: AppType.caption.copyWith(color: colors.muted),
+                    ),
                   ),
-                  const LegalLinksRow(),
+                  SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpace.gutter,
+                        AppSpace.s32,
+                        AppSpace.gutter,
+                        AppSpace.s16,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ...switch (state) {
+                            AccountUnavailable(:final failure) => [
+                              Text(
+                                describeAccountFailure(l10n, failure),
+                                textAlign: TextAlign.center,
+                                style: AppType.body,
+                              ),
+                            ],
+                            _ when _busy => [
+                              SizedBox(
+                                height:
+                                    AppSize.cta +
+                                    AppSpace.s8 +
+                                    AppSize.tapTarget,
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    semanticsLabel: l10n.signingIn,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            _ => [
+                              GoogleSignInButton(
+                                label: l10n.signInWithGoogle,
+                                onPressed: _signIn,
+                              ),
+                              const SizedBox(height: AppSpace.s8),
+                              // Apple sign-in (M4b) fills this slot.
+                              AppButton(
+                                label: l10n.signInWithAppleSoon,
+                                variant: AppButtonVariant.text,
+                                onPressed: null,
+                              ),
+                            ],
+                          },
+                          const SizedBox(height: AppSpace.s16),
+                          Text(
+                            l10n.consentNotice(
+                              l10n.termsOfService,
+                              l10n.privacyPolicy,
+                            ),
+                            textAlign: TextAlign.center,
+                            style: AppType.caption.copyWith(
+                              color: colors.muted,
+                            ),
+                          ),
+                          const LegalLinksRow(),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

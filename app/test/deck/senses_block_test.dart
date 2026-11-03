@@ -578,7 +578,7 @@ void main() {
 
       await tapVisible(screens, find.byTooltip('Meaning 1 menu'));
       await screens.tap(shownText('Delete').last);
-      expect(find.text('Meaning deleted'), findsOneWidget);
+      expect(shownText('Meaning deleted'), findsOneWidget);
       expect(find.widgetWithText(TextField, '사과'), findsNothing);
       await screens.tap(find.text('Undo'));
       expect(
@@ -604,18 +604,18 @@ void main() {
 
       await tapVisible(screens, find.byTooltip('Meaning 2 menu'));
       await screens.tap(shownText('Delete').last);
-      expect(find.text('Meaning deleted'), findsOneWidget);
+      expect(shownText('Meaning deleted'), findsOneWidget);
       await typeInto(tester, namedField('Front'), '뒤');
       await tester.pumpAndSettle();
       expect(
-        find.text('Meaning deleted'),
+        shownText('Meaning deleted'),
         findsOneWidget,
         reason: "the Text's edit is outside the Word's group",
       );
 
       await typeInto(tester, _term(), 'apple');
       await tester.pumpAndSettle();
-      expect(find.text('Meaning deleted'), findsNothing);
+      expect(shownText('Meaning deleted'), findsNothing);
       expect(find.text('Undo'), findsNothing);
     },
   );

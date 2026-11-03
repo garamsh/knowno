@@ -212,7 +212,7 @@ void main() {
       await select(screens, 3);
       await remove(screens, 'Delete row 1');
       expect(shownText('Delete row 1?'), findsNothing, reason: 'no question');
-      expect(find.text('Row 1 deleted'), findsOneWidget);
+      expect(shownText('Row 1 deleted'), findsOneWidget);
       expect(tester.widget<TextField>(_cell(3)).controller!.text, 'Japan');
       await screens.tap(find.text('Undo'));
       expect(tester.widget<TextField>(_cell(3)).controller!.text, 'France');
@@ -221,7 +221,7 @@ void main() {
       await remove(screens, 'Delete row 1');
       await select(screens, 0);
       await remove(screens, 'Delete column 1');
-      expect(find.text('Column 1 deleted'), findsOneWidget);
+      expect(shownText('Column 1 deleted'), findsOneWidget);
       await save(screens);
       expect(
         (await _stored(screens)).front.last,
@@ -273,10 +273,10 @@ void main() {
     await typeCapitals(screens);
     await select(screens, 3);
     await remove(screens, 'Delete row 1');
-    expect(find.text('Row 1 deleted'), findsOneWidget);
+    expect(shownText('Row 1 deleted'), findsOneWidget);
     await enter(tester, _cell(3), 'Korea');
     await tester.pumpAndSettle();
-    expect(find.text('Row 1 deleted'), findsNothing);
+    expect(shownText('Row 1 deleted'), findsNothing);
     expect(find.text('Undo'), findsNothing);
   });
 

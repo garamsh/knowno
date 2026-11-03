@@ -449,4 +449,76 @@ void main() {
       await tester.pumpAndSettle();
     });
   });
+
+  for (final scale in [1.0, 3.12]) {
+    testWidgets(
+      'at text scale $scale a call to action\'s label, wrapped or not, sits '
+      'inside the button with room above and below, so none of it is cut',
+      (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        const labels = ['Add card', 'Save and add the next card'];
+        await pumpComponent(
+          tester,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppSpace.s8,
+            children: [
+              for (final label in labels)
+                AppButton(
+                  label: label,
+                  size: AppButtonSize.cta,
+                  onPressed: () {},
+                ),
+            ],
+          ),
+        );
+
+        for (final label in labels) {
+          final text = tester.getRect(
+            find.descendant(
+              of: shownText(label),
+              matching: find.byType(RichText),
+            ),
+          );
+          final button = tester.getRect(
+            find
+                .ancestor(of: shownText(label), matching: find.byType(Material))
+                .first,
+          );
+          expect(text.top - button.top, greaterThanOrEqualTo(AppSpace.s8));
+          expect(
+            button.bottom - text.bottom,
+            greaterThanOrEqualTo(AppSpace.s8),
+          );
+        }
+        // The second label wraps at the largest size, so a grown label is
+        // what is measured there.
+        final lines = tester
+            .renderObject<RenderParagraph>(
+              find.descendant(
+                of: shownText(labels.last),
+                matching: find.byType(RichText),
+              ),
+            )
+            .getBoxesForSelection(
+              const TextSelection(baseOffset: 0, extentOffset: 1),
+            );
+        expect(lines, isNotEmpty);
+        expect(
+          tester
+                  .getSize(
+                    find.descendant(
+                      of: shownText(labels.last),
+                      matching: find.byType(RichText),
+                    ),
+                  )
+                  .height >
+              AppSize.cta,
+          scale > 1,
+        );
+      },
+    );
+  }
 }

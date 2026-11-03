@@ -45,6 +45,7 @@ class HomeTab extends ConsumerWidget {
         switch (DeckSelection.of([for (final deck in decks) deck.id])) {
           null => Scaffold(
             appBar: AppBar(
+              toolbarHeight: AppButton.barHeight(context),
               titleSpacing: AppSpace.gutter,
               title: const _AppName(),
               actions: [

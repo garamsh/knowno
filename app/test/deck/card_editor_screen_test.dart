@@ -243,6 +243,45 @@ void main() {
     );
   }
 
+  for (final scale in [1.0, 3.12]) {
+    testWidgets(
+      'at text scale $scale the top bar holds Preview whole, and with the '
+      'keyboard up the save actions take at most half the room above it, '
+      'leaving the form the rest',
+      (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        final screens = await openNew(tester);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 336);
+        addTearDown(tester.view.resetViewInsets);
+        await tester.pumpAndSettle();
+        const keyboardTop = 844.0 - 336;
+
+        expect(tester.takeException(), isNull);
+        final bar = tester.getRect(find.byType(AppBar));
+        final preview = tester.getRect(shownText('Preview'));
+        expect(preview.top, greaterThanOrEqualTo(bar.top));
+        expect(preview.bottom, lessThanOrEqualTo(bar.bottom));
+        // The form's scroll, the first in the editor.
+        final form = tester.getRect(
+          find
+              .descendant(
+                of: find.byType(CardEditorScreen),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        expect(form.top, greaterThanOrEqualTo(bar.bottom), reason: 'setup');
+        expect(
+          form.height,
+          // Within a rounding of half.
+          greaterThanOrEqualTo((keyboardTop - bar.bottom) / 2 - 0.01),
+        );
+        await screens.close();
+      },
+    );
+  }
+
   testWidgets('Save stores the card and closes the editor', (tester) async {
     final screens = await openNew(tester);
 
