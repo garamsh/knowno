@@ -15,7 +15,6 @@ const keys: Keys = config.kind === "configured"
     serviceRoleKey: config.serviceRoleKey,
     fetch,
     now,
-    openRouterSecret: config.openRouterSecret,
   })
   : { get: () => Promise.resolve(null), forget: () => {} };
 

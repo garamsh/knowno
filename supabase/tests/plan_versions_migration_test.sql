@@ -14,8 +14,7 @@ language plpgsql as $$
 begin
   perform set_config('role', 'service_role', true);
   return query select b.plan, b.model, b.photo_limit, b.period
-    from public.begin_extraction(('00000000-0000-4000-8000-00000000000' || who)::uuid,
-      secret_providers => array['openrouter']) as b;
+    from public.begin_extraction(('00000000-0000-4000-8000-00000000000' || who)::uuid) as b;
   perform set_config('role', 'none', true);
 end;
 $$;
@@ -64,7 +63,7 @@ select results_eq(
     cross join unnest(array['anon', 'authenticated', 'service_role']) as r
     where has_function_privilege(r, f, 'execute')$$,
   $$values (0::bigint)$$, 'and none runs the migration''s functions');
-select ok(has_function_privilege('service_role', 'public.begin_extraction(uuid, bigint, text[])', 'execute'),
+select ok(has_function_privilege('service_role', 'public.begin_extraction(uuid, bigint)', 'execute'),
   'control: service_role runs begin_extraction, which calls them as its owner');
 
 -- The revert, on the seed's settings: 30 a day for each plan.

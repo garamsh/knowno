@@ -72,22 +72,14 @@ export async function userSuspended(
 }
 
 /**
- * What serves a photo beyond the user's plan: the configuration an admin names for a trial, and the
- * providers the function holds a transition secret for, which need no key in Vault.
- */
-export type Serving = {
-  readonly configurationId: number | null;
-  readonly secretProviders: readonly Provider[];
-};
-
-/**
  * Resolves the user's plan, prompt and configuration (ADR 0073, ADR 0162: an admin is served the
- * test version and configuration while one is set) and, when its provider can be called and under
+ * test version and configuration while one is set, or the [configurationId] a trial names) and,
+ * when its provider has a key in Vault and under
  * the photo limit of the plan's version, records the photo with what serves it.
  */
 export async function beginExtraction(
   userId: UserId,
-  serving: Serving,
+  configurationId: number | null,
   deps: SupabaseDeps,
 ): Promise<Start> {
   const response = await deps.fetch(
@@ -101,8 +93,7 @@ export async function beginExtraction(
       },
       body: JSON.stringify({
         user_id: userId,
-        configuration_id: serving.configurationId,
-        secret_providers: serving.secretProviders,
+        configuration_id: configurationId,
       }),
     },
   );

@@ -33,7 +33,6 @@ const NEXT_TOKEN = "00000000-0000-4000-8000-0000000000c2";
 const ENV: Record<string, string> = {
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
-  OPENROUTER_API_KEY: "openrouter-key",
 };
 
 /** A model reply: the message text OpenRouter returns, an HTTP failure, or none ever. */
@@ -117,11 +116,9 @@ function fakeFetch(fake: Fake): typeof fetch {
       return Promise.resolve(Response.json(fake.suspended));
     }
     if (url === `${SUPABASE_URL}/rest/v1/rpc/begin_extraction`) {
-      const asked = JSON.parse(String(init?.body));
       const provider = fake.plan?.provider ?? "openrouter";
-      // As the server decides it: a key in Vault, or a provider the function holds a secret for.
-      const available = provider in fake.vault ||
-        asked.secret_providers.includes(provider);
+      // As the server decides it: a key in Vault.
+      const available = provider in fake.vault;
       return Promise.resolve(
         Response.json(
           fake.plan === null ? [] : [{
@@ -303,7 +300,7 @@ async function run(
     resumedRecords: [],
     clock: 0,
     modelCallMs: options.modelCallMs ?? 0,
-    vault: options.vault ?? {},
+    vault: options.vault ?? { openrouter: "sk-or-vault-0001" },
   };
   const env = { ...ENV, ...options.env };
   const logs: LogEntry[] = [];
@@ -325,9 +322,6 @@ async function run(
       serviceRoleKey: ENV.SUPABASE_SERVICE_ROLE_KEY,
       fetch: send,
       now: () => fake.clock,
-      openRouterSecret: config.kind === "configured"
-        ? config.openRouterSecret
-        : null,
     }),
   });
   const headers = new Headers({ "Content-Type": "application/json" });
@@ -1390,7 +1384,6 @@ Deno.test("a user at the photo limit of its plan is refused with 429 stating tha
   assert.deepEqual(JSON.parse(String(usage[0].init?.body)), {
     user_id: USER_ID,
     configuration_id: null,
-    secret_providers: ["openrouter"],
   });
   const headers = new Headers(usage[0].init?.headers);
   assert.equal(
@@ -1429,42 +1422,49 @@ Deno.test("a provider without a key answers 503 unavailable before the photo is 
   for (
     const [label, options] of [
       [
-        "OpenRouter with neither a Vault key nor its transition secret",
-        { env: { OPENROUTER_API_KEY: " " } },
+        "OpenRouter without a Vault key, OPENROUTER_API_KEY being no source",
+        {
+          env: { OPENROUTER_API_KEY: "sk-or-secret-never-read" },
+          key: { openrouter: "sk-or-vault-0001" },
+        },
       ],
       [
         "OpenAI without a Vault key, OPENAI_API_KEY being no source",
         {
           plan: openaiPlan,
           env: { OPENAI_API_KEY: "sk-secret-never-read" },
+          key: { openai: "sk-from-vault-0001" },
         },
       ],
     ] as const
   ) {
-    const r = await run({ ...options, replies: [cardsReply(twoCards)] });
+    const { key, ...rest } = options;
+    const r = await run({
+      ...rest,
+      vault: {},
+      replies: [cardsReply(twoCards)],
+    });
     assert.equal(r.status, 503, label);
     assert.deepEqual(r.body, { error: "unavailable" });
     assert.equal(r.modelCalls.length, 0, label);
     assert.equal(r.fake.finishes.length, 0, label);
     assert.equal(r.logs[0].outcome, "unavailable");
-    const begun = JSON.parse(String(usageCalls(r)[0].init?.body));
-    const provider = "plan" in options ? options.plan.provider : "openrouter";
-    assert.ok(
-      !begun.secret_providers.includes(provider),
-      "no secret is offered for the provider",
+    assert.deepEqual(
+      JSON.parse(String(usageCalls(r)[0].init?.body)),
+      { user_id: USER_ID, configuration_id: null },
+      "begin_extraction is offered no provider beside Vault",
+    );
+    const control = await run({
+      ...rest,
+      vault: key,
+      replies: [cardsReply(twoCards)],
+    });
+    assert.equal(
+      control.status,
+      200,
+      `control: ${label}, once Vault holds its key`,
     );
   }
-  const control = await run({
-    plan: openaiPlan,
-    vault: { openai: "sk-from-vault-0001" },
-    env: { CARD_MODEL: undefined, CARD_RETRY_MODEL: "not a model id" },
-    replies: [cardsReply(twoCards)],
-  });
-  assert.equal(
-    control.status,
-    200,
-    "control: the same plan once Vault holds its key",
-  );
 });
 
 Deno.test("the platform's variables alone configure the function; without them it answers 503 not_configured", async () => {
@@ -1472,11 +1472,7 @@ Deno.test("the platform's variables alone configure the function; without them i
   assert.equal(r.status, 503);
   assert.deepEqual(r.body, { error: "not_configured" });
   assert.equal(r.fake.calls.length, 0);
-  const control = await run({
-    env: { OPENROUTER_API_KEY: undefined },
-    vault: { openrouter: "sk-or-vault-0001" },
-    replies: [cardsReply(twoCards)],
-  });
+  const control = await run({ replies: [cardsReply(twoCards)] });
   assert.equal(control.status, 200, "control: no provider secret is needed");
 });
 

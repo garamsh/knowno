@@ -150,7 +150,7 @@ select ok(
 -- Only begin_extraction records a photo: the entry points an older function called are gone.
 select hasnt_function('public', 'consume_extraction', 'consume_extraction is gone');
 select hasnt_function('public', 'start_extraction', 'start_extraction is gone');
-select has_function('public', 'begin_extraction', array['uuid', 'bigint', 'text[]'],
+select has_function('public', 'begin_extraction', array['uuid', 'bigint'],
   'control: begin_extraction, which the function calls, remains');
 
 select * from finish();

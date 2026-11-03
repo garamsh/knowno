@@ -77,9 +77,7 @@ export function AiSettingsView({
                 </div>
                 <p className="text-caption text-muted">
                   {entry.key === null
-                    ? entry.provider === "openrouter"
-                      ? "키 없음 · 전환 중이라 OPENROUTER_API_KEY 비밀값으로 읽어요"
-                      : "키 없음 · 이 제공자는 쓸 수 없어요"
+                    ? "키 없음 · 이 제공자는 쓸 수 없어요"
                     : `끝자리 ${entry.key.lastFour} · ${formatTime(entry.key.setAt, timeZone)}${
                         entry.key.setByEmail === null ? "" : ` · ${entry.key.setByEmail}`
                       }`}
