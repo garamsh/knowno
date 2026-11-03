@@ -14,6 +14,8 @@ import {
 import { type PointerEvent, useEffect, useRef, useState } from "react";
 import { v7 } from "uuid";
 
+import { buttonClass } from "@/design/button";
+
 import type { BoxDraft, CellDraft } from "../authoring";
 import { audioLength } from "../card-content";
 import { boxStep, minBoxSide, movedBox, newBox, resizedBox, withBox } from "../photo-boxes";
@@ -26,9 +28,8 @@ type Draft<K extends CellDraft["kind"]> = Extract<CellDraft, { kind: K }>;
 /** A 칸's change: its next draft, or how to make it from the draft as it is by then. */
 export type CellChange = (next: CellDraft | ((current: CellDraft) => CellDraft)) => void;
 
-/** An outlined button the width it is given, as the phone's secondary `AppButton`. */
-const secondary =
-  "pressable flex min-h-button w-full cursor-pointer items-center justify-center rounded-button border border-outline bg-surface px-4 text-button text-ink focus-visible:outline-2 focus-visible:outline-ink has-focus-visible:outline-2 has-focus-visible:outline-ink disabled:opacity-40";
+/** The secondary button (`@/design/button`) the width it is given. */
+const secondary = `${buttonClass("secondary")} w-full`;
 
 /** The editor's photo is at most this tall, so the tools under it stay near, as the phone's. */
 const editorMaxHeight = "480px";

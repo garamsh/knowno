@@ -1,11 +1,12 @@
 "use client";
 
-import { ChevronRight, Minus, Plus, X } from "lucide-react";
+import { ChevronRight, Minus, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { FittedLine } from "@/design/fitted-line";
-import { keepFocusInside } from "@/design/focus-trap";
+import { buttonClass } from "@/design/button";
+import { Sheet } from "@/design/sheet";
 
 import { saveDailyMinutes } from "../actions";
 import { dailyMinuteStep, maxDailyMinutes, minDailyMinutes } from "../queue";
@@ -83,15 +84,6 @@ function MinutesDialog({
       number.current?.focus();
     }
   }, [editing]);
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", listener);
-    return () => {
-      window.removeEventListener("keydown", listener);
-    };
-  }, [onClose]);
 
   const parsed = typed !== null && /^\d+$/.test(typed) ? Number(typed) : null;
   const typedMinutes =
@@ -138,38 +130,12 @@ function MinutesDialog({
     "pressable flex size-button shrink-0 items-center justify-center rounded-full border border-outline text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-shadow/40 sm:items-center sm:px-4"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+    <Sheet
+      title="하루 학습 시간"
+      description="복습을 먼저 하고, 남는 시간에 새 카드를 시작해요."
+      close={onClose}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="daily-minutes-title"
-        onKeyDown={keepFocusInside}
-        aria-describedby="daily-minutes-body"
-        className="flex max-h-[90dvh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-t-sheet bg-surface p-6 text-ink sm:rounded-sheet"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <h2 id="daily-minutes-title" className="text-headline">
-              하루 학습 시간
-            </h2>
-            <p id="daily-minutes-body" className="text-secondary text-muted">
-              복습을 먼저 하고, 남는 시간에 새 카드를 시작해요.
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-label="닫기"
-            onClick={onClose}
-            className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-full text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            <X aria-hidden className="size-5" strokeWidth={2} />
-          </button>
-        </div>
+      <div className="mt-4 flex flex-col gap-4">
         {/* One height for the number and its input, so the row does not move when it is typed. */}
         <div className="flex h-18 items-center justify-between gap-3">
           <button
@@ -284,11 +250,11 @@ function MinutesDialog({
               router.refresh();
             });
           }}
-          className="pressable flex min-h-cta items-center justify-center rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+          className={buttonClass("primary", "cta")}
         >
           {saving ? "저장 중" : "저장"}
         </button>
       </div>
-    </div>
+    </Sheet>
   );
 }

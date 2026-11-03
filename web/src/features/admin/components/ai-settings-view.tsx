@@ -7,7 +7,8 @@ import { labelOf, planLabels, providerLabels } from "../labels";
 import { estimatedCost, measuredModels, usdPerPhoto } from "../model-costs";
 import type { AiConfiguration, PlanId, Provider, ProviderKey } from "../read-admin";
 import { removeProviderKey } from "../remove-provider-key";
-import { AdminSection, group, row } from "./admin-section";
+import { Section } from "@/design/section";
+import { group, row } from "./admin-section";
 import { AiConfigurationForm } from "./ai-configuration-form";
 import { AiTrial } from "./ai-trial";
 import { ConfirmAction } from "./confirm-action";
@@ -59,7 +60,7 @@ export function AiSettingsView({
     configurations.find((c) => c.plan === plan && c.label === "active") ?? null;
   return (
     <div className="flex flex-col gap-section-gap">
-      <AdminSection
+      <Section
         label="제공자 키"
         note="키는 저장한 뒤 다시 볼 수 없고, 끝 네 자리만 보여요. 저장과 삭제는 10분 안에 로그인한 관리자만 할 수 있어요."
       >
@@ -101,14 +102,14 @@ export function AiSettingsView({
             );
           })}
         </ul>
-      </AdminSection>
+      </Section>
       <div className="grid items-start gap-section-gap lg:grid-cols-3 lg:gap-4">
         {plans.map((plan) => {
           const name = planLabels[plan] ?? plan;
           const serving = active(plan);
           const draft = configurations.find((c) => c.plan === plan && c.label === "test") ?? null;
           return (
-            <AdminSection key={plan} label={name}>
+            <Section key={plan} label={name}>
               <div className={group}>
                 <div className={row}>
                   <p className="text-caption text-muted">사용 중</p>
@@ -157,11 +158,11 @@ export function AiSettingsView({
                 provider={(draft ?? serving)?.provider ?? "openrouter"}
                 model={(draft ?? serving)?.model ?? ""}
               />
-            </AdminSection>
+            </Section>
           );
         })}
       </div>
-      <AdminSection
+      <Section
         label="측정한 모델"
         note="평가(eval)가 프롬프트 v6, 표본 47장으로 잰 사진 한 장의 비용이에요."
       >
@@ -173,7 +174,7 @@ export function AiSettingsView({
             </li>
           ))}
         </ul>
-      </AdminSection>
+      </Section>
     </div>
   );
 }

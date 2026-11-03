@@ -7,9 +7,9 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 
 ## Context
 
-- **Issue #622**, filed by QA for #621, lists 14 frictions in the card editor on both clients. The PM accepted all 14 on #622. Issue #624 adds the drift of `deck.md` and `design.md` §Copy from what the editor draws.
-- **Deletes.** On both clients, deleting a 칸, a 뜻, a photo's 빈칸 or a sound acted at once with no way back. Removing a 표 row or column that held text asked first, by [ADR 0102](0102-edit-a-table-in-its-cells-with-a-toolbar-over-it-and-no-mode-switch.md). `design.md` §Principles 5 prefers an undo to a confirmation, and nothing in the app offered an undo.
-- **Focus.** "+ 칸 추가", "+ 뜻 추가", "행 추가", "열 추가" and a new box on a photo left the focus where it was. The 단어 field's action key closed the keyboard, though `design.md` §Components says a single-line field's key is "next" where the form names the field after it.
+- **Issue #622**, filed by QA for #621, lists 14 frictions in the card editor on both clients. The PM accepted all 14 on #622. Issue #624 adds the drift of `deck.md` and `design/copy.md` from what the editor draws.
+- **Deletes.** On both clients, deleting a 칸, a 뜻, a photo's 빈칸 or a sound acted at once with no way back. Removing a 표 row or column that held text asked first, by [ADR 0102](0102-edit-a-table-in-its-cells-with-a-toolbar-over-it-and-no-mode-switch.md). `design/principles.md` §Correct, don't confirm prefers an undo to a confirmation, and nothing in the app offered an undo.
+- **Focus.** "+ 칸 추가", "+ 뜻 추가", "행 추가", "열 추가" and a new box on a photo left the focus where it was. The 단어 field's action key closed the keyboard, though `design/components.md` §When each is used says a single-line field's key is "next" where the form names the field after it.
 - **A refused save** showed its error where it was drawn, which on a long card was off screen. On the phone, a 소리 칸 still recording made 저장 do nothing visible.
 - **Media.** A 사진 칸 could not change or remove its photo, while a 소리 칸 could. "소리 빼기" used 빼기, which §Copy keeps for the import lists. The editor's exemption from §Copy named #445, #447 and #450, all closed.
 - **Alternatives considered:**
@@ -32,7 +32,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **On the phone, 저장 while a 소리 칸 records** ends the recording, keeps it, then saves.
 - **A 사진 칸 holding a photo** offers "다른 사진 고르기" and "다시 찍기", which replace the photo and keep its boxes and answers, and "사진 삭제". A pick being stored shows its button's progress.
 - **No label breaks inside a word.** A 사진 칸's three actions stack full width under the photo on both clients, and so do a 소리 칸's "다시 녹음", "다른 파일 고르기" and "소리 삭제": at 390 px a half-width "다른 사진 고르기" and "다른 파일 고르기" broke inside their last word.
-- **"소리 빼기" becomes "소리 삭제".** This supersedes ADR 0112's "소리 빼기". The editor is bound by `design.md` §Copy: its exemption named closed issues.
+- **"소리 빼기" becomes "소리 삭제".** This supersedes ADR 0112's "소리 빼기". The editor is bound by `design/copy.md`: its exemption named closed issues.
 
 ## Consequences
 

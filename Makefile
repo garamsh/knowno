@@ -90,7 +90,7 @@ test-db:
 
 # Writes the brand's SVGs and PNGs and the mascot's moving parts from tools/brand/, then the launcher
 # icons and the splash from them. Not part of make ci, which checks them through scripts/run.sh web lint. Revert the two edits the
-# generators make beyond their output (design.md §Brand).
+# generators make beyond their output (docs/architecture/design/brand.md).
 brand:
 	node tools/brand/generate.mjs
 	cd app && dart run flutter_launcher_icons && dart run flutter_native_splash:create

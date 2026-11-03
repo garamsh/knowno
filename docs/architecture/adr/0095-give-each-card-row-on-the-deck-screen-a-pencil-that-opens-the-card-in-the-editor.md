@@ -7,8 +7,8 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 
 ## Context
 
-- On the deck screen a tap on a card row shows or hides its back, and a long-press opens the card in the editor. A screen reader reaches the editor through the row's custom action "카드 편집" ([ADR 0036](0036-organise-the-app-in-today-decks-and-record-tabs-and-define-the-daily-goal-forecast-and-card-progress.md); `design.md` §Principles 3).
-- Nothing on the row shows that it can be edited. `design.md` §Principles 2 rules out a line explaining the long-press. A sighted user who does not know the gesture has no way to find it, though the editor is the only place a card is corrected or deleted.
+- On the deck screen a tap on a card row shows or hides its back, and a long-press opens the card in the editor. A screen reader reaches the editor through the row's custom action "카드 편집" ([ADR 0036](0036-organise-the-app-in-today-decks-and-record-tabs-and-define-the-daily-goal-forecast-and-card-progress.md); `design/principles.md` §Direct manipulation where it is natural).
+- Nothing on the row shows that it can be edited. `design/principles.md` §Content over chrome rules out a line explaining the long-press. A sighted user who does not know the gesture has no way to find it, though the editor is the only place a card is corrected or deleted.
 - Correcting a card is frequent: photo import writes cards from a model's reading of a page, and a wrong meaning or a typo is found while browsing the deck.
 - Issue #322 proposed either a trailing edit control on each row, keeping the tap as the toggle, or a tap on the front that opens the editor. The PM accepted a visible, named way to edit each row, with the long-press kept as a shortcut. The shape was left to the worker.
 
@@ -20,7 +20,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **Alternatives considered:**
   - **A tap on the front opens the editor, and a tap on the back's bar toggles it.** It changes what a tap does on a screen whose taps users already know, and the bar is a small target.
   - **A trailing "더 보기" menu holding "편집".** It costs two taps for the row's one action besides the toggle, and hides the word behind a second icon.
-  - **A hint line on the screen about the long-press.** `design.md` §Principles 2 rules it out.
+  - **A hint line on the screen about the long-press.** `design/principles.md` §Content over chrome rules it out.
 
 ## Consequences
 

@@ -19,7 +19,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - **A remove control drawn inside the line field, beside each block.**
     - A Flutter text field draws only text: a widget placed in its text counts as a character, which would shift every caret position against the line it edits.
     - A control laid over the field at a block's end would sit inside text the user taps to place the caret.
-    - Such a control would fall below the 44-point minimum target ([`design.md`](../design.md), Principle 6).
+    - Such a control would fall below the 44-point minimum target ([`design/principles.md`](../design/principles.md) §One visual language).
   - **A row of chips under the line, one per blank, each with a remove button.** It was built first and rejected in review. It repeats every blank a second time, the clutter the owner asked to remove, when the blocks in the line already show where each blank is.
   - **An editor of separate fields between the blocks.** A selection could not cross a block, which the "any run" rule needs.
   - **Keep "글자 고르기" beside the selection.** A selection in the line already chooses any run of characters, which is what "글자 고르기" existed for.

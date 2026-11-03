@@ -3,7 +3,8 @@ import Link from "next/link";
 import { formatTime } from "../format";
 import { planLabels, termsLabel } from "../labels";
 import type { PlanId, PlanVersion } from "../read-admin";
-import { AdminSection, group, row } from "./admin-section";
+import { Section } from "@/design/section";
+import { group, row } from "./admin-section";
 import { PlanForm } from "./plan-form";
 
 const plans: PlanId[] = ["free", "pro", "max"];
@@ -23,7 +24,7 @@ export function PlansView({ versions, timeZone }: { versions: PlanVersion[]; tim
           // The form starts from the current terms, or the latest version's while none is current.
           const start = current ?? own[0] ?? null;
           return (
-            <AdminSection key={plan} label={name}>
+            <Section key={plan} label={name}>
               <div className={group}>
                 <div className={row}>
                   <p className="text-body-strong">
@@ -57,7 +58,7 @@ export function PlansView({ versions, timeZone }: { versions: PlanVersion[]; tim
                   </li>
                 ))}
               </ul>
-            </AdminSection>
+            </Section>
           );
         })}
       </div>

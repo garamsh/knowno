@@ -1,3 +1,4 @@
+import { Section } from "@/design/section";
 import { ReadFailure, readDeckList } from "@/features/decks";
 import {
   countDay,
@@ -47,10 +48,7 @@ export function StudySetting({
   setting: Awaited<ReturnType<typeof readStudySetting>>;
 }) {
   return (
-    <section aria-labelledby="study-section" className="flex flex-col gap-2">
-      <h2 id="study-section" className="px-1 text-section text-muted">
-        학습
-      </h2>
+    <Section label="학습">
       {"failure" in setting ? (
         <ReadFailure failure={setting.failure} />
       ) : (
@@ -58,6 +56,6 @@ export function StudySetting({
           <DailyMinutes minutes={setting.minutes} plan={setting.plan} />
         </div>
       )}
-    </section>
+    </Section>
   );
 }

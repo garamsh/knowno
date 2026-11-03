@@ -15,7 +15,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - **Inset the label inside `AppTextField`.** It would move every labelled field's label off its outline on the screens where it is right.
   - **A second copy of 노트 꾸미기's choices in 새 노트.** Two copies drift. The owner's issue asks for one.
   - **A hand-built 44 pt button in the header.** It would be a second button beside `AppButton`. A size and a variant of `AppButton` keep one.
-  - **The header action in the primary fill.** A note's screen would then hold two primary fills, the action and "이 노트 학습", against `design.md` §Principles 1, one primary per screen. The PM's decision on PR #631 (2026-11-03) keeps "이 노트 학습" the note's one primary and gives the header action a tonal fill of its own, stronger than the white chip the owner found weak.
+  - **The header action in the primary fill.** A note's screen would then hold two primary fills, the action and "이 노트 학습", against `design/principles.md` §One primary action per screen, one primary per screen. The PM's decision on PR #631 (2026-11-03) keeps "이 노트 학습" the note's one primary and gives the header action a tonal fill of its own, stronger than the white chip the owner found weak.
   - **The note's name in the top bar, beside the actions, as the mockup draws it.** At 390 pt the bar left the name about 40 pt beside "+ Add card" in the test font, and at the largest text size none, so a name could be cut to an ellipsis. Dropping the action's label when room is short would make it an icon whose meaning a user must guess.
   - **Keep 카드 추가 at the note's foot and give only the 노트 tab a header action.** The two screens would then differ in the one place the owner asked them to match.
 

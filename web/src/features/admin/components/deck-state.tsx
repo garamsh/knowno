@@ -8,7 +8,7 @@ export function deckStateWords(state: DeckState): string[] {
   return [state.visibility === "public" ? "공개" : "비공개", ...(state.hidden ? ["숨김"] : [])];
 }
 
-/** A deck's state as chips, the one chip of `design.md`; a hidden deck's in amber. */
+/** A deck's state as chips, the one chip of `design/components.md`; a hidden deck's in amber. */
 export function DeckStateChips({ state }: { state: DeckState }) {
   return (
     <span className="flex flex-wrap gap-1">

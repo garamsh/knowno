@@ -30,7 +30,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **In code:**
   - `Answer` stays the grade;
   - a side is `front` or `back`: `CardAnswerRow` becomes `CardBackRow`, the ARB keys `showAnswer`, `hideAnswer`, `cardAnswerHidden` and `cardAnswerShown` become `showBack`, `hideBack`, `cardBackHidden` and `cardBackShown`, and the type scale's `question` and `answer` become `front` and `back` (`AppType` and the web's `--text-*`).
-- `design.md` §Voice records the terms.
+- `design/copy.md` §Terms records the terms.
 - **Not changed:**
   - the terms of use and the privacy policy, whose wording takes effect on a stated date (`web.md`);
   - 답 where it means a reply that is not the grade, such as the server's or the model's;
@@ -39,7 +39,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 ## Consequences
 
 - One word names each side and one the grade, so a screen reader's "뒷면" and "응답" never mean the same thing.
-- A future string about a side or the grade has its word in `design.md` §Voice.
+- A future string about a side or the grade has its word in `design/copy.md` §Terms.
 - The legal documents still say 답한 기록 until their next revision, which takes a new effective date.
 - The English strings say respond and response where they said answer.
 

@@ -3,6 +3,8 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import tseslint from "typescript-eslint";
 
+import { sharedRules, tokenRules } from "./src/design/class-rules.ts";
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -51,6 +53,18 @@ const eslintConfig = defineConfig([
         },
       ],
     },
+  },
+  // A value where a token exists, and outside src/design/ a job a design component draws
+  // (src/design/class-rules.ts, docs/architecture/web.md §Checks).
+  {
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    ignores: ["src/**/__tests__/**", "src/testing/**"],
+    rules: { "no-restricted-syntax": ["error", ...tokenRules] },
+  },
+  {
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    ignores: ["src/**/__tests__/**", "src/testing/**", "src/design/**"],
+    rules: { "no-restricted-syntax": ["error", ...tokenRules, ...sharedRules] },
   },
   globalIgnores([".next/**", "next-env.d.ts", "playwright-report/**", "test-results/**"]),
 ]);

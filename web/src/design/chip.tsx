@@ -6,12 +6,14 @@ const tones = {
   brand: "border-brand-tint bg-brand-tint text-ink",
   amber: "border-tint-amber bg-tint-amber text-ink",
   know: "border-know bg-know text-on-know",
+  /** A gain, as the 기록 tab draws one beside its figure: the green tint. */
+  knowTint: "border-tint-green bg-tint-green text-on-know-tint",
   dontKnow: "border-dont-know-text bg-dont-know-text text-on-dont-know-text",
 } as const;
 
 /**
  * The one chip, as the phone's `AppChip` draws it (ADR 0119): the `chip` radius, the `section`
- * type, 8 by 4 around its words, in a tone, after an optional leading mark such as a grade's.
+ * type, 12 by 4 around its words, in a tone, after an optional leading mark such as a grade's.
  */
 export function Chip({
   tone = "neutral",

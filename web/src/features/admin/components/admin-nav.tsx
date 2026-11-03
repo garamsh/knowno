@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { Chip } from "@/design/chip";
+
 import { switchLink } from "./admin-section";
 
 /** The area's sections, by the job each holds (ADR 0155); a section's own pages keep it current. */
@@ -34,10 +36,12 @@ export function AdminNav({ openReports }: { openReports: number | null }) {
               >
                 {label}
                 {href === "/admin" && openReports !== null && openReports > 0 && (
-                  <span className="ml-2 rounded-chip bg-primary px-2 text-section text-on-primary tabular-nums">
-                    <span className="sr-only">, 새 신고 </span>
-                    {openReports}
-                    <span className="sr-only">건</span>
+                  <span className="ml-2">
+                    <Chip>
+                      <span className="sr-only">, 새 신고 </span>
+                      {openReports}
+                      <span className="sr-only">건</span>
+                    </Chip>
                   </span>
                 )}
               </Link>

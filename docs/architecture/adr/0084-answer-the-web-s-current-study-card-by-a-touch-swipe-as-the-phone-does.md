@@ -7,7 +7,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 
 ## Context
 
-- On the phone a horizontal swipe answers the current study card, and the answer buttons are its visible alternative (`design.md` §Principles 3, [`study.md`](../study.md)).
+- On the phone a horizontal swipe answers the current study card, and the answer buttons are its visible alternative (`design/principles.md` §Direct manipulation where it is natural, [`study.md`](../study.md)).
 - [ADR 0042](0042-show-only-the-previous-and-the-current-study-card-at-one-size-re-decide-the-previous-card-by-a-swipe-and-open-it-on-a-tap.md) §Decision, Web: "← and → answer the current card". On `main` at `03e17faec3895caaa0aaae5e05f1afac11740aeb`, the web's current card took no gesture (`web-study.md` §Study screen: "Swipe on the current card is not offered").
 - Below 1024 px the web uses the phone's layout, which is what a phone or tablet user sees. That user's habit from the app is to swipe the current card. On the web that swipe did nothing, and the one card that did take a swipe was the previous card above it, where a swipe changes an earlier answer. A touch user also has no keys.
 - On a touch screen the web's coach moved the current card toward "안다" and "모른다" under a finger, showing a gesture the card did not take.
@@ -24,7 +24,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 ## Consequences
 
 - A phone user studies on the web as in the app, and the coach's motion matches what the card does.
-- Two cards 28 px apart now take a horizontal swipe. Each moves only under a touch that starts on it, as on the phone (`design.md` §Principles 3: "a drag on either card moves that card alone").
+- Two cards 28 px apart now take a horizontal swipe. Each moves only under a touch that starts on it, as on the phone (`design/principles.md` §Direct manipulation where it is natural: "a drag on either card moves that card alone").
 - The swipe code lives in one hook, so a change to the phone's threshold or fling moves both web cards together.
 
 ## Signs the decision was wrong

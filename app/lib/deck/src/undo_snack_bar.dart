@@ -9,7 +9,7 @@ import '../../l10n/app_localizations.dart';
 const undoDuration = Duration(seconds: 4);
 
 /// Says [message], what was just deleted, in a snack bar with "되돌리기",
-/// which calls [onUndo] (`design.md` §Principles 5). The bar replaces the one
+/// which calls [onUndo] (`design/principles.md` §Correct, don't confirm). The bar replaces the one
 /// showing, and goes after [undoDuration], counted while a screen reader is
 /// off and the focus is not on the bar. It goes at once the first time
 /// [endOn] notifies after it shows. [onGone] is called once it has gone

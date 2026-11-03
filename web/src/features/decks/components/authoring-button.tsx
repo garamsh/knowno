@@ -15,8 +15,11 @@ import {
 } from "../authoring";
 import { holdsBlank } from "../card-content";
 import type { Card, Deck } from "../library";
-import { leaveThen } from "../hooks/use-back-entry";
-import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
+import { leaveThen } from "@/design/use-back-entry";
+import { buttonClass } from "@/design/button";
+import { Confirm } from "@/design/confirm";
+import { Sheet } from "@/design/sheet";
+import { AuthoringScreen } from "./authoring-sheet";
 import { CellFields } from "./cell-fields";
 import { cellSection, firstField } from "./editing";
 import { DeckAppearanceFields, type Look, lookedTile, setPhoto } from "./deck-appearance";
@@ -68,15 +71,15 @@ export function AuthoringButton({
         }}
         className={
           deck || compact
-            ? "pressable flex min-h-tap-target shrink-0 items-center gap-1.5 rounded-button bg-brand-tint px-4 text-label text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            : "pressable min-h-cta w-full rounded-button bg-primary px-5 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            ? `${buttonClass("tonal", "header")} shrink-0`
+            : `${buttonClass("primary", "cta")} w-full`
         }
       >
         {(deck || compact) && <Plus aria-hidden className="size-5" strokeWidth={2.6} />}
         {label}
       </button>
       {screen === "options" && deck && (
-        <AuthoringSheet
+        <Sheet
           title="카드 추가"
           close={() => {
             setScreen(null);
@@ -122,7 +125,7 @@ export function AuthoringButton({
               ),
             )}
           </div>
-        </AuthoringSheet>
+        </Sheet>
       )}
       {screen === "name" && (
         <NewNote
@@ -234,7 +237,7 @@ function NewNote({ close }: { close: () => void }) {
             form={formId}
             value="saved"
             disabled={pending}
-            className="pressable min-h-cta rounded-button bg-surface px-6 text-button break-keep disabled:opacity-50"
+            className={buttonClass("secondary", "cta")}
           >
             저장
           </button>
@@ -242,7 +245,7 @@ function NewNote({ close }: { close: () => void }) {
             form={formId}
             value="adding"
             disabled={pending}
-            className="pressable min-h-cta rounded-button bg-primary px-4 text-button break-keep text-on-primary disabled:opacity-50"
+            className={buttonClass("primary", "cta")}
           >
             {pending ? "만드는 중" : "저장하고 카드 추가"}
           </button>
@@ -442,9 +445,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
               save(false);
             }}
             className={
-              card
-                ? "pressable min-h-cta flex-1 rounded-button bg-primary px-3 text-button text-on-primary disabled:opacity-50"
-                : "pressable min-h-cta rounded-button bg-surface px-6 text-button break-keep disabled:opacity-50"
+              card ? `${buttonClass("primary", "cta")} flex-1` : buttonClass("secondary", "cta")
             }
           >
             {card && pending ? "저장 중" : "저장"}
@@ -456,7 +457,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
               onClick={() => {
                 save(true);
               }}
-              className="pressable min-h-cta rounded-button bg-primary px-4 text-button break-keep text-on-primary disabled:opacity-50"
+              className={buttonClass("primary", "cta")}
             >
               {pending ? "저장 중" : "저장하고 다음 카드"}
             </button>
@@ -509,7 +510,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
         </button>
       )}
       {adding && (
-        <AuthoringSheet
+        <Sheet
           title="칸 추가"
           close={() => {
             setAdding(false);
@@ -537,35 +538,20 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
               </button>
             ))}
           </div>
-        </AuthoringSheet>
+        </Sheet>
       )}
       {discarding && (
-        <AuthoringSheet
+        <Confirm
           title="작성 중인 카드를 버릴까요?"
+          consequence="입력한 내용은 저장되지 않아요."
+          cancelLabel="계속 쓰기"
+          confirmLabel="버리기"
+          destructive
+          onConfirm={close}
           close={() => {
             setDiscarding(false);
           }}
-        >
-          <p className="text-secondary text-muted">입력한 내용은 저장되지 않아요.</p>
-          <div className="mt-4 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setDiscarding(false);
-              }}
-              className="pressable min-h-button text-body"
-            >
-              계속 쓰기
-            </button>
-            <button
-              type="button"
-              onClick={close}
-              className="pressable min-h-button rounded-button bg-dont-know px-4 text-button text-on-ink"
-            >
-              버리기
-            </button>
-          </div>
-        </AuthoringSheet>
+        />
       )}
     </AuthoringScreen>
   );

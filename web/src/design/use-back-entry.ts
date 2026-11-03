@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { flushSync } from "react-dom";
 
-/** An open authoring dialog, as the browser's back reaches it while it is the top one. */
+/** An open modal, a sheet or an authoring screen, as the browser's back reaches it on top. */
 type Layer = {
   /** Answers a back as the dialog's own close button does. */
   back: () => void;

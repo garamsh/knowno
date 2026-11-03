@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
-import { keepFocusInside } from "@/design/focus-trap";
+import { Sheet } from "@/design/sheet";
 
 import type { PreviousAnswer } from "../session";
 import { CardSide } from "./card-side";
@@ -11,7 +9,8 @@ import { SoundControls } from "./sound-controls";
 
 /**
  * The whole of a card answered earlier, front and back, or a whole card's front with its blanks
- * filled, each with its sounds' controls (ADR 0112), over the screen until it is closed by "닫기", Esc or a click outside it.
+ * filled, each with its sounds' controls (ADR 0112), under its answer's chip, in the sheet until
+ * it is closed by "닫기", Esc or a click outside it.
  */
 export function CardDetail({
   answer,
@@ -20,33 +19,15 @@ export function CardDetail({
   answer: Pick<PreviousAnswer, "card" | "answer">;
   onClose: () => void;
 }) {
-  const close = useRef<HTMLButtonElement>(null);
   const sounds = answer.card.sounds;
-  useEffect(() => {
-    close.current?.focus();
-  }, []);
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-shadow/40 px-4"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="card-detail-title"
-        onKeyDown={keepFocusInside}
-        className="flex max-h-[90dvh] w-full max-w-study flex-col gap-4 overflow-y-auto rounded-card bg-surface p-6"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <h2 id="card-detail-title" className="text-headline text-ink">
-            카드
-          </h2>
+    <Sheet title="카드" close={onClose}>
+      <div className="flex flex-col gap-4">
+        <p>
           <GradeChip answer={answer.answer} />
           <span className="sr-only">응답: {grades[answer.answer].name}</span>
-        </div>
+        </p>
         {answer.card.whole ? (
           <>
             <div className="text-back">{answer.card.whole.filled}</div>
@@ -78,16 +59,7 @@ export function CardDetail({
             </section>
           </>
         )}
-        <button
-          ref={close}
-          type="button"
-          onClick={onClose}
-          aria-keyshortcuts="Escape"
-          className="pressable min-h-button rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-        >
-          닫기
-        </button>
       </div>
-    </div>
+    </Sheet>
   );
 }

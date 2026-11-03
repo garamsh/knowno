@@ -5,7 +5,7 @@ import { type ReactNode, useLayoutEffect, useRef } from "react";
 /**
  * [children] on one line, shrunk to the column only where they are wider than it, never cut, as
  * the phone's `FittedBox` with `BoxFit.scaleDown` draws a figure or label a narrow column holds
- * (`design.md` §Principles 6). The box fills the column and takes [className], the line's text
+ * (`design/principles.md` §Nothing clipped). The box fills the column and takes [className], the line's text
  * style and alignment.
  */
 export function FittedLine({

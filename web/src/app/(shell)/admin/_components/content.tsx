@@ -1,6 +1,6 @@
-import { Search } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import { SearchField } from "@/design/search-field";
 import { parseDeckId } from "@/features/decks";
 
 import {
@@ -143,21 +143,9 @@ export async function NotesContent({ searchParams }: { searchParams: SearchParam
           current: view === shown.view,
         }))}
       />
-      <form role="search" action="/admin/decks" className="relative">
+      <form role="search" action="/admin/decks">
         {shown.view !== "reported" && <input type="hidden" name="view" value={shown.view} />}
-        <Search
-          aria-hidden
-          className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted"
-          strokeWidth={2}
-        />
-        <input
-          type="search"
-          name="q"
-          aria-label="노트 이름이나 만든 사람 이메일로 검색"
-          placeholder="노트 이름이나 만든 사람 이메일로 검색"
-          defaultValue={search}
-          className="h-search w-full rounded-field bg-surface pr-4 pl-12 text-body placeholder:text-muted focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ink"
-        />
+        <SearchField label="노트 이름이나 만든 사람 이메일로 검색" name="q" defaultValue={search} />
       </form>
       {"failure" in read ? (
         <AdminFailureMessage failure={read.failure} />

@@ -2,7 +2,8 @@ import { suspendUser } from "../suspend-user";
 import { unsuspendUser } from "../unsuspend-user";
 import { formatTime } from "../format";
 import type { Suspension } from "../read-admin";
-import { AdminSection, group, row } from "./admin-section";
+import { Section } from "@/design/section";
+import { group, row } from "./admin-section";
 import { ConfirmAction } from "./confirm-action";
 import { ReasonAction } from "./reason-action";
 
@@ -22,7 +23,7 @@ export function UserSuspension({
   timeZone: string;
 }) {
   return (
-    <AdminSection
+    <Section
       label="이용 정지"
       note={
         suspension === null
@@ -59,6 +60,6 @@ export function UserSuspension({
           />
         </>
       )}
-    </AdminSection>
+    </Section>
   );
 }

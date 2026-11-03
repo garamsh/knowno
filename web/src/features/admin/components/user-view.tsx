@@ -3,7 +3,8 @@ import { Chip } from "@/design/chip";
 import { formatDate, formatTime } from "../format";
 import { planLabels, termsLabel } from "../labels";
 import type { AdminUser } from "../read-admin";
-import { AdminSection, group } from "./admin-section";
+import { Section } from "@/design/section";
+import { group } from "./admin-section";
 import { UserDecks } from "./user-decks";
 import { UserPlan } from "./user-plan";
 import { UserSuspension } from "./user-suspension";
@@ -45,7 +46,7 @@ export function UserView({ user, timeZone }: { user: AdminUser; timeZone: string
         {user.suspension !== null && <Chip tone="amber">정지됨</Chip>}
       </header>
       <div className="grid items-start gap-section-gap lg:grid-cols-2 lg:gap-4">
-        <AdminSection label="계정">
+        <Section label="계정">
           <dl className={group}>
             {facts.map(([term, value]) => (
               <div key={term} className="flex items-baseline justify-between gap-3 px-4 py-3">
@@ -54,7 +55,7 @@ export function UserView({ user, timeZone }: { user: AdminUser; timeZone: string
               </div>
             ))}
           </dl>
-        </AdminSection>
+        </Section>
         <UserPlan
           userId={user.id}
           email={user.email}
