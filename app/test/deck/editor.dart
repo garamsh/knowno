@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/deck/src/block_list.dart';
+import 'package:knowno/design/app_button.dart';
 import 'package:knowno/deck/src/undo_snack_bar.dart';
 import 'package:knowno/study/study.dart';
 
@@ -112,4 +113,21 @@ Future<void> replaceFirstBlock(DeckScreens screens, String type) async {
   await screens.tester.pump(undoDuration);
   await screens.tester.pumpAndSettle();
   await addBlock(screens, type);
+}
+
+/// Expects each button labelled in [labels] as wide as the one labelled
+/// [full], and below the one before it.
+void expectStackedFullWidth(
+  WidgetTester tester,
+  List<String> labels, {
+  required String full,
+}) {
+  Rect button(String label) =>
+      tester.getRect(find.widgetWithText(AppButton, label));
+  var above = double.negativeInfinity;
+  for (final label in labels) {
+    expect(button(label).width, button(full).width, reason: label);
+    expect(button(label).top, greaterThan(above), reason: label);
+    above = button(label).top;
+  }
 }

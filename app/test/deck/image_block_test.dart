@@ -664,6 +664,17 @@ void main() {
       },
     );
 
+    testWidgets("a photo's three actions stack full width under it (#632)", (
+      tester,
+    ) async {
+      await openWithPhoto(tester);
+      expectStackedFullWidth(tester, [
+        'Choose another photo',
+        'Take again',
+        'Delete photo',
+      ], full: 'Add blank');
+    });
+
     testWidgets(
       "an edit in the photo's 칸 ends Delete photo's Undo, and an edit in another 칸 does not (#632)",
       (tester) async {

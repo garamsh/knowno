@@ -94,8 +94,9 @@ export function PhotoFields({ draft, change }: { draft: Draft<"image">; change: 
     refocus(camera ? "다시 찍기" : "다른 사진 고르기");
   }
 
-  const pickers = (labels: readonly [string, string]) => (
-    <div className="grid grid-cols-2 gap-2">
+  // A photo held stacks its pickers full width, so no label breaks inside a word.
+  const pickers = (labels: readonly [string, string], stacked = false) => (
+    <div className={stacked ? "flex flex-col gap-2" : "grid grid-cols-2 gap-2"}>
       {labels.map((label, camera) => (
         <label
           key={label}
@@ -181,7 +182,7 @@ export function PhotoFields({ draft, change }: { draft: Draft<"image">; change: 
           }}
         />
       )}
-      {pickers(["다른 사진 고르기", "다시 찍기"])}
+      {pickers(["다른 사진 고르기", "다시 찍기"], true)}
       <button
         type="button"
         disabled={busy}
@@ -646,10 +647,9 @@ export function SoundFields({
       ) : sound ? (
         <>
           <SoundPlay url={sound.url} length={audioLength(sound.durationMs)} />
-          <div className={recordable ? "grid grid-cols-2 gap-2" : "flex"}>
-            {recordButton("다시 녹음")}
-            {fileButton("다른 파일 고르기")}
-          </div>
+          {/* Stacked full width, so no label breaks inside a word. */}
+          {recordButton("다시 녹음")}
+          {fileButton("다른 파일 고르기")}
           <button
             type="button"
             disabled={busy}

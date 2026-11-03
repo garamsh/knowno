@@ -329,25 +329,9 @@ class _AudioBlockFieldsState extends ConsumerState<AudioBlockFields> {
           ),
         ] else if (audio != null) ...[
           Center(child: AudioBlockView(audio)),
-          Row(
-            spacing: AppSpace.s8,
-            children: [
-              Expanded(
-                child: _button(
-                  l10n.audioRecordAgain,
-                  _Work.record,
-                  enabled: !recorderTaken,
-                ),
-              ),
-              Expanded(
-                child: _button(
-                  l10n.audioPickAnother,
-                  _Work.pick,
-                  enabled: true,
-                ),
-              ),
-            ],
-          ),
+          // Stacked full width, so no label breaks inside a word.
+          _button(l10n.audioRecordAgain, _Work.record, enabled: !recorderTaken),
+          _button(l10n.audioPickAnother, _Work.pick, enabled: true),
           AppButton(
             label: l10n.audioRemove,
             variant: AppButtonVariant.secondary,

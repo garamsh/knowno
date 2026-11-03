@@ -375,6 +375,18 @@ void main() {
       },
     );
 
+    testWidgets("a sound's actions stack full width under it (#632)", (
+      tester,
+    ) async {
+      await openWithSoundBlock(tester);
+      await tapPick(tester, find.text('Choose a file'));
+      await stored(tester);
+      expectStackedFullWidth(tester, [
+        'Record again',
+        'Choose another file',
+      ], full: 'Delete sound');
+    });
+
     testWidgets("an edit in the sound's 칸 ends Delete sound's Undo (#632)", (
       tester,
     ) async {

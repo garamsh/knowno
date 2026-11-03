@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { crc32, deflateSync } from "node:zlib";
 
-import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
@@ -375,6 +375,24 @@ function silentMp3(): Buffer {
   return Buffer.concat(Array.from({ length: 38 }, () => frame));
 }
 
+/**
+ * Expects each of [actions] as wide and as high as [full], one line, and below the one before it:
+ * stacked full width, no label broken inside a word (#632).
+ */
+async function expectStacked(actions: Locator[], full: Locator) {
+  const whole = await full.boundingBox();
+  if (!whole) throw new Error("the full-width action is not drawn");
+  let above = -Infinity;
+  for (const action of actions) {
+    const box = await action.boundingBox();
+    if (!box) throw new Error("an action is not drawn");
+    expect(box.width).toBeCloseTo(whole.width, 0);
+    expect(box.height).toBeCloseTo(whole.height, 0);
+    expect(box.y).toBeGreaterThan(above);
+    above = box.y;
+  }
+}
+
 test("adds a 사진 칸 with its boxes and a 소리 칸, which study draws and plays, and releases a removed one's file", async ({
   page,
   context,
@@ -440,6 +458,8 @@ test("adds a 사진 칸 with its boxes and a 소리 칸, which study draws and p
     "true",
   );
   await capture(page, "photo");
+  const action = (name: string) => dialog.locator("label, button", { hasText: name }).first();
+  await expectStacked([action("다른 사진 고르기"), action("다시 찍기")], action("사진 삭제"));
   // "사진 삭제" acts at once; "되돌리기" puts the photo back with its boxes, from a URL the browser
   // still reads.
   await dialog.getByRole("button", { name: "사진 삭제" }).click();
@@ -473,6 +493,10 @@ test("adds a 사진 칸 with its boxes and a 소리 칸, which study draws and p
   await expect(dialog.getByRole("button", { name: "소리 듣기" })).toBeVisible();
   await expect(dialog.getByLabel("다른 파일 고르기")).toBeFocused();
   await capture(page, "sound");
+  await expectStacked(
+    [...(records ? [action("다시 녹음")] : []), action("다른 파일 고르기")],
+    action("소리 삭제"),
+  );
   await dialog.getByRole("button", { name: "소리 삭제" }).click();
   await expect(dialog.getByRole("status")).toHaveText("소리를 삭제했어요");
   await dialog.getByRole("button", { name: "되돌리기" }).click();

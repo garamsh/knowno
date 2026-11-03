@@ -499,15 +499,9 @@ class _ImageBlockFieldsState extends ConsumerState<ImageBlockFields> {
         ),
         if (selected != null && selected < _draft.boxes.length)
           _tools(context, selected),
-        Row(
-          spacing: AppSpace.s8,
-          children: [
-            Expanded(
-              child: _pickButton(l10n.imagePickAnother, ImageOrigin.album),
-            ),
-            Expanded(child: _pickButton(l10n.imageRetake, ImageOrigin.camera)),
-          ],
-        ),
+        // Stacked full width, so no label breaks inside a word.
+        _pickButton(l10n.imagePickAnother, ImageOrigin.album),
+        _pickButton(l10n.imageRetake, ImageOrigin.camera),
         AppButton(
           label: l10n.imageRemove,
           variant: AppButtonVariant.secondary,
