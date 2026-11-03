@@ -134,7 +134,7 @@ bool _isFigureUnit(Element element) {
 /// screen's three sizes.
 List<double> _chromeSizes(WidgetTester tester) {
   final sizes = <double>{};
-  // Under 홈's own navigator, a route is current only while the route that
+  // Under 노트's own navigator, a route is current only while the route that
   // holds that navigator is too.
   bool current(Element element) {
     var current = ModalRoute.of(element)?.isCurrent ?? true;
@@ -2274,7 +2274,7 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
       await shot(tester, '27-card-list-public');
-      // The note is on 홈's own navigator, under the app's.
+      // The note is on 노트's own navigator, under the app's.
       tester.state<NavigatorState>(find.byType(Navigator).last).pop();
       await tester.pumpAndSettle();
       await shot(tester, '28-deck-list-public');
