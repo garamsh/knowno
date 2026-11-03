@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -31,18 +30,15 @@ void showUndoSnackBar(
       onUndo();
     },
   );
-  final beside = _fitsBeside(context, message, undo.label);
   final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
   final bar = messenger.showSnackBar(
     SnackBar(
-      content: _UndoMessage(
-        message: message,
-        endOn: endOn,
-        below: beside ? null : undo,
-      ),
+      content: _UndoMessage(message: message, endOn: endOn, action: undo),
+      // [_UndoMessage] places the action and pads the bar as Material pads
+      // a bar with an action, from the text size as it is at each build.
+      padding: const EdgeInsetsDirectional.only(start: _start),
       // [_UndoMessage] times the bar, so the messenger never does.
       persist: true,
-      action: beside ? undo : null,
     ),
   );
   if (onGone != null) {
@@ -52,36 +48,16 @@ void showUndoSnackBar(
   }
 }
 
-/// What a floating bar takes from the screen's width besides its message and
-/// its action's label: Material's inset of 15 at each side, 16 before the
-/// message, and 8 around the action and 16 inside it at each side.
-const _barChrome = 2 * 15.0 + 16 + 2 * (8 + 16);
+/// Material's padding of a floating bar with an action, which
+/// [_UndoMessage] draws: 16 before the message, 14 above and below it, and 8
+/// around the action, whose button pads its label by 16 at each side.
+const _start = 16.0;
+const _line = 14.0;
+const _actionMargin = 8.0;
+const _actionPadding = 16.0;
 
-/// Whether [message] and the action [label] fit on one line of a bar at the
-/// text size of [context]. Material measures the label at text scale 1.0, so
-/// at a large text size it keeps the action beside a squeezed message.
-bool _fitsBeside(BuildContext context, String message, String label) {
-  final theme = Theme.of(context);
-  double width(String text, TextStyle? style) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textScaler: MediaQuery.textScalerOf(context),
-      textDirection: Directionality.of(context),
-      maxLines: 1,
-    )..layout();
-    final width = painter.width;
-    painter.dispose();
-    return width;
-  }
-
-  return width(
-            message,
-            theme.snackBarTheme.contentTextStyle ?? theme.textTheme.bodyMedium,
-          ) +
-          width(label, theme.textTheme.labelLarge) +
-          _barChrome <=
-      MediaQuery.widthOf(context);
-}
+/// Material's inset of a floating bar from each side of the screen.
+const _inset = 15.0;
 
 /// Keeps [height] at the height of the undo bar showing under its child,
 /// margins included, and at 0 while none is, so a screen can leave the bar
@@ -95,19 +71,22 @@ class UndoBarRoom extends InheritedWidget {
   bool updateShouldNotify(UndoBarRoom oldWidget) => height != oldWidget.height;
 }
 
-/// An undo bar's message, with [below] under it where the bar's action does
-/// not fit beside it, which hides its bar after [undoDuration] unheld, or as
-/// soon as [endOn] notifies.
+/// An undo bar's message and its [action]: beside it as Material draws a
+/// bar's action while both fit on one line at the text size, and under it,
+/// at its end, otherwise. Material decides by the label at text scale 1.0,
+/// so at a large text size it keeps the action beside a squeezed message.
+/// It hides its bar after [undoDuration] unheld, or as soon as [endOn]
+/// notifies.
 class _UndoMessage extends StatefulWidget {
   const _UndoMessage({
     required this.message,
     required this.endOn,
-    required this.below,
+    required this.action,
   });
 
   final String message;
   final Listenable? endOn;
-  final Widget? below;
+  final SnackBarAction action;
 
   @override
   State<_UndoMessage> createState() => _UndoMessageState();
@@ -224,22 +203,72 @@ class _UndoMessageState extends State<_UndoMessage> {
     super.dispose();
   }
 
+  /// Whether the message and the action's label fit on one line of the bar.
+  bool _fitsBeside(BuildContext context) {
+    double width(String text, TextStyle? style) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textScaler: MediaQuery.textScalerOf(context),
+        textDirection: Directionality.of(context),
+        maxLines: 1,
+      )..layout();
+      final width = painter.width;
+      painter.dispose();
+      return width;
+    }
+
+    return width(widget.message, DefaultTextStyle.of(context).style) +
+            width(widget.action.label, Theme.of(context).textTheme.labelLarge) +
+            2 * (_inset + _actionMargin + _actionPadding) +
+            _start <=
+        MediaQuery.widthOf(context);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final below = widget.below;
     final said = Text(
       keepWords(widget.message),
       semanticsLabel: widget.message,
     );
-    return below == null
-        ? said
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              said,
-              const SizedBox(height: AppSpace.s8),
-              Align(alignment: AlignmentDirectional.centerEnd, child: below),
-            ],
-          );
+    final action = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _actionMargin),
+      child: TextButtonTheme(
+        data: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: _actionPadding),
+          ),
+        ),
+        child: widget.action,
+      ),
+    );
+    if (_fitsBeside(context)) {
+      return Row(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: _line),
+              child: said,
+            ),
+          ),
+          action,
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(0, _line, _start, 0),
+          child: said,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: _line),
+          child: Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: action,
+          ),
+        ),
+      ],
+    );
   }
 }

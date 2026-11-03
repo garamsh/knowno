@@ -332,6 +332,8 @@ void main() {
         expect(bar.bottom, lessThanOrEqualTo(form.bottom));
         expect(said.top, greaterThanOrEqualTo(bar.top), reason: 'message');
         expect(undo.bottom, lessThanOrEqualTo(bar.bottom), reason: 'undo');
+        // The bar showed at 1.0, so this is decided again at the new size.
+        expect(undo.top >= said.bottom, scale > 1, reason: 'undo under');
         final actions = tester
             .state<ScrollableState>(
               find
