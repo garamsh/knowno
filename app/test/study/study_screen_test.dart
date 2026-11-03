@@ -14,6 +14,7 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_button.dart';
 import 'package:knowno/design/app_section_label.dart';
 import 'package:knowno/study/src/completion_card.dart';
+import 'package:knowno/study/src/coach_hand_drawing.dart';
 import 'package:knowno/study/src/study_coach.dart';
 import 'package:knowno/design/mascot.dart';
 import 'package:knowno/design/theme.dart';
@@ -266,6 +267,7 @@ Future<_Study> _open(
   bool coachShown = true,
   bool? autoplay,
   AudioPlayback? playback,
+  int answeredElsewhere = 0,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -289,6 +291,34 @@ Future<_Study> _open(
     // 5 minutes at 10 s a card, the pace while too few answers are stored:
     // [_quota] new cards a day.
     await seeding.setDailyMinutes(5, at: created);
+    // Cards of another deck answered today, which take the day's new cards.
+    if (answeredElsewhere > 0) {
+      final other = await deckRepository.createDeck('Spanish');
+      for (var i = 0; i < answeredElsewhere; i++) {
+        final saved = await deckRepository.addCard(
+          other.id,
+          front: [TextContent('s$i front')],
+          back: [TextContent('s$i back')],
+        );
+        if (saved case CardSaved(:final card)) {
+          await seeding.record(
+            card.id,
+            [
+              Review(
+                id: seeding.newReviewId(),
+                cardId: card.id,
+                answer: Answer.know,
+                reviewedAt: _answeredToday.lastReview,
+                duration: Duration.zero,
+                fuzzFactor: FuzzFactor.draw(FirstDraw()),
+              ),
+            ],
+            _answeredToday,
+            at: DateTime.utc(2026, 9, 1),
+          );
+        }
+      }
+    }
     for (final name in cards) {
       final (front, back) =
           sides[name] ??
@@ -619,6 +649,25 @@ void main() {
       expect(shownText('+1 extra'), findsOneWidget);
       expect(shownText(_earlier), findsNothing);
       expect(_previous('c30 front'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    "the day's bar is full when another deck's answers took the day's new cards, as the web draws it",
+    (tester) async {
+      final study = await _open(tester, ['n'], answeredElsewhere: _quota);
+      // The setup's case: no card of this deck in the day's plan, and its
+      // new card past it on screen.
+      expect(study.current, 'n front');
+      expect(shownText('0/0'), findsOneWidget);
+      expect(
+        tester
+            .widget<LinearProgressIndicator>(
+              find.byType(LinearProgressIndicator),
+            )
+            .value,
+        1,
+      );
     },
   );
 
@@ -1392,39 +1441,29 @@ void main() {
   }
 
   testWidgets(
-    'the mascot sits between the cards and reacts to a drag of either: happy toward Know, sad toward Don\'t know, and thinking at rest',
+    'no mascot is drawn while a card is studied, at rest or while either card is dragged toward either answer',
     (tester) async {
       final study = await _open(tester, ['a', 'b', 'c']);
       await study.know();
-      MascotExpression face() =>
-          tester.widget<Mascot>(find.byType(Mascot)).expression;
-      final mascot = tester.getRect(find.byType(Mascot));
-      expect(
-        mascot.center.dy,
-        closeTo(
-          (tester.getRect(_previousCard).bottom + tester.getRect(_face).top) /
-              2,
-          1,
-        ),
-      );
-      expect(face(), MascotExpression.thinking);
+      // Control: the setup is a session studying, both cards on screen.
+      expect(_currentCard, findsOneWidget);
+      expect(_previousCard, findsOneWidget);
+      expect(find.byType(Mascot), findsNothing);
 
-      for (final (card, dx, expression) in [
-        (_face, 60.0, MascotExpression.happy),
-        (_face, -60.0, MascotExpression.sad),
-        (_previousCard, -60.0, MascotExpression.sad),
-        (_previousCard, 60.0, MascotExpression.happy),
+      for (final (card, dx) in [
+        (_face, 60.0),
+        (_face, -60.0),
+        (_previousCard, -60.0),
+        (_previousCard, 60.0),
       ]) {
         final gesture = await tester.startGesture(tester.getCenter(card));
         for (var moved = 0; moved < 6; moved++) {
           await gesture.moveBy(Offset(dx / 6, 0));
           await tester.pump(const Duration(milliseconds: 16));
         }
-        expect(face(), expression, reason: '$card by $dx');
-        // Short of an answer: let go, the card and the mascot come back.
+        expect(find.byType(Mascot), findsNothing, reason: '$card by $dx');
         await gesture.up();
         await tester.pumpAndSettle();
-        expect(face(), MascotExpression.thinking, reason: '$card let go');
       }
       // Control: no drag answered or re-decided anything.
       expect(study.current, 'b front');
@@ -1634,9 +1673,9 @@ void main() {
     (tester) async {
       final study = await _open(tester, ['a', 'b']);
 
-      // While studying, the one mascot is the one between the cards.
+      // While studying, no mascot is drawn.
       expect(study.current, 'a front');
-      expect(find.byType(Mascot), findsOneWidget);
+      expect(find.byType(Mascot), findsNothing);
       await study.dontKnow(elapsed: const Duration(seconds: 10));
       await study.know(elapsed: const Duration(seconds: 10));
       expect(study.current, 'a front');
@@ -2185,7 +2224,32 @@ void main() {
           tester.getRect(find.byType(StudyCoach)).top,
           greaterThan(tester.getRect(_face).bottom),
         );
-        expect(find.widgetWithText(AppButton, 'Skip'), findsOneWidget);
+        // Presented by the mascot in its own face, 56 across, beside its bubble.
+        final mascot = find.descendant(
+          of: find.byType(StudyCoach),
+          matching: find.byType(Mascot),
+        );
+        expect(
+          tester.widget<Mascot>(mascot).expression,
+          MascotExpression.thinking,
+        );
+        expect(tester.getSize(mascot), const Size.square(56));
+        expect(find.byType(Mascot), findsOneWidget);
+        expect(
+          tester.getRect(mascot).right,
+          lessThan(
+            tester.getRect(shownText('Swipe right if you know it')).left,
+          ),
+        );
+        // "Back" is off on the first step; "Next" leads on.
+        expect(
+          tester
+              .widget<TextButton>(find.widgetWithText(TextButton, 'Back'))
+              .onPressed,
+          isNull,
+        );
+        expect(find.widgetWithText(AppButton, 'Next'), findsOneWidget);
+        expect(find.text('Skip'), findsNothing);
         final semantics = tester.ensureSemantics();
         final caption = tester.getSemantics(find.byType(StudyCoach));
         expect(caption, isSemantics(isLiveRegion: true));
@@ -2205,6 +2269,13 @@ void main() {
         expect(know.left, greaterThan(-StudyStyle.coachCurrentPeek / 2));
         expect(know.shown, isTrue);
 
+        await tester.tap(find.widgetWithText(AppButton, 'Next'));
+        await tester.pump();
+        expect(shownText("Swipe left if you don't"), findsOneWidget);
+        // "Back" returns a step, and "Next" leads on again.
+        await tester.tap(find.widgetWithText(TextButton, 'Back'));
+        await tester.pump();
+        expect(shownText('Swipe right if you know it'), findsOneWidget);
         await tester.tap(find.widgetWithText(AppButton, 'Next'));
         await tester.pump();
         expect(shownText("Swipe left if you don't"), findsOneWidget);
@@ -2245,6 +2316,8 @@ void main() {
         await tester.tap(find.widgetWithText(AppButton, 'Start'));
         await tester.pumpAndSettle();
         expect(find.byType(StudyCoach), findsNothing);
+        // The mascot leaves with the coach.
+        expect(find.byType(Mascot), findsNothing);
         expect(shownText('deadline'), findsNothing);
         expect(
           find.widgetWithText(TextButton, 'Show the guide again'),
@@ -2256,12 +2329,15 @@ void main() {
     );
 
     testWidgets(
-      'skipping ends it at once, and a later session on the device shows none',
+      'its last step\'s "Start" ends it, and a later session on the device shows none',
       (tester) async {
         final study = await _open(tester, ['a', 'b', 'c'], coachShown: false);
         expect(find.byType(StudyCoach), findsOneWidget);
 
-        await tester.tap(find.widgetWithText(AppButton, 'Skip'));
+        for (final step in ['Next', 'Next', 'Start']) {
+          await tester.tap(find.widgetWithText(AppButton, step));
+          await tester.pump();
+        }
         await tester.pumpAndSettle();
         expect(find.byType(StudyCoach), findsNothing);
         expect(
@@ -2320,6 +2396,37 @@ void main() {
     );
 
     testWidgets(
+      'its mascot and bubble rise in as it starts, and under reduce motion show at once',
+      (tester) async {
+        for (final reduce in [false, true]) {
+          await _open(tester, ['a', 'b'], disableAnimations: reduce);
+          await tester.tap(
+            find.widgetWithText(TextButton, 'Show the guide again'),
+          );
+          await tester.pump();
+          final shown = tester.widget<Opacity>(
+            find
+                .ancestor(
+                  of: find.descendant(
+                    of: find.byType(StudyCoach),
+                    matching: find.byType(Mascot),
+                  ),
+                  matching: find.byType(Opacity),
+                )
+                .first,
+          );
+          // The first frame: still hidden with motion, whole under reduce motion.
+          expect(
+            shown.opacity,
+            reduce ? 1 : 0,
+            reason: 'reduce motion $reduce',
+          );
+          await tester.pumpWidget(const SizedBox());
+        }
+      },
+    );
+
+    testWidgets(
       'a replay shows the sample in the previous card\'s place for its last step, and the card answered last once it ends',
       (tester) async {
         final study = await _open(tester, ['a', 'b', 'c']);
@@ -2341,7 +2448,7 @@ void main() {
         expect(shownText('deadline'), findsOneWidget);
         expect(_previous('a front'), findsNothing);
 
-        await tester.tap(find.widgetWithText(AppButton, 'Skip'));
+        await tester.tap(find.widgetWithText(AppButton, 'Start'));
         await tester.pumpAndSettle();
         expect(shownText('deadline'), findsNothing);
         expect(_previous('a front'), findsOneWidget);
@@ -2349,7 +2456,7 @@ void main() {
     );
 
     testWidgets(
-      'under reduce motion each step is a still image: the card held out under the finger',
+      'under reduce motion each step is a still image, the card held out under the touch and its trail, and the mascot and its bubble show at once',
       (tester) async {
         await _open(
           tester,
@@ -2358,14 +2465,45 @@ void main() {
           disableAnimations: true,
         );
         expect(find.byType(StudyCoach), findsOneWidget);
+        // Shown at once: no rise and no fade.
+        final bubble = find.ancestor(
+          of: find.descendant(
+            of: find.byType(StudyCoach),
+            matching: find.byType(Mascot),
+          ),
+          matching: find.byType(Opacity),
+        );
+        expect(tester.widget<Opacity>(bubble.first).opacity, 1);
         final held =
             StudyStyle.coachCurrentPeek * coachPeek(StudyStyle.coachStill);
         expect(
           tester.getCenter(shownText('a front')).dx - centre,
           closeTo(held, 0.5),
         );
-        final finger = find.byType(StudyCoachFinger);
-        expect(tester.widget<StudyCoachFinger>(finger).shown, isTrue);
+        final touch = tester.widget<StudyCoachTouch>(
+          find.byType(StudyCoachTouch),
+        );
+        expect(touch.shown, isTrue);
+        expect(touch.travel, closeTo(held, 0.5));
+        // The hand, its fingertip pinned on the ring's centre.
+        final hand = find.descendant(
+          of: find.byType(StudyCoachTouch),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is CustomPaint &&
+                widget.size == const Size.square(StudyStyle.coachHand),
+          ),
+        );
+        expect(hand, findsOneWidget);
+        expect(
+          tester.getTopLeft(hand) +
+              CoachHandDrawing.tip *
+                  (StudyStyle.coachHand / CoachHandDrawing.box),
+          offsetMoreOrLessEquals(
+            tester.getCenter(find.byType(StudyCoachTouch)),
+            epsilon: 0.5,
+          ),
+        );
         // It stays there: nothing repeats, so the screen settles.
         await tester.pumpAndSettle();
         expect(

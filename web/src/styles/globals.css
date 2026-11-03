@@ -191,8 +191,10 @@
   --animate-coach-change-held: coach-change 2.8s -1.5s infinite paused;
   --animate-coach-tint: coach-tint 2.8s ease-out infinite;
   --animate-coach-tint-held: coach-tint 2.8s ease-out -1.5s infinite paused;
-  --animate-coach-finger: coach-finger 2.8s ease-out infinite;
-  --animate-coach-finger-held: coach-finger 2.8s ease-out -1.5s infinite paused;
+  --animate-coach-touch: coach-touch 2.8s ease-out infinite;
+  --animate-coach-touch-held: coach-touch 2.8s ease-out -1.5s infinite paused;
+  --animate-coach-trail: coach-trail 2.8s infinite;
+  --animate-coach-trail-held: coach-trail 2.8s -1.5s infinite paused;
   --animate-coach-press: coach-press 2.8s infinite;
   @keyframes coach-know {
     0%,
@@ -248,6 +250,25 @@
       animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
     }
   }
+  /* The touch's trail, drawn out from where it began as the card moves, on the card's own timing. */
+  @keyframes coach-trail {
+    0%,
+    18%,
+    82%,
+    100% {
+      transform: scaleX(0);
+    }
+    20% {
+      animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    46%,
+    62% {
+      transform: scaleX(1);
+    }
+    64% {
+      animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+  }
   @keyframes coach-tint {
     0%,
     22%,
@@ -273,7 +294,7 @@
       filter: brightness(0.88);
     }
   }
-  @keyframes coach-finger {
+  @keyframes coach-touch {
     0%,
     70%,
     100% {

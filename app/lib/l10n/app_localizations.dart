@@ -2599,12 +2599,6 @@ abstract class AppLocalizations {
   /// **'사용 방법, {total}단계 중 {step}단계'**
   String coachStep(int step, int total);
 
-  /// Button that ends the review screen's coach.
-  ///
-  /// In ko, this message translates to:
-  /// **'건너뛰기'**
-  String get coachSkip;
-
   /// Button that moves the review screen's coach to its next step.
   ///
   /// In ko, this message translates to:
@@ -3059,6 +3053,12 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'걸린 시간'**
   String get completionTimeLabel;
+
+  /// Button that moves the study coach back to its step before; disabled on the first step.
+  ///
+  /// In ko, this message translates to:
+  /// **'이전'**
+  String get coachPrevious;
 }
 
 class _AppLocalizationsDelegate

@@ -104,12 +104,6 @@ abstract final class AppSize {
   /// The tick inside a row's round check, such as a photo import row's.
   static const checkIcon = 14.0;
 
-  /// A first-use coach's finger over the card it demonstrates on.
-  static const coachFinger = 34.0;
-
-  /// The blur of the shadow that lifts a coach's finger off the card.
-  static const coachFingerBlur = 6.0;
-
   /// A coach's step dot, and its height when it is the current step's.
   static const coachDot = 6.0;
 

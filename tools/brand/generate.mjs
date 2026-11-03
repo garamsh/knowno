@@ -3,7 +3,8 @@
 // over the one body.svg, and wordmarks.json, the outlines of 알아몰라 and knowno in Pretendard
 // ExtraBold (app/assets/fonts/): the SVGs of web/public/, the PNGs of app/assets/brand/ and
 // web/public/, and the parts each client's Mascot moves, as Dart for the app and SVG markup for the
-// web. A lockup holds one name: 알아몰라 on the web and for a Korean phone, knowno for any other.
+// web, and the study coach's hand, coach-hand.svg, as the paths each client draws in its theme's
+// colours. A lockup holds one name: 알아몰라 on the web and for a Korean phone, knowno for any other.
 // `make brand` runs it, then the launcher icon and splash generators over its output. With --check it writes nothing and fails on a file that
 // differs from what it would write: an SVG or a source file by any byte, a PNG by a mean difference
 // per channel of 1 in 255 or more, since librsvg's anti-aliasing differs a little between platforms.
@@ -292,10 +293,71 @@ ${Object.entries(parts)
 };
 `;
 
-/** The source files each client's Mascot draws its parts from. */
+/**
+ * The touch coach's pointing hand, coach-hand.svg, by the class of each part: its outline, filled
+ * in the surface and drawn in ink; its edge, the outline offset by its translate and filled in the
+ * edge colour; its creases in ink; and its tip, where it presses.
+ */
+const hand = Object.fromEntries(parse(inner("coach-hand")).map(({ attrs }) => [attrs.class, attrs]));
+const handBox = Number(
+  /viewBox="0 0 (\d+)/.exec(readFileSync(join(root, "tools/brand/coach-hand.svg"), "utf8"))[1],
+);
+const handEdge = /translate\(([\d.]+) ([\d.]+)\)/.exec(hand.edge.transform).slice(1).map(Number);
+
+/** SVG path data of absolute M, L and Q commands and Z as a Dart cascade on a `Path`, a call a line. */
+const dartPath = (d) =>
+  [...d.matchAll(/([MLQ])([^MLQZ]*)|Z/g)]
+    .map(([whole, command, numbers]) => {
+      if (whole === "Z") return "    ..close()";
+      const name = { M: "moveTo", L: "lineTo", Q: "quadraticBezierTo" }[command];
+      return `    ..${name}(${numbers.trim().split(/[\s,]+/).join(", ")})`;
+    })
+    .join("\n");
+
+const dartHand = `// Written by tools/brand/generate.mjs from tools/brand/coach-hand.svg; run
+// make brand after changing it.
+import 'dart:ui';
+
+/// The study coach's pointing hand on a ${handBox} square: its outline, its
+/// creases, both in lines [line] wide, the edge under it [edge] off, and the
+/// [tip] it presses with.
+abstract final class CoachHandDrawing {
+  static const box = ${handBox}.0;
+  static const line = ${hand.outline["stroke-width"]}.0;
+  static const edge = Offset(${handEdge.join(", ")});
+  static const tip = Offset(${hand.tip.cx}, ${hand.tip.cy});
+
+  static Path outline() => Path()
+${dartPath(hand.outline.d)};
+
+  static Path creases() => Path()
+${dartPath(hand.creases.d)};
+}
+`;
+
+const webHand = `// Written by tools/brand/generate.mjs from tools/brand/coach-hand.svg; run make brand after changing it.
+
+/**
+ * The study coach's pointing hand on a ${handBox} square: its outline, its creases, both in lines
+ * \`line\` wide, the edge under it \`edge\` off, and the \`tip\` it presses with.
+ */
+export const coachHand = {
+  box: ${handBox},
+  line: ${hand.outline["stroke-width"]},
+  edge: { x: ${handEdge[0]}, y: ${handEdge[1]} },
+  tip: { x: ${hand.tip.cx}, y: ${hand.tip.cy} },
+  outline:
+    "${hand.outline.d}",
+  creases: "${hand.creases.d}",
+};
+`;
+
+/** The source files each client's Mascot draws its parts from, and the coach's hand. */
 const sources = {
   "app/lib/design/mascot_drawings.dart": dartParts,
   "web/src/design/mascot-drawings.ts": webParts,
+  "app/lib/study/src/coach_hand_drawing.dart": dartHand,
+  "web/src/features/study/components/coach-hand-drawing.ts": webHand,
 };
 
 /** The size an SVG of [size] is drawn at, [height] or [width] high or wide, in device pixels. */

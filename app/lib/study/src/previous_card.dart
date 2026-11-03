@@ -31,19 +31,15 @@ Answer _other(Answer answer) => switch (answer) {
 /// sound by "소리 듣기" when it holds one (ADR 0112).
 ///
 /// A vertical drag scrolls a face taller than the card and changes nothing.
-/// [lean] follows how far a horizontal drag has moved the finger, for the
-/// mascot between the cards, and is back at zero once it is let go.
 class PreviousCardView extends StatefulWidget {
   const PreviousCardView({
     super.key,
     required this.card,
     required this.onRedecide,
-    this.lean,
   });
 
   final PreviousCard card;
   final void Function(Answer answer) onRedecide;
-  final ValueNotifier<double>? lean;
 
   @override
   State<PreviousCardView> createState() => _PreviousCardViewState();
@@ -68,7 +64,6 @@ class _PreviousCardViewState extends State<PreviousCardView>
 
   void _onDragUpdate(DragUpdateDetails details) {
     _finger += details.delta.dx;
-    widget.lean?.value = _finger;
     // A drag toward the answer the card already has follows the finger only
     // a little, and shows nothing behind it.
     _drag.value = _target(_finger) == widget.card.answer
@@ -94,7 +89,6 @@ class _PreviousCardViewState extends State<PreviousCardView>
 
   void _springBack() {
     _finger = 0;
-    widget.lean?.value = 0;
     if (MediaQuery.disableAnimationsOf(context)) {
       _drag.value = 0;
     } else {
@@ -251,7 +245,7 @@ class EarlierCardView extends StatelessWidget {
 
 /// The coach's third step in the previous card's place: a sample card,
 /// [front] and [back], answered "Know", dragged toward "Don't know" by a
-/// finger and sprung back, [progress] through one [coachCycle], over what the
+/// touch and sprung back, [progress] through one [coachCycle], over what the
 /// drag shows behind it. Hidden from screen readers, which read the coach's
 /// caption.
 class PreviousCardDemo extends StatelessWidget {
@@ -290,9 +284,12 @@ class PreviousCardDemo extends StatelessWidget {
             ),
           ),
           Positioned(
-            right: StudyStyle.coachFingerInset - offset,
-            bottom: StudyStyle.coachFingerLift,
-            child: StudyCoachFinger(shown: coachFingerShown(progress)),
+            right: StudyStyle.coachTouchInset - offset,
+            bottom: StudyStyle.coachTouchLift,
+            child: StudyCoachTouch(
+              shown: coachTouchShown(progress),
+              travel: offset,
+            ),
           ),
         ],
       ),

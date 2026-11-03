@@ -25,11 +25,8 @@ import 'study_style.dart';
 /// sound plays once as the card appears (ADR 0112).
 ///
 /// While the coach demonstrates an answer, [demo], the card moves toward it
-/// over the answer's tint under a finger, [demoProgress] through one
+/// over the answer's tint under a touch, [demoProgress] through one
 /// [coachCycle], and [coach] takes the guide's row's place.
-///
-/// [lean] follows how far a drag has moved the card, for the mascot between
-/// the cards, and is back at zero once the card is let go or answered.
 class CurrentCard extends StatefulWidget {
   const CurrentCard({
     super.key,
@@ -38,7 +35,6 @@ class CurrentCard extends StatefulWidget {
     required this.onGuide,
     this.autoplay = false,
     this.onDragStart,
-    this.lean,
     this.demo,
     this.demoProgress = 0,
     this.coach,
@@ -53,8 +49,6 @@ class CurrentCard extends StatefulWidget {
 
   /// Called as a drag on the card begins.
   final VoidCallback? onDragStart;
-
-  final ValueNotifier<double>? lean;
 
   final Answer? demo;
   final double demoProgress;
@@ -109,7 +103,6 @@ class _CurrentCardState extends State<CurrentCard>
   void _onDragUpdate(DragUpdateDetails details) {
     if (_committed) return;
     _drag.value += details.delta.dx;
-    widget.lean?.value = _drag.value;
   }
 
   void _onDragEnd(DragEndDetails details) {
@@ -130,7 +123,6 @@ class _CurrentCardState extends State<CurrentCard>
 
   void _springBack() {
     if (_committed) return;
-    widget.lean?.value = 0;
     _drag.animateTo(
       0,
       duration: StudyStyle.springBackDuration,
@@ -153,7 +145,6 @@ class _CurrentCardState extends State<CurrentCard>
         curve: Curves.easeIn,
       );
     }
-    widget.lean?.value = 0;
     if (mounted) widget.onAnswer(answer);
   }
 
@@ -217,7 +208,7 @@ class _CurrentCardState extends State<CurrentCard>
 
 /// The coach's demonstration of [answer] on [child], the card's face:
 /// [progress] through one [coachCycle], it moves toward the answer and back
-/// over the answer's tint and name, under a finger that moves with it.
+/// over the answer's tint and name, under a touch that moves with it.
 class _Demo extends StatelessWidget {
   const _Demo({
     required this.answer,
@@ -299,9 +290,12 @@ class _Demo extends StatelessWidget {
         ),
         Positioned.fill(
           child: Transform.translate(
-            offset: Offset(offset, StudyStyle.coachFingerDrop),
+            offset: Offset(offset, StudyStyle.coachTouchDrop),
             child: Center(
-              child: StudyCoachFinger(shown: coachFingerShown(progress)),
+              child: StudyCoachTouch(
+                shown: coachTouchShown(progress),
+                travel: offset,
+              ),
             ),
           ),
         ),

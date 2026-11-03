@@ -507,20 +507,21 @@ void main() {
       // the screen is pumped a fixed time into its cycle rather than settled.
       for (
         var tries = 0;
-        tries < 20 && find.text(ko.coachSkip).evaluate().isEmpty;
+        tries < 20 && find.text(ko.coachNext).evaluate().isEmpty;
         tries++
       ) {
         await tester.pump(const Duration(milliseconds: 100));
       }
       await tester.pump(const Duration(milliseconds: 1500));
       await shot(tester, '12-study-coach');
-      for (var step = 0; step < 2; step++) {
-        await tester.tap(find.text(ko.coachNext));
-        await tester.pump();
-      }
+      await tester.tap(find.text(ko.coachNext));
+      await tester.pump(const Duration(milliseconds: 2800));
+      await shot(tester, '12a-study-coach-dont-know');
+      await tester.tap(find.text(ko.coachNext));
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 2800));
       await shot(tester, '12b-study-coach-change');
-      await tap(tester, find.text(ko.coachSkip));
+      await tap(tester, find.text(ko.coachStart));
       // A day's first session: the empty previous card's place.
       await shot(tester, '12c-study-start');
       // Answers by a swipe of the current card, right for 안다.

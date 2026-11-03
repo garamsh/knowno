@@ -35,17 +35,14 @@ type Touch = {
  * release past [commitDistance], or a fling, toward an answer other than [held] gives it to
  * [onCommit]; toward [held] the card follows a quarter as far and gives nothing. A mostly
  * vertical touch is left to the page's scroll, and a mouse or pen drags nothing. Without
- * [onCommit] the card takes no swipe. [onMove] hears how far the finger has moved across, and 0
- * once it lifts, for the mascot between the cards.
+ * [onCommit] the card takes no swipe.
  */
 export function useSwipe({
   held,
   onCommit,
-  onMove,
 }: {
   held?: Answer;
   onCommit?: (toward: Answer) => void;
-  onMove?: (dx: number) => void;
 }) {
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -86,7 +83,6 @@ export function useSwipe({
     at.lastAt = now;
     const toward: Answer = dx > 0 ? "know" : "dontKnow";
     setOffset(toward === held ? dx * sameAnswerResistance : dx);
-    onMove?.(dx);
   }
   function onPointerEnd(event: PointerEvent, cancelled: boolean) {
     const at = touch.current;
@@ -105,7 +101,6 @@ export function useSwipe({
         (Math.abs(velocity) >= commitVelocity && Math.sign(velocity) === Math.sign(dx)));
     setDragging(false);
     setOffset(0);
-    onMove?.(0);
     if (committed) onCommit?.(toward);
   }
 
