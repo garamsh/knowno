@@ -87,10 +87,13 @@ async function serve(
   });
   const child = new Deno.Command("node", {
     args: ["web/.next/standalone/server.js"],
-    // `localhost` and not 127.0.0.1: Next.js 16.4.1 names a request by the address the server
-    // was given and compares a proxy's rewrite with it after turning 127.0.0.1 into `localhost`,
-    // so on 127.0.0.1 the admin host's rewrite is taken for another origin's and fetched again.
-    env: { PORT: `${port}`, HOSTNAME: "localhost", NODE_ENV: "production" },
+    // 0.0.0.0, as the image listens, and not 127.0.0.1: Next.js 16.4.1 names a request by the
+    // address the server was given and compares a proxy's rewrite with it after turning 127.0.0.1
+    // (and `localhost`'s ::1) into `localhost`, so on 127.0.0.1 the admin host's rewrite is taken
+    // for another origin's and fetched again. A server given `localhost` listens on one of its two
+    // addresses, which its own fetch after a Server Action's redirect may not reach
+    // (`server/app-render/action-handler.js`).
+    env: { PORT: `${port}`, HOSTNAME: "0.0.0.0", NODE_ENV: "production" },
     stdout: "piped",
     stderr: "piped",
   }).spawn();

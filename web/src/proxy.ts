@@ -105,12 +105,17 @@ export async function proxy(request: NextRequest) {
 }
 
 /**
- * The host the visitor asked for, as its Host header names it. Behind `next start` and the
- * standalone server the request's URL names the server's own address instead (Next.js 16.4.1,
- * `server/lib/router-utils/resolve-routes.js`), so the URL cannot tell the two hosts apart.
+ * The host the visitor asked for: `X-Forwarded-Host` where a proxy in front, or Next.js itself,
+ * set it, and otherwise the Host header. Behind `next start` and the standalone server the
+ * request's URL names the server's own address instead (Next.js 16.4.1,
+ * `server/lib/router-utils/resolve-routes.js`). A Server Action's redirect is rendered by a fetch
+ * to that address, which carries the action's `X-Forwarded-Host` but not its Host
+ * (`server/app-render/action-handler.js`, `server/base-server.js`), so the forwarded host comes
+ * first.
  */
 function requestedHost(request: NextRequest): string {
-  return request.headers.get("host") ?? request.nextUrl.host;
+  const forwarded = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  return forwarded || (request.headers.get("host") ?? request.nextUrl.host);
 }
 
 /**

@@ -230,6 +230,24 @@ describe("the admin host", () => {
     expect(await target("/auth/callback")).toBeNull();
   });
 
+  it("takes the forwarded host first, so a Server Action's redirect, fetched on the server's own address, stays on the admin host", async () => {
+    // The fetch Next.js makes to render an action's redirect: its Host is the server's address,
+    // and the action's X-Forwarded-Host rides along.
+    const internal = (headers: Record<string, string>) =>
+      proxy(
+        new NextRequest(`${served}/login`, {
+          headers: { host: new URL(served).host, ...headers },
+        }),
+      );
+    const forwarded = await internal({ "x-forwarded-host": new URL(adminHost).host });
+    expect(new URL(forwarded.headers.get("x-middleware-rewrite") ?? "", served).pathname).toBe(
+      "/admin/login",
+    );
+    // Control: without it the same fetch is the service's own `/login`.
+    const plain = await internal({});
+    expect(plain.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
   it("hands every admin page the service's origin, which 서비스 열기 opens", async () => {
     const { response } = await respond("/users", signedIn, adminHost);
     expect(response?.headers.get("x-middleware-request-x-knowno-service-origin")).toBe(service);
