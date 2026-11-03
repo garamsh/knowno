@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_button.dart';
 import '../../design/app_list_row.dart';
+import '../../design/app_text_field.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'editor_group.dart';
@@ -366,22 +367,19 @@ class _EditingRow extends StatelessWidget {
         children: [
           SizedBox(
             width: _labelFieldWidth,
-            child: TextField(
+            child: AppTextField(
+              label: l10n.labelPresetLabel,
               controller: label,
               autofocus: true,
               textAlign: TextAlign.center,
               style: AppType.bodyStrong,
-              decoration: InputDecoration(
-                labelText: l10n.labelPresetLabel,
-                errorText: showLabelError ? l10n.labelPresetRequired : null,
-              ),
+              errorText: showLabelError ? l10n.labelPresetRequired : null,
             ),
           ),
           Expanded(
-            child: TextField(
+            child: AppTextField(
+              label: l10n.labelPresetName,
               controller: name,
-              style: AppType.body,
-              decoration: InputDecoration(labelText: l10n.labelPresetName),
               onSubmitted: (_) => onDone(),
             ),
           ),
