@@ -17,6 +17,8 @@ export type Candidate = CardDraft & {
   reverseId: string;
   /** Included (true) or left out (false) by the user; null until either, when the list decides. */
   selected: boolean | null;
+  /** Whether each meaning of the back's senses, in order, is kept; absent while all are. */
+  keptSenses?: boolean[];
 };
 /** A note the page prints for a whole entry, such as a synonym, as the phone's `Extra`. */
 export type Extra = { label: string; text: string };

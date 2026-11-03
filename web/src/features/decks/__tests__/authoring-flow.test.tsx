@@ -730,7 +730,25 @@ describe("photo import", () => {
       expect(screen.queryByRole("dialog", { name: "카드 편집" })).not.toBeInTheDocument();
       const row = screen.getByRole("button", { name: "Apple 편집" });
       expect(row, "the meaning left empty keeps its text").toHaveTextContent("사과나무");
-      expect(row, "the meaning left out is dropped").not.toHaveTextContent("[명]");
+      expect(row, "the meaning left out is not shown").not.toHaveTextContent("[명]");
+
+      // Reopened, the meaning left out is there, unchecked, as on the phone.
+      await userEvent.click(row);
+      const again = screen.getByRole("dialog", { name: "카드 편집" });
+      expect(within(again).getByRole("checkbox", { name: "1번째 뜻 넣기" })).not.toBeChecked();
+      expect(within(again).getByRole("textbox", { name: "1번째 뜻 · [명]" })).toHaveValue("사과");
+      expect(within(again).getByRole("checkbox", { name: "2번째 뜻 넣기" })).toBeChecked();
+      await userEvent.click(within(again).getByRole("button", { name: "완료" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "카드 1장 추가" }));
+      await waitFor(() => {
+        expect(db.rows.cards).toHaveLength(1);
+      });
+      const stored = field(firstBlock(db.rows.cards[0]?.front).payload, "senses");
+      expect(
+        Array.isArray(stored) ? stored.map((sense) => field(sense, "meaning")) : stored,
+        "only the kept meaning is saved",
+      ).toEqual(["사과나무"]);
     });
     it("edits a note's 앞면 and 뒷면, and names nothing 블록", async () => {
       answer(read);

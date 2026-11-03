@@ -17,10 +17,11 @@ type SenseDraft = { key: number; sense: Sense; meaning: string; kept: boolean };
  * "카드 편집" over a photo's candidate, as the phone's edit sheet: its "앞면", then a vocabulary
  * entry's meanings, each kept or left out by its round check, edited, and moved up or down through
  * its ⋯, or a note's "뒷면". "완료" hands [done] the card with the edits, a field left empty
- * keeping its text and a meaning left out dropped, and is disabled while every meaning is left
- * out; closing applies none.
+ * keeping its text and each meaning's round check in `keptSenses`, so the card saves the kept ones
+ * and the sheet opens again with the others unchecked; it is disabled while every meaning is left
+ * out. Closing applies none.
  */
-export function CardEditSheet<Card extends CardDraft>({
+export function CardEditSheet<Card extends CardDraft & { keptSenses?: boolean[] }>({
   card,
   done,
   close,
@@ -33,7 +34,12 @@ export function CardEditSheet<Card extends CardDraft>({
   const [front, setFront] = useState(() => textOf(card.front));
   const [back, setBack] = useState(() => textOf(card.back));
   const [drafts, setDrafts] = useState<SenseDraft[]>(() =>
-    (senses ?? []).map((sense, key) => ({ key, sense, meaning: sense.meaning, kept: true })),
+    (senses ?? []).map((sense, key) => ({
+      key,
+      sense,
+      meaning: sense.meaning,
+      kept: card.keptSenses?.[key] !== false,
+    })),
   );
   const savable = !senses || drafts.some((draft) => draft.kept);
 
@@ -45,18 +51,21 @@ export function CardEditSheet<Card extends CardDraft>({
                 ...item,
                 payload: {
                   ...item.payload,
-                  senses: drafts
-                    .filter((draft) => draft.kept)
-                    .map((draft) => ({
-                      ...draft.sense,
-                      meaning: draft.meaning.trim() || draft.sense.meaning,
-                    })),
+                  senses: drafts.map((draft) => ({
+                    ...draft.sense,
+                    meaning: draft.meaning.trim() || draft.sense.meaning,
+                  })),
                 },
               }
             : item,
         )
       : withText(card.back, back);
-    done({ ...card, front: withText(card.front, front), back: written });
+    done({
+      ...card,
+      front: withText(card.front, front),
+      back: written,
+      ...(senses && { keptSenses: drafts.map((draft) => draft.kept) }),
+    });
   }
 
   function move(at: number, by: number) {
