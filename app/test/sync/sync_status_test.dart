@@ -17,6 +17,7 @@ import '../contrast.dart';
 import '../account/fake_account_service.dart';
 import 'device.dart';
 import 'fake_sync_server.dart';
+import '../word_breaks.dart';
 
 const _ada = UserId('00000000-0000-4000-8000-00000000000a');
 
@@ -134,7 +135,7 @@ void main() {
     await runSync(tester, controller);
 
     expect(find.text('Offline · syncs when connected'), findsOneWidget);
-    expect(find.text('Try again'), findsNothing);
+    expect(shownText('Try again'), findsNothing);
     expect(
       find.descendant(
         of: find.byType(SyncStatusView),
@@ -164,7 +165,7 @@ void main() {
       );
 
       server.failure = null;
-      await tester.tap(find.text('Try again'));
+      await tester.tap(shownText('Try again'));
       await tester.runAsync(controller.sync);
       await tester.pump();
 
@@ -182,7 +183,7 @@ void main() {
       );
       server.failure = const SyncFailed(FormatException('bad row'));
       await runSync(tester, controller);
-      expect(find.text('Try again'), findsOneWidget);
+      expect(shownText('Try again'), findsOneWidget);
 
       await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
       await expectLater(tester, meetsGuideline(androidTapTargetGuideline));

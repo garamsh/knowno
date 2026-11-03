@@ -100,8 +100,8 @@ void main() {
       screens.tap(find.text('Insert blank'));
 
   Future<void> save(DeckScreens screens) async {
-    await screens.tester.ensureVisible(find.text('Save'));
-    await screens.tap(find.text('Save'));
+    await screens.tester.ensureVisible(shownText('Save'));
+    await screens.tap(shownText('Save'));
   }
 
   testWidgets(
@@ -576,7 +576,7 @@ void main() {
         await insertBlank(screens);
         await select(tester, 11);
         await insertBlank(screens);
-        await screens.tap(find.text('Preview'));
+        await screens.tap(shownText('Preview'));
         final preview = find.byType(CardPreviewScreen);
         expect(
           find.descendant(of: preview, matching: find.byType(WholeCardView)),
@@ -730,7 +730,7 @@ void main() {
       await select(tester, 5, 8);
       await insertBlank(screens);
       await save(screens);
-      expect(find.text('Add anyway'), findsOneWidget);
+      expect(shownText('Add anyway'), findsOneWidget);
       expect((await screens.cards()).length, 1);
       await screens.close();
     },

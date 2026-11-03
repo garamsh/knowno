@@ -69,7 +69,7 @@ void main() {
       await typeBlock(tester, 'Chat');
       await typeBlock(tester, 'cat', 1);
 
-      await screens.tap(find.text('Preview'));
+      await screens.tap(shownText('Preview'));
       expect(find.byType(CardPreviewScreen), findsOneWidget);
       expect(_previewText(tester), ['Chat', 'Tap the card to see the answer']);
       await screens.tap(find.byType(CardPreviewScreen));
@@ -115,7 +115,7 @@ void main() {
 
       for (final action in ['Save', 'Save and next card']) {
         expect(
-          tester.getRect(find.text(action)).bottom,
+          tester.getRect(shownText(action)).bottom,
           lessThanOrEqualTo(keyboardTop),
           reason: action,
         );
@@ -123,7 +123,7 @@ void main() {
       for (final (front, back) in [('Chat', 'cat'), ('Chien', 'dog')]) {
         await typeBlock(tester, front);
         await typeBlock(tester, back, 1);
-        await tester.tap(find.text('Save and next card'), warnIfMissed: false);
+        await tester.tap(shownText('Save and next card'), warnIfMissed: false);
         await tester.pumpAndSettle();
       }
       final cards = await _stored(screens);
@@ -137,7 +137,7 @@ void main() {
             CardEditorScreen(preview: studyPreview, deck: deck, card: card),
       );
       expect(
-        tester.getRect(find.text('Save')).bottom,
+        tester.getRect(shownText('Save')).bottom,
         lessThanOrEqualTo(keyboardTop),
         reason: 'editing',
       );
@@ -155,7 +155,7 @@ void main() {
 
         await screens.tap(find.byTooltip('Close'));
         expect(shownText('Discard this card?'), findsOneWidget);
-        await screens.tap(find.text('Keep writing'));
+        await screens.tap(shownText('Keep writing'));
         expect(find.byType(CardEditorScreen), findsOneWidget);
         expect(find.widgetWithText(TextField, 'ephemeral'), findsOneWidget);
 
@@ -163,7 +163,7 @@ void main() {
         await tester.binding.handlePopRoute();
         await tester.pumpAndSettle();
         expect(shownText('Discard this card?'), findsOneWidget);
-        await screens.tap(find.text('Discard'));
+        await screens.tap(shownText('Discard'));
         expect(find.byType(CardEditorScreen), findsNothing);
         expect(await screens.cards(), isEmpty);
         await screens.close();
@@ -183,7 +183,7 @@ void main() {
         );
         await typeBlock(tester, 'Chat');
         await typeBlock(tester, 'cat', 1);
-        await screens.tap(find.text('Save and next card'));
+        await screens.tap(shownText('Save and next card'));
         await screens.tap(find.byTooltip('Close'));
         expect(find.byType(CardEditorScreen), findsNothing);
         expect(await _stored(screens), [('Chat', 'cat')]);
@@ -248,7 +248,7 @@ void main() {
 
     await typeBlock(tester, 'Chat');
     await typeBlock(tester, 'cat', 1);
-    await screens.tap(find.text('Save'));
+    await screens.tap(shownText('Save'));
 
     expect(find.byType(CardEditorScreen), findsNothing);
     expect(await _stored(screens), [('Chat', 'cat')]);
@@ -265,7 +265,7 @@ void main() {
       // Control: focus has left the front before the save.
       expect(_focused(tester), isFalse);
 
-      await screens.tap(find.text('Save and next card'));
+      await screens.tap(shownText('Save and next card'));
 
       expect(find.byType(CardEditorScreen), findsOneWidget);
       expect(await _stored(screens), [('Chat', 'cat')]);
@@ -275,7 +275,7 @@ void main() {
 
       await typeBlock(tester, 'Chien');
       await typeBlock(tester, 'dog', 1);
-      await screens.tap(find.text('Save and next card'));
+      await screens.tap(shownText('Save and next card'));
       expect(await _stored(screens), [('Chat', 'cat'), ('Chien', 'dog')]);
       await screens.close();
     },
@@ -302,12 +302,12 @@ void main() {
     );
     final screens = await openNew(tester);
     await typeBlock(tester, 'Chat');
-    await screens.tap(find.text('Save and next card'));
+    await screens.tap(shownText('Save and next card'));
     expect(shownText('Add a back or a blank'), findsOneWidget);
     expect(haptics, isEmpty, reason: 'refused');
 
     await typeBlock(tester, 'cat', 1);
-    await screens.tap(find.text('Save and next card'));
+    await screens.tap(shownText('Save and next card'));
     expect(await _stored(screens), [('Chat', 'cat')]);
     expect(haptics, ['HapticFeedbackType.lightImpact']);
     await screens.close();
@@ -383,7 +383,7 @@ void main() {
           (deck) =>
               CardEditorScreen(preview: studyPreview, deck: deck, card: card),
         );
-        await tapVisible(screens, find.text('Save'));
+        await tapVisible(screens, shownText('Save'));
         expect(find.byType(CardEditorScreen), findsNothing);
         final saved = (await screens.cards()).single;
         expect((saved.template, saved.templateVersion), ('free', 2));
@@ -411,7 +411,7 @@ void main() {
           (deck) =>
               CardEditorScreen(preview: studyPreview, deck: deck, card: card),
         );
-        await tapVisible(screens, find.text('Save'));
+        await tapVisible(screens, shownText('Save'));
         expect(shownText('Add a back or a blank'), findsOneWidget);
         expect((await screens.cards()).single.templateVersion, 1);
         await screens.close();
@@ -433,7 +433,7 @@ void main() {
           (deck) =>
               CardEditorScreen(preview: studyPreview, deck: deck, card: card),
         );
-        expect(find.text('Save'), findsNothing);
+        expect(shownText('Save'), findsNothing);
         expect(find.byType(CardPreview), findsOneWidget);
         await screens.close();
       });
@@ -488,7 +488,7 @@ void main() {
           (deck) =>
               CardEditorScreen(preview: studyPreview, deck: deck, card: card),
         );
-        await screens.tap(find.text('Preview'));
+        await screens.tap(shownText('Preview'));
         expect(
           find.descendant(
             of: find.byType(CardPreviewScreen),
@@ -498,7 +498,7 @@ void main() {
           reason: '$template: the preview draws it as study does',
         );
         await screens.tap(find.byTooltip('Close'));
-        await tapVisible(screens, find.text('Save'));
+        await tapVisible(screens, shownText('Save'));
         final saved = (await screens.cards()).singleWhere(
           (stored) => stored.id == card.id,
         );
@@ -530,7 +530,7 @@ void main() {
         (deck) =>
             CardEditorScreen(preview: studyPreview, deck: deck, card: card),
       );
-      expect(find.text('Save'), findsNothing);
+      expect(shownText('Save'), findsNothing);
       await screens.tap(find.byTooltip('Close'));
 
       // Control: in the frame the block keeps its place, and a 글 is edited
@@ -561,7 +561,7 @@ void main() {
       );
       await typeBlock(tester, '배', 1);
       await typeBlock(tester, 'pears');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       final saved = (await screens.cards()).firstWhere(
         (stored) => stored.id == framed.id,
       );
@@ -601,7 +601,7 @@ void main() {
       await actOnBlock(screens, 1, 'Move down');
       await addBlock(screens, 'Text');
       await typeBlock(tester, 'new', 4);
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       final ids = [
         for (final cell in (await screens.cards()).single.cells!) cell.id,
       ];
@@ -622,8 +622,8 @@ void main() {
     );
 
     expect(find.text('Edit card'), findsOneWidget);
-    expect(find.text('Save'), findsOneWidget);
-    expect(find.text('Save and next card'), findsNothing);
+    expect(shownText('Save'), findsOneWidget);
+    expect(shownText('Save and next card'), findsNothing);
     // Deleting is red text at the end of the form, not an icon in the bar.
     expect(
       find.descendant(
@@ -635,19 +635,19 @@ void main() {
     );
     expect(
       tester
-          .widget<AppButton>(find.widgetWithText(AppButton, 'Delete card'))
+          .widget<AppButton>(widgetWithShownText(AppButton, 'Delete card'))
           .variant,
       AppButtonVariant.destructive,
     );
 
-    await tapVisible(screens, find.text('Delete card'));
+    await tapVisible(screens, shownText('Delete card'));
     expect(shownText('Delete this card?'), findsOneWidget);
     // The confirmation keeps its cancel, and the delete comes last, below it.
     expect(
-      tester.getRect(find.text('Cancel')).bottom,
-      lessThanOrEqualTo(tester.getRect(find.text('Delete')).top),
+      tester.getRect(shownText('Cancel')).bottom,
+      lessThanOrEqualTo(tester.getRect(shownText('Delete')).top),
     );
-    await screens.tap(find.text('Delete'));
+    await screens.tap(shownText('Delete'));
 
     expect(find.byType(CardEditorScreen), findsNothing);
     expect(await _stored(screens), isEmpty);
@@ -659,7 +659,7 @@ void main() {
       final screens = await openNew(tester, cards: {'Chat': 'cat'});
       await typeBlock(tester, '  CHAT ');
       await typeBlock(tester, 'chat (talk)', 1);
-      await screens.tap(find.text('Save'));
+      await screens.tap(shownText('Save'));
       expect(shownText('This note already has this card'), findsOneWidget);
       expect(
         shownText('Case and spacing are ignored when comparing.'),
@@ -688,7 +688,7 @@ void main() {
     ) async {
       final screens = await collide(tester);
 
-      await screens.tap(find.text('Add anyway'));
+      await screens.tap(shownText('Add anyway'));
 
       expect(find.byType(CardEditorScreen), findsNothing);
       expect(await _stored(screens), [
@@ -703,7 +703,7 @@ void main() {
       (tester) async {
         final screens = await collide(tester);
 
-        await screens.tap(find.text('Open existing card'));
+        await screens.tap(shownText('Open existing card'));
 
         expect(find.text('Edit card'), findsOneWidget);
         expect(find.widgetWithText(TextField, 'Chat'), findsOneWidget);
@@ -730,7 +730,7 @@ void main() {
         expect(
           find.descendant(
             of: find.byType(BottomSheet),
-            matching: find.text('Cancel'),
+            matching: shownText('Cancel'),
           ),
           findsNothing,
         );
@@ -777,10 +777,10 @@ void main() {
       );
       expect(find.byType(CardPreview), findsOneWidget);
       expect(find.byType(TextField), findsNothing, reason: 'nothing to edit');
-      expect(find.text('Save'), findsNothing);
+      expect(shownText('Save'), findsNothing);
 
-      await tapVisible(screens, find.text('Delete card'));
-      await screens.tap(find.text('Delete'));
+      await tapVisible(screens, shownText('Delete card'));
+      await screens.tap(shownText('Delete'));
       expect(await screens.cards(), isEmpty, reason: 'it still deletes');
       await screens.close();
 
@@ -791,7 +791,7 @@ void main() {
         (deck) =>
             CardEditorScreen(preview: studyPreview, deck: deck, card: card),
       );
-      expect(find.text('Save'), findsOneWidget);
+      expect(shownText('Save'), findsOneWidget);
       await again.close();
     },
   );

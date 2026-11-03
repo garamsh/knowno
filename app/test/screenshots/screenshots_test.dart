@@ -294,7 +294,7 @@ void main() {
     }
 
     Future<void> showRecord(WidgetTester tester) async {
-      await tester.tap(find.text(ko.tabRecord));
+      await tester.tap(shownText(ko.tabRecord));
       for (
         var tries = 0;
         tries < 20000 && find.text(ko.retentionTitle).evaluate().isEmpty;
@@ -363,13 +363,13 @@ void main() {
       }
 
       // The first-run home's one primary opens 새 노트.
-      await tap(tester, find.text(ko.newDeckTitle));
+      await tap(tester, shownText(ko.newDeckTitle));
       await tester.enterText(find.byType(EditableText), '영단어 기본');
       await tester.pumpAndSettle();
       await tap(tester, find.bySemanticsLabel(ko.deckColorName('blue')));
       await shot(tester, '03-new-deck');
       // Saving opens the deck, empty, adding a card its one primary.
-      await tap(tester, find.text(ko.save));
+      await tap(tester, shownText(ko.save));
       await shot(tester, '04-card-list-empty');
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
@@ -377,11 +377,11 @@ void main() {
       await showHome(tester);
       await shot(tester, '16-today-no-cards');
       await showNotes(tester);
-      await tap(tester, find.text(ko.newDeck));
+      await tap(tester, shownText(ko.newDeck));
       await tester.enterText(find.byType(EditableText), '일본어 N3 한자');
       await tester.pumpAndSettle();
       await tap(tester, find.bySemanticsLabel(ko.deckColorName('violet')));
-      await tap(tester, find.text(ko.save));
+      await tap(tester, shownText(ko.save));
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
@@ -394,24 +394,24 @@ void main() {
       };
       for (final (index, MapEntry(key: front, value: back))
           in cards.entries.indexed) {
-        await tap(tester, find.text(ko.newCard));
+        await tap(tester, shownText(ko.newCard));
         if (index == 0) await shot(tester, '04b-add-card-sheet');
-        await tap(tester, find.text(ko.createManually));
+        await tap(tester, shownText(ko.createManually));
         await enterSides(front, back);
         if (index == 0) await shot(tester, '05-card-editor');
-        await tap(tester, find.text(ko.save));
+        await tap(tester, shownText(ko.save));
       }
-      await tap(tester, find.text(ko.newCard));
-      await tap(tester, find.text(ko.createManually));
+      await tap(tester, shownText(ko.newCard));
+      await tap(tester, shownText(ko.createManually));
       await enterSides('Ephemeral', '순간의');
-      await tap(tester, find.text(ko.save));
+      await tap(tester, shownText(ko.save));
       await shot(tester, '06-duplicate-sheet');
       // Above a tall sheet, where the barrier's centre is not.
       await tester.tapAt(const Offset(20, 100));
       await tester.pumpAndSettle();
       // Leaving the typed card asks first.
       await tap(tester, find.byTooltip(ko.close));
-      await tap(tester, find.text(ko.discardCard));
+      await tap(tester, shownText(ko.discardCard));
       await shot(tester, '07-card-list');
       // The bar and the name under it at the largest text size.
       tester.platformDispatcher.textScaleFactorTestValue = 3.12;
@@ -436,19 +436,19 @@ void main() {
       await tap(tester, find.text(ko.deckAppearance));
       await tap(tester, find.bySemanticsLabel(ko.deckIconName('languages')));
       await shot(tester, '03c-deck-appearance');
-      await tap(tester, find.text(ko.save));
+      await tap(tester, shownText(ko.save));
       await tap(tester, find.byTooltip(ko.deckActions));
       await tap(tester, find.text(ko.deleteDeck));
       await shot(tester, '09-delete-deck-confirm');
-      await tap(tester, find.text(ko.cancel));
+      await tap(tester, shownText(ko.cancel));
 
       await tap(tester, shownText('meticulous'));
       await shot(tester, '10-card-editor-existing');
-      await tester.ensureVisible(find.text(ko.deleteCard));
+      await tester.ensureVisible(shownText(ko.deleteCard));
       await tester.pumpAndSettle();
-      await tap(tester, find.text(ko.deleteCard));
+      await tap(tester, shownText(ko.deleteCard));
       await shot(tester, '11-delete-card-confirm');
-      await tap(tester, find.text(ko.cancel));
+      await tap(tester, shownText(ko.cancel));
       await tap(tester, find.byTooltip(ko.close));
 
       // The tabs before any study: four new cards for today.
@@ -459,32 +459,32 @@ void main() {
       await showHome(tester);
       await waitForPicker(tester, more: ko.dailyMinutesMore);
       await shot(tester, '16a0-daily-minutes-first');
-      await tap(tester, find.text(ko.dailyMinutesSkip));
+      await tap(tester, shownText(ko.dailyMinutesSkip));
       await shot(tester, '16a-today');
       await showNotes(tester);
       await shot(tester, '16a2-notes');
       await tap(tester, shownText('영단어 기본'));
 
-      await tester.tap(find.textContaining(ko.studyThisDeckPlain));
+      await tester.tap(shownTextContaining(ko.studyThisDeckPlain));
       // The device's first session: the coach. Its demonstration repeats, so
       // the screen is pumped a fixed time into its cycle rather than settled.
       for (
         var tries = 0;
-        tries < 20 && find.text(ko.coachNext).evaluate().isEmpty;
+        tries < 20 && shownText(ko.coachNext).evaluate().isEmpty;
         tries++
       ) {
         await tester.pump(const Duration(milliseconds: 100));
       }
       await tester.pump(const Duration(milliseconds: 1500));
       await shot(tester, '12-study-coach');
-      await tester.tap(find.text(ko.coachNext));
+      await tester.tap(shownText(ko.coachNext));
       await tester.pump(const Duration(milliseconds: 2800));
       await shot(tester, '12a-study-coach-dont-know');
-      await tester.tap(find.text(ko.coachNext));
+      await tester.tap(shownText(ko.coachNext));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 2800));
       await shot(tester, '12b-study-coach-change');
-      await tap(tester, find.text(ko.coachStart));
+      await tap(tester, shownText(ko.coachStart));
       // A day's first session: the empty previous card's place.
       await shot(tester, '12c-study-start');
       // Answers by a swipe of the current card, right for 안다.
@@ -529,7 +529,7 @@ void main() {
       await tap(tester, shownText('영단어 기본'));
       // Reopened the same day: the day's last card from the earlier session,
       // and for a moment the notice that the session goes on with the day.
-      await tap(tester, find.textContaining(ko.studyThisDeckPlain));
+      await tap(tester, shownTextContaining(ko.studyThisDeckPlain));
       await shot(tester, '13d-study-resumed');
       await tester.pump(const Duration(seconds: 3));
       await tester.pumpAndSettle();
@@ -614,13 +614,13 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await shot(tester, '19-sign-out-warning');
-      await tester.tap(find.text(ko.cancel));
+      await tester.tap(shownText(ko.cancel));
       await tester.pump(const Duration(seconds: 1));
       await tester.tap(find.text(ko.deleteAccount));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await shot(tester, '19b-delete-account-confirm');
-      await tester.tap(find.text(ko.cancel));
+      await tester.tap(shownText(ko.cancel));
       await tester.pump(const Duration(seconds: 1));
 
       // Disposing sync cancels the run a write scheduled.
@@ -871,14 +871,14 @@ void main() {
       // The day's plan done: its title, the next review and 학습하기.
       expect(shownText(ko.todayDone), findsOneWidget);
       expect(shownText(ko.nextReview(ko.dayTomorrow, 35, 6)), findsOneWidget);
-      expect(find.text(ko.todayStudy), findsOneWidget);
+      expect(shownText(ko.todayStudy), findsOneWidget);
       await shot(tester, '16i-today-done-extra');
       await tester.scrollUntilVisible(
-        find.text(ko.todayStudy),
+        shownText(ko.todayStudy),
         100,
         scrollable: find.byType(Scrollable).first,
       );
-      await tap(tester, find.text(ko.todayStudy));
+      await tap(tester, shownText(ko.todayStudy));
       await shot(tester, '15d-study-extra');
       await unmount(tester);
     });
@@ -959,7 +959,7 @@ void main() {
       await tap(tester, shownText('국어 문법'));
       await shot(tester, '31-whole-card-list');
 
-      await tap(tester, find.textContaining(ko.studyThisDeckPlain));
+      await tap(tester, shownTextContaining(ko.studyThisDeckPlain));
       await shot(tester, '32-whole-card-study');
       for (final name in [
         '32b-whole-card-answered',
@@ -1030,7 +1030,7 @@ void main() {
       await tester.pumpAndSettle();
       await showNotes(tester);
       await tap(tester, shownText('생명과학'));
-      await tap(tester, find.textContaining(ko.studyThisDeckPlain));
+      await tap(tester, shownTextContaining(ko.studyThisDeckPlain));
       await shot(tester, '34-long-study-1');
       for (final name in [
         '34b-long-study-2',
@@ -1085,7 +1085,7 @@ void main() {
       await tester.enterText(fields.at(0), _longKorean(400));
       await tester.enterText(fields.at(1), _longKorean(200));
       await tester.pumpAndSettle();
-      await tap(tester, find.text(ko.previewCard));
+      await tap(tester, shownText(ko.previewCard));
       await shot(tester, '35-long-preview-front');
       await tap(tester, find.byType(Scaffold).last);
       await shot(tester, '35b-long-preview-back');
@@ -1144,12 +1144,12 @@ void main() {
           )
           .at(index);
 
-      await tap(tester, find.text(ko.save));
+      await tap(tester, shownText(ko.save));
       await shot(tester, '05b-card-editor-basic-errors');
       // The card's Text, made a Word.
       await reveal(find.byTooltip(ko.blockMenu(1)));
       await tap(tester, find.byTooltip(ko.blockMenu(1)));
-      await tap(tester, find.text(ko.deleteBlock).last);
+      await tap(tester, shownText(ko.deleteBlock).last);
       await reveal(find.bySemanticsLabel(ko.addBlock));
       await tap(tester, find.bySemanticsLabel(ko.addBlock));
       await tap(tester, find.text(ko.blockSenses).last);
@@ -1350,7 +1350,7 @@ void main() {
       await tester.pumpAndSettle();
       await shot(tester, '05r-card-editor-free');
       // The card as study draws it, its front, then answered after a tap.
-      await tap(tester, find.text(ko.previewCard));
+      await tap(tester, shownText(ko.previewCard));
       await shot(tester, '05v-card-preview-front');
       // The card fills the screen's middle.
       await tap(tester, find.byType(Scaffold).last);
@@ -1468,14 +1468,14 @@ void main() {
       // A 칸 deleted, with its undo above the actions (ADR 0174).
       await open(card);
       await tap(tester, find.byTooltip(ko.blockMenu(1)));
-      await tap(tester, find.text(ko.deleteBlock).last);
+      await tap(tester, shownText(ko.deleteBlock).last);
       await shot(tester, '05zb-card-editor-undo');
       await open(null);
       await shot(tester, '05y-card-editor-new');
-      await tap(tester, find.text(ko.save));
+      await tap(tester, shownText(ko.save));
       await shot(tester, '05z-card-editor-nothing-before');
       await tester.enterText(find.byType(TextField).first, 'ephemeral');
-      await tap(tester, find.text(ko.save));
+      await tap(tester, shownText(ko.save));
       await shot(tester, '05za-card-editor-nothing-added');
       await unmount(tester);
     });
@@ -1518,7 +1518,7 @@ void main() {
       await tester.ensureVisible(find.byTooltip(ko.blockMenu(1)));
       await tester.pumpAndSettle();
       await tap(tester, find.byTooltip(ko.blockMenu(1)));
-      await tap(tester, find.text(ko.deleteBlock).last);
+      await tap(tester, shownText(ko.deleteBlock).last);
       await tester.ensureVisible(find.bySemanticsLabel(ko.addBlock));
       await tester.pumpAndSettle();
       await tap(tester, find.bySemanticsLabel(ko.addBlock));
@@ -1526,8 +1526,8 @@ void main() {
       final line = find.byType(TextField).first;
       await tester.enterText(line, 'She gave me a present for my birthday');
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text(ko.save));
-      await tap(tester, find.text(ko.save));
+      await tester.ensureVisible(shownText(ko.save));
+      await tap(tester, shownText(ko.save));
       await shot(tester, '05f-card-editor-cloze-error');
       await tester.showKeyboard(line);
       final controller = tester.widget<TextField>(line).controller!;
@@ -1558,7 +1558,7 @@ void main() {
       tester.view.resetViewInsets();
       await tester.pumpAndSettle();
       // The card on its one face, its blanks empty until a tap.
-      await tap(tester, find.text(ko.previewCard));
+      await tap(tester, shownText(ko.previewCard));
       await shot(tester, '05x-card-preview-cloze');
       await unmount(tester);
     });
@@ -1601,7 +1601,7 @@ void main() {
       await tester.pumpAndSettle();
       // A 빈칸 문장 first, then a 글 under it.
       await tap(tester, find.byTooltip(ko.blockMenu(1)));
-      await tap(tester, find.text(ko.deleteBlock).last);
+      await tap(tester, shownText(ko.deleteBlock).last);
       for (final type in [ko.blockCloze, ko.blockText]) {
         await tester.ensureVisible(find.bySemanticsLabel(ko.addBlock));
         await tester.pumpAndSettle();
@@ -1881,7 +1881,7 @@ void main() {
         }
       }
 
-      await shoot(find.text('open'));
+      await shoot(shownText('open'));
       await shot(tester, '22-photo-extracting');
       client.answerCards([
         const CandidateCard(
@@ -1934,7 +1934,7 @@ void main() {
       await tap(tester, find.widgetWithText(MenuItemButton, ko.importBoth));
       await tap(tester, shownText('face'));
       await shot(tester, '22c-photo-edit');
-      await tap(tester, find.text(ko.editDone));
+      await tap(tester, shownText(ko.editDone));
       await tap(tester, shownText('영단어 기본'));
       await shot(tester, '21-photo-deck-sheet');
       await dismissSheet(tester);
@@ -1942,9 +1942,9 @@ void main() {
       // The retake waits in the top bar's ⋯.
       await tap(tester, find.byTooltip(ko.importActions));
       await shot(tester, '22e-photo-list-actions');
-      await tap(tester, find.text(ko.retake));
+      await tap(tester, shownText(ko.retake));
       await shot(tester, '22d-photo-discard');
-      await shoot(find.text(ko.discardImport));
+      await shoot(shownText(ko.discardImport));
       client.answerCards(const [
         CandidateCard(
           front: '양성모음',
@@ -1972,14 +1972,14 @@ void main() {
       await shot(tester, '23-photo-notes');
 
       await tap(tester, find.byTooltip(ko.importActions));
-      await tap(tester, find.text(ko.retake));
-      await shoot(find.text(ko.discardImport));
+      await tap(tester, shownText(ko.retake));
+      await shoot(shownText(ko.discardImport));
       client.fail(const ModelFailed());
       await tester.pumpAndSettle();
       await shot(tester, '24-photo-failure');
 
       photos.cameraFailure = const PhotoAccessDenied('denied');
-      await tap(tester, find.text(ko.retake));
+      await tap(tester, shownText(ko.retake));
       await shot(tester, '25-photo-refused');
 
       await unmount(tester);
@@ -2044,16 +2044,16 @@ void main() {
           ),
         ),
       );
-      await tap(tester, find.text('open'));
+      await tap(tester, shownText('open'));
       await shot(tester, '34-spreadsheet-start');
 
       final picked = pick.file;
       pick.file = const RefusedFile(SpreadsheetRefusal.notUtf8);
-      await tap(tester, find.text(ko.spreadsheetChoose));
+      await tap(tester, shownText(ko.spreadsheetChoose));
       await shot(tester, '34a-spreadsheet-refused');
 
       pick.file = picked;
-      await tap(tester, find.text(ko.spreadsheetChoose));
+      await tap(tester, shownText(ko.spreadsheetChoose));
       await shot(tester, '35-spreadsheet-columns');
 
       await tap(tester, find.text(ko.spreadsheetLabelColumn));
@@ -2066,7 +2066,7 @@ void main() {
       await tester.pumpAndSettle();
       await shot(tester, '36-spreadsheet-review');
 
-      await tester.tap(find.text(ko.importAdd(7)));
+      await tester.tap(shownText(ko.importAdd(7)));
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 50)),
       );
@@ -2145,9 +2145,9 @@ void main() {
         await tester.drag(find.byType(Scrollable).first, const Offset(0, 900));
         await tester.pumpAndSettle();
         await shot(tester, '03e-new-deck-chosen');
-        await tester.ensureVisible(find.text(ko.deckImageFromAlbum));
+        await tester.ensureVisible(shownText(ko.deckImageFromAlbum));
         await tester.pumpAndSettle();
-        await tester.tap(find.text(ko.deckImageFromAlbum));
+        await tester.tap(shownText(ko.deckImageFromAlbum));
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 50)),
         );
@@ -2219,7 +2219,7 @@ void main() {
         }
       }
 
-      await tester.tap(find.text('open'));
+      await tester.tap(shownText('open'));
       await frames();
       client.calls[0].answer.complete([
         word(front: 'face', meaning: '직면하다', partOfSpeech: '[동]'),
@@ -2235,7 +2235,7 @@ void main() {
         word(front: 'in addition', meaning: '~뿐만 아니라', topic: '빈출 숙어'),
       ]);
       await frames();
-      await tester.tap(find.text(ko.photoDrop));
+      await tester.tap(shownText(ko.photoDrop));
       await tester.pumpAndSettle();
       await shot(tester, '26a-photo-groups');
       await tap(tester, find.bySemanticsLabel(ko.photoView(1)));
@@ -2388,16 +2388,16 @@ void main() {
 
       // A deck, so the bar shows above the tab bar.
       await dismissSheet(tester);
-      await tap(tester, find.text(ko.newDeckTitle));
+      await tap(tester, shownText(ko.newDeckTitle));
       await tester.enterText(find.byType(EditableText), '영단어 기본');
       // Saving opens the deck, which back leaves.
-      await tap(tester, find.text(ko.save));
+      await tap(tester, shownText(ko.save));
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await shot(tester, '27a-photo-bar-paused');
 
       await tap(tester, find.text(ko.importBarPaused(2)));
-      await tap(tester, find.text(ko.resumeImport));
+      await tap(tester, shownText(ko.resumeImport));
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await shot(tester, '27b-photo-bar-reading');
@@ -2496,7 +2496,7 @@ void main() {
       await tap(tester, shownText('영단어 기본'));
       await tap(tester, find.byTooltip(ko.deckActions));
       await shot(tester, '25-deck-menu-publish');
-      await tap(tester, find.text(ko.publish));
+      await tap(tester, shownText(ko.publish));
       await shot(tester, '26-publish-sheet');
       await tester.enterText(
         find.widgetWithText(AppTextField, ko.displayName),
@@ -2510,7 +2510,7 @@ void main() {
               widget.data?.replaceAll('\u2060', '') == ko.publishAgreement,
         ),
       );
-      await tap(tester, find.text(ko.publishConfirm));
+      await tap(tester, shownText(ko.publishConfirm));
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
       await shot(tester, '27-card-list-public');
@@ -2521,11 +2521,11 @@ void main() {
 
       await tap(tester, find.byTooltip(ko.notesActions));
       await shot(tester, '28b-notes-menu');
-      await tap(tester, find.text(ko.browsePublicDecks));
+      await tap(tester, shownText(ko.browsePublicDecks));
       await shot(tester, '29-browse');
       await tap(tester, find.text('스페인어 동물'));
       await shot(tester, '30-public-deck');
-      await tap(tester, find.text(ko.copyToMyDecks));
+      await tap(tester, shownText(ko.copyToMyDecks));
       await tap(tester, find.text(ko.copyIntoExistingDeck));
       await shot(tester, '31-import-sheet');
       // Above a tall sheet, where the barrier's centre is not.

@@ -17,6 +17,7 @@ import 'package:knowno/media/media.dart';
 import 'package:uuid/uuid.dart';
 
 import '../media/fakes.dart';
+import '../word_breaks.dart';
 
 /// Hands out [next] on each pick.
 class _FakePick implements ImagePick {
@@ -104,7 +105,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('open'));
+    await tester.tap(shownText('open'));
     await tester.pumpAndSettle();
     return result;
   }
@@ -211,7 +212,7 @@ void main() {
       expect(find.text('색'), findsOneWidget);
 
       await tester.enterText(find.byType(EditableText), '일본어 회화');
-      await tapAndFinish(tester, find.text('앨범에서 고르기'));
+      await tapAndFinish(tester, shownText('앨범에서 고르기'));
 
       final shown = tester.widget<Image>(
         find.descendant(
@@ -222,11 +223,11 @@ void main() {
       expect((shown.image as MemoryImage).bytes, pick.next!.bytes);
       expect(find.text('아이콘'), findsNothing);
       expect(find.text('색'), findsNothing);
-      expect(find.text('다른 사진'), findsOneWidget);
-      expect(find.text('사진 삭제'), findsOneWidget);
-      expect(find.text('사진 찍기'), findsNothing);
+      expect(shownText('다른 사진'), findsOneWidget);
+      expect(shownText('사진 삭제'), findsOneWidget);
+      expect(shownText('사진 찍기'), findsNothing);
 
-      await tapAndFinish(tester, find.text('저장'));
+      await tapAndFinish(tester, shownText('저장'));
 
       final made = result.single!.deck;
       final stored = (await tester.runAsync(() => decks.getDeck(made.id)))!;
@@ -247,11 +248,11 @@ void main() {
       await tester.enterText(find.byType(EditableText), 'Delta');
       await tapAndFinish(tester, find.bySemanticsLabel('별'));
       await tapAndFinish(tester, find.bySemanticsLabel('모래'));
-      await tapAndFinish(tester, find.text('앨범에서 고르기'));
-      await tapAndFinish(tester, find.text('사진 삭제'));
+      await tapAndFinish(tester, shownText('앨범에서 고르기'));
+      await tapAndFinish(tester, shownText('사진 삭제'));
       expect(find.text('아이콘'), findsOneWidget);
 
-      await tapAndFinish(tester, find.text('저장'));
+      await tapAndFinish(tester, shownText('저장'));
 
       final stored = (await tester.runAsync(
         () => decks.getDeck(result.single!.deck.id),

@@ -9,11 +9,12 @@ import 'package:knowno/design/theme.dart';
 
 import '../contrast.dart';
 import 'harness.dart';
+import '../word_breaks.dart';
 
 /// The fill the button labelled [label] is drawn with.
 Color? _fill(WidgetTester tester, String label) {
   final material = tester.widget<Material>(
-    find.ancestor(of: find.text(label), matching: find.byType(Material)).first,
+    find.ancestor(of: shownText(label), matching: find.byType(Material)).first,
   );
   return material.color;
 }
@@ -52,7 +53,7 @@ void main() {
               .widget<DefaultTextStyle>(
                 find
                     .ancestor(
-                      of: find.text('primary'),
+                      of: shownText('primary'),
                       matching: find.byType(DefaultTextStyle),
                     )
                     .first,
@@ -68,7 +69,7 @@ void main() {
               .widget<DefaultTextStyle>(
                 find
                     .ancestor(
-                      of: find.text('destructive'),
+                      of: shownText('destructive'),
                       matching: find.byType(DefaultTextStyle),
                     )
                     .first,
@@ -105,7 +106,7 @@ void main() {
               .widget<DefaultTextStyle>(
                 find
                     .ancestor(
-                      of: find.text('skip'),
+                      of: shownText('skip'),
                       matching: find.byType(DefaultTextStyle),
                     )
                     .first,
@@ -119,7 +120,7 @@ void main() {
               .getSize(
                 find
                     .ancestor(
-                      of: find.text('skip'),
+                      of: shownText('skip'),
                       matching: find.byType(Material),
                     )
                     .first,
@@ -153,7 +154,12 @@ void main() {
         expect(_fill(tester, 'tonal'), colors.brandTint);
         expect(
           tester
-              .renderObject<RenderParagraph>(find.text('tonal'))
+              .renderObject<RenderParagraph>(
+                find.descendant(
+                  of: shownText('tonal'),
+                  matching: find.byType(RichText),
+                ),
+              )
               .text
               .style!
               .color,
@@ -209,7 +215,7 @@ void main() {
       double height(String label) => tester
           .getSize(
             find
-                .ancestor(of: find.text(label), matching: find.byType(Material))
+                .ancestor(of: shownText(label), matching: find.byType(Material))
                 .first,
           )
           .height;
@@ -218,7 +224,12 @@ void main() {
       expect(height('header'), AppSize.tapTarget);
       // A header action's label is the label type, against the button type.
       double label(String text) => tester
-          .renderObject<RenderParagraph>(find.text(text))
+          .renderObject<RenderParagraph>(
+            find.descendant(
+              of: shownText(text),
+              matching: find.byType(RichText),
+            ),
+          )
           .text
           .style!
           .fontSize!;
@@ -243,12 +254,12 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('enabled'));
+    await tester.tap(shownText('enabled'));
     expect(presses, 1);
-    await tester.tap(find.text('disabled'));
+    await tester.tap(shownText('disabled'));
     expect(presses, 1);
     expect(
-      tester.getSemantics(find.text('disabled')),
+      tester.getSemantics(shownText('disabled')),
       isSemantics(isButton: true, hasEnabledState: true, isEnabled: false),
     );
   });
@@ -280,7 +291,7 @@ void main() {
         settle: false,
       );
 
-      expect(find.text('Save'), findsNothing);
+      expect(shownText('Save'), findsNothing);
       expect(find.bySemanticsLabel('Saving'), findsOneWidget);
       await tester.tap(find.byType(AppButton));
       expect(presses, 0);
@@ -326,8 +337,8 @@ void main() {
           ],
         ),
       );
-      await tester.tap(find.text('other'));
-      await tester.tap(find.text('confirm'));
+      await tester.tap(shownText('other'));
+      await tester.tap(shownText('confirm'));
     }
 
     for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
@@ -342,7 +353,7 @@ void main() {
           tester,
           AppButton(label: 'save', onPressed: HapticFeedback.lightImpact),
         );
-        await tester.tap(find.text('save'));
+        await tester.tap(shownText('save'));
         debugDefaultTargetPlatformOverride = null;
         expect(haptics, ['HapticFeedbackType.lightImpact']);
       });
@@ -354,7 +365,7 @@ void main() {
     RenderObject ink(WidgetTester tester, String label) => tester.renderObject(
       find
           .ancestor(
-            of: find.text(label),
+            of: shownText(label),
             matching: find.byWidgetPredicate(
               (widget) => widget.runtimeType.toString() == '_InkFeatures',
             ),
@@ -388,7 +399,7 @@ void main() {
             find.byType(AppButton).at(label == 'Save' ? 0 : 1),
           );
           final gesture = await tester.startGesture(
-            tester.getCenter(find.text(label)),
+            tester.getCenter(shownText(label)),
           );
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 300));
@@ -430,7 +441,7 @@ void main() {
         ),
       );
       final gesture = await tester.startGesture(
-        tester.getCenter(find.text('Save')),
+        tester.getCenter(shownText('Save')),
       );
       await tester.pump(const Duration(milliseconds: 100));
       expect(ink(tester, 'Save'), paints..circle());

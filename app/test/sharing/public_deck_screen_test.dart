@@ -192,7 +192,7 @@ void main() {
         // Nothing is chosen yet, so nothing can be added.
         expect(
           tester
-              .widget<FilledButton>(find.widgetWithText(FilledButton, 'Add'))
+              .widget<FilledButton>(widgetWithShownText(FilledButton, 'Add'))
               .onPressed,
           isNull,
         );
@@ -242,7 +242,7 @@ void main() {
     final app = await _openSpanish(tester);
 
     await app.deckMenu('Report note');
-    final report = find.widgetWithText(FilledButton, 'Report');
+    final report = widgetWithShownText(FilledButton, 'Report');
     expect(tester.widget<FilledButton>(report).onPressed, isNull);
     // The sheet is dismissed by a drag or the scrim, so it offers no cancel.
     expect(
@@ -252,7 +252,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Cancel'), findsNothing);
+    expect(shownText('Cancel'), findsNothing);
     await app.tapText('Spam');
     await app.tap(report);
 
@@ -264,7 +264,7 @@ void main() {
 
     await app.deckMenu('Report note');
     await app.tapText('Other');
-    await app.tap(find.widgetWithText(FilledButton, 'Report'));
+    await app.tap(widgetWithShownText(FilledButton, 'Report'));
     expect(find.text("You've already reported this note."), findsOneWidget);
     expect(app.server.reports, hasLength(1));
     await app.close();
@@ -300,7 +300,7 @@ void main() {
     await app.tapText('Cancel');
 
     expect(app.server.blocked, isEmpty);
-    expect(find.text('Add to my notes'), findsOneWidget);
+    expect(shownText('Add to my notes'), findsOneWidget);
     await app.close();
   });
 

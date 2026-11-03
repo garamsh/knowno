@@ -49,11 +49,13 @@ void main() {
         );
         final add = find.descendant(
           of: find.byType(AppBar),
-          matching: find.text('카드 추가'),
+          matching: shownText('카드 추가'),
         );
         expect(add, findsOneWidget);
         // Its label whole, on one line.
-        final label = tester.renderObject<RenderParagraph>(add);
+        final label = tester.renderObject<RenderParagraph>(
+          find.descendant(of: add, matching: find.byType(RichText)),
+        );
         final whole = TextPainter(
           text: label.text,
           textDirection: TextDirection.ltr,

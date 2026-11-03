@@ -30,7 +30,7 @@ void main() {
   setUpAll(() async => scheduler = await Scheduler.load());
 
   Future<void> tapAndSettle(WidgetTester tester, String text) async {
-    await tester.tap(find.text(text));
+    await tester.tap(shownText(text));
     await tester.pumpAndSettle();
   }
 
@@ -91,7 +91,7 @@ void main() {
       await tester.enterText(find.byType(TextField).at(1), back);
       await tapAndSettle(tester, 'Save');
     }
-    await tester.tap(find.textContaining('Study this note'));
+    await tester.tap(shownTextContaining('Study this note'));
     await tester.pumpAndSettle();
     // The run that started with the app is still waiting on the server.
     expect(sync.status.value, isA<Syncing>());

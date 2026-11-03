@@ -7,6 +7,7 @@ import 'package:knowno/deck/src/undo_snack_bar.dart';
 import 'package:knowno/study/study.dart';
 
 import '../home/deck_screens.dart';
+import '../word_breaks.dart';
 
 /// The preview the shell hands the editor: study's (ADR 0168).
 Widget studyPreview(List<Cell> cells) => CardPreviewScreen(cells: cells);
@@ -123,7 +124,7 @@ void expectStackedFullWidth(
   required String full,
 }) {
   Rect button(String label) =>
-      tester.getRect(find.widgetWithText(AppButton, label));
+      tester.getRect(widgetWithShownText(AppButton, label));
   var above = double.negativeInfinity;
   for (final label in labels) {
     expect(button(label).width, button(full).width, reason: label);
