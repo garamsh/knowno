@@ -62,9 +62,10 @@ configure({
     assertTestRunning();
     return wrappers.asyncWrapper(callback);
   },
-  eventWrapper: (callback) => {
+  // The event's result is passed on: user-event reads from it whether the default was prevented.
+  eventWrapper: (callback): unknown => {
     assertTestRunning();
-    wrappers.eventWrapper(callback);
+    return (wrappers.eventWrapper as (wrapped: typeof callback) => unknown)(callback);
   },
 });
 afterEach(() => {
