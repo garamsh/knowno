@@ -10,23 +10,20 @@
 -- Every 무제한 grant, ended or not, is kept in `private.unlimited_grants_before_special`, and every
 -- grant replaced in `private.user_plans_before_special`.
 --
--- Revert, run against production:
---   1. Recreate `private.unlimited_grants` and its index, row-level security and revoke, and
---      `admin_user_unlimited`, `admin_grant_unlimited` and `admin_revoke_unlimited`, from
---      20261102170843_unlimited.sql.
---   2. `insert into private.unlimited_grants select user_id, ends_at, granted_by, granted_at
---      from private.unlimited_grants_before_special;`
---   3. `delete from private.user_plans where plan = 'special';` then
---      `insert into private.user_plans select user_id, plan, ends_at, granted_by, granted_at,
---      version_id from private.user_plans_before_special;`
---   4. Restore `private.unlimited`, from 20261102170843_unlimited.sql, and
---      `private.entitlement_of` and `public.admin_grant_plan`, from 20261102183518_ai_providers.sql
---      and 20261026005136_plan_versions.sql.
---   5. Restore the checks: `user_plans_plan_check` to Pro and Max, `user_plans_check` to an end on
---      Max alone, and on `private.plan_versions`, after `delete from private.plan_versions where
---      plan = 'special'`, `amount` not null and the plan and quota checks without special and
---      none. Special's configurations are append-only and stay, with their checks: nothing then
---      reads them.
+-- Revert, run once against production: `select private.revert_special_plan();`
+--   1. It recreates `private.unlimited_grants` and the three admin functions of 무제한, and
+--      restores `private.unlimited`, `private.entitlement_of` and `public.admin_grant_plan`.
+--   2. Each special grant still standing, granted by the migration or since, becomes a 무제한
+--      grant with its end, granter and time; each backed-up 무제한 grant that has ended comes back
+--      as it was. A backed-up grant not ended whose user no longer holds special stays gone.
+--   3. The special grants go, and each Pro or Max grant special replaced comes back, unless the
+--      user holds a grant set since, which stands.
+--   4. Special's labels go, and its calls in `private.extraction_calls` become Max's, their ids
+--      kept in `private.extraction_calls_before_special_revert`: a web from before this change
+--      refuses a plan it does not know in the AI settings and the photo breakdown.
+--   5. Special's versions go and the checks narrow back. Special's configurations are
+--      append-only, so they stay, with their plan check, and no label points at them.
+--   The two backups, `private.migrate_special_plan` and the revert itself stay.
 
 -- Every 무제한 grant as it was before this change. Read by nothing but the revert.
 create table private.unlimited_grants_before_special (
@@ -231,3 +228,257 @@ begin
   return 'granted';
 end;
 $$;
+
+-- The revert the header names: puts the grants, the schema and the functions back as
+-- 20261102170843_unlimited.sql and 20261102183518_ai_providers.sql left them, keeping what the
+-- header says it keeps. Run once, by the PM.
+create function private.revert_special_plan() returns void
+language plpgsql
+set search_path = ''
+as $revert$
+begin
+  execute $sql$
+    create table private.unlimited_grants (
+      user_id uuid primary key references auth.users on delete cascade,
+      ends_at timestamptz,
+      granted_by uuid references auth.users on delete set null,
+      granted_at timestamptz not null default now()
+    );
+    create index unlimited_grants_granted_by on private.unlimited_grants (granted_by);
+    alter table private.unlimited_grants enable row level security;
+    revoke all on private.unlimited_grants from public, anon, authenticated, service_role;
+  $sql$;
+
+  -- Each special grant still standing, an admin's included, becomes a 무제한 grant; each backed-up
+  -- 무제한 grant that has ended since comes back as it was.
+  execute $sql$
+    insert into private.unlimited_grants (user_id, ends_at, granted_by, granted_at)
+      select p.user_id, p.ends_at, p.granted_by, p.granted_at from private.user_plans as p
+      where p.plan = 'special' and (p.ends_at is null or p.ends_at > now());
+    insert into private.unlimited_grants (user_id, ends_at, granted_by, granted_at)
+      select g.user_id, g.ends_at, g.granted_by, g.granted_at
+      from private.unlimited_grants_before_special as g
+      where g.ends_at <= now()
+      on conflict do nothing;
+  $sql$;
+
+  -- A grant special replaced comes back unless a later grant stands in its place.
+  delete from private.user_plans where plan = 'special';
+  insert into private.user_plans (user_id, plan, ends_at, granted_by, granted_at, version_id)
+    select b.user_id, b.plan, b.ends_at, b.granted_by, b.granted_at, b.version_id
+    from private.user_plans_before_special as b
+    on conflict on constraint user_plans_pkey do nothing;
+
+  -- A web from before this change refuses a plan it does not know in what it reads: special's
+  -- labels go, and its calls become Max's, their ids kept.
+  delete from private.ai_configuration_labels where plan = 'special';
+  create table private.extraction_calls_before_special_revert (
+    usage_id bigint primary key references private.extraction_calls on delete cascade
+  );
+  alter table private.extraction_calls_before_special_revert enable row level security;
+  revoke all on private.extraction_calls_before_special_revert
+    from public, anon, authenticated, service_role;
+  insert into private.extraction_calls_before_special_revert (usage_id)
+    select c.usage_id from private.extraction_calls as c where c.plan = 'special';
+  update private.extraction_calls set plan = 'max' where plan = 'special';
+  delete from private.plan_versions where plan = 'special';
+
+  -- Special's configurations are append-only, so they and their plan check stay.
+  alter table private.plan_versions
+    drop constraint plan_versions_special_check,
+    drop constraint plan_versions_none_check,
+    drop constraint plan_versions_plan_check,
+    drop constraint plan_versions_quota_check,
+    alter column amount set not null,
+    add constraint plan_versions_plan_check check (plan in ('free', 'pro', 'max')),
+    add constraint plan_versions_quota_check check (quota in ('monthly', 'daily', 'unlimited'));
+  alter table private.user_plans
+    drop constraint user_plans_plan_check,
+    drop constraint user_plans_check,
+    add constraint user_plans_plan_check check (plan in ('pro', 'max')),
+    add constraint user_plans_check check (plan = 'max' or ends_at is null);
+  alter table private.ai_configuration_labels
+    drop constraint ai_configuration_labels_plan_check,
+    add constraint ai_configuration_labels_plan_check check (plan in ('free', 'pro', 'max'));
+
+  -- The three functions this migration replaced, as 20261102170843_unlimited.sql,
+  -- 20261102183518_ai_providers.sql and 20261026005136_plan_versions.sql defined them.
+  execute $sql$
+    create or replace function private.unlimited(user_id uuid) returns boolean
+    language sql
+    stable
+    security definer
+    set search_path = ''
+    as $$
+      select exists (select from private.admins as a where a.user_id = unlimited.user_id)
+        or exists (select from private.unlimited_grants as g
+          where g.user_id = unlimited.user_id and (g.ends_at is null or g.ends_at > now()));
+    $$;
+
+    create or replace function private.entitlement_of(user_id uuid)
+    returns table (plan text, version_id bigint, quota text, amount integer, period_start timestamptz)
+    language plpgsql
+    stable
+    security definer
+    set search_path = ''
+    as $$
+    declare
+      renewed timestamptz := date_trunc('month', now(), 'Asia/Seoul');
+      grant_row private.user_plans;
+      signed_up timestamptz;
+      base private.plan_versions;
+      chosen private.plan_versions;
+    begin
+      select g.* into grant_row from private.user_plans as g
+        where g.user_id = entitlement_of.user_id and (g.ends_at is null or g.ends_at > now());
+      if found and grant_row.granted_at > renewed then
+        select v.* into base from private.plan_versions as v where v.id = grant_row.version_id;
+      elsif found then
+        base := private.plan_version_at(grant_row.plan, renewed);
+      else
+        select u.created_at into signed_up from auth.users as u where u.id = entitlement_of.user_id;
+        base := private.plan_version_at('free', greatest(signed_up, renewed));
+      end if;
+      if base.id is null then
+        return;
+      end if;
+      select v.* into chosen from private.plan_versions as v
+        where v.plan = base.plan and v.applies_to_all and v.starts_at <= now()
+          and (v.starts_at, v.id) > (base.starts_at, base.id)
+        order by v.starts_at desc, v.id desc
+        limit 1;
+      if not found then
+        chosen := base;
+      end if;
+      return query select chosen.plan, chosen.id, chosen.quota, chosen.amount,
+        case chosen.quota
+          when 'monthly' then date_trunc('month', now(), 'Asia/Seoul')
+          else date_trunc('day', now(), 'Asia/Seoul')
+        end;
+    end;
+    $$;
+
+    create or replace function public.admin_grant_plan(user_id uuid, plan text,
+      ends_at timestamptz default null)
+    returns text
+    language plpgsql
+    security definer
+    set search_path = ''
+    as $$
+    declare
+      version bigint;
+    begin
+      perform private.require_admin();
+      if not exists (select from auth.users as u where u.id = admin_grant_plan.user_id) then
+        return 'no_user';
+      end if;
+      version := (private.plan_version_at(admin_grant_plan.plan, now())).id;
+      if admin_grant_plan.plan not in ('pro', 'max')
+        or version is null
+        or (admin_grant_plan.plan = 'pro' and admin_grant_plan.ends_at is not null)
+        or admin_grant_plan.ends_at <= now()
+      then
+        return 'bad_plan';
+      end if;
+      insert into private.user_plans (user_id, plan, ends_at, granted_by, version_id)
+        values (admin_grant_plan.user_id, admin_grant_plan.plan, admin_grant_plan.ends_at,
+          (select auth.uid()), version)
+        on conflict on constraint user_plans_pkey do update
+          set plan = excluded.plan, ends_at = excluded.ends_at, granted_by = excluded.granted_by,
+            granted_at = now(), version_id = excluded.version_id;
+      perform private.audit('grant_plan', 'user', admin_grant_plan.user_id::text,
+        jsonb_build_object(
+          'email', (select u.email from auth.users as u where u.id = admin_grant_plan.user_id),
+          'plan', admin_grant_plan.plan, 'ends_at', admin_grant_plan.ends_at,
+          'version_id', version));
+      return 'granted';
+    end;
+    $$;
+  $sql$;
+
+  -- The three admin functions of 무제한, as 20261102170843_unlimited.sql defined them.
+  execute $sql$
+    create function public.admin_user_unlimited(user_id uuid)
+    returns table (unlimited boolean, ends_at timestamptz, granted_at timestamptz,
+      granted_by_email text)
+    language plpgsql
+    stable
+    security definer
+    set search_path = ''
+    as $$
+    begin
+      perform private.require_admin();
+      return query
+      select private.unlimited(u.id), g.ends_at, g.granted_at, b.email::text
+      from auth.users as u
+      left join private.unlimited_grants as g on g.user_id = u.id
+      left join auth.users as b on b.id = g.granted_by
+      where u.id = admin_user_unlimited.user_id;
+    end;
+    $$;
+
+    create function public.admin_grant_unlimited(user_id uuid, ends_at timestamptz default null)
+    returns text
+    language plpgsql
+    security definer
+    set search_path = ''
+    as $$
+    declare
+      caller uuid := private.require_admin();
+    begin
+      if not exists (select from auth.users as u where u.id = admin_grant_unlimited.user_id) then
+        return 'no_user';
+      end if;
+      if admin_grant_unlimited.ends_at <= now() then
+        return 'bad_end';
+      end if;
+      insert into private.unlimited_grants (user_id, ends_at, granted_by)
+        values (admin_grant_unlimited.user_id, admin_grant_unlimited.ends_at, caller)
+        on conflict on constraint unlimited_grants_pkey do update
+          set ends_at = excluded.ends_at, granted_by = excluded.granted_by, granted_at = now();
+      perform private.audit('grant_unlimited', 'user', admin_grant_unlimited.user_id::text,
+        jsonb_build_object(
+          'email', (select u.email from auth.users as u where u.id = admin_grant_unlimited.user_id),
+          'ends_at', admin_grant_unlimited.ends_at));
+      return 'granted';
+    end;
+    $$;
+
+    create function public.admin_revoke_unlimited(user_id uuid) returns boolean
+    language plpgsql
+    security definer
+    set search_path = ''
+    as $$
+    declare
+      ended timestamptz;
+    begin
+      perform private.require_admin();
+      delete from private.unlimited_grants as g where g.user_id = admin_revoke_unlimited.user_id
+        returning g.ends_at into ended;
+      if not found then
+        return false;
+      end if;
+      perform private.audit('revoke_unlimited', 'user', admin_revoke_unlimited.user_id::text,
+        jsonb_build_object(
+          'email', coalesce((select u.email from auth.users as u
+            where u.id = admin_revoke_unlimited.user_id), ''),
+          'ends_at', ended));
+      return true;
+    end;
+    $$;
+
+    revoke all on function
+      public.admin_user_unlimited(uuid),
+      public.admin_grant_unlimited(uuid, timestamptz),
+      public.admin_revoke_unlimited(uuid)
+      from public, anon;
+    grant execute on function
+      public.admin_user_unlimited(uuid),
+      public.admin_grant_unlimited(uuid, timestamptz),
+      public.admin_revoke_unlimited(uuid)
+      to authenticated;
+  $sql$;
+end;
+$revert$;
+
+revoke all on function private.revert_special_plan() from public, anon, authenticated;
