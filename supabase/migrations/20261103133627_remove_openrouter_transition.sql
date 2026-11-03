@@ -1,11 +1,17 @@
 -- Ends the OpenRouter transition (#598, ADR 0162): OpenRouter's key is in Vault and the
 -- `OPENROUTER_API_KEY` secret is gone, so a provider is available only with a key in Vault,
 -- OpenRouter as every other. `begin_extraction` loses its `secret_providers` argument, which
--- changes its signature, so it is dropped and created again with the same grants;
--- `admin_activate_ai_configuration` refuses a draft on OpenRouter without a key, as it does the
--- others'. Changes no row.
+-- changes its signature, so it is created as `begin_extraction(uuid, bigint)` with the same
+-- grants; `admin_activate_ai_configuration` refuses a draft on OpenRouter without a key, as it
+-- does the others'. Changes no row.
 --
--- Revert: `drop function public.begin_extraction(uuid, bigint);`, then restore
+-- Expand, then contract: the migration deploys before the new extract-cards bundle, and the old
+-- bundle still names `secret_providers`. So `begin_extraction(uuid, bigint, text[])` stays, without
+-- defaults, as a wrapper that ignores the argument and calls the two-argument function. A later
+-- migration drops it once the new bundle is live.
+--
+-- Revert: `drop function public.begin_extraction(uuid, bigint);` and
+-- `drop function public.begin_extraction(uuid, bigint, text[]);`, then restore
 -- `public.begin_extraction(uuid, bigint, text[])` with its revoke and grant, and
 -- `public.admin_activate_ai_configuration(text)`, from 20261102183518_ai_providers.sql.
 
@@ -88,8 +94,27 @@ begin
 end;
 $$;
 
-revoke all on function public.begin_extraction(uuid, bigint) from public, anon, authenticated;
-grant execute on function public.begin_extraction(uuid, bigint) to service_role;
+-- The call the extract-cards bundle deployed before this one makes: [secret_providers] is ignored,
+-- so a provider without a key in Vault is unavailable here too. No defaults, so a call naming only
+-- [user_id], or [user_id] and [configuration_id], reaches the two-argument function alone.
+create function public.begin_extraction(
+  user_id uuid, configuration_id bigint, secret_providers text[]
+)
+returns table (
+  plan text, provider text, model text, available boolean, photo_limit integer, period text,
+  allowed boolean, prompt_version_id bigint, prompt text, usage_id bigint
+)
+language sql
+security definer
+set search_path = ''
+as $$
+  select * from public.begin_extraction(begin_extraction.user_id, begin_extraction.configuration_id);
+$$;
+
+revoke all on function public.begin_extraction(uuid, bigint), public.begin_extraction(uuid, bigint, text[])
+  from public, anon, authenticated;
+grant execute on function public.begin_extraction(uuid, bigint), public.begin_extraction(uuid, bigint, text[])
+  to service_role;
 
 -- Applies [plan]'s draft to everyone (모두에게 적용): its 'test' configuration becomes 'active' and
 -- the draft is cleared, recorded with the configuration before: 'activated'; 'no_test' without a
