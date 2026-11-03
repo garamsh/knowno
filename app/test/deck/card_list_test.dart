@@ -21,7 +21,8 @@ void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
   testWidgets(
-    'a split row draws a cloze card as its front with its blanks filled, where a text card stays split',
+    'a row draws a card converted from its sides: a cloze whole, its blanks '
+    "on the hatch, and a text card's back in a hatched box",
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -32,14 +33,14 @@ void main() {
           home: const Scaffold(
             body: Column(
               children: [
-                CardSplitRow(
+                CardBackRow(
                   key: Key('whole'),
                   front: [
                     ClozeContent('The capital of France is ___', ['Paris']),
                   ],
                   back: [TextContent('The capital of France is Paris')],
                 ),
-                CardSplitRow(
+                CardBackRow(
                   key: Key('plain'),
                   front: [TextContent('Chat')],
                   back: [TextContent('cat')],
@@ -50,19 +51,80 @@ void main() {
         ),
       );
 
+      Iterable<HatchDecoration> hatchOver(Finder of) => tester
+          .widgetList<DecoratedBox>(
+            find.ancestor(of: of, matching: find.byType(DecoratedBox)),
+          )
+          .map((box) => box.decoration)
+          .whereType<HatchDecoration>();
       final whole = find.byKey(const Key('whole'));
-      expect(blanksUnder(whole), {'Paris': true});
+      expect(hatchedBlanksUnder(whole), ['Paris']);
       expect(
-        find.descendant(of: whole, matching: find.byType(VerticalDivider)),
+        find.descendant(of: whole, matching: shownText('cat')),
         findsNothing,
       );
-      // Control: the text card keeps its two halves.
+      // Control: the text card keeps its back, in a box on the hatch.
       final plain = find.byKey(const Key('plain'));
-      expect(
-        find.descendant(of: plain, matching: find.byType(VerticalDivider)),
-        findsOneWidget,
+      expect(hatchedBlanksUnder(plain), isEmpty);
+      expect(hatchOver(shownText('cat')), hasLength(1));
+      expect(hatchOver(shownText('Chat')), isEmpty);
+    },
+  );
+
+  testWidgets(
+    'a row given nothing to open is no button and has no hint, read as its '
+    'front then its back, where one given a callback is a button that edits',
+    (tester) async {
+      final handle = tester.ensureSemantics();
+      Future<void> pump(VoidCallback? onOpen) => tester.pumpWidget(
+        MaterialApp(
+          theme: lightTheme,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          home: Scaffold(
+            body: CardBackRow(
+              front: const [TextContent('Chat')],
+              back: const [TextContent('cat')],
+              onOpen: onOpen,
+            ),
+          ),
+        ),
       );
-      expect(find.text('cat'), findsOneWidget);
+      final row = find.bySemanticsLabel('Chat, back cat');
+
+      await pump(null);
+      expect(
+        tester.getSemantics(row),
+        isSemantics(
+          label: 'Chat, back cat',
+          isButton: false,
+          hasTapAction: false,
+        ),
+      );
+      expect(
+        find.descendant(
+          of: find.byType(CardBackRow),
+          matching: find.byType(InkWell),
+        ),
+        findsNothing,
+      );
+
+      // Control: given a callback, the same row is a button that edits.
+      var opened = 0;
+      await pump(() => opened++);
+      expect(
+        tester.getSemantics(row),
+        isSemantics(
+          label: 'Chat, back cat',
+          isButton: true,
+          hasTapAction: true,
+          onTapHint: 'Edit card',
+        ),
+      );
+      await tester.tap(find.byType(CardBackRow));
+      expect(opened, 1);
+      handle.dispose();
     },
   );
 
@@ -158,15 +220,6 @@ void main() {
       ),
     );
 
-    testWidgets('its split row draws it revealed, as the previous card does', (
-      tester,
-    ) async {
-      await pump(tester, const CardSplitRow(front: front, back: back));
-      expect(find.text('on the Seine'), findsOneWidget);
-      expect(blanksUnder(find.byType(CardSplitRow)), {'Paris': true});
-      expect(find.byType(VerticalDivider), findsNothing);
-    });
-
     testWidgets('its deck row shows the back on the hatch, and reads it after '
         'the answer', (tester) async {
       await pump(tester, CardBackRow(front: front, back: back, onOpen: () {}));
@@ -190,9 +243,9 @@ void main() {
       final sides = sidesOf(cells);
       await pump(
         tester,
-        CardSplitRow(front: sides.front, back: sides.back, cells: cells),
+        CardBackRow(front: sides.front, back: sides.back, cells: cells),
       );
-      double top(String text) => tester.getTopLeft(find.text(text)).dy;
+      double top(String text) => tester.getTopLeft(shownText(text)).dy;
       expect(top('one'), lessThan(top('two')));
       expect(top('two'), lessThan(top('of two')));
     });

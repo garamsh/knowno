@@ -38,7 +38,7 @@ export 'src/card_frame.dart'
         sidesOf;
 export 'src/card_key.dart' show CardKey;
 export 'src/card_list.dart'
-    show CardBackRow, CardSplitRow, describeContent, spokenCells, spokenContent;
+    show CardBackRow, describeContent, spokenCells, spokenContent;
 export 'src/card_template.dart' show isFramed;
 export 'src/content.dart'
     show
