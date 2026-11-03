@@ -23,7 +23,7 @@ import {
 } from "../section-form";
 import { leaveThen } from "../hooks/use-back-entry";
 import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
-import { CardFields } from "./card-fields";
+import { CardEditSheet } from "./card-fields";
 import { ImportList } from "./import-list";
 import { RowMenu } from "./row-menu";
 
@@ -722,29 +722,16 @@ export function PhotoImport({
         </AuthoringSheet>
       )}
       {editing && (
-        <AuthoringSheet
-          title="카드 편집"
+        <CardEditSheet
+          card={editing}
+          done={(card) => {
+            changeCandidate(card);
+            setEditing(null);
+          }}
           close={() => {
             setEditing(null);
           }}
-        >
-          <CardFields
-            draft={editing}
-            change={(draft) => {
-              setEditing({ ...editing, ...draft });
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => {
-              changeCandidate(editing);
-              setEditing(null);
-            }}
-            className="pressable mt-5 min-h-cta w-full rounded-button bg-primary text-button text-on-primary"
-          >
-            완료
-          </button>
-        </AuthoringSheet>
+        />
       )}
       {discarding && (
         <AuthoringSheet
