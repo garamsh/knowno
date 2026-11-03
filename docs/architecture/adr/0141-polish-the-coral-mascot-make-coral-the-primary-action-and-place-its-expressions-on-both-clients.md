@@ -10,7 +10,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **Issue #551**, stage 2 of #541. The PM, as the owner's designer, decided that the coral character carries the product's mood: a polished mascot, coral in the primary role, and its expressions at the moments that matter.
 - **[ADR 0139](0139-draw-both-clients-around-the-coral-mascot-with-warm-colour-tokens-and-rounder-taller-buttons.md)'s redraw is narrow**, and its arm reads as stray lines beside the reference, Canva media `MAHZsI_Pb-k`. The expressions' reference is Canva media `MAHZsBm1XIM`.
 - **The primary stayed ink** in ADR 0139, which left the coral fill open: a cocoa label on the coral is 5.42:1, and needs a fill token apart from `ink`. `ink` also fills bars, a selection's check, the segmented control, the switch and the avatar, none of them a primary action.
-- **Two rules stood against the expressions.** [ADR 0116](0116-draw-an-icon-only-where-it-says-what-the-words-beside-it-do-not-or-follows-the-platform.md) took the mascot off the completion card and every empty state but the first-run home, and `design.md` §Details forbids an illustration as decoration.
+- **Two rules stood against the expressions.** [ADR 0116](0116-draw-an-icon-only-where-it-says-what-the-words-beside-it-do-not-or-follows-the-platform.md) took the mascot off the completion card and every empty state but the first-run home, and `design/principles.md` §One visual language forbids an illustration as decoration.
 - **Only `home/` could draw the mascot**, since its widget lived there and a domain may not import the shell, and study and photo import need it.
 - **Alternatives considered:**
   - **A darker coral under a white label.** It reads as a destructive red, as ADR 0139 found.

@@ -16,7 +16,7 @@ export async function AdminGate({ children }: { children: ReactNode }) {
     <>
       {/* A count that could not be read shows none; 처리할 일 says what failed. */}
       <AdminNav openReports={"failure" in reports ? null : reports.data.notes} />
-      {/* Korean breaks only between words on every admin page (design.md §Details). */}
+      {/* Korean breaks only between words on every admin page (design/principles.md §Nothing clipped). */}
       <div className="contents break-keep">{children}</div>
     </>
   );

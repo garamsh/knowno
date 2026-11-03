@@ -13,7 +13,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - the Google sign-in button had no "G" mark, against Google's Sign in with Google branding guidelines (developers.google.com/identity/branding-guidelines, read 2026-10-15).
 - The PM decided the voice, the sheet rule and the button in issue #64; this ADR records them as the project's rules. Alternatives considered:
   - 합쇼체 everywhere. It reads as a notice rather than as the app speaking, and the approved canvas already writes 해요체.
-  - A cancel on every sheet, for symmetry. Every sheet is already dismissed by a drag, a tap on the scrim and Android's back ([`design.md`](../design.md) principle 3), so a cancel beside one or two actions repeats a gesture and takes the space of an action.
+  - A cancel on every sheet, for symmetry. Every sheet is already dismissed by a drag, a tap on the scrim and Android's back ([`design/principles.md`](../design/principles.md) §Direct manipulation where it is natural), so a cancel beside one or two actions repeats a gesture and takes the space of an action.
   - Google's pre-rendered button images from its asset bundle. Their label is English, set in Google Sans, and cannot be localized; the guidelines allow the text to be localized and the button drawn to their colours and spacing.
   - An SVG of the mark through a new dependency. The bundle's SVGs draw the mark with a conic gradient inside a `foreignObject`, which `flutter_svg`, the renderer the app would add, does not support; the bundle's own PNGs, at four densities, need no dependency.
 

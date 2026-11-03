@@ -820,7 +820,7 @@ type Offer = {
 
 /**
  * A card's 칸 as a column of groups; "+ 칸 추가" comes after the last, as on the phone. Every delete
- * acts at once and the snack offers the latest back (design.md §Principles 5).
+ * acts at once and the snack offers the latest back (design/principles.md §Correct, don't confirm).
  */
 export function CellFields({
   drafts,

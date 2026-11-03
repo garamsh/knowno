@@ -7,7 +7,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 
 ## Context
 
-- [ADR 0118](0118-name-each-concept-once-write-each-role-in-one-form-hold-every-screen-to-one-set-of-visual-details-and-redraw-settings-and-the-deck-screen-by-them.md) wrote issue #454 §3 into `design.md` §Details, and left the radius scale, the motion and the haptics to be reached "screen by screen". The editor redesign (#456) found that a screen-by-screen reach leaves the shared layer, which every screen draws from, off the standard. Issue #457 brings that layer to it.
+- [ADR 0118](0118-name-each-concept-once-write-each-role-in-one-form-hold-every-screen-to-one-set-of-visual-details-and-redraw-settings-and-the-deck-screen-by-them.md) wrote issue #454 §3 into `design/principles.md`, and left the radius scale, the motion and the haptics to be reached "screen by screen". The editor redesign (#456) found that a screen-by-screen reach leaves the shared layer, which every screen draws from, off the standard. Issue #457 brings that layer to it.
 - **What the layer drew on 2026-10-27**, `app/lib/design/theme.dart` at `ea14ba6d575f9874200cf8c07a6b47860ae02e21`:
   - radii of button 16 and sheet 28, chips fully rounded, and the editor's label chip at a radius of its own, 6;
   - four chip shapes: `AppChip`, the today tab's `_Pill`, the record tab's retention chip, and Material's `Chip`, `ActionChip`, `FilterChip` and `ChoiceChip` in the study card's drag hint and the editor's cloze, table and label tools;
@@ -34,11 +34,11 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **Press.** A pressed button or row is drawn under its text's colour at 10%, at once, with no splash and no change of size: the theme's `splashFactory` is `NoSplash` and its `highlightColor` is `AppColors.pressed`, `ink` at 10%, which Material's buttons already draw from their label's colour. Reduce motion needs nothing, since nothing moves.
 - **Haptics.** A light haptic on answering a card (unchanged), on saving a card in the editor, and on the red button of `showAppConfirm`, on every platform. `AppButton` gives none of its own.
 - **A hidden blank** in `WholeCardView` is a gap of its answer's width over a `muted` underline, its answer not drawn; a filled one is unchanged, the answer on `brandTint`. Study, the editor's preview, the photo import list and the deck screen's rows draw it alike.
-- **Refines** ADR 0118's [`design.md`](../design.md) §Details, now held by the shared layer rather than reached screen by screen; ADR 0068's empty blank; ADR 0021's type scale and radii; and ADR 0027's token values.
+- **Refines** ADR 0118's [`design/principles.md`](../design/principles.md), now held by the shared layer rather than reached screen by screen; ADR 0068's empty blank; ADR 0021's type scale and radii; and ADR 0027's token values.
 
 ## Consequences
 
-- A new screen built from the shared components meets the radius scale, the one chip, the press and the type of [`design.md`](../design.md) §Details without a fix of its own.
+- A new screen built from the shared components meets the radius scale, the one chip, the press and the type of [`design/principles.md`](../design/principles.md) without a fix of its own.
 - The web's buttons, sheets and the text in the `label`, `secondary` and `micro` styles change with the app's: buttons 12 in radius, sheets 22, button labels 16, secondary text and chips 13.
 - A sheet's body, a line under a title and a row's back in a list are 13 where they were 14, and a chip's text 13 where it was 12.
 - The screenshot run fails on a screen that draws a fourth size, so a new screen is checked whenever the screenshots are taken; the test suite checks the scale, not each screen.

@@ -11,7 +11,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - the overview's extractions and estimated model cost per day over 30 days, as a bar or line chart;
   - cost per plan and per model, stacked, once each call records its plan and model;
   - totals for today, 7 days and 30 days;
-  - "a chart library pinned per `ci.md`, accessible": each chart with a text summary or a table for screen readers, colours meeting `design.md`'s contrast, and never colour alone.
+  - "a chart library pinned per `ci.md`, accessible": each chart with a text summary or a table for screen readers, colours meeting `design/theme.md`'s contrast, and never colour alone.
 - **The PM's comment on the per-call record**: the overview and the charts break usage and cost down by prompt version.
 - **Before this change** ([ADR 0071](0071-give-each-user-a-plan-whose-model-and-daily-limit-an-admin-sets-in-the-database-and-make-one-model-call-per-photo.md)), the overview showed today's photos and a table of 30 UTC days, every photo costed at the Free plan's model.
 - **The per-call record** of [ADR 0073](0073-keep-the-extraction-prompt-as-append-only-versions-in-the-database-served-by-an-active-and-an-admin-only-test-label-and-record-what-served-each-call.md), `private.extraction_calls`, names each counted photo's plan, model and prompt version from its deploy on. Photos counted before it have none.
@@ -44,7 +44,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - Each chart is one element with the role `img`, named by a sentence of its totals: the busiest day for the daily chart, and each series' cost for a stack.
   - A table of every value follows each chart: every day's photos and cost, and each plan's, model's and version's.
   - Recharts' accessibility layer is off inside that image, so a screen reader reads the sentence and the table, not the chart's parts.
-- **Not colour alone.** Every mark is drawn in the ink token, which meets [`design.md`](../design.md)'s contrast on the surface in both themes, as the 기록 charts' ink does.
+- **Not colour alone.** Every mark is drawn in the ink token, which meets [`design/theme.md`](../design/theme.md)'s contrast on the surface in both themes, as the 기록 charts' ink does.
   - The daily chart tells photos from cost by shape: bars against a dashed line with dots.
   - A stack tells its series by fill pattern, cycling through solid, diagonal stripes, dots, horizontal lines and a cross-hatch. A legend shows each pattern beside the series' name.
 - **The library.** `recharts` 3.10.1 and `react-is` 19.3.1, matching `react` 19.3.1, are pinned exactly in `web/package.json` and locked, as every web package is. Dependabot's `npm` entry for `/web` proposes their moves.
