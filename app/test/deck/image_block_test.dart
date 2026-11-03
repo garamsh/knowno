@@ -22,6 +22,7 @@ import '../home/deck_screens.dart';
 import '../media/fakes.dart';
 import '../settle_until.dart';
 import 'editor.dart';
+import '../word_breaks.dart';
 
 /// Two boxes, one near the top left and one near the bottom right, the first
 /// with an answer.
@@ -368,9 +369,9 @@ void main() {
       await fillText(tester);
       await tester.ensureVisible(find.bySemanticsLabel('Add block'));
       await screens.tap(find.bySemanticsLabel('Add block'));
-      await screens.tap(find.text('Photo').last);
-      await tester.ensureVisible(find.text('Choose from album'));
-      await tester.tap(find.text('Choose from album'));
+      await screens.tap(shownText('Photo').last);
+      await tester.ensureVisible(shownText('Choose from album'));
+      await tester.tap(shownText('Choose from album'));
       await chosen(tester);
       return screens;
     }
@@ -395,7 +396,7 @@ void main() {
     /// Saves the card and waits until the editor closes, which it does once
     /// the card is stored and the photos it does not hold are let go.
     Future<void> save(WidgetTester tester) async {
-      await tapVisible(tester, find.text('Save'));
+      await tapVisible(tester, shownText('Save'));
       await settleUntil(
         tester,
         'the editor to close on the saved card',
@@ -413,7 +414,7 @@ void main() {
         expect(pick.picks, [(ImageOrigin.album, ImageShape.whole)]);
         expect(find.byType(ImagePhoto), findsWidgets);
 
-        await tapVisible(tester, find.text('Add blank'));
+        await tapVisible(tester, shownText('Add blank'));
         await save(tester);
 
         final image = await storedImage(screens);
@@ -430,7 +431,7 @@ void main() {
       (tester) async {
         final screens = await openWithPhoto(tester);
         final group = find.ancestor(
-          of: find.text('Add blank'),
+          of: shownText('Add blank'),
           matching: find.byType(EditorGroup),
         );
         Finder side(String name) => find.descendant(
@@ -442,11 +443,11 @@ void main() {
         await tapVisible(tester, side('Back'));
         expect(tester.widget<AppChip>(side('Back')).selected, isTrue);
 
-        await tapVisible(tester, find.text('Add blank'));
+        await tapVisible(tester, shownText('Add blank'));
         expect(side('Front'), findsNothing, reason: 'a box has no side');
         expect(side('Back'), findsNothing);
 
-        await tapVisible(tester, find.text('Delete blank'));
+        await tapVisible(tester, shownText('Delete blank'));
         expect(side('Back'), findsOneWidget, reason: 'no box, a side again');
         expect(tester.widget<AppChip>(side('Back')).selected, isTrue);
 
@@ -461,7 +462,7 @@ void main() {
       'a photo with a box is saved with no side, drawn as a question',
       (tester) async {
         final screens = await openWithPhoto(tester);
-        await tapVisible(tester, find.text('Add blank'));
+        await tapVisible(tester, shownText('Add blank'));
         await save(tester);
         final cells = (await screens.cards()).single.cells!;
         expect(cells.whereType<PlacedCell>(), isEmpty);
@@ -473,8 +474,8 @@ void main() {
       'Add blank, the move and size tools, the answer and Delete blank edit a box without a drag',
       (tester) async {
         final screens = await openWithPhoto(tester);
-        await tapVisible(tester, find.text('Add blank'));
-        await tapVisible(tester, find.text('Add blank'));
+        await tapVisible(tester, shownText('Add blank'));
+        await tapVisible(tester, shownText('Add blank'));
         expect(_target('Blank 1'), findsOneWidget);
         expect(_target('Blank 2'), findsOneWidget);
 
@@ -501,7 +502,7 @@ void main() {
         // taps it, then deleted.
         tester.semantics.tap(find.semantics.byLabel('Blank 1'));
         await tester.pumpAndSettle();
-        await tapVisible(tester, find.text('Delete blank'));
+        await tapVisible(tester, shownText('Delete blank'));
         expect(_target('Blank 2'), findsNothing);
         expect(_target('Blank 1'), findsOneWidget);
         await save(tester);
@@ -560,7 +561,7 @@ void main() {
       'a screen reader stops on a selected box but not on its resize handle, which the tools stand in for',
       (tester) async {
         await openWithPhoto(tester);
-        await tapVisible(tester, find.text('Add blank'));
+        await tapVisible(tester, shownText('Add blank'));
         final semantics = tester.ensureSemantics();
         final handle = find.byKey(const ValueKey('image box handle'));
         expect(handle, findsOneWidget, reason: 'setup: the box is selected');
@@ -579,7 +580,7 @@ void main() {
       'a box drawn smaller than a fingertip still has a target of at least 44 on each side',
       (tester) async {
         await openWithPhoto(tester);
-        await tapVisible(tester, find.text('Add blank'));
+        await tapVisible(tester, shownText('Add blank'));
         for (var step = 0; step < 6; step++) {
           await tapVisible(tester, find.byTooltip('Narrower'));
           await tapVisible(tester, find.byTooltip('Shorter'));
@@ -613,11 +614,11 @@ void main() {
       }
       await tester.ensureVisible(find.bySemanticsLabel('Add block'));
       await screens.tap(find.bySemanticsLabel('Add block'));
-      await screens.tap(find.text('Photo').last);
-      expect(find.text('Choose a photo'), findsNothing);
-      await tapVisible(tester, find.text('Save'));
+      await screens.tap(shownText('Photo').last);
+      expect(shownText('Choose a photo'), findsNothing);
+      await tapVisible(tester, shownText('Save'));
 
-      expect(find.text('Choose a photo'), findsOneWidget);
+      expect(shownText('Choose a photo'), findsOneWidget);
       expect(await screens.cards(), isEmpty);
     });
 
@@ -625,7 +626,7 @@ void main() {
       'a new blank takes the focus in its answer; the photo is replaced keeping its blanks, showing progress while stored, or deleted with an undo (#622)',
       (tester) async {
         final screens = await openWithPhoto(tester);
-        await tapVisible(tester, find.text('Add blank'));
+        await tapVisible(tester, shownText('Add blank'));
         final answer = find.descendant(
           of: find
               .ancestor(
@@ -639,7 +640,7 @@ void main() {
         expect(inView(tester, answer), isTrue);
         await tester.enterText(answer, 'Paris');
 
-        await tapPick(tester, find.text('Choose another photo'));
+        await tapPick(tester, shownText('Choose another photo'));
         expect(find.byType(CircularProgressIndicator), findsOneWidget);
         await settleUntil(
           tester,
@@ -648,10 +649,10 @@ void main() {
         );
         expect(_target('Blank 1'), findsOneWidget, reason: 'its blank kept');
 
-        await tapVisible(tester, find.text('Delete photo'));
+        await tapVisible(tester, shownText('Delete photo'));
         expect(find.text('Photo deleted'), findsOneWidget);
         expect(find.byType(ImagePhoto), findsNothing);
-        expect(find.text('Choose from album'), findsOneWidget);
+        expect(shownText('Choose from album'), findsOneWidget);
         await tapVisible(tester, find.text('Undo'));
         expect(find.byType(ImagePhoto), findsOneWidget);
 
@@ -679,7 +680,7 @@ void main() {
       "an edit in the photo's 칸 ends Delete photo's Undo, and an edit in another 칸 does not (#632)",
       (tester) async {
         await openWithPhoto(tester);
-        await tapVisible(tester, find.text('Delete photo'));
+        await tapVisible(tester, shownText('Delete photo'));
         expect(find.text('Photo deleted'), findsOneWidget);
         await typeBlock(tester, 'more');
         await tester.pumpAndSettle();
@@ -692,7 +693,7 @@ void main() {
           tester,
           find.descendant(
             of: find.ancestor(
-              of: find.text('Photo').first,
+              of: shownText('Photo').first,
               matching: find.byType(EditorGroup),
             ),
             matching: find.widgetWithText(AppChip, 'Back'),
@@ -724,11 +725,11 @@ void main() {
         await fillText(tester);
         await tester.ensureVisible(find.bySemanticsLabel('Add block'));
         await screens.tap(find.bySemanticsLabel('Add block'));
-        await screens.tap(find.text('Photo').last);
-        await tapPick(tester, find.text('Choose from album'));
+        await screens.tap(shownText('Photo').last);
+        await tapPick(tester, shownText('Choose from album'));
         await chosen(tester);
         await tapVisible(tester, find.byTooltip('Close'));
-        await tapVisible(tester, find.text('Discard'));
+        await tapVisible(tester, shownText('Discard'));
         await anyReleased(tester);
 
         expect(await released(tester), {'photo1'});
@@ -751,12 +752,12 @@ void main() {
         await fillText(tester);
         await tester.ensureVisible(find.bySemanticsLabel('Add block'));
         await screens.tap(find.bySemanticsLabel('Add block'));
-        await screens.tap(find.text('Photo').last);
+        await screens.tap(shownText('Photo').last);
         final hold = pick.hold = Completer<void>();
-        await tapPick(tester, find.text('Choose from album'));
+        await tapPick(tester, shownText('Choose from album'));
         // The pick's progress turns until it ends, so nothing settles: each
         // tap waits out the sheet's transition instead.
-        for (final control in [find.byTooltip('Close'), find.text('Discard')]) {
+        for (final control in [find.byTooltip('Close'), shownText('Discard')]) {
           await tester.tap(control);
           for (var frame = 0; frame < 10; frame++) {
             await tester.pump(const Duration(milliseconds: 100));
@@ -784,7 +785,7 @@ void main() {
         'in the ${mode.name} theme a photo with a small selected box meets the tap target, label and contrast guidelines',
         (tester) async {
           await openWithPhoto(tester, themeMode: mode);
-          await tapVisible(tester, find.text('Add blank'));
+          await tapVisible(tester, shownText('Add blank'));
           for (var step = 0; step < 6; step++) {
             await tapVisible(tester, find.byTooltip('Shorter'));
           }

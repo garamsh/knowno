@@ -6,12 +6,13 @@ import 'package:knowno/design/app_list_row.dart';
 import 'package:knowno/design/theme.dart';
 
 import 'harness.dart';
+import '../word_breaks.dart';
 
 /// How far the object holding [label] sits below its place.
 double _sunk(WidgetTester tester, String label) => tester
     .widget<Transform>(
       find
-          .ancestor(of: find.text(label), matching: find.byType(Transform))
+          .ancestor(of: shownText(label), matching: find.byType(Transform))
           .first,
     )
     .transform
@@ -21,7 +22,7 @@ double _sunk(WidgetTester tester, String label) => tester
 /// The hard edge under the object holding [label], or null with none.
 BoxShadow? _edge(WidgetTester tester, String label) {
   final boxes = find.ancestor(
-    of: find.text(label),
+    of: shownText(label),
     matching: find.byType(DecoratedBox),
   );
   for (final element in boxes.evaluate()) {
@@ -52,7 +53,7 @@ void main() {
       await pumpComponent(tester, AppButton(label: 'Save', onPressed: () {}));
 
       final press = await tester.startGesture(
-        tester.getCenter(find.text('Save')),
+        tester.getCenter(shownText('Save')),
       );
       await tester.pump();
       expect(_sunk(tester, 'Save'), AppSize.edgeButton - AppSize.edgePressed);
@@ -75,7 +76,7 @@ void main() {
     );
 
     final press = await tester.startGesture(
-      tester.getCenter(find.text('Save')),
+      tester.getCenter(shownText('Save')),
     );
     await tester.pump();
     // Control: the press landed: the button's own state says so.
@@ -97,11 +98,11 @@ void main() {
 
     expect(_edge(tester, 'Save'), isNull);
     final press = await tester.startGesture(
-      tester.getCenter(find.text('Save')),
+      tester.getCenter(shownText('Save')),
     );
     await tester.pump();
     expect(
-      find.ancestor(of: find.text('Save'), matching: find.byType(Transform)),
+      find.ancestor(of: shownText('Save'), matching: find.byType(Transform)),
       findsNothing,
     );
     await press.up();

@@ -14,6 +14,22 @@ Finder shownText(String text) => find.byWidgetPredicate(
           text,
 );
 
+/// The text on screen that holds [text] once the word joiners `keepWords` sets
+/// are left out.
+Finder shownTextContaining(String text) => find.byWidgetPredicate(
+  (widget) =>
+      widget is Text &&
+      ((widget.data ?? widget.textSpan?.toPlainText())
+              ?.replaceAll('\u2060', '')
+              .contains(text) ??
+          false),
+);
+
+/// The [type] widgets holding the text on screen that reads [text], as
+/// [shownText] finds it.
+Finder widgetWithShownText(Type type, String text) =>
+    find.ancestor(of: shownText(text), matching: find.byType(type));
+
 /// Where each line of [text]'s paragraph ends, as offsets into its text with
 /// the word joiners in, and that text.
 (List<int>, String) lineEnds(WidgetTester tester, String text) {

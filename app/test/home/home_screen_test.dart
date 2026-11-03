@@ -442,7 +442,7 @@ void main() {
 
           await tester.tap(find.byType(PhotoImportBar));
           await tester.pumpAndSettle();
-          await tester.tap(find.text(action));
+          await tester.tap(shownText(action));
           await tester.pumpAndSettle();
           expect(shownText(opened), findsOneWidget);
           expect(imports.job, isNull, reason: 'the job ended');
@@ -498,7 +498,7 @@ void main() {
           AppSize.mascotHero,
         );
         final start = tester.widget<AppButton>(
-          find.widgetWithText(AppButton, 'Start'),
+          widgetWithShownText(AppButton, 'Start'),
         );
         expect(start.variant, AppButtonVariant.onHero);
         // Under it the week card; the day's other charts are 기록's.
@@ -532,7 +532,7 @@ void main() {
         // Under the hero, not in its top bar beside the app's name.
         expect(
           tester.getTopLeft(card).dy,
-          greaterThan(tester.getBottomLeft(find.text('Start')).dy),
+          greaterThan(tester.getBottomLeft(shownText('Start')).dy),
         );
         final spans = <(String, Color?)>[];
         tester
@@ -698,7 +698,7 @@ void main() {
         expect(problem, findsOneWidget);
         expect(
           tester.getRect(problem).top,
-          greaterThan(tester.getRect(find.text('Start')).bottom),
+          greaterThan(tester.getRect(shownText('Start')).bottom),
         );
         expect(find.textContaining('cards today'), findsNothing);
         expect(find.textContaining('streak', findRichText: true), findsNothing);
@@ -716,7 +716,7 @@ void main() {
           isSemantics(label: 'Notes', isHeader: true),
         );
         final add = tester.widget<AppButton>(
-          find.widgetWithText(AppButton, 'New note'),
+          widgetWithShownText(AppButton, 'New note'),
         );
         expect(add.variant, AppButtonVariant.tonal);
         expect(add.icon, LucideIcons.plus);
@@ -728,10 +728,10 @@ void main() {
         );
         expect(find.byType(DeckRow), findsNWidgets(3));
         expect(
-          tester.getTopLeft(find.text('New note')).dy,
+          tester.getTopLeft(shownText('New note')).dy,
           lessThan(tester.getTopLeft(find.byType(EditableText)).dy),
         );
-        expect(find.text('Browse public notes'), findsNothing);
+        expect(shownText('Browse public notes'), findsNothing);
         await tester.enterText(find.byType(EditableText), 'ALP');
         await tester.pumpAndSettle();
         expect(shownText('Alpha'), findsOneWidget);
@@ -789,7 +789,7 @@ void main() {
         // 설정 opens from the profile button here too.
         expect(find.byTooltip('Settings'), findsOneWidget);
         final create = tester.widget<AppButton>(
-          find.widgetWithText(AppButton, 'Create a note'),
+          widgetWithShownText(AppButton, 'Create a note'),
         );
         expect(create.variant, AppButtonVariant.primary);
         await list.tap('Create a note');
@@ -825,7 +825,7 @@ void main() {
         expect(find.byType(DeckScreen), findsOneWidget);
         expect(shownText('Delta'), findsOneWidget);
         expect(list.tab('Home'), findsOneWidget);
-        expect(find.text('Enter by hand'), findsNothing);
+        expect(shownText('Enter by hand'), findsNothing);
         final stored = ProviderScope.containerOf(
           tester.element(find.byType(DeckScreen)),
         ).read(decksProvider).value!.firstWhere((deck) => deck.name == 'Delta');
@@ -847,7 +847,7 @@ void main() {
         );
         await tester.pumpAndSettle();
         // The setup picked the photo: 새 노트's preview shows it.
-        expect(find.text('Remove photo'), findsOneWidget);
+        expect(shownText('Remove photo'), findsOneWidget);
 
         await list.tap('Save');
         for (var step = 0; step < 10; step++) {
@@ -898,7 +898,7 @@ void main() {
         await tester.enterText(find.byType(EditableText), 'Delta');
         await list.tap('Save and add cards');
         expect(find.byType(DeckScreen), findsOneWidget);
-        expect(find.text('Enter by hand'), findsOneWidget);
+        expect(shownText('Enter by hand'), findsOneWidget);
         await list.close();
       },
     );
@@ -1007,13 +1007,13 @@ void main() {
         expect(shownText('120 cards today'), findsOneWidget);
         await _openMinutes(tester);
         AppButton save() =>
-            tester.widget<AppButton>(find.widgetWithText(AppButton, 'Save'));
+            tester.widget<AppButton>(widgetWithShownText(AppButton, 'Save'));
         Finder tile(String text) => find.descendant(
           of: find.byWidgetPredicate(
             (widget) =>
                 widget is Semantics && widget.properties.liveRegion == true,
           ),
-          matching: find.text(text),
+          matching: shownText(text),
         );
 
         // No choices to pick from: the number, its steps and two tiles.

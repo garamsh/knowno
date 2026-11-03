@@ -176,12 +176,12 @@ void main() {
   /// Makes the deck "French" on 새 노트 from the first-run home, which then
   /// opens it.
   Future<void> createAndOpenDeck(WidgetTester tester) async {
-    await tapAndSettle(tester, find.text('Create a note'));
+    await tapAndSettle(tester, shownText('Create a note'));
     await tester.enterText(
       find.widgetWithText(AppTextField, 'Note name'),
       'French',
     );
-    await tapAndSettle(tester, find.text('Save'));
+    await tapAndSettle(tester, shownText('Save'));
   }
 
   /// Creates the deck "French" from the first-run home, which opens it on the
@@ -236,7 +236,7 @@ void main() {
       expect(find.byType(SignInScreen), findsOneWidget);
       expect(find.bySemanticsLabel('알아몰라'), findsOneWidget);
       expect(find.text('밀어서 응답하고,\n잊을 때쯤 다시 만나는 암기 카드'), findsOneWidget);
-      expect(find.text('Apple로 계속하기 · 준비 중'), findsOneWidget);
+      expect(shownText('Apple로 계속하기 · 준비 중'), findsOneWidget);
       // Besides Google's button, only the links to the terms answer a tap.
       expect(enabledButtons(tester), ['Google로 계속하기', '이용약관', '개인정보 처리방침']);
       expect(find.byType(HomeScreen), findsNothing);
@@ -331,7 +331,7 @@ void main() {
 
       await showSettings(tester);
       await tapAndSettle(tester, find.text('Delete account'));
-      await tapAndSettle(tester, find.text('Delete'));
+      await tapAndSettle(tester, shownText('Delete'));
 
       expect(account.deletions, 1);
       expect(account.state, isA<SignedOut>());
@@ -358,8 +358,8 @@ void main() {
             (tester) async {
               await showNotes(tester);
               await tapAndSettle(tester, shownText('French'));
-              await tapAndSettle(tester, find.text('Add card'));
-              await tapAndSettle(tester, find.text('Enter by hand'));
+              await tapAndSettle(tester, shownText('Add card'));
+              await tapAndSettle(tester, shownText('Enter by hand'));
             },
             () => find.byType(CardEditorScreen),
           ),
@@ -369,7 +369,7 @@ void main() {
               await tapAndSettle(tester, shownText('French'));
               await tapAndSettle(
                 tester,
-                find.textContaining('Study this note'),
+                shownTextContaining('Study this note'),
               );
             },
             () => find.byType(StudyScreen),
@@ -377,7 +377,7 @@ void main() {
           'new note': (
             (tester) async {
               await showNotes(tester);
-              await tapAndSettle(tester, find.text('New note'));
+              await tapAndSettle(tester, shownText('New note'));
             },
             () => find.byType(NewDeckScreen),
           ),
@@ -392,13 +392,13 @@ void main() {
         );
         await pumpApp(tester, account);
         await createAndOpenDeck(tester);
-        await tapAndSettle(tester, find.text('Add card'));
+        await tapAndSettle(tester, shownText('Add card'));
         // With photo import, Add card asks how.
-        await tapAndSettle(tester, find.text('Enter by hand'));
+        await tapAndSettle(tester, shownText('Enter by hand'));
         // A new card's two Text blocks, the front's and the back's.
         await tester.enterText(find.byType(TextField).at(0), 'Chat');
         await tester.enterText(find.byType(TextField).at(1), 'cat');
-        await tapAndSettle(tester, find.text('Save'));
+        await tapAndSettle(tester, shownText('Save'));
         // Back from the deck it opened, to the 노트 tab.
         await tester.pageBack();
         await tester.pumpAndSettle();
@@ -425,7 +425,7 @@ void main() {
         expect(find.byType(HomeScreen), findsNothing);
         expect(find.byType(StudyScreen), findsNothing);
         expect(find.byType(AccountScreen), findsNothing);
-        expect(find.text('Choose from album'), findsNothing);
+        expect(shownText('Choose from album'), findsNothing);
         expect(shownText('French'), findsNothing);
         expect(find.text('Chat'), findsNothing);
         await unmountApp(tester);

@@ -13,6 +13,7 @@ import 'package:knowno/media/media.dart';
 import 'package:uuid/uuid.dart';
 
 import '../media/fakes.dart';
+import '../word_breaks.dart';
 
 /// Hands out [next] once, or throws [MediaUnreadable] while [fails].
 class _FakePick implements ImagePick {
@@ -97,7 +98,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('open'));
+    await tester.tap(shownText('open'));
     await tester.pumpAndSettle();
     return result;
   }
@@ -105,8 +106,8 @@ void main() {
   /// Taps [label] and lets what it starts finish: each step of real file and
   /// database work completes in real time, and its continuation on a pump.
   Future<void> tapAndFinish(WidgetTester tester, String label) async {
-    await tester.ensureVisible(find.text(label));
-    await tester.tap(find.text(label));
+    await tester.ensureVisible(shownText(label));
+    await tester.tap(shownText(label));
     for (var step = 0; step < 20; step++) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
@@ -128,7 +129,7 @@ void main() {
       expect(pick.shapes, [ImageShape.square]);
       final preview = tester.widget<Image>(find.byType(Image));
       expect((preview.image as MemoryImage).bytes, pick.next!.bytes);
-      expect(find.text('사진 삭제'), findsOneWidget);
+      expect(shownText('사진 삭제'), findsOneWidget);
 
       await tapAndFinish(tester, '저장');
 
@@ -162,7 +163,7 @@ void main() {
       await open(tester, shown);
 
       await tapAndFinish(tester, '사진 삭제');
-      expect(find.text('사진 삭제'), findsNothing);
+      expect(shownText('사진 삭제'), findsNothing);
       await tapAndFinish(tester, '저장');
 
       final stored = (await tester.runAsync(() => decks.getDeck(deck.id)))!;
@@ -184,7 +185,7 @@ void main() {
 
       expect(find.text('사진을 불러오지 못했어요. 다시 시도해 주세요.'), findsOneWidget);
       expect(find.byType(Image), findsNothing);
-      expect(find.text('사진 삭제'), findsNothing);
+      expect(shownText('사진 삭제'), findsNothing);
     },
   );
 

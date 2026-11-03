@@ -158,7 +158,7 @@ void main() {
       await actOnBlock(screens, 3, 'Move up');
       await actOnBlock(screens, 4, 'Delete');
 
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       final card = await _stored(screens);
       expect((card.template, card.templateVersion), ('free', 2));
       expect(card.cells, const [
@@ -180,7 +180,7 @@ void main() {
         ],
         ['apple', '사과', 'red', '빨강', 'a fruit', ''],
       );
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       final saved = await _stored(screens);
       expect(
         encodeCells(saved.cells!, newId: () => fail('every 칸 keeps its id')),
@@ -225,18 +225,18 @@ void main() {
       'that shows nothing before the reveal is refused under the column, with nothing else said, and saves once it does',
       (tester) async {
         final screens = await openNew(tester);
-        await tapVisible(screens, find.text('Save'));
+        await tapVisible(screens, shownText('Save'));
         expect(shownText(before), findsOneWidget, reason: 'an empty 글');
         expect(shownText(added), findsNothing);
         expect(await screens.cards(), isEmpty);
 
         await typeBlock(tester, 'a back alone', 1);
-        await tapVisible(screens, find.text('Save'));
+        await tapVisible(screens, shownText('Save'));
         expect(shownText(before), findsOneWidget, reason: 'a back alone');
         expect(await screens.cards(), isEmpty);
 
         await actOnBlock(screens, 1, 'Delete');
-        await tapVisible(screens, find.text('Save'));
+        await tapVisible(screens, shownText('Save'));
         expect(shownText(before), findsOneWidget, reason: 'no 칸 at all');
         expect(await screens.cards(), isEmpty);
 
@@ -244,7 +244,7 @@ void main() {
         await typeBlock(tester, 'apple');
         await typeBlock(tester, '사과', 1);
         expect(shownText(before), findsNothing, reason: 'answered as typed');
-        await tapVisible(screens, find.text('Save'));
+        await tapVisible(screens, shownText('Save'));
         expect((await _stored(screens)).cells, const [
           TextCell(front: 'apple', back: '사과'),
         ], reason: 'control: a front and a back save');
@@ -256,7 +256,7 @@ void main() {
       (tester) async {
         final screens = await openNew(tester);
         await typeBlock(tester, 'Chat');
-        await tapVisible(screens, find.text('Save'));
+        await tapVisible(screens, shownText('Save'));
         expect(shownText(added), findsOneWidget);
         expect(shownText(before), findsNothing);
         expect(await screens.cards(), isEmpty);
@@ -270,7 +270,7 @@ void main() {
             const TextSelection(baseOffset: 7, extentOffset: 10);
         await tester.pump();
         await screens.tap(find.text('Insert blank'));
-        await tapVisible(screens, find.text('Save'));
+        await tapVisible(screens, shownText('Save'));
         final card = await _stored(screens);
         expect(card.cells, const [
           BlankCell(ClozeContent('I like ___', ['tea'])),
@@ -284,14 +284,14 @@ void main() {
         final screens = await openNew(tester);
         await typeBlock(tester, 'apple');
         await typeBlock(tester, '   ', 1);
-        await tapVisible(screens, find.text('Save'));
+        await tapVisible(screens, shownText('Save'));
         expect(shownText(added), findsOneWidget, reason: 'spaces add nothing');
         expect(await screens.cards(), isEmpty);
 
         await addBlock(screens, 'Text');
         await typeBlock(tester, '  ', 2);
         await typeBlock(tester, '사과', 1);
-        await tapVisible(screens, find.text('Save'));
+        await tapVisible(screens, shownText('Save'));
         expect((await _stored(screens)).cells, const [
           TextCell(front: 'apple', back: '사과'),
         ], reason: 'the empty 글 is dropped');
@@ -323,7 +323,7 @@ void main() {
 
       await tapVisible(screens, find.widgetWithText(AppChip, 'Meaning'));
       expect((chip('Word').selected, chip('Meaning').selected), (false, true));
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       final card = await _stored(screens);
       expect(card.cells, const [
         WordCell(
@@ -349,7 +349,7 @@ void main() {
         reason: 'reopened as saved',
       );
       await tapVisible(screens, find.widgetWithText(AppChip, 'Word'));
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).front, const [TextContent('apple')]);
     },
   );
@@ -359,7 +359,7 @@ void main() {
     (tester) async {
       final screens = await openNew(tester);
       final preview = find.byType(CardPreviewScreen);
-      await screens.tap(find.text('Preview'));
+      await screens.tap(shownText('Preview'));
       expect(
         find.descendant(of: preview, matching: find.byType(WholeCardView)),
         findsNothing,
@@ -367,7 +367,7 @@ void main() {
       );
       await screens.tap(find.byTooltip('Close'));
       await addBlock(screens, 'Table');
-      await screens.tap(find.text('Preview'));
+      await screens.tap(shownText('Preview'));
       expect(
         find.descendant(of: preview, matching: find.byType(WholeCardView)),
         findsOneWidget,
@@ -392,7 +392,7 @@ void main() {
           const TextSelection(baseOffset: 7, extentOffset: 10);
       await tester.pump();
       await screens.tap(find.text('Insert blank'));
-      await screens.tap(find.text('Preview'));
+      await screens.tap(shownText('Preview'));
       await screens.tap(find.byType(CardPreviewScreen));
       final preview = find.byType(CardPreviewScreen);
       double top(String text) => tester
@@ -429,7 +429,7 @@ void main() {
       await tester.pump(undoDuration);
       await tester.pumpAndSettle();
       expect(find.text('Undo'), findsNothing, reason: 'the bar went');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).cells, const [
         TextCell(front: 'Chat', back: 'Cat'),
       ]);
@@ -458,7 +458,7 @@ void main() {
         isFalse,
         reason: 'no field keeps the keyboard up',
       );
-      expect(inView(tester, find.text('Choose from album')), isTrue);
+      expect(inView(tester, shownText('Choose from album')), isTrue);
     },
   );
 
@@ -473,7 +473,7 @@ void main() {
         await typeBlock(tester, 'front $index', 3 + 2 * index);
       }
       final error = find.text('Write something');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect(error, findsOneWidget, reason: 'refused');
       expect(inView(tester, error), isTrue, reason: 'its error is in view');
       expect(hasFocus(tester, labelledField('Meaning')), isTrue);

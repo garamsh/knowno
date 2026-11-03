@@ -74,13 +74,13 @@ void main() {
   /// Taps [text] and lets a dialog open over the sign-out progress
   /// indicator, which never settles.
   Future<void> tapAndOpen(WidgetTester tester, String text) async {
-    await tester.tap(find.text(text));
+    await tester.tap(shownText(text));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
   }
 
   Future<void> tapAndSettle(WidgetTester tester, String text) async {
-    await tester.tap(find.text(text));
+    await tester.tap(shownText(text));
     await tester.pumpAndSettle();
   }
 
@@ -335,8 +335,8 @@ void main() {
           ),
           findsOneWidget,
         );
-        final cancel = find.widgetWithText(AppButton, '취소');
-        final delete = find.widgetWithText(AppButton, '삭제');
+        final cancel = widgetWithShownText(AppButton, '취소');
+        final delete = widgetWithShownText(AppButton, '삭제');
         expect(
           tester.getRect(cancel).bottom,
           lessThanOrEqualTo(tester.getRect(delete).top),

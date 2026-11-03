@@ -11,6 +11,7 @@ import 'package:knowno/l10n/app_localizations.dart';
 
 import '../contrast.dart';
 import '../study/study_storage.dart';
+import '../word_breaks.dart';
 
 /// The 라벨 row on a settings screen of its own, over device storage in
 /// memory.
@@ -105,7 +106,7 @@ void main() {
         find.widgetWithText(TextField, 'Name (optional)'),
         'idiom',
       );
-      await tester.tap(find.text('Done'));
+      await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(_stored(storage).length, 15);
       expect(_stored(storage).last, '숙어:idiom');
@@ -117,7 +118,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Edit 숙어 idiom'));
       await tester.pumpAndSettle();
       await tester.enterText(find.widgetWithText(TextField, 'Label'), '관용');
-      await tester.tap(find.text('Done'));
+      await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(_stored(storage).last, '관용:idiom');
 
@@ -134,20 +135,20 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Edit 명 noun'));
       await tester.pumpAndSettle();
       await tester.enterText(find.widgetWithText(TextField, 'Label'), ' ');
-      await tester.tap(find.text('Done'));
+      await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(find.text('Write a label'), findsOneWidget);
       expect(_stored(storage), isEmpty, reason: 'nothing stored');
 
       await tester.enterText(find.widgetWithText(TextField, 'Label'), '명');
-      await tester.tap(find.text('Done'));
+      await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(find.text('Write a label'), findsNothing, reason: 'control');
 
       await tester.scrollUntilVisible(find.bySemanticsLabel('Add label'), 200);
       await tester.tap(find.bySemanticsLabel('Add label'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Done'));
+      await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(find.text('Write a label'), findsNothing);
       expect(_count(tester), 14, reason: 'the empty row went');
@@ -237,12 +238,12 @@ void main() {
       expect(_stored(storage), isEmpty, reason: 'nothing stored meanwhile');
 
       await tester.scrollUntilVisible(
-        find.text('Done'),
+        shownText('Done'),
         200,
         scrollable: _list,
       );
       await tester.enterText(find.widgetWithText(TextField, 'Label'), '숙어');
-      await tester.tap(find.text('Done'));
+      await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(_stored(storage).last, '숙어:');
       expect(_stored(storage).take(2), [

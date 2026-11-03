@@ -9,6 +9,8 @@ import 'package:knowno/design/bottom_actions.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/l10n/app_localizations.dart';
 
+import '../word_breaks.dart';
+
 /// Lays out a bottom pair of [secondary] and [primary] in Jua on a phone 390
 /// wide at [scale], and returns how many lines each label takes.
 Future<(int, int)> _lines(
@@ -50,16 +52,16 @@ Future<(int, int)> _lines(
   // A run in the fallback font sits at another top on the same line, so a
   // line starts only at a box wholly below the line before.
   int lines(String label) {
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.descendant(of: shownText(label), matching: find.byType(RichText)),
+    );
     final boxes =
-        tester
-            .renderObject<RenderParagraph>(
-              find.descendant(
-                of: find.text(label),
-                matching: find.byType(RichText),
-              ),
-            )
+        paragraph
             .getBoxesForSelection(
-              TextSelection(baseOffset: 0, extentOffset: label.length),
+              TextSelection(
+                baseOffset: 0,
+                extentOffset: paragraph.text.toPlainText().length,
+              ),
             )
             .toList()
           ..sort((a, b) => a.top.compareTo(b.top));
@@ -128,7 +130,7 @@ void main() {
   /// The rects of the two buttons, found by their labels.
   (Rect, Rect) rects(WidgetTester tester, String secondary, String primary) {
     Rect of(String label) => tester.getRect(
-      find.ancestor(of: find.text(label), matching: find.byType(AppButton)),
+      find.ancestor(of: shownText(label), matching: find.byType(AppButton)),
     );
     return (of(secondary), of(primary));
   }

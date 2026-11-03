@@ -120,7 +120,7 @@ class SharingApp {
   Future<void> browse() async {
     final menu = find.byTooltip('Notes menu');
     if (menu.evaluate().isNotEmpty) await tap(menu);
-    await tester.ensureVisible(find.text('Browse public notes'));
+    await tester.ensureVisible(shownText('Browse public notes'));
     await tester.pumpAndSettle();
     await tapText('Browse public notes');
   }

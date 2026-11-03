@@ -18,6 +18,7 @@ import 'package:knowno/study/src/study_time.dart';
 import '../home/home_data.dart';
 import 'minutes_sheet.dart';
 import 'study_storage.dart';
+import '../word_breaks.dart';
 
 /// A plan at the unknown pace of 10 s, with [unstarted] cards never answered.
 MinutesPlan _plan({
@@ -147,7 +148,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), '45');
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Save'));
+      await tester.tap(shownText('Save'));
       await tester.pumpAndSettle();
 
       expect(find.byType(DailyMinutesPicker), findsNothing);

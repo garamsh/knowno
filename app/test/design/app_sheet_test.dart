@@ -54,7 +54,7 @@ void main() {
           _opener(_openSheet, results),
           themeMode: mode,
         );
-        await tester.tap(find.text('open'));
+        await tester.tap(shownText('open'));
         await tester.pumpAndSettle();
 
         final sheet = tester.getRect(
@@ -69,10 +69,10 @@ void main() {
         final body = tester.getRect(shownText('Name it after what you study.'));
         final content = tester.getRect(find.byType(TextField));
         final later = tester.getRect(
-          find.widgetWithText(OutlinedButton, 'Later'),
+          widgetWithShownText(OutlinedButton, 'Later'),
         );
         final create = tester.getRect(
-          find.widgetWithText(FilledButton, 'Create'),
+          widgetWithShownText(FilledButton, 'Create'),
         );
         expect(title.bottom, lessThanOrEqualTo(body.top));
         expect(body.bottom, lessThanOrEqualTo(content.top));
@@ -118,7 +118,7 @@ void main() {
         await meetsGuidelines(tester);
         expectScreenTextReadable(tester);
 
-        await tester.tap(find.text('Create'));
+        await tester.tap(shownText('Create'));
         await tester.pumpAndSettle();
         expect(results, ['create']);
       },
@@ -128,7 +128,7 @@ void main() {
   testWidgets('a dismissed sheet resolves to null', (tester) async {
     final results = <Object?>[];
     await pumpComponent(tester, _opener(_openSheet, results));
-    await tester.tap(find.text('open'));
+    await tester.tap(shownText('open'));
     await tester.pumpAndSettle();
     expect(find.byType(BottomSheet), findsOneWidget);
 
@@ -142,10 +142,10 @@ void main() {
   testWidgets('the actions stay above the keyboard', (tester) async {
     final results = <Object?>[];
     await pumpComponent(tester, _opener(_openSheet, results));
-    await tester.tap(find.text('open'));
+    await tester.tap(shownText('open'));
     await tester.pumpAndSettle();
     final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
-    final before = tester.getRect(find.text('Create'));
+    final before = tester.getRect(shownText('Create'));
     expect(before.bottom, lessThan(screen.height));
 
     tester.view.viewInsets = FakeViewPadding(
@@ -154,7 +154,7 @@ void main() {
     addTearDown(tester.view.resetViewInsets);
     await tester.pumpAndSettle();
 
-    final after = tester.getRect(find.text('Create'));
+    final after = tester.getRect(shownText('Create'));
     expect(after.bottom, lessThanOrEqualTo(screen.height - 300));
     expect(after.top, lessThan(before.top));
   });
@@ -171,7 +171,7 @@ void main() {
           _opener(_openSheet, results),
           disableAnimations: reduceMotion,
         );
-        await tester.tap(find.text('open'));
+        await tester.tap(shownText('open'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 16));
         final early = tester.getRect(shownText('New note')).top;
@@ -206,7 +206,7 @@ void main() {
             ),
             themeMode: mode,
           );
-          await tester.tap(find.text('open'));
+          await tester.tap(shownText('open'));
           await tester.pumpAndSettle();
 
           expect(shownText('Its 3 cards will be deleted too.'), findsOneWidget);
@@ -215,7 +215,7 @@ void main() {
                 .widget<Material>(
                   find
                       .ancestor(
-                        of: find.text('Delete'),
+                        of: shownText('Delete'),
                         matching: find.byType(Material),
                       )
                       .first,
@@ -224,8 +224,8 @@ void main() {
             colors.dontKnowText,
           );
           expect(
-            tester.getRect(find.text('Cancel')).top,
-            lessThan(tester.getRect(find.text('Delete')).top),
+            tester.getRect(shownText('Cancel')).top,
+            lessThan(tester.getRect(shownText('Delete')).top),
           );
           await meetsGuidelines(tester);
           expectScreenTextReadable(tester);
@@ -250,11 +250,11 @@ void main() {
             results,
           ),
         );
-        await tester.tap(find.text('open'));
+        await tester.tap(shownText('open'));
         await tester.pumpAndSettle();
-        expect(find.text('Cancel'), findsNothing);
+        expect(shownText('Cancel'), findsNothing);
 
-        await tester.tap(find.text('Keep writing'));
+        await tester.tap(shownText('Keep writing'));
         await tester.pumpAndSettle();
         expect(results, [false]);
       },
@@ -296,13 +296,13 @@ void main() {
             results,
           ),
         );
-        await tester.tap(find.text('open'));
+        await tester.tap(shownText('open'));
         await tester.pumpAndSettle();
 
         if (action == null) {
           await tester.tapAt(const Offset(20, 20));
         } else {
-          await tester.tap(find.text(action));
+          await tester.tap(shownText(action));
         }
         await tester.pumpAndSettle();
 
@@ -337,7 +337,7 @@ void main() {
             [],
           ),
         );
-        await tester.tap(find.text('open'));
+        await tester.tap(shownText('open'));
         await tester.pumpAndSettle();
 
         if (sheetBody == word) {

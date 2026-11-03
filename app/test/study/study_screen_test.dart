@@ -543,7 +543,7 @@ void main() {
       // target's size.
       expect(find.byType(TextButton), findsOneWidget);
       final replay = tester.getRect(
-        find.widgetWithText(TextButton, 'Show the guide again'),
+        widgetWithShownText(TextButton, 'Show the guide again'),
       );
       expect(replay.top, greaterThan(card.bottom));
       expect(replay.center.dx, closeTo(card.center.dx, 0.01));
@@ -1387,7 +1387,7 @@ void main() {
         );
         expect(tester.getSize(_face).height, closeTo(_cardHeight, 0.01));
         final replay = tester.getRect(
-          find.widgetWithText(TextButton, 'Show the guide again'),
+          widgetWithShownText(TextButton, 'Show the guide again'),
         );
         expect(replay.top, greaterThan(tester.getRect(_face).bottom));
         expect(replay.bottom, lessThanOrEqualTo(_phone.height));
@@ -1775,11 +1775,11 @@ void main() {
       );
       // No new card is left past today's, so nothing to go on with.
       expect(shownText('No more cards to study'), findsOneWidget);
-      expect(find.widgetWithText(AppButton, 'Study'), findsNothing);
+      expect(widgetWithShownText(AppButton, 'Study'), findsNothing);
       // Stopping is the one thing left, so it is the panel's primary, the
       // fill a button takes on the hero.
       final stop = tester.widget<AppButton>(
-        find.widgetWithText(AppButton, 'Stop'),
+        widgetWithShownText(AppButton, 'Stop'),
       );
       expect(stop.variant, AppButtonVariant.onHero);
       expect(stop.size, AppButtonSize.cta);
@@ -2000,20 +2000,20 @@ void main() {
       // quiet.
       expect(
         tester
-            .widget<AppButton>(find.widgetWithText(AppButton, 'Study'))
+            .widget<AppButton>(widgetWithShownText(AppButton, 'Study'))
             .variant,
         AppButtonVariant.onHero,
       );
       expect(
         tester
-            .widget<AppButton>(find.widgetWithText(AppButton, 'Stop'))
+            .widget<AppButton>(widgetWithShownText(AppButton, 'Stop'))
             .variant,
         AppButtonVariant.onHeroText,
       );
       final screen = tester.state(find.byType(StudyScreen));
       final route = ModalRoute.of(tester.element(find.byType(StudyScreen)));
 
-      await tester.tap(find.widgetWithText(AppButton, 'Study'));
+      await tester.tap(widgetWithShownText(AppButton, 'Study'));
       await tester.pumpAndSettle();
 
       expect(study.current, 'c30 front');
@@ -2073,7 +2073,7 @@ void main() {
       expect(study.current, isNull);
 
       // Its way back is a button as well as the ✕, the one primary.
-      final back = find.widgetWithText(AppButton, 'Close');
+      final back = widgetWithShownText(AppButton, 'Close');
       expect(tester.widget<AppButton>(back).variant, AppButtonVariant.primary);
       await tester.tap(back);
       await tester.pumpAndSettle();
@@ -2218,7 +2218,7 @@ void main() {
         expect(shownText('Swipe right if you know it'), findsOneWidget);
         // The caption takes the guide's row's place under the card.
         expect(
-          find.widgetWithText(TextButton, 'Show the guide again'),
+          widgetWithShownText(TextButton, 'Show the guide again'),
           findsNothing,
         );
         expect(
@@ -2245,12 +2245,12 @@ void main() {
         // "Back" is off on the first step; "Next" leads on.
         expect(
           tester
-              .widget<TextButton>(find.widgetWithText(TextButton, 'Back'))
+              .widget<TextButton>(widgetWithShownText(TextButton, 'Back'))
               .onPressed,
           isNull,
         );
-        expect(find.widgetWithText(AppButton, 'Next'), findsOneWidget);
-        expect(find.text('Skip'), findsNothing);
+        expect(widgetWithShownText(AppButton, 'Next'), findsOneWidget);
+        expect(shownText('Skip'), findsNothing);
         final semantics = tester.ensureSemantics();
         final caption = tester.getSemantics(find.byType(StudyCoach));
         expect(caption, isSemantics(isLiveRegion: true));
@@ -2270,14 +2270,14 @@ void main() {
         expect(know.left, greaterThan(-StudyStyle.coachCurrentPeek / 2));
         expect(know.shown, isTrue);
 
-        await tester.tap(find.widgetWithText(AppButton, 'Next'));
+        await tester.tap(widgetWithShownText(AppButton, 'Next'));
         await tester.pump();
         expect(shownText("Swipe left if you don't"), findsOneWidget);
         // "Back" returns a step, and "Next" leads on again.
-        await tester.tap(find.widgetWithText(TextButton, 'Back'));
+        await tester.tap(widgetWithShownText(TextButton, 'Back'));
         await tester.pump();
         expect(shownText('Swipe right if you know it'), findsOneWidget);
-        await tester.tap(find.widgetWithText(AppButton, 'Next'));
+        await tester.tap(widgetWithShownText(AppButton, 'Next'));
         await tester.pump();
         expect(shownText("Swipe left if you don't"), findsOneWidget);
         final dontKnow = await sweep(
@@ -2290,7 +2290,7 @@ void main() {
         expect(dontKnow.right, lessThan(StudyStyle.coachCurrentPeek / 2));
         expect(dontKnow.shown, isTrue);
 
-        await tester.tap(find.widgetWithText(AppButton, 'Next'));
+        await tester.tap(widgetWithShownText(AppButton, 'Next'));
         await tester.pump();
         expect(
           shownText(
@@ -2314,14 +2314,14 @@ void main() {
         expect(change.shown, isTrue);
         expect(find.byType(PreviousPlaceholder), findsNothing);
 
-        await tester.tap(find.widgetWithText(AppButton, 'Start'));
+        await tester.tap(widgetWithShownText(AppButton, 'Start'));
         await tester.pumpAndSettle();
         expect(find.byType(StudyCoach), findsNothing);
         // The mascot leaves with the coach.
         expect(find.byType(Mascot), findsNothing);
         expect(shownText('deadline'), findsNothing);
         expect(
-          find.widgetWithText(TextButton, 'Show the guide again'),
+          widgetWithShownText(TextButton, 'Show the guide again'),
           findsOneWidget,
         );
         expect(find.byType(PreviousPlaceholder), findsOneWidget);
@@ -2336,20 +2336,20 @@ void main() {
         expect(find.byType(StudyCoach), findsOneWidget);
 
         for (final step in ['Next', 'Next', 'Start']) {
-          await tester.tap(find.widgetWithText(AppButton, step));
+          await tester.tap(widgetWithShownText(AppButton, step));
           await tester.pump();
         }
         await tester.pumpAndSettle();
         expect(find.byType(StudyCoach), findsNothing);
         expect(
-          find.widgetWithText(TextButton, 'Show the guide again'),
+          widgetWithShownText(TextButton, 'Show the guide again'),
           findsOneWidget,
         );
 
         await study.reopen();
         expect(find.byType(StudyCoach), findsNothing);
         expect(
-          find.widgetWithText(TextButton, 'Show the guide again'),
+          widgetWithShownText(TextButton, 'Show the guide again'),
           findsOneWidget,
         );
       },
@@ -2365,7 +2365,7 @@ void main() {
 
         // "Show the guide again" starts it again at its first step.
         await tester.tap(
-          find.widgetWithText(TextButton, 'Show the guide again'),
+          widgetWithShownText(TextButton, 'Show the guide again'),
         );
         await tester.pump();
         expect(shownText('Swipe right if you know it'), findsOneWidget);
@@ -2402,7 +2402,7 @@ void main() {
         for (final reduce in [false, true]) {
           await _open(tester, ['a', 'b'], disableAnimations: reduce);
           await tester.tap(
-            find.widgetWithText(TextButton, 'Show the guide again'),
+            widgetWithShownText(TextButton, 'Show the guide again'),
           );
           await tester.pump();
           final shown = tester.widget<Opacity>(
@@ -2435,13 +2435,13 @@ void main() {
         await study.know();
 
         await tester.tap(
-          find.widgetWithText(TextButton, 'Show the guide again'),
+          widgetWithShownText(TextButton, 'Show the guide again'),
         );
         await tester.pump();
         expect(find.byType(StudyCoach), findsOneWidget);
-        await tester.tap(find.widgetWithText(AppButton, 'Next'));
+        await tester.tap(widgetWithShownText(AppButton, 'Next'));
         await tester.pump();
-        await tester.tap(find.widgetWithText(AppButton, 'Next'));
+        await tester.tap(widgetWithShownText(AppButton, 'Next'));
         // The sample takes the place as the card answered last leaves it.
         for (var i = 0; i < 10; i++) {
           await tester.pump(const Duration(milliseconds: 100));
@@ -2449,7 +2449,7 @@ void main() {
         expect(shownText('deadline'), findsOneWidget);
         expect(_previous('a front'), findsNothing);
 
-        await tester.tap(find.widgetWithText(AppButton, 'Start'));
+        await tester.tap(widgetWithShownText(AppButton, 'Start'));
         await tester.pumpAndSettle();
         expect(shownText('deadline'), findsNothing);
         expect(_previous('a front'), findsOneWidget);
@@ -2512,13 +2512,13 @@ void main() {
           closeTo(held, 0.5),
         );
 
-        await tester.tap(find.widgetWithText(AppButton, 'Next'));
+        await tester.tap(widgetWithShownText(AppButton, 'Next'));
         await tester.pump();
         expect(
           tester.getCenter(shownText('a front')).dx - centre,
           closeTo(-held, 0.5),
         );
-        await tester.tap(find.widgetWithText(AppButton, 'Next'));
+        await tester.tap(widgetWithShownText(AppButton, 'Next'));
         await tester.pump();
         await tester.pumpAndSettle();
         expect(shownText("Change to Don't know"), findsOneWidget);

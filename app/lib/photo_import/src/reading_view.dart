@@ -159,37 +159,20 @@ class ReadingView extends StatelessWidget {
             onPressed: onAddByHand,
           ),
         ),
-        _ => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpace.gutter,
-              AppSpace.s8,
-              AppSpace.gutter,
-              AppSpace.s16,
-            ),
-            child: Row(
-              spacing: AppSpace.s12,
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: l10n.cancel,
-                    variant: AppButtonVariant.secondary,
-                    size: AppButtonSize.cta,
-                    onPressed: onCancel,
-                  ),
-                ),
-                if (retryable)
-                  Expanded(
-                    flex: 2,
-                    child: AppButton(
-                      label: l10n.retryFailedPhotos,
-                      size: AppButtonSize.cta,
-                      onPressed: job.retryFailed,
-                    ),
-                  ),
-              ],
-            ),
+        _ => BottomActions(
+          secondary: AppButton(
+            label: l10n.cancel,
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.cta,
+            onPressed: onCancel,
           ),
+          primary: retryable
+              ? AppButton(
+                  label: l10n.retryFailedPhotos,
+                  size: AppButtonSize.cta,
+                  onPressed: job.retryFailed,
+                )
+              : null,
         ),
       },
     );
