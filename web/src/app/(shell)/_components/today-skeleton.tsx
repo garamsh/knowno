@@ -8,10 +8,7 @@ import { belowHero, heroFit, heroFitGroup, homeFit } from "./hero-fit";
  */
 export function TodaySkeleton() {
   return (
-    <Skeleton
-      status="오늘 할 카드를 불러오는 중이에요."
-      className={homeFit}
-    >
+    <Skeleton status="오늘 할 카드를 불러오는 중이에요." className={homeFit}>
       <div
         className={`${heroFit} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 lg:mx-0 lg:rounded-card lg:p-8`}
       >
