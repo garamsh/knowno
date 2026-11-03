@@ -105,7 +105,7 @@ describe("the deck page", () => {
     expect(screen.queryByRole("navigation", { name: "위치" })).not.toBeInTheDocument();
   });
 
-  it("puts + 카드 추가 in the tonal fill beside the name, over the card search, always shown, with no magnifier, leaving 이 노트 학습 the one primary", async () => {
+  it("puts + 카드 추가 in the tonal fill over the name on its own line and the card search, always shown, with no magnifier, leaving 이 노트 학습 the one primary", async () => {
     await open("d-fr");
 
     const header = screen.getByRole("heading", { level: 1, name: "French" }).closest("header");
