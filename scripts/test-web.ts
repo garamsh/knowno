@@ -2,7 +2,8 @@
 // it did not. The stack follows ADR 0014's pattern for the database tests: its own project id and
 // reserved ports, stopped with its data however the run ends. It runs Postgres, Auth, PostgREST,
 // Storage and the API gateway; the app is built with the stack's URL and publishable key, which a build
-// freezes, and served as the image serves it, by its standalone server.
+// freezes, and served as the image serves it, by its standalone server. Arguments go to `playwright
+// test` as given, which then selects what runs, so no spec is required to run a test.
 import {
   attached,
   entry,
@@ -113,7 +114,7 @@ async function serve(
   return server;
 }
 
-async function main(): Promise<void> {
+async function main(args: string[]): Promise<void> {
   const specs = (await scopeFiles(SCOPE)).map((file) =>
     file.replace(/^web\//, "")
   );
@@ -181,7 +182,7 @@ async function main(): Promise<void> {
       );
     }
     await read("npx", ["playwright", "install", "chromium"], { cwd: "web" });
-    const { code, output } = await merged("npx", ["playwright", "test"], {
+    const { code, output } = await merged("npx", ["playwright", "test", ...args], {
       cwd: "web",
       env: { E2E_BASE_URL: base, E2E_SUPABASE_URL: url, E2E_SUPABASE_KEY: key },
     });
@@ -198,7 +199,9 @@ async function main(): Promise<void> {
       );
     }
     const ran = specsThatPassed(output);
-    const missed = specs.filter((spec) => !ran.has(spec)).toSorted();
+    const missed = args.length > 0
+      ? []
+      : specs.filter((spec) => !ran.has(spec)).toSorted();
     if (missed.length > 0) {
       fail(
         `these e2e specs ran no test against the stack ${stack.projectId}:\n${
@@ -206,10 +209,11 @@ async function main(): Promise<void> {
         }`,
       );
     }
+    const selection = args.length > 0
+      ? `${scopeText(SCOPE)}, narrowed by: playwright test ${args.join(" ")}`
+      : scopeText(SCOPE);
     console.log(
-      `ran ${passed} web e2e tests in ${specs.length} specs against the web app built for the stack ${stack.projectId}, selected by: ${
-        scopeText(SCOPE)
-      }`,
+      `ran ${passed} web e2e tests in ${ran.size} specs against the web app built for the stack ${stack.projectId}, selected by: ${selection}`,
     );
   });
 }
