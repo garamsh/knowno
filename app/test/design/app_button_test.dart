@@ -493,31 +493,30 @@ void main() {
             greaterThanOrEqualTo(AppSpace.s8),
           );
         }
-        // The second label wraps at the largest size, so a grown label is
-        // what is measured there.
-        final lines = tester
-            .renderObject<RenderParagraph>(
-              find.descendant(
-                of: shownText(labels.last),
-                matching: find.byType(RichText),
-              ),
-            )
-            .getBoxesForSelection(
-              const TextSelection(baseOffset: 0, extentOffset: 1),
-            );
-        expect(lines, isNotEmpty);
-        expect(
-          tester
-                  .getSize(
-                    find.descendant(
-                      of: shownText(labels.last),
-                      matching: find.byType(RichText),
-                    ),
-                  )
-                  .height >
-              AppSize.cta,
-          scale > 1,
-        );
+        // The first label holds one line at both sizes and the second wraps
+        // at the largest, so a grown label is what is measured there.
+        // The paragraph's own lines, counted by where its boxes start.
+        int lines(String label) {
+          final paragraph = tester.renderObject<RenderParagraph>(
+            find.descendant(
+              of: shownText(label),
+              matching: find.byType(RichText),
+            ),
+          );
+          return paragraph
+              .getBoxesForSelection(
+                TextSelection(
+                  baseOffset: 0,
+                  extentOffset: paragraph.text.toPlainText().length,
+                ),
+              )
+              .map((box) => box.top)
+              .toSet()
+              .length;
+        }
+
+        expect(lines(labels.first), 1, reason: 'setup');
+        expect(lines(labels.last), scale > 1 ? greaterThan(1) : 1);
       },
     );
   }

@@ -10,9 +10,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/deck/src/card_preview.dart';
+import 'package:knowno/deck/src/senses_block.dart' show LabelPresetStrip;
 import 'package:knowno/study/study.dart' show CardPreviewScreen;
 import 'package:knowno/design/app_button.dart';
 import 'package:knowno/design/word_break.dart';
+import 'package:knowno/l10n/app_localizations.dart';
 import 'package:knowno/media/media.dart';
 
 import '../home/deck_screens.dart';
@@ -277,6 +279,70 @@ void main() {
           // Within a rounding of half.
           greaterThanOrEqualTo((keyboardTop - bar.bottom) / 2 - 0.01),
         );
+        await screens.close();
+      },
+    );
+  }
+
+  for (final scale in [1.0, 3.12]) {
+    testWidgets(
+      'at text scale $scale in Korean with the keyboard up, the label presets '
+      'showing and an undo bar, the bar shows whole over the form, and the '
+      'save actions scroll only where the room it needs leaves them too little',
+      (tester) async {
+        final ko = lookupAppLocalizations(const Locale('ko'));
+        final screens = await DeckScreens.open(
+          tester,
+          locale: const Locale('ko'),
+        );
+        await screens.push(
+          (deck) => CardEditorScreen(preview: studyPreview, deck: deck),
+        );
+        await tapVisible(screens, find.byTooltip(ko.blockMenu(1)));
+        await screens.tap(find.text(ko.deleteBlock).last);
+        await tapVisible(screens, find.bySemanticsLabel(ko.addBlock));
+        await screens.tap(find.text(ko.blockSenses).last);
+        await tapVisible(
+          screens,
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is TextField && widget.textAlign == TextAlign.center,
+          ),
+        );
+        tester.view.viewInsets = const FakeViewPadding(bottom: 336);
+        addTearDown(tester.view.resetViewInsets);
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await tester.pumpAndSettle();
+        expect(find.byType(LabelPresetStrip), findsOneWidget, reason: 'setup');
+        expect(shownText(ko.deletedBlock), findsOneWidget, reason: 'setup');
+
+        expect(tester.takeException(), isNull);
+        // The form's own messenger holds the form and its bar.
+        final form = tester.getRect(
+          find.descendant(
+            of: find.byType(CardEditorScreen),
+            matching: find.byType(ScaffoldMessenger),
+          ),
+        );
+        final bar = tester.getRect(find.byType(SnackBar));
+        final said = tester.getRect(shownText(ko.deletedBlock));
+        final undo = tester.getRect(find.text(ko.undo));
+        expect(bar.top, greaterThanOrEqualTo(form.top));
+        expect(bar.bottom, lessThanOrEqualTo(form.bottom));
+        expect(said.top, greaterThanOrEqualTo(bar.top), reason: 'message');
+        expect(undo.bottom, lessThanOrEqualTo(bar.bottom), reason: 'undo');
+        final actions = tester
+            .state<ScrollableState>(
+              find
+                  .ancestor(
+                    of: shownText(ko.save),
+                    matching: find.byType(Scrollable),
+                  )
+                  .first,
+            )
+            .position;
+        expect(actions.maxScrollExtent > 0, scale > 1, reason: 'scrolls');
         await screens.close();
       },
     );

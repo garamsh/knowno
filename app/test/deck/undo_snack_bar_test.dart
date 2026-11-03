@@ -149,9 +149,9 @@ void main() {
 
   for (final scale in [1.0, 3.12]) {
     testWidgets(
-      'on a 390 wide phone at text scale $scale the message sits beside Undo '
-      'while both fit on a line, and otherwise above it, breaking only '
-      'between words',
+      'on a 390 wide phone at text scale $scale the message sits beside Undo, '
+      'the bar drawn as Material draws Undo in its own slot, while both fit '
+      'on a line, and otherwise above it, breaking only between words',
       (tester) async {
         tester.view
           ..physicalSize = const Size(390, 844)
@@ -177,6 +177,20 @@ void main() {
         final undo = tester.getRect(find.text('Undo'));
         if (scale == 1.0) {
           expect(undo.top, lessThan(said.bottom), reason: 'one line');
+          final bar = tester.getRect(find.byType(SnackBar));
+          // Material's bar with the same message and Undo in its slot.
+          ScaffoldMessenger.of(tester.element(find.text('Delete')))
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: const Text(message),
+                action: SnackBarAction(label: 'Undo', onPressed: () {}),
+              ),
+            );
+          await tester.pumpAndSettle();
+          expect(find.byType(SnackBar), findsOneWidget, reason: 'setup');
+          expect(bar, tester.getRect(find.byType(SnackBar)));
+          expect(undo, tester.getRect(find.text('Undo')));
         } else {
           expect(undo.top, greaterThanOrEqualTo(said.bottom), reason: 'below');
           expectBreaksBetweenWords(tester, message);
