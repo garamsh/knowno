@@ -19,8 +19,27 @@ describe("encodeJpeg", () => {
     const blob = encodeJpeg(document.createElement("canvas"), 0.7);
 
     expect(blob).toBeInstanceOf(Blob);
+    if (!blob) throw new Error("no JPEG");
     expect(blob.type).toBe("image/jpeg");
     expect(new Uint8Array(await blob.arrayBuffer())).toEqual(jpeg);
     expect(asked).toEqual([["image/jpeg", 0.7]]);
+  });
+
+  it("answers null where the browser encoded nothing, or a PNG for want of a JPEG encoder", () => {
+    const png = `data:image/png;base64,${Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString("base64")}`;
+    const answers = [
+      "data:,",
+      png,
+      `data:image/jpeg;base64,${Buffer.from(jpeg).toString("base64")}`,
+    ];
+    vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockImplementation(
+      () => answers.shift() ?? "",
+    );
+    const canvas = document.createElement("canvas");
+
+    expect(encodeJpeg(canvas, 0.85)).toBeNull();
+    expect(encodeJpeg(canvas, 0.85)).toBeNull();
+    // The control: the same canvas answering a JPEG is encoded.
+    expect(encodeJpeg(canvas, 0.85)?.type).toBe("image/jpeg");
   });
 });

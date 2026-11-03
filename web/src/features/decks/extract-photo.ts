@@ -36,7 +36,8 @@ export async function preparePhoto(file: Blob): Promise<File | PhotoFailure> {
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     for (const quality of qualities) {
       const blob = encodeJpeg(canvas, quality);
-      if (blob.size <= maxUploadBytes) return new File([blob], "photo.jpg", { type: "image/jpeg" });
+      if (blob && blob.size <= maxUploadBytes)
+        return new File([blob], "photo.jpg", { type: "image/jpeg" });
     }
     return { kind: "refused" };
   } finally {

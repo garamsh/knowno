@@ -55,6 +55,7 @@ export async function prepareImage(file: Blob, shape: ImageShape): Promise<Prepa
       height,
     );
     const jpeg = encodeJpeg(canvas, 0.85);
+    if (!jpeg) return null;
     return { jpeg, sha256: await sha256Of(jpeg), width, height };
   } finally {
     image.close();

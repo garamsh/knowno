@@ -26,7 +26,7 @@ export async function encodePhoto(file: File): Promise<File | null> {
   bitmap.close();
   for (let quality = 85; quality >= 40; quality -= 15) {
     const blob = encodeJpeg(canvas, quality / 100);
-    if (blob.size <= maxTrialBytes) {
+    if (blob !== null && blob.size <= maxTrialBytes) {
       return new File([blob], "photo.jpg", { type: "image/jpeg" });
     }
   }
