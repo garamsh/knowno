@@ -672,6 +672,105 @@ describe("photo import", () => {
         db.rows.cards.map((row) => field(firstBlock(row.front).payload, "ask")).sort(),
       ).toEqual(["meaning", "term"]);
     });
+    it("moves a meaning up and down through its ⋯, its field, its labels and the focus going with it", async () => {
+      answer(words);
+      await choose(1);
+      await screen.findByRole("heading", { name: "단어를 찾았어요" });
+      await userEvent.click(screen.getByRole("button", { name: "apple 편집" }));
+      const sheet = screen.getByRole("dialog", { name: "카드 편집" });
+      expect(within(sheet).getByRole("textbox", { name: "1번째 뜻 · [명]" })).toHaveValue("사과");
+      expect(within(sheet).getByRole("textbox", { name: "2번째 뜻" })).toHaveValue("사과나무");
+
+      await userEvent.click(within(sheet).getByRole("button", { name: "2번째 뜻 메뉴" }));
+      const menu = within(sheet).getByRole("menu", { name: "2번째 뜻 메뉴" });
+      expect(
+        within(menu)
+          .getAllByRole("menuitem")
+          .map((item) => item.textContent),
+      ).toEqual(["위로", "아래로"]);
+      await userEvent.click(within(menu).getByRole("menuitem", { name: "위로" }));
+      expect(within(sheet).getByRole("textbox", { name: "1번째 뜻" })).toHaveValue("사과나무");
+      expect(within(sheet).getByRole("textbox", { name: "2번째 뜻 · [명]" })).toHaveValue("사과");
+      expect(
+        within(sheet).getByRole("button", { name: "1번째 뜻 메뉴" }),
+        "the focus moved up with the meaning",
+      ).toHaveFocus();
+
+      await userEvent.click(within(sheet).getByRole("button", { name: "1번째 뜻 메뉴" }));
+      await userEvent.click(within(sheet).getByRole("menuitem", { name: "아래로" }));
+      expect(within(sheet).getByRole("textbox", { name: "2번째 뜻" })).toHaveValue("사과나무");
+      expect(
+        within(sheet).getByRole("button", { name: "2번째 뜻 메뉴" }),
+        "the focus moved down with the meaning",
+      ).toHaveFocus();
+    });
+    it("keeps or leaves out each meaning by its round check, 완료 disabled while every one is out, and applies the edits", async () => {
+      answer(words);
+      await choose(1);
+      await screen.findByRole("heading", { name: "단어를 찾았어요" });
+      await userEvent.click(screen.getByRole("button", { name: "apple 편집" }));
+      const sheet = screen.getByRole("dialog", { name: "카드 편집" });
+      const first = within(sheet).getByRole("checkbox", { name: "1번째 뜻 넣기" });
+      const second = within(sheet).getByRole("checkbox", { name: "2번째 뜻 넣기" });
+      expect(first).toBeChecked();
+      await userEvent.click(first);
+      await userEvent.click(second);
+      expect(within(sheet).getByRole("button", { name: "완료" })).toBeDisabled();
+      await userEvent.click(second);
+      expect(
+        within(sheet).getByRole("button", { name: "완료" }),
+        "control: one meaning kept",
+      ).toBeEnabled();
+
+      await userEvent.clear(within(sheet).getByRole("textbox", { name: "2번째 뜻" }));
+      await userEvent.clear(within(sheet).getByRole("textbox", { name: "앞면" }));
+      await userEvent.type(within(sheet).getByRole("textbox", { name: "앞면" }), "Apple");
+      await userEvent.click(within(sheet).getByRole("button", { name: "완료" }));
+
+      expect(screen.queryByRole("dialog", { name: "카드 편집" })).not.toBeInTheDocument();
+      const row = screen.getByRole("button", { name: "Apple 편집" });
+      expect(row, "the meaning left empty keeps its text").toHaveTextContent("사과나무");
+      expect(row, "the meaning left out is not shown").not.toHaveTextContent("[명]");
+
+      // Reopened, the meaning left out is there, unchecked, as on the phone.
+      await userEvent.click(row);
+      const again = screen.getByRole("dialog", { name: "카드 편집" });
+      expect(within(again).getByRole("checkbox", { name: "1번째 뜻 넣기" })).not.toBeChecked();
+      expect(within(again).getByRole("textbox", { name: "1번째 뜻 · [명]" })).toHaveValue("사과");
+      expect(within(again).getByRole("checkbox", { name: "2번째 뜻 넣기" })).toBeChecked();
+      await userEvent.click(within(again).getByRole("button", { name: "완료" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "카드 1장 추가" }));
+      await waitFor(() => {
+        expect(db.rows.cards).toHaveLength(1);
+      });
+      const stored = field(firstBlock(db.rows.cards[0]?.front).payload, "senses");
+      expect(
+        Array.isArray(stored) ? stored.map((sense) => field(sense, "meaning")) : stored,
+        "only the kept meaning is saved",
+      ).toEqual(["사과나무"]);
+    });
+    it("edits a note's 앞면 and 뒷면, and names nothing 블록", async () => {
+      answer(read);
+      await choose(1);
+      await screen.findByRole("heading", { name: "카드 1장을 만들었어요" });
+      await userEvent.click(screen.getByRole("button", { name: "수도 편집" }));
+      const sheet = screen.getByRole("dialog", { name: "카드 편집" });
+      expect(
+        within(sheet).queryByRole("checkbox"),
+        "a note has no meanings",
+      ).not.toBeInTheDocument();
+      const named = [sheet, ...sheet.querySelectorAll("*")].map(
+        (element) => `${element.textContent} ${element.getAttribute("aria-label") ?? ""}`,
+      );
+      expect(named.filter((text) => text.includes("블록"))).toEqual([]);
+      await userEvent.clear(within(sheet).getByRole("textbox", { name: "뒷면" }));
+      await userEvent.type(within(sheet).getByRole("textbox", { name: "뒷면" }), "대한민국의 수도");
+      await userEvent.click(within(sheet).getByRole("button", { name: "완료" }));
+      expect(screen.getByRole("button", { name: "수도 편집" })).toHaveTextContent(
+        "대한민국의 수도",
+      );
+    });
     it("shows the first sense alone without its part of speech, with the pronunciation and extras, as the menu sets", async () => {
       answer(words);
       await choose(1);

@@ -47,14 +47,15 @@ export function isWhole(card: CardDraft): boolean {
 }
 
 /**
- * The meaning side: each senses block with the first sense alone when the form asks, and without
- * its part-of-speech labels when the form hides them, its other labels kept.
+ * The meaning side: each senses block with its kept senses, the first alone when the form asks,
+ * and without their part-of-speech labels when the form hides them, their other labels kept.
  */
 function meaning(card: Candidate, form: Extract<SectionForm, { kind: "vocabulary" }>): Block[] {
   return card.back.map((item) => {
     const senses = field(item.payload, "senses");
     if (item.type !== "senses" || !Array.isArray(senses)) return item;
-    const shown: unknown[] = form.firstSenseOnly ? senses.slice(0, 1) : senses;
+    const kept = senses.filter((_, at) => card.keptSenses?.[at] !== false);
+    const shown: unknown[] = form.firstSenseOnly ? kept.slice(0, 1) : kept;
     return {
       ...item,
       payload: {
