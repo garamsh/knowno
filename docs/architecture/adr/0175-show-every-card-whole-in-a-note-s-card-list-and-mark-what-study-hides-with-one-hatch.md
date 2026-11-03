@@ -23,7 +23,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **One mark for what study hides: a light diagonal hatch.** Stripes 6 wide every 12 across their direction, running up to the right, of `hatchStripe` over `hatch`. It is a theme token defined once on each client, in light and dark: `AppHatch` and `HatchDecoration` in `theme.dart` over the colours `hatch` and `hatchStripe`, and the web's `hatch` utility in `globals.css` over `--color-hatch` and `--color-hatch-stripe`. It is drawn in the card list alone.
   - A split card, a 글's or a 단어's: its front, then its back in a hatched box.
   - A whole card, through `deck`'s `WholeCardView.listed` and the web's `ListedCells`: each blank of a 빈칸 and each hidden cell of a 표 filled on the hatch, each added part in a hatched box, and each box of a 사진 on the hatch over the photo, with no border and no label, and the boxes' answers in a hatched box under the photo.
-- **Rows stay compact.** A shown part is cut at two lines and a hatched box at three, each ending in an ellipsis. Korean breaks only between words. A 표 shows its first three rows, then "외 n행". A photo keeps the size the row drew it at before.
+- **Rows stay compact.** A shown part is cut at two lines and a hatched box at three, each ending in an ellipsis. Korean breaks only between words. A 표 shows its first three rows, then "외 n행". A 사진 is a thumbnail: its photo 96 high, its width following from its aspect ratio, at the start of the row, a size token on each client (`AppSize.listedPhoto`, `--spacing-listed-photo`), and its answers' box cut at three lines like any hatched box.
 
 ## Consequences
 
