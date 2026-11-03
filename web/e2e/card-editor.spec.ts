@@ -526,16 +526,20 @@ test("keeps a 빈칸 문장's selection and its 빈칸 넣기 while the editor s
 
   // A touch drag off the line, on the 글 under it, back toward the top.
   const before = await offset();
+  expect(before, "setup: the editor has room to scroll back").toBeGreaterThan(0);
   const cdp = await context.newCDPSession(page);
   const box = await dialog.getByRole("textbox", { name: "앞면", exact: true }).nth(1).boundingBox();
   if (!box) throw new Error("setup: a 글 under the line is on screen");
-  await cdp.send("Input.synthesizeScrollGesture", {
-    x: Math.round(box.x + box.width / 2),
-    y: Math.round(box.y + box.height / 2),
-    yDistance: 200,
-    gestureSourceType: "touch",
-    speed: 800,
-  });
+  const x = Math.round(box.x + box.width / 2);
+  const y = Math.round(box.y + box.height / 2);
+  // Touch events, not Input.synthesizeScrollGesture: on Linux, its touch gesture scrolls nothing.
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+  for (let step = 1; step <= 10; step++)
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x, y: y + step * 20 }],
+    });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect.poll(offset, { message: "it scrolled by touch" }).not.toBe(before);
   await kept("by touch");
   // Shot as scrolled, at the phone's height rather than capture's.
