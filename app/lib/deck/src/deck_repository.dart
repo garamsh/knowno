@@ -67,11 +67,21 @@ class DeckRepository {
     );
   }
 
-  Future<Deck> createDeck(String name) => _guard(() async {
+  /// Makes a private deck named [name], with [icon], [color] and [image]
+  /// when given, in one write.
+  Future<Deck> createDeck(
+    String name, {
+    DeckIcon? icon,
+    DeckColor? color,
+    MediaId? image,
+  }) => _guard(() async {
     final now = _clock();
     final row = DeckRow(
       id: _newId(),
       name: name,
+      icon: icon?.key,
+      color: color?.key,
+      imageMediaId: image?.value,
       visibility: _visibilityName(const PrivateDeck()),
       createdAt: now,
       updatedAt: now,

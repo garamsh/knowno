@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../deck/deck.dart';
-import '../../design/app_button.dart';
 import '../../design/app_chip.dart';
-import '../../design/app_text_field.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
@@ -13,13 +11,14 @@ import '../../sharing/sharing.dart';
 import '../../study/study.dart';
 import 'above_menu.dart';
 import 'deck_screen.dart';
+import 'list_header.dart';
 import 'new_deck.dart';
 import 'progress_bar.dart';
 
-/// The 노트 tab, the first screen of its own navigator: "노트" with "새 노트",
-/// the 노트 검색 field, which keeps the decks whose name holds it, ignoring
-/// case, every deck's row, which opens its screen above the menu, and, with
-/// sharing, the public decks.
+/// The 노트 tab, the first screen of its own navigator: "노트" with "새 노트"
+/// and, with sharing, a ⋯ that opens the public decks; the 노트 검색 field,
+/// which keeps the decks whose name holds it, ignoring case; and every
+/// deck's row, which opens its screen above the menu.
 class NotesTab extends ConsumerStatefulWidget {
   const NotesTab({super.key});
 
@@ -74,18 +73,32 @@ class _NotesTabState extends ConsumerState<NotesTab> {
                     style: AppType.deckTitle.copyWith(color: colors.ink),
                   ),
                 ),
-                AppChip.action(
+                ListHeaderActions(
                   label: l10n.newDeck,
                   onPressed: () => openNewDeck(context, _open),
+                  menu: sharing == null
+                      ? null
+                      : (
+                          tooltip: l10n.notesActions,
+                          items: [
+                            MenuItemButton(
+                              onPressed: () => Navigator.of(aboveMenu(context))
+                                  .push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => sharing.browseScreen(),
+                                    ),
+                                  ),
+                              child: Text(l10n.browsePublicDecks),
+                            ),
+                          ],
+                        ),
                 ),
               ],
             ),
             if (decks.isNotEmpty) ...[
               const SizedBox(height: AppSpace.s16),
-              AppTextField(
+              ListSearchField(
                 hint: l10n.searchDecks,
-                prefixIcon: const Icon(LucideIcons.search),
-                height: AppSize.search,
                 onChanged: (query) => setState(() => _query = query),
               ),
             ],
@@ -114,16 +127,6 @@ class _NotesTabState extends ConsumerState<NotesTab> {
                   builder: (context, progress) => _DeckProgress(
                     progress: progress,
                     cardCount: counts[deck.id] ?? 0,
-                  ),
-                ),
-              ),
-            if (sharing != null)
-              AppButton(
-                label: l10n.browsePublicDecks,
-                variant: AppButtonVariant.text,
-                onPressed: () => Navigator.of(aboveMenu(context)).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => sharing.browseScreen(),
                   ),
                 ),
               ),

@@ -27,7 +27,7 @@ The `sharing` domain: publishing a deck, and browsing, previewing, copying, repo
 
 ### Browsing
 
-- "공개 노트 둘러보기" opens the browse screen: the text button under the 노트 tab's rows, and the first-run home's quiet button ([`home.md`](home.md), [ADR 0067](adr/0067-start-a-deck-or-a-card-from-one-sheet-that-holds-the-photo-source-and-name-public-decks-once.md)).
+- "공개 노트 둘러보기" opens the browse screen: the one item of the 노트 tab's ⋯ ([ADR 0172](adr/0172-make-a-note-with-the-choices-of-its-customization-head-the-notes-and-a-note-with-a-tonal-action-and-a-menu-over-an-always-shown-search.md)), and the first-run home's quiet button ([`home.md`](home.md), [ADR 0067](adr/0067-start-a-deck-or-a-card-from-one-sheet-that-holds-the-photo-source-and-name-public-decks-once.md)).
 - The screen has a large title, "공개 노트", a search over name and description (ignoring case, run 300 ms after typing pauses), and a segmented "최신순" / "가져오기 많은 순".
 - Each row shows the deck's name and "{display name} · 카드 n장 · 가져오기 m회". The listing comes from `list_public_decks` ([`server.md`](server.md)), at most 100 decks; decks of users the user blocked are absent.
 - Offline, the screen shows "인터넷에 연결되지 않았어요. 연결되면 공개 노트를 볼 수 있어요." and lists once the connection returns; a failed request shows its message with "다시 시도".
@@ -71,7 +71,7 @@ The `sharing` domain: publishing a deck, and browsing, previewing, copying, repo
 ### Tests
 
 - `app/test/sharing/sharing_service_test.dart` — display name validation, publish and unpublish order and failure, the first publish's name, and copies as a new deck and into a deck with each duplicate option, over an in-memory database and a substituted server (`app/test/sharing/fakes.dart`). It also holds a copy's photos and sounds, over a `MediaStore` and `FakeMediaServer`: each file stored once under a new id, named in the blocks and queued for upload; a file removed or failing past retry, leaving its block naming none, against one read on its last try; a re-copy whose files are its own and outlive the first copy's deletion; a skipped card leaving none of its back's files queued or on the device, against the same card added as new; and a copy whose write fails, into a deleted deck, leaving none of its fetched files on the device, against the same copy into a new deck. A framed card's copy keeps its 칸 list and `free` v2, each file under its new id, and a skipped one leaves none of its back's files.
-- `app/test/sharing/browse_screen_test.dart` — "공개 노트 둘러보기" under the 노트 tab's rows, with "새 노트" over them, the title "공개 노트", the listing, search, sort, the offline state, a failed request, and the guidelines in both themes.
+- `app/test/sharing/browse_screen_test.dart` — the 노트 tab's header of "New note" and a ⋯ whose one item is "공개 노트 둘러보기", with nothing under the rows, the title "공개 노트", the listing, search, sort, the offline state, a failed request, and the guidelines in both themes.
 - `app/test/sharing/public_deck_screen_test.dart` — the preview, a framed card split or whole, each import option, a deck no longer public, report and block, and the guidelines in both themes.
 - `app/test/sharing/publish_test.dart` — publish, display name and description validation, the required agreement, a refused publish, unpublish, the chips, the offline menu item, and the guidelines in both themes.
 - `app/test/screenshots/screenshots_test.dart` draws the deck menu, the publish sheet, the public chips, browse, the preview, and the import, report and block sheets in both themes when asked to.

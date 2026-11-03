@@ -23,8 +23,8 @@ import { readDeck } from "./read-deck";
 
 /**
  * The note [params] names, read on the server, as the final screens draw it (ADR 0150): its name
- * with the card search and 노트 설정, "이 노트 학습 · n장" while it holds a card, its cards, and one "카드 추가"
- * at the foot above the tab bar, open on arrival when [searchParams] hold `adding=1`. A note that
+ * with "+ 카드 추가", open on arrival when [searchParams] hold `adding=1`, and 노트 설정, then the
+ * card search, "이 노트 학습 · n장" while it holds a card, and its cards. A note that
  * does not exist, or an id that names none, is not found.
  */
 export async function Deck({
@@ -59,6 +59,7 @@ export async function Deck({
         deck={deck}
         cards={cards}
         mastered={mastered}
+        add={<AuthoringButton deck={deck} adding={adding} />}
         settings={<NoteSettings deck={deck} cardCount={cards.length} displayName={displayName} />}
         study={
           <EnterLink
@@ -67,9 +68,6 @@ export async function Deck({
           />
         }
       />
-      <div className="sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-[2] mt-auto bg-ground py-3 lg:bottom-0">
-        <AuthoringButton deck={deck} primary={cards.length === 0} adding={adding} />
-      </div>
     </>
   );
 }

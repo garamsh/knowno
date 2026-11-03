@@ -43,6 +43,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deckImageFromCamera => 'Take a photo';
 
   @override
+  String get deckImageAnother => 'Another photo';
+
+  @override
   String get deckImageRemove => 'Remove photo';
 
   @override
@@ -1903,7 +1906,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get newDeckColor => 'Cover colour';
+  String get deckNameHint => 'e.g. TOEIC words';
+
+  @override
+  String get notesActions => 'Notes menu';
 
   @override
   String get saveAndAddCards => 'Save and add cards';

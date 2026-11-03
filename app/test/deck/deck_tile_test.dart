@@ -49,7 +49,7 @@ void main() {
   testWidgets(
     'a deck nobody customised shows the default icon on the brand tint, and no initial',
     (tester) async {
-      await _pump(tester, DeckTile(deck: _deck()));
+      await _pump(tester, DeckTile(look: DeckLook.of(_deck())));
 
       expect(find.byIcon(LucideIcons.layers), findsOneWidget);
       expect(find.text('F'), findsNothing);
@@ -61,7 +61,7 @@ void main() {
     await _pump(
       tester,
       DeckTile(
-        deck: _deck(icon: DeckIcon.book, color: DeckColor.amber),
+        look: DeckLook.of(_deck(icon: DeckIcon.book, color: DeckColor.amber)),
       ),
     );
 
@@ -76,9 +76,9 @@ void main() {
     await _pump(
       tester,
       DeckTile(
-        deck: _deck(icon: DeckIcon.book, color: DeckColor.amber),
-        icon: DeckIcon.star,
-        color: DeckColor.blue,
+        look: DeckLook.of(_deck(icon: DeckIcon.book, color: DeckColor.amber))
+            .withIcon(DeckIcon.star)
+            .withColor(DeckColor.blue),
       ),
     );
 
@@ -139,7 +139,10 @@ void main() {
           () => store.addImage(preparedImage(1)),
         ))!;
 
-        await pumpWithStore(tester, DeckTile(deck: _deck(image: id)));
+        await pumpWithStore(
+          tester,
+          DeckTile(look: DeckLook.of(_deck(image: id))),
+        );
 
         final image = tester.widget<Image>(find.byType(Image));
         expect((image.image as MemoryImage).bytes, preparedImage(1).bytes);
@@ -153,7 +156,10 @@ void main() {
         server.offline = true;
         const id = MediaId('00000000-0000-4000-8000-0000000000aa');
 
-        await pumpWithStore(tester, DeckTile(deck: _deck(image: id)));
+        await pumpWithStore(
+          tester,
+          DeckTile(look: DeckLook.of(_deck(image: id))),
+        );
 
         expect(find.byType(Image), findsNothing);
         expect(find.byIcon(LucideIcons.layers), findsOneWidget);
@@ -170,8 +176,7 @@ void main() {
         await pumpWithStore(
           tester,
           DeckTile(
-            deck: _deck(image: id),
-            image: const NoTileImage(),
+            look: DeckLook.of(_deck(image: id)).withImage(const NoTileImage()),
           ),
         );
 

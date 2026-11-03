@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EnterLink } from "@/app/(shell)/_components/enter-link";
 import { SideMenuAt, TabBarAt } from "@/app/(shell)/_components/shell-menu";
-import { CardGrid, DeckList, parseCardId, parseDeckId } from "@/features/decks";
+import { AuthoringButton, CardGrid, DeckList, parseCardId, parseDeckId } from "@/features/decks";
 import { uuidOf } from "@/testing/library";
 
 vi.mock("next/navigation", async (importOriginal) => ({
@@ -93,6 +93,20 @@ describe("the controls' pointer, hover and pressed states", () => {
     }
   });
 
+  it("sits the tonal button on the edge a quiet button sits on, and the primary on its own", () => {
+    /** The edge declared by the rule whose selector list holds [selector]. */
+    const edgeOf = (selector: string) =>
+      new RegExp(`${selector.replaceAll(".", "\\.")}[,\\s][^{]*\\{([^}]*)\\}`).exec(
+        globalsCss,
+      )?.[1];
+    const quiet = "--edge: var(--spacing-edge-card);\n    --edge-colour: var(--color-edge);";
+    expect(edgeOf(".rounded-button.bg-brand-tint")).toContain(quiet);
+    // Control: the same reading finds the primary's own edge, not the quiet one.
+    expect(edgeOf(".rounded-button.bg-primary")).toContain(
+      "--edge-colour: var(--color-primary-edge);",
+    );
+  });
+
   it("dims a hovered or pressed control under a layer of its text colour, with no change of size", () => {
     const rule = /\.pressable \{([^}]*)\}/.exec(globalsCss)?.[1] ?? "";
     expect(rule).toContain("--state-layer: color-mix(in srgb, currentColor 4%, transparent);");
@@ -136,6 +150,11 @@ describe("the controls' pointer, hover and pressed states", () => {
         />
         <CardGrid
           deck={{ id: idOf(parseDeckId, "d-fr"), name: "French", public: false }}
+          add={
+            <AuthoringButton
+              deck={{ id: idOf(parseDeckId, "d-fr"), name: "French", public: false }}
+            />
+          }
           cards={[
             {
               id: idOf(parseCardId, "c-chat"),
@@ -160,7 +179,7 @@ describe("the controls' pointer, hover and pressed states", () => {
     expect(pressable(screen.getByRole("link", { name: /^French/ }))).toBe(true);
     expect(pressable(screen.getByRole("button", { name: "chat, 뒷면 가려짐" }))).toBe(true);
     expect(pressable(screen.getByRole("switch", { name: "뒷면 보기" }))).toBe(true);
-    expect(pressable(screen.getByRole("button", { name: "카드 검색" }))).toBe(true);
+    expect(pressable(screen.getByRole("button", { name: "카드 추가" }))).toBe(true);
     // Control: the note's name, a heading, takes no button state.
     expect(pressable(screen.getByRole("heading", { level: 1, name: "French" }))).toBe(false);
   });

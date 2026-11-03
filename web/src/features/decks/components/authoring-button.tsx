@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
-import { AudioLines, BookA, Image, Table, TextCursorInput, Type } from "lucide-react";
+import { AudioLines, BookA, Image, Plus, Table, TextCursorInput, Type } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { v7 } from "uuid";
-import { addCard, createDeck, editCard, storeCardMedia } from "../actions";
+import { addCard, createDeck, decorateDeck, editCard, storeCardMedia } from "../actions";
 import {
   builtCells,
   cellDraft,
@@ -14,12 +14,12 @@ import {
   pendingUploads,
 } from "../authoring";
 import { holdsBlank } from "../card-content";
-import type { DeckColor } from "../deck-tint";
 import type { Card, Deck } from "../library";
 import { leaveThen } from "../hooks/use-back-entry";
 import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
 import { CellFields } from "./cell-fields";
-import { DeckColorPicker } from "./deck-color-picker";
+import { DeckAppearanceFields, type Look, lookedTile, setPhoto } from "./deck-appearance";
+import { DeckTile } from "./deck-tile";
 import { PhotoImport } from "./photo-import";
 import { SideText } from "./side-text";
 import { SpreadsheetImport } from "./spreadsheet-import";
@@ -37,19 +37,18 @@ const choices = [
 const pairClass = "grid grid-cols-[auto_minmax(0,1fr)] gap-3";
 
 /**
- * With [deck], "카드 추가", which opens the 카드 추가 sheet of the ways to add a card, open on
- * arrival with [adding]; outlined, or the primary fill with [primary], where it is the page's one
- * way on. Without one, "새 노트 만들기" in the primary fill, or "새 노트" as a chip with
- * [compact], which opens 새 노트.
+ * With [deck], "+ 카드 추가" beside the note's name, which opens the 카드 추가 sheet of the ways to
+ * add a card, open on arrival with [adding]. Without one, "새 노트 만들기" in the primary fill
+ * across the column, or, with [compact], "+ 새 노트" beside the 노트 page's title, which opens
+ * 새 노트. Beside a title it is the page's own action in the tonal fill, the brand tint under an
+ * accent label on the edge a quiet button sits on, 44 high, as the phone's header action.
  */
 export function AuthoringButton({
   deck,
-  primary = false,
   compact = false,
   adding = false,
 }: {
   deck?: Deck;
-  primary?: boolean;
   compact?: boolean;
   adding?: boolean;
 }) {
@@ -67,11 +66,12 @@ export function AuthoringButton({
           setScreen(deck ? "options" : "name");
         }}
         className={
-          compact
-            ? "pressable flex min-h-tap-target shrink-0 items-center rounded-chip bg-surface px-4 text-label text-ink shadow-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            : `pressable min-h-cta w-full rounded-button px-5 text-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${primary ? "bg-primary text-on-primary" : "bg-surface"}`
+          deck || compact
+            ? "pressable flex min-h-tap-target shrink-0 items-center gap-1.5 rounded-button bg-brand-tint px-4 text-label text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            : "pressable min-h-cta w-full rounded-button bg-primary px-5 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         }
       >
+        {(deck || compact) && <Plus aria-hidden className="size-5" strokeWidth={2.6} />}
         {label}
       </button>
       {screen === "options" && deck && (
@@ -161,32 +161,60 @@ export function AuthoringButton({
 }
 
 /**
- * 새 노트, the shape of 새 카드 (ADR 0150): its name and its 표지 색, one of the four note colours,
- * each in a group, over "저장", which opens the new note, and "저장하고 카드 추가", which opens it
- * with its 카드 추가 sheet up.
+ * 새 노트, the shape of 새 카드 (ADR 0150), as the phone's: the tile the note will get, at twice its
+ * size, over its name as typed; "노트 이름" in a group, focused, with its hint; and 노트 꾸미기's
+ * choices (`DeckAppearanceFields`), blue first; over "저장", which opens the new note, and
+ * "저장하고 카드 추가", which opens it with its 카드 추가 sheet up. An icon or a photo chosen is
+ * stored as 노트 꾸미기 stores it, once the note is made; a retry keeps the note's id, so it makes
+ * no second note.
  */
 function NewNote({ close }: { close: () => void }) {
   const [name, setName] = useState("");
-  const [color, setColor] = useState<DeckColor>("blue");
+  const [look, setLook] = useState<Look>({
+    icon: "layers",
+    color: "blue",
+    photo: { kind: "none" },
+  });
   const [message, setMessage] = useState("");
   const [pending, start] = useTransition();
   const id = useRef(v7());
   const busy = useRef(false);
   const router = useRouter();
   const formId = useId();
+  const nameId = useId();
+  const nameField = useRef<HTMLInputElement>(null);
+  const typed = name.trim();
+  // After the dialog opens, whose focusing steps would move an autofocus away.
+  useEffect(() => {
+    nameField.current?.focus();
+  }, []);
   function save(adding: boolean) {
     if (busy.current) return;
     busy.current = true;
     start(async () => {
       try {
-        const result = await createDeck(id.current, name, color);
-        if (result.saved) {
-          leaveThen(() => {
-            close();
-            router.push(`/decks/${result.deckId}${adding ? "?adding=1" : ""}`);
-            router.refresh();
-          });
-        } else setMessage(result.message);
+        const result = await createDeck(id.current, name, look.color);
+        if (!result.saved) {
+          setMessage(result.message);
+          return;
+        }
+        if (look.icon !== "layers" || look.photo.kind === "picked") {
+          const form = new FormData();
+          form.set("deck", result.deckId);
+          form.set("icon", look.icon);
+          form.set("color", look.color ?? "");
+          setPhoto(form, look.photo);
+          const decorated = await decorateDeck(form);
+          if (!decorated.saved) {
+            setMessage(decorated.message);
+            return;
+          }
+        }
+        leaveThen(() => {
+          close();
+          router.push(`/decks/${result.deckId}${adding ? "?adding=1" : ""}`);
+          router.refresh();
+        });
       } catch {
         setMessage("노트를 만들지 못했어요. 다시 시도해 주세요.");
       } finally {
@@ -227,22 +255,41 @@ function NewNote({ close }: { close: () => void }) {
           const submitter = event.nativeEvent.submitter;
           save(submitter instanceof HTMLButtonElement && submitter.value === "adding");
         }}
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-3"
       >
-        <label className="flex flex-col gap-2 rounded-group bg-surface px-4 py-4 text-caption text-muted">
-          이름
+        <div aria-hidden className="flex flex-col items-center gap-2 pt-1 pb-1">
+          <DeckTile deck={lookedTile(look)} size="size-[calc(var(--spacing-deck-tile)*2)]" />
+          <span
+            className={`max-w-full text-center text-body-strong break-words ${typed ? "text-ink" : "text-muted"}`}
+          >
+            {typed || "노트 이름"}
+          </span>
+        </div>
+        <div className="flex flex-col gap-2 rounded-group bg-surface px-4 py-4">
+          <label htmlFor={nameId} className="text-caption text-muted">
+            노트 이름
+          </label>
           <input
-            autoFocus
+            ref={nameField}
+            id={nameId}
             required
             maxLength={500}
+            placeholder="예: 토익 단어"
             value={name}
             onChange={(event) => {
               setName(event.target.value);
             }}
-            className="min-h-field w-full rounded-field border border-outline bg-surface px-4 text-body text-ink focus:outline-2 focus:outline-ink"
+            className="min-h-field w-full rounded-field bg-ground px-4 text-body text-ink placeholder:text-muted focus:outline-2 focus:outline-ink"
           />
-        </label>
-        <DeckColorPicker legend="표지 색" selected={color} pick={setColor} />
+        </div>
+        <DeckAppearanceFields
+          look={look}
+          change={(next) => {
+            setLook(next);
+            setMessage("");
+          }}
+          busy={pending}
+        />
         {message && (
           <p role="alert" className="text-caption text-dont-know-text">
             {message}

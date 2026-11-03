@@ -88,7 +88,7 @@ test("adds a deck's cards from a small .xlsx after review, and the server holds 
     () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
-  await page.getByRole("textbox", { name: "이름", exact: true }).fill("엑셀 단어");
+  await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("엑셀 단어");
   await page.getByRole("button", { name: "저장하고 카드 추가", exact: true }).click();
   // The new note opens with its 카드 추가 sheet up.
   await expect(page.getByRole("dialog", { name: "카드 추가", exact: true })).toBeVisible();

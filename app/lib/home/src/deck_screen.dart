@@ -2,17 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
 import '../../design/app_list_row.dart';
 import '../../design/app_sheet.dart';
-import '../../design/app_text_field.dart';
-import '../../design/bottom_actions.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
 import 'above_menu.dart';
+import 'list_header.dart';
 import 'option_sheet.dart';
 import '../../l10n/app_localizations.dart';
 import '../../photo_import/photo_import.dart';
@@ -20,13 +18,13 @@ import '../../sharing/sharing.dart';
 import '../../study/study.dart';
 import '../../design/word_break.dart';
 
-/// A deck's page, above the menu: its name in the top bar with "카드 검색"
-/// and "노트 설정", "이 노트 학습" at the top, then its cards as one group under
-/// a pinned row of their count, the mastered count and the "뒷면 보기" switch,
-/// and "카드 추가" fixed at the foot. A tap opens a card for editing; 노트 설정
+/// A deck's page, above the menu: "+ 카드 추가" and "노트 설정" in the top
+/// bar, the deck's name on its own line under it, then, while the deck holds
+/// a card, the card search, "이 노트 학습", the screen's one primary, and its
+/// cards as one group under a pinned row of their count, the mastered count
+/// and the "뒷면 보기" switch. A tap opens a card for editing; 노트 설정
 /// renames, decorates, publishes or deletes the deck. While the deck holds no
-/// card, adding one is its one primary action and there is nothing to
-/// study.
+/// card there is nothing to study.
 class DeckScreen extends ConsumerStatefulWidget {
   const DeckScreen({super.key, required this.deck, this.addingCard = false});
 
@@ -44,8 +42,8 @@ class DeckScreen extends ConsumerStatefulWidget {
 enum _Add { byHand, camera, album, file }
 
 class _DeckScreenState extends ConsumerState<DeckScreen> {
-  /// The card search, or null while it is closed.
-  String? _query;
+  /// The card search, kept as typed.
+  var _query = '';
 
   /// The "뒷면 보기" switch, off each time the page opens.
   bool _showAll = false;
@@ -76,47 +74,18 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
       AsyncData(:final value) => value.isEmpty,
       _ => false,
     };
-    final query = _query;
-    // An open search closes on the back, and a second back leaves.
-    return PopScope(
-      canPop: query == null,
-      onPopInvokedWithResult: (popped, _) {
-        if (!popped) setState(() => _query = null);
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: query == null
-              ? Semantics(
-                  header: true,
-                  child: Text(current.name, style: AppType.deckName),
-                )
-              : AppTextField(
-                  hint: l10n.searchCards,
-                  prefixIcon: const Icon(LucideIcons.search),
-                  height: AppSize.search,
-                  autofocus: true,
-                  onChanged: (query) => setState(() => _query = query),
-                ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpace.s8),
-              child: query == null
-                  ? RaisedIconButton(
-                      tooltip: l10n.searchCardsAction,
-                      icon: LucideIcons.search,
-                      onPressed: () => setState(() => _query = ''),
-                    )
-                  : RaisedIconButton(
-                      tooltip: l10n.closeSearch,
-                      icon: LucideIcons.x,
-                      onPressed: () => setState(() => _query = null),
-                    ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpace.gutter),
-              child: MenuAnchor(
-                alignmentOffset: const Offset(0, AppSpace.s4),
-                menuChildren: [
+    return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: ListHeaderActions.barHeight(context),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpace.gutter),
+            child: ListHeaderActions(
+              label: l10n.newCard,
+              onPressed: _addCard,
+              menu: (
+                tooltip: l10n.deckActions,
+                items: [
                   MenuItemButton(onPressed: _rename, child: Text(l10n.rename)),
                   MenuItemButton(
                     onPressed: () => _customize(current),
@@ -152,21 +121,55 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
                     ),
                   ),
                 ],
-                builder: (context, menu, _) => RaisedIconButton(
-                  tooltip: l10n.deckActions,
-                  icon: LucideIcons.ellipsis,
-                  onPressed: () => menu.isOpen ? menu.close() : menu.open(),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: CustomScrollView(
+        slivers: [
+          // The name has a line of its own, so every name stays readable
+          // beside a labelled action at every text size.
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.gutter,
+              0,
+              AppSpace.gutter,
+              AppSpace.s8,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  keepWords(current.name),
+                  semanticsLabel: current.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppType.deckName.copyWith(color: colors.ink),
                 ),
               ),
             ),
-          ],
-        ),
-        body: switch (cards) {
-          AsyncData(:final value) => CustomScrollView(
-            slivers: [
-              // While searching, the matches start under the top bar; with no
-              // card, the empty line and "카드 추가" are the screen's content.
-              if (query == null && !empty)
+          ),
+          ...switch (cards) {
+            AsyncData(:final value) => [
+              if (!empty)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpace.gutter,
+                    AppSpace.s8,
+                    AppSpace.gutter,
+                    0,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: ListSearchField(
+                      hint: l10n.searchCards,
+                      onChanged: (query) => setState(() => _query = query),
+                    ),
+                  ),
+                ),
+              // While searching, the matches start under the search field;
+              // with no card, the empty line is the screen's content.
+              if (_query.trim().isEmpty && !empty)
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpace.gutter,
@@ -217,26 +220,25 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
               else
                 ..._cardList(l10n, value, public: public),
             ],
-          ),
-          AsyncError(:final error, :final stackTrace) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpace.gutter),
-              child: Text(describeProviderError(l10n, error, stackTrace)),
-            ),
-          ),
-          _ => const Center(child: CircularProgressIndicator()),
-        },
-        bottomNavigationBar: BottomActions(
-          secondary: AppButton(
-            label: l10n.newCard,
-            // With no card, adding one is the screen's one primary action.
-            variant: empty
-                ? AppButtonVariant.primary
-                : AppButtonVariant.secondary,
-            size: AppButtonSize.cta,
-            onPressed: _addCard,
-          ),
-        ),
+            AsyncError(:final error, :final stackTrace) => [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpace.gutter),
+                    child: Text(describeProviderError(l10n, error, stackTrace)),
+                  ),
+                ),
+              ),
+            ],
+            _ => [
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ],
+          },
+        ],
       ),
     );
   }
@@ -251,7 +253,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     List<Card> cards, {
     required bool public,
   }) {
-    final query = (_query ?? '').trim().toLowerCase();
+    final query = _query.trim().toLowerCase();
     final rows = [
       for (final card in cards)
         if ([card.front, card.back].any(

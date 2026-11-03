@@ -34,7 +34,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get deckAppearanceColor => '색';
 
   @override
-  String get deckAppearanceImage => '사진 넣기';
+  String get deckAppearanceImage => '사진';
 
   @override
   String get deckImageFromAlbum => '앨범에서 고르기';
@@ -43,7 +43,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get deckImageFromCamera => '사진 찍기';
 
   @override
-  String get deckImageRemove => '사진 빼기';
+  String get deckImageAnother => '다른 사진';
+
+  @override
+  String get deckImageRemove => '사진 삭제';
 
   @override
   String get deckImageUnreadable => '사진을 불러오지 못했어요. 다시 시도해 주세요.';
@@ -1764,7 +1767,10 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get newDeckColor => '표지 색';
+  String get deckNameHint => '예: 토익 단어';
+
+  @override
+  String get notesActions => '노트 탭 메뉴';
 
   @override
   String get saveAndAddCards => '저장하고 카드 추가';

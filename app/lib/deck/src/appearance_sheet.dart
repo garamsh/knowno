@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../design/app_button.dart';
-import '../../design/app_section_label.dart';
 import '../../design/app_sheet.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../media/media.dart';
+import 'deck_appearance.dart';
 import 'deck_row.dart';
 import 'failure.dart';
 import 'failure_message.dart';
@@ -35,36 +35,14 @@ class _AppearanceSheet extends ConsumerStatefulWidget {
 }
 
 class _AppearanceSheetState extends ConsumerState<_AppearanceSheet> {
-  late DeckIcon _icon = widget.deck.icon ?? DeckIcon.fallback;
+  late var _look = DeckLook.of(widget.deck);
 
-  /// The colour chosen, or none, which leaves the tile on the brand tint.
-  late DeckColor? _color = widget.deck.color;
-  late TileImage _image = TileImage.of(widget.deck);
-
-  /// While a photo is being picked or the choice stored.
+  /// While the choice is stored.
   var _busy = false;
 
-  /// What went wrong with the last pick or save, shown under the photo's
-  /// buttons; null while nothing did.
+  /// Why storing the choice failed, shown under the photo's buttons; null
+  /// while it did not.
   String? _problem;
-
-  Future<void> _pick(ImageOrigin origin) async {
-    final l10n = AppLocalizations.of(context);
-    setState(() {
-      _busy = true;
-      _problem = null;
-    });
-    try {
-      final picked = await ref.read(imagePickProvider).pick(origin);
-      if (picked != null && mounted) {
-        setState(() => _image = PickedTileImage(picked));
-      }
-    } on MediaUnreadable {
-      if (mounted) setState(() => _problem = l10n.deckImageUnreadable);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
 
   Future<void> _save() async {
     final l10n = AppLocalizations.of(context);
@@ -75,7 +53,7 @@ class _AppearanceSheetState extends ConsumerState<_AppearanceSheet> {
       _problem = null;
     });
     try {
-      switch (_image) {
+      switch (_look.image) {
         case PickedTileImage(:final image):
           final id = await ref.read(mediaStoreProvider).addImage(image);
           await decks.setImage(deck.id, id);
@@ -92,81 +70,27 @@ class _AppearanceSheetState extends ConsumerState<_AppearanceSheet> {
       }
       return;
     }
-    if (mounted) Navigator.of(context).pop((_icon, _color));
+    if (mounted) Navigator.of(context).pop((_look.icon, _look.color));
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final colors = AppColors.of(context);
     return AppSheet(
       title: l10n.deckAppearance,
       content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: AppSpace.s12,
         children: [
           Center(
-            child: DeckTile(
-              deck: widget.deck,
-              icon: _icon,
-              color: _color,
-              image: _image,
-              size: AppSize.deckTile * 2,
-            ),
+            child: DeckTile(look: _look, size: AppSize.deckTile * 2),
           ),
-          AppSectionLabel(l10n.deckAppearanceIcon),
-          Wrap(
-            spacing: AppSpace.s8,
-            runSpacing: AppSpace.s8,
-            children: [
-              for (final icon in DeckIcon.values)
-                _Option(
-                  label: l10n.deckIconName(icon.key),
-                  selected: icon == _icon,
-                  onTap: () => setState(() => _icon = icon),
-                  fill: icon == _icon ? colors.brandTint : null,
-                  child: Icon(deckIconData(icon), color: colors.ink),
-                ),
-            ],
+          DeckAppearanceFields(
+            look: _look,
+            enabled: !_busy,
+            problem: _problem,
+            onChanged: (look) => setState(() => _look = look),
           ),
-          AppSectionLabel(l10n.deckAppearanceColor),
-          DeckColorPicker(
-            selected: _color,
-            onPick: (color) => setState(() => _color = color),
-          ),
-          AppSectionLabel(l10n.deckAppearanceImage),
-          Wrap(
-            spacing: AppSpace.s8,
-            runSpacing: AppSpace.s8,
-            children: [
-              AppButton(
-                label: l10n.deckImageFromAlbum,
-                variant: AppButtonVariant.secondary,
-                onPressed: _busy ? null : () => _pick(ImageOrigin.album),
-              ),
-              AppButton(
-                label: l10n.deckImageFromCamera,
-                variant: AppButtonVariant.secondary,
-                onPressed: _busy ? null : () => _pick(ImageOrigin.camera),
-              ),
-              if (_image is! NoTileImage)
-                AppButton(
-                  label: l10n.deckImageRemove,
-                  variant: AppButtonVariant.text,
-                  onPressed: _busy
-                      ? null
-                      : () => setState(() => _image = const NoTileImage()),
-                ),
-            ],
-          ),
-          if (_problem case final problem?)
-            Semantics(
-              liveRegion: true,
-              child: Text(
-                problem,
-                style: AppType.caption.copyWith(color: colors.dontKnowText),
-              ),
-            ),
         ],
       ),
       actions: [
@@ -176,86 +100,6 @@ class _AppearanceSheetState extends ConsumerState<_AppearanceSheet> {
           onPressed: _busy ? null : _save,
         ),
       ],
-    );
-  }
-}
-
-/// The colours [DeckColor.offered] as named choices, [selected] ringed; a tap
-/// hands its colour to [onPick].
-class DeckColorPicker extends StatelessWidget {
-  const DeckColorPicker({
-    super.key,
-    required this.selected,
-    required this.onPick,
-  });
-
-  final DeckColor? selected;
-  final ValueChanged<DeckColor> onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final colors = AppColors.of(context);
-    return Wrap(
-      spacing: AppSpace.s8,
-      runSpacing: AppSpace.s8,
-      children: [
-        for (final color in DeckColor.offered)
-          _Option(
-            label: l10n.deckColorName(color.key),
-            selected: color == selected,
-            onTap: () => onPick(color),
-            fill: deckTileColor(colors, color),
-          ),
-      ],
-    );
-  }
-}
-
-/// One choice in the sheet: a rounded target at least 48 square, named by
-/// [label] and read as selected or not, ringed in ink while [selected].
-class _Option extends StatelessWidget {
-  const _Option({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.fill,
-    this.child,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final Color? fill;
-  final Widget? child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final radius = BorderRadius.circular(AppRadius.field);
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: label,
-      excludeSemantics: true,
-      child: Material(
-        color: fill ?? colors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: radius,
-          side: BorderSide(
-            color: selected ? colors.accent : colors.outline,
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: InkWell(
-          borderRadius: radius,
-          onTap: onTap,
-          child: SizedBox.square(
-            dimension: AppSize.tapTarget + AppSpace.s4,
-            child: Center(child: child),
-          ),
-        ),
-      ),
     );
   }
 }

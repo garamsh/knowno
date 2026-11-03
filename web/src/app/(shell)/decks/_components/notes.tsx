@@ -2,7 +2,7 @@ import { AuthoringButton, DeckList, ReadFailure, readDeckList } from "@/features
 import { countDay, dayPlanOf, deckProgress, readToday, readyServerEngine } from "@/features/study";
 
 /**
- * The 노트 page, read on the server, as the phone's 노트 tab (ADR 0165): "노트" with "새 노트",
+ * The 노트 page, read on the server, as the phone's 노트 tab (ADR 0165): "노트" with "+ 새 노트",
  * then the notes under their search field, each row carrying the note's count for today and its
  * progress. A day that cannot be counted leaves the rows their card counts and puts why above
  * them; a failed read of the notes says why under the title.
@@ -10,10 +10,10 @@ import { countDay, dayPlanOf, deckProgress, readToday, readyServerEngine } from 
 export async function Notes() {
   const [read, today] = await Promise.all([readDeckList(), readToday()]);
   const title = (
-    <div className="flex flex-wrap items-center justify-between gap-3">
+    <header className="flex items-center justify-between gap-3">
       <h1 className="text-deck-title">노트</h1>
       <AuthoringButton compact />
-    </div>
+    </header>
   );
   if ("failure" in read) {
     return (

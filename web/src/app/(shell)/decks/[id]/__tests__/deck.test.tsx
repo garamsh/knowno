@@ -45,13 +45,8 @@ const summary = () => ({
   today: /(\d+)장/.exec(studyLink().textContent)?.[1],
 });
 
-/** The card search's field, opened from its magnifier first where it is closed. */
-async function searchBox() {
-  const open = screen.queryByRole("searchbox", { name: "카드 검색" });
-  if (open) return open;
-  await userEvent.click(screen.getByRole("button", { name: "카드 검색" }));
-  return screen.getByRole("searchbox", { name: "카드 검색" });
-}
+/** The card search's field, always shown. */
+const searchBox = () => screen.getByRole("searchbox", { name: "카드 검색" });
 
 /** The cards on screen, each as its button names it: its front, and its answer or that it is hidden. */
 const rows = () =>
@@ -110,21 +105,39 @@ describe("the deck page", () => {
     expect(screen.queryByRole("navigation", { name: "위치" })).not.toBeInTheDocument();
   });
 
-  it("opens the card search from a raised magnifier beside the name, which closes it again", async () => {
+  it("puts + 카드 추가 in the tonal fill over the name on its own line and the card search, always shown, with no magnifier, leaving 이 노트 학습 the one primary", async () => {
     await open("d-fr");
-    const user = userEvent.setup();
 
-    expect(screen.queryByRole("searchbox", { name: "카드 검색" })).not.toBeInTheDocument();
-    const magnifier = screen.getByRole("button", { name: "카드 검색" });
-    expect(magnifier).toHaveClass("size-tap-target", "shadow-row", "bg-surface");
-    expect(magnifier.closest("header")).toBe(
-      screen.getByRole("heading", { level: 1, name: "French" }).closest("header"),
+    const header = screen.getByRole("heading", { level: 1, name: "French" }).closest("header");
+    const add = screen.getByRole("button", { name: "카드 추가" });
+    expect(add.closest("header")).toBe(header);
+    expect(add).toHaveClass(
+      "rounded-button",
+      "bg-brand-tint",
+      "text-accent",
+      "min-h-tap-target",
+      "text-label",
     );
-    await user.click(magnifier);
-    expect(magnifier).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("searchbox", { name: "카드 검색" })).toHaveFocus();
-    await user.click(magnifier);
-    expect(screen.queryByRole("searchbox", { name: "카드 검색" })).not.toBeInTheDocument();
+    expect(add.querySelector("svg")).not.toBeNull();
+    // The name has its own line under the actions, two lines at most.
+    const name = screen.getByRole("heading", { level: 1, name: "French" });
+    expect(add.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(name.parentElement).toBe(header);
+    expect(add.parentElement?.contains(name)).toBe(false);
+    expect(name).toHaveClass("line-clamp-2");
+    // Its words kept whole, as our own Korean is, a word longer than the line still breaking.
+    expect(name).toHaveClass("break-keep", "break-words");
+    // The page's one primary fill is 이 노트 학습.
+    expect([...document.querySelectorAll(".bg-primary")]).toEqual([studyLink()]);
+    const search = screen.getByRole("searchbox", { name: "카드 검색" });
+    expect(search.closest("header")).toBeNull();
+    // Control: the header's other button is 노트 설정; there is no magnifier.
+    expect(
+      within(header ?? document.body)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["카드 추가", ""]);
+    expect(screen.queryByRole("button", { name: "카드 검색" })).not.toBeInTheDocument();
   });
 
   it("puts 노트 설정 on the surface beside the name, with the phone's four items, on a note with cards and on one with none", async () => {
@@ -258,20 +271,22 @@ describe("the deck page", () => {
     expect(screen.queryByRole("link", { name: /^이 노트 학습/ })).not.toBeInTheDocument();
   });
 
-  it("shows an empty deck as the first run does, with the phone's words and where cards are added", async () => {
+  it("shows an empty deck as the first run does, with the phone's words, 카드 추가 in the header and no search", async () => {
     postgrest.seed("decks", deckRow("d-empty", "Empty"));
     await open("d-empty");
 
     const empty = screen.getByRole("region", { name: "아직 카드가 없어요" });
-    // Its one action is the page's coral fill.
-    expect(screen.getByRole("button", { name: "카드 추가" })).toHaveClass("bg-primary");
+    // Its one action is the header's, in the tonal fill, as on a note with cards.
+    const add = screen.getByRole("button", { name: "카드 추가" });
+    expect(add).toHaveClass("bg-brand-tint", "text-accent");
+    expect(add.closest("header")).not.toBeNull();
     expect(screen.queryByRole("searchbox", { name: "카드 검색" })).not.toBeInTheDocument();
     // The sleepy mascot over the words (ADR 0141).
     expect(empty.querySelector('img[src*="knowno-sleepy"]')).not.toBeNull();
-    // Control: a deck with cards lists them instead, with no mascot.
+    // Control: a deck with cards lists them instead, with no mascot, under the search.
     cleanup();
     await open("d-fr");
-    expect(screen.getByRole("button", { name: "카드 추가" })).not.toHaveClass("bg-primary");
+    expect(screen.getByRole("searchbox", { name: "카드 검색" })).toBeInTheDocument();
     expect(document.querySelector('img[src*="knowno-sleepy"]')).toBeNull();
     expect(screen.queryByRole("region", { name: "아직 카드가 없어요" })).not.toBeInTheDocument();
   });
@@ -363,15 +378,15 @@ describe("the deck page", () => {
     await open("d-fr");
     const user = userEvent.setup();
 
-    await user.type(await searchBox(), "CH");
+    await user.type(searchBox(), "CH");
     expect(rows()).toEqual(["Chat, 뒷면 가려짐", "chien, 뒷면 가려짐"]);
     // The results follow the switch.
     await user.click(screen.getByRole("switch", { name: "뒷면 보기" }));
     expect(rows()).toEqual(["Chat, 뒷면 Chat back", "chien, 뒷면 chien back"]);
     expect(screen.getByRole("heading", { level: 2, name: "카드 3" })).toBeInTheDocument();
 
-    await user.clear(await searchBox());
-    await user.type(await searchBox(), "zèbre");
+    await user.clear(searchBox());
+    await user.type(searchBox(), "zèbre");
     expect(rows()).toEqual([]);
     expect(screen.getByRole("status")).toHaveTextContent(
       "찾는 카드가 없어요. 다른 단어로 검색해 보세요.",
@@ -456,7 +471,7 @@ describe("the deck page", () => {
     });
     await open("d-fr");
     const user = userEvent.setup();
-    const search = await searchBox();
+    const search = searchBox();
     const cloze = "The capital of Italy is 빈칸, 뒷면 가려짐";
 
     // Its words find it, the blank's answer and the kept back among them.
@@ -540,7 +555,7 @@ describe("the deck page", () => {
       "cards: id,deck_id,front,back,template,template_version,created_at",
     );
     const user = userEvent.setup();
-    const search = await searchBox();
+    const search = searchBox();
 
     await user.type(search, "a city");
     expect(rows()).toEqual(["Lyon, 뒷면 가려짐"]);

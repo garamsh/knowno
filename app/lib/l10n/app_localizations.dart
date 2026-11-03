@@ -149,7 +149,7 @@ abstract class AppLocalizations {
   /// In the 노트 꾸미기 sheet: the heading over the ways to put a photo on a deck's tile in place of its icon.
   ///
   /// In ko, this message translates to:
-  /// **'사진 넣기'**
+  /// **'사진'**
   String get deckAppearanceImage;
 
   /// In the 노트 꾸미기 sheet: the button that picks the tile's photo from the photo library.
@@ -164,10 +164,16 @@ abstract class AppLocalizations {
   /// **'사진 찍기'**
   String get deckImageFromCamera;
 
+  /// In the 노트 꾸미기 choices, while the tile shows a photo: the button that picks another from the photo library.
+  ///
+  /// In ko, this message translates to:
+  /// **'다른 사진'**
+  String get deckImageAnother;
+
   /// In the 노트 꾸미기 sheet: the button that takes the photo off the tile, which then shows its icon again.
   ///
   /// In ko, this message translates to:
-  /// **'사진 빼기'**
+  /// **'사진 삭제'**
   String get deckImageRemove;
 
   /// In the 노트 꾸미기 sheet: shown when the picked photo, the camera or the photo library could not be read.
@@ -3007,11 +3013,17 @@ abstract class AppLocalizations {
   /// **'{count}장 익힘'**
   String deckMasteredShort(int count);
 
-  /// The new note screen's colour group.
+  /// The placeholder of the new note screen's name field.
   ///
   /// In ko, this message translates to:
-  /// **'표지 색'**
-  String get newDeckColor;
+  /// **'예: 토익 단어'**
+  String get deckNameHint;
+
+  /// The 노트 tab's ⋯ menu, as a screen reader names it.
+  ///
+  /// In ko, this message translates to:
+  /// **'노트 탭 메뉴'**
+  String get notesActions;
 
   /// Saves the new note and opens it with the add-card sheet up.
   ///

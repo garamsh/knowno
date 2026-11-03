@@ -36,7 +36,7 @@ export const deckColors = Object.keys(deckFills) as DeckColor[];
 export const offeredColors: readonly DeckColor[] = ["blue", "violet", "sand", "slate"];
 
 /** The colour [deck]'s tile takes: the one it stores, or none for no key this version knows. */
-export function deckColor(deck: Deck): DeckColor | undefined {
+export function deckColor(deck: Pick<Deck, "color">): DeckColor | undefined {
   const stored = deck.color;
   return stored !== undefined && Object.hasOwn(deckFills, stored)
     ? (stored as DeckColor)

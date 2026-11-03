@@ -178,7 +178,7 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(find.byType(DeckScreen), findsOneWidget);
-    expect(find.text(name), findsOneWidget);
+    expect(shownText(name), findsOneWidget);
   }
 
   /// The deck page's "이 노트 학습", with its count or without.
@@ -294,6 +294,7 @@ void main() {
     await tester.pumpAndSettle();
     await showNotes(tester);
     expect(find.text('New note'), findsOneWidget);
+    expect(find.byTooltip('Notes menu'), findsNothing);
     expect(find.text('Browse public notes'), findsNothing);
     await unmountApp(tester);
 
@@ -315,6 +316,8 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     await showNotes(tester);
+    await tester.tap(find.byTooltip('Notes menu'));
+    await tester.pumpAndSettle();
     expect(find.text('Browse public notes'), findsOneWidget);
     await unmountApp(tester);
   });
@@ -910,11 +913,15 @@ void main() {
         await meetsGuidelines();
         await tester.tap(find.byType(Switch));
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('Search cards'));
+        // A search typed in the field under the top bar.
+        await tester.enterText(
+          find.widgetWithText(AppTextField, 'Search'),
+          'ch',
+        );
         await tester.pumpAndSettle();
-        // The search open in the top bar.
         await meetsGuidelines();
-        await tester.tap(find.byTooltip('Close search'));
+        await tester.enterText(find.byType(AppTextField), '');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
         await tester.pumpAndSettle();
         await tester.tap(find.text('Chat'));
         await tester.pumpAndSettle();

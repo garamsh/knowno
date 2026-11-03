@@ -234,7 +234,7 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
     () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
-  await page.getByRole("textbox", { name: "이름", exact: true }).fill("임시");
+  await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("임시");
   await page.getByRole("button", { name: "저장하고 카드 추가", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "카드 추가", exact: true })).toBeVisible();
   await page.getByLabel("앨범에서 고르기", { exact: true }).setInputFiles([

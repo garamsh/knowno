@@ -128,7 +128,7 @@ void main() {
       expect(pick.shapes, [ImageShape.square]);
       final preview = tester.widget<Image>(find.byType(Image));
       expect((preview.image as MemoryImage).bytes, pick.next!.bytes);
-      expect(find.text('사진 빼기'), findsOneWidget);
+      expect(find.text('사진 삭제'), findsOneWidget);
 
       await tapAndFinish(tester, '저장');
 
@@ -152,7 +152,7 @@ void main() {
   });
 
   testWidgets(
-    '사진 빼기 on a deck with an image stores none on 저장 and releases the image',
+    '사진 삭제 on a deck with an image stores none on 저장 and releases the image',
     (tester) async {
       final image = (await tester.runAsync(
         () => media.addImage(preparedImage(1)),
@@ -161,8 +161,8 @@ void main() {
       final shown = (await tester.runAsync(() => decks.getDeck(deck.id)))!;
       await open(tester, shown);
 
-      await tapAndFinish(tester, '사진 빼기');
-      expect(find.text('사진 빼기'), findsNothing);
+      await tapAndFinish(tester, '사진 삭제');
+      expect(find.text('사진 삭제'), findsNothing);
       await tapAndFinish(tester, '저장');
 
       final stored = (await tester.runAsync(() => decks.getDeck(deck.id)))!;
@@ -184,7 +184,7 @@ void main() {
 
       expect(find.text('사진을 불러오지 못했어요. 다시 시도해 주세요.'), findsOneWidget);
       expect(find.byType(Image), findsNothing);
-      expect(find.text('사진 빼기'), findsNothing);
+      expect(find.text('사진 삭제'), findsNothing);
     },
   );
 

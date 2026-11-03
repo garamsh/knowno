@@ -533,7 +533,8 @@
   .rounded-card.bg-surface,
   .rounded-group.bg-surface,
   .rounded-previous.bg-surface,
-  .rounded-button.bg-surface {
+  .rounded-button.bg-surface,
+  .rounded-button.bg-brand-tint {
     --edge: var(--spacing-edge-card);
     --edge-colour: var(--color-edge);
   }
