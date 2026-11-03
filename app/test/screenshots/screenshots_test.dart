@@ -1343,7 +1343,7 @@ void main() {
       await tester.enterText(fields.at(1), 'Is there a pharmacy near here?');
       await tester.pumpAndSettle();
       await shot(tester, '05r-card-editor-free');
-      // The card as study draws it, its front, then its back after a tap.
+      // The card as study draws it, its front, then answered after a tap.
       await tap(tester, find.text(ko.previewCard));
       await shot(tester, '05v-card-preview-front');
       // The card fills the screen's middle.
