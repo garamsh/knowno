@@ -1,0 +1,25 @@
+-- Drops `begin_extraction(uuid, bigint, text[])`, the wrapper 20261103133627_remove_openrouter_transition.sql
+-- kept so the extract-cards bundle that still named `secret_providers` worked while the new one
+-- deployed (#669). The bundle live now does not send it, so nothing calls the wrapper. Changes no
+-- row.
+--
+-- Revert: recreate it as 20261103133627_remove_openrouter_transition.sql defined it:
+--
+--   create function public.begin_extraction(
+--     user_id uuid, configuration_id bigint, secret_providers text[]
+--   )
+--   returns table (
+--     plan text, provider text, model text, available boolean, photo_limit integer, period text,
+--     allowed boolean, prompt_version_id bigint, prompt text, usage_id bigint
+--   )
+--   language sql
+--   security definer
+--   set search_path = ''
+--   as $$
+--     select * from public.begin_extraction(begin_extraction.user_id, begin_extraction.configuration_id);
+--   $$;
+--
+--   revoke all on function public.begin_extraction(uuid, bigint, text[]) from public, anon, authenticated;
+--   grant execute on function public.begin_extraction(uuid, bigint, text[]) to service_role;
+
+drop function public.begin_extraction(uuid, bigint, text[]);
