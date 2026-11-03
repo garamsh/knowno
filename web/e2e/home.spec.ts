@@ -522,6 +522,8 @@ test("fits 홈 to the screen with the owner's 481 cards over four notes on a 19-
         });
       }
       await page.goto("/");
+      // 홈 itself, not its skeleton, is what the next size measures and shoots.
+      await expect(week.getByText("지난 7일 267장", { exact: true })).toBeVisible();
     }
   }
   // Control: given the room, the mascot is drawn at its full 210.

@@ -189,20 +189,23 @@ function Home({
   initial: string | null;
 }) {
   return (
-    <div className={homeFit}>
-      <section
-        aria-labelledby="hero-title"
-        className={`${heroFit} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 text-on-hero lg:mx-0 lg:rounded-card lg:p-8`}
-      >
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h1 className="text-title">알아몰라</h1>
-          <span className="lg:hidden">
-            <ProfileButton initial={initial} onHero />
-          </span>
-        </div>
-        <div className={heroFitGroup}>{hero}</div>
-      </section>
-      {below && <div className={belowHero}>{below}</div>}
+    // A block, so that the grid is not one of main's flex items (see homeFit).
+    <div>
+      <div className={homeFit}>
+        <section
+          aria-labelledby="hero-title"
+          className={`${heroFit} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 text-on-hero lg:mx-0 lg:rounded-card lg:p-8`}
+        >
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h1 className="text-title">알아몰라</h1>
+            <span className="lg:hidden">
+              <ProfileButton initial={initial} onHero />
+            </span>
+          </div>
+          <div className={heroFitGroup}>{hero}</div>
+        </section>
+        {below && <div className={belowHero}>{below}</div>}
+      </div>
     </div>
   );
 }

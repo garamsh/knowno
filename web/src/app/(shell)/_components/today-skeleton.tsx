@@ -8,20 +8,23 @@ import { belowHero, heroFit, heroFitGroup, homeFit } from "./hero-fit";
  */
 export function TodaySkeleton() {
   return (
-    <Skeleton status="오늘 할 카드를 불러오는 중이에요." className={homeFit}>
-      <div
-        className={`${heroFit} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 lg:mx-0 lg:rounded-card lg:p-8`}
-      >
-        <div className="mb-3 flex min-h-tap-target items-center">
-          <SkeletonLine text="text-title" width="w-28" />
+    // A block, so that the grid is not one of main's flex items (see homeFit).
+    <div>
+      <Skeleton status="오늘 할 카드를 불러오는 중이에요." className={homeFit}>
+        <div
+          className={`${heroFit} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 lg:mx-0 lg:rounded-card lg:p-8`}
+        >
+          <div className="mb-3 flex min-h-tap-target items-center">
+            <SkeletonLine text="text-title" width="w-28" />
+          </div>
+          <div className={heroFitGroup}>
+            <span className="aspect-square rounded-full bg-on-hero/15" />
+            <span className="h-17 w-48 rounded-field bg-on-hero/15" />
+            <span className="mt-2 min-h-cta w-56 rounded-button bg-on-hero/15" />
+          </div>
         </div>
-        <div className={heroFitGroup}>
-          <span className="aspect-square rounded-full bg-on-hero/15" />
-          <span className="h-17 w-48 rounded-field bg-on-hero/15" />
-          <span className="mt-2 min-h-cta w-56 rounded-button bg-on-hero/15" />
-        </div>
-      </div>
-      <span className={`${belowHero} h-38 rounded-card bg-surface`} />
-    </Skeleton>
+        <span className={`${belowHero} h-38 rounded-card bg-surface`} />
+      </Skeleton>
+    </div>
   );
 }
