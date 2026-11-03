@@ -182,7 +182,11 @@ async function main(args: string[]): Promise<void> {
       );
     }
     await read("npx", ["playwright", "install", "chromium"], { cwd: "web" });
-    const { code, output } = await merged("npx", ["playwright", "test", ...args], {
+    const { code, output } = await merged("npx", [
+      "playwright",
+      "test",
+      ...args,
+    ], {
       cwd: "web",
       env: { E2E_BASE_URL: base, E2E_SUPABASE_URL: url, E2E_SUPABASE_KEY: key },
     });
