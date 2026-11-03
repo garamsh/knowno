@@ -265,7 +265,7 @@ describe("노트 설정", () => {
       ),
     );
     await waitFor(() => {
-      expect(testRouter.push).toHaveBeenCalledWith("/");
+      expect(testRouter.push).toHaveBeenCalledWith("/decks");
     });
     expect(db.rows.decks[0]?.deleted_at).not.toBeNull();
     expect(db.rows.cards.every((row) => row.deleted_at !== null)).toBe(true);

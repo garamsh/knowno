@@ -174,13 +174,13 @@ test("renames, decorates, publishes, makes private and deletes a note as the use
   await expect(page.getByText("0장 익힘", { exact: true })).toBeVisible();
   expect(await stored()).toMatchObject({ visibility: "private", description: "고양이와 개" });
 
-  // 노트 삭제 asks, then tombstones the note and its cards and opens 홈.
+  // 노트 삭제 asks, then tombstones the note and its cards and opens the 노트 page.
   await choose(page, "노트 삭제");
   const question = page.getByRole("dialog", { name: '"Français" 노트를 삭제할까요?' });
   await expect(question).toContainText("카드 2장도 함께 삭제돼요.");
   await capture(page, "delete");
   await question.getByRole("button", { name: "삭제", exact: true }).click();
-  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect(page).toHaveURL(`${baseURL}/decks`);
   // A row's name carries its counts after the note's; Next's route announcer may still read the
   // deleted note's heading, so the rows are what is asserted.
   await expect(page.getByRole("link", { name: /^Kept, / })).toBeVisible();
