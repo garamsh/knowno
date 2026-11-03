@@ -1,6 +1,6 @@
 # ADR 0175: Show every card whole in a note's card list, and mark what study hides with one hatch
 
-> Status: accepted
+> Status: accepted; its hatch drawn in the card list alone superseded by ADR 0176
 > Date: 2026-11-03
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

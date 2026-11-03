@@ -16,7 +16,6 @@ import { v7 } from "uuid";
 import { Mascot } from "@/design/brand";
 import { Chip } from "@/design/chip";
 import { FittedLine } from "@/design/fitted-line";
-import { faceLength } from "@/features/decks";
 
 import type { Answer, AnswerWrite } from "../answer-write";
 import { engineLoaded, loadEngine } from "../engine";
@@ -664,7 +663,7 @@ function CurrentCard({
         className={`relative flex flex-1 rounded-card bg-surface shadow-card ${dragging ? "" : "motion-safe:transition-transform motion-safe:duration-300"}`}
       >
         <div aria-label="앞면" role="group" className="flex min-h-0 flex-1 rounded-card">
-          <CardScroll length={faceLength(card.front)}>
+          <CardScroll length={card.frontLength}>
             {card.whole ? (
               <div className="w-full">{card.whole.empty}</div>
             ) : card.sides ? (

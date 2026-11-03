@@ -1,6 +1,6 @@
 # ADR 0123: Step a long card side down through three sizes, then scroll it inside a card that keeps its size
 
-> Status: accepted
+> Status: accepted; its three sizes chosen by fit alone superseded by ADR 0176
 > Date: 2026-10-29
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

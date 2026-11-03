@@ -6,6 +6,7 @@ import {
   audioOf,
   type Content,
   describeContent,
+  faceLength,
   holdsBlank,
   type LibraryFailure,
   ReadFailure,
@@ -60,6 +61,7 @@ export async function Study({
   // point.
   const cards = read.library.cards.map(({ cells, ...card }) => ({
     ...card,
+    frontLength: faceLength(card.front),
     text: {
       front: describeContent(card.front),
       back: holdsBlank(cells) ? spokenCells(cells, true) : describeContent(card.back),
