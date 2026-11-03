@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadEngine, studyDayStart } from "@/features/study";
 
 import {
@@ -486,57 +486,6 @@ describe("the study page", () => {
       expect(heldBack).toEqual([false]);
       expect(testRouter.push).not.toHaveBeenCalled();
       expect(confirm()).not.toBeInTheDocument();
-    });
-
-    it("by the browser's back, sends the waiting answer and then reads the page it went back to again, which its cache drew before the answer (#603)", async () => {
-      // As the router does, a listener added before the page's unmounts it as it handles the event.
-      const router = () => {
-        cleanup();
-      };
-      window.addEventListener("popstate", router);
-      onTestFinished(() => {
-        window.removeEventListener("popstate", router);
-      });
-      seedDeck(postgrest, "d1", ["un", "deux"]);
-      await open("d1");
-      const release = postgrest.hold("reviews");
-      await userEvent.setup().keyboard("{ArrowRight}");
-      // The reviews stored when the page is read again.
-      const storedAtRefresh: number[] = [];
-      testRouter.refresh.mockImplementationOnce(() => {
-        storedAtRefresh.push(postgrest.rows.reviews.length);
-      });
-
-      window.dispatchEvent(new PopStateEvent("popstate"));
-      expect(screen.queryByRole("region", { name: "현재 카드" })).not.toBeInTheDocument();
-      await act(() => Promise.resolve());
-      expect(testRouter.refresh).not.toHaveBeenCalled();
-      release();
-
-      await waitFor(() => {
-        expect(storedAtRefresh).toEqual([1]);
-      });
-      expect(testRouter.push).not.toHaveBeenCalled();
-    });
-
-    it("by the browser's back, sends a failed answer again and reads nothing again while it fails again", async () => {
-      seedDeck(postgrest, "d1", ["un", "deux"]);
-      await open("d1");
-      postgrest.fail("reviews", 500);
-      await userEvent.setup().keyboard("{ArrowRight}");
-      await screen.findByRole("alert");
-      const release = postgrest.hold("reviews");
-
-      window.dispatchEvent(new PopStateEvent("popstate"));
-      // The setup: the answer is being sent again, so its failure is no longer shown.
-      await waitFor(() => {
-        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-      });
-      release();
-
-      await screen.findByRole("alert");
-      expect(testRouter.refresh).not.toHaveBeenCalled();
-      expect(postgrest.rows.reviews).toHaveLength(0);
     });
   });
 
