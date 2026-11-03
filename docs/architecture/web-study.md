@@ -99,6 +99,7 @@ Each line names a file and what it covers; the file holds the cases.
 - `web/src/features/study/__tests__/study-on.test.ts` — the session going on past today's cards, counted apart from the day's, a card answered past the plan before it opened left out of the day's count, a card put back after its re-show gap, and the session's own answers counted after 04:00.
 - `web/src/features/study/__tests__/study-address.test.ts` — the study page's address written and read back, and where a session returns to, never an address the parameter carries.
 - `web/src/features/study/__tests__/card-scroll.test.tsx` — the current card's face over measured sizes: a front kept at the front size, centred, a front stepped to the back size, one past the body size start-aligned with a fade that goes once scrolled to its end, and a front fitted again when the card narrows while it holds the front size.
+- `web/src/features/study/__tests__/coach-hand.test.tsx` — the coach's hand drawn from the brand's generated paths, in the surface on its edge with its creases, on a demonstrated card and on the sample.
 - `web/src/features/study/__tests__/grade-chip.test.tsx` — 안다 and 모른다 drawn in the one chip, each in its grade's tone and hidden from screen readers.
 - `web/src/features/study/__tests__/retention-preview.test.tsx` — the 기억률 card's link to 기록 and its target.
 - `web/src/features/study/__tests__/live-regions.test.tsx` — the notice's and the coach's live regions, mounted empty and filled after.
