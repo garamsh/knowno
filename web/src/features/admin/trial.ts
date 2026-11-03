@@ -40,8 +40,8 @@ export async function adminToken(): Promise<{ token: string } | { message: strin
 
 /**
  * Runs extract-cards on [photo] as the admin whose [token] it is: served what an admin is served,
- * or the AI configuration [configurationId] names (ADR 0162). No photo limit applies to an admin
- * (ADR 0157); the photo is recorded as any extraction is.
+ * or the AI configuration [configurationId] names (ADR 0162). No photo limit applies to an admin,
+ * who is on 스페셜 (ADR 0177); the photo is recorded as any extraction is.
  */
 export async function runTrial(
   photo: File,

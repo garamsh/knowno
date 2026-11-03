@@ -100,8 +100,8 @@ export type UserDeck = {
 /** Why, when and by whom a user was suspended. */
 export type Suspension = { reason: string; suspendedAt: number; suspendedByEmail: string | null };
 
-/** A plan, as the server names it. */
-export type PlanId = "free" | "pro" | "max";
+/** A plan, as the server names it; 스페셜 has no photo limit and no user sees it (ADR 0177). */
+export type PlanId = "free" | "pro" | "max" | "special";
 
 /**
  * How a plan version counts photos: [amount] a calendar month or a day in Asia/Seoul, or
@@ -109,12 +109,13 @@ export type PlanId = "free" | "pro" | "max";
  */
 export type Quota = "monthly" | "daily" | "unlimited";
 
+/** A version's terms: a quota with its amount, or 스페셜's, with no limit (ADR 0177). */
+export type Terms = { quota: Quota; amount: number } | { quota: "none"; amount: null };
+
 /** One version of a plan's terms, as an admin created it. */
-export type PlanVersion = {
+export type PlanVersion = Terms & {
   id: number;
   plan: PlanId;
-  quota: Quota;
-  amount: number;
   startsAt: number;
   /** Whether existing users take it from its start rather than at their renewal. */
   appliesToAll: boolean;
@@ -126,32 +127,20 @@ export type PlanVersion = {
 
 /**
  * A user's plan now: the version's terms and the photos counted in its period, null while the plan
- * has no version, and the grant behind it, when there is one; an ended Max grant shows beside Free.
+ * has no version, and the grant behind it, when there is one; an ended Max or 스페셜 grant shows
+ * beside Free, and an admin is on 스페셜 beside any grant.
  */
 export type UserPlan = {
-  entitlement: {
-    plan: PlanId;
-    quota: Quota;
-    amount: number;
-    /** The plan's active AI configuration, null while it has none (ADR 0162). */
-    serving: { provider: Provider; model: string } | null;
-    used: number;
-  } | null;
+  entitlement:
+    | (Terms & {
+        plan: PlanId;
+        /** The plan's active AI configuration, null while it has none (ADR 0162). */
+        serving: { provider: Provider; model: string } | null;
+        used: number;
+      })
+    | null;
   grant: {
-    plan: "pro" | "max";
-    endsAt: number | null;
-    grantedAt: number;
-    grantedByEmail: string | null;
-  } | null;
-};
-
-/**
- * Whether no photo limit applies to a user now, as the server decides it (ADR 0157): an admin, or
- * a 무제한 grant that has not ended; and the grant, ended or not, when there is one.
- */
-export type UserUnlimited = {
-  unlimited: boolean;
-  grant: {
+    plan: "pro" | "max" | "special";
     endsAt: number | null;
     /** Whether its end has passed when it was read. */
     ended: boolean;
@@ -169,7 +158,6 @@ export type AdminUser = {
   cards: number;
   admin: boolean;
   plan: UserPlan;
-  unlimited: UserUnlimited;
   suspension: Suspension | null;
   /** Every live deck of the user, public or private, newest first. */
   allDecks: UserDeck[];
@@ -409,19 +397,16 @@ export async function searchUsers(query: string, page: number): Promise<AdminRea
 
 /** One user with their public decks, or null when no user has [id]. */
 export async function readUser(id: string): Promise<AdminRead<AdminUser | null>> {
-  const [userRead, decksRead, planRead, unlimitedRead, suspensionRead, allDecksRead] =
-    await Promise.all([
-      call("admin_user", { user_id: id }),
-      readPublicDecks(id),
-      call("admin_user_plan", { user_id: id }),
-      call("admin_user_unlimited", { user_id: id }),
-      call("admin_user_suspension", { user_id: id }),
-      call("admin_user_decks", { user_id: id }),
-    ]);
+  const [userRead, decksRead, planRead, suspensionRead, allDecksRead] = await Promise.all([
+    call("admin_user", { user_id: id }),
+    readPublicDecks(id),
+    call("admin_user_plan", { user_id: id }),
+    call("admin_user_suspension", { user_id: id }),
+    call("admin_user_decks", { user_id: id }),
+  ]);
   if ("failure" in userRead) return userRead;
   if ("failure" in decksRead) return decksRead;
   if ("failure" in planRead) return planRead;
-  if ("failure" in unlimitedRead) return unlimitedRead;
   if ("failure" in suspensionRead) return suspensionRead;
   if ("failure" in allDecksRead) return allDecksRead;
   const suspensions = rows(suspensionRead.data, parseSuspension);
@@ -429,9 +414,8 @@ export async function readUser(id: string): Promise<AdminRead<AdminUser | null>>
   if (!suspensions || !allDecks) return { failure: "unreadable" };
   const reports = new Map(decksRead.data.map((deck) => [deck.id, deck.reports]));
   if (Array.isArray(userRead.data) && userRead.data.length === 0) return { data: null };
-  const plan = parseUserPlan(only(planRead.data));
-  const unlimited = parseUserUnlimited(only(unlimitedRead.data), Date.now());
-  if (!plan || !unlimited) return { failure: "unreadable" };
+  const plan = parseUserPlan(only(planRead.data), Date.now());
+  if (!plan) return { failure: "unreadable" };
   const row = only(userRead.data);
   const email = text(field(row, "email"));
   const createdAt = parseTime(field(row, "created_at"));
@@ -456,7 +440,6 @@ export async function readUser(id: string): Promise<AdminRead<AdminUser | null>>
       cards,
       admin,
       plan,
-      unlimited,
       suspension: suspensions[0] ?? null,
       allDecks: allDecks.map((deck) => ({ ...deck, reports: reports.get(deck.id) ?? 0 })),
       renewal: nextRenewal(Date.now()),
@@ -515,7 +498,7 @@ export async function readProviderKeys(): Promise<AdminRead<ProviderKey[]>> {
 /** Each plan's active configuration and draft. */
 export async function readAiConfigurations(): Promise<AdminRead<AiConfiguration[]>> {
   return parsed(await call("admin_ai_configurations"), (row) => {
-    const plan = planId(field(row, "plan"));
+    const plan = parsePlanId(field(row, "plan"));
     const label = field(row, "label");
     const id = count(field(row, "configuration_id"));
     const provider = parseProvider(field(row, "provider"));
@@ -529,27 +512,25 @@ export async function readAiConfigurations(): Promise<AdminRead<AiConfiguration[
   });
 }
 
-/** Every plan version, Free's first, then Pro's and Max's, each plan's latest start first. */
+/** Every plan version, Free's first, then Pro's, Max's and 스페셜's, each plan's latest start first. */
 export async function readPlanVersions(): Promise<AdminRead<PlanVersion[]>> {
   return parsed(await call("admin_plan_versions"), (row) => {
     const id = count(field(row, "id"));
-    const plan = planId(field(row, "plan"));
-    const kind = quota(field(row, "quota"));
-    const amount = count(field(row, "amount"));
+    const plan = parsePlanId(field(row, "plan"));
+    const kind = terms(field(row, "quota"), field(row, "amount"));
     const startsAt = parseTime(field(row, "starts_at"));
     const appliesToAll = field(row, "applies_to_all");
     const current = field(row, "current");
     const createdAt = parseTime(field(row, "created_at"));
     const createdBy = field(row, "created_by_email");
-    if (id === null || plan === null || kind === null || amount === null) return null;
+    if (id === null || plan === null || kind === null) return null;
     if (startsAt === null || createdAt === null) return null;
     if (typeof appliesToAll !== "boolean" || typeof current !== "boolean") return null;
     if (createdBy !== null && typeof createdBy !== "string") return null;
     return {
       id,
       plan,
-      quota: kind,
-      amount,
+      ...kind,
       startsAt,
       appliesToAll,
       current,
@@ -559,7 +540,7 @@ export async function readPlanVersions(): Promise<AdminRead<PlanVersion[]>> {
   });
 }
 
-function parseUserPlan(row: unknown): UserPlan | null {
+function parseUserPlan(row: unknown, now: number): UserPlan | null {
   const plan = field(row, "plan");
   const granted = field(row, "granted_plan");
   const endsAtValue = field(row, "ends_at");
@@ -568,13 +549,12 @@ function parseUserPlan(row: unknown): UserPlan | null {
   // The entitlement's columns are null together, while the plan has no version.
   let entitlement: UserPlan["entitlement"] = null;
   if (plan !== null) {
-    const id = planId(plan);
-    const kind = quota(field(row, "quota"));
-    const amount = count(field(row, "amount"));
+    const id = parsePlanId(plan);
+    const kind = terms(field(row, "quota"), field(row, "amount"));
     const used = count(field(row, "used"));
     const providerValue = field(row, "provider");
     const modelValue = field(row, "model");
-    if (id === null || kind === null || amount === null || used === null) return null;
+    if (id === null || kind === null || used === null) return null;
     // Provider and model are null together, while the plan has no active configuration.
     let serving: { provider: Provider; model: string } | null = null;
     if (providerValue !== null || modelValue !== null) {
@@ -583,31 +563,19 @@ function parseUserPlan(row: unknown): UserPlan | null {
       if (provider === null || model === null) return null;
       serving = { provider, model };
     }
-    entitlement = { plan: id, quota: kind, amount, serving, used };
+    entitlement = { plan: id, ...kind, serving, used };
   }
   if (granted === null) return { entitlement, grant: null };
   const endsAt = endsAtValue === null ? null : parseTime(endsAtValue);
   const grantedAt = parseTime(grantedAtValue);
-  if (granted !== "pro" && granted !== "max") return null;
-  if ((endsAtValue !== null && endsAt === null) || grantedAt === null) return null;
-  if (grantedBy !== null && typeof grantedBy !== "string") return null;
-  return { entitlement, grant: { plan: granted, endsAt, grantedAt, grantedByEmail: grantedBy } };
-}
-
-function parseUserUnlimited(row: unknown, now: number): UserUnlimited | null {
-  const unlimited = field(row, "unlimited");
-  const endsAtValue = field(row, "ends_at");
-  const grantedAtValue = field(row, "granted_at");
-  const grantedBy = field(row, "granted_by_email");
-  if (typeof unlimited !== "boolean") return null;
-  // The grant's columns are null together, while the user has no grant.
-  if (grantedAtValue === null) return { unlimited, grant: null };
-  const endsAt = endsAtValue === null ? null : parseTime(endsAtValue);
-  const grantedAt = parseTime(grantedAtValue);
+  if (granted !== "pro" && granted !== "max" && granted !== "special") return null;
   if ((endsAtValue !== null && endsAt === null) || grantedAt === null) return null;
   if (grantedBy !== null && typeof grantedBy !== "string") return null;
   const ended = endsAt !== null && endsAt <= now;
-  return { unlimited, grant: { endsAt, ended, grantedAt, grantedByEmail: grantedBy } };
+  return {
+    entitlement,
+    grant: { plan: granted, endsAt, ended, grantedAt, grantedByEmail: grantedBy },
+  };
 }
 
 function parseSuspension(row: unknown): Suspension | null {
@@ -632,12 +600,21 @@ function parseUserDeck(row: unknown): Omit<UserDeck, "reports"> | null {
   return { id, name, visibility, hidden, removed, cards };
 }
 
-function planId(value: unknown): PlanId | null {
-  return value === "free" || value === "pro" || value === "max" ? value : null;
+/** [value], which crossed the network, as a plan; null for any other. */
+export function parsePlanId(value: unknown): PlanId | null {
+  return value === "free" || value === "pro" || value === "max" || value === "special"
+    ? value
+    : null;
 }
 
-function quota(value: unknown): Quota | null {
-  return value === "monthly" || value === "daily" || value === "unlimited" ? value : null;
+/** A quota and its amount as terms: none without an amount, any other with one. */
+function terms(quota: unknown, amount: unknown): Terms | null {
+  if (quota === "none") return amount === null ? { quota, amount } : null;
+  const photos = count(amount);
+  if (photos === null) return null;
+  return quota === "monthly" || quota === "daily" || quota === "unlimited"
+    ? { quota, amount: photos }
+    : null;
 }
 
 /** The admins, earliest granted first, the signed-in one marked. */
@@ -688,7 +665,7 @@ export async function readExtractionBreakdown(days: number): Promise<AdminRead<B
     if (plan === null && model === null && version === null) {
       return { day: date, plan: null, model: null, promptVersion: null, photos };
     }
-    const id = planId(plan);
+    const id = parsePlanId(plan);
     const versionId = count(version);
     if (id === null || typeof model !== "string" || versionId === null) return null;
     return { day: date, plan: id, model, promptVersion: versionId, photos };

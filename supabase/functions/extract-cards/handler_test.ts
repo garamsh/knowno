@@ -68,7 +68,7 @@ type Fake = {
       plan: string;
       provider?: string;
       model: string;
-      photo_limit: number;
+      photo_limit: number | null;
       period: string;
     }
     | null;
@@ -1582,16 +1582,32 @@ Deno.test("a served row without the prompt's text or version fails before any mo
   }
 });
 
-Deno.test("a served row naming Special, or a period that is not a month or a day, fails before any model call", async () => {
+Deno.test("a served row naming an unknown plan, a period that is not a month or a day, or a refusal under no limit fails before any model call", async () => {
   for (
-    const plan of [
-      { plan: "special", model: "vendor/m", photo_limit: 30, period: "day" },
-      { plan: "free", model: "vendor/m", photo_limit: 10, period: "week" },
-    ]
+    const [allowed, plan] of [
+      [true, {
+        plan: "gold",
+        model: "vendor/m",
+        photo_limit: 30,
+        period: "day",
+      }],
+      [true, {
+        plan: "free",
+        model: "vendor/m",
+        photo_limit: 10,
+        period: "week",
+      }],
+      [false, {
+        plan: "special",
+        model: "vendor/m",
+        photo_limit: null,
+        period: "day",
+      }],
+    ] as const
   ) {
     await assert.rejects(
-      run({ plan }),
-      /begin_extraction answered a row it should not/,
+      run({ allowed, plan }),
+      /begin_extraction (answered a row it should not|refused a photo under no limit)/,
       JSON.stringify(plan),
     );
   }
@@ -1600,6 +1616,21 @@ Deno.test("a served row naming Special, or a period that is not a month or a day
     replies: [cardsReply(twoCards)],
   });
   assert.equal(served.status, 200, "control: a Max row a day is read");
+});
+
+Deno.test("a special row, with no limit, is read, and the answer names no plan", async () => {
+  const r = await run({
+    plan: {
+      plan: "special",
+      model: "vendor/m",
+      photo_limit: null,
+      period: "day",
+    },
+    replies: [cardsReply(twoCards)],
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.logs[0].plan, "special");
+  assert.ok(!JSON.stringify(r.body).includes("special"));
 });
 
 Deno.test("a photo is read by its configuration's provider with that provider's key from Vault", async () => {

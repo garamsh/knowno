@@ -41,7 +41,10 @@ export const providerLabels: Record<string, string> = {
   anthropic: "Anthropic",
 };
 
-/** Each plan's name in the admin area; Special, which Max replaced, names log entries before it. */
+/**
+ * Each plan's name in the admin area. 스페셜 has no photo limit (ADR 0177); log entries before ADR
+ * 0097 name by it the plan Max replaced.
+ */
 export const planLabels: Record<string, string> = {
   free: "무료",
   pro: "프로",
@@ -49,8 +52,11 @@ export const planLabels: Record<string, string> = {
   special: "스페셜",
 };
 
-/** A version's terms in words, as "한 달 10장", "하루 100장" or "무제한 (하루 1000장까지)". */
-export function termsLabel(quota: string, amount: number): string {
+/**
+ * A version's terms in words, as "한 달 10장", "하루 100장", "무제한 (하루 1000장까지)" or
+ * 스페셜's "제한 없음".
+ */
+export function termsLabel(quota: string, amount: number | null): string {
   switch (quota) {
     case "monthly":
       return `한 달 ${String(amount)}장`;
@@ -58,8 +64,10 @@ export function termsLabel(quota: string, amount: number): string {
       return `하루 ${String(amount)}장`;
     case "unlimited":
       return `무제한 (하루 ${String(amount)}장까지)`;
+    case "none":
+      return "제한 없음";
     default:
-      return `${quota} ${String(amount)}장`;
+      return amount === null ? quota : `${quota} ${String(amount)}장`;
   }
 }
 

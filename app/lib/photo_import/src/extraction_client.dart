@@ -70,7 +70,7 @@ final class CandidateCard {
 }
 
 /// The photos the user's plan lets through a [period], null when no limit
-/// applies to the user (an admin, or a 무제한 grant; ADR 0157), and those
+/// applies to the user (스페셜, which every admin is on; ADR 0177), and those
 /// counted in the current one.
 typedef ExtractionAllowance = ({int? limit, LimitPeriod period, int used});
 

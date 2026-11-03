@@ -14,7 +14,7 @@ import { AiTrial } from "./ai-trial";
 import { ConfirmAction } from "./confirm-action";
 import { ProviderKeyForm } from "./provider-key-form";
 
-const plans: PlanId[] = ["free", "pro", "max"];
+const plans: PlanId[] = ["free", "pro", "max", "special"];
 
 /** The model a provider's key is checked with when no active configuration names one. */
 const checkModels: Record<Provider, string> = {

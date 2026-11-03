@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { grantPlan, type GrantPlanState } from "../grant-plan";
 import { button, field, group } from "./admin-section";
 
-/** Puts a user on Pro, or on Max with an optional last day. */
+/** Puts a user on Pro, or on Max or 스페셜 with an optional last day. */
 export function GrantPlanForm({ userId }: { userId: string }) {
   const [state, action, pending] = useActionState<GrantPlanState, FormData>(grantPlan, {
     message: null,
@@ -19,6 +19,7 @@ export function GrantPlanForm({ userId }: { userId: string }) {
           <select name="plan" defaultValue="pro" className={`${field} h-tap-target px-2`}>
             <option value="pro">프로</option>
             <option value="max">맥스</option>
+            <option value="special">스페셜</option>
           </select>
         </label>
         <div className="flex flex-col gap-1 px-4 py-3">
@@ -32,7 +33,7 @@ export function GrantPlanForm({ userId }: { userId: string }) {
             />
           </label>
           <span id={`${userId}-ends`} className="text-caption text-muted">
-            맥스만 정할 수 있고, 비우면 끝없이 이어져요
+            맥스와 스페셜만 정할 수 있고, 비우면 끝없이 이어져요
           </span>
         </div>
       </div>

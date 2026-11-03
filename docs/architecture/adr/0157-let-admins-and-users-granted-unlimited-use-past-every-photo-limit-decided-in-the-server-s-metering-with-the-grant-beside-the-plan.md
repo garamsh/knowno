@@ -1,6 +1,6 @@
 # ADR 0157: Let admins, and users granted 무제한, past every photo limit, decided in the server's metering, with the grant beside the plan
 
-> Status: accepted
+> Status: superseded by ADR-0177
 > Date: 2026-11-03
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 
 import { type ActionResult, call, refused } from "./action-call";
+import { parsePlanId } from "./read-admin";
 
 /** Ends [plan]'s draft, so admins are served its active configuration again. */
 export async function clearAiTest(plan: string): Promise<ActionResult> {
-  if (plan !== "free" && plan !== "pro" && plan !== "max") return refused("malformed");
+  if (parsePlanId(plan) === null) return refused("malformed");
   const result = await call("admin_clear_ai_test", { plan });
   if ("failure" in result) return refused(result.failure);
   if (typeof result.data !== "boolean") return refused("unreadable");

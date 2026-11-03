@@ -178,8 +178,10 @@ select results_eq($$select text, created_by from private.prompt_versions where i
 
 insert into private.plan_versions (plan, quota, amount, starts_at, applies_to_all) values
   ('free', 'daily', 3, now(), true);
+-- The admin is on 스페셜 (ADR 0177), so it is served 스페셜's configuration.
 with c as (
-  insert into private.ai_configurations (plan, provider, model) values ('free', 'openrouter', 'vendor/free-model')
+  insert into private.ai_configurations (plan, provider, model) values ('free', 'openrouter', 'vendor/free-model'),
+    ('special', 'openrouter', 'vendor/special-model')
   returning id, plan
 )
 insert into private.ai_configuration_labels (plan, label, configuration_id)
@@ -214,9 +216,9 @@ select results_eq(
     from private.extraction_calls as c join public.extraction_usage as u on u.id = c.usage_id
     order by u.id$$,
   $$values ('00000000-0000-4000-8000-00000000000b'::uuid, 'free', 'vendor/free-model', 1::bigint),
-           ('00000000-0000-4000-8000-00000000000a'::uuid, 'free', 'vendor/free-model', 1::bigint),
+           ('00000000-0000-4000-8000-00000000000a'::uuid, 'special', 'vendor/special-model', 1::bigint),
            ('00000000-0000-4000-8000-00000000000b'::uuid, 'free', 'vendor/free-model', 1::bigint),
-           ('00000000-0000-4000-8000-00000000000a'::uuid, 'free', 'vendor/free-model', pg_temp.id('second')),
+           ('00000000-0000-4000-8000-00000000000a'::uuid, 'special', 'vendor/special-model', pg_temp.id('second')),
            ('00000000-0000-4000-8000-00000000000b'::uuid, 'free', 'vendor/free-model', 1::bigint)$$,
   'each allowed photo records its plan, model and version, and the refused one nothing');
 select results_eq(
