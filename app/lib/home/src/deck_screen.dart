@@ -141,7 +141,8 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
               child: Semantics(
                 header: true,
                 child: Text(
-                  current.name,
+                  keepWords(current.name),
+                  semanticsLabel: current.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: AppType.deckName.copyWith(color: colors.ink),

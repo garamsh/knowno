@@ -125,6 +125,8 @@ describe("the deck page", () => {
     expect(name.parentElement).toBe(header);
     expect(add.parentElement?.contains(name)).toBe(false);
     expect(name).toHaveClass("line-clamp-2");
+    // Its words kept whole, as our own Korean is, a word longer than the line still breaking.
+    expect(name).toHaveClass("break-keep", "break-words");
     // The page's one primary fill is 이 노트 학습.
     expect([...document.querySelectorAll(".bg-primary")]).toEqual([studyLink()]);
     const search = screen.getByRole("searchbox", { name: "카드 검색" });

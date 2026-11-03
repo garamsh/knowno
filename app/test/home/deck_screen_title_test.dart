@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/home/src/deck_screen.dart';
 
 import '../app_fonts.dart';
+import '../word_breaks.dart';
 import 'deck_screens.dart';
 
 void main() {
@@ -30,7 +31,9 @@ void main() {
         );
         await screens.push((deck) => DeckScreen(deck: deck));
 
-        final name = tester.renderObject<RenderParagraph>(find.text(long));
+        final name = tester.renderObject<RenderParagraph>(
+          find.descendant(of: shownText(long), matching: find.byType(RichText)),
+        );
         // The setup: the name is longer than two lines at this width.
         expect(name.didExceedMaxLines, isTrue);
         final line = TextPainter(
@@ -41,7 +44,7 @@ void main() {
         addTearDown(line.dispose);
         expect(name.size.height, moreOrLessEquals(line.height * 2));
         expect(
-          tester.getRect(find.text(long)).top,
+          tester.getRect(shownText(long)).top,
           greaterThanOrEqualTo(tester.getRect(find.byType(AppBar)).bottom),
         );
         final add = find.descendant(
@@ -62,4 +65,29 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'on a 390 wide phone at text scale 3.12, in the bundled fonts, the name '
+    '영단어 기본 wraps between its words, not inside one',
+    (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final screens = await DeckScreens.open(
+        tester,
+        cards: {'Chat': 'cat'},
+        locale: const Locale('ko'),
+      );
+      const name = '영단어 기본';
+      await tester.runAsync(
+        () => screens.repository.renameDeck(screens.deck.id, name),
+      );
+      await screens.push((deck) => DeckScreen(deck: deck));
+
+      // The setup and the property: it wraps, and only at its space.
+      expectBreaksBetweenWords(tester, name);
+      // Read as typed, without the joiners that keep its words whole.
+      expect(find.bySemanticsLabel(name), findsOneWidget);
+      await screens.close();
+    },
+  );
 }

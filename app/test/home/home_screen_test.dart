@@ -763,7 +763,7 @@ void main() {
         await list.tap('Save');
 
         expect(find.byType(DeckScreen), findsOneWidget);
-        expect(find.text('Delta'), findsOneWidget);
+        expect(shownText('Delta'), findsOneWidget);
         expect(list.tab('Home'), findsOneWidget);
         expect(find.text('Enter by hand'), findsNothing);
         final stored = ProviderScope.containerOf(

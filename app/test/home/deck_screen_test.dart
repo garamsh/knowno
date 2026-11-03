@@ -98,7 +98,7 @@ void main() {
     final screens = await DeckScreens.open(tester);
     await screens.push((deck) => DeckScreen(deck: deck));
 
-    final style = tester.widget<Text>(find.text('French').first).style!;
+    final style = tester.widget<Text>(shownText('French').first).style!;
     expect(style.fontFamily, appFontFamily);
     expect(style.fontWeight, FontWeight.w800);
     // Control: the style a title we write takes is Jua, so the check can fail.
@@ -155,8 +155,8 @@ void main() {
           find.descendant(of: find.byType(AppBar), matching: finder);
 
       // The name sits under the bar, a header, over the search.
-      expect(inTopBar(find.text('French')), findsNothing);
-      final name = find.text('French');
+      expect(inTopBar(shownText('French')), findsNothing);
+      final name = shownText('French');
       expect(
         tester.getSemantics(name),
         isSemantics(label: 'French', isHeader: true),
@@ -1005,11 +1005,11 @@ void main() {
       }
 
       await saveInto(screens.deck);
-      expect(find.text('French'), findsOneWidget);
+      expect(shownText('French'), findsOneWidget);
 
       await saveInto(other);
-      expect(find.text('Spanish'), findsOneWidget);
-      expect(find.text('French'), findsNothing);
+      expect(shownText('Spanish'), findsOneWidget);
+      expect(shownText('French'), findsNothing);
       screens.navigator.currentState!.pop();
       await tester.pumpAndSettle();
       expect(find.byType(DeckScreen), findsNothing);
@@ -1026,7 +1026,7 @@ void main() {
     await screens.enter('Note name', 'Français');
     await screens.tap(find.text('Save'));
 
-    expect(find.text('Français'), findsOneWidget);
+    expect(shownText('Français'), findsOneWidget);
     final decks = await tester.runAsync(
       () => screens.repository.watchDecks().first,
     );
@@ -1039,14 +1039,14 @@ void main() {
     (tester) async {
       final screens = await DeckScreens.open(tester);
       await screens.push((deck) => DeckScreen(deck: deck));
-      expect(find.text('French'), findsOneWidget, reason: 'the opening name');
+      expect(shownText('French'), findsOneWidget, reason: 'the opening name');
 
       await tester.runAsync(
         () => screens.repository.renameDeck(screens.deck.id, 'Français'),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Français'), findsOneWidget);
-      expect(find.text('French'), findsNothing);
+      expect(shownText('Français'), findsOneWidget);
+      expect(shownText('French'), findsNothing);
 
       await screens.tap(find.byTooltip('Note settings'));
       await screens.tap(find.text('Rename'));
@@ -1072,8 +1072,8 @@ void main() {
 
       await screens.tap(find.text('Add card'));
       await screens.tap(find.text('Enter by hand'));
-      expect(find.text('Français'), findsOneWidget, reason: "the editor's");
-      expect(find.text('French'), findsNothing);
+      expect(shownText('Français'), findsOneWidget, reason: "the editor's");
+      expect(shownText('French'), findsNothing);
       await screens.close();
     },
   );

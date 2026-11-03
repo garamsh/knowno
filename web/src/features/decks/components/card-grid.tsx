@@ -65,7 +65,7 @@ export function CardGrid({
         {add}
         {settings}
       </span>
-      <h1 className="line-clamp-2 text-deck-name break-words">{deck.name}</h1>
+      <h1 className="line-clamp-2 text-deck-name break-words break-keep">{deck.name}</h1>
     </header>
   );
   if (cards.length === 0) {
