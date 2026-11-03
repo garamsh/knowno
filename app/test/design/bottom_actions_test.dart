@@ -47,16 +47,31 @@ Future<(int, int)> _lines(
       ),
     ),
   );
-  int lines(String label) => tester
-      .renderObject<RenderParagraph>(
-        find.descendant(of: find.text(label), matching: find.byType(RichText)),
-      )
-      .getBoxesForSelection(
-        TextSelection(baseOffset: 0, extentOffset: label.length),
-      )
-      .map((box) => box.top)
-      .toSet()
-      .length;
+  // A run in the fallback font sits at another top on the same line, so a
+  // line starts only at a box wholly below the line before.
+  int lines(String label) {
+    final boxes =
+        tester
+            .renderObject<RenderParagraph>(
+              find.descendant(
+                of: find.text(label),
+                matching: find.byType(RichText),
+              ),
+            )
+            .getBoxesForSelection(
+              TextSelection(baseOffset: 0, extentOffset: label.length),
+            )
+            .toList()
+          ..sort((a, b) => a.top.compareTo(b.top));
+    var count = 0;
+    var bottom = double.negativeInfinity;
+    for (final box in boxes) {
+      if (box.top >= bottom) count++;
+      if (box.top >= bottom || box.bottom > bottom) bottom = box.bottom;
+    }
+    return count;
+  }
+
   expect(tester.takeException(), isNull);
   return (lines(secondary), lines(primary));
 }
@@ -96,16 +111,65 @@ void main() {
     },
   );
 
-  testWidgets('at 2.0 a bottom pair wraps inside its buttons, off nothing', (
-    tester,
-  ) async {
-    final (secondary, primary) = await _lines(
-      tester,
-      secondary: '저장',
-      primary: '저장하고 카드 추가',
-      scale: 2,
+  testWidgets(
+    'at 2.0 a bottom pair lays out with no overflow, each label inside its button',
+    (tester) async {
+      final (secondary, primary) = await _lines(
+        tester,
+        secondary: '저장',
+        primary: '저장하고 카드 추가',
+        scale: 2,
+      );
+      expect(secondary, 1);
+      expect(primary, greaterThanOrEqualTo(1));
+    },
+  );
+
+  /// The rects of the two buttons, found by their labels.
+  (Rect, Rect) rects(WidgetTester tester, String secondary, String primary) {
+    Rect of(String label) => tester.getRect(
+      find.ancestor(of: find.text(label), matching: find.byType(AppButton)),
     );
-    expect(secondary, 1);
-    expect(primary, greaterThanOrEqualTo(1));
-  });
+    return (of(secondary), of(primary));
+  }
+
+  testWidgets(
+    "a pair whose labels both fit on one line stays in one row, the secondary at its label's width past half the row",
+    (tester) async {
+      expect(
+        await _lines(
+          tester,
+          secondary: '엑셀·CSV 파일',
+          primary: '직접 입력',
+          scale: 1,
+        ),
+        (1, 1),
+      );
+      final (secondary, primary) = rects(tester, '엑셀·CSV 파일', '직접 입력');
+      expect(secondary.top, primary.top, reason: 'one row');
+      expect(secondary.right, lessThan(primary.left));
+      expect(secondary.width, greaterThan(primary.width));
+    },
+  );
+
+  testWidgets(
+    'a pair whose labels do not both fit on one line stacks full width, the primary last, at 1.0 and at the largest text size',
+    (tester) async {
+      for (final (secondary, primary, scale) in [
+        ('저장', '저장하고 카드 추가하고 다음 카드로 넘어가기', 1.0),
+        ('엑셀·CSV 파일', '직접 입력', 3.12),
+      ]) {
+        await _lines(
+          tester,
+          secondary: secondary,
+          primary: primary,
+          scale: scale,
+        );
+        final (top, bottom) = rects(tester, secondary, primary);
+        expect(bottom.top, greaterThan(top.bottom), reason: '$scale');
+        expect(top.width, bottom.width, reason: '$scale');
+        expect(top.width, 390 - 2 * AppSpace.gutter, reason: '$scale');
+      }
+    },
+  );
 }
