@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { StudyStateRead } from "@/features/study";
+
 import { RecordContent } from "./_components/record";
 import { RecordSkeleton } from "./_components/record-skeleton";
 
@@ -12,7 +14,9 @@ export default function RecordPage() {
     <>
       <h1 className="text-display">기록</h1>
       <Suspense fallback={<RecordSkeleton />}>
-        <RecordContent />
+        <StudyStateRead>
+          <RecordContent />
+        </StudyStateRead>
       </Suspense>
     </>
   );

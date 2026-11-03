@@ -19,6 +19,7 @@ import type { CardState } from "./queue";
  * a toggle moves its review's rating where the server's edit is older, and either then upserts
  * the card's state. The insert ignores a review already stored, so a retried write is safe.
  * Each row is the signed-in user's, edited at the write's time; the server sets its revision.
+ * Once both are stored it returns the server's time then, which pages read before it compare.
  */
 export async function recordAnswer(input: RecordedAnswer): Promise<WriteResult> {
   // The argument crossed the network, whatever its declared type.
@@ -77,7 +78,7 @@ export async function recordAnswer(input: RecordedAnswer): Promise<WriteResult> 
   if (stateWrite.error) {
     return refuse(classifyFailure(stateWrite.error, stateWrite.status), stateWrite.error.code);
   }
-  return { saved: true };
+  return { saved: true, savedAt: Date.now() };
 }
 
 function refuse(failure: ServerFailure, detail: string): WriteResult {

@@ -499,6 +499,101 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   await shot(page, "07-account");
 });
 
+test("an answer given just before the browser's back counts on 홈 once back there (#603)", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!supabaseUrl || !supabaseKey || !baseURL) throw new Error("skipped above");
+  page.on("console", (message) => browserLog.push(`console ${message.type()}: ${message.text()}`));
+  const email = `web-study-back-${randomUUID()}@example.com`;
+  const password = "web-study-password";
+  await page.goto("/login");
+  const userId = await signUpInBrowser(context, baseURL, email, password);
+
+  // The phone's sync has pushed a deck of two new cards.
+  const phone = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+  expect((await phone.auth.signInWithPassword({ email, password })).error).toBeNull();
+  const deckId = randomUUID();
+  const now = new Date().toISOString();
+  const side = (text: string) => [{ type: "text", payload: { text } }];
+  expect(
+    (
+      await phone.from("decks").insert({
+        id: deckId,
+        user_id: userId,
+        name: "French",
+        created_at: now,
+        updated_at: now,
+      })
+    ).error,
+  ).toBeNull();
+  expect(
+    (
+      await phone.from("cards").insert(
+        [
+          ["chat", "cat"],
+          ["chien", "dog"],
+        ].map(([front, back]) => ({
+          id: randomUUID(),
+          user_id: userId,
+          deck_id: deckId,
+          front: side(front ?? ""),
+          back: side(back ?? ""),
+          card_key: front,
+          source: "manual",
+          created_at: now,
+          updated_at: now,
+        })),
+      )
+    ).error,
+  ).toBeNull();
+
+  await page.goto("/");
+  const today = (count: number) =>
+    page.getByRole("heading", { name: `오늘 ${String(count)}장`, exact: true });
+  await expect(today(2)).toBeVisible();
+  // 시작 opens the session by a navigation inside the app, so the browser's back returns to 홈
+  // inside it too.
+  const front = page.getByRole("group", { name: "앞면", exact: true });
+  await untilReacted(
+    () => page.getByRole("link", { name: "시작", exact: true }).click(),
+    () => front.isVisible(),
+  );
+  await expect(front).toHaveText(/^(chat|chien)$/);
+  const first = (await front.textContent()) ?? "";
+
+  // The answer's write is held at the network until the browser has gone back.
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let writes = 0;
+  await page.route(
+    (url) => url.pathname === "/study",
+    async (route) => {
+      if (route.request().method() === "POST") {
+        writes += 1;
+        await held;
+      }
+      await route.continue();
+    },
+  );
+  await untilReacted(
+    () => page.keyboard.press("ArrowRight"),
+    async () => (await front.textContent()) !== first,
+  );
+  await expect.poll(() => writes, { message: "the setup: the answer's write is held" }).toBe(1);
+  await page.goBack();
+  await expect(page).toHaveURL(new URL("/", baseURL).href);
+  release();
+
+  // 홈 counts the answer once its write lands, without a reload.
+  await expect(today(1)).toBeVisible({ timeout: 15_000 });
+  const reviews = await phone.from("reviews").select("card_id");
+  expect(reviews.data).toHaveLength(1);
+});
+
 test("a user with no deck is invited to make one, and the theme they choose survives a reload", async ({
   page,
   context,

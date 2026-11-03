@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { Skeleton, SkeletonLine } from "@/design/skeleton";
+import { StudyStateRead } from "@/features/study";
 
 import { Notes } from "./_components/notes";
 
@@ -20,7 +21,9 @@ export default function NotesPage() {
         </Skeleton>
       }
     >
-      <Notes />
+      <StudyStateRead>
+        <Notes />
+      </StudyStateRead>
     </Suspense>
   );
 }
