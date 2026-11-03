@@ -3,7 +3,7 @@
 -- draft served to admins only, tried by id, and applied to everyone; a key in use kept; a recent
 -- sign-in required to remove a key; every write recorded; and no client reaching any of it.
 begin;
-select plan(58);
+select plan(59);
 
 delete from private.admin_audit;
 
