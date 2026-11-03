@@ -145,7 +145,6 @@ void main() {
     (tester) async {
       final screens = await openTable(tester);
       await select(screens, 2);
-      expect(tester.widget<TextField>(_cell(2)).focusNode, isNull);
       await tester.enterText(_cell(2), 'France');
       expect(
         tester.widget<TextField>(_cell(2)).textInputAction,
@@ -203,17 +202,21 @@ void main() {
       await select(screens, 10);
       await toggleBlank(screens);
 
-      // Row 1 holds text: it asks first, and cancelling keeps it.
+      // Row 1 holds text: it goes at once, asking nothing, and "Undo" puts
+      // it back where it was, its blank with it (#622).
       await select(screens, 3);
       await remove(screens, 'Delete row 1');
-      expect(shownText('Delete row 1?'), findsOneWidget);
-      await screens.tap(find.text('Cancel'));
+      expect(shownText('Delete row 1?'), findsNothing, reason: 'no question');
+      expect(find.text('Row 1 deleted'), findsOneWidget);
+      expect(tester.widget<TextField>(_cell(3)).controller!.text, 'Japan');
+      await screens.tap(find.text('Undo'));
       expect(tester.widget<TextField>(_cell(3)).controller!.text, 'France');
+      expect(tester.widget<TextField>(_cell(7)).controller!.text, 'Tokyo');
+      await select(screens, 3);
       await remove(screens, 'Delete row 1');
-      await screens.tap(find.text('Delete').last);
       await select(screens, 0);
       await remove(screens, 'Delete column 1');
-      await screens.tap(find.text('Delete').last);
+      expect(find.text('Column 1 deleted'), findsOneWidget);
       await save(screens);
       expect(
         (await _stored(screens)).front.last,
@@ -250,9 +253,9 @@ void main() {
       await tap(screens, find.text('Add row'));
       await tap(screens, find.byTooltip('Delete'));
       expect(
-        item('Delete row 1').enabled,
+        item('Delete row 2').enabled,
         isTrue,
-        reason: 'control: with two rows, either can go',
+        reason: 'control: with two rows, either can go; the new one selected',
       );
       await screens.close();
     },
@@ -692,4 +695,27 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'Add row and Add column put the focus in what they add, a new column scrolled sideways into view (#622)',
+    (tester) async {
+      final screens = await openTable(tester);
+      await tap(screens, find.text('Add row'));
+      // Two headings, then three rows of two cells: the new row starts at 6.
+      expect(hasFocus(tester, _cell(6)), isTrue, reason: 'its first cell');
+      for (var columns = 3; columns <= 5; columns++) {
+        await tap(screens, find.text('Add column'));
+        expect(
+          hasFocus(tester, _cell(columns - 1)),
+          isTrue,
+          reason: 'column $columns heading',
+        );
+        expect(
+          inView(tester, _cell(columns - 1)),
+          isTrue,
+          reason: 'column $columns is on screen',
+        );
+      }
+    },
+  );
 }

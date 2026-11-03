@@ -4,6 +4,7 @@ import '../../design/app_button.dart';
 import '../../design/app_chip.dart';
 import '../../design/app_text_field.dart';
 import '../../design/theme.dart';
+import '../../design/undo_snack_bar.dart';
 import '../../l10n/app_localizations.dart';
 import 'content.dart';
 import 'editor_group.dart';
@@ -40,6 +41,10 @@ class SenseDraft {
   /// The label field's focus, which shows the presets above the keyboard.
   final labelFocus = FocusNode();
 
+  /// The meaning field's focus, which a new sense and the 단어 field's next
+  /// key move to.
+  final meaningFocus = FocusNode();
+
   /// Whether the sense opened with examples, so their field is shown.
   final bool hasExamples;
 
@@ -67,6 +72,7 @@ class SenseDraft {
     meaning.dispose();
     examples.dispose();
     labelFocus.dispose();
+    meaningFocus.dispose();
   }
 
   /// [labels] as the label field shows them, one space apart.
@@ -93,14 +99,23 @@ class SenseFields extends StatelessWidget {
   /// Called after every change to [senses], which this widget makes in place.
   final VoidCallback onChanged;
 
-  void _act(int index, RowAction action) {
+  void _act(BuildContext context, int index, RowAction action) {
     switch (action) {
       case RowAction.up:
         senses.insert(index - 1, senses.removeAt(index));
       case RowAction.down:
         senses.insert(index + 1, senses.removeAt(index));
       case RowAction.delete:
-        senses.removeAt(index).dispose();
+        final removed = senses.removeAt(index);
+        showUndoSnackBar(
+          context,
+          message: AppLocalizations.of(context).deletedSense,
+          onUndo: () {
+            senses.insert(index.clamp(0, senses.length), removed);
+            onChanged();
+          },
+          onGone: removed.dispose,
+        );
     }
     onChanged();
   }
@@ -123,7 +138,7 @@ class SenseFields extends StatelessWidget {
             showError: showErrors && sense.isBlank,
             canMoveUp: index > 0,
             canMoveDown: index < senses.length - 1,
-            onAction: (action) => _act(index, action),
+            onAction: (action) => _act(context, index, action),
             onChanged: onChanged,
           ),
         ],
@@ -132,8 +147,13 @@ class SenseFields extends StatelessWidget {
           semanticsLabel: l10n.addSense,
           color: AppColors.of(context).ink2,
           onPressed: () {
-            senses.add(SenseDraft());
+            final sense = SenseDraft();
+            senses.add(sense);
             onChanged();
+            // Once its field is built; the focus scrolls it into view.
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => sense.meaningFocus.requestFocus(),
+            );
           },
         ),
       ],
@@ -240,6 +260,7 @@ class _SenseRow extends StatelessWidget {
                   child: AppTextField(
                     hint: meaning,
                     controller: sense.meaning,
+                    focusNode: sense.meaningFocus,
                     maxLines: null,
                     errorText: !showError
                         ? null
@@ -250,13 +271,29 @@ class _SenseRow extends StatelessWidget {
                   ),
                 ),
                 if (sense.hasExamples)
-                  AppTextField(
-                    label: l10n.senseExamples,
-                    hint: l10n.senseExamplesHint,
-                    controller: sense.examples,
-                    minLines: 1,
-                    maxLines: null,
-                    onChanged: (_) => onChanged(),
+                  MergeSemantics(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: AppSpace.s8,
+                      children: [
+                        // Inset as the field's text is: the group's fields
+                        // draw no border for a label to line up with.
+                        Padding(
+                          padding: const EdgeInsets.only(left: AppSpace.s20),
+                          child: Text(
+                            l10n.senseExamples,
+                            style: AppType.section.copyWith(color: colors.ink2),
+                          ),
+                        ),
+                        AppTextField(
+                          hint: l10n.senseExamplesHint,
+                          controller: sense.examples,
+                          minLines: 1,
+                          maxLines: null,
+                          onChanged: (_) => onChanged(),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             ),

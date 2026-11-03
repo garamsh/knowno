@@ -98,8 +98,17 @@ void main() {
       await tester.pumpAndSettle();
       const keyboardTop = 844.0 - 336;
       expect(
-        MediaQuery.viewInsetsOf(tester.element(find.byType(Scaffold).last))
-            .bottom,
+        // The editor's own scaffold, over the form's, which takes no inset.
+        MediaQuery.viewInsetsOf(
+          tester.element(
+            find
+                .descendant(
+                  of: find.byType(CardEditorScreen),
+                  matching: find.byType(Scaffold),
+                )
+                .first,
+          ),
+        ).bottom,
         336,
         reason: 'the setup: the keyboard is up',
       );

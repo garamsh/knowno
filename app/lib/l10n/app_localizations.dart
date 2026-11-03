@@ -398,6 +398,24 @@ abstract class AppLocalizations {
   /// **'사진 찍기'**
   String get imageFromCamera;
 
+  /// In a photo block of the card editor holding a photo: the button that picks another photo from the album in its place, keeping the blanks.
+  ///
+  /// In ko, this message translates to:
+  /// **'다른 사진 고르기'**
+  String get imagePickAnother;
+
+  /// In a photo block of the card editor holding a photo: the button that takes a new photo in its place, keeping the blanks.
+  ///
+  /// In ko, this message translates to:
+  /// **'다시 찍기'**
+  String get imageRetake;
+
+  /// In a photo block of the card editor holding a photo: the button that deletes the photo and its blanks from the block, offering an undo.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 삭제'**
+  String get imageRemove;
+
   /// In an image block of the card editor: shown when the picked photo, the camera or the photo library could not be read.
   ///
   /// In ko, this message translates to:
@@ -530,10 +548,10 @@ abstract class AppLocalizations {
   /// **'다른 파일 고르기'**
   String get audioPickAnother;
 
-  /// In a sound block of the card editor holding a sound: the button that takes the sound out of the block.
+  /// In a sound block of the card editor holding a sound: the button that deletes the sound from the block, offering an undo.
   ///
   /// In ko, this message translates to:
-  /// **'소리 빼기'**
+  /// **'소리 삭제'**
   String get audioRemove;
 
   /// In a sound block of the card editor while recording: the button that stops recording and keeps it.
@@ -632,29 +650,59 @@ abstract class AppLocalizations {
   /// **'빈칸'**
   String get tableBlankToggle;
 
-  /// The table toolbar's button that removes the selected cell's row or column, and the final button of the question it may ask.
+  /// The action of the snack bar shown after a delete in the card editor, which puts back what was deleted.
+  ///
+  /// In ko, this message translates to:
+  /// **'되돌리기'**
+  String get undo;
+
+  /// Snack bar after a block of the card editor is deleted, with an undo.
+  ///
+  /// In ko, this message translates to:
+  /// **'칸을 삭제했어요'**
+  String get deletedBlock;
+
+  /// Snack bar after a meaning of a 단어 block is deleted, with an undo.
+  ///
+  /// In ko, this message translates to:
+  /// **'뜻을 삭제했어요'**
+  String get deletedSense;
+
+  /// Snack bar after a blank on a photo is deleted, with an undo.
+  ///
+  /// In ko, this message translates to:
+  /// **'빈칸을 삭제했어요'**
+  String get deletedBox;
+
+  /// Snack bar after a photo block's photo is deleted, with an undo.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진을 삭제했어요'**
+  String get deletedImage;
+
+  /// Snack bar after a sound block's sound is deleted, with an undo.
+  ///
+  /// In ko, this message translates to:
+  /// **'소리를 삭제했어요'**
+  String get deletedAudio;
+
+  /// Snack bar after a row of a 표 block is deleted, with an undo.
+  ///
+  /// In ko, this message translates to:
+  /// **'{row}행을 삭제했어요'**
+  String deletedRow(int row);
+
+  /// Snack bar after a column of a 표 block is deleted, with an undo.
+  ///
+  /// In ko, this message translates to:
+  /// **'{column}열을 삭제했어요'**
+  String deletedColumn(int column);
+
+  /// The table toolbar's button that opens the menu removing the selected cell's row or column.
   ///
   /// In ko, this message translates to:
   /// **'삭제'**
   String get tableRemove;
-
-  /// Question asked before removing a row of a 표 block that holds text.
-  ///
-  /// In ko, this message translates to:
-  /// **'{row}행을 삭제할까요?'**
-  String tableRemoveRowTitle(int row);
-
-  /// Question asked before removing a column of a 표 block that holds text.
-  ///
-  /// In ko, this message translates to:
-  /// **'{column}열을 삭제할까요?'**
-  String tableRemoveColumnTitle(int column);
-
-  /// The one sentence of the question asked before removing a row or column of a 표 block that holds text.
-  ///
-  /// In ko, this message translates to:
-  /// **'그 줄에 적은 내용도 함께 삭제돼요.'**
-  String get tableRemoveBody;
 
   /// What a screen reader reads for a column's header field in a 표 block.
   ///

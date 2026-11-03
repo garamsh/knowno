@@ -9,9 +9,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../design/app_button.dart';
 import '../../design/app_text_field.dart';
 import '../../design/theme.dart';
+import '../../design/undo_snack_bar.dart';
 import '../../l10n/app_localizations.dart';
 import '../../media/media.dart';
 import 'content.dart';
+import 'editor_group.dart';
 
 /// The size [image] is drawn at inside [bound]: whole, at its own aspect
 /// ratio, as large as fits (`contain`), never cropped (ADR 0109).
@@ -181,6 +183,9 @@ class ImageDraft {
   /// The box selected for the tools, by its index; null while none is.
   int? selected;
 
+  /// The selected box's answer field's focus, which a box just added takes.
+  final answerFocus = FocusNode();
+
   /// The photo and its boxes as typed so far, each answer trimmed and left
   /// out while empty; null until a photo is chosen.
   ImageContent? get image => switch (_image) {
@@ -202,12 +207,32 @@ class ImageDraft {
   TextEditingController answerOf(ImageBox box) =>
       _answers[box.id] ??= TextEditingController();
 
-  /// Takes the photo [picked] stored as [media], with no box.
+  /// Takes the photo [picked] stored as [media], keeping the boxes of the
+  /// one it replaces, which are fractions of the photo.
   void choose(MediaId media, PreparedImage picked) => _image = ImageContent(
     media: media,
     width: picked.width,
     height: picked.height,
-  );
+  ).withBoxes(boxes);
+
+  /// Takes out the photo and its boxes, and returns what puts them back.
+  Removal clear() {
+    final (image, answers) = (_image, {..._answers});
+    _image = null;
+    _answers.clear();
+    selected = null;
+    return (
+      undo: () {
+        _image = image;
+        _answers.addAll(answers);
+      },
+      forget: () {
+        for (final answer in answers.values) {
+          answer.dispose();
+        }
+      },
+    );
+  }
 
   /// Adds a box at [x], [y] of [w] by [h] and selects it. Its id is one more
   /// than the highest number among the block's box ids, so it is unique in
@@ -248,13 +273,23 @@ class ImageDraft {
     ),
   );
 
-  /// Removes the box at [index] and its answer.
-  void remove(int index) {
-    final image = _image;
-    if (image == null) return;
-    _answers.remove(image.boxes[index].id)?.dispose();
+  /// Removes the box at [index] and its answer, and returns what puts them
+  /// back.
+  Removal remove(int index) {
+    final image = _image!;
+    final box = image.boxes[index];
+    final answer = _answers.remove(box.id);
     _image = image.withBoxes([...image.boxes]..removeAt(index));
     selected = null;
+    return (
+      undo: () {
+        final now = _image;
+        if (now == null) return;
+        if (answer != null) _answers[box.id] = answer;
+        _image = now.withBoxes([...now.boxes]..insert(index, box));
+      },
+      forget: () => answer?.dispose(),
+    );
   }
 
   void _replace(int index, ImageBox Function(ImageBox box) change) {
@@ -282,6 +317,7 @@ class ImageDraft {
   }
 
   void dispose() {
+    answerFocus.dispose();
     for (final answer in _answers.values) {
       answer.dispose();
     }
@@ -316,7 +352,9 @@ class ImageBlockFields extends ConsumerStatefulWidget {
 }
 
 class _ImageBlockFieldsState extends ConsumerState<ImageBlockFields> {
-  var _busy = false;
+  /// Where the photo being picked and stored comes from; null while none is.
+  ImageOrigin? _picking;
+  bool get _busy => _picking != null;
   var _unreadable = false;
 
   /// The box a drag over the photo is drawing, from where it started to
@@ -332,7 +370,7 @@ class _ImageBlockFieldsState extends ConsumerState<ImageBlockFields> {
 
   Future<void> _pick(ImageOrigin origin) async {
     setState(() {
-      _busy = true;
+      _picking = origin;
       _unreadable = false;
     });
     // Read before the waits: a pick can end after the editor is left.
@@ -353,9 +391,41 @@ class _ImageBlockFieldsState extends ConsumerState<ImageBlockFields> {
     } on MediaUnreadable {
       if (mounted) setState(() => _unreadable = true);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _picking = null);
     }
   }
+
+  /// Adds a box as [add] does, then puts the focus in its answer, which
+  /// scrolls it into view, as typing it is the next step.
+  void _addBox(VoidCallback add) {
+    _change(add);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _draft.answerFocus.requestFocus();
+    });
+  }
+
+  /// Takes out what [remove] does at once, saying [message] with an undo.
+  void _removeNow(Removal Function() remove, String message) {
+    late final Removal removal;
+    _change(() => removal = remove());
+    showUndoSnackBar(
+      context,
+      message: message,
+      onUndo: () {
+        if (mounted) _change(removal.undo);
+      },
+      onGone: removal.forget,
+    );
+  }
+
+  /// A button that picks a photo from [origin], showing progress while that
+  /// pick is stored.
+  Widget _pickButton(String label, ImageOrigin origin) => AppButton(
+    label: label,
+    variant: AppButtonVariant.secondary,
+    loading: _picking == origin,
+    onPressed: _busy ? null : () => _pick(origin),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -372,18 +442,10 @@ class _ImageBlockFieldsState extends ConsumerState<ImageBlockFields> {
             spacing: AppSpace.s8,
             children: [
               Expanded(
-                child: AppButton(
-                  label: l10n.imageFromAlbum,
-                  variant: AppButtonVariant.secondary,
-                  onPressed: _busy ? null : () => _pick(ImageOrigin.album),
-                ),
+                child: _pickButton(l10n.imageFromAlbum, ImageOrigin.album),
               ),
               Expanded(
-                child: AppButton(
-                  label: l10n.imageFromCamera,
-                  variant: AppButtonVariant.secondary,
-                  onPressed: _busy ? null : () => _pick(ImageOrigin.camera),
-                ),
+                child: _pickButton(l10n.imageFromCamera, ImageOrigin.camera),
               ),
             ],
           ),
@@ -420,7 +482,7 @@ class _ImageBlockFieldsState extends ConsumerState<ImageBlockFields> {
         AppButton(
           label: l10n.imageAddBox,
           variant: AppButtonVariant.secondary,
-          onPressed: () => _change(
+          onPressed: () => _addBox(
             () => _draft.add(
               x: _newBox.x,
               y: _newBox.y,
@@ -431,6 +493,28 @@ class _ImageBlockFieldsState extends ConsumerState<ImageBlockFields> {
         ),
         if (selected != null && selected < _draft.boxes.length)
           _tools(context, selected),
+        Row(
+          spacing: AppSpace.s8,
+          children: [
+            Expanded(
+              child: _pickButton(l10n.imagePickAnother, ImageOrigin.album),
+            ),
+            Expanded(child: _pickButton(l10n.imageRetake, ImageOrigin.camera)),
+          ],
+        ),
+        AppButton(
+          label: l10n.imageRemove,
+          variant: AppButtonVariant.secondary,
+          onPressed: _busy
+              ? null
+              : () => _removeNow(_draft.clear, l10n.deletedImage),
+        ),
+        Semantics(
+          liveRegion: true,
+          child: _unreadable
+              ? Text(l10n.imageUnreadable, style: error)
+              : const SizedBox.shrink(),
+        ),
       ],
     );
   }
@@ -493,7 +577,7 @@ class _ImageBlockFieldsState extends ConsumerState<ImageBlockFields> {
           if (drawn == null) return;
           final rect = Rect.fromPoints(drawn.start, drawn.end);
           if (rect.width < _minSide || rect.height < _minSide) return;
-          _change(
+          _addBox(
             () => _draft.add(
               x: rect.left,
               y: rect.top,
@@ -664,6 +748,7 @@ class _ImageBlockFieldsState extends ConsumerState<ImageBlockFields> {
           key: ObjectKey(box.id),
           label: l10n.imageBoxAnswer,
           controller: _draft.answerOf(box),
+          focusNode: _draft.answerFocus,
           onChanged: (_) => widget.onChanged(),
         ),
         Wrap(
@@ -697,7 +782,8 @@ class _ImageBlockFieldsState extends ConsumerState<ImageBlockFields> {
         AppButton(
           label: l10n.imageBoxDelete,
           variant: AppButtonVariant.secondary,
-          onPressed: () => _change(() => _draft.remove(index)),
+          onPressed: () =>
+              _removeNow(() => _draft.remove(index), l10n.deletedBox),
         ),
       ],
     );

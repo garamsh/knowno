@@ -69,6 +69,13 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
 
   bool _showRequired = false;
 
+  /// The form's own snack bars, an undo among them.
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
+
+  /// The line under the column saying why the card as a whole cannot be
+  /// saved.
+  final _cardProblemKey = GlobalKey();
+
   bool get _isNew => widget.card == null;
 
   /// Whether anything was typed or chosen since the editor opened or last
@@ -171,8 +178,16 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   };
 
   Future<void> _save(_AfterSave after, {bool allowDuplicate = false}) async {
+    // A recording under way is ended and kept, rather than left out.
+    for (final block in [..._blocks]) {
+      if (block case AudioBlockDraft(:final audio)) {
+        await audio.stopRecording?.call();
+      }
+    }
+    if (!mounted) return;
     if (!_blocksComplete || frameProblem(_cells) != null) {
       setState(() => _showRequired = true);
+      _revealProblem();
       return;
     }
     final repository = ref.read(deckRepositoryProvider);
@@ -204,6 +219,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         case (CardSaved(), _AfterSave.close):
           Navigator.of(context).pop();
         case (CardSaved(), _AfterSave.next):
+          // An undo would put a 칸 of the saved card in the next one.
+          _messenger.currentState?.hideCurrentSnackBar();
           setState(() {
             for (final block in _blocks) {
               block.dispose();
@@ -220,6 +237,22 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       }
     });
   }
+
+  /// Once the errors are built, scrolls to the first block that cannot be
+  /// saved and puts the focus in the field to blame, or, with none, closes
+  /// the keyboard; with every block complete, scrolls to the card's own
+  /// error under the column.
+  void _revealProblem() => WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!mounted) return;
+    final block = _blocks.where((block) => !block.isComplete).firstOrNull;
+    final shown = (block?.key ?? _cardProblemKey).currentContext;
+    if (shown != null) Scrollable.ensureVisible(shown);
+    if (block?.problem case final field?) {
+      field.requestFocus();
+    } else {
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
+  });
 
   Future<void> _resolveDuplicate(Card existing, _AfterSave after) async {
     final choice = await showAppSheet<_DuplicateChoice>(
@@ -314,49 +347,61 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         body: Column(
           children: [
             Expanded(
-              // A column, not a lazy list, so every block is built and its
-              // error shows wherever it scrolls.
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSpace.gutter),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // The deck, in the form rather than the top bar, where a
-                    // long name pushed the title out (issue #310).
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpace.s4,
-                      ),
-                      child: Text(
-                        widget.deck.name,
-                        semanticsLabel: l10n.cardDeck(widget.deck.name),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppType.caption.copyWith(color: colors.muted),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpace.s20),
-                    BlockList(
-                      blocks: _blocks,
-                      showErrors: _showRequired,
-                      error: _showRequired && _blocksComplete
-                          ? _cardProblem(l10n)
-                          : null,
-                      onChanged: _change,
-                      onMediaStored: _mediaStored,
-                    ),
-                    if (card != null) ...[
-                      const SizedBox(height: AppSpace.sectionGap),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: AppButton(
-                          label: l10n.deleteCard,
-                          variant: AppButtonVariant.destructive,
-                          onPressed: () => _delete(card),
+              // The form's own snack bars, an undo among them, which sit
+              // over its foot rather than over the actions, and go with
+              // the editor.
+              child: ScaffoldMessenger(
+                key: _messenger,
+                child: Scaffold(
+                  resizeToAvoidBottomInset: false,
+                  // A column, not a lazy list, so every block is built and its
+                  // error shows wherever it scrolls.
+                  body: SingleChildScrollView(
+                    padding: const EdgeInsets.all(AppSpace.gutter),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // The deck, in the form rather than the top bar, where a
+                        // long name pushed the title out (issue #310).
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpace.s4,
+                          ),
+                          child: Text(
+                            widget.deck.name,
+                            semanticsLabel: l10n.cardDeck(widget.deck.name),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppType.caption.copyWith(
+                              color: colors.muted,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ],
+                        const SizedBox(height: AppSpace.s20),
+                        BlockList(
+                          blocks: _blocks,
+                          showErrors: _showRequired,
+                          error: _showRequired && _blocksComplete
+                              ? _cardProblem(l10n)
+                              : null,
+                          errorKey: _cardProblemKey,
+                          onChanged: _change,
+                          onMediaStored: _mediaStored,
+                        ),
+                        if (card != null) ...[
+                          const SizedBox(height: AppSpace.sectionGap),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: AppButton(
+                              label: l10n.deleteCard,
+                              variant: AppButtonVariant.destructive,
+                              onPressed: () => _delete(card),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

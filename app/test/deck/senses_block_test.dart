@@ -549,4 +549,78 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    "the Word field's action key is next and goes on to the meaning (#622)",
+    (tester) async {
+      await openNew(tester);
+      await tester.tap(_term());
+      await tester.pumpAndSettle();
+      final term = tester.widget<EditableText>(
+        find.descendant(of: _term(), matching: find.byType(EditableText)),
+      );
+      expect(term.textInputAction, TextInputAction.next);
+      await tester.testTextInput.receiveAction(TextInputAction.next);
+      await tester.pumpAndSettle();
+      expect(hasFocus(tester, _back('Meaning')), isTrue);
+    },
+  );
+
+  testWidgets(
+    '+ 뜻 추가 puts the focus in the new meaning, and deleting a meaning offers Undo, which puts it back where it was (#622)',
+    (tester) async {
+      final screens = await openNew(tester);
+      await typeInto(tester, _back('Meaning'), '사과');
+      await tapVisible(screens, find.bySemanticsLabel('Add meaning'));
+      expect(hasFocus(tester, _back('Meaning 2')), isTrue);
+      expect(inView(tester, _back('Meaning 2')), isTrue);
+      await typeInto(tester, _back('Meaning 2'), '능금');
+
+      await tapVisible(screens, find.byTooltip('Meaning 1 menu'));
+      await screens.tap(find.text('Delete').last);
+      expect(find.text('Meaning deleted'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '사과'), findsNothing);
+      await screens.tap(find.text('Undo'));
+      expect(
+        tester.widget<TextField>(_back('Meaning 1')).controller!.text,
+        '사과',
+        reason: 'back first, as it was',
+      );
+      expect(
+        tester.widget<TextField>(_back('Meaning 2')).controller!.text,
+        '능금',
+      );
+    },
+  );
+
+  testWidgets(
+    "a meaning's Examples label starts where the field's text does, not at the field's unbordered edge",
+    (tester) async {
+      final screens = await DeckScreens.open(tester);
+      await tester.runAsync(
+        () => screens.repository.addCard(
+          screens.deck.id,
+          front: [const TextContent('face')],
+          back: const [
+            SensesContent([
+              CardSense(labels: [_noun], meaning: '얼굴', examples: ['a face']),
+            ]),
+          ],
+        ),
+      );
+      await openCard(screens, await _stored(screens));
+      final examples = find.widgetWithText(TextField, 'a face');
+      expect(
+        tester.getTopLeft(find.text('Examples')).dx,
+        tester
+            .getTopLeft(
+              find.descendant(
+                of: examples,
+                matching: find.byType(EditableText),
+              ),
+            )
+            .dx,
+      );
+    },
+  );
 }

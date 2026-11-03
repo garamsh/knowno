@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_button.dart';
 import '../../design/theme.dart';
+import '../../design/undo_snack_bar.dart';
 import '../../l10n/app_localizations.dart';
 import '../../media/media.dart';
 import 'content.dart';
@@ -79,7 +80,14 @@ class AudioDraft {
   AudioDraft([this.audio]);
 
   AudioContent? audio;
+
+  /// Ends the recording under way and puts it in the block; null while the
+  /// block records nothing, so saving can keep what was recorded.
+  Future<void> Function()? stopRecording;
 }
+
+/// What a sound block's fields are doing for the user, shown on its button.
+enum _Work { record, pick }
 
 /// Why a sound block's fields show a line under them.
 enum _Problem { unreadable, tooLarge, microphone }
@@ -111,7 +119,7 @@ class RecordingBlock extends Notifier<Object?> {
 /// A sound block's fields: "녹음하기" and "파일에서 고르기" until a sound is
 /// in it; while recording, the time so far against the limit and
 /// "녹음 끝내기", which the limit presses itself; then the sound's play
-/// control and length, "다시 녹음", "다른 파일 고르기" and "소리 빼기"
+/// control and length, "다시 녹음", "다른 파일 고르기" and "소리 삭제"
 /// (ADR 0112). The microphone is asked for on the first recording alone.
 class AudioBlockFields extends ConsumerStatefulWidget {
   const AudioBlockFields({
@@ -135,7 +143,9 @@ class AudioBlockFields extends ConsumerStatefulWidget {
 }
 
 class _AudioBlockFieldsState extends ConsumerState<AudioBlockFields> {
-  var _busy = false;
+  /// The recording or pick being started or stored; null while none is.
+  _Work? _working;
+  bool get _busy => _working != null;
   _Problem? _problem;
 
   /// The whole seconds the recording under way has run; null while none is.
@@ -153,6 +163,7 @@ class _AudioBlockFieldsState extends ConsumerState<AudioBlockFields> {
 
   @override
   void dispose() {
+    widget.draft.stopRecording = null;
     _tick?.cancel();
     if (_recorded != null) unawaited(_recording.cancel());
     _recorder.release(this);
@@ -162,7 +173,7 @@ class _AudioBlockFieldsState extends ConsumerState<AudioBlockFields> {
   Future<void> _record() async {
     if (!_recorder.claim(this)) return;
     setState(() {
-      _busy = true;
+      _working = _Work.record;
       _problem = null;
     });
     try {
@@ -172,6 +183,7 @@ class _AudioBlockFieldsState extends ConsumerState<AudioBlockFields> {
         return;
       }
       setState(() => _recorded = 0);
+      widget.draft.stopRecording = _stopRecording;
       _tick = Timer.periodic(const Duration(seconds: 1), (_) {
         final recorded = (_recorded ?? 0) + 1;
         setState(() => _recorded = recorded);
@@ -185,23 +197,24 @@ class _AudioBlockFieldsState extends ConsumerState<AudioBlockFields> {
     } finally {
       // A recording under way keeps the recorder.
       if (_recorded == null) _recorder.release(this);
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _working = null);
     }
   }
 
   Future<void> _stopRecording() async {
     _tick?.cancel();
+    widget.draft.stopRecording = null;
     if (_recorded == null) return;
     setState(() {
       _recorded = null;
-      _busy = true;
+      _working = _Work.record;
     });
     await _store(_recording.stop);
   }
 
   Future<void> _pick() async {
     setState(() {
-      _busy = true;
+      _working = _Work.pick;
       _problem = null;
     });
     await _store(ref.read(audioPickProvider).pick);
@@ -234,14 +247,40 @@ class _AudioBlockFieldsState extends ConsumerState<AudioBlockFields> {
       if (mounted) setState(() => _problem = _Problem.unreadable);
     } finally {
       _recorder.release(this);
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _working = null);
     }
   }
 
+  /// Deletes the sound at once, and offers to put it back.
   void _remove() {
+    final sound = widget.draft.audio;
     setState(() => widget.draft.audio = null);
     widget.onChanged();
+    showUndoSnackBar(
+      context,
+      message: AppLocalizations.of(context).deletedAudio,
+      onUndo: () {
+        if (!mounted) return;
+        setState(() => widget.draft.audio = sound);
+        widget.onChanged();
+      },
+    );
   }
+
+  /// A button that starts [work], showing progress while a file it picked is
+  /// stored.
+  Widget _button(String label, _Work work, {required bool enabled}) =>
+      AppButton(
+        label: label,
+        variant: AppButtonVariant.secondary,
+        loading: work == _Work.pick && _working == work,
+        onPressed: !enabled || _busy
+            ? null
+            : switch (work) {
+                _Work.record => _record,
+                _Work.pick => _pick,
+              },
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -288,17 +327,17 @@ class _AudioBlockFieldsState extends ConsumerState<AudioBlockFields> {
             spacing: AppSpace.s8,
             children: [
               Expanded(
-                child: AppButton(
-                  label: l10n.audioRecordAgain,
-                  variant: AppButtonVariant.secondary,
-                  onPressed: _busy || recorderTaken ? null : _record,
+                child: _button(
+                  l10n.audioRecordAgain,
+                  _Work.record,
+                  enabled: !recorderTaken,
                 ),
               ),
               Expanded(
-                child: AppButton(
-                  label: l10n.audioPickAnother,
-                  variant: AppButtonVariant.secondary,
-                  onPressed: _busy ? null : _pick,
+                child: _button(
+                  l10n.audioPickAnother,
+                  _Work.pick,
+                  enabled: true,
                 ),
               ),
             ],
@@ -313,18 +352,14 @@ class _AudioBlockFieldsState extends ConsumerState<AudioBlockFields> {
             spacing: AppSpace.s8,
             children: [
               Expanded(
-                child: AppButton(
-                  label: l10n.audioRecord,
-                  variant: AppButtonVariant.secondary,
-                  onPressed: _busy || recorderTaken ? null : _record,
+                child: _button(
+                  l10n.audioRecord,
+                  _Work.record,
+                  enabled: !recorderTaken,
                 ),
               ),
               Expanded(
-                child: AppButton(
-                  label: l10n.audioPick,
-                  variant: AppButtonVariant.secondary,
-                  onPressed: _busy ? null : _pick,
-                ),
+                child: _button(l10n.audioPick, _Work.pick, enabled: true),
               ),
             ],
           ),
