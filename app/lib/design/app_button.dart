@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_raised.dart';
 import 'theme.dart';
+import 'word_break.dart';
 
 /// What a button does, which decides how prominent it is.
 enum AppButtonVariant {
@@ -127,10 +128,20 @@ class AppButton extends StatelessWidget {
               spacing: AppSpace.s8,
               children: [
                 Icon(icon, size: AppSize.smallIcon),
-                Flexible(child: Text(label, textAlign: TextAlign.center)),
+                Flexible(
+                  child: Text(
+                    keepWords(label),
+                    semanticsLabel: label,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ],
             ),
-            null => Text(label, textAlign: TextAlign.center),
+            null => Text(
+              keepWords(label),
+              semanticsLabel: label,
+              textAlign: TextAlign.center,
+            ),
           };
     final edge = switch (variant) {
       _ when pressed == null => null,

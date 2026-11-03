@@ -11,6 +11,7 @@ import '../../design/app_list_row.dart';
 import '../../design/bottom_actions.dart';
 import '../../design/app_sheet.dart';
 import '../../design/theme.dart';
+import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'daily_minutes.dart';
 import 'failure.dart';
@@ -600,7 +601,11 @@ class _Tile extends StatelessWidget {
           children: [
             if (title != null)
               Text(title, style: AppType.caption.copyWith(color: colors.ink2)),
-            Text(value, style: AppType.bodyStrong),
+            Text(
+              keepWords(value),
+              semanticsLabel: value,
+              style: AppType.bodyStrong,
+            ),
           ],
         ),
       ),
