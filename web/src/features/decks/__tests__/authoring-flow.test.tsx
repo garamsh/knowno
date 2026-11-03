@@ -761,7 +761,7 @@ describe("photo import", () => {
         "a note has no meanings",
       ).not.toBeInTheDocument();
       const named = [sheet, ...sheet.querySelectorAll("*")].map(
-        (element) => `${element.textContent ?? ""} ${element.getAttribute("aria-label") ?? ""}`,
+        (element) => `${element.textContent} ${element.getAttribute("aria-label") ?? ""}`,
       );
       expect(named.filter((text) => text.includes("블록"))).toEqual([]);
       await userEvent.clear(within(sheet).getByRole("textbox", { name: "뒷면" }));
