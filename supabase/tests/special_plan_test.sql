@@ -144,13 +144,13 @@ select results_eq($$select * from pg_temp.allowance('a')$$, $$values (null::inte
   'so does an admin');
 reset role;
 select results_eq(
-  $$select p.proname::text from pg_proc as p
+  $$select p.proname::text collate "default" from pg_proc as p
     where p.pronamespace = 'public'::regnamespace
       and has_function_privilege('authenticated', p.oid, 'execute')
       and p.prosrc ~ '(user_plans|plan_versions|entitlement_of|ai_configuration)'
       and p.proname !~ '^admin_'
     order by 1$$,
-  $$values ('extraction_allowance')$$,
+  $$values ('extraction_allowance'::text collate "default")$$,
   'the one user-facing function that reads a plan is the allowance, which answers no plan');
 select ok(
   (select count(*) from pg_proc as p
