@@ -1470,7 +1470,7 @@ void main() {
       await open(card);
       await shot(tester, '05x-card-editor-each-kan');
       tester.view.physicalSize = size;
-      // A 칸 deleted, with its undo above the actions (ADR 0173).
+      // A 칸 deleted, with its undo above the actions (ADR 0174).
       await open(card);
       await tap(tester, find.byTooltip(ko.blockMenu(1)));
       await tap(tester, find.text(ko.deleteBlock).last);

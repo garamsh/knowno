@@ -1,6 +1,6 @@
 # ADR 0112: Store an audio block by media id and length, up to 60 seconds, and play the front's sound once as a study card appears
 
-> Status: accepted; its copy keeping the owner's media id refined by ADR-0113; its "소리 빼기" superseded by [ADR 0173](0173-undo-every-delete-in-the-card-editor-focus-what-an-add-makes-and-show-what-a-refused-save-refuses.md)
+> Status: accepted; its copy keeping the owner's media id refined by ADR-0113; its "소리 빼기" superseded by [ADR 0174](0174-undo-every-delete-in-the-card-editor-focus-what-an-add-makes-and-show-what-a-refused-save-refuses.md)
 > Date: 2026-10-27
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

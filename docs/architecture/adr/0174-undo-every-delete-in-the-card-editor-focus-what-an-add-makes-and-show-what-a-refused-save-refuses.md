@@ -1,4 +1,4 @@
-# ADR 0173: Undo every delete in the card editor, focus what an add makes, and show what a refused save refuses
+# ADR 0174: Undo every delete in the card editor, focus what an add makes, and show what a refused save refuses
 
 > Status: accepted
 > Date: 2026-11-03
