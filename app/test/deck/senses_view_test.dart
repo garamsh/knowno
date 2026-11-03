@@ -73,13 +73,12 @@ void main() {
         CardBackRow(
           front: const [TextContent('apple')],
           back: const [_senses],
-          shown: true,
           onOpen: () {},
         ),
       );
 
       expect(
-        _drawn(find.byType(CardBackRow)).text,
+        _drawn(find.byType(CardBackRow)).text.replaceAll('\u2060', ''),
         'apple',
         reason: 'the front first',
       );
@@ -90,7 +89,9 @@ void main() {
           )
           .at(1);
       expect(
-        (back.evaluate().single.widget as RichText).text.toPlainText(),
+        (back.evaluate().single.widget as RichText).text
+            .toPlainText()
+            .replaceAll('\u2060', ''),
         '[명]사과\n[명][사물]철도 위를 다니는 긴 차\n열매',
       );
       expect(

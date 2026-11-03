@@ -66,12 +66,12 @@ const onlyGoogle = <T>(tokens: Map<string, T>) => new Map([...tokens].filter(isG
 
 describe("the web theme's colour tokens", () => {
   it("are the light tokens of app/lib/design/theme.dart", () => {
-    expect(dartColors("light").size).toBe(48);
+    expect(dartColors("light").size).toBe(50);
     expect(withoutGoogle(cssColors(lightCss))).toEqual(dartColors("light"));
   });
 
   it("are the dark tokens of app/lib/design/theme.dart, for the system's dark mode and for 다크", () => {
-    expect(dartColors("dark").size).toBe(48);
+    expect(dartColors("dark").size).toBe(50);
     expect(withoutGoogle(cssColors(systemDarkCss))).toEqual(dartColors("dark"));
     expect(withoutGoogle(cssColors(chosenDarkCss))).toEqual(dartColors("dark"));
   });
@@ -94,6 +94,18 @@ function dartGoogleColors(set: "light" | "dark"): Map<string, string> {
     ),
   );
 }
+
+describe("the card list's hatch (#629)", () => {
+  it("is AppHatch's: hatch-stripe over hatch, half of each period, at 135 degrees", () => {
+    const period = Number(/static const period = ([\d.]+);/.exec(dartClass("AppHatch"))?.[1]);
+    // Control: theme.dart states the period the app draws.
+    expect(period).toBe(12);
+    const hatch = /@utility hatch \{([^}]*)\}/.exec(globalsCss)?.[1]?.replace(/\s+/g, " ") ?? "";
+    expect(hatch).toContain(
+      `repeating-linear-gradient( 135deg, var(--color-hatch) 0 ${String(period / 2)}px, var(--color-hatch-stripe) ${String(period / 2)}px ${String(period)}px )`,
+    );
+  });
+});
 
 describe("the web's Google button tokens", () => {
   it("are GoogleButtonStyle's light colours, the guidelines' white button", () => {
@@ -292,7 +304,7 @@ describe("the web theme's size tokens", () => {
     const web = [...withoutGoogle(cssSpacing)].filter(([name]) => !namedGaps.includes(name));
     // Control: both sides read their sizes, the button's height among them.
     expect(sizes.get("button")).toBe(64);
-    expect(web.length).toBe(19);
+    expect(web.length).toBe(20);
 
     for (const [name, value] of web) {
       expect({ name, value }).toEqual({ name, value: sizes.get(name) });

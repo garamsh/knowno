@@ -9,28 +9,32 @@ const photoMaxHeight = "60dvh";
 /**
  * A photo drawn whole with the phone's one transform (ADR 0109): a frame the full width, at most
  * [photoMaxHeight] tall, at the photo's aspect ratio, the photo filling it from its signed URL
- * over the ground, which shows while it is read and where it has none, and each box over it.
+ * over the ground, which shows while it is read and where it has none, and each box over it;
+ * [marked], as a note's card list draws it, at the start of its line and at most the
+ * `listed-photo` height, and each box on the hatch, with no border and no label (#629).
  */
 export function PhotoFrame({
   image,
   revealed,
+  marked = false,
 }: {
   image: Extract<Content, { kind: "image" }>;
   revealed: boolean;
+  marked?: boolean;
 }) {
   return (
     <span
       aria-hidden
       data-image={image.media}
-      className="relative mx-auto block w-full rounded-sm bg-ground bg-cover bg-center"
+      className={`relative block w-full rounded-sm bg-ground bg-cover bg-center ${marked ? "" : "mx-auto"}`}
       style={{
         aspectRatio: `${String(image.width)} / ${String(image.height)}`,
-        maxWidth: `calc(${photoMaxHeight} * ${String(image.width)} / ${String(image.height)})`,
+        maxWidth: `calc(${marked ? "var(--spacing-listed-photo)" : photoMaxHeight} * ${String(image.width)} / ${String(image.height)})`,
         ...(image.url && { backgroundImage: `url("${image.url}")` }),
       }}
     >
       {image.boxes.map((box) => (
-        <ImageBoxMark key={box.id} box={box} revealed={revealed} />
+        <ImageBoxMark key={box.id} box={box} revealed={revealed} marked={marked} />
       ))}
     </span>
   );
@@ -44,10 +48,32 @@ function percent(fraction: number): string {
 /**
  * A box over a photo, placed in percentages of the frame, which has the photo's aspect ratio, so
  * the one transform that sizes the frame places the box (ADR 0109): an opaque fill hiding what it
- * covers, or, revealed, a border with its answer at its top left. The border, corners and label
- * stay in CSS pixels at every width.
+ * covers, or, revealed, a border with its answer at its top left; [marked], the hatch alone. The
+ * border, corners and label stay in CSS pixels at every width.
  */
-function ImageBoxMark({ box, revealed }: { box: ImageBox; revealed: boolean }) {
+function ImageBoxMark({
+  box,
+  revealed,
+  marked,
+}: {
+  box: ImageBox;
+  revealed: boolean;
+  marked: boolean;
+}) {
+  if (marked) {
+    return (
+      <span
+        data-box="marked"
+        className="absolute rounded-sm hatch"
+        style={{
+          left: percent(box.x),
+          top: percent(box.y),
+          width: percent(box.w),
+          height: percent(box.h),
+        }}
+      />
+    );
+  }
   return (
     <span
       data-box={revealed ? "revealed" : "hidden"}

@@ -32,3 +32,19 @@ bool isEmptyBlank(TextStyle style) =>
     style.backgroundColor == null &&
     style.color?.a == 0 &&
     (style.decoration?.contains(TextDecoration.underline) ?? false);
+
+/// Each blank of a card list's row drawn under [of], by its answer, in
+/// order: a span filled with the hatch's paint (#629).
+List<String> hatchedBlanksUnder(Finder of) {
+  final answers = <String>[];
+  for (final element
+      in find.descendant(of: of, matching: find.byType(RichText)).evaluate()) {
+    (element.widget as RichText).text.visitChildren((span) {
+      if (span is TextSpan && span.style?.background?.shader != null) {
+        answers.add(blankAnswer(span.text ?? ''));
+      }
+      return true;
+    });
+  }
+  return answers;
+}

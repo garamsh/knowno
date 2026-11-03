@@ -7,3 +7,8 @@ export function blanksUnder(element: HTMLElement): Record<string, boolean> {
     ]),
   );
 }
+
+/** Each blank of a card list's row under [element], by its answer, in order: those on the hatch. */
+export function hatchedBlanksUnder(element: HTMLElement): (string | null)[] {
+  return [...element.querySelectorAll('[data-blank="marked"]')].map((blank) => blank.textContent);
+}

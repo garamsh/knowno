@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/native.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/l10n/app_localizations.dart';
+import 'package:knowno/media/media.dart';
+import 'package:uuid/uuid.dart';
+
+import '../design/harness.dart';
+import '../media/fakes.dart';
+import '../word_breaks.dart';
 
 import 'whole_cards.dart';
 
 void main() {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+
   testWidgets(
     'a split row draws a cloze card as its front with its blanks filled, where a text card stays split',
     (tester) async {
@@ -54,10 +66,11 @@ void main() {
     },
   );
 
-  for (final shown in [false, true]) {
-    testWidgets('a deck row draws a long Korean cloze sentence whole on a 390 wide phone, '
-        'inside the row and broken only between words, with its blanks '
-        '${shown ? 'filled' : 'empty'} (#477)', (tester) async {
+  testWidgets(
+    'a deck row draws a long Korean cloze sentence on a 390 wide phone cut at '
+    'two lines, inside the row and broken only between words, its blanks on '
+    'the hatch (#477, #629)',
+    (tester) async {
       tester.view.physicalSize = const Size(390, 844) * 3;
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
@@ -81,7 +94,6 @@ void main() {
                     ),
                   ],
                   back: const [],
-                  shown: shown,
                   onOpen: () {},
                 ),
               ],
@@ -108,11 +120,12 @@ void main() {
         offset = whole.getLineBoundary(TextPosition(offset: offset)).end;
         ends.add(offset);
       }
-      // It wraps at this width, so a cut or a break is tested.
+      // It wraps past two lines at this width, so the cut is tested.
       expect(ends.length, greaterThan(2));
-      // Every line is laid out, and every line is inside the row.
-      expect(paragraph.didExceedMaxLines, isFalse);
-      expect(paragraph.size.height, greaterThanOrEqualTo(whole.height));
+      // The row shows its first two lines, cut with an ellipsis.
+      expect(paragraph.didExceedMaxLines, isTrue);
+      expect(paragraph.size.height, lessThan(whole.height));
+      expect(hatchedBlanksUnder(row), ['당신', '자기']);
       final text = tester.getRect(
         find.descendant(of: row, matching: find.byType(RichText)),
       );
@@ -120,15 +133,15 @@ void main() {
       expect(text.top, greaterThanOrEqualTo(bounds.top));
       expect(text.bottom, lessThanOrEqualTo(bounds.bottom));
       bool space(String char) => char == ' ' || char == ' ';
-      for (final end in ends.take(ends.length - 1)) {
-        expect(
-          space(plain[end - 1]) || space(plain[end]),
-          isTrue,
-          reason: 'a break at $end in "$plain"',
-        );
-      }
-    });
-  }
+      // The first line, the one the cut leaves whole, breaks between words.
+      final end = ends.first;
+      expect(
+        space(plain[end - 1]) || space(plain[end]),
+        isTrue,
+        reason: 'a break at $end in "$plain"',
+      );
+    },
+  );
 
   group('a whole card with a kept back', () {
     const cloze = ClozeContent('The capital is $clozeBlank', ['Paris']);
@@ -154,21 +167,11 @@ void main() {
       expect(find.byType(VerticalDivider), findsNothing);
     });
 
-    testWidgets('its deck row hides the back until shown, and reads it after '
+    testWidgets('its deck row shows the back on the hatch, and reads it after '
         'the answer', (tester) async {
-      Widget row(bool shown) =>
-          CardBackRow(front: front, back: back, shown: shown, onOpen: () {});
-      await pump(tester, row(false));
-      expect(find.text('on the Seine'), findsNothing);
-      expect(blanksUnder(find.byType(CardBackRow)), {'Paris': false});
-      expect(
-        find.bySemanticsLabel('The capital is blank, back hidden'),
-        findsOneWidget,
-      );
-
-      await pump(tester, row(true));
-      expect(find.text('on the Seine'), findsOneWidget);
-      expect(blanksUnder(find.byType(CardBackRow)), {'Paris': true});
+      await pump(tester, CardBackRow(front: front, back: back, onOpen: () {}));
+      expect(shownText('on the Seine'), findsOneWidget);
+      expect(hatchedBlanksUnder(find.byType(CardBackRow)), ['Paris']);
       expect(
         find.bySemanticsLabel(
           'The capital is blank, back The capital is Paris. on the Seine',
@@ -192,6 +195,211 @@ void main() {
       double top(String text) => tester.getTopLeft(find.text(text)).dy;
       expect(top('one'), lessThan(top('two')));
       expect(top('two'), lessThan(top('of two')));
+    });
+  });
+
+  group('a card list row shows each kind whole, what study hides on the '
+      'hatch (#629)', () {
+    Future<void> pumpRow(
+      WidgetTester tester,
+      List<Cell> cells, {
+      ThemeMode themeMode = ThemeMode.light,
+      VoidCallback? onOpen,
+    }) {
+      final sides = sidesOf(cells);
+      // A store whose files no test writes: a photo is drawn as its
+      // fallback, which has the photo's frame.
+      final media = MediaStore(
+        AppDatabase(NativeDatabase.memory()),
+        FakeMediaServer(),
+        directory: unusedMediaDirectory,
+        clock: DateTime.now,
+        newId: const Uuid().v7,
+      );
+      return pumpComponent(
+        tester,
+        ProviderScope(
+          overrides: [mediaStoreProvider.overrideWithValue(media)],
+          // In a scroll view, as the card list lays its rows out: as tall
+          // as their content.
+          child: SingleChildScrollView(
+            child: CardBackRow(
+              front: sides.front,
+              back: sides.back,
+              cells: cells,
+              onOpen: onOpen ?? () {},
+            ),
+          ),
+        ),
+        themeMode: themeMode,
+      );
+    }
+
+    /// The hatched boxes [of] sits in.
+    Iterable<HatchDecoration> hatchOver(WidgetTester tester, Finder of) =>
+        tester
+            .widgetList<DecoratedBox>(
+              find.ancestor(of: of, matching: find.byType(DecoratedBox)),
+            )
+            .map((box) => box.decoration)
+            .whereType<HatchDecoration>();
+
+    for (final MapEntry(key: themeMode, value: colors) in themeModes.entries) {
+      testWidgets('a 글 shows its front, then its back in a hatched box of '
+          "the theme's hatch, in ${themeMode.name}", (tester) async {
+        await pumpRow(tester, const [
+          TextCell(front: '조선의 최고 법전은?', back: '경국대전'),
+        ], themeMode: themeMode);
+        final back = shownText('경국대전');
+        expect(back, findsOneWidget);
+        expect(hatchOver(tester, back).single.colors, colors);
+        // Control: the shown part is not on the hatch.
+        expect(hatchOver(tester, shownText('조선의 최고 법전은?')), isEmpty);
+      });
+    }
+
+    testWidgets('a 단어 shows its word, then its meanings on the hatch', (
+      tester,
+    ) async {
+      await pumpRow(tester, const [
+        WordCell(
+          term: 'ephemeral',
+          senses: [CardSense(meaning: '덧없는')],
+          ask: WordAsk.term,
+        ),
+      ]);
+      expect(hatchOver(tester, shownText('덧없는')), hasLength(1));
+      expect(hatchOver(tester, shownText('ephemeral')), isEmpty);
+    });
+
+    testWidgets('a 빈칸 shows its sentence with each blank filled on the '
+        'hatch, none empty', (tester) async {
+      await pumpRow(tester, const [
+        BlankCell(
+          ClozeContent('세종대왕은 $clozeBlank년에 $clozeBlank을 창제했다.', [
+            '1443',
+            '훈민정음',
+          ]),
+        ),
+      ]);
+      final row = find.byType(CardBackRow);
+      expect(hatchedBlanksUnder(row), ['1443', '훈민정음']);
+      expect(blanksUnder(row), isEmpty, reason: 'no blank empty or tinted');
+    });
+
+    testWidgets('a 표 shows its first three rows, its hidden cells on the '
+        'hatch, and how many rows it leaves', (tester) async {
+      await pumpRow(tester, const [
+        BlankCell(
+          TableContent(
+            columns: ['왕', '업적'],
+            rows: [
+              ['태종', '호패법'],
+              ['세종', '훈민정음'],
+              ['세조', '직전법'],
+              ['성종', '경국대전'],
+              ['연산군', '무오사화'],
+            ],
+            blanks: [
+              (row: 0, column: 1),
+              (row: 1, column: 1),
+              (row: 2, column: 1),
+              (row: 3, column: 1),
+              (row: 4, column: 1),
+            ],
+          ),
+        ),
+      ]);
+      expect(hatchedBlanksUnder(find.byType(CardBackRow)), [
+        '호패법',
+        '훈민정음',
+        '직전법',
+      ]);
+      expect(find.text('2 more rows'), findsOneWidget);
+      expect(find.textContaining('성종'), findsNothing);
+      // Control: a shown cell is drawn, off the hatch.
+      expect(find.textContaining('태종'), findsOneWidget);
+    });
+
+    testWidgets('a 사진 draws its photo at the thumbnail height, each box on '
+        'the hatch over it, and its answers on the hatch under it, the row no '
+        'taller than the two', (tester) async {
+      await pumpRow(tester, const [
+        BlankCell(
+          ImageContent(
+            media: MediaId('m'),
+            width: 3,
+            height: 2,
+            boxes: [
+              ImageBox(id: 'a', x: 0.1, y: 0.1, w: 0.3, h: 0.2, answer: '한양'),
+              ImageBox(id: 'b', x: 0.5, y: 0.6, w: 0.3, h: 0.2, answer: '개성'),
+            ],
+          ),
+        ),
+      ]);
+      for (final id in ['a', 'b']) {
+        final box = tester.widget<DecoratedBox>(
+          find.descendant(
+            of: find.byKey(ValueKey(('listed box', id))),
+            matching: find.byType(DecoratedBox),
+          ),
+        );
+        expect(box.decoration, isA<HatchDecoration>());
+      }
+      final answers = shownText('한양 · 개성');
+      expect(answers, findsOneWidget);
+      expect(hatchOver(tester, answers), hasLength(1));
+      // The photo's frame: the thumbnail's height at the photo's 3:2.
+      final frame = tester.getRect(
+        find
+            .ancestor(
+              of: find.byKey(const ValueKey(('listed box', 'a'))),
+              matching: find.byType(Stack),
+            )
+            .first,
+      );
+      expect(frame.height, AppSize.listedPhoto);
+      expect(frame.width, AppSize.listedPhoto * 3 / 2);
+      // The row holds the frame and the answers' box, and nothing taller.
+      final box = tester.getRect(
+        find.ancestor(of: answers, matching: find.byType(DecoratedBox)).first,
+      );
+      expect(
+        tester.getSize(find.byType(CardBackRow)).height,
+        // A row alone keeps the gap after it.
+        frame.height +
+            AppSpace.s8 +
+            box.height +
+            2 * AppSpace.s12 +
+            AppSpace.rowGap,
+      );
+    });
+
+    testWidgets('a long card is cut at two lines shown and three on the '
+        'hatch, each with an ellipsis, and a tap still opens it', (
+      tester,
+    ) async {
+      var opened = 0;
+      final long = List.filled(60, '낱말').join(' ');
+      await pumpRow(tester, [
+        TextCell(front: '앞 $long', back: '뒤 $long'),
+      ], onOpen: () => opened++);
+      RenderParagraph paragraph(String start) => tester
+          .renderObjectList<RenderParagraph>(
+            find.descendant(
+              of: find.byType(CardBackRow),
+              matching: find.byType(RichText),
+            ),
+          )
+          .firstWhere((text) => text.text.toPlainText().startsWith(start));
+      for (final (start, lines) in [('앞', 2), ('뒤', 3)]) {
+        final text = paragraph(start);
+        expect(text.maxLines, lines, reason: start);
+        expect(text.overflow, TextOverflow.ellipsis, reason: start);
+        expect(text.didExceedMaxLines, isTrue, reason: start);
+      }
+      await tester.tap(find.byType(CardBackRow));
+      expect(opened, 1);
     });
   });
 }

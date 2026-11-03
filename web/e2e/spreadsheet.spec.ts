@@ -128,7 +128,8 @@ test("adds a deck's cards from a small .xlsx after review, and the server holds 
   await capture(page, "save");
   await page.getByRole("button", { name: "3장 추가", exact: true }).click();
   await expect(page.getByRole("heading", { name: "엑셀 단어", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "apple, 뒷면 가려짐", exact: true })).toBeVisible();
+  // A row's name carries its card's whole back, the senses with their labels, so its front is matched.
+  await expect(page.getByRole("button", { name: /^apple, 뒷면 / })).toBeVisible();
 
   const client = createClient(url, key, { auth: { persistSession: false } });
   expect((await client.auth.signInWithPassword({ email, password })).error).toBeNull();

@@ -270,6 +270,12 @@ void main() {
         (colors.onPrimary, colors.primary),
         (colors.onInk, colors.ink),
         (colors.ink, colors.brandTint),
+        // A card list's blank, revealed part and 표 caption on either of the
+        // hatch's two colours (#629).
+        for (final hatch in [colors.hatch, colors.hatchStripe]) ...[
+          (colors.ink, hatch),
+          (colors.ink2, hatch),
+        ],
         (colors.onHero, colors.hero),
         (colors.brand, colors.onHero),
         (colors.know, colors.surface),

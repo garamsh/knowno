@@ -35,6 +35,10 @@ const pairs: [string, string, string][] = [
   ["a note row's progress on the surface", "muted", "surface"],
   ["the date and the breadcrumb on the ground", "muted", "ground"],
   ["the admin's red final button's label on its fill", "on-dont-know-text", "dont-know-text"],
+  ["a card list's blank on the hatch's ground", "ink", "hatch"],
+  ["a card list's blank on the hatch's stripes", "ink", "hatch-stripe"],
+  ["a card list's revealed part on the hatch's ground", "ink-2", "hatch"],
+  ["a card list's revealed part on the hatch's stripes", "ink-2", "hatch-stripe"],
 ];
 
 describe("the text the login, account and empty home pages draw", () => {

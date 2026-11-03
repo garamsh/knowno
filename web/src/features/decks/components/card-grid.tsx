@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { describeContent, holdsBlank, spokenCells, spokenContent } from "../card-content";
 import type { Card, Deck } from "../library";
@@ -8,17 +8,17 @@ import { CardEditor } from "./authoring-button";
 import { SideText } from "./side-text";
 import { EmptyDeck } from "./empty-home";
 import { ListSearch } from "./list-search";
-import { WholeCells } from "./whole-card";
+import { HatchedBox, ListedCells } from "./whole-card";
 
 /**
  * A note's page, as the final screens draw it (ADR 0150): [add], its "+ 카드 추가", and
  * [settings], its ⋯, over its name, on a line of its own, two lines at most; while it holds a card, the "카드 검색" field, always shown;
  * [study]; then its cards as one group of rows under that search, which keeps the cards whose 칸 hold it, revealed, ignoring case (ADR 0118,
- * ADR 0137). Each row shows its front, and its back muted after it once shown; nothing stands for
- * a hidden back. "뒷면 보기", in a row pinned above the group beside "카드 n" and the [mastered]
- * count, shows or hides every back, starting off each time the page opens. A click on a row opens the card in the editor, as on the phone (ADR 0143). A whole
- * card shows its 칸 in place with its blanks empty, revealed in place where its back shows, and
- * is read the same way.
+ * ADR 0137), under a row pinned above the group of "카드 n" and the [mastered] count. Each row
+ * shows the whole card, and what study hides until the reveal on the hatch (#629): a split card
+ * its front cut at two lines and its back after it in a hatched box cut at three, and a whole
+ * card its 칸 as `ListedCells` draws them. A click on a row opens the card in the editor, as on
+ * the phone (ADR 0143).
  */
 export function CardGrid({
   deck,
@@ -36,9 +36,7 @@ export function CardGrid({
   settings?: ReactNode;
 }) {
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Card | null>(null);
-  const label = useId();
   const rows = cards.map((card) => {
     const whole = holdsBlank(card.cells);
     return {
@@ -89,26 +87,6 @@ export function CardGrid({
               {[`${String(mastered)}장 익힘`, ...(deck.public ? ["공개"] : [])].join(" · ")}
             </span>
           </span>
-          <span className="flex items-center gap-3">
-            <span id={label} className="text-secondary text-ink-2">
-              뒷면 보기
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={open}
-              aria-labelledby={label}
-              onClick={() => {
-                setOpen(!open);
-              }}
-              className={`pressable relative my-2 h-7 w-12 rounded-full transition-colors before:absolute before:-inset-2 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${open ? "bg-ink" : "bg-outline"}`}
-            >
-              <span
-                aria-hidden
-                className={`absolute top-0.5 left-0.5 size-6 rounded-full bg-surface shadow-card transition-transform ${open ? "translate-x-5" : ""}`}
-              />
-            </button>
-          </span>
         </div>
         {shown.length === 0 ? (
           <p role="status" className="text-muted">
@@ -121,25 +99,27 @@ export function CardGrid({
                 <button
                   type="button"
                   aria-haspopup="dialog"
-                  aria-label={open ? `${row.front}, 뒷면 ${row.back}` : `${row.front}, 뒷면 가려짐`}
+                  aria-label={`${row.front}, 뒷면 ${row.back}`}
                   onClick={() => {
                     setEditing(row.card);
                   }}
                   className="pressable flex min-h-cta w-full items-center gap-3 px-4 py-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
                 >
                   {row.whole ? (
-                    <WholeCells cells={row.cells} revealed={open} inRow />
+                    <ListedCells cells={row.cells} />
                   ) : (
-                    <>
-                      <span className="min-w-0 flex-1 text-body-strong break-words">
+                    <span className="flex min-w-0 flex-1 flex-col gap-2">
+                      <span className="line-clamp-2 text-body-strong break-words break-keep">
                         <SideText blocks={row.blocks} />
                       </span>
-                      {open && (
-                        <span className="min-w-0 flex-1 text-right text-secondary break-words text-muted">
-                          <SideText blocks={row.backBlocks} />
+                      {row.backBlocks.length > 0 && (
+                        <span className="text-secondary break-words text-ink-2">
+                          <HatchedBox>
+                            <SideText blocks={row.backBlocks} />
+                          </HatchedBox>
                         </span>
                       )}
-                    </>
+                    </span>
                   )}
                 </button>
               </li>

@@ -228,16 +228,11 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   await shot(page, "01b-decks");
   await deckRow.click();
   await expect(page.getByRole("heading", { name: "French", exact: true })).toBeVisible();
-  // Every answer hidden until it is asked for: one click shows that card's, 뒷면 보기 them all.
-  await expect(page.getByRole("button", { name: "chat, 뒷면 가려짐", exact: true })).toBeVisible();
-  await shot(page, "02-deck");
-  const backsShown = page.getByRole("button", { name: "chat, 뒷면 cat", exact: true });
-  await untilReacted(
-    () => page.getByRole("switch", { name: "뒷면 보기" }).click(),
-    async () => (await backsShown.count()) > 0,
-  );
+  // Every card shown whole, its answer read after its front, with no switch (#629).
+  await expect(page.getByRole("button", { name: "chat, 뒷면 cat", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "chien, 뒷면 dog", exact: true })).toBeVisible();
-  await shot(page, "02b-deck-answers");
+  await expect(page.getByRole("switch")).toHaveCount(0);
+  await shot(page, "02-deck");
   // Enter opens the deck's session.
   await page.getByRole("heading", { name: "French", exact: true }).click();
   const studyPath = new RegExp(`/study\\?decks=${deckId}&from=deck$`);
@@ -1324,7 +1319,7 @@ test("creates a deck and a card on mobile, warns on a duplicate and keeps saved 
   await capture(page, "authoring-direct");
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "apple, 뒷면 가려짐", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "apple, 뒷면 사과", exact: true })).toBeVisible();
   const client = createClient(url, key, { auth: { persistSession: false } });
   expect((await client.auth.signInWithPassword({ email, password })).error).toBeNull();
   const read = await client

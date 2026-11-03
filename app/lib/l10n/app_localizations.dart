@@ -2173,23 +2173,17 @@ abstract class AppLocalizations {
   /// **'검색 닫기'**
   String get closeSearch;
 
-  /// The label of the deck page's switch that shows or hides every card's back after its front; it stays the same while the switch shows its state.
-  ///
-  /// In ko, this message translates to:
-  /// **'뒷면 보기'**
-  String get showMeanings;
-
-  /// What a screen reader reads for a card row whose back is hidden.
-  ///
-  /// In ko, this message translates to:
-  /// **'{front}, 뒷면 가려짐'**
-  String cardBackHidden(String front);
-
-  /// What a screen reader reads for a card row whose back is shown.
+  /// What a screen reader reads for a card row of a note's card list: its front, then its back.
   ///
   /// In ko, this message translates to:
   /// **'{front}, 뒷면 {back}'**
   String cardBackShown(String front, String back);
+
+  /// Under the first rows of a table a note's card list shows: how many rows the row leaves out.
+  ///
+  /// In ko, this message translates to:
+  /// **'외 {count}행'**
+  String moreRows(int count);
 
   /// A streak chip: study days in a row with an answer.
   ///
