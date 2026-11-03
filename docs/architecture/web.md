@@ -1,6 +1,6 @@
 # Web
 
-The web app in `web/`: its stack, the rules that keep it portable between Vercel and a container, its image, the session and the proxy, the shell and its pages' common parts, the server reads every feature makes, the theme and the user's choice of it, and its checks. Each feature has its own document ([ADR 0081](adr/adr/0081-document-each-web-feature-in-its-own-responsibility-document-beside-web-md-and-name-each-test-file-s-behaviour-in-one-line.md)): [`web-account.md`](web-account.md), [`web-decks.md`](web-decks.md), [`web-study.md`](web-study.md), [`web-admin.md`](web-admin.md) and [`web-legal.md`](web-legal.md).
+The web app in `web/`: its stack, the rules that keep it portable between Vercel and a container, its image, the session and the proxy, the shell and its pages' common parts, the server reads every feature makes, the theme and the user's choice of it, and its checks. Each feature has its own document ([ADR 0081](adr/0081-document-each-web-feature-in-its-own-responsibility-document-beside-web-md-and-name-each-test-file-s-behaviour-in-one-line.md)): [`web-account.md`](web-account.md), [`web-decks.md`](web-decks.md), [`web-study.md`](web-study.md), [`web-admin.md`](web-admin.md) and [`web-legal.md`](web-legal.md).
 
 ## Current decisions
 
@@ -135,7 +135,7 @@ The foundations', the shell's and the end-to-end tests; each feature's document 
 - [ADR 0134](adr/0134-name-the-app-knowno-serve-it-at-knowno-app-identify-it-as-app-knowno-and-reach-the-backend-at-api-knowno-app.md) records the name 알아몰라, the address `knowno.app` and the Supabase URL `api.knowno.app`.
 - [ADR 0047](adr/0047-read-the-web-record-through-two-server-functions-and-fold-it-through-the-engine-on-the-server.md) records how the engine's module reaches the server's output; why `/record` reads through two server functions is in [`web-study.md`](web-study.md).
 - [ADR 0119](adr/0119-draw-every-screen-from-one-radius-scale-one-chip-three-type-sizes-a-press-dim-and-three-haptics-and-a-hidden-blank-as-an-empty-underlined-gap.md) records the one chip, the three sizes and the press without a scale, and why the web's tokens move with the app's; the web applies them in #461.
-- [ADR 0081](adr/adr/0081-document-each-web-feature-in-its-own-responsibility-document-beside-web-md-and-name-each-test-file-s-behaviour-in-one-line.md) records why each web feature has its own document beside this one, and why a test section names each file's behaviour in one line.
+- [ADR 0081](adr/0081-document-each-web-feature-in-its-own-responsibility-document-beside-web-md-and-name-each-test-file-s-behaviour-in-one-line.md) records why each web feature has its own document beside this one, and why a test section names each file's behaviour in one line.
 - Issue #44 records the decisions made by the PM; issue #72 the brand and the v2 pages; issue #69 the load speed and the scales' drift test; issue #80 the first screens, Google's button, the theme choice and the skeletons; issue #242 the split of this document.
 
 ## Open questions
