@@ -1,6 +1,6 @@
 // The eval end to end with OpenRouter and the file system replaced by in-memory fakes.
 import assert from "node:assert/strict";
-import { OPENROUTER_URL } from "../../supabase/functions/extract-cards/openrouter.ts";
+import { OPENROUTER_URL } from "../../supabase/functions/extract-cards/providers.ts";
 import { composeInstructions } from "../../supabase/functions/extract-cards/cards.ts";
 import * as v9 from "../../supabase/functions/extract-cards/prompt_v9.ts";
 import { SYSTEM_PROMPT } from "../../supabase/functions/extract-cards/prompt_v10.ts";

@@ -1,6 +1,6 @@
 # ADR 0071: Give each user a plan whose model and daily limit an admin sets in the database, and make one model call per photo
 
-> Status: accepted; its overview's cost at the Free plan's model superseded by ADR-0074; its `start_extraction` and the `consume_extraction` it kept superseded by ADR-0078; its plans with a model and a daily limit set in place, its Special plan, its UTC day and its `429`'s `daily_limit` superseded by ADR-0097; its one model call per photo superseded in part by ADR-0130
+> Status: accepted; its overview's cost at the Free plan's model superseded by ADR-0074; its `start_extraction` and the `consume_extraction` it kept superseded by ADR-0078; its plans with a model and a daily limit set in place, its Special plan, its UTC day and its `429`'s `daily_limit` superseded by ADR-0097; its one model call per photo superseded in part by ADR-0130; its model check against OpenRouter's list on save superseded by ADR-0162
 > Date: 2026-10-19
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

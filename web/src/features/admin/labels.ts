@@ -27,6 +27,18 @@ export const actionLabels: Record<string, string> = {
   activate_prompt: "프롬프트 적용",
   test_prompt: "프롬프트 테스트 시작",
   clear_test_prompt: "프롬프트 테스트 끝",
+  set_provider_key: "AI 제공자 키 저장",
+  remove_provider_key: "AI 제공자 키 삭제",
+  save_ai_configuration: "AI 설정 테스트로 저장",
+  activate_ai_configuration: "AI 설정 적용",
+  clear_ai_test: "AI 설정 테스트 끝",
+};
+
+/** Each AI provider's name (ADR 0162). */
+export const providerLabels: Record<string, string> = {
+  openrouter: "OpenRouter",
+  openai: "OpenAI",
+  anthropic: "Anthropic",
 };
 
 /** Each plan's name in the admin area; Special, which Max replaced, names log entries before it. */

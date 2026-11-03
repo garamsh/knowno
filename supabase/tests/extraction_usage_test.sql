@@ -4,9 +4,20 @@
 begin;
 select plan(21);
 
+-- An OpenRouter key in Vault, so the plans' OpenRouter configurations can be served (ADR 0162).
+insert into private.provider_keys (provider, secret_id, last_four)
+  values ('openrouter', vault.create_secret('sk-or-test-key-0000'), '0000');
+
 delete from private.plan_versions;
-insert into private.plan_versions (plan, quota, amount, model, starts_at) values
-  ('free', 'daily', 30, 'anthropic/claude-haiku-5.5', now() - interval '60 days');
+insert into private.plan_versions (plan, quota, amount, starts_at) values
+  ('free', 'daily', 30, now() - interval '60 days');
+with c as (
+  insert into private.ai_configurations (plan, provider, model) values ('free', 'openrouter', 'anthropic/claude-haiku-5.5')
+  returning id, plan
+)
+insert into private.ai_configuration_labels (plan, label, configuration_id)
+  select c.plan, 'active', c.id from c
+  on conflict (plan, label) do update set configuration_id = excluded.configuration_id;
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'a@example.com'),
@@ -103,8 +114,15 @@ select is(
   (select allowed from public.begin_extraction('00000000-0000-4000-8000-00000000000b')), true,
   'B is let through while A is refused');
 reset role;
-insert into private.plan_versions (plan, quota, amount, model, starts_at, applies_to_all) values
-  ('free', 'daily', 31, 'anthropic/claude-haiku-5.5', now(), true);
+insert into private.plan_versions (plan, quota, amount, starts_at, applies_to_all) values
+  ('free', 'daily', 31, now(), true);
+with c as (
+  insert into private.ai_configurations (plan, provider, model) values ('free', 'openrouter', 'anthropic/claude-haiku-5.5')
+  returning id, plan
+)
+insert into private.ai_configuration_labels (plan, label, configuration_id)
+  select c.plan, 'active', c.id from c
+  on conflict (plan, label) do update set configuration_id = excluded.configuration_id;
 set local role service_role;
 set local request.jwt.claims to '{"role":"service_role"}';
 select is(
@@ -132,7 +150,7 @@ select ok(
 -- Only begin_extraction records a photo: the entry points an older function called are gone.
 select hasnt_function('public', 'consume_extraction', 'consume_extraction is gone');
 select hasnt_function('public', 'start_extraction', 'start_extraction is gone');
-select has_function('public', 'begin_extraction', array['uuid'],
+select has_function('public', 'begin_extraction', array['uuid', 'bigint', 'text[]'],
   'control: begin_extraction, which the function calls, remains');
 
 select * from finish();

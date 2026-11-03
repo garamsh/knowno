@@ -32,6 +32,11 @@ export type ExtractRequest = {
   readonly languages: LanguageHints;
   /** Where to go on reading the photo from, or null for its first read. */
   readonly cursor: Cursor | null;
+  /**
+   * The AI configuration an admin's trial names (ADR 0162), or null for the one the caller's plan
+   * serves; the server serves a named one to an admin only.
+   */
+  readonly configuration: number | null;
 };
 
 export type RequestFailure = "bad_request" | "too_large" | "unsupported_type";
@@ -82,9 +87,16 @@ export async function parseRequest(
       : null;
     if (cursor === null) return refuse("bad_request");
   }
+  const configuration = value.configuration_id ?? null;
+  if (
+    configuration !== null &&
+    !(typeof configuration === "number" &&
+      Number.isSafeInteger(configuration) &&
+      configuration > 0)
+  ) return refuse("bad_request");
   return {
     ok: true,
-    request: { image: { type, base64 }, languages, cursor },
+    request: { image: { type, base64 }, languages, cursor, configuration },
   };
 }
 

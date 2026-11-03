@@ -3,7 +3,11 @@
 -- later version for all once it starts; extract-cards counts a photo by that version; only an
 -- admin creates versions and grants plans, each write recorded.
 begin;
-select plan(45);
+select plan(43);
+
+-- An OpenRouter key in Vault, so the plans' OpenRouter configurations can be served (ADR 0162).
+insert into private.provider_keys (provider, secret_id, last_four)
+  values ('openrouter', vault.create_secret('sk-or-test-key-0000'), '0000');
 
 -- The log starts empty here, and so do the versions: the migration records and creates its own,
 -- which plan_versions_migration_test.sql covers.
@@ -23,18 +27,28 @@ $$;
 -- begun this month; and a version for all of Free's that starts tomorrow.
 create table pg_temp.ids (name text primary key, id bigint);
 with added as (
-  insert into private.plan_versions (plan, quota, amount, model, starts_at, applies_to_all)
+  insert into private.plan_versions (plan, quota, amount, starts_at, applies_to_all)
   values
-    ('free', 'monthly', 5, 'vendor/free-old', pg_temp.renewed() - interval '40 days', false),
-    ('free', 'monthly', 2, 'vendor/free-new', pg_temp.this_month(0.5), false),
-    ('free', 'monthly', 50, 'vendor/free-new', now() + interval '1 day', true),
-    ('pro', 'daily', 7, 'vendor/pro-model', pg_temp.renewed() - interval '60 days', false),
-    ('pro', 'daily', 3, 'vendor/pro-model', pg_temp.renewed() - interval '20 days', false),
-    ('pro', 'daily', 1, 'vendor/pro-model', pg_temp.this_month(0.5), false),
-    ('max', 'daily', 1, 'vendor/max-model', pg_temp.renewed() - interval '40 days', false),
-    ('max', 'unlimited', 4, 'vendor/max-model', pg_temp.this_month(0.5), true)
+    ('free', 'monthly', 5, pg_temp.renewed() - interval '40 days', false),
+    ('free', 'monthly', 2, pg_temp.this_month(0.5), false),
+    ('free', 'monthly', 50, now() + interval '1 day', true),
+    ('pro', 'daily', 7, pg_temp.renewed() - interval '60 days', false),
+    ('pro', 'daily', 3, pg_temp.renewed() - interval '20 days', false),
+    ('pro', 'daily', 1, pg_temp.this_month(0.5), false),
+    ('max', 'daily', 1, pg_temp.renewed() - interval '40 days', false),
+    ('max', 'unlimited', 4, pg_temp.this_month(0.5), true)
   returning id, plan, amount
 ) insert into pg_temp.ids select plan || amount, id from added;
+-- Each plan's one model, its active configuration (ADR 0162), whichever version a user is on.
+with c as (
+  insert into private.ai_configurations (plan, provider, model) values
+    ('free', 'openrouter', 'vendor/free-model'), ('pro', 'openrouter', 'vendor/pro-model'),
+    ('max', 'openrouter', 'vendor/max-model')
+  returning id, plan
+)
+insert into private.ai_configuration_labels (plan, label, configuration_id)
+  select c.plan, 'active', c.id from c
+  on conflict (plan, label) do update set configuration_id = excluded.configuration_id;
 create function pg_temp.id(name text) returns bigint language sql stable as $$
   select id from pg_temp.ids where ids.name = id.name;
 $$;
@@ -80,7 +94,7 @@ grant execute on function pg_temp.sign_in(text) to public;
 create function pg_temp.calls() returns setof text language sql as $$
   values
     ($q$select * from public.admin_plan_versions()$q$),
-    ($q$select public.admin_create_plan_version('pro', 'daily', 9, 'vendor/pro-model', now() - interval '1 day')$q$),
+    ($q$select public.admin_create_plan_version('pro', 'daily', 9, now() - interval '1 day')$q$),
     ($q$select * from public.admin_user_plan('00000000-0000-4000-8000-00000000000b')$q$),
     ($q$select public.admin_grant_plan('00000000-0000-4000-8000-00000000ffff', 'pro')$q$),
     ($q$select public.admin_revoke_plan('00000000-0000-4000-8000-00000000000b')$q$)
@@ -148,11 +162,11 @@ reset role;
 -- Resolution.
 
 select results_eq($$select plan, model, photo_limit, period from pg_temp.start('b')$$,
-  $$values ('free', 'vendor/free-old', 5, 'month')$$,
+  $$values ('free', 'vendor/free-model', 5, 'month')$$,
   'a Free user from before this month is on the Free version in effect at the renewal');
 reset role;
 select results_eq($$select plan, model, photo_limit, period from pg_temp.start('1')$$,
-  $$values ('free', 'vendor/free-new', 2, 'month')$$,
+  $$values ('free', 'vendor/free-model', 2, 'month')$$,
   'a Free user who signed up since Free''s latest version is on it at once');
 reset role;
 select results_eq($$select plan, photo_limit, period from pg_temp.start('c')$$,
@@ -168,7 +182,7 @@ select results_eq($$select plan, model, photo_limit, period from pg_temp.start('
   'a later version for all applies to a grant from before it, its fair-use cap a day');
 reset role;
 select results_eq($$select plan, model, photo_limit from pg_temp.start('f')$$,
-  $$values ('free', 'vendor/free-old', 5)$$, 'a Max past its end is on Free');
+  $$values ('free', 'vendor/free-model', 5)$$, 'a Max past its end is on Free');
 reset role;
 
 select results_eq(
@@ -200,19 +214,17 @@ select results_eq($$select photo_limit from pg_temp.start('2')$$, $$values (1)$$
 reset role;
 
 select pg_temp.sign_in('a');
-select is(public.admin_create_plan_version('pro', 'daily', 9, 'vendor/pro-model'), 'created',
+select is(public.admin_create_plan_version('pro', 'daily', 9), 'created',
   'create a Pro version from now');
-select is(public.admin_create_plan_version('pro', 'daily', 9, 'vendor/pro-model'), 'unchanged',
+select is(public.admin_create_plan_version('pro', 'daily', 9), 'unchanged',
   'the same terms again change nothing');
-select is(public.admin_create_plan_version('pro', 'daily', 12, 'vendor/pro-model', now() - interval '1 minute'),
+select is(public.admin_create_plan_version('pro', 'daily', 12, now() - interval '1 minute'),
   'past_start', 'a start before now is refused');
-select is(public.admin_create_plan_version('pro', 'daily', 2, 'vendor/pro-model', null, true),
+select is(public.admin_create_plan_version('pro', 'daily', 2, null, true),
   'not_in_favour', 'fewer photos cannot apply to all');
-select is(public.admin_create_plan_version('pro', 'daily', 20, 'vendor/other-model', null, true),
-  'not_in_favour', 'nor a change of model');
-select is(public.admin_create_plan_version('pro', 'monthly', 20, 'vendor/pro-model', null, true),
+select is(public.admin_create_plan_version('pro', 'monthly', 20, null, true),
   'not_in_favour', 'nor a monthly count where a daily one was');
-select is(public.admin_create_plan_version('free', 'monthly', 60, 'vendor/free-new', now() + interval '2 days'),
+select is(public.admin_create_plan_version('free', 'monthly', 60, now() + interval '2 days'),
   'created', 'create a Free version that starts in two days');
 reset role;
 select results_eq($$select photo_limit from pg_temp.start('d')$$, $$values (1)$$,
@@ -222,8 +234,8 @@ select results_eq($$select photo_limit from pg_temp.start('2')$$, $$values (1)$$
   'and so does one granted before it this month');
 reset role;
 select pg_temp.sign_in('a');
-select is(public.admin_create_plan_version('pro', 'daily', 20, 'vendor/pro-model', null, true),
-  'created', 'more photos a day on the same model apply to all');
+select is(public.admin_create_plan_version('pro', 'daily', 20, null, true),
+  'created', 'more photos a day apply to all');
 reset role;
 select results_eq(
   $$select photo_limit from pg_temp.start('c') union all select photo_limit from pg_temp.start('d')
@@ -231,13 +243,11 @@ select results_eq(
   $$values (20), (20), (20)$$, 'every Pro grant is on it at once');
 reset role;
 select pg_temp.sign_in('a');
-select throws_ok($$select public.admin_create_plan_version('pro', 'daily', 30, 'not a model')$$, '23514', null,
-  'a model id of another form cannot be saved');
-select throws_ok($$select public.admin_create_plan_version('pro', 'daily', 100001, 'vendor/pro-model')$$, '23514', null,
+select throws_ok($$select public.admin_create_plan_version('pro', 'daily', 100001)$$, '23514', null,
   'nor an amount over 100,000');
-select throws_ok($$select public.admin_create_plan_version('pro', 'weekly', 30, 'vendor/pro-model')$$, '23514', null,
+select throws_ok($$select public.admin_create_plan_version('pro', 'weekly', 30)$$, '23514', null,
   'nor a quota of another kind');
-select throws_ok($$select public.admin_create_plan_version('special', 'daily', 30, 'vendor/pro-model')$$, '23514', null,
+select throws_ok($$select public.admin_create_plan_version('special', 'daily', 30)$$, '23514', null,
   'nor a plan that does not exist');
 select results_eq($$select plan, amount, current from public.admin_plan_versions() where plan = 'free'$$,
   $$values ('free', 60, false), ('free', 50, false), ('free', 2, true), ('free', 5, false)$$,
@@ -271,9 +281,9 @@ select results_eq(
   $$select action, target_kind, target_id, detail - 'ends_at' - 'starts_at' - 'version_id' from private.admin_audit order by id$$,
   $$values
     ('grant_plan', 'user', '00000000-0000-4000-8000-000000000002', '{"email": "granted@example.com", "plan": "pro"}'::jsonb),
-    ('create_plan_version', 'plan', 'pro', '{"quota": "daily", "amount": 9, "model": "vendor/pro-model", "applies_to_all": false, "quota_before": "daily", "amount_before": 1, "model_before": "vendor/pro-model"}'::jsonb),
-    ('create_plan_version', 'plan', 'free', '{"quota": "monthly", "amount": 60, "model": "vendor/free-new", "applies_to_all": false, "quota_before": "monthly", "amount_before": 50, "model_before": "vendor/free-new"}'::jsonb),
-    ('create_plan_version', 'plan', 'pro', '{"quota": "daily", "amount": 20, "model": "vendor/pro-model", "applies_to_all": true, "quota_before": "daily", "amount_before": 9, "model_before": "vendor/pro-model"}'::jsonb),
+    ('create_plan_version', 'plan', 'pro', '{"quota": "daily", "amount": 9, "applies_to_all": false, "quota_before": "daily", "amount_before": 1}'::jsonb),
+    ('create_plan_version', 'plan', 'free', '{"quota": "monthly", "amount": 60, "applies_to_all": false, "quota_before": "monthly", "amount_before": 50}'::jsonb),
+    ('create_plan_version', 'plan', 'pro', '{"quota": "daily", "amount": 20, "applies_to_all": true, "quota_before": "daily", "amount_before": 9}'::jsonb),
     ('grant_plan', 'user', '00000000-0000-4000-8000-00000000000b', '{"email": "user@example.com", "plan": "max"}'::jsonb),
     ('grant_plan', 'user', '00000000-0000-4000-8000-00000000000b', '{"email": "user@example.com", "plan": "pro"}'::jsonb),
     ('revoke_plan', 'user', '00000000-0000-4000-8000-00000000000b', '{"email": "user@example.com", "plan": "pro"}'::jsonb)$$,

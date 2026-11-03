@@ -13,9 +13,9 @@ import {
   extractCards,
   MAX_OUTPUT_TOKENS,
   MODEL_TIMEOUT_MS,
-  OPENROUTER_URL,
   type Usage,
-} from "../../supabase/functions/extract-cards/openrouter.ts";
+} from "../../supabase/functions/extract-cards/model.ts";
+import { OPENROUTER_URL } from "../../supabase/functions/extract-cards/providers.ts";
 import type {
   Image,
   LanguageHints,
@@ -403,7 +403,7 @@ function readUsage(body: unknown): Usage | null {
     typeof prompt_tokens !== "number" || typeof completion_tokens !== "number"
   ) return null;
   // A call billed through the owner's own provider key (BYOK) reports the provider's price here,
-  // and only OpenRouter's own fee in `cost`; the rule #419 gives `openrouter.ts`.
+  // and only OpenRouter's own fee in `cost`; the rule #419 gives `providers.ts`.
   const upstream = isRecord(cost_details)
     ? cost_details.upstream_inference_cost
     : undefined;
@@ -525,6 +525,7 @@ export async function runSingle(
     deps.singlePrompt,
     {
       ...deps,
+      provider: "openrouter",
       fetch: recording(deps.fetch, calls),
       timeoutMs: MODEL_TIMEOUT_MS,
     },

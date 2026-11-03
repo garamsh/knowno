@@ -181,6 +181,8 @@ Extracted parseExtraction(int status, String body, {bool resumed = false}) =>
         null => throw const ServiceFailed('HTTP 429 without a photo limit'),
       },
       502 => throw const ModelFailed(),
+      503 when _errorCode(body) == 'unavailable' =>
+        throw const ExtractionUnavailable(),
       _ => throw ServiceFailed('HTTP $status'),
     };
 

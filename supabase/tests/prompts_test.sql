@@ -4,6 +4,10 @@
 begin;
 select plan(48);
 
+-- An OpenRouter key in Vault, so the plans' OpenRouter configurations can be served (ADR 0162).
+insert into private.provider_keys (provider, secret_id, last_four)
+  values ('openrouter', vault.create_secret('sk-or-test-key-0000'), '0000');
+
 -- A is an admin, B a signed-in user who is not, C an admin whose account is deleted.
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'admin@example.com'),
@@ -172,8 +176,15 @@ select results_eq($$select text, created_by from private.prompt_versions where i
 
 -- Serving.
 
-insert into private.plan_versions (plan, quota, amount, model, starts_at, applies_to_all) values
-  ('free', 'daily', 3, 'vendor/free-model', now(), true);
+insert into private.plan_versions (plan, quota, amount, starts_at, applies_to_all) values
+  ('free', 'daily', 3, now(), true);
+with c as (
+  insert into private.ai_configurations (plan, provider, model) values ('free', 'openrouter', 'vendor/free-model')
+  returning id, plan
+)
+insert into private.ai_configuration_labels (plan, label, configuration_id)
+  select c.plan, 'active', c.id from c
+  on conflict (plan, label) do update set configuration_id = excluded.configuration_id;
 select results_eq($$select plan, model, allowed, prompt_version_id from pg_temp.begin('b')$$,
   $$values ('free', 'vendor/free-model', true, 1::bigint)$$, 'a user is served the active version');
 reset role;

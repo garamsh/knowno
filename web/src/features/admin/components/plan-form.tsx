@@ -18,13 +18,11 @@ export function PlanForm({
   name,
   quota,
   amount,
-  model,
 }: {
   plan: string;
   name: string;
   quota: Quota;
   amount: number;
-  model: string;
 }) {
   const [state, action, pending] = useActionState<PlanFormState, FormData>(createPlanVersion, {
     message: null,
@@ -54,10 +52,6 @@ export function PlanForm({
             required
             className={`${input} w-28`}
           />
-        </label>
-        <label className={line}>
-          <span className="shrink-0 text-body">모델</span>
-          <input name="model" defaultValue={model} required className={`${input} flex-1`} />
         </label>
         <div className="flex flex-col gap-1 px-4 py-3">
           <label className="flex items-center justify-between gap-3">

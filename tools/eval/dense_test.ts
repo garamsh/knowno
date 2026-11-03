@@ -15,7 +15,7 @@ import {
   MAX_OUTPUT_TOKENS,
   type ModelId,
   modelId,
-} from "../../supabase/functions/extract-cards/openrouter.ts";
+} from "../../supabase/functions/extract-cards/model.ts";
 import {
   ALTERNATIVES,
   extractWhole,
@@ -26,7 +26,7 @@ import {
   parseLeanReply,
 } from "./dense.ts";
 
-const MODEL = modelId("vendor/model") as ModelId;
+const MODEL = modelId("openrouter", "vendor/model") as ModelId;
 const PHOTO = { type: "image/png", base64: "AAAA" } as const;
 
 /** A vocabulary card in the card list's full shape. */
@@ -76,6 +76,7 @@ function fake(
 }
 
 const deps = (send: typeof fetch, now = () => 0) => ({
+  provider: "openrouter" as const,
   apiKey: "key",
   fetch: send,
   now,

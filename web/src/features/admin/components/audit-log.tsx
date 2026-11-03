@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { formatTime } from "../format";
-import { actionLabels, labelOf, planLabels, termsLabel } from "../labels";
+import { actionLabels, labelOf, planLabels, providerLabels, termsLabel } from "../labels";
 import type { AuditEntry } from "../read-admin";
 import { Empty, group } from "./admin-section";
 
@@ -18,17 +18,21 @@ function Target({ entry }: { entry: AuditEntry }) {
           ? labelOf(planLabels, entry.targetId)
           : entry.targetKind === "prompt"
             ? `버전 ${entry.targetId}`
-            : entry.targetId;
+            : entry.targetKind === "provider"
+              ? labelOf(providerLabels, entry.targetId)
+              : entry.targetId;
   const href =
     entry.targetKind === "deck"
       ? `/admin/decks/${entry.targetId}`
       : entry.targetKind === "user"
         ? `/admin/users/${entry.targetId}`
-        : entry.targetKind === "plan"
+        : entry.targetKind === "plan" && entry.action.endsWith("_plan_version")
           ? "/admin/settings"
-          : entry.targetKind === "prompt"
-            ? `/admin/ai/${entry.targetId}`
-            : null;
+          : entry.targetKind === "plan" || entry.targetKind === "provider"
+            ? "/admin/settings/ai"
+            : entry.targetKind === "prompt"
+              ? `/admin/ai/${entry.targetId}`
+              : null;
   return href === null ? (
     <span>{words}</span>
   ) : (
@@ -60,10 +64,11 @@ export function AuditLog({ entries, timeZone }: { entries: AuditEntry[]; timeZon
             {typeof entry.detail.model === "string" && typeof entry.detail.daily_limit === "number"
               ? ` · ${entry.detail.model} · 하루 ${String(entry.detail.daily_limit)}장`
               : ""}
-            {typeof entry.detail.model === "string" &&
-            typeof entry.detail.quota === "string" &&
-            typeof entry.detail.amount === "number"
-              ? ` · ${entry.detail.model} · ${termsLabel(entry.detail.quota, entry.detail.amount)}`
+            {typeof entry.detail.quota === "string" && typeof entry.detail.amount === "number"
+              ? `${typeof entry.detail.model === "string" ? ` · ${entry.detail.model}` : ""} · ${termsLabel(entry.detail.quota, entry.detail.amount)}`
+              : ""}
+            {typeof entry.detail.provider === "string" && typeof entry.detail.model === "string"
+              ? ` · ${labelOf(providerLabels, entry.detail.provider)} · ${entry.detail.model}`
               : ""}
             {entry.detail.applies_to_all === true ? " · 기존 사용자도 적용" : ""}
           </span>

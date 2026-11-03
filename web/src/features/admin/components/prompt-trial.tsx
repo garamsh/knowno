@@ -3,7 +3,8 @@
 import { useId, useState, useTransition } from "react";
 
 import { encodePhoto } from "../encode-photo";
-import { type TrialCard, tryPrompt } from "../try-prompt";
+import type { TrialCard } from "../trial";
+import { tryPrompt } from "../try-prompt";
 import { button, card } from "./admin-section";
 
 /**

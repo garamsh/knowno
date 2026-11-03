@@ -2,7 +2,7 @@ import { studyDayStart } from "@/features/study";
 
 import { revokePlan } from "../revoke-plan";
 import { formatDate, formatTime } from "../format";
-import { planLabels, termsLabel } from "../labels";
+import { labelOf, planLabels, providerLabels, termsLabel } from "../labels";
 import type { UserPlan as Plan } from "../read-admin";
 import { AdminSection, button, group } from "./admin-section";
 import { ConfirmAction } from "./confirm-action";
@@ -36,7 +36,14 @@ export function UserPlan({
         ? "요금제 버전이 없어요"
         : `${planLabels[entitlement.plan] ?? entitlement.plan} · ${termsLabel(entitlement.quota, entitlement.amount)}`,
     ],
-    ...(entitlement === null ? [] : [["모델", entitlement.model] as const]),
+    ...(entitlement === null || entitlement.serving === null
+      ? []
+      : [
+          [
+            "모델",
+            `${labelOf(providerLabels, entitlement.serving.provider)} · ${entitlement.serving.model}`,
+          ] as const,
+        ]),
     ...(grant === null
       ? []
       : [

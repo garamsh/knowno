@@ -16,8 +16,10 @@ import {
   createHandler,
   type LogEntry,
   RETRY_START_LIMIT_MS,
+  type SettingsLogEntry,
 } from "./handler.ts";
-import { OPENROUTER_URL } from "./openrouter.ts";
+import { vaultKeys } from "./keys.ts";
+import { ANTHROPIC_URL, OPENAI_URL, OPENROUTER_URL } from "./providers.ts";
 import { SYSTEM_PROMPT } from "./prompt_v8.ts";
 import { MAX_IMAGE_BYTES } from "./request.ts";
 
@@ -43,6 +45,15 @@ type Reply =
 /** The model timeout the handler is given in these tests. */
 const TIMEOUT_MS = 20;
 
+/** A plan whose active configuration is OpenAI's. */
+const openaiPlan = {
+  plan: "pro",
+  provider: "openai",
+  model: "gpt-model",
+  photo_limit: 100,
+  period: "day",
+};
+
 const cardsReply = (cards: unknown): Reply => ({
   content: JSON.stringify({ cards }),
 });
@@ -54,8 +65,16 @@ type Fake = {
   suspended: boolean;
   /** The row begin_extraction answers for the caller's plan, or none when its settings are missing. */
   plan:
-    | { plan: string; model: string; photo_limit: number; period: string }
+    | {
+      plan: string;
+      provider?: string;
+      model: string;
+      photo_limit: number;
+      period: string;
+    }
     | null;
+  /** The keys Vault holds, by provider, as provider_key answers them. */
+  vault: Record<string, string>;
   /** The prompt version begin_extraction serves; the seed, prompt v8, unless a test names another. */
   prompt: { prompt_version_id: unknown; prompt: unknown };
   calls: { url: string; init: RequestInit | undefined }[];
@@ -98,16 +117,27 @@ function fakeFetch(fake: Fake): typeof fetch {
       return Promise.resolve(Response.json(fake.suspended));
     }
     if (url === `${SUPABASE_URL}/rest/v1/rpc/begin_extraction`) {
+      const asked = JSON.parse(String(init?.body));
+      const provider = fake.plan?.provider ?? "openrouter";
+      // As the server decides it: a key in Vault, or a provider the function holds a secret for.
+      const available = provider in fake.vault ||
+        asked.secret_providers.includes(provider);
       return Promise.resolve(
         Response.json(
           fake.plan === null ? [] : [{
+            provider,
             ...fake.plan,
             ...fake.prompt,
-            allowed: fake.allowed,
-            usage_id: fake.allowed ? USAGE_ID : null,
+            available,
+            allowed: available && fake.allowed,
+            usage_id: available && fake.allowed ? USAGE_ID : null,
           }],
         ),
       );
+    }
+    if (url === `${SUPABASE_URL}/rest/v1/rpc/provider_key`) {
+      const { provider } = JSON.parse(String(init?.body));
+      return Promise.resolve(Response.json(fake.vault[provider] ?? null));
     }
     if (url === `${SUPABASE_URL}/rest/v1/rpc/finish_extraction`) {
       fake.finishes.push(JSON.parse(String(init?.body)));
@@ -122,6 +152,7 @@ function fakeFetch(fake: Fake): typeof fetch {
         fake.resume === null || body.cursor !== TOKEN ? [] : [{
           usage_id: USAGE_ID,
           plan: "free",
+          provider: fake.plan?.provider ?? "openrouter",
           model: "vendor/primary-model",
           ...fake.prompt,
           ...fake.resume,
@@ -132,7 +163,7 @@ function fakeFetch(fake: Fake): typeof fetch {
       fake.resumedRecords.push(JSON.parse(String(init?.body)));
       return Promise.resolve(new Response(null, { status: 204 }));
     }
-    if (url === OPENROUTER_URL) {
+    if (url === OPENROUTER_URL || url === OPENAI_URL || url === ANTHROPIC_URL) {
       fake.clock += fake.modelCallMs;
       const reply = fake.replies.shift();
       if (reply === undefined) throw new Error("no scripted model reply left");
@@ -144,6 +175,16 @@ function fakeFetch(fake: Fake): typeof fetch {
             status: reply.status,
           }),
         );
+      }
+      if (url === ANTHROPIC_URL) {
+        return Promise.resolve(Response.json({
+          content: [{ type: "thinking", thinking: "" }, {
+            type: "text",
+            text: reply.content,
+          }],
+          stop_reason: reply.finish === "length" ? "max_tokens" : "end_turn",
+          usage: { input_tokens: 1200, output_tokens: 80 },
+        }));
       }
       return Promise.resolve(Response.json({
         choices: [{
@@ -214,6 +255,7 @@ type Run = {
   status: number;
   body: Record<string, unknown>;
   logs: LogEntry[];
+  settingsLogs: SettingsLogEntry[];
   console: string[];
   fake: Fake;
   modelCalls: ModelCall[];
@@ -235,6 +277,9 @@ async function run(
     modelCallMs?: number;
     finishStatus?: number;
     resume?: Fake["resume"];
+    vault?: Fake["vault"];
+    /** Where the request is sent; the function's own address unless a test names a route. */
+    url?: string;
   } = {},
 ): Promise<Run> {
   const fake: Fake = {
@@ -258,16 +303,32 @@ async function run(
     resumedRecords: [],
     clock: 0,
     modelCallMs: options.modelCallMs ?? 0,
+    vault: options.vault ?? {},
   };
   const env = { ...ENV, ...options.env };
   const logs: LogEntry[] = [];
+  const settingsLogs: SettingsLogEntry[] = [];
+  const config = readConfig((name) => env[name]);
+  const send = fakeFetch(fake);
   const handler = createHandler({
-    config: readConfig((name) => env[name]),
-    fetch: fakeFetch(fake),
-    log: (entry) => logs.push(entry),
+    config,
+    fetch: send,
+    log: (entry) => {
+      if ("settings" in entry) settingsLogs.push(entry);
+      else logs.push(entry);
+    },
     now: () => fake.clock,
     modelTimeoutMs: TIMEOUT_MS,
     newToken: () => token(NEXT_TOKEN),
+    keys: vaultKeys({
+      url: SUPABASE_URL,
+      serviceRoleKey: ENV.SUPABASE_SERVICE_ROLE_KEY,
+      fetch: send,
+      now: () => fake.clock,
+      openRouterSecret: config.kind === "configured"
+        ? config.openRouterSecret
+        : null,
+    }),
   });
   const headers = new Headers({ "Content-Type": "application/json" });
   const authorization = options.authorization === undefined
@@ -275,13 +336,17 @@ async function run(
     : options.authorization;
   if (authorization !== null) headers.set("Authorization", authorization);
   const method = options.method ?? "POST";
-  const request = new Request("https://functions.test/extract-cards", {
-    method,
-    headers,
-    body: method === "POST"
-      ? options.rawBody ?? JSON.stringify(options.body ?? { image: image(PNG) })
-      : undefined,
-  });
+  const request = new Request(
+    options.url ?? "https://functions.test/extract-cards",
+    {
+      method,
+      headers,
+      body: method === "POST"
+        ? options.rawBody ??
+          JSON.stringify(options.body ?? { image: image(PNG) })
+        : undefined,
+    },
+  );
 
   const printed: string[] = [];
   const saved = { ...console };
@@ -296,12 +361,16 @@ async function run(
     Object.assign(console, saved);
   }
   const modelCalls = fake.calls
-    .filter((call) => call.url === OPENROUTER_URL)
+    .filter((call) =>
+      call.url === OPENROUTER_URL || call.url === OPENAI_URL ||
+      call.url === ANTHROPIC_URL
+    )
     .map((call) => JSON.parse(String(call.init?.body)));
   return {
     status: response.status,
     body: await response.json(),
     logs,
+    settingsLogs,
     console: printed,
     fake,
     modelCalls,
@@ -1320,6 +1389,8 @@ Deno.test("a user at the photo limit of its plan is refused with 429 stating tha
   assert.equal(usage.length, 1);
   assert.deepEqual(JSON.parse(String(usage[0].init?.body)), {
     user_id: USER_ID,
+    configuration_id: null,
+    secret_providers: ["openrouter"],
   });
   const headers = new Headers(usage[0].init?.headers);
   assert.equal(
@@ -1354,27 +1425,59 @@ Deno.test("a suspended user is refused with 403 before its plan, the count or a 
   );
 });
 
-Deno.test("a missing OpenRouter key answers 503, and no model secret is read", async () => {
+Deno.test("a provider without a key answers 503 unavailable before the photo is counted or a model called", async () => {
   for (
-    const env of [
-      { OPENROUTER_API_KEY: undefined },
-      { OPENROUTER_API_KEY: " " },
-    ]
+    const [label, options] of [
+      [
+        "OpenRouter with neither a Vault key nor its transition secret",
+        { env: { OPENROUTER_API_KEY: " " } },
+      ],
+      [
+        "OpenAI without a Vault key, OPENAI_API_KEY being no source",
+        {
+          plan: openaiPlan,
+          env: { OPENAI_API_KEY: "sk-secret-never-read" },
+        },
+      ],
+    ] as const
   ) {
-    const r = await run({ env, replies: [cardsReply(twoCards)] });
-    assert.equal(r.status, 503, JSON.stringify(env));
-    assert.deepEqual(r.body, { error: "not_configured" });
-    assert.equal(r.fake.calls.length, 0);
+    const r = await run({ ...options, replies: [cardsReply(twoCards)] });
+    assert.equal(r.status, 503, label);
+    assert.deepEqual(r.body, { error: "unavailable" });
+    assert.equal(r.modelCalls.length, 0, label);
+    assert.equal(r.fake.finishes.length, 0, label);
+    assert.equal(r.logs[0].outcome, "unavailable");
+    const begun = JSON.parse(String(usageCalls(r)[0].init?.body));
+    const provider = "plan" in options ? options.plan.provider : "openrouter";
+    assert.ok(
+      !begun.secret_providers.includes(provider),
+      "no secret is offered for the provider",
+    );
   }
   const control = await run({
+    plan: openaiPlan,
+    vault: { openai: "sk-from-vault-0001" },
     env: { CARD_MODEL: undefined, CARD_RETRY_MODEL: "not a model id" },
     replies: [cardsReply(twoCards)],
   });
   assert.equal(
     control.status,
     200,
-    "control: the key alone configures it, whatever CARD_MODEL and CARD_RETRY_MODEL hold",
+    "control: the same plan once Vault holds its key",
   );
+});
+
+Deno.test("the platform's variables alone configure the function; without them it answers 503 not_configured", async () => {
+  const r = await run({ env: { SUPABASE_URL: undefined } });
+  assert.equal(r.status, 503);
+  assert.deepEqual(r.body, { error: "not_configured" });
+  assert.equal(r.fake.calls.length, 0);
+  const control = await run({
+    env: { OPENROUTER_API_KEY: undefined },
+    vault: { openrouter: "sk-or-vault-0001" },
+    replies: [cardsReply(twoCards)],
+  });
+  assert.equal(control.status, 200, "control: no provider secret is needed");
 });
 
 Deno.test("each request logs one line of the allowed fields and never the image", async () => {
@@ -1398,6 +1501,7 @@ Deno.test("each request logs one line of the allowed fields and never the image"
       "plan",
       "prompt_tokens",
       "prompt_version",
+      "provider",
       "user_id",
     ]);
     assert.ok(!JSON.stringify(r.logs).includes(photo.slice(0, 64)));
@@ -1423,6 +1527,7 @@ Deno.test("each request logs one line of the allowed fields and never the image"
   assert.deepEqual(outcomes[0].logs[0], {
     user_id: USER_ID,
     plan: "free",
+    provider: "openrouter",
     model: "vendor/primary-model",
     prompt_version: 1,
     latency_ms: 0,
@@ -1499,4 +1604,53 @@ Deno.test("a served row naming Special, or a period that is not a month or a day
     replies: [cardsReply(twoCards)],
   });
   assert.equal(served.status, 200, "control: a Max row a day is read");
+});
+
+Deno.test("a photo is read by its configuration's provider with that provider's key from Vault", async () => {
+  const r = await run({
+    plan: { ...openaiPlan, provider: "anthropic", model: "claude-model" },
+    vault: { anthropic: "sk-ant-vault-0001", openrouter: "sk-or-vault-0002" },
+    replies: [cardsReply(twoCards)],
+  });
+  assert.equal(r.status, 200);
+  const calls = r.fake.calls.filter((call) => call.url === ANTHROPIC_URL);
+  assert.equal(calls.length, 1);
+  assert.equal(
+    new Headers(calls[0].init?.headers).get("x-api-key"),
+    "sk-ant-vault-0001",
+  );
+  assert.equal(
+    r.fake.calls.filter((call) => call.url === OPENROUTER_URL).length,
+    0,
+    "OpenRouter is not called",
+  );
+  assert.equal(r.logs[0].provider, "anthropic");
+  assert.ok(
+    !JSON.stringify([r.body, r.logs, r.console]).includes("sk-ant-vault-0001"),
+  );
+  const control = await run({ replies: [cardsReply(twoCards)] });
+  assert.equal(
+    control.fake.calls.filter((call) => call.url === OPENROUTER_URL).length,
+    1,
+    "control: an OpenRouter configuration calls OpenRouter",
+  );
+});
+
+Deno.test("an admin's trial names its configuration to begin_extraction, and a malformed one is refused", async () => {
+  const r = await run({
+    body: { image: image(PNG), configuration_id: 12 },
+    replies: [cardsReply(twoCards)],
+  });
+  assert.equal(r.status, 200);
+  assert.equal(
+    JSON.parse(String(usageCalls(r)[0].init?.body)).configuration_id,
+    12,
+  );
+  for (const configuration_id of [0, -1, 1.5, "12"]) {
+    const refused = await run({
+      body: { image: image(PNG), configuration_id },
+    });
+    assert.equal(refused.status, 400, String(configuration_id));
+    assert.equal(usageCalls(refused).length, 0);
+  }
 });

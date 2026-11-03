@@ -1,7 +1,7 @@
 // The eval as the command in run.ts's header runs it, with its real I/O but OpenRouter replaced
 // by a fake fetch: one usable model, and one vocabulary card at $0.001 a call. run_io_test.ts
 // runs it as a subprocess.
-import { OPENROUTER_URL } from "../../supabase/functions/extract-cards/openrouter.ts";
+import { OPENROUTER_URL } from "../../supabase/functions/extract-cards/providers.ts";
 import { MODELS_URL } from "./models.ts";
 import { denoIo, main } from "./run.ts";
 

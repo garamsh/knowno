@@ -1007,6 +1007,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'You need to sign in. Sign in again from Settings.';
 
   @override
+  String get extractionUnavailable =>
+      'Can\'t make cards from photos right now. Add them by hand or from an Excel or CSV file.';
+
+  @override
   String get serviceFailed =>
       'Can\'t make cards from photos right now. Please try again in a moment.';
 

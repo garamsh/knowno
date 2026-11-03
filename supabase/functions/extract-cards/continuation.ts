@@ -5,7 +5,7 @@
  */
 
 import type { Card, CardRule } from "./cards.ts";
-import type { Attempt, Extraction } from "./openrouter.ts";
+import type { Attempt, Extraction } from "./model.ts";
 
 /**
  * The fewest cards after which a whole reply is still read on, to confirm the page ends there: a

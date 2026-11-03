@@ -6,7 +6,8 @@ import {
   type UserId,
 } from "../_shared/auth.ts";
 import type { CursorToken } from "./continuation.ts";
-import { type ModelId, modelId } from "./openrouter.ts";
+import { type ModelId, modelId } from "./model.ts";
+import { parseProvider, type Provider } from "./providers.ts";
 
 /** A plan, as `private.plan_versions` names it. */
 export type Plan = "free" | "pro" | "max";
@@ -18,10 +19,11 @@ export type Period = "month" | "day";
 export type Prompt = { readonly versionId: number; readonly text: string };
 
 /**
- * What one photo of the user may do: be extracted by its plan's model with the prompt the user is
- * served, recorded against the photo limit of the plan's version for its period; be refused at
- * that limit; or nothing, when the plan has no version, the active prompt is missing, or the
- * version names no model the function would call.
+ * What one photo of the user may do: be extracted by the provider and model of the configuration
+ * serving it, with the prompt the user is served, recorded against the photo limit of the plan's
+ * version for its period; be refused at that limit; be refused uncounted because that provider has
+ * no key (ADR 0162); or nothing, when the plan has no version or configuration, the active prompt
+ * is missing, or the configuration names no model the function would call.
  */
 export type Start =
   | {
@@ -29,9 +31,11 @@ export type Start =
     /** The `extraction_usage` row recorded for the photo, which names its call record. */
     readonly usageId: number;
     readonly plan: Plan;
+    readonly provider: Provider;
     readonly model: ModelId;
     readonly prompt: Prompt;
   }
+  | { readonly kind: "unavailable"; readonly plan: Plan }
   | {
     readonly kind: "rate_limited";
     readonly plan: Plan;
@@ -68,11 +72,22 @@ export async function userSuspended(
 }
 
 /**
- * Resolves the user's plan and prompt (ADR 0073: an admin is served the test version when one is
- * set) and, under the photo limit of the plan's version, records the photo with what serves it.
+ * What serves a photo beyond the user's plan: the configuration an admin names for a trial, and the
+ * providers the function holds a transition secret for, which need no key in Vault.
+ */
+export type Serving = {
+  readonly configurationId: number | null;
+  readonly secretProviders: readonly Provider[];
+};
+
+/**
+ * Resolves the user's plan, prompt and configuration (ADR 0073, ADR 0162: an admin is served the
+ * test version and configuration while one is set) and, when its provider can be called and under
+ * the photo limit of the plan's version, records the photo with what serves it.
  */
 export async function beginExtraction(
   userId: UserId,
+  serving: Serving,
   deps: SupabaseDeps,
 ): Promise<Start> {
   const response = await deps.fetch(
@@ -84,7 +99,11 @@ export async function beginExtraction(
         Authorization: `Bearer ${deps.serviceRoleKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ user_id: userId }),
+      body: JSON.stringify({
+        user_id: userId,
+        configuration_id: serving.configurationId,
+        secret_providers: serving.secretProviders,
+      }),
     },
   );
   if (!response.ok) {
@@ -101,7 +120,9 @@ export async function beginExtraction(
   }
   const {
     plan,
+    provider: providerName,
     model,
+    available,
     photo_limit: photoLimit,
     period,
     allowed,
@@ -109,26 +130,30 @@ export async function beginExtraction(
     prompt,
     usage_id: usageId,
   } = row as Record<string, unknown>;
+  const provider = parseProvider(providerName);
   if (
     (plan !== "free" && plan !== "pro" && plan !== "max") ||
-    (period !== "month" && period !== "day") ||
+    (period !== "month" && period !== "day") || provider === null ||
+    typeof available !== "boolean" ||
     typeof allowed !== "boolean" || typeof photoLimit !== "number" ||
     typeof versionId !== "number" || !Number.isSafeInteger(versionId) ||
     typeof prompt !== "string"
   ) {
     throw new SupabaseError("begin_extraction answered a row it should not");
   }
+  if (!available) return { kind: "unavailable", plan };
   if (!allowed) return { kind: "rate_limited", plan, photoLimit, period };
   if (typeof usageId !== "number" || !Number.isSafeInteger(usageId)) {
     throw new SupabaseError(
       "begin_extraction allowed a photo it did not record",
     );
   }
-  const id = typeof model === "string" ? modelId(model) : null;
+  const id = typeof model === "string" ? modelId(provider, model) : null;
   return id === null ? { kind: "not_configured" } : {
     kind: "allowed",
     usageId,
     plan,
+    provider,
     model: id,
     prompt: { versionId, text: prompt },
   };
@@ -201,6 +226,7 @@ export type Resume =
     readonly kind: "resumed";
     readonly usageId: number;
     readonly plan: Plan;
+    readonly provider: Provider;
     readonly model: ModelId;
     readonly prompt: Prompt;
     readonly cardsRead: number;
@@ -242,24 +268,28 @@ export async function resumeExtraction(
   const {
     usage_id: usageId,
     plan,
+    provider: providerName,
     model,
     prompt_version_id: versionId,
     prompt,
     cards_read: cardsRead,
     continuations,
   } = row as Record<string, unknown>;
+  const provider = parseProvider(providerName);
   if (
     (plan !== "free" && plan !== "pro" && plan !== "max") ||
+    provider === null ||
     !isCount(usageId) || !isCount(versionId) || typeof prompt !== "string" ||
     !isCount(cardsRead) || !isCount(continuations)
   ) {
     throw new SupabaseError("resume_extraction answered a row it should not");
   }
-  const id = typeof model === "string" ? modelId(model) : null;
+  const id = typeof model === "string" ? modelId(provider, model) : null;
   return id === null ? { kind: "not_configured" } : {
     kind: "resumed",
     usageId,
     plan,
+    provider,
     model: id,
     prompt: { versionId, text: prompt },
     cardsRead,
@@ -306,6 +336,107 @@ export async function recordResumed(
     },
   ).catch(() => null);
   return response?.ok ?? false;
+}
+
+/**
+ * Whether the bearer of [token] is an admin who signed in within the last 10 minutes, through
+ * `public.admin_ai_session` called as that user: `recent`, `stale`, or `not_admin`.
+ */
+export async function adminSession(
+  token: string,
+  deps: SupabaseDeps,
+): Promise<"recent" | "stale" | "not_admin"> {
+  const response = await deps.fetch(
+    `${deps.url}/rest/v1/rpc/admin_ai_session`,
+    {
+      method: "POST",
+      headers: {
+        apikey: deps.serviceRoleKey,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    },
+  );
+  if (response.status === 401 || response.status === 403) {
+    await response.body?.cancel();
+    return "not_admin";
+  }
+  if (!response.ok) {
+    throw new SupabaseError(`admin_ai_session answered ${response.status}`);
+  }
+  const recent: unknown = await response.json();
+  if (typeof recent !== "boolean") {
+    throw new SupabaseError("admin_ai_session answered no boolean");
+  }
+  return recent ? "recent" : "stale";
+}
+
+/** Calls the `service_role` function [name] with [args], answering its JSON result. */
+async function serviceCall(
+  name: string,
+  args: Record<string, unknown>,
+  deps: SupabaseDeps,
+): Promise<unknown> {
+  const response = await deps.fetch(`${deps.url}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: deps.serviceRoleKey,
+      Authorization: `Bearer ${deps.serviceRoleKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(args),
+  });
+  if (!response.ok) {
+    await response.body?.cancel();
+    // The status alone: the arguments may hold a key.
+    throw new SupabaseError(`${name} answered ${response.status}`);
+  }
+  return await response.json();
+}
+
+/**
+ * Stores [key] in Vault as [provider]'s for [adminId], through `public.save_provider_key`, after
+ * its check call parsed: whether it was saved, or refused as malformed.
+ */
+export async function saveProviderKey(
+  adminId: UserId,
+  provider: Provider,
+  key: string,
+  deps: SupabaseDeps,
+): Promise<boolean> {
+  const answer = await serviceCall("save_provider_key", {
+    admin_id: adminId,
+    provider,
+    key,
+  }, deps);
+  if (answer !== "saved" && answer !== "bad_key") {
+    throw new SupabaseError("save_provider_key answered an unknown result");
+  }
+  return answer === "saved";
+}
+
+/**
+ * Saves [provider] and [model] as [plan]'s draft for [adminId], through
+ * `public.save_ai_configuration`, after its check call parsed, answering the configuration's id.
+ */
+export async function saveConfiguration(
+  adminId: UserId,
+  plan: Plan,
+  provider: Provider,
+  model: ModelId,
+  deps: SupabaseDeps,
+): Promise<number> {
+  const id = await serviceCall("save_ai_configuration", {
+    admin_id: adminId,
+    plan,
+    provider,
+    model,
+  }, deps);
+  if (!isCount(id)) {
+    throw new SupabaseError("save_ai_configuration answered no id");
+  }
+  return id;
 }
 
 function isCount(value: unknown): value is number {

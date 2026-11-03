@@ -115,7 +115,6 @@ export type PlanVersion = {
   plan: PlanId;
   quota: Quota;
   amount: number;
-  model: string;
   startsAt: number;
   /** Whether existing users take it from its start rather than at their renewal. */
   appliesToAll: boolean;
@@ -134,7 +133,8 @@ export type UserPlan = {
     plan: PlanId;
     quota: Quota;
     amount: number;
-    model: string;
+    /** The plan's active AI configuration, null while it has none (ADR 0162). */
+    serving: { provider: Provider; model: string } | null;
     used: number;
   } | null;
   grant: {
@@ -464,6 +464,71 @@ export async function readUser(id: string): Promise<AdminRead<AdminUser | null>>
   };
 }
 
+/** An AI provider a plan's configuration may name (ADR 0162). */
+export type Provider = "openrouter" | "openai" | "anthropic";
+
+export const providers: readonly Provider[] = ["openrouter", "openai", "anthropic"];
+
+/** [value], which crossed the network, as a provider; null for any other. */
+export function parseProvider(value: unknown): Provider | null {
+  return providers.find((known) => known === value) ?? null;
+}
+
+/**
+ * One provider's key as the admin area sees it: its last four characters, who set it and when,
+ * null while Vault holds none, and whether an active configuration uses it. Never the key.
+ */
+export type ProviderKey = {
+  provider: Provider;
+  key: { lastFour: string; setAt: number; setByEmail: string | null } | null;
+  inUse: boolean;
+};
+
+/** A plan's labelled configuration: its active one, or its draft served to admins ('test'). */
+export type AiConfiguration = {
+  plan: PlanId;
+  label: "active" | "test";
+  id: number;
+  provider: Provider;
+  model: string;
+  createdAt: number;
+  createdByEmail: string | null;
+};
+
+/** Each provider's key state, OpenRouter's first. */
+export async function readProviderKeys(): Promise<AdminRead<ProviderKey[]>> {
+  return parsed(await call("admin_provider_keys"), (row) => {
+    const provider = parseProvider(field(row, "provider"));
+    const lastFour = field(row, "last_four");
+    const setAt = field(row, "set_at");
+    const setBy = field(row, "set_by_email");
+    const inUse = field(row, "in_use");
+    if (provider === null || typeof inUse !== "boolean") return null;
+    if (lastFour === null) return { provider, key: null, inUse };
+    const at = parseTime(setAt);
+    if (typeof lastFour !== "string" || at === null) return null;
+    if (setBy !== null && typeof setBy !== "string") return null;
+    return { provider, key: { lastFour, setAt: at, setByEmail: setBy }, inUse };
+  });
+}
+
+/** Each plan's active configuration and draft. */
+export async function readAiConfigurations(): Promise<AdminRead<AiConfiguration[]>> {
+  return parsed(await call("admin_ai_configurations"), (row) => {
+    const plan = planId(field(row, "plan"));
+    const label = field(row, "label");
+    const id = count(field(row, "configuration_id"));
+    const provider = parseProvider(field(row, "provider"));
+    const model = text(field(row, "model"));
+    const createdAt = parseTime(field(row, "created_at"));
+    const createdBy = field(row, "created_by_email");
+    if (plan === null || id === null || provider === null || model === null) return null;
+    if ((label !== "active" && label !== "test") || createdAt === null) return null;
+    if (createdBy !== null && typeof createdBy !== "string") return null;
+    return { plan, label, id, provider, model, createdAt, createdByEmail: createdBy };
+  });
+}
+
 /** Every plan version, Free's first, then Pro's and Max's, each plan's latest start first. */
 export async function readPlanVersions(): Promise<AdminRead<PlanVersion[]>> {
   return parsed(await call("admin_plan_versions"), (row) => {
@@ -471,15 +536,12 @@ export async function readPlanVersions(): Promise<AdminRead<PlanVersion[]>> {
     const plan = planId(field(row, "plan"));
     const kind = quota(field(row, "quota"));
     const amount = count(field(row, "amount"));
-    const model = text(field(row, "model"));
     const startsAt = parseTime(field(row, "starts_at"));
     const appliesToAll = field(row, "applies_to_all");
     const current = field(row, "current");
     const createdAt = parseTime(field(row, "created_at"));
     const createdBy = field(row, "created_by_email");
-    if (id === null || plan === null || kind === null || amount === null || model === null) {
-      return null;
-    }
+    if (id === null || plan === null || kind === null || amount === null) return null;
     if (startsAt === null || createdAt === null) return null;
     if (typeof appliesToAll !== "boolean" || typeof current !== "boolean") return null;
     if (createdBy !== null && typeof createdBy !== "string") return null;
@@ -488,7 +550,6 @@ export async function readPlanVersions(): Promise<AdminRead<PlanVersion[]>> {
       plan,
       quota: kind,
       amount,
-      model,
       startsAt,
       appliesToAll,
       current,
@@ -510,12 +571,19 @@ function parseUserPlan(row: unknown): UserPlan | null {
     const id = planId(plan);
     const kind = quota(field(row, "quota"));
     const amount = count(field(row, "amount"));
-    const model = text(field(row, "model"));
     const used = count(field(row, "used"));
-    if (id === null || kind === null || amount === null || model === null || used === null) {
-      return null;
+    const providerValue = field(row, "provider");
+    const modelValue = field(row, "model");
+    if (id === null || kind === null || amount === null || used === null) return null;
+    // Provider and model are null together, while the plan has no active configuration.
+    let serving: { provider: Provider; model: string } | null = null;
+    if (providerValue !== null || modelValue !== null) {
+      const provider = parseProvider(providerValue);
+      const model = text(modelValue);
+      if (provider === null || model === null) return null;
+      serving = { provider, model };
     }
-    entitlement = { plan: id, quota: kind, amount, model, used };
+    entitlement = { plan: id, quota: kind, amount, serving, used };
   }
   if (granted === null) return { entitlement, grant: null };
   const endsAt = endsAtValue === null ? null : parseTime(endsAtValue);

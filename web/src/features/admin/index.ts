@@ -5,6 +5,7 @@ export { AdminNav } from "./components/admin-nav";
 export { AuditLog } from "./components/audit-log";
 export { DeckView } from "./components/deck-view";
 export { GrantAdminForm } from "./components/grant-admin-form";
+export { AiSettingsView } from "./components/ai-settings-view";
 export { AiView } from "./components/ai-view";
 export { NoteList } from "./components/note-list";
 export { TodoView } from "./components/todo-view";
@@ -17,6 +18,7 @@ export { PromptView } from "./components/prompt-view";
 export { UserSearch } from "./components/user-search";
 export { UserView } from "./components/user-view";
 export {
+  type AdminFailure,
   adminTimeZone,
   extractionPageSize,
   type NoteView,
@@ -27,8 +29,10 @@ export {
   readExtractionBreakdown,
   readIsAdmin,
   readNotes,
+  readAiConfigurations,
   readOpenReports,
   readPlanVersions,
+  readProviderKeys,
   readPromptLabels,
   readPromptVersion,
   readPromptVersions,

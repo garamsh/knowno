@@ -987,34 +987,6 @@ describe("the audit log", () => {
   });
 });
 
-/** OpenRouter's public model list: Haiku takes images with structured outputs; the text model does not. */
-const openRouterModels = http.get("https://openrouter.ai/api/v1/models", () =>
-  HttpResponse.json({
-    data: [
-      {
-        id: "anthropic/claude-haiku-5.5",
-        architecture: { input_modalities: ["text", "image"] },
-        supported_parameters: ["structured_outputs", "max_tokens"],
-      },
-      {
-        id: "openai/gpt-6-luna",
-        architecture: { input_modalities: ["text", "image"] },
-        supported_parameters: ["structured_outputs"],
-      },
-      {
-        id: "vendor/text-only",
-        architecture: { input_modalities: ["text"] },
-        supported_parameters: ["structured_outputs"],
-      },
-      {
-        id: "vendor/no-schema",
-        architecture: { input_modalities: ["text", "image"] },
-        supported_parameters: ["max_tokens"],
-      },
-    ],
-  }),
-);
-
 /** A form of [fields], as the browser posts it. */
 function form(fields: Record<string, string>): FormData {
   const data = new FormData();
@@ -1023,63 +995,50 @@ function form(fields: Record<string, string>): FormData {
 }
 
 describe("the plans page", () => {
-  it("shows the version each plan's new subscribers take with its measured cost, a form for a new version, and every version", async () => {
+  it("shows the terms each plan's new subscribers take, a form for a new version, and every version, the model left to AI 제공자", async () => {
     admin.planVersions.push({
       id: 7,
       plan: "pro",
       quota: "daily",
       amount: 100,
-      model: "openai/gpt-6-luna",
       starts_at: "2026-10-26T00:00:01Z",
       applies_to_all: false,
       created_by: testUser.id,
     });
     await render(PlansContent, {});
     const free = within(screen.getByRole("region", { name: "무료" }));
-    expect(
-      free.getByText("지금 가입하면 한 달 10장 · anthropic/claude-haiku-5.5"),
-    ).toBeInTheDocument();
-    expect(free.getByText("측정 비용 사진 한 장에 $0.0018")).toBeInTheDocument();
+    expect(free.getByText("지금 가입하면 한 달 10장")).toBeInTheDocument();
     expect(free.getByRole("combobox", { name: "한도" })).toHaveValue("monthly");
     expect(free.getByRole("spinbutton", { name: "사진 장 수" })).toHaveValue(10);
-    expect(free.getByRole("textbox", { name: "모델" })).toHaveValue("anthropic/claude-haiku-5.5");
+    expect(free.queryByRole("textbox", { name: "모델" })).not.toBeInTheDocument();
     expect(
       within(free.getByRole("list", { name: "무료 버전" }))
         .getAllByRole("listitem")
         .map((row) => row.textContent),
     ).toEqual([
-      "한 달 10장 · anthropic/claude-haiku-5.5 · 지금 가입 시 적용2026-10-26 00:00부터 · 기존 사용자는 갱신일부터",
-      "하루 30장 · anthropic/claude-haiku-5.52026-10-19 00:00부터 · 기존 사용자는 갱신일부터",
+      "한 달 10장 · 지금 가입 시 적용2026-10-26 00:00부터 · 기존 사용자는 갱신일부터",
+      "하루 30장2026-10-19 00:00부터 · 기존 사용자는 갱신일부터",
     ]);
     const pro = within(screen.getByRole("region", { name: "프로" }));
-    expect(pro.getByText("이 모델은 측정한 비용이 없어요.")).toBeInTheDocument();
     // The row carries its start and author after its terms, so a substring is right.
     expect(pro.getByText(/learner@example.com/)).toBeInTheDocument();
     const max = within(screen.getByRole("region", { name: "맥스" }));
-    expect(
-      max.getByText("지금 가입하면 무제한 (하루 1000장까지) · anthropic/claude-haiku-5.5"),
-    ).toBeInTheDocument();
+    expect(max.getByText("지금 가입하면 무제한 (하루 1000장까지)")).toBeInTheDocument();
     expect(max.getByText(/기존 사용자도 적용/)).toBeInTheDocument();
-    const measured = within(screen.getByRole("region", { name: "측정한 모델" }));
-    expect(measured.getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "anthropic/claude-haiku-5.5$0.0018",
-      "anthropic/claude-sonnet-5.5$0.0267",
-    ]);
+    // The note holds the link inside its sentence, so a substring finds the note.
+    expect(
+      within(screen.getByText(/에서 정해요/)).getByRole("link", { name: "AI 제공자" }),
+    ).toHaveAttribute("href", "/admin/settings/ai");
   });
 
-  it("creates a version from now when OpenRouter lists the model with images and structured outputs, records it, and says when the terms are the current ones", async () => {
-    server.use(openRouterModels);
+  it("creates a version from now, records it, and says when the terms are the current ones", async () => {
     const create = () =>
-      createPlanVersion(
-        { message: null },
-        form({ plan: "pro", quota: "daily", amount: "200", model: "openai/gpt-6-luna" }),
-      );
+      createPlanVersion({ message: null }, form({ plan: "pro", quota: "daily", amount: "200" }));
     expect(await create()).toEqual({ message: "새 버전을 만들었어요." });
     expect(admin.planVersions.at(-1)).toMatchObject({
       plan: "pro",
       quota: "daily",
       amount: 200,
-      model: "openai/gpt-6-luna",
       applies_to_all: false,
     });
     expect(admin.audit).toMatchObject([
@@ -1090,13 +1049,9 @@ describe("the plans page", () => {
   });
 
   it("starts a version at 00:00 in Seoul on the day chosen, refuses a day already past, and applies one to existing users only in their favour", async () => {
-    server.use(openRouterModels);
     const day = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
     const create = (fields: Record<string, string>) =>
-      createPlanVersion(
-        { message: null },
-        form({ model: "anthropic/claude-haiku-5.5", ...fields }),
-      );
+      createPlanVersion({ message: null }, form(fields));
     expect(await create({ plan: "free", quota: "monthly", amount: "20", starts_on: day })).toEqual({
       message: "새 버전을 만들었어요.",
     });
@@ -1107,8 +1062,7 @@ describe("the plans page", () => {
       await create({ plan: "free", quota: "monthly", amount: "30", starts_on: "2020-01-01" }),
     ).toEqual({ message: "시작일은 내일 이후로 정하거나, 지금부터면 비워 두세요." });
     const unfavoured = {
-      message:
-        "기존 사용자에게 바로 적용할 수 있는 건 같은 모델에서 사진을 줄이지 않는 변경뿐이에요.",
+      message: "기존 사용자에게 바로 적용할 수 있는 건 사진을 줄이지 않는 변경뿐이에요.",
     };
     expect(
       await create({ plan: "max", quota: "unlimited", amount: "500", applies_to_all: "on" }),
@@ -1123,46 +1077,32 @@ describe("the plans page", () => {
     expect(admin.audit).toHaveLength(2);
   });
 
-  it("cannot save a model OpenRouter does not list, one without images or structured outputs, a malformed id or amount, or any while OpenRouter cannot be reached", async () => {
-    server.use(openRouterModels);
+  it("cannot save a malformed amount, asking the server nothing", async () => {
     const versions = admin.planVersions.length;
-    const attempt = (model: string, amount = "30") =>
-      createPlanVersion({ message: null }, form({ plan: "free", quota: "daily", model, amount }));
-    expect(await attempt("vendor/unknown")).toEqual({
-      message: "OpenRouter에 없는 모델이에요. 모델 ID를 확인해 주세요.",
-    });
-    for (const model of ["vendor/text-only", "vendor/no-schema"]) {
-      expect(await attempt(model), model).toEqual({
-        message: "사진과 구조화된 답을 함께 지원하지 않는 모델이에요.",
-      });
-    }
-    expect(await attempt("not a model")).toEqual({
-      message: "모델 ID는 vendor/model 꼴로 적어 주세요.",
-    });
-    expect(await attempt("anthropic/claude-haiku-5.5", "100001")).toEqual({
-      message: "사진 장 수는 0에서 100000 사이의 정수로 적어 주세요.",
-    });
-    server.use(
-      http.get(
-        "https://openrouter.ai/api/v1/models",
-        () => new HttpResponse(null, { status: 503 }),
+    expect(
+      await createPlanVersion(
+        { message: null },
+        form({ plan: "free", quota: "daily", amount: "100001" }),
       ),
-    );
-    expect(await attempt("openai/gpt-6-luna")).toEqual({
-      message: "OpenRouter에 연결할 수 없어 모델을 확인하지 못했어요. 잠시 후 다시 시도해 주세요.",
-    });
+    ).toEqual({ message: "사진 장 수는 0에서 100000 사이의 정수로 적어 주세요." });
     expect(admin.planVersions).toHaveLength(versions);
     expect(admin.calls.some((call) => call.startsWith("admin_create_plan_version"))).toBe(false);
+    expect(
+      await createPlanVersion(
+        { message: null },
+        form({ plan: "free", quota: "daily", amount: "5" }),
+      ),
+    ).toEqual({ message: "새 버전을 만들었어요." });
+    expect(admin.planVersions, "control: a whole number is saved").toHaveLength(versions + 1);
   });
 
   it("refuses a user who is not an admin, and changes nothing", async () => {
-    server.use(openRouterModels);
     const versions = admin.planVersions.length;
     await signIn(otherUser);
     expect(
       await createPlanVersion(
         { message: null },
-        form({ plan: "free", quota: "daily", model: "openai/gpt-6-luna", amount: "5" }),
+        form({ plan: "free", quota: "daily", amount: "5" }),
       ),
     ).toEqual({ message: "관리자만 할 수 있어요." });
     expect(admin.planVersions).toHaveLength(versions);
@@ -1170,8 +1110,8 @@ describe("the plans page", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("관리자만 볼 수 있어요.");
   });
 
-  it("costs a photo without a call record at the model of Free's current version, and leaves out one a never-measured model served", async () => {
-    const free = admin.planVersions.find((entry) => entry.plan === "free" && entry.amount === 10);
+  it("costs a photo without a call record at the model serving Free now, and leaves out one a never-measured model served", async () => {
+    const free = admin.aiConfigurations.find((entry) => entry.plan === "free");
     if (free) free.model = "openai/gpt-6-luna";
     admin.breakdown = [
       { day: utcDay(), plan: null, model: null, prompt_version_id: null, photos: 4 },
@@ -1350,14 +1290,12 @@ describe("a user's plan", () => {
   });
 
   it("names each plan change in the audit log", async () => {
-    server.use(openRouterModels);
     await createPlanVersion(
       { message: null },
       form({
         plan: "pro",
         quota: "daily",
         amount: "200",
-        model: "openai/gpt-6-luna",
         applies_to_all: "",
       }),
     );
@@ -1365,7 +1303,7 @@ describe("a user's plan", () => {
     await render(AuditContent, {});
     expect(auditEntries()).toEqual([
       "요금제 지정 · other@example.com · 프로",
-      "요금제 새 버전 · 프로 · openai/gpt-6-luna · 하루 200장",
+      "요금제 새 버전 · 프로 · 하루 200장",
     ]);
     expect(screen.getByRole("link", { name: "프로" })).toHaveAttribute("href", "/admin/settings");
   });

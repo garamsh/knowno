@@ -590,6 +590,8 @@
   "@modelFailed": {"description": "Photo import failure: the model failed."},
   "signInRequired": "로그인이 필요해요. 설정에서 다시 로그인해 주세요.",
   "@signInRequired": {"description": "Photo import failure: no session, or one the server refused."},
+  "extractionUnavailable": "지금은 사진으로 카드를 만들 수 없어요. 직접 입력이나 엑셀·CSV로 추가해 주세요.",
+  "@extractionUnavailable": {"description": "Photo import failure: no AI configuration can read photos now (503 unavailable); cards are still added by hand or from a spreadsheet."},
   "serviceFailed": "지금은 사진으로 카드를 만들 수 없어요. 잠시 후 다시 시도해 주세요.",
   "@serviceFailed": {"description": "Photo import failure: the server answered unexpectedly."},
   "photoUnreadable": "이 사진을 읽을 수 없어요. 다른 사진을 골라 주세요.",
