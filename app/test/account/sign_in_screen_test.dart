@@ -12,6 +12,7 @@ import 'package:knowno/l10n/app_localizations.dart';
 
 import '../contrast.dart';
 import 'fake_account_service.dart';
+import '../word_breaks.dart';
 
 /// The stacked logo, read as the app's name.
 final _logo = find.bySemanticsLabel('knowno');
@@ -178,7 +179,7 @@ void main() {
         locale: const Locale('ko'),
       );
 
-      final apple = find.widgetWithText(TextButton, 'Apple로 계속하기 · 준비 중');
+      final apple = widgetWithShownText(TextButton, 'Apple로 계속하기 · 준비 중');
       expect(tester.widget<TextButton>(apple).onPressed, isNull);
       expect(
         tester.getSemantics(apple),

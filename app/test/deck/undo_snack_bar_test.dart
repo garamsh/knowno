@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/deck/src/undo_snack_bar.dart';
 
 import '../design/harness.dart';
+import '../word_breaks.dart';
 
 /// A button that offers an undo for "Gone", ended by [endOn].
 class _Offer extends StatelessWidget {
@@ -47,7 +48,7 @@ void main() {
         endOn: endOn,
       ),
     );
-    await tester.tap(find.text('Delete'));
+    await tester.tap(shownText('Delete'));
     await tester.pumpAndSettle();
     expect(find.text('Gone'), findsOneWidget);
   }
@@ -101,7 +102,7 @@ void main() {
       await outlast(tester);
       expect(find.text('Gone'), findsOneWidget);
 
-      Focus.of(tester.element(find.text('Delete'))).requestFocus();
+      Focus.of(tester.element(shownText('Delete'))).requestFocus();
       await tester.pump();
       await outlast(tester);
       expect(find.text('Gone'), findsNothing);

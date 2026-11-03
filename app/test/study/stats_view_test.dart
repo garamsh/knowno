@@ -325,7 +325,7 @@ void main() {
       expect(segment('7 days').center.dy, segment('All').center.dy);
       expect(
         segment('7 days').top,
-        greaterThan(tester.getRect(find.text('Record')).bottom),
+        greaterThan(tester.getRect(shownText('Record')).bottom),
       );
       expect(
         segment('7 days').bottom,

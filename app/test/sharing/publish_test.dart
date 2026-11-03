@@ -36,7 +36,7 @@ Future<Deck> _stored(SharingApp app) async => (await app.tester.runAsync(
 ))!;
 
 FilledButton _publishButton(WidgetTester tester) =>
-    tester.widget(find.widgetWithText(FilledButton, 'Publish'));
+    tester.widget(widgetWithShownText(FilledButton, 'Publish'));
 
 void main() {
   testWidgets(
@@ -62,7 +62,7 @@ void main() {
         shownText("I won't publish inappropriate or copyrighted content"),
       );
       expect(_publishButton(tester).onPressed, isNotNull);
-      await app.tap(find.widgetWithText(FilledButton, 'Publish'));
+      await app.tap(widgetWithShownText(FilledButton, 'Publish'));
 
       expect(find.text('Note published'), findsOneWidget);
       expect(app.server.name?.value, 'Ada');
@@ -74,7 +74,7 @@ void main() {
       await tester.tap(find.byTooltip('Note settings'));
       await tester.pumpAndSettle();
       expect(find.text('Make private'), findsOneWidget);
-      expect(find.text('Publish'), findsNothing);
+      expect(shownText('Publish'), findsNothing);
       await app.close();
     },
   );
@@ -92,13 +92,13 @@ void main() {
         find.widgetWithText(AppTextField, 'Public name'),
         'A',
       );
-      await app.tap(find.widgetWithText(FilledButton, 'Publish'));
+      await app.tap(widgetWithShownText(FilledButton, 'Publish'));
       expect(find.text('Use 2 to 20 characters'), findsOneWidget);
       await tester.enterText(
         find.widgetWithText(AppTextField, 'Public name'),
         'a' * 21,
       );
-      await app.tap(find.widgetWithText(FilledButton, 'Publish'));
+      await app.tap(widgetWithShownText(FilledButton, 'Publish'));
       expect(find.text('Use 2 to 20 characters'), findsOneWidget);
       expect(app.server.writes, isEmpty);
       expect(app.server.name, isNull);
@@ -108,7 +108,7 @@ void main() {
         find.widgetWithText(AppTextField, 'Public name'),
         'Ad',
       );
-      await app.tap(find.widgetWithText(FilledButton, 'Publish'));
+      await app.tap(widgetWithShownText(FilledButton, 'Publish'));
       expect(app.server.name?.value, 'Ad');
       expect(app.server.writes, hasLength(1));
       await app.close();
@@ -131,7 +131,7 @@ void main() {
       await app.tap(
         shownText("I won't publish inappropriate or copyrighted content"),
       );
-      await app.tap(find.widgetWithText(FilledButton, 'Publish'));
+      await app.tap(widgetWithShownText(FilledButton, 'Publish'));
 
       expect(find.text('Use at most 300 characters'), findsOneWidget);
       expect(app.server.writes, isEmpty);
@@ -152,7 +152,7 @@ void main() {
     await app.tap(
       shownText("I won't publish inappropriate or copyrighted content"),
     );
-    await app.tap(find.widgetWithText(FilledButton, 'Publish'));
+    await app.tap(widgetWithShownText(FilledButton, 'Publish'));
     expect(find.text('Note published'), findsOneWidget);
     await app.close();
   });
@@ -167,7 +167,7 @@ void main() {
       await app.tap(
         shownText("I won't publish inappropriate or copyrighted content"),
       );
-      await app.tap(find.widgetWithText(FilledButton, 'Publish'));
+      await app.tap(widgetWithShownText(FilledButton, 'Publish'));
 
       expect(
         find.text("You're offline. Check your connection and try again."),
@@ -189,7 +189,7 @@ void main() {
     await app.tap(
       shownText("I won't publish inappropriate or copyrighted content"),
     );
-    await app.tap(find.widgetWithText(FilledButton, 'Publish'));
+    await app.tap(widgetWithShownText(FilledButton, 'Publish'));
     expect(find.text('0 learned · Public'), findsOneWidget);
     // Snack bars queue; the first leaves before the second shows.
     await tester.pump(const Duration(seconds: 5));
@@ -235,14 +235,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("Available when you're online"), findsOneWidget);
-    await tester.tap(find.text('Publish'));
+    await tester.tap(shownText('Publish'));
     await tester.pumpAndSettle();
     expect(shownText('Publish "French"'), findsNothing);
     expect(app.server.writes, isEmpty);
     // The menu's button closes it again.
     await tester.tap(find.byTooltip('Note settings'));
     await tester.pumpAndSettle();
-    expect(find.text('Publish'), findsNothing, reason: 'the menu closed');
+    expect(shownText('Publish'), findsNothing, reason: 'the menu closed');
 
     // Control: back online, the same item opens the sheet.
     app.network.online = true;
@@ -269,13 +269,13 @@ void main() {
         await app.tap(
           shownText("I won't publish inappropriate or copyrighted content"),
         );
-        await app.tap(find.widgetWithText(FilledButton, 'Publish'));
+        await app.tap(widgetWithShownText(FilledButton, 'Publish'));
         await app.meetsGuidelines();
         await tester.enterText(
           find.widgetWithText(AppTextField, 'Public name'),
           'Ada',
         );
-        await app.tap(find.widgetWithText(FilledButton, 'Publish'));
+        await app.tap(widgetWithShownText(FilledButton, 'Publish'));
         expect(find.text('0 learned · Public'), findsOneWidget);
         await app.meetsGuidelines();
         await tester.pageBack();

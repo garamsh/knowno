@@ -67,7 +67,7 @@ void main() {
     'a deck with no card offers Add card in the header as a deck with cards does, with no foot bar, no search and no Study this note',
     (tester) async {
       AppButton button(String label) =>
-          tester.widget<AppButton>(find.widgetWithText(AppButton, label));
+          tester.widget<AppButton>(widgetWithShownText(AppButton, label));
       // Control: a deck with a card offers Study this note and the search.
       var screens = await DeckScreens.open(tester, cards: {'Chat': 'cat'});
       await screens.push((deck) => DeckScreen(deck: deck));
@@ -85,13 +85,13 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(AppBar),
-          matching: find.widgetWithText(AppButton, 'Add card'),
+          matching: widgetWithShownText(AppButton, 'Add card'),
         ),
         findsOneWidget,
       );
       expect(find.byType(BottomActions), findsNothing);
-      await screens.tap(find.widgetWithText(AppButton, 'Add card'));
-      expect(find.text('Enter by hand'), findsOneWidget);
+      await screens.tap(widgetWithShownText(AppButton, 'Add card'));
+      expect(shownText('Enter by hand'), findsOneWidget);
       await screens.close();
     },
   );
@@ -169,7 +169,7 @@ void main() {
         tester.getRect(name).top,
         greaterThanOrEqualTo(tester.getRect(find.byType(AppBar)).bottom),
       );
-      final add = inTopBar(find.widgetWithText(AppButton, 'Add card'));
+      final add = inTopBar(widgetWithShownText(AppButton, 'Add card'));
       expect(tester.widget<AppButton>(add).variant, AppButtonVariant.tonal);
       expect(tester.widget<AppButton>(add).icon, LucideIcons.plus);
       expect(
@@ -261,7 +261,7 @@ void main() {
         tester.getSemantics(find.bySemanticsLabel('Book')),
         isSemantics(isButton: true, hasSelectedState: true, isSelected: true),
       );
-      await screens.tap(find.text('Save'));
+      await screens.tap(shownText('Save'));
 
       expect(find.byType(BottomSheet), findsNothing);
       final stored = (await tester.runAsync(
@@ -392,7 +392,7 @@ void main() {
         tester.getSemantics(find.text('Cards 3')),
         isSemantics(label: 'Cards 3', isHeader: true),
       );
-      final study = find.widgetWithText(AppButton, 'Study this note · 3');
+      final study = widgetWithShownText(AppButton, 'Study this note · 3');
       expect(study, findsOneWidget);
       // At the top: under the top bar, above the cards.
       expect(
@@ -458,7 +458,7 @@ void main() {
       expect(find.byType(StudyScreen), findsNothing);
       await waitForPicker(tester);
       await screens.tap(find.byTooltip('5 minutes less'));
-      await screens.tap(find.text('Save'));
+      await screens.tap(shownText('Save'));
 
       expect(screens.session, {screens.deck.id});
       // Control: once shown, the next session opens at once.
@@ -497,7 +497,7 @@ void main() {
         // The count is in the state the case names: read as zero, or not
         // read.
         expect(
-          find.widgetWithText(AppButton, label),
+          widgetWithShownText(AppButton, label),
           findsOneWidget,
           reason: today,
         );
@@ -810,7 +810,7 @@ void main() {
       final screens = await DeckScreens.open(tester, photoImport: true);
       await screens.push((deck) => DeckScreen(deck: deck));
 
-      await screens.tap(find.text('Add card'));
+      await screens.tap(shownText('Add card'));
 
       final sheet = find.byType(BottomSheet);
       expect(
@@ -859,12 +859,12 @@ void main() {
       final screens = await DeckScreens.open(tester);
       await screens.push((deck) => DeckScreen(deck: deck));
 
-      await screens.tap(find.text('Add card'));
+      await screens.tap(shownText('Add card'));
 
       expect(find.text('Take photo'), findsNothing);
-      expect(find.text('Choose from album'), findsNothing);
-      expect(find.text('Excel or CSV file'), findsOneWidget);
-      await screens.tap(find.text('Enter by hand'));
+      expect(shownText('Choose from album'), findsNothing);
+      expect(shownText('Excel or CSV file'), findsOneWidget);
+      await screens.tap(shownText('Enter by hand'));
       expect(find.widgetWithText(AppBar, 'New card'), findsOneWidget);
       await screens.close();
     },
@@ -881,13 +881,13 @@ void main() {
       );
       await screens.push((deck) => DeckScreen(deck: deck));
 
-      await screens.tap(find.text('Add card'));
-      await screens.tap(find.text('Excel or CSV file'));
+      await screens.tap(shownText('Add card'));
+      await screens.tap(shownText('Excel or CSV file'));
       expect(shownText('Add cards from a file'), findsOneWidget);
-      await screens.tap(find.text('Choose file'));
+      await screens.tap(shownText('Choose file'));
       expect(find.text('Review cards'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(AppButton, 'Add 2 cards'));
+      await tester.tap(widgetWithShownText(AppButton, 'Add 2 cards'));
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 50)),
       );
@@ -917,10 +917,10 @@ void main() {
         ('Take photo', PhotoOrigin.camera),
         ('Choose from album', PhotoOrigin.album),
       ]) {
-        await screens.tap(find.text('Add card'));
-        expect(find.text('Enter by hand'), findsOneWidget);
+        await screens.tap(shownText('Add card'));
+        expect(shownText('Enter by hand'), findsOneWidget);
         expect(find.text('Take photo'), findsOneWidget);
-        expect(find.text('Choose from album'), findsOneWidget);
+        expect(shownText('Choose from album'), findsOneWidget);
         await screens.tap(find.text(row));
         expect(find.text('photo import'), findsOneWidget);
         expect(screens.photoImports.last, (screens.deck.id, origin));
@@ -928,8 +928,8 @@ void main() {
         await tester.pumpAndSettle();
       }
       // By hand opens the editor.
-      await screens.tap(find.text('Add card'));
-      await screens.tap(find.text('Enter by hand'));
+      await screens.tap(shownText('Add card'));
+      await screens.tap(shownText('Enter by hand'));
       expect(find.widgetWithText(AppBar, 'New card'), findsOneWidget);
       await screens.close();
     },
@@ -945,7 +945,7 @@ void main() {
       await screens.push((deck) => DeckScreen(deck: deck));
 
       Future<void> saveInto(Deck deck) async {
-        await screens.tap(find.text('Add card'));
+        await screens.tap(shownText('Add card'));
         await screens.tap(find.text('Take photo'));
         screens.navigator.currentState!.pop(PhotoImportSaved(deck));
         await tester.pumpAndSettle();
@@ -976,7 +976,7 @@ void main() {
       await screens.push((deck) => DeckScreen(deck: deck));
 
       Future<void> leaveFor(PhotoImportOutcome outcome) async {
-        await screens.tap(find.text('Add card'));
+        await screens.tap(shownText('Add card'));
         await screens.tap(find.text('Take photo'));
         screens.navigator.currentState!.pop(outcome);
         await tester.pumpAndSettle();
@@ -991,8 +991,8 @@ void main() {
 
       await leaveFor(AddFromSpreadsheetInstead(screens.deck.id));
       expect(shownText('Add cards from a file'), findsOneWidget);
-      await screens.tap(find.text('Choose file'));
-      await tester.tap(find.widgetWithText(AppButton, 'Add 1 card'));
+      await screens.tap(shownText('Choose file'));
+      await tester.tap(widgetWithShownText(AppButton, 'Add 1 card'));
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 50)),
       );
@@ -1012,7 +1012,7 @@ void main() {
     await screens.tap(find.byTooltip('Note settings'));
     await screens.tap(find.text('Rename'));
     await screens.enter('Note name', 'Français');
-    await screens.tap(find.text('Save'));
+    await screens.tap(shownText('Save'));
 
     expect(shownText('Français'), findsOneWidget);
     final decks = await tester.runAsync(
@@ -1056,10 +1056,10 @@ void main() {
       await screens.tap(find.byTooltip('Note settings'));
       await screens.tap(find.text('Delete note'));
       expect(shownText('Delete "Français"?'), findsOneWidget);
-      await screens.tap(find.text('Cancel'));
+      await screens.tap(shownText('Cancel'));
 
-      await screens.tap(find.text('Add card'));
-      await screens.tap(find.text('Enter by hand'));
+      await screens.tap(shownText('Add card'));
+      await screens.tap(shownText('Enter by hand'));
       expect(shownText('Français'), findsOneWidget, reason: "the editor's");
       expect(shownText('French'), findsNothing);
       await screens.close();
@@ -1109,7 +1109,7 @@ void main() {
       await screens.tap(find.byTooltip('Note settings'));
       await screens.tap(find.text('Delete note'));
       expect(shownText('Its 3 cards will be deleted too.'), findsOneWidget);
-      await screens.tap(find.text('Delete'));
+      await screens.tap(shownText('Delete'));
 
       expect(find.byType(DeckScreen), findsNothing);
       final decks = await tester.runAsync(
@@ -1137,7 +1137,7 @@ void main() {
         // A screen reader reads it as written, without the joiners.
         expect(find.bySemanticsLabel(line), findsOneWidget);
         // Adding a card is the screen's one action, said by its button alone.
-        expect(find.text('카드 추가'), findsOneWidget);
+        expect(shownText('카드 추가'), findsOneWidget);
         // The mascot dozes over it, above the words.
         final mascot = find.byType(Mascot);
         expect(

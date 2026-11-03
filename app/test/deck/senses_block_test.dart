@@ -94,7 +94,7 @@ void main() {
       final screens = await openNew(tester);
       await typeInto(tester, _term(), 'cat');
       await typeInto(tester, _back('Meaning'), '고양이');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).back, [
         const SensesContent([CardSense(meaning: '고양이')]),
       ]);
@@ -105,7 +105,7 @@ void main() {
       );
       await typeBlock(tester, 'dog');
       await typeBlock(tester, '개', 1);
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       final dog = (await screens.cards()).singleWhere(
         (card) => card.front.single == const TextContent('dog'),
       );
@@ -135,7 +135,7 @@ void main() {
         extras,
       ], reason: 'the setup stores the back asked');
       await openCard(screens, card);
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).back, [
         const SensesContent([CardSense(meaning: 'x')]),
         extras,
@@ -143,7 +143,7 @@ void main() {
 
       await openCard(screens, await _stored(screens));
       await typeInto(tester, _back('Meaning'), 'y');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).back, [
         const SensesContent([CardSense(meaning: 'y')]),
         extras,
@@ -162,7 +162,7 @@ void main() {
       await tapVisible(screens, find.bySemanticsLabel('Add meaning'));
       await typeInto(tester, _labelField(1), '고어 object');
       await typeInto(tester, _back('Meaning 2'), '주다');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).back, [
         const SensesContent([
           CardSense(labels: [_noun], meaning: '선물'),
@@ -199,12 +199,12 @@ void main() {
         '명',
         reason: 'shown as its short form',
       );
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).back, [printed], reason: 'as stored');
 
       await openCard(screens, await _stored(screens));
       await typeInto(tester, _labelField(), '명 ');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).back, [
         const SensesContent([
           CardSense(labels: [_noun], meaning: '얼굴'),
@@ -349,7 +349,7 @@ void main() {
       );
       await openCard(screens, await _stored(screens));
       await typeInto(tester, _back('Meaning'), '얼굴, 표면');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).back, [
         const SensesContent([
           CardSense(labels: [_noun], meaning: '얼굴, 표면'),
@@ -397,7 +397,7 @@ void main() {
         reason: 'it has examples',
       );
 
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       final saved = await _stored(screens);
       expect(saved.cells, const [
         WordCell(term: 'face', senses: senses, ask: WordAsk.term),
@@ -412,7 +412,7 @@ void main() {
         '유의어 confront, encounter',
       );
       await actOnBlock(screens, 3, 'Delete');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).cells, const [
         WordCell(term: 'face', senses: senses, ask: WordAsk.term),
         TextCell(back: '유의어 confront, encounter'),
@@ -427,7 +427,7 @@ void main() {
       final screens = await openNew(tester);
       await typeInto(tester, _back('Meaning'), '사과');
       await tapVisible(screens, find.bySemanticsLabel('Add meaning'));
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect(find.text('Enter the meaning'), findsOneWidget);
       expect(
         shownText('Add something to show on the front'),
@@ -438,7 +438,7 @@ void main() {
       expect(await screens.cards(), isEmpty);
 
       await typeInto(tester, _back('Meaning 2'), '능금');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect(find.text('Enter the meaning'), findsNothing);
       expect(
         shownText('Add something to show on the front'),
@@ -448,7 +448,7 @@ void main() {
       expect(await screens.cards(), isEmpty);
 
       await typeInto(tester, _term(), 'apple');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).back, [
         const SensesContent([
           CardSense(meaning: '사과'),
@@ -481,7 +481,7 @@ void main() {
       await act(3, 'Move up');
       await act(1, 'Move down');
       await act(3, 'Delete');
-      await tapVisible(screens, find.text('Save'));
+      await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).back, [
         const SensesContent([
           CardSense(labels: [_noun], meaning: 'third'),
@@ -518,8 +518,8 @@ void main() {
       await typeInto(tester, _term(), ' Apple ');
       await typeInto(tester, _labelField(), '명');
       await typeInto(tester, _back('Meaning'), '능금');
-      await tapVisible(screens, find.text('Save'));
-      expect(find.text('Add anyway'), findsOneWidget);
+      await tapVisible(screens, shownText('Save'));
+      expect(shownText('Add anyway'), findsOneWidget);
       expect((await screens.cards()).length, 1);
       await screens.close();
     },
@@ -577,7 +577,7 @@ void main() {
       await typeInto(tester, _back('Meaning 2'), '능금');
 
       await tapVisible(screens, find.byTooltip('Meaning 1 menu'));
-      await screens.tap(find.text('Delete').last);
+      await screens.tap(shownText('Delete').last);
       expect(find.text('Meaning deleted'), findsOneWidget);
       expect(find.widgetWithText(TextField, '사과'), findsNothing);
       await screens.tap(find.text('Undo'));
@@ -603,7 +603,7 @@ void main() {
       await addBlock(screens, 'Text');
 
       await tapVisible(screens, find.byTooltip('Meaning 2 menu'));
-      await screens.tap(find.text('Delete').last);
+      await screens.tap(shownText('Delete').last);
       expect(find.text('Meaning deleted'), findsOneWidget);
       await typeInto(tester, namedField('Front'), '뒤');
       await tester.pumpAndSettle();

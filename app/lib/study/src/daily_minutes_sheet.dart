@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import '../../design/app_list_row.dart';
 import '../../design/bottom_actions.dart';
 import '../../design/app_sheet.dart';
 import '../../design/theme.dart';
+import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'daily_minutes.dart';
 import 'failure.dart';
@@ -535,7 +537,9 @@ class _Step extends StatelessWidget {
 
 /// What [minutes] a day means, in two tiles on the brand tint: today's new
 /// cards, and in how many days the last unstarted card starts; in a backlog,
-/// that new cards wait. A screen reader hears them again whenever they change.
+/// that new cards wait. The two sit side by side while each word of theirs
+/// fits its tile's line at the text size shown; otherwise they stack full
+/// width. A screen reader hears them again whenever they change.
 class _Tiles extends StatelessWidget {
   const _Tiles({required this.plan, required this.minutes});
 
@@ -546,31 +550,48 @@ class _Tiles extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final (:fresh, :after) = plan.at(minutes);
-    Widget tile(String title, String value) => Expanded(
-      child: _Tile(title: title, value: value),
-    );
+    final tiles = [
+      _Tile(
+        title: l10n.dailyMinutesFreshTitle,
+        value: l10n.dailyMinutesFreshValue(fresh),
+      ),
+      _Tile(
+        title: l10n.dailyMinutesAllTitle,
+        value: switch (after) {
+          _ when plan.unstarted == 0 => l10n.dailyMinutesAllStarted,
+          null => l10n.dailyMinutesNoTime,
+          0 => l10n.dailyMinutesAfterToday,
+          final days => l10n.dailyMinutesAfterDays(days),
+        },
+      ),
+    ];
     return Semantics(
       container: true,
       liveRegion: true,
       child: plan.backlog
           ? _Tile(title: null, value: l10n.backlogPaused)
-          : IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                spacing: AppSpace.s8,
-                children: [
-                  tile(
-                    l10n.dailyMinutesFreshTitle,
-                    l10n.dailyMinutesFreshValue(fresh),
-                  ),
-                  tile(l10n.dailyMinutesAllTitle, switch (after) {
-                    _ when plan.unstarted == 0 => l10n.dailyMinutesAllStarted,
-                    null => l10n.dailyMinutesNoTime,
-                    0 => l10n.dailyMinutesAfterToday,
-                    final days => l10n.dailyMinutesAfterDays(days),
-                  }),
-                ],
-              ),
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final line =
+                    (constraints.maxWidth - AppSpace.s8) / 2 -
+                    2 * _Tile.padding;
+                final scaler = MediaQuery.textScalerOf(context);
+                return tiles.every((tile) => tile.longestWord(scaler) <= line)
+                    ? IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          spacing: AppSpace.s8,
+                          children: [
+                            for (final tile in tiles) Expanded(child: tile),
+                          ],
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        spacing: AppSpace.s8,
+                        children: tiles,
+                      );
+              },
             ),
     );
   }
@@ -580,8 +601,30 @@ class _Tiles extends StatelessWidget {
 class _Tile extends StatelessWidget {
   const _Tile({required this.title, required this.value});
 
+  static const padding = AppSpace.s16;
+
   final String? title;
   final String value;
+
+  /// The width of the widest word of [title] or [value], scaled by [scaler].
+  double longestWord(TextScaler scaler) {
+    double widest(String? text, TextStyle style) {
+      if (text == null) return 0;
+      final painter = TextPainter(
+        text: TextSpan(text: keepWords(text), style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+      )..layout();
+      final width = painter.minIntrinsicWidth;
+      painter.dispose();
+      return width;
+    }
+
+    return math.max(
+      widest(title, AppType.caption),
+      widest(value, AppType.bodyStrong),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -593,14 +636,18 @@ class _Tile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.row),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpace.s16),
+        padding: const EdgeInsets.all(padding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           spacing: AppSpace.s4,
           children: [
             if (title != null)
               Text(title, style: AppType.caption.copyWith(color: colors.ink2)),
-            Text(value, style: AppType.bodyStrong),
+            Text(
+              keepWords(value),
+              semanticsLabel: value,
+              style: AppType.bodyStrong,
+            ),
           ],
         ),
       ),

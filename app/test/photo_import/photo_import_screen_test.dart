@@ -22,6 +22,7 @@ import '../home/home_data.dart';
 
 import '../deck/whole_cards.dart';
 import 'fakes.dart';
+import '../word_breaks.dart';
 
 /// Photo import over decks "French" (holding [french]) and "Spanish", with a
 /// substitute camera, library and extraction client, started from a button
@@ -2042,7 +2043,7 @@ void main() {
       await import.tap(import.check('a'));
 
       final button = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Add 0 cards'),
+        widgetWithShownText(FilledButton, 'Add 0 cards'),
       );
       expect(button.onPressed, isNull);
       await import.close();
@@ -2416,14 +2417,14 @@ void main() {
           await import.tap(find.bySemanticsLabel('Include meaning $i'));
         }
         final done = tester.widget<FilledButton>(
-          find.widgetWithText(FilledButton, 'Done'),
+          widgetWithShownText(FilledButton, 'Done'),
         );
         expect(done.onPressed, isNull);
         // Control: one sense kept again.
         await import.tap(find.bySemanticsLabel('Include meaning 3'));
         expect(
           tester
-              .widget<FilledButton>(find.widgetWithText(FilledButton, 'Done'))
+              .widget<FilledButton>(widgetWithShownText(FilledButton, 'Done'))
               .onPressed,
           isNotNull,
         );

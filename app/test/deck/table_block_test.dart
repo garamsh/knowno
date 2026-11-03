@@ -60,7 +60,7 @@ void main() {
     await screens.tap(finder);
   }
 
-  Future<void> save(DeckScreens screens) => tap(screens, find.text('Save'));
+  Future<void> save(DeckScreens screens) => tap(screens, shownText('Save'));
 
   /// Types the name and [_capitals]' cells into a new table, its two rows
   /// already there.
@@ -98,7 +98,7 @@ void main() {
   /// The blanks the preview screen draws once a tap turns its card to show
   /// them; then back to the editor.
   Future<Map<String, bool>> previewedBlanks(DeckScreens screens) async {
-    await screens.tap(find.text('Preview'));
+    await screens.tap(shownText('Preview'));
     await screens.tap(find.byType(CardPreviewScreen));
     // The turned side is study's previous card: each answer on the hatch
     // (ADR 0168, ADR 0176).
@@ -383,9 +383,9 @@ void main() {
         findsOneWidget,
       );
       expect(await previewedBlanks(screens), {'Paris': true, 'Tokyo': true});
-      await tap(screens, find.text('Delete card'));
+      await tap(screens, shownText('Delete card'));
       // The confirmation's final button, over the table toolbar's Delete.
-      await screens.tap(find.text('Delete').last);
+      await screens.tap(shownText('Delete').last);
       expect(await screens.cards(), isEmpty);
       await screens.close();
     },
@@ -486,7 +486,7 @@ void main() {
       await select(screens, 2);
       await toggleBlank(screens);
       await save(screens);
-      expect(find.text('Add anyway'), findsOneWidget);
+      expect(shownText('Add anyway'), findsOneWidget);
       expect((await screens.cards()).length, 1);
       await screens.close();
     },

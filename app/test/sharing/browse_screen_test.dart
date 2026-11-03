@@ -64,11 +64,11 @@ void main() {
         myDecks: {'Mine': {}},
       );
       final mine = tester.getRect(shownText('Mine'));
-      final create = tester.getRect(find.text('New note'));
+      final create = tester.getRect(shownText('New note'));
       final menu = tester.getRect(find.byTooltip('Notes menu'));
       expect(create.bottom, lessThan(mine.top));
       expect(menu.bottom, lessThan(mine.top));
-      expect(find.text('Browse public notes'), findsNothing);
+      expect(shownText('Browse public notes'), findsNothing);
 
       await app.tap(find.byTooltip('Notes menu'));
       expect(find.byType(MenuItemButton), findsOneWidget);

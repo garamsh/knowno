@@ -15,6 +15,7 @@ import 'package:knowno/l10n/app_localizations.dart';
 import 'package:uuid/uuid.dart';
 
 import 'xlsx.dart';
+import '../word_breaks.dart';
 
 /// Hands out each of [next] in turn; null is a cancelled picker.
 final class _FakePick implements SpreadsheetPick {
@@ -89,7 +90,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('open'));
+    await tester.tap(shownText('open'));
     await tester.pumpAndSettle();
     return result;
   }
@@ -109,7 +110,7 @@ void main() {
 
   /// Pumps while a save's writes finish on the database's own zone.
   Future<void> save(WidgetTester tester, String label) async {
-    await tester.tap(find.text(label));
+    await tester.tap(shownText(label));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
@@ -124,7 +125,7 @@ void main() {
   }) async {
     pick.next.add(file);
     final result = await open(tester, into: into);
-    await tap(tester, find.text(ko.spreadsheetChoose));
+    await tap(tester, shownText(ko.spreadsheetChoose));
     expect(find.text(ko.spreadsheetReviewTitle), findsOneWidget);
     return result;
   }
@@ -222,16 +223,16 @@ void main() {
       ]);
       final result = await open(tester, into: deck.id);
       expect(find.bySemanticsLabel(ko.spreadsheetStartBody), findsOneWidget);
-      await tap(tester, find.text(ko.spreadsheetChoose));
+      await tap(tester, shownText(ko.spreadsheetChoose));
       expect(find.bySemanticsLabel(ko.spreadsheetWrongType), findsOneWidget);
       expect(find.text(ko.spreadsheetReviewTitle), findsNothing);
 
-      await tap(tester, find.text(ko.spreadsheetChoose));
+      await tap(tester, shownText(ko.spreadsheetChoose));
       expect(find.text(ko.spreadsheetReviewTitle), findsOneWidget);
 
       await tap(tester, find.byTooltip(ko.close));
       expect(find.bySemanticsLabel(ko.spreadsheetDiscardTitle), findsOneWidget);
-      await tap(tester, find.text(ko.discardImport));
+      await tap(tester, shownText(ko.discardImport));
       expect(find.text(ko.spreadsheetReviewTitle), findsNothing);
       expect(result, [null]);
       expect(await fronts(tester), ['apple']);
@@ -242,7 +243,7 @@ void main() {
     ) async {
       pick.next.add(null);
       await open(tester, into: deck.id);
-      await tap(tester, find.text(ko.spreadsheetChoose));
+      await tap(tester, shownText(ko.spreadsheetChoose));
       expect(find.bySemanticsLabel(ko.spreadsheetStartBody), findsOneWidget);
       expect(find.text(ko.spreadsheetReviewTitle), findsNothing);
     });
@@ -265,18 +266,18 @@ void main() {
       (tester) async {
         await review(tester, _csv('pear,배\nplum,자두'), into: deck.id);
         expect(switchValue(tester), isFalse);
-        expect(find.text(ko.importAdd(2)), findsOneWidget);
+        expect(shownText(ko.importAdd(2)), findsOneWidget);
 
         await tap(tester, find.text(ko.cardBack));
         await tap(tester, find.text('A · pear').last);
         expect(find.bySemanticsLabel(ko.spreadsheetDistinct), findsOneWidget);
-        expect(find.text(ko.importAdd(2)), findsNothing);
+        expect(shownText(ko.importAdd(2)), findsNothing);
 
         await tap(tester, find.text(ko.cardBack));
         await tap(tester, find.text('B · 배').last);
         expect(find.bySemanticsLabel(ko.spreadsheetDistinct), findsNothing);
         await tap(tester, find.byType(Switch));
-        expect(find.text(ko.importAdd(1)), findsOneWidget);
+        expect(shownText(ko.importAdd(1)), findsOneWidget);
       },
     );
 
@@ -314,7 +315,7 @@ void main() {
         await tap(tester, find.text(ko.spreadsheetSheet));
         await tap(tester, find.text('머리글').last);
         expect(switchValue(tester), isTrue);
-        expect(find.text(ko.importAdd(1)), findsOneWidget);
+        expect(shownText(ko.importAdd(1)), findsOneWidget);
       },
     );
 
@@ -339,7 +340,7 @@ void main() {
 
         await tap(tester, find.text(ko.spreadsheetAnother));
         expect(find.text('other.csv'), findsOneWidget);
-        expect(find.text(ko.importAdd(1)), findsOneWidget);
+        expect(shownText(ko.importAdd(1)), findsOneWidget);
       },
     );
 
@@ -348,12 +349,12 @@ void main() {
       (tester) async {
         final result = await review(tester, _csv('pear,배'));
         expect(find.text(ko.photoTargetTitle), findsOneWidget);
-        expect(find.text(ko.newDeck), findsOneWidget);
+        expect(shownText(ko.newDeck), findsOneWidget);
 
-        await tap(tester, find.text(ko.importAdd(1)));
+        await tap(tester, shownText(ko.importAdd(1)));
         await tester.enterText(find.byType(TextField), '과일');
         await tester.pumpAndSettle();
-        await tester.tap(find.text(ko.create));
+        await tester.tap(shownText(ko.create));
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 50)),
         );
