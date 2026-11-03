@@ -994,7 +994,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retake => 'Retake';
 
   @override
-  String get pickAnother => 'Pick another photo';
+  String get pickAnother => 'Choose again';
 
   @override
   String get retry => 'Try again';

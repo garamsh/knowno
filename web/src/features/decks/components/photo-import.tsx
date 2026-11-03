@@ -410,7 +410,7 @@ export function PhotoImport({
       trigger="pressable flex size-tap-target shrink-0 items-center justify-center rounded-button text-ink focus-visible:outline-2 focus-visible:outline-ink"
       items={[
         {
-          label: camera ? "다시 찍기" : "다른 사진 고르기",
+          label: camera ? "다시 찍기" : "다시 선택",
           pick: () => {
             discardThen(() => retakeInput.current?.click());
           },
@@ -445,7 +445,7 @@ export function PhotoImport({
       <div className="flex gap-3">
         {isRetakeable(failure) && (
           <PhotoPicker
-            label={camera ? "다시 찍기" : "다른 사진 고르기"}
+            label={camera ? "다시 찍기" : "다시 선택"}
             camera={camera}
             multiple={false}
             primary={!(single && isRetryable(failure))}

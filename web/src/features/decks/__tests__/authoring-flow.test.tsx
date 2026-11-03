@@ -507,7 +507,7 @@ describe("photo import", () => {
       await screen.findByText("카드를 찾지 못했어요. 더 밝고 반듯하게 찍어 보세요."),
     ).toBeInTheDocument();
     expect(document.querySelector('img[src*="knowno-sad"]')).not.toBeNull();
-    expect(screen.getByLabelText("다른 사진 고르기", { selector: "input" })).toBeInTheDocument();
+    expect(screen.getByLabelText("다시 선택", { selector: "input" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "다시 시도" })).not.toBeInTheDocument();
   });
   it("reads several photos with a row each, retries only the failed one in place, then opens the list", async () => {
@@ -1046,7 +1046,7 @@ describe("photo import", () => {
         ),
       ).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "다시 시도" })).not.toBeInTheDocument();
-      expect(screen.queryByText("다른 사진 고르기")).not.toBeInTheDocument();
+      expect(screen.queryByText("다시 선택")).not.toBeInTheDocument();
       cleanup();
       await choose(1);
       expect(await screen.findByText(describeFailure({ kind: "service" }))).toBeInTheDocument();
@@ -1147,7 +1147,7 @@ describe("photo import", () => {
       const input = document.querySelector<HTMLInputElement>('input[type="file"][tabindex="-1"]');
       if (!input) throw new Error("the retake's picker is not drawn");
       const opened = vi.spyOn(input, "click").mockImplementation(() => undefined);
-      await userEvent.click(screen.getByRole("menuitem", { name: "다른 사진 고르기" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "다시 선택" }));
       expect(opened, "the found card is asked about first").not.toHaveBeenCalled();
       const ask = screen.getByRole("dialog", { name: "찾은 카드를 버릴까요?" });
       await userEvent.click(within(ask).getByRole("button", { name: "버리기" }));
