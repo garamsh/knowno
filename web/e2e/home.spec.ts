@@ -145,6 +145,28 @@ async function fieldHeight(field: Locator): Promise<number> {
   return box.height;
 }
 
+/** The names of [boxes] that read as not drawn, for a guard to say which were missing. */
+function undrawn(boxes: Record<string, unknown>): string {
+  return Object.entries(boxes)
+    .flatMap(([name, box]) => (box ? [] : [name]))
+    .join(", ");
+}
+
+/**
+ * Waits until the happy [mascot] is the drawing it keeps at its size. The server draws it still;
+ * on screen from 200 px across, the client puts its moving drawing in the still one's place
+ * (ADR 0152), and a box read across that swap finds no element.
+ */
+async function untilMascotSettled(mascot: Locator): Promise<void> {
+  await expect
+    .poll(() =>
+      mascot.evaluate(
+        (element) => element.tagName === "svg" || element.getBoundingClientRect().width < 200,
+      ),
+    )
+    .toBe(true);
+}
+
 /** How many lines [button]'s label takes. */
 function labelLines(button: Locator): Promise<number> {
   return button.evaluate((element) => {
@@ -476,6 +498,7 @@ test("fits 홈 to the screen with the owner's 481 cards over four notes on a 19-
   await expect(week.getByText("지난 7일 267장", { exact: true })).toBeVisible();
   const start = hero.getByRole("link", { name: "시작", exact: true });
   const mascot = hero.locator("img, svg").first();
+  await untilMascotSettled(mascot);
   const directory = process.env.E2E_SCREENSHOTS;
   for (const [width, height] of [
     [390, 844],
@@ -497,7 +520,10 @@ test("fits 홈 to the screen with the owner's 481 cards over four notes on a 19-
         page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox(),
         page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
       ]);
-      if (!button || !drawn || !card || !tabBar) throw new Error("홈 is drawn");
+      if (!button || !drawn || !card || !tabBar)
+        throw new Error(
+          `홈 is drawn ${at}, but not: ${undrawn({ 시작: button, mascot: drawn, "the week card": card, "the tab bar": tabBar })}`,
+        );
       // Nothing to scroll: 시작 and the week card whole on the first screen, the week card under
       // 시작 and above the tab bar; each size is checked, and shot, whatever an earlier one found.
       expect.soft(scroll, at).toBeLessThanOrEqual(0);
@@ -524,6 +550,7 @@ test("fits 홈 to the screen with the owner's 481 cards over four notes on a 19-
       await page.goto("/");
       // 홈 itself, not its skeleton, is what the next size measures and shoots.
       await expect(week.getByText("지난 7일 267장", { exact: true })).toBeVisible();
+      await untilMascotSettled(mascot);
     }
   }
   // Control: given the room, the mascot is drawn at its full 210.
@@ -537,7 +564,10 @@ test("fits 홈 to the screen with the owner's 481 cards over four notes on a 19-
     start.boundingBox(),
     week.boundingBox(),
   ]);
-  if (!floor || !button || !card) throw new Error("홈 is drawn");
+  if (!floor || !button || !card)
+    throw new Error(
+      `홈 is drawn at 375 × 420, but not: ${undrawn({ mascot: floor, 시작: button, "the week card": card })}`,
+    );
   expect(floor.height).toBe(64);
   expect(button.y + button.height).toBeLessThanOrEqual(card.y);
 });
