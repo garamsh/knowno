@@ -16,6 +16,7 @@ import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_chip.dart';
 import 'package:knowno/design/app_text_field.dart';
+import 'package:knowno/design/keyboard_dismissal.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/design/theme_choice.dart';
 import 'package:knowno/home/home.dart';
@@ -1548,6 +1549,74 @@ void main() {
       // The card on its one face, its blanks empty until a tap.
       await tap(tester, find.text(ko.previewCard));
       await shot(tester, '05x-card-preview-cloze');
+      await unmount(tester);
+    });
+
+    testWidgets('a cloze selection scrolled past in $mode', skip: !_capture, (
+      tester,
+    ) async {
+      phone(tester);
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      var ids = 0;
+      final repository = DeckRepository(
+        db,
+        clock: () => homeNow,
+        newId: () => 'id${ids++}',
+      );
+      final deck = (await tester.runAsync(
+        () => repository.createDeck('영단어 기본'),
+      ))!;
+      final storage = await openStudyStorage(tester);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            deckRepositoryProvider.overrideWithValue(repository),
+            deckStorageProvider.overrideWithValue(storage),
+          ],
+          child: MaterialApp(
+            theme: lightTheme,
+            darkTheme: darkTheme,
+            themeMode: ThemeMode.values.byName(mode),
+            locale: const Locale('ko'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            // As the app root wraps every route.
+            builder: (context, child) => KeyboardDismissal(child: child),
+            home: CardEditorScreen(preview: _preview, deck: deck),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // A 빈칸 문장 first, then a 글 under it.
+      await tap(tester, find.byTooltip(ko.blockMenu(1)));
+      await tap(tester, find.text(ko.deleteBlock).last);
+      for (final type in [ko.blockCloze, ko.blockText]) {
+        await tester.ensureVisible(find.bySemanticsLabel(ko.addBlock));
+        await tester.pumpAndSettle();
+        await tap(tester, find.bySemanticsLabel(ko.addBlock));
+        await tap(tester, find.text(type).last);
+      }
+      final line = find.byType(TextField).first;
+      await tester.enterText(line, 'She gave me a present for my birthday');
+      await tester.showKeyboard(line);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 336 * _density);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+      // "present" selected, then the form dragged by the row after the 칸.
+      tester.widget<TextField>(line).controller!.selection =
+          const TextSelection(baseOffset: 14, extentOffset: 21);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.bySemanticsLabel(ko.addBlock));
+      await tester.pumpAndSettle();
+      await tester.timedDragFrom(
+        tester.getCenter(find.bySemanticsLabel(ko.addBlock)),
+        const Offset(0, 120),
+        const Duration(milliseconds: 400),
+      );
+      await tester.pumpAndSettle();
+      await shot(tester, '05y-card-editor-cloze-scrolled');
+      tester.view.resetViewInsets();
       await unmount(tester);
     });
 

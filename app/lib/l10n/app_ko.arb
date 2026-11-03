@@ -82,6 +82,8 @@
   "@addBlock": {"description": "The row after the card editor's last group, after a +, the sheet of 칸 types it opens, and what a screen reader reads for it."},
   "blockText": "글",
   "@blockText": {"description": "A text block's type, in the add sheet and over the block in the card editor."},
+  "blockTextDescription": "앞면과 뒷면에 글을 적어요",
+  "@blockTextDescription": {"description": "The line under 글 in the add sheet."},
   "blockSenses": "단어",
   "@blockSenses": {"description": "A 단어 칸's type, in the add sheet and over its group in the card editor."},
   "blockSensesDescription": "단어와 뜻을 함께 적어요",

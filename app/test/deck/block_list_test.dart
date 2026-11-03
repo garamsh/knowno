@@ -68,7 +68,7 @@ void main() {
   );
 
   testWidgets(
-    'Add block opens the sheet of that name with the six types in order, each with one line but Text, and adds a group',
+    'Add block opens the sheet of that name with the six types in order, each row its icon, its name and one line, and adds a group',
     (tester) async {
       final screens = await openNew(tester);
       await tapVisible(screens, addRow);
@@ -77,16 +77,20 @@ void main() {
         find.descendant(of: sheet, matching: shownText('Add block')),
         findsOneWidget,
       );
-      final types = [
-        'Text',
-        'Word',
-        'Cloze sentence',
-        'Table',
-        'Photo',
-        'Sound',
+      final rows = [
+        ('Text', LucideIcons.type, 'Write a front and a back'),
+        ('Word', LucideIcons.bookA, 'A word and its meanings'),
+        (
+          'Cloze sentence',
+          LucideIcons.textCursorInput,
+          'Hide words in a sentence',
+        ),
+        ('Table', LucideIcons.table, 'Choose cells to hide'),
+        ('Photo', LucideIcons.image, 'Draw what to hide over a photo'),
+        ('Sound', LucideIcons.audioLines, 'Record or add a file'),
       ];
       final tops = [
-        for (final type in types)
+        for (final (type, _, _) in rows)
           tester
               .getTopLeft(find.descendant(of: sheet, matching: find.text(type)))
               .dy,
@@ -96,16 +100,37 @@ void main() {
         find.descendant(of: sheet, matching: find.byType(ListTile)),
         findsNothing,
       );
-      expect(
-        find.descendant(of: sheet, matching: find.byType(Icon)),
-        findsNothing,
-        reason: 'no icon beside a type',
-      );
-      for (final line in ['A word and its meanings', 'Choose cells to hide']) {
+      for (final (type, icon, line) in rows) {
+        final row = find.ancestor(
+          of: find.descendant(of: sheet, matching: find.text(type)),
+          matching: find.byType(InkWell),
+        );
+        expect(row, findsOneWidget, reason: '$type is one row');
         expect(
-          find.descendant(of: sheet, matching: shownText(line)),
+          [
+            for (final drawn in tester.widgetList<Icon>(
+              find.descendant(of: row, matching: find.byType(Icon)),
+            ))
+              drawn.icon,
+          ],
+          [icon],
+          reason: '$type has its one icon',
+        );
+        expect(
+          find.descendant(of: row, matching: shownText(line)),
           findsOneWidget,
-          reason: line,
+          reason: '$type has its line',
+        );
+        expect(
+          tester
+              .getCenter(find.descendant(of: row, matching: find.byIcon(icon)))
+              .dx,
+          lessThan(
+            tester
+                .getTopLeft(find.descendant(of: row, matching: find.text(type)))
+                .dx,
+          ),
+          reason: "$type's icon leads its name",
         );
       }
       await screens.tap(

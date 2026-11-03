@@ -1,6 +1,6 @@
 # ADR 0116: Draw an icon only where it says what the words beside it do not, or follows the platform
 
-> Status: accepted; its list of the places the mascot appears superseded by ADR-0141
+> Status: accepted; its list of the places the mascot appears superseded by ADR-0141; its "Otherwise text alone" for the card editor's add sheet superseded by [ADR 0171](0171-give-every-type-in-the-add-sheet-an-icon-and-a-line-and-keep-a-field-s-selection-through-a-scrolling-drag.md), keeping its tinted squares out
 > Date: 2026-10-27
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

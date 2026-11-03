@@ -326,6 +326,12 @@ abstract class AppLocalizations {
   /// **'글'**
   String get blockText;
 
+  /// The line under 글 in the add sheet.
+  ///
+  /// In ko, this message translates to:
+  /// **'앞면과 뒷면에 글을 적어요'**
+  String get blockTextDescription;
+
   /// A 단어 칸's type, in the add sheet and over its group in the card editor.
   ///
   /// In ko, this message translates to:
