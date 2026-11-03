@@ -1,4 +1,4 @@
-# ADR 0173: Show every card whole in a note's card list, and mark what study hides with one hatch
+# ADR 0175: Show every card whole in a note's card list, and mark what study hides with one hatch
 
 > Status: accepted
 > Date: 2026-11-03
