@@ -17,6 +17,8 @@
   --color-hairline: #dce5fd;
   --color-outline: #c9d6fb;
   --color-brand-tint: #dce5fd;
+  --color-hatch: #eef2fc;
+  --color-hatch-stripe: #e2e8f8;
   --color-hero: #2547d0;
   --color-on-hero: #ffffff;
   --color-on-hero-edge: #c9d6fb;
@@ -148,6 +150,7 @@
   --spacing-search: 46px;
   --spacing-tap-target: 44px;
   --spacing-deck-tile: 46px;
+  --spacing-listed-photo: 96px;
   --spacing-small-icon: 18px;
   --spacing-mascot-medium: 96px;
   --spacing-mascot-floor: 64px;
@@ -368,6 +371,16 @@
   font-family: var(--font-display);
 }
 
+/* The card list's one mark for what study hides until the reveal (AppHatch in theme.dart): stripes
+   of hatch-stripe 6 px wide every 12 px across them, running up to the right, over hatch. */
+@utility hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--color-hatch) 0 6px,
+    var(--color-hatch-stripe) 6px 12px
+  );
+}
+
 /* A text field's padding, as AppTextField's contentPadding: 16 across, and down the field's
    height past one line of body text, halved. */
 @utility field-padding {
@@ -394,6 +407,8 @@
     --color-hairline: #34405f;
     --color-outline: #34405f;
     --color-brand-tint: #34405f;
+    --color-hatch: #2b3757;
+    --color-hatch-stripe: #354262;
     --color-hero: #1a2f78;
     --color-on-hero: #ffffff;
     --color-on-hero-edge: #4a78d6;
@@ -449,6 +464,8 @@
   --color-hairline: #34405f;
   --color-outline: #34405f;
   --color-brand-tint: #34405f;
+  --color-hatch: #2b3757;
+  --color-hatch-stripe: #354262;
   --color-hero: #1a2f78;
   --color-on-hero: #ffffff;
   --color-on-hero-edge: #4a78d6;

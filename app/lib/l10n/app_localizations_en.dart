@@ -1330,16 +1330,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get closeSearch => 'Close search';
 
   @override
-  String get showMeanings => 'Show backs';
-
-  @override
-  String cardBackHidden(String front) {
-    return '$front, back hidden';
+  String cardBackShown(String front, String back) {
+    return '$front, back $back';
   }
 
   @override
-  String cardBackShown(String front, String back) {
-    return '$front, back $back';
+  String moreRows(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'rows',
+      one: 'row',
+    );
+    return '$count more $_temp0';
   }
 
   @override

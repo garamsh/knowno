@@ -426,9 +426,6 @@ void main() {
       await tester.enterText(cardSearch, '');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
-      await tap(tester, find.byType(Switch));
-      await shot(tester, '07d-card-list-answers-shown');
-      await tap(tester, find.byType(Switch));
 
       await tap(tester, find.byTooltip(ko.deckActions));
       await tap(tester, find.text(ko.rename));
@@ -961,8 +958,6 @@ void main() {
       await showNotes(tester);
       await tap(tester, shownText('국어 문법'));
       await shot(tester, '31-whole-card-list');
-      await tap(tester, find.byType(Switch));
-      await shot(tester, '31b-whole-card-list-shown');
 
       await tap(tester, find.textContaining(ko.studyThisDeckPlain));
       await shot(tester, '32-whole-card-study');

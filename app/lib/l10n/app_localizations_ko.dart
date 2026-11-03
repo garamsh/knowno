@@ -1233,16 +1233,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get closeSearch => '검색 닫기';
 
   @override
-  String get showMeanings => '뒷면 보기';
-
-  @override
-  String cardBackHidden(String front) {
-    return '$front, 뒷면 가려짐';
+  String cardBackShown(String front, String back) {
+    return '$front, 뒷면 $back';
   }
 
   @override
-  String cardBackShown(String front, String back) {
-    return '$front, 뒷면 $back';
+  String moreRows(int count) {
+    return '외 $count행';
   }
 
   @override

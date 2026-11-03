@@ -21,8 +21,8 @@ import '../../design/word_break.dart';
 /// A deck's page, above the menu: "+ 카드 추가" and "노트 설정" in the top
 /// bar, the deck's name on its own line under it, then, while the deck holds
 /// a card, the card search, "이 노트 학습", the screen's one primary, and its
-/// cards as one group under a pinned row of their count, the mastered count
-/// and the "뒷면 보기" switch. A tap opens a card for editing; 노트 설정
+/// cards, each whole, as one group under a pinned row of their count and the
+/// mastered count. A tap opens a card for editing; 노트 설정
 /// renames, decorates, publishes or deletes the deck. While the deck holds no
 /// card there is nothing to study.
 class DeckScreen extends ConsumerStatefulWidget {
@@ -44,9 +44,6 @@ enum _Add { byHand, camera, album, file }
 class _DeckScreenState extends ConsumerState<DeckScreen> {
   /// The card search, kept as typed.
   var _query = '';
-
-  /// The "뒷면 보기" switch, off each time the page opens.
-  bool _showAll = false;
 
   @override
   void initState() {
@@ -243,10 +240,9 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     );
   }
 
-  /// The pinned row of the cards' count, how many are mastered and the
-  /// "뒷면 보기" switch, then, as one group, a
-  /// row for each card whose studied text holds the search, ignoring case,
-  /// its back shown as the switch is. Every 칸 is searched, revealed, since
+  /// The pinned row of the cards' count and how many are mastered, then, as
+  /// one group, a row for each card whose studied text holds the search,
+  /// ignoring case, each card whole. Every 칸 is searched, revealed, since
   /// none is hidden from study.
   List<Widget> _cardList(
     AppLocalizations l10n,
@@ -268,8 +264,6 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
           deck: widget.deck.id,
           cards: cards.length,
           public: public,
-          showAll: _showAll,
-          onShowAll: (show) => setState(() => _showAll = show),
         ),
       ),
       SliverPadding(
@@ -296,7 +290,6 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
                       front: card.front,
                       back: card.back,
                       cells: card.cells,
-                      shown: _showAll,
                       onOpen: () => _open(card),
                     ),
                 ],
@@ -443,81 +436,61 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
 }
 
 /// The row pinned above the card list: "카드 n", read as a heading, with how
-/// many are mastered once read and "공개" while the deck is published, and the
-/// "뒷면 보기" switch, whose label stays while the switch shows its state.
+/// many are mastered once read and "공개" while the deck is published.
 class _CardListHeader extends StatelessWidget {
   const _CardListHeader({
     required this.deck,
     required this.cards,
     required this.public,
-    required this.showAll,
-    required this.onShowAll,
   });
 
   final DeckId deck;
   final int cards;
   final bool public;
-  final bool showAll;
-  final ValueChanged<bool> onShowAll;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
     final quiet = AppType.secondary.copyWith(color: colors.ink2);
-    // At the right, the switch's own margin brings its track to the gutter.
     return ColoredBox(
       color: colors.ground,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
+          AppSpace.gutter + AppSpace.s4,
+          AppSpace.s4,
           AppSpace.gutter,
           AppSpace.s4,
-          AppSpace.s16,
-          AppSpace.s4,
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(left: AppSpace.s4),
-                child: Wrap(
-                  spacing: AppSpace.s8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Semantics(
-                      header: true,
-                      child: Text(
-                        l10n.cardsHeading(cards),
-                        style: AppType.label.copyWith(color: colors.ink),
-                      ),
-                    ),
-                    ProgressCounter(
-                      decks: DeckSelection(deck),
-                      builder: (context, progress) => Text(
-                        [
-                          if (progress != null)
-                            l10n.deckMasteredShort(progress.mastered),
-                          if (public) l10n.publicChip,
-                        ].join(' · '),
-                        style: quiet,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            MergeSemantics(
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => onShowAll(!showAll),
-                    child: Text(l10n.showMeanings, style: quiet),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppSize.tapTarget),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Wrap(
+              spacing: AppSpace.s8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Semantics(
+                  header: true,
+                  child: Text(
+                    l10n.cardsHeading(cards),
+                    style: AppType.label.copyWith(color: colors.ink),
                   ),
-                  Switch(value: showAll, onChanged: onShowAll),
-                ],
-              ),
+                ),
+                ProgressCounter(
+                  decks: DeckSelection(deck),
+                  builder: (context, progress) => Text(
+                    [
+                      if (progress != null)
+                        l10n.deckMasteredShort(progress.mastered),
+                      if (public) l10n.publicChip,
+                    ].join(' · '),
+                    style: quiet,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

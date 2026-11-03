@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../design/app_list_row.dart';
 import '../../design/theme.dart';
+import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'card_frame.dart';
 import 'content.dart';
@@ -60,17 +61,18 @@ class CardSplitRow extends StatelessWidget {
   }
 }
 
-/// A card's row: its front, and its back muted after it when [shown], or a
-/// whole card's 칸 in place, unrevealed unless [shown]. A tap opens the
-/// card with [onOpen], and a screen reader hears the row as one button.
-/// Inside an [AppGroup] it is one of the group's rows.
+/// A card's row in a note's card list: the whole card, what study hides
+/// until the reveal on [AppHatch] (#629). A split card shows its front cut at
+/// two lines and its back after it in a hatched box cut at three; a whole
+/// card its 칸 as [WholeCardView.listed] draws them. A tap opens the card
+/// with [onOpen], and a screen reader hears the row as one button. Inside an
+/// [AppGroup] it is one of the group's rows.
 class CardBackRow extends StatelessWidget {
   const CardBackRow({
     super.key,
     required this.front,
     required this.back,
     this.cells,
-    required this.shown,
     required this.onOpen,
   });
 
@@ -79,7 +81,6 @@ class CardBackRow extends StatelessWidget {
 
   /// The 칸 a framed card stores; null on a card converted from its sides.
   final List<Cell>? cells;
-  final bool shown;
   final VoidCallback onOpen;
 
   @override
@@ -97,9 +98,7 @@ class CardBackRow extends StatelessWidget {
     return Semantics(
       container: true,
       button: true,
-      label: shown
-          ? l10n.cardBackShown(spokenFront, spokenBack)
-          : l10n.cardBackHidden(spokenFront),
+      label: l10n.cardBackShown(spokenFront, spokenBack),
       onTapHint: l10n.editCard,
       onTap: onOpen,
       excludeSemantics: true,
@@ -115,27 +114,38 @@ class CardBackRow extends StatelessWidget {
             child: Align(
               alignment: AlignmentDirectional.centerStart,
               child: whole
-                  ? WholeCardView.cells(
-                      cells,
-                      revealed: shown,
-                      style: AppType.bodyStrong,
-                    )
-                  : Row(
-                      spacing: AppSpace.s12,
+                  ? WholeCardView.listed(cells, style: AppType.bodyStrong)
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: AppSpace.s8,
                       children: [
-                        Expanded(
-                          child: Text.rich(
-                            contentSpan(l10n, front),
-                            style: AppType.bodyStrong,
-                          ),
+                        Text.rich(
+                          contentSpan(l10n, front, wrap: keepWords),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppType.bodyStrong,
                         ),
-                        if (shown)
-                          Expanded(
-                            child: Text.rich(
-                              contentSpan(l10n, back),
-                              textAlign: TextAlign.end,
-                              style: AppType.secondary.copyWith(
-                                color: colors.muted,
+                        if (back.isNotEmpty)
+                          DecoratedBox(
+                            decoration: HatchDecoration(
+                              colors,
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.chip,
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpace.s12,
+                                vertical: AppSpace.s8,
+                              ),
+                              child: Text.rich(
+                                contentSpan(l10n, back, wrap: keepWords),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppType.secondary.copyWith(
+                                  color: colors.ink2,
+                                ),
                               ),
                             ),
                           ),

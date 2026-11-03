@@ -131,7 +131,7 @@ describe("the controls' pointer, hover and pressed states", () => {
     ).toEqual([]);
   });
 
-  it("is on the menus' items, 모두 학습, a deck row and a deck page's cards and switch", () => {
+  it("is on the menus' items, 모두 학습, a deck row and a deck page's cards", () => {
     render(
       <>
         <SideMenuAt path="/" />
@@ -177,8 +177,7 @@ describe("the controls' pointer, hover and pressed states", () => {
     }
     expect(pressable(screen.getByRole("link", { name: "모두 학습" }))).toBe(true);
     expect(pressable(screen.getByRole("link", { name: /^French/ }))).toBe(true);
-    expect(pressable(screen.getByRole("button", { name: "chat, 뒷면 가려짐" }))).toBe(true);
-    expect(pressable(screen.getByRole("switch", { name: "뒷면 보기" }))).toBe(true);
+    expect(pressable(screen.getByRole("button", { name: "chat, 뒷면 cat" }))).toBe(true);
     expect(pressable(screen.getByRole("button", { name: "카드 추가" }))).toBe(true);
     // Control: the note's name, a heading, takes no button state.
     expect(pressable(screen.getByRole("heading", { level: 1, name: "French" }))).toBe(false);
