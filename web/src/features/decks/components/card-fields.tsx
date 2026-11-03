@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { block, type Block, type CardDraft } from "../authoring";
 import { labelShown, parseContent, type Sense } from "../card-content";
 import { AuthoringSheet } from "./authoring-sheet";
@@ -35,8 +35,6 @@ export function CardEditSheet<Card extends CardDraft>({
   const [drafts, setDrafts] = useState<SenseDraft[]>(() =>
     (senses ?? []).map((sense, key) => ({ key, sense, meaning: sense.meaning, kept: true })),
   );
-  // The meaning just moved, whose ⋯ takes the focus back: a row moved in the page loses it.
-  const [moved, setMoved] = useState<number | null>(null);
   const savable = !senses || drafts.some((draft) => draft.kept);
 
   function apply() {
@@ -67,7 +65,6 @@ export function CardEditSheet<Card extends CardDraft>({
     if (!draft) return;
     next.splice(at + by, 0, draft);
     setDrafts(next);
-    setMoved(draft.key);
   }
 
   return (
@@ -93,7 +90,6 @@ export function CardEditSheet<Card extends CardDraft>({
                 number={at + 1}
                 first={at === 0}
                 last={at === drafts.length - 1}
-                focus={moved === draft.key}
                 change={(next) => {
                   setDrafts(drafts.map((item) => (item.key === draft.key ? next : item)));
                 }}
@@ -135,7 +131,6 @@ function SenseRow({
   number,
   first,
   last,
-  focus,
   change,
   move,
 }: {
@@ -143,18 +138,13 @@ function SenseRow({
   number: number;
   first: boolean;
   last: boolean;
-  focus: boolean;
   change: (draft: SenseDraft) => void;
   move: (by: number) => void;
 }) {
   const field = useId();
-  const row = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (focus) row.current?.querySelector<HTMLElement>("[aria-haspopup=menu]")?.focus();
-  }, [focus, number]);
   const labels = draft.sense.labels.map((label) => `[${labelShown(label)}]`).join(" ");
   return (
-    <div ref={row} className="flex min-w-0 items-end gap-1">
+    <div className="flex min-w-0 items-end gap-1">
       <button
         type="button"
         role="checkbox"
