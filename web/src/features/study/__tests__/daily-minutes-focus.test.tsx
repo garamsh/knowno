@@ -27,6 +27,7 @@ describe("the daily minutes dialog", () => {
     await user.click(trigger);
 
     const dialog = screen.getByRole("dialog", { name: "하루 학습 시간" });
+    expect(dialog).toHaveAccessibleDescription("복습을 먼저 하고, 남는 시간에 새 카드를 시작해요.");
     const controls = within(dialog).getAllByRole("button");
     const [first] = controls;
     const last = controls.at(-1);

@@ -413,6 +413,7 @@ describe("the study page", () => {
         expect(testRouter.push).not.toHaveBeenCalled();
 
         await exits[way]();
+        const go = vi.spyOn(window.history, "go");
         await userEvent
           .setup()
           .click(
@@ -420,7 +421,16 @@ describe("the study page", () => {
               await screen.findByRole("dialog", { name: "저장하지 않고 나갈까요?" }),
             ).getByRole("button", { name: "나가기" }),
           );
-        expect(testRouter.push).toHaveBeenCalledExactlyOnceWith("/");
+        await waitFor(() => {
+          expect(testRouter.push).toHaveBeenCalledExactlyOnceWith("/");
+        });
+        // The confirm's history entry is dropped before the push, so a back from where it goes
+        // does not land on the study page's stale entry.
+        expect(go).toHaveBeenCalledExactlyOnceWith(-1);
+        expect(go.mock.invocationCallOrder[0]).toBeLessThan(
+          testRouter.push.mock.invocationCallOrder[0] ?? 0,
+        );
+        go.mockRestore();
         expect(postgrest.rows.reviews).toHaveLength(0);
       },
     );
@@ -855,10 +865,30 @@ describe("the study page", () => {
       // Control: a click inside the card keeps it open.
       await user.click(within(detail).getByRole("heading", { name: "카드" }));
       expect(screen.getByRole("dialog", { name: "카드" })).toBeInTheDocument();
-      await user.click(detail.parentElement ?? detail);
+      // A click on the scrim lands on the dialog itself, outside its content.
+      await user.click(detail);
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(face).toHaveFocus();
+    });
+
+    it("closes the whole card on the browser's back, with the focus back on the card and the session kept", async () => {
+      seedDeck(postgrest, "d1", fronts);
+      await open("d1");
+      await answerThree();
+      const face = within(previousCard()).getByRole("button", { name: "카드 전체 보기" });
+      await userEvent.setup().click(face);
+      expect(screen.getByRole("dialog", { name: "카드" })).toBeInTheDocument();
+
+      act(() => {
+        window.history.back();
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+      expect(face).toHaveFocus();
+      expect(screen.getByRole("group", { name: "앞면" })).toBeInTheDocument();
     });
 
     it("bounds 이번 학습 to the screen with a list that scrolls on its own, to the newest answer as each is added", async () => {
@@ -1420,7 +1450,8 @@ describe("the study page", () => {
       // Control: a click inside the list keeps it open.
       await user.click(within(help).getByText("마지막 응답 바꾸기"));
       expect(screen.getByRole("dialog", { name: "단축키" })).toBeInTheDocument();
-      await user.click(help.parentElement ?? help);
+      // A click on the scrim lands on the dialog itself, outside its content.
+      await user.click(help);
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "단축키" })).toHaveFocus();
@@ -1451,6 +1482,21 @@ describe("the study page", () => {
       await user.keyboard("{Escape}");
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(screen.getByRole("group", { name: "앞면" })).toBeInTheDocument();
+    });
+
+    it("closes the shortcut list on ? again, with the focus back on 단축키", async () => {
+      const user = userEvent.setup();
+      await user.keyboard("?");
+      expect(
+        within(screen.getByRole("dialog", { name: "단축키" })).getByRole("button", {
+          name: "닫기",
+        }),
+      ).toHaveFocus();
+
+      await user.keyboard("?");
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "단축키" })).toHaveFocus();
     });
 
     it("mirrors each shortcut with a visible control", async () => {
@@ -1615,6 +1661,13 @@ describe("the study page", () => {
       expect(answerButton("안다")).toHaveTextContent("안다 →");
       expect(unseen(answerButton("모른다"))).toBe(false);
       expect(unseen(answerButton("안다"))).toBe(false);
+      // Each is a cta in the button type, as the phone's AppButton draws one (AppType.button).
+      for (const name of ["모른다", "안다"]) {
+        expect(answerButton(name)?.className.split(" ")).toEqual(
+          expect.arrayContaining(["min-h-cta", "text-button"]),
+        );
+        expect(answerButton(name)?.className.split(" ")).not.toContain("text-label");
+      }
       await user.click(answerButton("안다") ?? document.body);
       const change = screen.getByRole("button", { name: /^마지막 응답 바꾸기/ });
       expect(change).toHaveTextContent("마지막 응답 바꾸기 Z");

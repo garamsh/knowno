@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Mascot } from "@/design/brand";
+import { buttonClass } from "@/design/button";
 
 import { coachHand } from "./coach-hand-drawing";
 
@@ -32,9 +33,6 @@ export const coachLines: Record<"pointer" | "touch", Record<CoachStep, string>> 
     redecide: "응답한 카드는 위로 올라와요. 밀어서 응답을 바꿀 수 있어요",
   },
 };
-
-const button =
-  "pressable inline-flex items-center justify-center rounded-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 /**
  * How the pointer coach marks the control its step names: a ring in the hero's colour, held, and
@@ -89,7 +87,7 @@ export function CoachCaption({
             type="button"
             onClick={onPrevious}
             disabled={index === 0}
-            className={`${button} min-h-tap-target px-3 text-label text-ink-2 disabled:opacity-35`}
+            className={buttonClass("text", "header")}
           >
             이전
           </button>
@@ -101,11 +99,7 @@ export function CoachCaption({
               />
             ))}
           </div>
-          <button
-            type="button"
-            onClick={onNext}
-            className={`${button} min-h-button bg-primary px-6 text-button text-on-primary`}
-          >
+          <button type="button" onClick={onNext} className={buttonClass("primary")}>
             {last ? "시작하기" : "다음"}
           </button>
         </div>

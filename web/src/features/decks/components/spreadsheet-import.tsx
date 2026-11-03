@@ -14,8 +14,11 @@ import {
   headerByDefault,
   type RowCard,
 } from "../spreadsheet-cards";
-import { leaveThen } from "../hooks/use-back-entry";
-import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
+import { leaveThen } from "@/design/use-back-entry";
+import { buttonClass } from "@/design/button";
+import { Confirm } from "@/design/confirm";
+import { Sheet } from "@/design/sheet";
+import { AuthoringScreen } from "./authoring-sheet";
 import { SideText } from "./side-text";
 
 type Opened = { name: string; book: Spreadsheet };
@@ -190,9 +193,7 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
           <p className="text-secondary break-keep text-muted">
             엑셀(.xlsx)이나 CSV 파일의 한 행이 카드 한 장이 돼요. 파일은 5MB, 1,000행까지 읽어요.
           </p>
-          <label
-            className={`pressable flex min-h-cta cursor-pointer items-center justify-center rounded-button bg-primary px-4 text-button text-on-primary has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink ${opening ? "opacity-50" : ""}`}
-          >
+          <label className={`${buttonClass("primary", "cta")} ${opening ? "opacity-50" : ""}`}>
             {opening ? "읽는 중" : "파일 고르기"}
             {picker}
           </label>
@@ -375,9 +376,9 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
   // The sheet stating the limits picks the file; the review is a screen, as the phone pushes it.
   if (!opened)
     return (
-      <AuthoringSheet title="파일에서 카드 추가" close={leave}>
+      <Sheet title="파일에서 카드 추가" close={leave}>
         {content}
-      </AuthoringSheet>
+      </Sheet>
     );
   return (
     <AuthoringScreen
@@ -392,7 +393,7 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
             onClick={() => {
               save(false);
             }}
-            className="pressable min-h-cta w-full rounded-button bg-primary px-4 text-button text-on-primary disabled:opacity-50"
+            className={`${buttonClass("primary", "cta")} w-full`}
           >
             {pending ? "저장 중" : `${String(unsaved.length)}장 추가`}
           </button>
@@ -401,32 +402,16 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
     >
       {content}
       {discarding && (
-        <AuthoringSheet
+        <Confirm
           title="읽은 카드를 버릴까요?"
+          consequence="저장하지 않은 카드는 사라져요."
+          confirmLabel="버리기"
+          destructive
+          onConfirm={close}
           close={() => {
             setDiscarding(false);
           }}
-        >
-          <p className="text-secondary break-keep text-muted">저장하지 않은 카드는 사라져요.</p>
-          <div className="mt-4 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setDiscarding(false);
-              }}
-              className="pressable min-h-button text-body"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={close}
-              className="pressable min-h-button rounded-button bg-dont-know text-button text-on-ink"
-            >
-              버리기
-            </button>
-          </div>
-        </AuthoringSheet>
+        />
       )}
     </AuthoringScreen>
   );

@@ -39,12 +39,13 @@ describe("the account page", () => {
     await render(Profile, {});
 
     const sections = screen.getAllByRole("region");
-    expect(sections.map((section) => section.getAttribute("aria-labelledby"))).toEqual([
-      "account-section",
-      "study-section",
-      "ai-section",
-      "display-section",
-    ]);
+    // Each is named by its label.
+    expect(
+      sections.map(
+        (section) =>
+          document.getElementById(section.getAttribute("aria-labelledby") ?? "")?.textContent,
+      ),
+    ).toEqual(["계정", "학습", "AI 연결", "화면"]);
     expect(sections.map((section) => section.querySelector("h2")?.textContent)).toEqual([
       "계정",
       "학습",

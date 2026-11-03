@@ -1,7 +1,7 @@
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
-import { RetryButton } from "@/design/retry-button";
+import { ReadFailureMessage, unreachableMessage } from "@/design/read-failure";
 import { createClient } from "@/supabase/server";
 
 import { ConsentForm } from "./consent-form";
@@ -54,14 +54,14 @@ function Failure({ unreachable = false }: { unreachable?: boolean }) {
   return (
     <>
       <h1 className="text-display">AI 연결</h1>
-      <div role="alert" className="flex flex-col gap-3">
-        <p className="text-body text-dont-know-text">
-          {unreachable
-            ? "서버에 연결할 수 없어요. 연결을 확인하고 다시 시도해 주세요."
-            : "연결 요청을 찾을 수 없어요. AI 앱에서 다시 연결해 주세요."}
-        </p>
-        {unreachable && <RetryButton />}
-      </div>
+      <ReadFailureMessage
+        message={
+          unreachable
+            ? unreachableMessage
+            : "연결 요청을 찾을 수 없어요. AI 앱에서 다시 연결해 주세요."
+        }
+        next={unreachable ? "retry" : "none"}
+      />
     </>
   );
 }

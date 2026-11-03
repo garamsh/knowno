@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 
+import { buttonClass } from "@/design/button";
+import { Section } from "@/design/section";
 import { createClient } from "@/supabase/browser";
 
 /** Hosts that name the user's own computer, which any program on it can claim to be. */
@@ -45,10 +47,7 @@ export function ConsentForm({
   return (
     <>
       <h1 className="text-deck-name break-keep">{appName}에 연결할까요?</h1>
-      <section aria-labelledby="consent-section" className="flex flex-col gap-2">
-        <h2 id="consent-section" className="px-1 text-section text-muted">
-          연결 내용
-        </h2>
+      <Section label="연결 내용">
         <dl className="flex flex-col divide-y divide-hairline rounded-group bg-surface">
           <div className="flex flex-col gap-1 px-4 py-3">
             <dt className="text-caption text-muted">계정</dt>
@@ -65,7 +64,7 @@ export function ConsentForm({
             </dd>
           </div>
         </dl>
-      </section>
+      </Section>
       {loopback && (
         <p className="text-body break-keep text-ink-2">
           이 주소는 이 컴퓨터 안의 프로그램이에요. 직접 시작한 프로그램일 때만 연결해 주세요.
@@ -83,7 +82,7 @@ export function ConsentForm({
           onClick={() => {
             answer(false);
           }}
-          className="pressable flex min-h-cta items-center justify-center rounded-button bg-surface px-6 text-button text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+          className={buttonClass("secondary", "cta")}
         >
           취소
         </button>
@@ -93,7 +92,7 @@ export function ConsentForm({
           onClick={() => {
             answer(true);
           }}
-          className="pressable flex min-h-cta items-center justify-center rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+          className={buttonClass("primary", "cta")}
         >
           연결
         </button>

@@ -6,6 +6,7 @@ import { type MouseEvent, useEffect, useRef } from "react";
 import type { Completion } from "../session";
 
 import { Mascot } from "@/design/brand";
+import { buttonClass } from "@/design/button";
 import { FittedLine } from "@/design/fitted-line";
 
 /**
@@ -36,8 +37,6 @@ export function CompletionCard({
     (studyOn.current ?? stop.current)?.focus();
   }, []);
   const minutes = Math.ceil(completion.timeSpentMs / 60_000);
-  const action =
-    "pressable flex items-center justify-center rounded-button px-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero";
   const tiles = [
     { count: String(completion.knowCount), colour: "text-know", name: "안다" },
     { count: String(completion.dontKnowCount), colour: "text-dont-know-text", name: "모른다" },
@@ -76,7 +75,7 @@ export function CompletionCard({
             ref={studyOn}
             type="button"
             onClick={onStudyOn}
-            className={`${action} min-h-cta bg-hero-button text-button text-on-hero-button`}
+            className={`${buttonClass("onHero", "cta")} w-full`}
           >
             학습하기
           </button>
@@ -89,8 +88,8 @@ export function CompletionCard({
           onClick={onStop}
           className={
             onStudyOn
-              ? `${action} min-h-tap-target text-label text-on-hero`
-              : `${action} min-h-cta bg-hero-button text-button text-on-hero-button`
+              ? `${buttonClass("onHeroText", "header")} w-full`
+              : `${buttonClass("onHero", "cta")} w-full`
           }
         >
           그만하기

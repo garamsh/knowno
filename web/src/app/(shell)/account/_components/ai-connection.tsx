@@ -1,3 +1,5 @@
+import { Section } from "@/design/section";
+
 /**
  * The `mcp` Edge Function on the project's custom domain, which Claude and ChatGPT connect to
  * (ADR 0133), which the function's `CUSTOM_DOMAINS` lists.
@@ -10,10 +12,7 @@ const MCP_SERVER_URL = "https://api.knowno.app/functions/v1/mcp";
  */
 export function AiConnection() {
   return (
-    <section aria-labelledby="ai-section" className="flex flex-col gap-2">
-      <h2 id="ai-section" className="px-1 text-section text-muted">
-        AI 연결
-      </h2>
+    <Section label="AI 연결">
       <div className="flex flex-col divide-y divide-hairline rounded-group bg-surface">
         <div className="flex flex-col gap-1 px-4 py-3">
           <p className="text-caption text-muted">서버 주소</p>
@@ -37,6 +36,6 @@ export function AiConnection() {
         연결한 AI는 노트와 카드를 읽고, 추가하고, 고치고, 지울 수 있어요. 연결할 수 있는 AI의 수와
         기능은 각 서비스의 요금제에 따라 달라요.
       </p>
-    </section>
+    </Section>
   );
 }

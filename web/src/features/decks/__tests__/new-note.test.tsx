@@ -25,12 +25,6 @@ vi.mock("../prepare-image", () => ({ prepareImage: vi.fn() }));
 const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 
 beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = function () {
-    this.setAttribute("open", "");
-  };
-  HTMLDialogElement.prototype.close = function () {
-    this.removeAttribute("open");
-  };
   URL.createObjectURL = () => "blob:picked";
   URL.revokeObjectURL = () => undefined;
 });

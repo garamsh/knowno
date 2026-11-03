@@ -21,8 +21,11 @@ import {
   type SectionForm,
   sectionsOf,
 } from "../section-form";
-import { leaveThen } from "../hooks/use-back-entry";
-import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
+import { leaveThen } from "@/design/use-back-entry";
+import { buttonClass } from "@/design/button";
+import { Confirm } from "@/design/confirm";
+import { Sheet } from "@/design/sheet";
+import { AuthoringScreen } from "./authoring-sheet";
 import { CardEditSheet } from "./card-fields";
 import { ImportList } from "./import-list";
 import { RowMenu } from "./row-menu";
@@ -396,7 +399,7 @@ export function PhotoImport({
               addInstead(way);
             });
           }}
-          className={`pressable min-h-cta flex-1 rounded-button px-4 text-button break-keep ${way === "manual" ? "bg-primary text-on-primary" : "bg-surface"}`}
+          className={`${buttonClass(way === "manual" ? "primary" : "secondary", "cta")} flex-1`}
         >
           {way === "manual" ? "직접 입력" : "엑셀·CSV 파일"}
         </button>
@@ -458,7 +461,7 @@ export function PhotoImport({
             onClick={() => {
               retry(single);
             }}
-            className="pressable min-h-cta flex-1 rounded-button bg-primary px-4 text-button text-on-primary"
+            className={`${buttonClass("primary", "cta")} flex-1`}
           >
             다시 시도
           </button>
@@ -481,7 +484,7 @@ export function PhotoImport({
       type="button"
       disabled={pending || toSave.length === 0}
       onClick={add}
-      className="pressable min-h-cta w-full rounded-button bg-primary px-4 text-button text-on-primary disabled:opacity-50"
+      className={`${buttonClass("primary", "cta")} w-full`}
     >
       {pending ? "저장 중" : `카드 ${String(cardCount)}장 추가`}
     </button>
@@ -647,7 +650,7 @@ export function PhotoImport({
         </div>
       )}
       {choosing && (
-        <AuthoringSheet
+        <Sheet
           title="추가할 노트"
           close={() => {
             setChoosing(false);
@@ -677,10 +680,10 @@ export function PhotoImport({
               </button>
             ))}
           </div>
-        </AuthoringSheet>
+        </Sheet>
       )}
       {naming && (
-        <AuthoringSheet
+        <Sheet
           title="새 노트"
           close={() => {
             if (!busy.current) setNaming(false);
@@ -711,14 +714,11 @@ export function PhotoImport({
                 {message}
               </p>
             )}
-            <button
-              disabled={pending || !name.trim()}
-              className="pressable min-h-cta rounded-button bg-primary px-5 text-button text-on-primary disabled:opacity-50"
-            >
+            <button disabled={pending || !name.trim()} className={buttonClass("primary", "cta")}>
               {pending ? "만드는 중" : "만들기"}
             </button>
           </form>
-        </AuthoringSheet>
+        </Sheet>
       )}
       {editing && (
         <CardEditSheet
@@ -733,37 +733,19 @@ export function PhotoImport({
         />
       )}
       {discarding && (
-        <AuthoringSheet
+        <Confirm
           title="찾은 카드를 버릴까요?"
+          consequence={`찾은 카드 ${String(candidates.length)}장이 사라져요. 다시 읽으면 오늘 사진 한도가 다시 쓰여요.`}
+          confirmLabel="버리기"
+          destructive
+          onConfirm={() => {
+            setDiscarding(null);
+            discarding();
+          }}
           close={() => {
             setDiscarding(null);
           }}
-        >
-          <p className="text-secondary break-keep text-muted">
-            찾은 카드 {candidates.length}장이 사라져요. 다시 읽으면 오늘 사진 한도가 다시 쓰여요.
-          </p>
-          <div className="mt-4 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setDiscarding(null);
-              }}
-              className="pressable min-h-button text-body"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDiscarding(null);
-                discarding();
-              }}
-              className="pressable min-h-button rounded-button bg-dont-know text-button text-on-ink"
-            >
-              버리기
-            </button>
-          </div>
-        </AuthoringSheet>
+        />
       )}
     </AuthoringScreen>
   );
@@ -797,7 +779,7 @@ function CancelBar({ cancel, retryFailed }: { cancel: () => void; retryFailed?: 
       <button
         type="button"
         onClick={cancel}
-        className="pressable min-h-cta flex-1 rounded-button bg-surface px-4 text-button"
+        className={`${buttonClass("secondary", "cta")} flex-1`}
       >
         취소
       </button>
@@ -805,7 +787,7 @@ function CancelBar({ cancel, retryFailed }: { cancel: () => void; retryFailed?: 
         <button
           type="button"
           onClick={retryFailed}
-          className="pressable min-h-cta flex-[2] rounded-button bg-primary px-4 text-button break-keep text-on-primary"
+          className={`${buttonClass("primary", "cta")} flex-[2]`}
         >
           실패한 사진 다시 시도
         </button>
@@ -871,7 +853,7 @@ function PhotoRow({
               type="button"
               aria-label={`사진 ${String(number)} 다시 시도`}
               onClick={retry}
-              className="pressable min-h-button flex-1 rounded-button bg-surface px-3 text-button"
+              className={`${buttonClass("secondary")} flex-1`}
             >
               다시 시도
             </button>
@@ -880,7 +862,7 @@ function PhotoRow({
             type="button"
             aria-label={`사진 ${String(number)} 빼기`}
             onClick={drop}
-            className="pressable min-h-button flex-1 rounded-button bg-surface px-3 text-button"
+            className={`${buttonClass("secondary")} flex-1`}
           >
             빼기
           </button>
@@ -909,9 +891,7 @@ function PhotoPicker({
   disabled?: boolean;
 }) {
   return (
-    <label
-      className={`pressable flex min-h-cta flex-1 cursor-pointer items-center justify-center gap-2 rounded-button px-4 text-button focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink ${primary ? "bg-primary text-on-primary" : "bg-surface"}`}
-    >
+    <label className={`${buttonClass(primary ? "primary" : "secondary", "cta")} flex-1`}>
       {icon && <ImagePlus aria-hidden className="size-small-icon" />}
       {label}
       <input

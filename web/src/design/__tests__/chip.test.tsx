@@ -9,6 +9,7 @@ describe("the one chip", () => {
     ["brand", ["bg-brand-tint", "border-brand-tint", "text-ink"]],
     ["amber", ["bg-tint-amber", "border-tint-amber", "text-ink"]],
     ["know", ["bg-know", "border-know", "text-on-know"]],
+    ["knowTint", ["bg-tint-green", "border-tint-green", "text-on-know-tint"]],
     ["dontKnow", ["bg-dont-know-text", "border-dont-know-text", "text-on-dont-know-text"]],
   ] as const)(
     "draws the %s tone in the phone's fill, line and text, on the chip radius in the section type",

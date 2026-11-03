@@ -7,7 +7,7 @@ import { Chip } from "@/design/chip";
 
 import type { Deck } from "../library";
 import { DeckTile } from "./deck-tile";
-import { ListSearch } from "./list-search";
+import { SearchField } from "@/design/search-field";
 
 /**
  * A deck as its row shows it: its card count, what a session over it would study now, and how
@@ -38,7 +38,15 @@ export function DeckList({ rows, notice }: { rows: DeckRow[]; notice?: ReactNode
     : rows;
   return (
     <section aria-label="노트 목록" className="flex flex-col gap-3">
-      {rows.length > 0 && <ListSearch label="노트 검색" value={search} change={setSearch} />}
+      {rows.length > 0 && (
+        <SearchField
+          label="노트 검색"
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+          }}
+        />
+      )}
       {notice}
       {shown.length === 0 && needle ? (
         <p role="status" className="text-muted">

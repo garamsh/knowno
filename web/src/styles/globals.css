@@ -567,7 +567,6 @@
     --edge: var(--spacing-edge-button);
     --edge-colour: var(--color-on-hero-edge);
   }
-  .rounded-button.bg-dont-know,
   .rounded-button.bg-dont-know-text {
     --edge: var(--spacing-edge-button);
     --edge-colour: var(--color-dont-know-edge);

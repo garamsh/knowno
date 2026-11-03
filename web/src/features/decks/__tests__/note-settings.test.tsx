@@ -27,12 +27,6 @@ vi.mock("../prepare-image", () => ({ prepareImage: vi.fn() }));
 const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9, 9]);
 
 beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = function () {
-    this.setAttribute("open", "");
-  };
-  HTMLDialogElement.prototype.close = function () {
-    this.removeAttribute("open");
-  };
   URL.createObjectURL = () => "blob:picked";
   URL.revokeObjectURL = () => undefined;
 });
@@ -260,7 +254,7 @@ describe("노트 설정", () => {
     expect(
       buttons.map((button) => button.getAttribute("aria-label") ?? button.textContent),
     ).toEqual(["닫기", "취소", "삭제"]);
-    expect(buttons.at(-1)).toHaveClass("bg-dont-know");
+    expect(buttons.at(-1)).toHaveClass("bg-dont-know-text", "text-on-dont-know-text");
     await userEvent.click(within(question).getByRole("button", { name: "취소" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(db.rows.decks[0]).toMatchObject({ deleted_at: null });

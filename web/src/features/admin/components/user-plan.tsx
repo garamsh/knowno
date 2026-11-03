@@ -4,7 +4,8 @@ import { revokePlan } from "../revoke-plan";
 import { formatDate, formatTime } from "../format";
 import { labelOf, planLabels, providerLabels, termsLabel } from "../labels";
 import type { UserPlan as Plan } from "../read-admin";
-import { AdminSection, button, group } from "./admin-section";
+import { Section } from "@/design/section";
+import { button, group } from "./admin-section";
 import { ConfirmAction } from "./confirm-action";
 import { GrantPlanForm } from "./grant-plan-form";
 
@@ -63,7 +64,7 @@ export function UserPlan({
     ["다음 갱신", renewal],
   ];
   return (
-    <AdminSection label="요금제">
+    <Section label="요금제">
       <dl className={group}>
         {facts.map(([term, value]) => (
           <div key={term} className="flex items-baseline justify-between gap-3 px-4 py-3">
@@ -89,6 +90,6 @@ export function UserPlan({
           />
         )}
       </details>
-    </AdminSection>
+    </Section>
   );
 }

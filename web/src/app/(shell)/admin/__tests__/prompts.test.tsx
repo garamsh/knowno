@@ -163,7 +163,7 @@ describe("a version's page", () => {
       searchParams: Promise.resolve({}),
     });
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("버전 2");
-    const diff = within(screen.getByRole("region", { name: "사용 중인 버전과 다른 점" }));
+    const diff = within(screen.getByRole("region", { name: /^사용 중인 버전 \d+과 다른 점$/ }));
     expect(
       diff.getByText("바뀐 줄 2개: 빼는 줄은 −, 더하는 줄은 +로 표시해요."),
     ).toBeInTheDocument();
@@ -193,7 +193,9 @@ describe("a version's page", () => {
       params: Promise.resolve({ id: "1" }),
       searchParams: Promise.resolve({}),
     });
-    expect(screen.getByRole("region", { name: "사용 중인 버전과 다른 점" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: /^사용 중인 버전 \d+과 다른 점$/ }),
+    ).toBeInTheDocument();
     expect(await activatePrompt(1)).toEqual({
       changed: true,
       message: "이 버전을 모든 사용자에게 적용했어요.",
