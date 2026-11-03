@@ -3,7 +3,7 @@
 -- draft served to admins only, tried by id, and applied to everyone; a key in use kept; a recent
 -- sign-in required to remove a key; every write recorded; and no client reaching any of it.
 begin;
-select plan(62);
+select plan(61);
 
 delete from private.admin_audit;
 
@@ -38,20 +38,6 @@ begin
   return query select b.provider, b.model, b.available, b.allowed, b.usage_id
     from public.begin_extraction(('00000000-0000-4000-8000-00000000000' || who)::uuid,
       configuration) as b;
-  perform set_config('role', 'none', true);
-end;
-$$;
-
--- What the extract-cards bundle deployed before 20261103133627 gets: it still names
--- [secret_providers], which the server now ignores.
-create function pg_temp.start_offering(who text, secret_providers text[])
-returns table (provider text, available boolean, allowed boolean)
-language plpgsql as $$
-begin
-  perform set_config('role', 'service_role', true);
-  return query select b.provider, b.available, b.allowed
-    from public.begin_extraction(('00000000-0000-4000-8000-00000000000' || who)::uuid, null,
-      secret_providers) as b;
   perform set_config('role', 'none', true);
 end;
 $$;
@@ -104,12 +90,14 @@ select results_eq(
 select results_eq(
   $$select count(*) from unnest(array['public.provider_key(text)',
       'public.save_provider_key(uuid, text, text)', 'public.save_ai_configuration(uuid, text, text, text)',
-      'public.begin_extraction(uuid, bigint)', 'public.begin_extraction(uuid, bigint, text[])']) as f
+      'public.begin_extraction(uuid, bigint)']) as f
     cross join unnest(array['anon', 'authenticated']) as r
     where has_function_privilege(r, f, 'execute')$$,
   $$values (0::bigint)$$, 'no client reads a key, saves one, saves a configuration or begins an extraction');
-select ok(has_function_privilege('service_role', 'public.begin_extraction(uuid, bigint, text[])', 'execute'),
-  'control: service_role begins one by the old bundle''s call too');
+select hasnt_function('public', 'begin_extraction', array['uuid', 'bigint', 'text[]'],
+  'the old bundle''s three-argument begin_extraction is gone');
+select has_function('public', 'begin_extraction', array['uuid', 'bigint'],
+  'control: the two-argument begin_extraction remains');
 select ok(has_function_privilege('service_role', 'public.provider_key(text)', 'execute'),
   'control: service_role reads a key');
 select results_eq(
@@ -226,17 +214,11 @@ select results_eq($$select provider, available, allowed, usage_id is null from p
 select results_eq($$select provider, available, allowed from pg_temp.start('b')$$,
   $$values ('openrouter', false, false)$$,
   'a user is served the active configuration, on OpenRouter, unavailable without its key in Vault as every provider');
-select results_eq($$select provider, available, allowed from pg_temp.start_offering('b', array['openrouter'])$$,
-  $$values ('openrouter', false, false)$$,
-  'and so through the old bundle''s call, whose secret_providers is ignored');
 insert into private.provider_keys (provider, secret_id, last_four)
   values ('openrouter', vault.create_secret('sk-or-test-key-0000'), '0000');
 select results_eq($$select provider, available, allowed from pg_temp.start('b')$$,
   $$values ('openrouter', true, true)$$,
   'control: with OpenRouter''s key in Vault the user is served and counted');
-select results_eq($$select provider, available, allowed from pg_temp.start_offering('b', array[]::text[])$$,
-  $$values ('openrouter', true, true)$$,
-  'control: and through the old bundle''s call, offering no provider');
 delete from private.provider_keys where provider = 'openrouter';
 reset role;
 create temp table saved_anthropic as

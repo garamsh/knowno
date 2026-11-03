@@ -179,6 +179,22 @@ void main() {
     ], isEmpty);
   });
 
+  test('no screen gives a text field a floating label, so every label is '
+      "AppTextField's, above its field", () {
+    final floating = RegExp(r'\blabelText:');
+    // Controls: the expression finds a floating label and not AppTextField's.
+    expect(
+      floating.hasMatch('decoration: InputDecoration(labelText: a)'),
+      isTrue,
+    );
+    expect(floating.hasMatch('AppTextField(label: a)'), isFalse);
+
+    expect([
+      for (final MapEntry(key: path, value: source) in _appSources().entries)
+        if (floating.hasMatch(source)) path,
+    ], isEmpty);
+  });
+
   test(
     'the radii are one scale: group and card 28, button 24, chip 16, sheet 32, '
     'and the theme draws buttons and sheets in them',

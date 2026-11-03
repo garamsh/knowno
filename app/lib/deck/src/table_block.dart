@@ -436,43 +436,31 @@ class _TableFieldsState extends State<TableFields> {
                     : (selection) =>
                           _change(() => _draft.toggle(body, selection)),
               ),
-              PopupMenuButton<_Remove>(
-                tooltip: l10n.tableRemove,
-                enabled: selected != null,
-                onSelected: _remove,
-                itemBuilder: (_) => [
+              MenuAnchor(
+                alignmentOffset: const Offset(0, AppSpace.s4),
+                menuChildren: [
                   if (selected != null && selected.row >= 0)
-                    PopupMenuItem(
-                      value: _Remove.row,
-                      enabled: _draft.rows.length > 1,
+                    MenuItemButton(
+                      onPressed: _draft.rows.length > 1
+                          ? () => _remove(_Remove.row)
+                          : null,
                       child: Text(l10n.deleteRow(selected.row + 1)),
                     ),
                   if (selected != null)
-                    PopupMenuItem(
-                      value: _Remove.column,
-                      enabled: _draft.columns.length > 1,
+                    MenuItemButton(
+                      onPressed: _draft.columns.length > 1
+                          ? () => _remove(_Remove.column)
+                          : null,
                       child: Text(l10n.deleteColumn(selected.column + 1)),
                     ),
                 ],
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minHeight: AppSize.tapTarget,
-                    minWidth: AppSize.tapTarget,
-                  ),
-                  child: Center(
-                    widthFactor: 1,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpace.s12,
-                      ),
-                      child: Text(
-                        l10n.tableRemove,
-                        style: AppType.bodyStrong.copyWith(
-                          color: selected == null ? colors.muted : colors.ink,
-                        ),
-                      ),
-                    ),
-                  ),
+                builder: (context, controller, _) => AppChip.action(
+                  label: l10n.tableRemove,
+                  onPressed: selected == null
+                      ? null
+                      : () => controller.isOpen
+                            ? controller.close()
+                            : controller.open(),
                 ),
               ),
             ],
