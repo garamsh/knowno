@@ -1,3 +1,4 @@
+import { markAnswerSaved } from "./answer-saved";
 import { type AnswerWrite, type SaveResult, writeFailureMessages } from "./answer-write";
 import { schedule } from "./engine";
 import { recordAnswer } from "./record-answer";
@@ -5,7 +6,7 @@ import { recordAnswer } from "./record-answer";
 /**
  * Writes one answer or toggle: the engine, in the browser, replays the card's answers of this
  * session from its stored state, and the server stores the changed review and the state, which
- * the result carries once saved.
+ * the result carries once saved. A saved write is recorded for the pages that show study state.
  */
 export async function saveAnswer(write: AnswerWrite): Promise<SaveResult> {
   const scheduled = await schedule(write.before, write.history);
@@ -22,5 +23,7 @@ export async function saveAnswer(write: AnswerWrite): Promise<SaveResult> {
     state: scheduled.state,
     editedAt: write.editedAt,
   });
-  return recorded.saved ? { saved: true, state: scheduled.state } : recorded;
+  if (!recorded.saved) return recorded;
+  markAnswerSaved();
+  return { saved: true, state: scheduled.state };
 }

@@ -10,8 +10,10 @@ import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
 import { signedInCookies } from "@/testing/session";
 
+import { subscribeAnswerSaved } from "../answer-saved";
 import { StudyScreen } from "../components/study-screen";
 import { recordAnswer } from "../record-answer";
+import { saveAnswer } from "../save-answer";
 import { loadEngine } from "../engine";
 import init, { reviewCard, reviewNewCard } from "../engine-wasm/knowno_engine_wasm.js";
 import type { CardState } from "../queue";
@@ -113,6 +115,46 @@ describe("recordAnswer", () => {
     // Control: the same answer to the card's uuid is stored.
     expect(await answer(uuidOf("c1"))).toEqual({ saved: true });
     expect(postgrest.rows.card_states.map((row) => row.card_id)).toEqual([uuidOf("c1")]);
+  });
+});
+
+describe("saveAnswer", () => {
+  beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(start);
+    setRequestCookies(await signedInCookies());
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("records a stored answer for the pages that show study state, and not a refused one", async () => {
+    const postgrest = new FakePostgrest();
+    server.use(...postgrest.handlers);
+    const heard = vi.fn();
+    const stop = subscribeAnswerSaved(heard);
+    const review = {
+      id: "0192a6f0-0000-7000-8000-000000000003",
+      answer: "know" as const,
+      reviewedAt: start,
+      durationMs: 1000,
+      fuzzFactor: 0.5,
+    };
+    const write = (cardId: string) =>
+      saveAnswer({
+        cardId: cardId as CardId,
+        before: null,
+        history: [review],
+        change: { kind: "answer", reviewId: review.id },
+        editedAt: start,
+      });
+
+    expect(await write("c1")).toMatchObject({ saved: false });
+    expect(heard).not.toHaveBeenCalled();
+    // Control: the same answer to the card's uuid is stored, and recorded once.
+    expect(await write(uuidOf("c1"))).toMatchObject({ saved: true });
+    expect(heard).toHaveBeenCalledTimes(1);
+    stop();
   });
 });
 
