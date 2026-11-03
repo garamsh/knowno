@@ -21,7 +21,7 @@ export async function Profile() {
       const study = await readStudySetting();
       return (
         <>
-          <Section label="계정">
+          <Section label="계정" id="account-section">
             <div className="flex flex-col divide-y divide-hairline rounded-group bg-surface">
               <p className="min-w-0 px-4 py-3 text-body-strong break-all">{session.email}</p>
               <SignOutForm />
