@@ -241,7 +241,7 @@ describe("노트 설정", () => {
     expect(db.rows.decks[0]).toMatchObject({ visibility: "private" });
   });
 
-  it("asks before deleting, naming the note and its cards, keeps it on 취소, and opens 홈 once deleted", async () => {
+  it("asks before deleting, naming the note and its cards, keeps it on 취소, and opens the 노트 page once deleted", async () => {
     db.seed("decks", deckRow("deck", "French"));
     db.seed("cards", cardRow("a", "deck", "a"), cardRow("b", "deck", "b"));
     await choose("노트 삭제");
