@@ -119,6 +119,36 @@ Deno.test("fails when a spec ran no test, or a test skipped", async () => {
   );
 });
 
+Deno.test("passes its arguments to playwright test, which then selects what runs, and names them", async () => {
+  const { path, log } = await host(stubs());
+  const ran = await program(
+    await fixture(),
+    "test-web",
+    ["e2e/a.spec.ts", "--repeat-each", "2"],
+    {
+      PATH: path,
+      TMPDIR: await Deno.makeTempDir(),
+      PLAYWRIGHT:
+        "  ✓  1 [chromium] › e2e/a.spec.ts:3:1 › works\n  ✓  2 [chromium] › e2e/a.spec.ts:3:1 › works\n\n  2 passed (1s)",
+    },
+  );
+  assert.equal(ran.code, 0, ran.stderr);
+  assert.ok(
+    (await log()).includes(
+      "npx playwright test e2e/a.spec.ts --repeat-each 2\n",
+    ),
+    await log(),
+  );
+  assert.ok(
+    ran.stdout.endsWith(
+      `ran 2 web e2e tests in 1 specs against the web app built for the stack ${
+        (await log()).match(/^env (knowno_web_\d+) /m)?.[1]
+      }, selected by: ${SCOPE}, narrowed by: playwright test e2e/a.spec.ts --repeat-each 2\n`,
+    ),
+    ran.stdout,
+  );
+});
+
 Deno.test("a failing run prints the specs' output and the app's log", async () => {
   const { path } = await host(stubs());
   const ran = await program(await fixture(), "test-web", [], {

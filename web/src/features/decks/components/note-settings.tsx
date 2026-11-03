@@ -42,7 +42,6 @@ export function NoteSettings({
 }) {
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [snack, setSnack] = useState<string | null>(null);
-  const router = useRouter();
   const [, start] = useTransition();
   useEffect(() => {
     if (snack === null) return;
@@ -61,7 +60,6 @@ export function NoteSettings({
   const done = (said?: string) => {
     setSheet(null);
     if (said) setSnack(said);
-    router.refresh();
   };
   return (
     <>
@@ -414,7 +412,6 @@ function DeleteSheet({
                 leaveThen(() => {
                   close();
                   router.push("/decks");
-                  router.refresh();
                 });
               else setProblem(result.message);
             });

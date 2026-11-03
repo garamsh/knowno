@@ -152,7 +152,6 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
         leaveThen(() => {
           close();
           router.push(`/decks/${deck.id}`);
-          router.refresh();
         });
       } catch {
         setMessage("카드를 저장하지 못했어요. 다시 시도해 주세요.");
