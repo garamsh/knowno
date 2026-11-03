@@ -1000,7 +1000,7 @@ void main() {
       Future<void> saveInto(Deck deck) async {
         await screens.tap(find.text('Add card'));
         await screens.tap(find.text('Take photo'));
-        screens.navigator.currentState!.pop(deck);
+        screens.navigator.currentState!.pop(PhotoImportSaved(deck));
         await tester.pumpAndSettle();
       }
 
@@ -1013,6 +1013,47 @@ void main() {
       screens.navigator.currentState!.pop();
       await tester.pumpAndSettle();
       expect(find.byType(DeckScreen), findsNothing);
+      await screens.close();
+    },
+  );
+
+  testWidgets(
+    'a photo import left for adding by hand opens the editor on this deck, and one left for a spreadsheet opens the file import on it, back returning to the deck each time',
+    (tester) async {
+      final pick = _OneFile('pear,배');
+      final screens = await DeckScreens.open(
+        tester,
+        photoImport: true,
+        overrides: [spreadsheetPickProvider.overrideWithValue(pick)],
+      );
+      await screens.push((deck) => DeckScreen(deck: deck));
+
+      Future<void> leaveFor(PhotoImportOutcome outcome) async {
+        await screens.tap(find.text('Add card'));
+        await screens.tap(find.text('Take photo'));
+        screens.navigator.currentState!.pop(outcome);
+        await tester.pumpAndSettle();
+      }
+
+      await leaveFor(AddByHandInstead(screens.deck.id));
+      expect(find.widgetWithText(AppBar, 'New card'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(AppBar, 'New card'), findsNothing);
+      expect(shownText('French'), findsOneWidget);
+
+      await leaveFor(AddFromSpreadsheetInstead(screens.deck.id));
+      expect(shownText('Add cards from a file'), findsOneWidget);
+      await screens.tap(find.text('Choose file'));
+      await tester.tap(find.widgetWithText(AppButton, 'Add 1 card'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pumpAndSettle();
+      expect(shownText('French'), findsOneWidget);
+      expect((await screens.cards()).map((card) => plainText(card.front)), [
+        'pear',
+      ]);
       await screens.close();
     },
   );

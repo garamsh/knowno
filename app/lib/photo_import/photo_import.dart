@@ -38,4 +38,11 @@ export 'src/photo_imports.dart'
     show PhotoImportBar, PhotoImports, offerPhotoImportResume;
 export 'src/photo_source.dart'
     show DevicePhotoSource, PhotoOrigin, PhotoSource, PickedPhoto;
-export 'src/providers.dart' show photoImportProvider, photoImportsProvider;
+export 'src/providers.dart'
+    show
+        AddByHandInstead,
+        AddFromSpreadsheetInstead,
+        PhotoImportOutcome,
+        PhotoImportSaved,
+        photoImportProvider,
+        photoImportsProvider;

@@ -150,7 +150,7 @@ class DeckScreens {
             photoImportProvider.overrideWithValue((context, deck, origin) {
               screens.photoImports.add((deck, origin));
               return Navigator.of(context).push(
-                MaterialPageRoute<Deck>(
+                MaterialPageRoute<PhotoImportOutcome>(
                   builder: (_) => const Scaffold(body: Text('photo import')),
                 ),
               );

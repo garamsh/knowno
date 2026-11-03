@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_button.dart';
+import '../../design/bottom_actions.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
@@ -10,8 +11,9 @@ import 'failure.dart';
 import 'failure_message.dart';
 
 /// The sad mascot over what went wrong, in plain words, with a retry where sending the same photo
-/// again can succeed, a retake where a new photo can, and the way to Settings
-/// where access was refused. The top bar's close is the one way out.
+/// again can succeed, a retake where a new photo can, the way to Settings
+/// where access was refused, and the other ways to add cards where photo
+/// import is unavailable. The top bar's close is the one way out.
 class FailureView extends StatelessWidget {
   const FailureView({
     super.key,
@@ -20,6 +22,8 @@ class FailureView extends StatelessWidget {
     required this.onRetake,
     required this.retakeLabel,
     required this.onOpenSettings,
+    this.onAddByHand,
+    this.onAddFromSpreadsheet,
   });
 
   final PhotoImportFailure failure;
@@ -37,11 +41,21 @@ class FailureView extends StatelessWidget {
   /// what failed.
   final VoidCallback? onOpenSettings;
 
+  /// Leaves photo import for adding the note's cards by hand; null where
+  /// photo import is not what is unavailable.
+  final VoidCallback? onAddByHand;
+
+  /// Leaves photo import for adding the note's cards from a spreadsheet;
+  /// null as [onAddByHand] is.
+  final VoidCallback? onAddFromSpreadsheet;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final onRetry = this.onRetry;
     final onOpenSettings = this.onOpenSettings;
+    final onAddByHand = this.onAddByHand;
+    final onAddFromSpreadsheet = this.onAddFromSpreadsheet;
     final primaryElsewhere = onRetry != null || onOpenSettings != null;
     return Scaffold(
       appBar: AppBar(
@@ -76,50 +90,64 @@ class FailureView extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: !isRetakeable(failure) && !primaryElsewhere
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpace.gutter,
-                  AppSpace.s8,
-                  AppSpace.gutter,
-                  AppSpace.s16,
-                ),
-                child: Row(
-                  spacing: AppSpace.s12,
-                  children: [
-                    if (isRetakeable(failure))
-                      Expanded(
-                        child: AppButton(
-                          label: retakeLabel,
-                          variant: primaryElsewhere
-                              ? AppButtonVariant.secondary
-                              : AppButtonVariant.primary,
-                          size: AppButtonSize.cta,
-                          onPressed: onRetake,
-                        ),
-                      ),
-                    if (onRetry != null)
-                      Expanded(
-                        child: AppButton(
-                          label: l10n.retry,
-                          size: AppButtonSize.cta,
-                          onPressed: onRetry,
-                        ),
-                      ),
-                    if (onOpenSettings != null)
-                      Expanded(
-                        child: AppButton(
-                          label: l10n.openSettings,
-                          size: AppButtonSize.cta,
-                          onPressed: onOpenSettings,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+      bottomNavigationBar: switch ((onAddFromSpreadsheet, onAddByHand)) {
+        (final onAddFromSpreadsheet?, final onAddByHand?) => BottomActions(
+          secondary: AppButton(
+            label: l10n.spreadsheetPick,
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.cta,
+            onPressed: onAddFromSpreadsheet,
+          ),
+          primary: AppButton(
+            label: l10n.createManually,
+            size: AppButtonSize.cta,
+            onPressed: onAddByHand,
+          ),
+        ),
+        _ when !isRetakeable(failure) && !primaryElsewhere => null,
+        _ => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.gutter,
+              AppSpace.s8,
+              AppSpace.gutter,
+              AppSpace.s16,
             ),
+            child: Row(
+              spacing: AppSpace.s12,
+              children: [
+                if (isRetakeable(failure))
+                  Expanded(
+                    child: AppButton(
+                      label: retakeLabel,
+                      variant: primaryElsewhere
+                          ? AppButtonVariant.secondary
+                          : AppButtonVariant.primary,
+                      size: AppButtonSize.cta,
+                      onPressed: onRetake,
+                    ),
+                  ),
+                if (onRetry != null)
+                  Expanded(
+                    child: AppButton(
+                      label: l10n.retry,
+                      size: AppButtonSize.cta,
+                      onPressed: onRetry,
+                    ),
+                  ),
+                if (onOpenSettings != null)
+                  Expanded(
+                    child: AppButton(
+                      label: l10n.openSettings,
+                      size: AppButtonSize.cta,
+                      onPressed: onOpenSettings,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      },
     );
   }
 }

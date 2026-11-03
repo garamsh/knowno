@@ -108,7 +108,9 @@ export function AuthoringSheet({
  * An authoring flow's screen, as the phone pushes one (ADR 0158): below 1024 px the whole page,
  * its title bar led by "닫기", or "뒤로" with [back], over the scrolling [children] and the
  * [actions] fixed at its foot; from 1024 px the same in a dialog. The [title] is in the bar, or
- * heads the scrolling content where the phone's screen draws it there ([heading] "body").
+ * heads the scrolling content where the phone's screen draws it there ([heading] "body"), or names
+ * the screen for a screen reader alone where the phone's draws none ([heading] "none"). [menu],
+ * the phone's ⋯, ends the bar.
  */
 export function AuthoringScreen({
   title,
@@ -116,13 +118,15 @@ export function AuthoringScreen({
   actions,
   back = false,
   heading = "bar",
+  menu,
   close,
 }: {
   title: string;
   children: ReactNode;
   actions?: ReactNode;
   back?: boolean;
-  heading?: "bar" | "body";
+  heading?: "bar" | "body" | "none";
+  menu?: ReactNode;
   close: () => void;
 }) {
   const dialog = useAuthoringDialog(close);
@@ -149,6 +153,12 @@ export function AuthoringScreen({
               {title}
             </h2>
           )}
+          {heading === "none" && (
+            <h2 id={titleId} className="sr-only">
+              {title}
+            </h2>
+          )}
+          {menu && <div className="ml-auto">{menu}</div>}
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-gutter pt-2 pb-4">
           {heading === "body" && (

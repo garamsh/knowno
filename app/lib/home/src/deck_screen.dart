@@ -339,16 +339,30 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
   }
 
   /// Starts photo import for this deck from a photo by [origin]. When it
-  /// saved into another deck, that deck's list replaces this one.
+  /// saved into another deck, that deck's list replaces this one; when the
+  /// user chose to add the cards another way instead, that way opens here.
   Future<void> _importPhoto(PhotoOrigin origin) async {
     final photoImport = ref.read(photoImportProvider);
     if (photoImport == null) return;
     final navigator = Navigator.of(context);
-    final deck = await photoImport(aboveMenu(context), widget.deck.id, origin);
-    if (deck == null || deck.id == widget.deck.id || !mounted) return;
-    await navigator.pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => DeckScreen(deck: deck)),
+    final outcome = await photoImport(
+      aboveMenu(context),
+      widget.deck.id,
+      origin,
     );
+    if (!mounted) return;
+    switch (outcome) {
+      case PhotoImportSaved(:final deck) when deck.id != widget.deck.id:
+        await navigator.pushReplacement(
+          MaterialPageRoute<void>(builder: (_) => DeckScreen(deck: deck)),
+        );
+      case AddByHandInstead():
+        await _open(null);
+      case AddFromSpreadsheetInstead():
+        await importFromSpreadsheet(aboveMenu(context), widget.deck.id);
+      case PhotoImportSaved() || null:
+        return;
+    }
   }
 
   /// The deck as [stored] holds it now, so a rename or a publish made here

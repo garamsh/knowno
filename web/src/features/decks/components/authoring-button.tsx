@@ -154,6 +154,7 @@ export function AuthoringButton({
           close={() => {
             setScreen(null);
           }}
+          addInstead={setScreen}
         />
       )}
     </>

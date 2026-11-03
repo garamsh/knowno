@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { render } from "@/testing/render";
 import { cardRow, deckRow, side, uuidOf } from "@/testing/library";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
@@ -954,6 +954,108 @@ describe("photo import", () => {
       expect(
         screen.getByRole("button", { name: "다시 시도" }),
         "control: another 503 is the retryable service failure",
+      ).toBeInTheDocument();
+    });
+    it("offers 직접 입력 and 엑셀·CSV 파일 where photo import is unavailable, 직접 입력 leaving it for the note's 새 카드, against a service failure that offers neither", async () => {
+      answer({ status: 503, body: { error: "not_configured" } });
+      await choose(1);
+      expect(await screen.findByText(describeFailure({ kind: "service" }))).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "직접 입력" }),
+        "control: another 503 is the retryable service failure",
+      ).not.toBeInTheDocument();
+      cleanup();
+
+      answer({ status: 503, body: { error: "unavailable" } });
+      await choose(1);
+      expect(await screen.findByText(describeFailure({ kind: "unavailable" }))).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "엑셀·CSV 파일" })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
+      expect(await screen.findByRole("dialog", { name: "새 카드" })).toBeInTheDocument();
+      expect(screen.queryByText(describeFailure({ kind: "unavailable" }))).not.toBeInTheDocument();
+    });
+    it("leaves unavailable photo import for the note's 파일에서 카드 추가 by 엑셀·CSV 파일", async () => {
+      answer({ status: 503, body: { error: "unavailable" } });
+      await choose(1);
+      await userEvent.click(await screen.findByRole("button", { name: "엑셀·CSV 파일" }));
+      expect(await screen.findByRole("dialog", { name: "파일에서 카드 추가" })).toBeInTheDocument();
+      expect(screen.queryByText(describeFailure({ kind: "unavailable" }))).not.toBeInTheDocument();
+    });
+    it("offers both in 취소's place once every photo failed as unavailable, against a batch where one photo was read", async () => {
+      answer({ status: 503, body: { error: "unavailable" } }, read);
+      await choose(2);
+      expect(
+        await screen.findByRole("heading", { name: "사진 1장을 읽지 못했어요" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "취소" })).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "직접 입력" }),
+        "control: a partial failure keeps its rows' actions",
+      ).not.toBeInTheDocument();
+      cleanup();
+
+      answer({ status: 503, body: { error: "unavailable" } });
+      await choose(2);
+      expect(
+        await screen.findByRole("heading", { name: "사진 2장을 읽지 못했어요" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "취소" })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
+      expect(await screen.findByRole("dialog", { name: "새 카드" })).toBeInTheDocument();
+    });
+    it("draws one photo's 카드를 찾고 있어요 in the row between its thumbnail and the mascot, over the bar, the dialog named by it", async () => {
+      server.use(
+        http.post(`${supabaseUrl}/functions/v1/extract-cards`, async () => {
+          await delay("infinite");
+          return HttpResponse.json({});
+        }),
+      );
+      await choose(1);
+      const dialog = await screen.findByRole("dialog", { name: "카드를 찾고 있어요" });
+      expect(within(dialog).getByRole("heading", { name: "카드를 찾고 있어요" })).toHaveClass(
+        "sr-only",
+      );
+      const drawn = within(dialog).getByText("카드를 찾고 있어요", { selector: "p" });
+      const row = drawn.parentElement;
+      expect(
+        row?.querySelector('[data-expression="thinking"], img[src*="knowno-thinking"]'),
+        "the mascot ends the row",
+      ).not.toBeNull();
+      const bar = within(dialog).getByRole("progressbar", { name: "카드를 찾고 있어요" });
+      expect(row?.contains(bar), "the bar is under the row").toBe(false);
+      expect(row?.compareDocumentPosition(bar)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+    it("names the failure screen for a screen reader alone, the mascot and the sentence heading it as the phone's, while the list heads its content", async () => {
+      answer(failed502, read);
+      await choose(1);
+      await screen.findByText(describeFailure({ kind: "model" }));
+      const dialog = screen.getByRole("dialog", { name: "앨범에서 고르기" });
+      expect(within(dialog).getByRole("heading", { name: "앨범에서 고르기" })).toHaveClass(
+        "sr-only",
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: "다시 시도" }));
+      const title = await screen.findByRole("heading", { name: "카드 1장을 만들었어요" });
+      expect(title, "control: the list's title is drawn").not.toHaveClass("sr-only");
+      expect(screen.getByRole("dialog", { name: "카드 1장을 만들었어요" })).toContainElement(title);
+      expect(title.closest("header"), "in the content, not the bar").toBeNull();
+    });
+    it("holds the retake of a list read from one photo in the bar's ⋯, asking before its cards go", async () => {
+      answer(read);
+      await choose(1);
+      await screen.findByRole("heading", { name: "카드 1장을 만들었어요" });
+      await userEvent.click(screen.getByRole("button", { name: "사진 작업" }));
+      const input = document.querySelector<HTMLInputElement>('input[type="file"][tabindex="-1"]');
+      if (!input) throw new Error("the retake's picker is not drawn");
+      const opened = vi.spyOn(input, "click").mockImplementation(() => undefined);
+      await userEvent.click(screen.getByRole("menuitem", { name: "다른 사진 고르기" }));
+      expect(opened, "the found card is asked about first").not.toHaveBeenCalled();
+      const ask = screen.getByRole("dialog", { name: "찾은 카드를 버릴까요?" });
+      await userEvent.click(within(ask).getByRole("button", { name: "버리기" }));
+      expect(opened).toHaveBeenCalledOnce();
+      expect(
+        screen.getByRole("heading", { name: "카드 1장을 만들었어요" }),
+        "a cancelled picker keeps the list",
       ).toBeInTheDocument();
     });
     it("collapses and expands each photo's group from its header, leaving the other photos' rows", async () => {

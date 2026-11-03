@@ -447,6 +447,10 @@ void main() {
         /// Drags the form by the row after the last group, in the form and
         /// off the line, and returns whether it scrolled.
         Future<bool> dragForm() async {
+          // The row may sit below the form's view over the keyboard and the
+          // foot, which stacks where its labels do not fit one row.
+          await tester.ensureVisible(addRow);
+          await tester.pumpAndSettle();
           final before = form.position.pixels;
           final start = tester.getCenter(addRow);
           final hit = [

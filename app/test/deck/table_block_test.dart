@@ -658,7 +658,17 @@ void main() {
         final handle = tester.ensureSemantics();
         Future<void> meetsGuidelines() async {
           // From the top, so no control is cut by the screen's edge.
-          await tester.ensureVisible(find.text('Front'));
+          tester
+              .state<ScrollableState>(
+                find
+                    .ancestor(
+                      of: find.text('Front'),
+                      matching: find.byType(Scrollable),
+                    )
+                    .first,
+              )
+              .position
+              .jumpTo(0);
           await tester.pumpAndSettle();
           await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
           await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));

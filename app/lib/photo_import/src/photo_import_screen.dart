@@ -16,6 +16,7 @@ import 'import_list.dart';
 import 'import_list_view.dart';
 import 'photo_imports.dart';
 import 'photo_source.dart';
+import 'providers.dart';
 import 'reading_view.dart';
 
 /// The keys the storage given to photo import must be opened to cache.
@@ -31,10 +32,10 @@ final _decksProvider = StreamProvider.autoDispose<List<Deck>>(
 /// reads candidate cards from them as [imports]'s job and saves the ones the
 /// user keeps into [deck], or into a new deck when it is null. While a job is
 /// under way, a snack bar says so and nothing starts. A cancel opens nothing.
-/// Nothing is written before the user confirms; resolves to the [Deck] saved
-/// into, or to null, also when the user leaves the screen with the job still
+/// Nothing is written before the user confirms; resolves to how the import
+/// ended, or to null, also when the user leaves the screen with the job still
 /// reading.
-Future<Deck?> importFromPhoto(
+Future<PhotoImportOutcome?> importFromPhoto(
   BuildContext context, {
   required PhotoImports imports,
   required DeckId? deck,
@@ -80,12 +81,14 @@ Future<Deck?> importFromPhoto(
         );
       }
   }
-  return navigator.push(MaterialPageRoute<Deck>(builder: (_) => screen));
+  return navigator.push(
+    MaterialPageRoute<PhotoImportOutcome>(builder: (_) => screen),
+  );
 }
 
 /// Opens [imports]'s job over [context], first asking to resume one restored
-/// with photos still to read; resolves to the [Deck] saved into, or to null.
-Future<Deck?> openPhotoImport(
+/// with photos still to read; resolves to how the import ended, or to null.
+Future<PhotoImportOutcome?> openPhotoImport(
   BuildContext context,
   PhotoImports imports,
 ) async {
@@ -96,7 +99,7 @@ Future<Deck?> openPhotoImport(
     return null;
   }
   return navigator.push(
-    MaterialPageRoute<Deck>(
+    MaterialPageRoute<PhotoImportOutcome>(
       builder: (_) => PhotoImportScreen(
         imports: imports,
         job: job,
@@ -243,35 +246,67 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
             l10n.photoAlbum,
           PhotoOrigin.album => l10n.pickAnother,
         };
+    // While photo import is unavailable, the note's cards are added another
+    // way: by hand or from a spreadsheet, each leaving this screen.
+    final deck = job?.target ?? widget.deck;
+    VoidCallback? instead(
+      bool unavailable,
+      PhotoImportOutcome Function(DeckId deck) outcome,
+    ) => unavailable && deck != null ? () => _addInstead(outcome(deck)) : null;
     if (job == null) {
       final failure = _failure;
       if (failure == null) return const Scaffold();
+      final unavailable = failure is ExtractionUnavailable;
       return FailureView(
         failure: failure,
         onRetry: null,
         onRetake: () => _retake(failure),
         retakeLabel: retakeLabel(failure),
         onOpenSettings: failure is PhotoAccessDenied ? _openSettings : null,
+        onAddByHand: instead(unavailable, AddByHandInstead.new),
+        onAddFromSpreadsheet: instead(
+          unavailable,
+          AddFromSpreadsheetInstead.new,
+        ),
       );
     }
     if (job.list == null && job.photos.length == 1) {
       final photo = job.photos.single;
       if (photo.state case PhotoFailed(:final failure)) {
+        final unavailable = failure is ExtractionUnavailable;
         return FailureView(
           failure: failure,
           onRetry: isRetryable(failure) ? () => job.retry(photo) : null,
           onRetake: () => _retake(failure),
           retakeLabel: retakeLabel(failure),
           onOpenSettings: failure is PhotoAccessDenied ? _openSettings : null,
+          onAddByHand: instead(unavailable, AddByHandInstead.new),
+          onAddFromSpreadsheet: instead(
+            unavailable,
+            AddFromSpreadsheetInstead.new,
+          ),
         );
       }
       return ExtractingView(photo: job.imageOf(photo), onCancel: _cancel);
     }
     if (job.reading) {
+      // Only once every photo of the batch failed so: a photo still to read
+      // or read keeps the rows' own actions.
+      final unavailable = job.batch.every(
+        (photo) => switch (photo.state) {
+          PhotoFailed(failure: ExtractionUnavailable()) => true,
+          _ => false,
+        },
+      );
       return ReadingView(
         job: job,
         onBack: () => Navigator.of(context).pop(),
         onCancel: _cancel,
+        onAddByHand: instead(unavailable, AddByHandInstead.new),
+        onAddFromSpreadsheet: instead(
+          unavailable,
+          AddFromSpreadsheetInstead.new,
+        ),
       );
     }
     final list = job.list;
@@ -315,6 +350,18 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
     _watch(null);
     await widget.imports.end(job);
     navigator.pop();
+  }
+
+  /// Ends the job, once the user confirms discarding the cards it holds, and
+  /// leaves the screen with [outcome], another way to add the note's cards.
+  Future<void> _addInstead(PhotoImportOutcome outcome) async {
+    final job = _job;
+    if (job != null) {
+      if (!await _discardConfirmed(_cardsAtStake(job)) || !mounted) return;
+      _watch(null);
+      await widget.imports.end(job);
+    }
+    if (mounted) Navigator.of(context).pop(outcome);
   }
 
   /// Stops reading: photos being added to a list are left out and the list
@@ -478,7 +525,7 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
       if (target is AddToNewDeck && mounted) {
         await _offerAppearance(result.deck);
       }
-      navigator.pop(result.deck);
+      navigator.pop(PhotoImportSaved(result.deck));
     } on DeckFailure catch (failure) {
       _showDeckFailure(failure);
       if (mounted) setState(() => _saving = false);
