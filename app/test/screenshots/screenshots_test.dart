@@ -1236,6 +1236,7 @@ void main() {
       await shot(tester, '05o-label-presets');
       await tap(tester, find.bySemanticsLabel(ko.editLabelPreset('명', '명사')));
       await shot(tester, '05p-label-presets-edit');
+      await largest(tester, '05p-label-presets-edit');
       await unmount(tester);
     });
 
@@ -1844,6 +1845,14 @@ void main() {
       await tester.drag(find.byType(ListView), const Offset(0, -600));
       await tester.pumpAndSettle();
       await shot(tester, '16f-record-history-scrolled');
+      // The recall bands' tiles at the largest text size.
+      tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(shownText(ko.recallTitle));
+      await tester.pumpAndSettle();
+      await shot(tester, '16g-record-recall-largest-text');
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.pumpAndSettle();
       await unmount(tester);
     });
 
