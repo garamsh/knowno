@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { loadEngine, studyDayStart } from "@/features/study";
 
 import {
@@ -489,6 +489,14 @@ describe("the study page", () => {
     });
 
     it("by the browser's back, sends the waiting answer and then reads the page it went back to again, which its cache drew before the answer (#603)", async () => {
+      // As the router does, a listener added before the page's unmounts it as it handles the event.
+      const router = () => {
+        cleanup();
+      };
+      window.addEventListener("popstate", router);
+      onTestFinished(() => {
+        window.removeEventListener("popstate", router);
+      });
       seedDeck(postgrest, "d1", ["un", "deux"]);
       await open("d1");
       const release = postgrest.hold("reviews");
@@ -500,6 +508,7 @@ describe("the study page", () => {
       });
 
       window.dispatchEvent(new PopStateEvent("popstate"));
+      expect(screen.queryByRole("region", { name: "현재 카드" })).not.toBeInTheDocument();
       await act(() => Promise.resolve());
       expect(testRouter.refresh).not.toHaveBeenCalled();
       release();
