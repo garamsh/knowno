@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CardScroll } from "../components/card-scroll";
+import { GradedFace } from "../components/graded-card";
 
 // jsdom lays nothing out, so the face reports the sizes a browser would: 200 px high, and its
 // content's height in each step's type as [heights] says.
@@ -118,5 +119,45 @@ describe("a card's face", () => {
     });
 
     expect(face().dataset.cardStep).toBe("text-back");
+  });
+});
+
+describe("a previous card's face (#635)", () => {
+  it("starts a front over its back at its length's step, never above the title size, and a whole card's face as the current card's", () => {
+    // Every step fits, so only the length and the cap move the size.
+    heights = { "text-front": 120, "text-deck-name": 100, "text-back": 80, "text-card-body": 60 };
+    for (const [length, back, step] of [
+      [5, "뒷면", "text-deck-name"],
+      [30, "뒷면", "text-deck-name"],
+      [60, "뒷면", "text-back"],
+      [300, "뒷면", "text-card-body"],
+      [5, undefined, "text-front"],
+      [60, undefined, "text-back"],
+    ] as const) {
+      const { unmount } = render(
+        <GradedFace answer="know" length={length} front="앞면" back={back} />,
+      );
+      expect(face().dataset.cardStep, `${String(length)} ${String(back)}`).toBe(step);
+      expect(screen.getByText("앞면").className).toContain(step);
+      unmount();
+    }
+  });
+
+  it("steps the front down until it fits with its back, which keeps the body size, and past the body size scrolls with a fading edge", () => {
+    heights = { "text-front": 400, "text-deck-name": 300, "text-back": 180, "text-card-body": 150 };
+    const { unmount } = render(
+      <GradedFace answer="dontKnow" length={30} front="앞면" back="뒷면" />,
+    );
+    expect(face().dataset.cardStep).toBe("text-back");
+    expect(screen.getByText("앞면").className).toContain("text-back");
+    expect(screen.getByText("뒷면").className).toContain("text-card-body");
+    expect(document.querySelector("[data-card-fade]")).toBeNull();
+    unmount();
+
+    heights = { "text-front": 900, "text-deck-name": 800, "text-back": 600, "text-card-body": 500 };
+    render(<GradedFace answer="dontKnow" length={30} front="긴 앞면" back="뒷면" />);
+    expect(face().dataset.cardStep).toBe("text-card-body");
+    expect(screen.getByText("긴 앞면").className).toContain("text-start");
+    expect(document.querySelector("[data-card-fade]")).not.toBeNull();
   });
 });

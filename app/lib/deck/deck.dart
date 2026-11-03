@@ -63,7 +63,7 @@ export 'src/content.dart'
         encodeContent,
         decodeSense,
         plainText;
-export 'src/card_text.dart' show CardScroll;
+export 'src/card_text.dart' show CardScroll, cardSteps, steppedStyle;
 export 'src/content_view.dart'
     show CardFit, ContentView, ShrinkFit, StepFit, contentSpan, sensesSpan;
 export 'src/deck_repository.dart'

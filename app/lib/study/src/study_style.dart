@@ -53,6 +53,13 @@ abstract final class StudyStyle {
       frontSteps.where((step) => length <= step.length).firstOrNull?.style ??
       AppType.cardBody;
 
+  /// The size the previous card's front of [length] characters starts at
+  /// over its back: the current card's, never above [previousFront] (#635).
+  static TextStyle previousFrontStart(int length) {
+    final start = frontStart(length);
+    return start.fontSize! > previousFront.fontSize! ? previousFront : start;
+  }
+
   static const topBarHeight = 56.0;
   static const progressHeight = AppSize.progress;
 

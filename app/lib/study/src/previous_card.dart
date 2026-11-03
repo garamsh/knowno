@@ -9,6 +9,7 @@ import 'study_coach.dart';
 import '../../design/app_section_label.dart';
 import '../../design/app_sheet.dart';
 import '../../design/theme.dart';
+import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'rust/api/engine.dart';
 import 'session.dart';
@@ -368,7 +369,10 @@ class _Reveal extends StatelessWidget {
 
 /// A previous card's face: its front over its back, or a whole card's 칸 in
 /// place, revealed, in one column centred both ways on the surface, scrolling
-/// inside the card from its top where it is taller. The grade shows by the
+/// inside the card from its top where it is taller. The front's size starts
+/// where its length gives, as the current card's does, a front over its back
+/// never above [StudyStyle.previousFront], and steps down until the face fits
+/// whole, never below the body size (#635). The grade shows by the
 /// line around it alone, in the grade's colour; the card's semantics label
 /// names it (ADR 0151). With no [answer], as the card editor's preview draws
 /// it, the line is the theme's edge (ADR 0168).
@@ -394,7 +398,8 @@ class GradedCard extends StatelessWidget {
       Answer.dontKnow => colors.dontKnowText,
       null => colors.edge,
     };
-    final front = StudyStyle.previousFront.copyWith(color: colors.ink);
+    final length = faceLength(cells);
+    final back = StudyStyle.previousBack.copyWith(color: colors.ink2);
     return SizedBox.expand(
       child: DecoratedBox(
         decoration: BoxDecoration(
@@ -409,12 +414,14 @@ class GradedCard extends StatelessWidget {
           ),
           child: CardScroll(
             padding: StudyStyle.cardPadding,
-            builder: (context, width, _) => isDrawnWhole(cells)
-                ? WholeCardView.studied(
+            builder: (context, width, height) => isDrawnWhole(cells)
+                ? SteppedWholeCardView(
                     cells,
                     revealed: true,
-                    style: front,
+                    style: StudyStyle.frontStart(length)
+                        .copyWith(color: colors.ink),
                     width: width,
+                    height: height,
                   )
                 // Unbounded down, so a long side is never cut: the card
                 // scrolls instead.
@@ -424,19 +431,20 @@ class GradedCard extends StatelessWidget {
                     spacing: AppSpace.s8,
                     children: [
                       ContentView(
-                        this.front,
-                        style: front,
-                        fit: ShrinkFit(
-                          minFontSize: AppType.frontFloor,
+                        front,
+                        style: _frontStep(
+                          context,
+                          StudyStyle.previousFrontStart(length)
+                              .copyWith(color: colors.ink),
+                          back: back,
                           width: width,
-                          height: double.infinity,
+                          height: height,
                         ),
+                        fit: StepFit(width: width, height: height),
                       ),
                       ContentView(
-                        back,
-                        style: StudyStyle.previousBack.copyWith(
-                          color: colors.ink2,
-                        ),
+                        this.back,
+                        style: back,
                         fit: ShrinkFit(
                           minFontSize: AppType.backFloor,
                           width: width,
@@ -448,6 +456,40 @@ class GradedCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  /// The largest of [cardSteps] from [start] at which the front fits over
+  /// the back, in [back], and the gap between them, in a box [width] wide
+  /// and [height] high; the last when none does, past which the card scrolls
+  /// (#635).
+  TextStyle _frontStep(
+    BuildContext context,
+    TextStyle start, {
+    required TextStyle back,
+    required double width,
+    required double height,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    return steppedStyle(
+      TextSpan(
+        children: [
+          contentSpan(l10n, front, wrap: keepWords),
+          TextSpan(
+            style: back,
+            children: [
+              const TextSpan(text: '\n'),
+              contentSpan(l10n, this.back, wrap: keepWords),
+            ],
+          ),
+        ],
+      ),
+      describeContent(l10n, front),
+      steps: cardSteps(start),
+      width: width,
+      height: height - AppSpace.s8,
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: Directionality.of(context),
     );
   }
 }

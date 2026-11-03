@@ -8,6 +8,7 @@ import { Chip } from "@/design/chip";
 import type { Answer } from "../answer-write";
 import { useSwipe } from "../hooks/use-swipe";
 import type { PreviousAnswer } from "../session";
+import { CardFade, startOf, useCardStep } from "./card-scroll";
 
 /** Each grade's name, the line a previous card takes in it, its chip's tone, and its mark. */
 export const grades = {
@@ -50,29 +51,51 @@ function previousLabel(answer: Graded): string {
 
 /**
  * A previous card's face (ADR 0151): [front] over [back], or a whole card's one face as [front],
- * in one column centred both ways by auto margins, scrolling inside from its top where it is
- * taller, so a long answer is never cut, on the surface inside a 3 px line in [answer]'s colour.
+ * in one column centred both ways by auto margins, on the surface inside a 3 px line in
+ * [answer]'s colour. The front, [length] characters long (`faceLength`), takes the largest size
+ * from the one its length starts at, over a back no larger than `text-deck-name`, at which the
+ * face fits whole, as the current card's does (#635). Past the body size it scrolls inside from
+ * its top, so a long answer is never cut, its bottom edge fading while more is below.
  */
 export function GradedFace({
   answer,
+  length,
   front,
   back,
   className = "",
 }: {
   answer: Answer;
+  length: number;
   front: ReactNode;
   back?: ReactNode;
   className?: string;
 }) {
+  const { frame, box, step, body, more, onScroll } = useCardStep<HTMLSpanElement>(
+    startOf(length, back === undefined ? "text-front" : "text-deck-name"),
+    front,
+  );
   return (
     <span
-      className={`flex size-full flex-col overflow-y-auto rounded-previous border-3 bg-surface p-4 text-center lg:p-6 ${grades[answer].line} ${className}`}
+      ref={frame}
+      className={`relative flex size-full overflow-hidden rounded-previous border-3 bg-surface ${grades[answer].line} ${className}`}
     >
-      <span className="mt-auto text-deck-name break-keep wrap-break-word text-ink">{front}</span>
-      {back !== undefined && (
-        <span className="mt-2 text-card-body break-keep wrap-break-word text-ink-2">{back}</span>
-      )}
-      <span aria-hidden className="mb-auto" />
+      <span
+        ref={box}
+        data-card-step={step}
+        onScroll={onScroll}
+        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-4 text-center lg:p-6"
+      >
+        <span
+          className={`mt-auto ${step} break-keep wrap-break-word text-ink ${body ? "text-start" : ""}`}
+        >
+          {front}
+        </span>
+        {back !== undefined && (
+          <span className="mt-2 text-card-body break-keep wrap-break-word text-ink-2">{back}</span>
+        )}
+        <span aria-hidden className="mb-auto" />
+      </span>
+      {more && <CardFade />}
     </span>
   );
 }
@@ -168,10 +191,15 @@ export function GradedCard({
           </span>
         )}
         {answer.card.whole ? (
-          <GradedFace answer={answer.answer} front={answer.card.whole.filled} />
+          <GradedFace
+            answer={answer.answer}
+            length={answer.card.frontLength}
+            front={answer.card.whole.filled}
+          />
         ) : (
           <GradedFace
             answer={answer.answer}
+            length={answer.card.frontLength}
             front={answer.card.sides?.front ?? answer.card.text.front}
             back={answer.card.sides?.back ?? answer.card.text.back}
           />
