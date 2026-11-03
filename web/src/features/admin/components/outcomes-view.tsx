@@ -13,7 +13,8 @@ import {
   type OutcomeSummary,
   percent,
 } from "../outcomes";
-import { AdminSection, button, Empty, group, row } from "./admin-section";
+import { Section } from "@/design/section";
+import { button, Empty, group, row } from "./admin-section";
 
 /** The scale's top: the highest day's rate rounded up to a step of 5%, at least 5%. */
 function scaleTop(days: OutcomeSummary["days"]): number {
@@ -36,7 +37,7 @@ export function DailyRates({ days }: { days: OutcomeSummary["days"] }) {
           .map(({ day, counts }) => `${day.slice(5)} ${percent(failureRate(counts) ?? 0)}`)
           .join(", ")}`;
   return (
-    <AdminSection label="날짜별 실패율" note="최근 30일, UTC 날짜 기준이에요">
+    <Section label="날짜별 실패율" note="최근 30일, UTC 날짜 기준이에요">
       <div className="flex flex-col gap-1 rounded-group bg-surface p-4">
         <div className="flex gap-2">
           <div
@@ -68,7 +69,7 @@ export function DailyRates({ days }: { days: OutcomeSummary["days"] }) {
           <span>오늘</span>
         </div>
       </div>
-    </AdminSection>
+    </Section>
   );
 }
 
@@ -124,7 +125,7 @@ export function VersionCalls({
 }) {
   const page = `/admin/ai/${String(versionId)}`;
   return (
-    <AdminSection label="최근 추출">
+    <Section label="최근 추출">
       {before !== null && (
         <Link
           href={page}
@@ -154,6 +155,6 @@ export function VersionCalls({
           이전 추출 더 보기
         </Link>
       )}
-    </AdminSection>
+    </Section>
   );
 }

@@ -6,7 +6,8 @@ import { usd } from "../format";
 import { failureAlarm, failureRate, type OutcomeCounts, percent } from "../outcomes";
 import type { OpenReports, PromptLabelSet, WeekActivity, WeekPair } from "../read-admin";
 import type { WeekUsage } from "../usage";
-import { AdminSection, button, card, group } from "./admin-section";
+import { Section } from "@/design/section";
+import { button, card, group } from "./admin-section";
 
 /** An age in whole days: "오늘" or "n일 전". */
 function ago(days: number): string {
@@ -141,7 +142,7 @@ export function TodoView({
           />
         )}
       </div>
-      <AdminSection
+      <Section
         label="이번 주"
         note={`최근 7일을 그 전 7일과 비교해요. 사진은 UTC 날짜로 세고, 예상 비용은 모델마다 eval로 잰 비용이에요.${
           usage.unpricedModels.length === 0
@@ -169,7 +170,7 @@ export function TodoView({
             delta={change({ current: usage.current.photos, previous: usage.previous.photos })}
           />
         </dl>
-      </AdminSection>
+      </Section>
     </div>
   );
 }

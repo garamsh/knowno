@@ -1,13 +1,14 @@
 import { revokeAdmin } from "../revoke-admin";
 import { formatDate } from "../format";
 import type { AdminMember } from "../read-admin";
-import { AdminSection, group } from "./admin-section";
+import { Section } from "@/design/section";
+import { group } from "./admin-section";
 import { ConfirmAction } from "./confirm-action";
 
 /** The admins, each with who granted the role and when, and a revoke for every one but oneself. */
 export function AdminList({ admins, timeZone }: { admins: AdminMember[]; timeZone: string }) {
   return (
-    <AdminSection label="지정된 관리자">
+    <Section label="지정된 관리자">
       <ul className={group}>
         {admins.map((admin) => (
           <li
@@ -35,6 +36,6 @@ export function AdminList({ admins, timeZone }: { admins: AdminMember[]; timeZon
           </li>
         ))}
       </ul>
-    </AdminSection>
+    </Section>
   );
 }

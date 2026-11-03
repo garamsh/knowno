@@ -7,7 +7,7 @@ import type { Card, Deck } from "../library";
 import { CardEditor } from "./authoring-button";
 import { SideText } from "./side-text";
 import { EmptyDeck } from "./empty-home";
-import { ListSearch } from "./list-search";
+import { SearchField } from "@/design/search-field";
 import { HatchedBox, ListedCells } from "./whole-card";
 
 /**
@@ -77,7 +77,13 @@ export function CardGrid({
   return (
     <>
       {header}
-      <ListSearch label="카드 검색" value={search} change={setSearch} />
+      <SearchField
+          label="카드 검색"
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+          }}
+        />
       {study}
       <section aria-label="카드" className="flex flex-col gap-3">
         <div className="sticky top-0 z-[1] flex min-h-tap-target flex-wrap items-center justify-between gap-x-3 bg-ground">

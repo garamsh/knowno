@@ -3,7 +3,8 @@ import { studyDayStart } from "@/features/study";
 import { formatDate, formatTime } from "../format";
 import type { UserUnlimited as Unlimited } from "../read-admin";
 import { revokeUnlimited } from "../revoke-unlimited";
-import { AdminSection, button, group } from "./admin-section";
+import { Section } from "@/design/section";
+import { button, group } from "./admin-section";
 import { ConfirmAction } from "./confirm-action";
 import { GrantUnlimitedForm } from "./grant-unlimited-form";
 
@@ -45,7 +46,7 @@ export function UserUnlimited({
         ]),
   ];
   return (
-    <AdminSection
+    <Section
       label="무제한"
       note="사진 한도 없이 써요. 판매하지 않고, 관리자는 지정 없이 무제한이에요."
     >
@@ -74,6 +75,6 @@ export function UserUnlimited({
           />
         )}
       </details>
-    </AdminSection>
+    </Section>
   );
 }

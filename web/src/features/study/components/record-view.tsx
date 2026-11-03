@@ -2,6 +2,7 @@
 
 import { type ReactNode, useId, useState } from "react";
 
+import { Chip } from "@/design/chip";
 import { FittedLine } from "@/design/fitted-line";
 
 import { studyDayStart } from "../queue";
@@ -163,15 +164,9 @@ function Figure({ value, pill }: { value: string; pill: ReactNode }) {
   );
 }
 
-/** A round pill beside a figure: a gain on the green tint, a shortfall on the amber. */
+/** The chip beside a figure: a gain on the green tint, a shortfall on the amber. */
 function Pill({ shortfall = false, children }: { shortfall?: boolean; children: string }) {
-  return (
-    <span
-      className={`inline-flex min-h-7.5 items-center rounded-full px-3 text-section ${shortfall ? "bg-tint-amber text-ink" : "bg-tint-green text-on-know-tint"}`}
-    >
-      {children}
-    </span>
-  );
+  return <Chip tone={shortfall ? "amber" : "knowTint"}>{children}</Chip>;
 }
 
 /** The retention over [period]: its value against the target, the gap, and each day's share. */

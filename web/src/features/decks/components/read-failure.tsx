@@ -1,11 +1,9 @@
-import Link from "next/link";
-
-import { RetryButton } from "@/design/retry-button";
+import { ReadFailureMessage, unreachableMessage } from "@/design/read-failure";
 
 import type { LibraryFailure } from "../read-library";
 
 const messages: Record<LibraryFailure, string> = {
-  unreachable: "서버에 연결할 수 없어요. 연결을 확인하고 다시 시도해 주세요.",
+  unreachable: unreachableMessage,
   rejected: "로그인이 끝났어요. 다시 로그인해 주세요.",
   failed: "카드를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
   unreadable:
@@ -18,15 +16,9 @@ const messages: Record<LibraryFailure, string> = {
  */
 export function ReadFailure({ failure }: { failure: LibraryFailure }) {
   return (
-    <div role="alert" className="flex flex-col gap-3">
-      <p className="text-dont-know-text">{messages[failure]}</p>
-      {failure === "rejected" ? (
-        <Link href="/login" className="font-semibold underline">
-          로그인
-        </Link>
-      ) : (
-        <RetryButton />
-      )}
-    </div>
+    <ReadFailureMessage
+      message={messages[failure]}
+      next={failure === "rejected" ? "login" : "retry"}
+    />
   );
 }

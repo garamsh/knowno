@@ -1,8 +1,9 @@
 "use client";
 
-import { Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
+
+import { SearchField } from "@/design/search-field";
 
 import { findUsers } from "../find-users";
 import { formatDate } from "../format";
@@ -90,21 +91,13 @@ export function UserSearch({
 
   return (
     <div className="flex flex-col gap-3">
-      <div role="search" className="relative">
-        <Search
-          aria-hidden
-          className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted"
-          strokeWidth={2}
-        />
-        <input
-          type="search"
-          aria-label="이메일 검색"
-          placeholder="이메일 검색"
+      <div role="search">
+        <SearchField
+          label="이메일 검색"
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
           }}
-          className="h-search w-full rounded-field border border-outline bg-surface pr-4 pl-12 text-body placeholder:text-muted focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ink"
         />
       </div>
       <p role="status" aria-live="polite" className="min-h-6 text-caption text-muted">

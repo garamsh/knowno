@@ -3,13 +3,14 @@ import Link from "next/link";
 import { Chip } from "@/design/chip";
 
 import type { UserDeck } from "../read-admin";
-import { AdminSection, Empty, group } from "./admin-section";
+import { Section } from "@/design/section";
+import { Empty, group } from "./admin-section";
 import { DeckStateChips } from "./deck-state";
 
 /** Every live note of a user, public or private, with its reports, each opening the note read-only. */
 export function UserDecks({ decks }: { decks: UserDeck[] }) {
   return (
-    <AdminSection label="노트">
+    <Section label="노트">
       {decks.length === 0 ? (
         <Empty>노트가 없어요. 이 사용자가 노트를 만들면 여기에 보여요.</Empty>
       ) : (
@@ -36,6 +37,6 @@ export function UserDecks({ decks }: { decks: UserDeck[] }) {
           ))}
         </ul>
       )}
-    </AdminSection>
+    </Section>
   );
 }

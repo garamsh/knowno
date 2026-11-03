@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { RetryButton } from "@/design/retry-button";
+import { ReadFailureMessage, unreachableMessage } from "@/design/read-failure";
+import { Section } from "@/design/section";
 import { ThemeChoice } from "@/design/theme-choice";
 import { getSession, SignOutForm } from "@/features/account";
 
@@ -20,15 +21,12 @@ export async function Profile() {
       const study = await readStudySetting();
       return (
         <>
-          <section aria-labelledby="account-section" className="flex flex-col gap-2">
-            <h2 id="account-section" className="px-1 text-section text-muted">
-              계정
-            </h2>
+          <Section label="계정">
             <div className="flex flex-col divide-y divide-hairline rounded-group bg-surface">
               <p className="min-w-0 px-4 py-3 text-body-strong break-all">{session.email}</p>
               <SignOutForm />
             </div>
-          </section>
+          </Section>
           <StudySetting setting={study} />
           <AiConnection />
           <Display />
@@ -38,12 +36,7 @@ export async function Profile() {
     case "unreachable":
       return (
         <>
-          <div role="alert" className="flex flex-col gap-3">
-            <p className="text-dont-know-text">
-              서버에 연결할 수 없어요. 연결을 확인하고 다시 시도해 주세요.
-            </p>
-            <RetryButton />
-          </div>
+          <ReadFailureMessage message={unreachableMessage} next="retry" />
           <AiConnection />
           <Display />
         </>
@@ -56,11 +49,8 @@ export async function Profile() {
 /** "화면": the theme the web is drawn in, which needs no server. */
 function Display() {
   return (
-    <section aria-labelledby="display-section" className="flex flex-col gap-2">
-      <h2 id="display-section" className="px-1 text-section text-muted">
-        화면
-      </h2>
+    <Section label="화면" id="display-section">
       <ThemeChoice labelledBy="display-section" />
-    </section>
+    </Section>
   );
 }

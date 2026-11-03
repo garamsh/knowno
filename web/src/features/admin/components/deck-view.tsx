@@ -4,7 +4,8 @@ import { labelOf, reasonLabels } from "../labels";
 import type { AdminDeck } from "../read-admin";
 import { removeDeck } from "../remove-deck";
 import { formatDate } from "../format";
-import { AdminSection, Empty, group } from "./admin-section";
+import { Section } from "@/design/section";
+import { Empty, group } from "./admin-section";
 import { DeckActions } from "./deck-actions";
 import { ReasonAction } from "./reason-action";
 import { DeckStateChips } from "./deck-state";
@@ -41,7 +42,7 @@ export function DeckView({ deck, timeZone }: { deck: AdminDeck; timeZone: string
         )}
       </header>
       <DeckActions id={deck.id} name={deck.name} state={deck.state} reports={deck.reports} />
-      <AdminSection label="카드">
+      <Section label="카드">
         {deck.cards.length === 0 ? (
           <Empty>카드가 없어요. 주인이 카드를 추가하면 여기에 보여요.</Empty>
         ) : (
@@ -54,7 +55,7 @@ export function DeckView({ deck, timeZone }: { deck: AdminDeck; timeZone: string
             ))}
           </ul>
         )}
-      </AdminSection>
+      </Section>
       {deck.removal === null && deck.state.visibility === "public" && !deck.state.deleted && (
         <ReasonAction
           label="공유에서 영구 삭제"

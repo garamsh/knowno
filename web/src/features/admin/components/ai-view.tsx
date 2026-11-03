@@ -3,7 +3,8 @@ import Link from "next/link";
 import { activatePrompt } from "../activate-prompt";
 import { countsLine, failureAlarm, failureRate, type OutcomeCounts, percent } from "../outcomes";
 import type { PromptVersion } from "../read-admin";
-import { AdminSection, button, card, Empty, group } from "./admin-section";
+import { Section } from "@/design/section";
+import { button, card, Empty, group } from "./admin-section";
 import { ConfirmAction } from "./confirm-action";
 import { PromptChips } from "./prompt-chips";
 import { PromptTrial } from "./prompt-trial";
@@ -90,7 +91,7 @@ export function AiView({
         </section>
         {served !== undefined && <PromptTrial served={{ id: served.id, test: served === test }} />}
       </div>
-      <AdminSection label="버전별 결과" note="최근 30일, UTC 날짜 기준이에요">
+      <Section label="버전별 결과" note="최근 30일, UTC 날짜 기준이에요">
         {versions.length === 0 ? (
           <Empty>저장된 버전이 없어요. 새 버전을 써 보세요.</Empty>
         ) : (
@@ -127,7 +128,7 @@ export function AiView({
             })}
           </ul>
         )}
-      </AdminSection>
+      </Section>
     </div>
   );
 }
