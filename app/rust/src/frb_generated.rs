@@ -27,19 +27,20 @@
 
 // Section: imports
 
-use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
-use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
+use flutter_rust_bridge::for_generated::{Lockable, transform_result_dco, Lifetimeable};
+use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, WriteBytesExt, ReadBytesExt};
 
 // Section: boilerplate
 
 flutter_rust_bridge::frb_generated_boilerplate!(
-    default_stream_sink_codec = SseCodec,
-    default_rust_opaque = RustOpaqueMoi,
-    default_rust_auto_opaque = RustAutoOpaqueMoi,
-);
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1870521538;
+                    default_stream_sink_codec = SseCodec,
+                    default_rust_opaque = RustOpaqueMoi,
+                    default_rust_auto_opaque = RustAutoOpaqueMoi,
+                );
+                pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
+                pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1870521538;
+            
 
 // Section: executor
 
@@ -47,900 +48,556 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
-fn wire__crate__api__engine__init_app_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "init_app",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let output_ok = Ok::<_, ()>({
-                        crate::api::engine::init_app();
-                    })?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__engine__replay_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "replay",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_history =
-                <Vec<crate::api::engine::ReviewRecord>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::engine::EngineError>((move || {
-                    let output_ok = crate::api::engine::replay(api_history)?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__engine__retrievability_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "retrievability",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+fn wire__crate__api__engine__init_app_impl(port_: flutter_rust_bridge::for_generated::MessagePort,ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,rust_vec_len_: i32,data_len_: i32)  {
+                FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "init_app", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end(); move |context|  {
+                    transform_result_sse::<_, ()>((move ||  {
+                         let output_ok = Ok::<_, ()>({ crate::api::engine::init_app(); })?;   std::result::Result::Ok(output_ok)
+                    })())
+                } })
+            }fn wire__crate__api__engine__replay_impl(port_: flutter_rust_bridge::for_generated::MessagePort,ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,rust_vec_len_: i32,data_len_: i32)  {
+                FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "replay", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_history = <Vec<crate::api::engine::ReviewRecord>>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+                    transform_result_sse::<_, crate::api::engine::EngineError>((move ||  {
+                         let output_ok = crate::api::engine::replay(api_history)?;   std::result::Result::Ok(output_ok)
+                    })())
+                } })
+            }fn wire__crate__api__engine__retrievability_impl(port_: flutter_rust_bridge::for_generated::MessagePort,ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,rust_vec_len_: i32,data_len_: i32)  {
+                FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "retrievability", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_state = <crate::api::engine::MemoryStateParts>::sse_decode(&mut deserializer);
-            let api_at = <i64>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::engine::EngineError>((move || {
-                    let output_ok = crate::api::engine::retrievability(api_state, api_at)?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__engine__review_card_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "review_card",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+let api_at = <i64>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+                    transform_result_sse::<_, crate::api::engine::EngineError>((move ||  {
+                         let output_ok = crate::api::engine::retrievability(api_state, api_at)?;   std::result::Result::Ok(output_ok)
+                    })())
+                } })
+            }fn wire__crate__api__engine__review_card_impl(port_: flutter_rust_bridge::for_generated::MessagePort,ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,rust_vec_len_: i32,data_len_: i32)  {
+                FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "review_card", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_state = <crate::api::engine::MemoryStateParts>::sse_decode(&mut deserializer);
+let api_answer = <crate::api::engine::Answer>::sse_decode(&mut deserializer);
+let api_at = <i64>::sse_decode(&mut deserializer);
+let api_fuzz_factor = <Option<f64>>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+                    transform_result_sse::<_, crate::api::engine::EngineError>((move ||  {
+                         let output_ok = crate::api::engine::review_card(api_state, api_answer, api_at, api_fuzz_factor)?;   std::result::Result::Ok(output_ok)
+                    })())
+                } })
+            }fn wire__crate__api__engine__review_new_card_impl(port_: flutter_rust_bridge::for_generated::MessagePort,ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,rust_vec_len_: i32,data_len_: i32)  {
+                FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "review_new_card", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_answer = <crate::api::engine::Answer>::sse_decode(&mut deserializer);
-            let api_at = <i64>::sse_decode(&mut deserializer);
-            let api_fuzz_factor = <Option<f64>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::engine::EngineError>((move || {
-                    let output_ok = crate::api::engine::review_card(
-                        api_state,
-                        api_answer,
-                        api_at,
-                        api_fuzz_factor,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__engine__review_new_card_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "review_new_card",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_answer = <crate::api::engine::Answer>::sse_decode(&mut deserializer);
-            let api_at = <i64>::sse_decode(&mut deserializer);
-            let api_fuzz_factor = <Option<f64>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::engine::EngineError>((move || {
-                    let output_ok =
-                        crate::api::engine::review_new_card(api_answer, api_at, api_fuzz_factor)?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__engine__todays_list_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "todays_list",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+let api_at = <i64>::sse_decode(&mut deserializer);
+let api_fuzz_factor = <Option<f64>>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+                    transform_result_sse::<_, crate::api::engine::EngineError>((move ||  {
+                         let output_ok = crate::api::engine::review_new_card(api_answer, api_at, api_fuzz_factor)?;   std::result::Result::Ok(output_ok)
+                    })())
+                } })
+            }fn wire__crate__api__engine__todays_list_impl(ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,rust_vec_len_: i32,data_len_: i32) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+                FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "todays_list", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_cards = <Vec<crate::api::engine::TodayCard>>::sse_decode(&mut deserializer);
-            let api_day_start = <i64>::sse_decode(&mut deserializer);
-            let api_day_end = <i64>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let output_ok = Ok::<_, ()>(crate::api::engine::todays_list(
-                    api_cards,
-                    api_day_start,
-                    api_day_end,
-                ))?;
-                std::result::Result::Ok(output_ok)
-            })())
-        },
-    )
-}
+let api_day_start = <i64>::sse_decode(&mut deserializer);
+let api_day_end = <i64>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Ok::<_, ()>(crate::api::engine::todays_list(api_cards, api_day_start, api_day_end))?;   std::result::Result::Ok(output_ok)
+                })()) })
+            }
 
 // Section: dart2rust
 
-impl SseDecode for crate::api::engine::Answer {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
+
+                impl SseDecode for crate::api::engine::Answer {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
             0 => crate::api::engine::Answer::Know,
-            1 => crate::api::engine::Answer::DontKnow,
+1 => crate::api::engine::Answer::DontKnow,
             _ => unreachable!("Invalid variant for Answer: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::engine::EngineError {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut tag_ = <i32>::sse_decode(deserializer);
-        match tag_ {
-            0 => {
-                let mut var_lastReview = <i64>::sse_decode(deserializer);
-                let mut var_review = <i64>::sse_decode(deserializer);
-                return crate::api::engine::EngineError::ReviewBeforeLastReview {
-                    last_review: var_lastReview,
-                    review: var_review,
-                };
-            }
-            1 => {
-                let mut var_value = <u8>::sse_decode(deserializer);
-                return crate::api::engine::EngineError::UnknownRating { value: var_value };
-            }
-            2 => {
-                let mut var_quantity = <crate::api::engine::Quantity>::sse_decode(deserializer);
-                return crate::api::engine::EngineError::NonFinite {
-                    quantity: var_quantity,
-                };
-            }
-            3 => {
-                let mut var_quantity = <crate::api::engine::Quantity>::sse_decode(deserializer);
-                let mut var_value = <f64>::sse_decode(deserializer);
-                return crate::api::engine::EngineError::OutOfRange {
-                    quantity: var_quantity,
-                    value: var_value,
-                };
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
-impl SseDecode for f64 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_f64::<NativeEndian>().unwrap()
-    }
-}
-
-impl SseDecode for i32 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_i32::<NativeEndian>().unwrap()
-    }
-}
-
-impl SseDecode for i64 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_i64::<NativeEndian>().unwrap()
-    }
-}
-
-impl SseDecode for Vec<crate::api::engine::ReviewRecord> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
+        };}
+                }
+                
+                impl SseDecode for crate::api::engine::EngineError {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut tag_ = <i32>::sse_decode(deserializer);
+            match tag_ {0 => { let mut var_lastReview = <i64>::sse_decode(deserializer);
+let mut var_review = <i64>::sse_decode(deserializer);
+return crate::api::engine::EngineError::ReviewBeforeLastReview{last_review: var_lastReview, review: var_review}; }
+1 => { let mut var_value = <u8>::sse_decode(deserializer);
+return crate::api::engine::EngineError::UnknownRating{value: var_value}; }
+2 => { let mut var_quantity = <crate::api::engine::Quantity>::sse_decode(deserializer);
+return crate::api::engine::EngineError::NonFinite{quantity: var_quantity}; }
+3 => { let mut var_quantity = <crate::api::engine::Quantity>::sse_decode(deserializer);
+let mut var_value = <f64>::sse_decode(deserializer);
+return crate::api::engine::EngineError::OutOfRange{quantity: var_quantity, value: var_value}; }
+ _ => { unimplemented!(""); }}}
+                }
+                
+                impl SseDecode for f64 {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {deserializer.cursor.read_f64::<NativeEndian>().unwrap()}
+                }
+                
+                impl SseDecode for i32 {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {deserializer.cursor.read_i32::<NativeEndian>().unwrap()}
+                }
+                
+                impl SseDecode for i64 {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {deserializer.cursor.read_i64::<NativeEndian>().unwrap()}
+                }
+                
+                impl SseDecode for Vec<crate::api::engine::ReviewRecord> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::engine::ReviewRecord>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::engine::Today> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
+        for idx_ in 0..len_ { ans_.push(<crate::api::engine::ReviewRecord>::sse_decode(deserializer)); }
+        return ans_;}
+                }
+                
+                impl SseDecode for Vec<crate::api::engine::Today> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::engine::Today>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::engine::TodayCard> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
+        for idx_ in 0..len_ { ans_.push(<crate::api::engine::Today>::sse_decode(deserializer)); }
+        return ans_;}
+                }
+                
+                impl SseDecode for Vec<crate::api::engine::TodayCard> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::engine::TodayCard>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for crate::api::engine::MemoryStateParts {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_stability = <f64>::sse_decode(deserializer);
-        let mut var_difficulty = <f64>::sse_decode(deserializer);
-        let mut var_lastReview = <i64>::sse_decode(deserializer);
-        return crate::api::engine::MemoryStateParts {
-            stability: var_stability,
-            difficulty: var_difficulty,
-            last_review: var_lastReview,
-        };
-    }
-}
-
-impl SseDecode for Option<f64> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<f64>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<i64> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<i64>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<crate::api::engine::MemoryStateParts> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::api::engine::MemoryStateParts>::sse_decode(
-                deserializer,
-            ));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for crate::api::engine::Quantity {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
+        for idx_ in 0..len_ { ans_.push(<crate::api::engine::TodayCard>::sse_decode(deserializer)); }
+        return ans_;}
+                }
+                
+                impl SseDecode for crate::api::engine::MemoryStateParts {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut var_stability = <f64>::sse_decode(deserializer);
+let mut var_difficulty = <f64>::sse_decode(deserializer);
+let mut var_lastReview = <i64>::sse_decode(deserializer);
+return crate::api::engine::MemoryStateParts{stability: var_stability, difficulty: var_difficulty, last_review: var_lastReview};}
+                }
+                
+                impl SseDecode for Option<f64> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {if (<bool>::sse_decode(deserializer)) {
+                return Some(<f64>::sse_decode(deserializer));
+            } else {
+                return None;
+            }}
+                }
+                
+                impl SseDecode for Option<i64> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {if (<bool>::sse_decode(deserializer)) {
+                return Some(<i64>::sse_decode(deserializer));
+            } else {
+                return None;
+            }}
+                }
+                
+                impl SseDecode for Option<crate::api::engine::MemoryStateParts> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {if (<bool>::sse_decode(deserializer)) {
+                return Some(<crate::api::engine::MemoryStateParts>::sse_decode(deserializer));
+            } else {
+                return None;
+            }}
+                }
+                
+                impl SseDecode for crate::api::engine::Quantity {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
             0 => crate::api::engine::Quantity::Stability,
-            1 => crate::api::engine::Quantity::Difficulty,
-            2 => crate::api::engine::Quantity::FuzzFactor,
+1 => crate::api::engine::Quantity::Difficulty,
+2 => crate::api::engine::Quantity::FuzzFactor,
             _ => unreachable!("Invalid variant for Quantity: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::engine::ReviewRecord {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_answer = <crate::api::engine::Answer>::sse_decode(deserializer);
-        let mut var_at = <i64>::sse_decode(deserializer);
-        return crate::api::engine::ReviewRecord {
-            answer: var_answer,
-            at: var_at,
-        };
-    }
-}
-
-impl SseDecode for crate::api::engine::Scheduled {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_state = <crate::api::engine::MemoryStateParts>::sse_decode(deserializer);
-        let mut var_due = <i64>::sse_decode(deserializer);
-        return crate::api::engine::Scheduled {
-            state: var_state,
-            due: var_due,
-        };
-    }
-}
-
-impl SseDecode for crate::api::engine::Today {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
+        };}
+                }
+                
+                impl SseDecode for crate::api::engine::ReviewRecord {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut var_answer = <crate::api::engine::Answer>::sse_decode(deserializer);
+let mut var_at = <i64>::sse_decode(deserializer);
+return crate::api::engine::ReviewRecord{answer: var_answer, at: var_at};}
+                }
+                
+                impl SseDecode for crate::api::engine::Scheduled {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut var_state = <crate::api::engine::MemoryStateParts>::sse_decode(deserializer);
+let mut var_due = <i64>::sse_decode(deserializer);
+return crate::api::engine::Scheduled{state: var_state, due: var_due};}
+                }
+                
+                impl SseDecode for crate::api::engine::Today {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
             0 => crate::api::engine::Today::Absent,
-            1 => crate::api::engine::Today::Left,
-            2 => crate::api::engine::Today::Done,
+1 => crate::api::engine::Today::Left,
+2 => crate::api::engine::Today::Done,
             _ => unreachable!("Invalid variant for Today: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::engine::TodayCard {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_due = <Option<i64>>::sse_decode(deserializer);
-        let mut var_reviews = <Vec<crate::api::engine::ReviewRecord>>::sse_decode(deserializer);
-        return crate::api::engine::TodayCard {
-            due: var_due,
-            reviews: var_reviews,
-        };
-    }
-}
-
-impl SseDecode for u8 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_u8().unwrap()
-    }
-}
-
-impl SseDecode for () {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
-}
-
-impl SseDecode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_u8().unwrap() != 0
-    }
-}
-
-fn pde_ffi_dispatcher_primary_impl(
-    func_id: i32,
-    port: flutter_rust_bridge::for_generated::MessagePort,
-    ptr: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len: i32,
-    data_len: i32,
-) {
-    // Codec=Pde (Serialization + dispatch), see doc to use other codecs
-    match func_id {
-        1 => wire__crate__api__engine__init_app_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__engine__replay_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__engine__retrievability_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__engine__review_card_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__engine__review_new_card_impl(port, ptr, rust_vec_len, data_len),
-        _ => unreachable!(),
-    }
-}
-
-fn pde_ffi_dispatcher_sync_impl(
-    func_id: i32,
-    ptr: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len: i32,
-    data_len: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    // Codec=Pde (Serialization + dispatch), see doc to use other codecs
-    match func_id {
-        6 => wire__crate__api__engine__todays_list_impl(ptr, rust_vec_len, data_len),
-        _ => unreachable!(),
-    }
-}
+        };}
+                }
+                
+                impl SseDecode for crate::api::engine::TodayCard {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut var_due = <Option<i64>>::sse_decode(deserializer);
+let mut var_reviews = <Vec<crate::api::engine::ReviewRecord>>::sse_decode(deserializer);
+return crate::api::engine::TodayCard{due: var_due, reviews: var_reviews};}
+                }
+                
+                impl SseDecode for u8 {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {deserializer.cursor.read_u8().unwrap()}
+                }
+                
+                impl SseDecode for () {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
+                }
+                
+                impl SseDecode for bool {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {deserializer.cursor.read_u8().unwrap() != 0}
+                }
+                
+                fn pde_ffi_dispatcher_primary_impl(
+                    func_id: i32,port: flutter_rust_bridge::for_generated::MessagePort,
+                    ptr: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+                    rust_vec_len: i32,
+                    data_len: i32,
+                )  {
+                    // Codec=Pde (Serialization + dispatch), see doc to use other codecs
+                    match func_id {
+                        1 => wire__crate__api__engine__init_app_impl(port, ptr, rust_vec_len, data_len),
+2 => wire__crate__api__engine__replay_impl(port, ptr, rust_vec_len, data_len),
+3 => wire__crate__api__engine__retrievability_impl(port, ptr, rust_vec_len, data_len),
+4 => wire__crate__api__engine__review_card_impl(port, ptr, rust_vec_len, data_len),
+5 => wire__crate__api__engine__review_new_card_impl(port, ptr, rust_vec_len, data_len),
+                        _ => unreachable!(),
+                    }
+                }
+                
+                fn pde_ffi_dispatcher_sync_impl(
+                    func_id: i32,
+                    ptr: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+                    rust_vec_len: i32,
+                    data_len: i32,
+                ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+                    // Codec=Pde (Serialization + dispatch), see doc to use other codecs
+                    match func_id {
+                        6 => wire__crate__api__engine__todays_list_impl(ptr, rust_vec_len, data_len),
+                        _ => unreachable!(),
+                    }
+                }
+                
 
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::engine::Answer {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Know => 0.into_dart(),
-            Self::DontKnow => 1.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::Answer {}
+            impl flutter_rust_bridge::IntoDart for crate::api::engine::Answer {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    match self {
+                    Self::Know => 0.into_dart(),
+Self::DontKnow => 1.into_dart(),
+                    _ => unreachable!(),
+                }
+                }
+            }
+            impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::Answer {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::Answer> for crate::api::engine::Answer {
-    fn into_into_dart(self) -> crate::api::engine::Answer {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineError {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            crate::api::engine::EngineError::ReviewBeforeLastReview {
-                last_review,
-                review,
-            } => [
-                0.into_dart(),
-                last_review.into_into_dart().into_dart(),
-                review.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::api::engine::EngineError::UnknownRating { value } => {
-                [1.into_dart(), value.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::engine::EngineError::NonFinite { quantity } => {
-                [2.into_dart(), quantity.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::engine::EngineError::OutOfRange { quantity, value } => [
-                3.into_dart(),
-                quantity.into_into_dart().into_dart(),
-                value.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            _ => {
-                unimplemented!("");
+            fn into_into_dart(self) -> crate::api::engine::Answer {
+                self
             }
         }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::engine::EngineError
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::EngineError>
-    for crate::api::engine::EngineError
-{
-    fn into_into_dart(self) -> crate::api::engine::EngineError {
-        self
-    }
-}
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::engine::MemoryStateParts {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.stability.into_into_dart().into_dart(),
-            self.difficulty.into_into_dart().into_dart(),
-            self.last_review.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::engine::MemoryStateParts
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::MemoryStateParts>
-    for crate::api::engine::MemoryStateParts
-{
-    fn into_into_dart(self) -> crate::api::engine::MemoryStateParts {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::engine::Quantity {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Stability => 0.into_dart(),
-            Self::Difficulty => 1.into_dart(),
-            Self::FuzzFactor => 2.into_dart(),
-            _ => unreachable!(),
+            impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineError {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    match self {crate::api::engine::EngineError::ReviewBeforeLastReview{last_review,review} => { [0.into_dart(),
+last_review.into_into_dart().into_dart(),
+review.into_into_dart().into_dart()].into_dart() }
+crate::api::engine::EngineError::UnknownRating{value} => { [1.into_dart(),
+value.into_into_dart().into_dart()].into_dart() }
+crate::api::engine::EngineError::NonFinite{quantity} => { [2.into_dart(),
+quantity.into_into_dart().into_dart()].into_dart() }
+crate::api::engine::EngineError::OutOfRange{quantity,value} => { [3.into_dart(),
+quantity.into_into_dart().into_dart(),
+value.into_into_dart().into_dart()].into_dart() }
+ _ => { unimplemented!(""); }}
+                }
+            }
+            impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::EngineError {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::EngineError> for crate::api::engine::EngineError {
+            fn into_into_dart(self) -> crate::api::engine::EngineError {
+                self
+            }
         }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::Quantity {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::Quantity>
-    for crate::api::engine::Quantity
-{
-    fn into_into_dart(self) -> crate::api::engine::Quantity {
-        self
-    }
-}
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::engine::ReviewRecord {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.answer.into_into_dart().into_dart(),
-            self.at.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::engine::ReviewRecord
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::ReviewRecord>
-    for crate::api::engine::ReviewRecord
-{
-    fn into_into_dart(self) -> crate::api::engine::ReviewRecord {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::engine::Scheduled {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.state.into_into_dart().into_dart(),
-            self.due.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::Scheduled {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::Scheduled>
-    for crate::api::engine::Scheduled
-{
-    fn into_into_dart(self) -> crate::api::engine::Scheduled {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::engine::Today {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Absent => 0.into_dart(),
-            Self::Left => 1.into_dart(),
-            Self::Done => 2.into_dart(),
-            _ => unreachable!(),
+            impl flutter_rust_bridge::IntoDart for crate::api::engine::MemoryStateParts {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    [
+                    self.stability.into_into_dart().into_dart(),
+self.difficulty.into_into_dart().into_dart(),
+self.last_review.into_into_dart().into_dart()
+                ].into_dart()
+                }
+            }
+            impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::MemoryStateParts {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::MemoryStateParts> for crate::api::engine::MemoryStateParts {
+            fn into_into_dart(self) -> crate::api::engine::MemoryStateParts {
+                self
+            }
         }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::Today {}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+            impl flutter_rust_bridge::IntoDart for crate::api::engine::Quantity {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    match self {
+                    Self::Stability => 0.into_dart(),
+Self::Difficulty => 1.into_dart(),
+Self::FuzzFactor => 2.into_dart(),
+                    _ => unreachable!(),
+                }
+                }
+            }
+            impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::Quantity {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::Quantity> for crate::api::engine::Quantity {
+            fn into_into_dart(self) -> crate::api::engine::Quantity {
+                self
+            }
+        }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+            impl flutter_rust_bridge::IntoDart for crate::api::engine::ReviewRecord {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    [
+                    self.answer.into_into_dart().into_dart(),
+self.at.into_into_dart().into_dart()
+                ].into_dart()
+                }
+            }
+            impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::ReviewRecord {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::ReviewRecord> for crate::api::engine::ReviewRecord {
+            fn into_into_dart(self) -> crate::api::engine::ReviewRecord {
+                self
+            }
+        }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+            impl flutter_rust_bridge::IntoDart for crate::api::engine::Scheduled {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    [
+                    self.state.into_into_dart().into_dart(),
+self.due.into_into_dart().into_dart()
+                ].into_dart()
+                }
+            }
+            impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::Scheduled {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::Scheduled> for crate::api::engine::Scheduled {
+            fn into_into_dart(self) -> crate::api::engine::Scheduled {
+                self
+            }
+        }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+            impl flutter_rust_bridge::IntoDart for crate::api::engine::Today {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    match self {
+                    Self::Absent => 0.into_dart(),
+Self::Left => 1.into_dart(),
+Self::Done => 2.into_dart(),
+                    _ => unreachable!(),
+                }
+                }
+            }
+            impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::Today {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::Today> for crate::api::engine::Today {
-    fn into_into_dart(self) -> crate::api::engine::Today {
-        self
-    }
-}
+            fn into_into_dart(self) -> crate::api::engine::Today {
+                self
+            }
+        }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::engine::TodayCard {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.due.into_into_dart().into_dart(),
-            self.reviews.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::TodayCard {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::TodayCard>
-    for crate::api::engine::TodayCard
-{
-    fn into_into_dart(self) -> crate::api::engine::TodayCard {
-        self
-    }
-}
-
-impl SseEncode for crate::api::engine::Answer {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::engine::Answer::Know => 0,
-                crate::api::engine::Answer::DontKnow => 1,
-                _ => {
-                    unimplemented!("");
+            impl flutter_rust_bridge::IntoDart for crate::api::engine::TodayCard {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    [
+                    self.due.into_into_dart().into_dart(),
+self.reviews.into_into_dart().into_dart()
+                ].into_dart()
                 }
-            },
-            serializer,
-        );
-    }
-}
-
-impl SseEncode for crate::api::engine::EngineError {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        match self {
-            crate::api::engine::EngineError::ReviewBeforeLastReview {
-                last_review,
-                review,
-            } => {
-                <i32>::sse_encode(0, serializer);
-                <i64>::sse_encode(last_review, serializer);
-                <i64>::sse_encode(review, serializer);
             }
-            crate::api::engine::EngineError::UnknownRating { value } => {
-                <i32>::sse_encode(1, serializer);
-                <u8>::sse_encode(value, serializer);
-            }
-            crate::api::engine::EngineError::NonFinite { quantity } => {
-                <i32>::sse_encode(2, serializer);
-                <crate::api::engine::Quantity>::sse_encode(quantity, serializer);
-            }
-            crate::api::engine::EngineError::OutOfRange { quantity, value } => {
-                <i32>::sse_encode(3, serializer);
-                <crate::api::engine::Quantity>::sse_encode(quantity, serializer);
-                <f64>::sse_encode(value, serializer);
-            }
-            _ => {
-                unimplemented!("");
+            impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::TodayCard {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::TodayCard> for crate::api::engine::TodayCard {
+            fn into_into_dart(self) -> crate::api::engine::TodayCard {
+                self
             }
         }
-    }
-}
 
-impl SseEncode for f64 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_f64::<NativeEndian>(self).unwrap();
-    }
-}
-
-impl SseEncode for i32 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
-    }
-}
-
-impl SseEncode for i64 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_i64::<NativeEndian>(self).unwrap();
-    }
-}
-
-impl SseEncode for Vec<crate::api::engine::ReviewRecord> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::engine::ReviewRecord>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<crate::api::engine::Today> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::engine::Today>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<crate::api::engine::TodayCard> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::engine::TodayCard>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for crate::api::engine::MemoryStateParts {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <f64>::sse_encode(self.stability, serializer);
-        <f64>::sse_encode(self.difficulty, serializer);
-        <i64>::sse_encode(self.last_review, serializer);
-    }
-}
-
-impl SseEncode for Option<f64> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <f64>::sse_encode(value, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<i64> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <i64>::sse_encode(value, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<crate::api::engine::MemoryStateParts> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <crate::api::engine::MemoryStateParts>::sse_encode(value, serializer);
-        }
-    }
-}
-
-impl SseEncode for crate::api::engine::Quantity {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::engine::Quantity::Stability => 0,
-                crate::api::engine::Quantity::Difficulty => 1,
-                crate::api::engine::Quantity::FuzzFactor => 2,
-                _ => {
-                    unimplemented!("");
+                impl SseEncode for crate::api::engine::Answer {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<i32>::sse_encode(match self {crate::api::engine::Answer::Know => { 0 }
+crate::api::engine::Answer::DontKnow => { 1 }
+ _ => { unimplemented!(""); }}, serializer);}
                 }
-            },
-            serializer,
-        );
-    }
-}
-
-impl SseEncode for crate::api::engine::ReviewRecord {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::engine::Answer>::sse_encode(self.answer, serializer);
-        <i64>::sse_encode(self.at, serializer);
-    }
-}
-
-impl SseEncode for crate::api::engine::Scheduled {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::engine::MemoryStateParts>::sse_encode(self.state, serializer);
-        <i64>::sse_encode(self.due, serializer);
-    }
-}
-
-impl SseEncode for crate::api::engine::Today {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::engine::Today::Absent => 0,
-                crate::api::engine::Today::Left => 1,
-                crate::api::engine::Today::Done => 2,
-                _ => {
-                    unimplemented!("");
+                
+                impl SseEncode for crate::api::engine::EngineError {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {match self {crate::api::engine::EngineError::ReviewBeforeLastReview{last_review,review} => { <i32>::sse_encode(0, serializer); <i64>::sse_encode(last_review, serializer);
+<i64>::sse_encode(review, serializer);
+ }
+crate::api::engine::EngineError::UnknownRating{value} => { <i32>::sse_encode(1, serializer); <u8>::sse_encode(value, serializer);
+ }
+crate::api::engine::EngineError::NonFinite{quantity} => { <i32>::sse_encode(2, serializer); <crate::api::engine::Quantity>::sse_encode(quantity, serializer);
+ }
+crate::api::engine::EngineError::OutOfRange{quantity,value} => { <i32>::sse_encode(3, serializer); <crate::api::engine::Quantity>::sse_encode(quantity, serializer);
+<f64>::sse_encode(value, serializer);
+ }
+ _ => { unimplemented!(""); }}}
                 }
-            },
-            serializer,
-        );
-    }
-}
+                
+                impl SseEncode for f64 {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {serializer.cursor.write_f64::<NativeEndian>(self).unwrap();}
+                }
+                
+                impl SseEncode for i32 {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {serializer.cursor.write_i32::<NativeEndian>(self).unwrap();}
+                }
+                
+                impl SseEncode for i64 {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {serializer.cursor.write_i64::<NativeEndian>(self).unwrap();}
+                }
+                
+                impl SseEncode for Vec<crate::api::engine::ReviewRecord> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<i32>::sse_encode(self.len() as _, serializer);
+        for item in self { <crate::api::engine::ReviewRecord>::sse_encode(item, serializer); }}
+                }
+                
+                impl SseEncode for Vec<crate::api::engine::Today> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<i32>::sse_encode(self.len() as _, serializer);
+        for item in self { <crate::api::engine::Today>::sse_encode(item, serializer); }}
+                }
+                
+                impl SseEncode for Vec<crate::api::engine::TodayCard> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<i32>::sse_encode(self.len() as _, serializer);
+        for item in self { <crate::api::engine::TodayCard>::sse_encode(item, serializer); }}
+                }
+                
+                impl SseEncode for crate::api::engine::MemoryStateParts {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<f64>::sse_encode(self.stability, serializer);
+<f64>::sse_encode(self.difficulty, serializer);
+<i64>::sse_encode(self.last_review, serializer);}
+                }
+                
+                impl SseEncode for Option<f64> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<bool>::sse_encode(self.is_some(), serializer);
+                if let Some(value) = self {
+                    <f64>::sse_encode(value, serializer);
+                }}
+                }
+                
+                impl SseEncode for Option<i64> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<bool>::sse_encode(self.is_some(), serializer);
+                if let Some(value) = self {
+                    <i64>::sse_encode(value, serializer);
+                }}
+                }
+                
+                impl SseEncode for Option<crate::api::engine::MemoryStateParts> {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<bool>::sse_encode(self.is_some(), serializer);
+                if let Some(value) = self {
+                    <crate::api::engine::MemoryStateParts>::sse_encode(value, serializer);
+                }}
+                }
+                
+                impl SseEncode for crate::api::engine::Quantity {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<i32>::sse_encode(match self {crate::api::engine::Quantity::Stability => { 0 }
+crate::api::engine::Quantity::Difficulty => { 1 }
+crate::api::engine::Quantity::FuzzFactor => { 2 }
+ _ => { unimplemented!(""); }}, serializer);}
+                }
+                
+                impl SseEncode for crate::api::engine::ReviewRecord {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<crate::api::engine::Answer>::sse_encode(self.answer, serializer);
+<i64>::sse_encode(self.at, serializer);}
+                }
+                
+                impl SseEncode for crate::api::engine::Scheduled {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<crate::api::engine::MemoryStateParts>::sse_encode(self.state, serializer);
+<i64>::sse_encode(self.due, serializer);}
+                }
+                
+                impl SseEncode for crate::api::engine::Today {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<i32>::sse_encode(match self {crate::api::engine::Today::Absent => { 0 }
+crate::api::engine::Today::Left => { 1 }
+crate::api::engine::Today::Done => { 2 }
+ _ => { unimplemented!(""); }}, serializer);}
+                }
+                
+                impl SseEncode for crate::api::engine::TodayCard {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<Option<i64>>::sse_encode(self.due, serializer);
+<Vec<crate::api::engine::ReviewRecord>>::sse_encode(self.reviews, serializer);}
+                }
+                
+                impl SseEncode for u8 {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {serializer.cursor.write_u8(self).unwrap();}
+                }
+                
+                impl SseEncode for () {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
+                }
+                
+                impl SseEncode for bool {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {serializer.cursor.write_u8(self as _).unwrap();}
+                }
+                
 
-impl SseEncode for crate::api::engine::TodayCard {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Option<i64>>::sse_encode(self.due, serializer);
-        <Vec<crate::api::engine::ReviewRecord>>::sse_encode(self.reviews, serializer);
-    }
-}
 
-impl SseEncode for u8 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_u8(self).unwrap();
-    }
-}
+        
+        
+        #[cfg(not(target_family = "wasm"))]
+        mod io {
+            // This file is automatically generated, so please do not edit it.
+// @generated by `flutter_rust_bridge`@ 2.13.0.
 
-impl SseEncode for () {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
-}
 
-impl SseEncode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_u8(self as _).unwrap();
-    }
-}
 
-#[cfg(not(target_family = "wasm"))]
-mod io {
-    // This file is automatically generated, so please do not edit it.
-    // @generated by `flutter_rust_bridge`@ 2.13.0.
+// Section: imports
 
-    // Section: imports
+use flutter_rust_bridge::{Handler, IntoIntoDart};
+use flutter_rust_bridge::for_generated::{Lockable, transform_result_dco, Lifetimeable};
+use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, WriteBytesExt, ReadBytesExt};use super::*;
 
-    use super::*;
-    use flutter_rust_bridge::for_generated::byteorder::{
-        NativeEndian, ReadBytesExt, WriteBytesExt,
-    };
-    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
-    use flutter_rust_bridge::{Handler, IntoIntoDart};
+// Section: boilerplate
 
-    // Section: boilerplate
+flutter_rust_bridge::frb_generated_boilerplate_io!();
 
-    flutter_rust_bridge::frb_generated_boilerplate_io!();
-}
-#[cfg(not(target_family = "wasm"))]
-pub use io::*;
+
+        }
+        #[cfg(not(target_family = "wasm"))]
+        pub use io::*;
+        
+        

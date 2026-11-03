@@ -1137,6 +1137,7 @@ describe("스페셜", () => {
     await render(UserContent, { params: Promise.resolve({ id: testUser.id }) });
     const plan = within(screen.getByRole("region", { name: "요금제" }));
     expect(plan.getByText("지금").nextSibling).toHaveTextContent("스페셜 · 제한 없음");
+    // The header and the 계정 group carry several facts each, so a substring is right.
     const header = screen.getByRole("heading", { level: 1 }).parentElement;
     expect(header).toHaveTextContent("스페셜");
     expect(header).not.toHaveTextContent(/무제한|숨김/);

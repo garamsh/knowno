@@ -4,225 +4,199 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'engine.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `fuzz`, `scheduled`
+            // These functions are ignored because they are not marked as `pub`: `fuzz`, `scheduled`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`
 
-/// Reviews a new card for the first time, its interval fuzzed by `fuzz_factor`, a value in
+
+            /// Reviews a new card for the first time, its interval fuzzed by `fuzz_factor`, a value in
 /// `[0, 1)`, or not fuzzed when it is `None`.
-Future<Scheduled> reviewNewCard({
-  required Answer answer,
-  required PlatformInt64 at,
-  double? fuzzFactor,
-}) => RustLib.instance.api.crateApiEngineReviewNewCard(
-  answer: answer,
-  at: at,
-  fuzzFactor: fuzzFactor,
-);
+Future<Scheduled>  reviewNewCard({required Answer answer , required PlatformInt64 at , double? fuzzFactor }) => RustLib.instance.api.crateApiEngineReviewNewCard(answer: answer, at: at, fuzzFactor: fuzzFactor);
 
 /// Reviews a card whose state the app persisted as `state`, its interval fuzzed by
 /// `fuzz_factor`, a value in `[0, 1)`, or not fuzzed when it is `None`.
-Future<Scheduled> reviewCard({
-  required MemoryStateParts state,
-  required Answer answer,
-  required PlatformInt64 at,
-  double? fuzzFactor,
-}) => RustLib.instance.api.crateApiEngineReviewCard(
-  state: state,
-  answer: answer,
-  at: at,
-  fuzzFactor: fuzzFactor,
-);
+Future<Scheduled>  reviewCard({required MemoryStateParts state , required Answer answer , required PlatformInt64 at , double? fuzzFactor }) => RustLib.instance.api.crateApiEngineReviewCard(state: state, answer: answer, at: at, fuzzFactor: fuzzFactor);
 
 /// Replays a history, in the order the reviews happened, into the card's state; `None` when empty.
-Future<MemoryStateParts?> replay({required List<ReviewRecord> history}) =>
-    RustLib.instance.api.crateApiEngineReplay(history: history);
+Future<MemoryStateParts?>  replay({required List<ReviewRecord> history }) => RustLib.instance.api.crateApiEngineReplay(history: history);
 
 /// Probability of recall at `at` of a card whose state the app persisted as `state`.
-Future<double> retrievability({
-  required MemoryStateParts state,
-  required PlatformInt64 at,
-}) => RustLib.instance.api.crateApiEngineRetrievability(state: state, at: at);
+Future<double>  retrievability({required MemoryStateParts state , required PlatformInt64 at }) => RustLib.instance.api.crateApiEngineRetrievability(state: state, at: at);
 
 /// Where each card stands in the list of the study day from `day_start`, inclusive, to
 /// `day_end`, exclusive, in the order given. Dart calls it synchronously.
-List<Today> todaysList({
-  required List<TodayCard> cards,
-  required PlatformInt64 dayStart,
-  required PlatformInt64 dayEnd,
-}) => RustLib.instance.api.crateApiEngineTodaysList(
-  cards: cards,
-  dayStart: dayStart,
-  dayEnd: dayEnd,
-);
+List<Today>  todaysList({required List<TodayCard> cards , required PlatformInt64 dayStart , required PlatformInt64 dayEnd }) => RustLib.instance.api.crateApiEngineTodaysList(cards: cards, dayStart: dayStart, dayEnd: dayEnd);
 
-/// The two answers a card is given, by a swipe or a screen reader's action.
+            /// The two answers a card is given, by a swipe or a screen reader's action.
 enum Answer {
-  /// "Know": rated `Good`.
-  know,
-
-  /// "Don't know": rated `Again`.
-  dontKnow,
-}
+                    /// "Know": rated `Good`.
+know,
+/// "Don't know": rated `Again`.
+dontKnow,
+                    ;
+                    
+                }
 
 @freezed
-sealed class EngineError with _$EngineError implements FrbException {
-  const EngineError._();
+                sealed class EngineError with _$EngineError implements FrbException {
+                    const EngineError._();
 
-  /// A review is dated before the card's last review.
-  const factory EngineError.reviewBeforeLastReview({
-    /// The card's last review.
-    required PlatformInt64 lastReview,
+                     /// A review is dated before the card's last review.
+const factory EngineError.reviewBeforeLastReview({ /// The card's last review.
+  required PlatformInt64 lastReview ,/// The refused review time.
+  required PlatformInt64 review , }) = EngineError_ReviewBeforeLastReview;
+ /// A number that is not one of the four FSRS ratings (1 to 4).
+const factory EngineError.unknownRating({ /// The refused number.
+  required int value , }) = EngineError_UnknownRating;
+ /// A NaN or infinite value given for a quantity.
+const factory EngineError.nonFinite({ /// The quantity given.
+  required Quantity quantity , }) = EngineError_NonFinite;
+ /// A finite value outside the range the quantity allows.
+const factory EngineError.outOfRange({ /// The quantity given.
+  required Quantity quantity ,/// The refused value.
+  required double value , }) = EngineError_OutOfRange;
 
-    /// The refused review time.
-    required PlatformInt64 review,
-  }) = EngineError_ReviewBeforeLastReview;
+                    
 
-  /// A number that is not one of the four FSRS ratings (1 to 4).
-  const factory EngineError.unknownRating({
-    /// The refused number.
-    required int value,
-  }) = EngineError_UnknownRating;
-
-  /// A NaN or infinite value given for a quantity.
-  const factory EngineError.nonFinite({
-    /// The quantity given.
-    required Quantity quantity,
-  }) = EngineError_NonFinite;
-
-  /// A finite value outside the range the quantity allows.
-  const factory EngineError.outOfRange({
-    /// The quantity given.
-    required Quantity quantity,
-
-    /// The refused value.
-    required double value,
-  }) = EngineError_OutOfRange;
-}
+                    
+                }
 
 /// The parts of a card's memory state that the app persists.
-class MemoryStateParts {
-  /// Days until retrievability falls to 0.9.
-  final double stability;
+class MemoryStateParts  {
+                /// Days until retrievability falls to 0.9.
+final double stability;
+/// Difficulty, from 1 to 10.
+final double difficulty;
+/// Time of the review that produced this state.
+final PlatformInt64 lastReview;
 
-  /// Difficulty, from 1 to 10.
-  final double difficulty;
+                const MemoryStateParts({required this.stability ,required this.difficulty ,required this.lastReview ,});
 
-  /// Time of the review that produced this state.
-  final PlatformInt64 lastReview;
 
-  const MemoryStateParts({
-    required this.stability,
-    required this.difficulty,
-    required this.lastReview,
-  });
 
-  @override
-  int get hashCode =>
-      stability.hashCode ^ difficulty.hashCode ^ lastReview.hashCode;
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is MemoryStateParts &&
-          runtimeType == other.runtimeType &&
-          stability == other.stability &&
-          difficulty == other.difficulty &&
-          lastReview == other.lastReview;
-}
+
+        @override
+        int get hashCode => stability.hashCode^difficulty.hashCode^lastReview.hashCode;
+
+
+
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is MemoryStateParts &&
+                runtimeType == other.runtimeType
+                && stability == other.stability&& difficulty == other.difficulty&& lastReview == other.lastReview;
+
+            }
 
 /// A floating-point quantity the engine takes.
 enum Quantity {
-  /// Stability: at least 0.001 days.
-  stability,
-
-  /// Difficulty: from 1 to 10.
-  difficulty,
-
-  /// Fuzz factor: from 0, inclusive, to 1, exclusive.
-  fuzzFactor,
-}
+                    /// Stability: at least 0.001 days.
+stability,
+/// Difficulty: from 1 to 10.
+difficulty,
+/// Fuzz factor: from 0, inclusive, to 1, exclusive.
+fuzzFactor,
+                    ;
+                    
+                }
 
 /// One review in a card's history.
-class ReviewRecord {
-  /// The answer given.
-  final Answer answer;
+class ReviewRecord  {
+                /// The answer given.
+final Answer answer;
+/// When it was given.
+final PlatformInt64 at;
 
-  /// When it was given.
-  final PlatformInt64 at;
+                const ReviewRecord({required this.answer ,required this.at ,});
 
-  const ReviewRecord({required this.answer, required this.at});
 
-  @override
-  int get hashCode => answer.hashCode ^ at.hashCode;
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ReviewRecord &&
-          runtimeType == other.runtimeType &&
-          answer == other.answer &&
-          at == other.at;
-}
+
+
+        @override
+        int get hashCode => answer.hashCode^at.hashCode;
+
+
+
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is ReviewRecord &&
+                runtimeType == other.runtimeType
+                && answer == other.answer&& at == other.at;
+
+            }
 
 /// A card's state after a review, and when it is next due.
-class Scheduled {
-  /// The new memory state.
-  final MemoryStateParts state;
+class Scheduled  {
+                /// The new memory state.
+final MemoryStateParts state;
+/// When the card is next due.
+final PlatformInt64 due;
 
-  /// When the card is next due.
-  final PlatformInt64 due;
+                const Scheduled({required this.state ,required this.due ,});
 
-  const Scheduled({required this.state, required this.due});
 
-  @override
-  int get hashCode => state.hashCode ^ due.hashCode;
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Scheduled &&
-          runtimeType == other.runtimeType &&
-          state == other.state &&
-          due == other.due;
-}
+
+
+        @override
+        int get hashCode => state.hashCode^due.hashCode;
+
+
+
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is Scheduled &&
+                runtimeType == other.runtimeType
+                && state == other.state&& due == other.due;
+
+            }
 
 /// Where a card stands in today's list.
 enum Today {
-  /// Not in today's list: not due before the day ends and not answered in it.
-  absent,
-
-  /// Still to study today: due before the day ends and not answered in it, or answered
-  /// "Don't know" last in it.
-  left,
-
-  /// Done today: answered "Know" last in it.
-  done,
-}
+                    /// Not in today's list: not due before the day ends and not answered in it.
+absent,
+/// Still to study today: due before the day ends and not answered in it, or answered
+/// "Don't know" last in it.
+left,
+/// Done today: answered "Know" last in it.
+done,
+                    ;
+                    
+                }
 
 /// A card as today's list reads it: when it is due, `None` for a card never reviewed, and its
 /// reviews, in any order, those outside the study day included or not.
-class TodayCard {
-  /// When the card is due.
-  final PlatformInt64? due;
+class TodayCard  {
+                /// When the card is due.
+final PlatformInt64? due;
+/// The card's reviews.
+final List<ReviewRecord> reviews;
 
-  /// The card's reviews.
-  final List<ReviewRecord> reviews;
+                const TodayCard({this.due ,required this.reviews ,});
 
-  const TodayCard({this.due, required this.reviews});
 
-  @override
-  int get hashCode => due.hashCode ^ reviews.hashCode;
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TodayCard &&
-          runtimeType == other.runtimeType &&
-          due == other.due &&
-          reviews == other.reviews;
-}
+
+
+        @override
+        int get hashCode => due.hashCode^reviews.hashCode;
+
+
+
+        @override
+        bool operator ==(Object other) =>
+            identical(this, other) ||
+            other is TodayCard &&
+                runtimeType == other.runtimeType
+                && due == other.due&& reviews == other.reviews;
+
+            }
+            
