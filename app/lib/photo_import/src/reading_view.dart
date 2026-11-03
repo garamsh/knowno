@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_button.dart';
 import '../../design/app_list_row.dart';
+import '../../design/bottom_actions.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
@@ -144,35 +145,31 @@ class ReadingView extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpace.gutter,
-            AppSpace.s8,
-            AppSpace.gutter,
-            AppSpace.s16,
+      bottomNavigationBar: switch ((onAddFromSpreadsheet, onAddByHand)) {
+        (final onAddFromSpreadsheet?, final onAddByHand?) => BottomActions(
+          secondary: AppButton(
+            label: l10n.spreadsheetPick,
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.cta,
+            onPressed: onAddFromSpreadsheet,
           ),
-          child: Row(
-            spacing: AppSpace.s12,
-            children: [
-              if (onAddFromSpreadsheet case final onAddFromSpreadsheet?)
-                Expanded(
-                  child: AppButton(
-                    label: l10n.spreadsheetPick,
-                    variant: AppButtonVariant.secondary,
-                    size: AppButtonSize.cta,
-                    onPressed: onAddFromSpreadsheet,
-                  ),
-                ),
-              if (onAddByHand case final onAddByHand?)
-                Expanded(
-                  child: AppButton(
-                    label: l10n.createManually,
-                    size: AppButtonSize.cta,
-                    onPressed: onAddByHand,
-                  ),
-                )
-              else
+          primary: AppButton(
+            label: l10n.createManually,
+            size: AppButtonSize.cta,
+            onPressed: onAddByHand,
+          ),
+        ),
+        _ => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.gutter,
+              AppSpace.s8,
+              AppSpace.gutter,
+              AppSpace.s16,
+            ),
+            child: Row(
+              spacing: AppSpace.s12,
+              children: [
                 Expanded(
                   child: AppButton(
                     label: l10n.cancel,
@@ -181,19 +178,20 @@ class ReadingView extends StatelessWidget {
                     onPressed: onCancel,
                   ),
                 ),
-              if (retryable)
-                Expanded(
-                  flex: 2,
-                  child: AppButton(
-                    label: l10n.retryFailedPhotos,
-                    size: AppButtonSize.cta,
-                    onPressed: job.retryFailed,
+                if (retryable)
+                  Expanded(
+                    flex: 2,
+                    child: AppButton(
+                      label: l10n.retryFailedPhotos,
+                      size: AppButtonSize.cta,
+                      onPressed: job.retryFailed,
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
+      },
     );
   }
 }

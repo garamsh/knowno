@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_button.dart';
+import '../../design/bottom_actions.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
@@ -55,12 +56,7 @@ class FailureView extends StatelessWidget {
     final onOpenSettings = this.onOpenSettings;
     final onAddByHand = this.onAddByHand;
     final onAddFromSpreadsheet = this.onAddFromSpreadsheet;
-    final primaryElsewhere =
-        onRetry != null || onOpenSettings != null || onAddByHand != null;
-    final anyAction =
-        isRetakeable(failure) ||
-        primaryElsewhere ||
-        onAddFromSpreadsheet != null;
+    final primaryElsewhere = onRetry != null || onOpenSettings != null;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -94,67 +90,64 @@ class FailureView extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: !anyAction
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpace.gutter,
-                  AppSpace.s8,
-                  AppSpace.gutter,
-                  AppSpace.s16,
-                ),
-                child: Row(
-                  spacing: AppSpace.s12,
-                  children: [
-                    if (isRetakeable(failure))
-                      Expanded(
-                        child: AppButton(
-                          label: retakeLabel,
-                          variant: primaryElsewhere
-                              ? AppButtonVariant.secondary
-                              : AppButtonVariant.primary,
-                          size: AppButtonSize.cta,
-                          onPressed: onRetake,
-                        ),
-                      ),
-                    if (onRetry != null)
-                      Expanded(
-                        child: AppButton(
-                          label: l10n.retry,
-                          size: AppButtonSize.cta,
-                          onPressed: onRetry,
-                        ),
-                      ),
-                    if (onOpenSettings != null)
-                      Expanded(
-                        child: AppButton(
-                          label: l10n.openSettings,
-                          size: AppButtonSize.cta,
-                          onPressed: onOpenSettings,
-                        ),
-                      ),
-                    if (onAddFromSpreadsheet != null)
-                      Expanded(
-                        child: AppButton(
-                          label: l10n.spreadsheetPick,
-                          variant: AppButtonVariant.secondary,
-                          size: AppButtonSize.cta,
-                          onPressed: onAddFromSpreadsheet,
-                        ),
-                      ),
-                    if (onAddByHand != null)
-                      Expanded(
-                        child: AppButton(
-                          label: l10n.createManually,
-                          size: AppButtonSize.cta,
-                          onPressed: onAddByHand,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+      bottomNavigationBar: switch ((onAddFromSpreadsheet, onAddByHand)) {
+        (final onAddFromSpreadsheet?, final onAddByHand?) => BottomActions(
+          secondary: AppButton(
+            label: l10n.spreadsheetPick,
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.cta,
+            onPressed: onAddFromSpreadsheet,
+          ),
+          primary: AppButton(
+            label: l10n.createManually,
+            size: AppButtonSize.cta,
+            onPressed: onAddByHand,
+          ),
+        ),
+        _ when !isRetakeable(failure) && !primaryElsewhere => null,
+        _ => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.gutter,
+              AppSpace.s8,
+              AppSpace.gutter,
+              AppSpace.s16,
             ),
+            child: Row(
+              spacing: AppSpace.s12,
+              children: [
+                if (isRetakeable(failure))
+                  Expanded(
+                    child: AppButton(
+                      label: retakeLabel,
+                      variant: primaryElsewhere
+                          ? AppButtonVariant.secondary
+                          : AppButtonVariant.primary,
+                      size: AppButtonSize.cta,
+                      onPressed: onRetake,
+                    ),
+                  ),
+                if (onRetry != null)
+                  Expanded(
+                    child: AppButton(
+                      label: l10n.retry,
+                      size: AppButtonSize.cta,
+                      onPressed: onRetry,
+                    ),
+                  ),
+                if (onOpenSettings != null)
+                  Expanded(
+                    child: AppButton(
+                      label: l10n.openSettings,
+                      size: AppButtonSize.cta,
+                      onPressed: onOpenSettings,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      },
     );
   }
 }
