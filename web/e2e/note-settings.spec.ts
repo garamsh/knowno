@@ -200,7 +200,7 @@ const png = Buffer.from(
   "base64",
 );
 
-test("stores a note's photo in Storage, draws it on 홈 from a signed URL, releases the one it replaces and the last one with the note", async ({
+test("stores a note's photo in Storage, draws it on the 노트 page from a signed URL, releases the one it replaces and the last one with the note", async ({
   page,
   context,
   baseURL,
@@ -275,7 +275,7 @@ test("stores a note's photo in Storage, draws it on 홈 from a signed URL, relea
     .getByRole("dialog", { name: '"Photo" 노트를 삭제할까요?' })
     .getByRole("button", { name: "삭제", exact: true })
     .click();
-  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect(page).toHaveURL(`${baseURL}/decks`);
   await expect.poll(() => held(second)).toBe(false);
   expect(await rows()).toEqual([]);
 });
