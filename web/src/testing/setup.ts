@@ -1,10 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup } from "@testing-library/react";
-import { afterAll, afterEach, beforeAll, vi } from "vitest";
+import { cleanup, configure, getConfig } from "@testing-library/react";
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from "vitest";
 
 import { server } from "./mocks/server";
 import { testRouter } from "./router";
+import { assertTestRunning, endTest, enterTest } from "./running-test";
 
 // A test renders outside any request, where `connection()` throws; it is always request time here.
 vi.mock("next/server", async (importOriginal) => ({
@@ -50,7 +51,24 @@ beforeAll(() => {
     true,
   );
 });
+// A test's body that outlives it (a timeout) stops at its next event or render rather than act on
+// the next test's page (`running-test.ts`). Synchronous, so the test runs inside what it enters.
+beforeEach((context) => {
+  enterTest(context.task.name);
+});
+const wrappers = getConfig();
+configure({
+  asyncWrapper: (callback) => {
+    assertTestRunning();
+    return wrappers.asyncWrapper(callback);
+  },
+  eventWrapper: (callback) => {
+    assertTestRunning();
+    wrappers.eventWrapper(callback);
+  },
+});
 afterEach(() => {
+  endTest();
   server.resetHandlers();
   for (const call of Object.values(testRouter)) call.mockClear();
   cleanup();

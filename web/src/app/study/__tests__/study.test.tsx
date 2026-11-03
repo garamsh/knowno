@@ -24,6 +24,7 @@ import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
 import { render } from "@/testing/render";
+import { assertTestRunning } from "@/testing/running-test";
 import { testRouter } from "@/testing/router";
 import { signedInCookies } from "@/testing/session";
 import { sensesUnder } from "@/testing/senses";
@@ -284,6 +285,8 @@ describe("the study page", () => {
      * session changes what it studies.
      */
     async function openFresh(at = start, deck = fronts) {
+      // A body that outlived its test stops here, before clearing the next test's page.
+      assertTestRunning();
       cleanup();
       postgrest = new FakePostgrest();
       postgrest.studySettings.set(testUser.id, fiveMinutes);
@@ -293,19 +296,20 @@ describe("the study page", () => {
     }
 
     it("orders the cards by the session's seeded random source", async () => {
-      // Five cards, 120 orders: each card shown is a render and three requests (#641).
-      const five = fronts.slice(0, 5);
-      await openFresh(start, five);
-      const first = await answerAll("{ArrowRight}", five.length);
-      await openFresh(start, five);
-      const again = await answerAll("{ArrowRight}", five.length);
+      // Three cards, six orders, the fewest whose order is more than a swap: each card shown is a
+      // render and three requests, and each session a page opened (#641).
+      const three = fronts.slice(0, 3);
+      await openFresh(start, three);
+      const first = await answerAll("{ArrowRight}", three.length);
+      await openFresh(start, three);
+      const again = await answerAll("{ArrowRight}", three.length);
       // Control: a session started at another time draws another order.
-      await openFresh(start + 1, five);
-      const other = await answerAll("{ArrowRight}", five.length);
+      await openFresh(start + 1, three);
+      const other = await answerAll("{ArrowRight}", three.length);
 
       // The setup's state: the seed did not leave the cards in the deck's order.
-      expect(first).not.toEqual(five);
-      expect([...first].sort()).toEqual([...five].sort());
+      expect(first).not.toEqual(three);
+      expect([...first].sort()).toEqual([...three].sort());
       expect(again).toEqual(first);
       expect(other).not.toEqual(first);
     });
@@ -315,7 +319,8 @@ describe("the study page", () => {
       for (const at of [start, start]) {
         await openFresh(at);
         const [missed] = await answerAll("{ArrowLeft}", 1);
-        const shown = await answerAll("{ArrowRight}", fronts.length);
+        // Up to 5 other cards, then the missed card: a gap past 5 reads as -1 and fails.
+        const shown = await answerAll("{ArrowRight}", 6);
         gaps.push(missed === undefined ? -1 : shown.indexOf(missed));
       }
 
