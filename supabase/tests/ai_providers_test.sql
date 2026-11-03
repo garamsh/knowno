@@ -3,7 +3,7 @@
 -- draft served to admins only, tried by id, and applied to everyone; a key in use kept; a recent
 -- sign-in required to remove a key; every write recorded; and no client reaching any of it.
 begin;
-select plan(56);
+select plan(58);
 
 delete from private.admin_audit;
 
@@ -89,7 +89,7 @@ select results_eq(
 select results_eq(
   $$select count(*) from unnest(array['public.provider_key(text)',
       'public.save_provider_key(uuid, text, text)', 'public.save_ai_configuration(uuid, text, text, text)',
-      'public.begin_extraction(uuid, bigint, text[])']) as f
+      'public.begin_extraction(uuid, bigint)']) as f
     cross join unnest(array['anon', 'authenticated']) as r
     where has_function_privilege(r, f, 'execute')$$,
   $$values (0::bigint)$$, 'no client reads a key, saves one, saves a configuration or begins an extraction');
@@ -207,12 +207,13 @@ select results_eq($$select provider, available, allowed, usage_id is null from p
   'the admin is served the draft, unavailable without a key, and nothing is counted');
 select results_eq($$select provider, available, allowed from pg_temp.start('b')$$,
   $$values ('openrouter', false, false)$$,
-  'a user is served the active configuration, which needs OpenRouter''s key or the transition secret');
-select results_eq(
-  $$select provider, available, allowed from public.begin_extraction('00000000-0000-4000-8000-00000000000b',
-      secret_providers => array['openrouter'])$$,
+  'a user is served the active configuration, on OpenRouter, unavailable without its key in Vault as every provider');
+insert into private.provider_keys (provider, secret_id, last_four)
+  values ('openrouter', vault.create_secret('sk-or-test-key-0000'), '0000');
+select results_eq($$select provider, available, allowed from pg_temp.start('b')$$,
   $$values ('openrouter', true, true)$$,
-  'control: with the transition secret the user is served and counted');
+  'control: with OpenRouter''s key in Vault the user is served and counted');
+delete from private.provider_keys where provider = 'openrouter';
 reset role;
 create temp table saved_anthropic as
   select pg_temp.as_service($q$select public.save_ai_configuration('00000000-0000-4000-8000-00000000000a', 'free', 'anthropic', 'claude-model')$q$)::bigint as id;
@@ -251,6 +252,22 @@ select pg_temp.sign_in('a');
 select is(public.admin_activate_ai_configuration('pro'), 'no_key', 'is not applied while its provider has no key');
 select is(public.admin_clear_ai_test('pro'), true, 'it is ended');
 select is(public.admin_clear_ai_test('pro'), false, 'once');
+reset role;
+select ok(
+  pg_temp.as_service($q$select public.save_ai_configuration('00000000-0000-4000-8000-00000000000a', 'max', 'openrouter', 'vendor/model')$q$)::bigint > 0,
+  'a draft for Max on OpenRouter, which has no key either');
+select pg_temp.sign_in('a');
+select is(public.admin_activate_ai_configuration('max'), 'no_key',
+  'is not applied while OpenRouter has no key, as every provider');
+reset role;
+insert into private.provider_keys (provider, secret_id, last_four)
+  values ('openrouter', vault.create_secret('sk-or-test-key-0000'), '0000');
+select pg_temp.sign_in('a');
+select is(public.admin_activate_ai_configuration('max'), 'activated',
+  'control: the same draft is applied once OpenRouter''s key is in Vault');
+reset role;
+delete from private.provider_keys where provider = 'openrouter';
+select pg_temp.sign_in('a');
 select results_eq(
   $$select plan, label, provider, model, created_by_email from public.admin_ai_configurations()
     where plan in ('free', 'pro')$$,
@@ -295,6 +312,8 @@ select results_eq(
     ('admin@example.com', 'activate_ai_configuration', 'plan', 'free'),
     ('admin@example.com', 'save_ai_configuration', 'plan', 'pro'),
     ('admin@example.com', 'clear_ai_test', 'plan', 'pro'),
+    ('admin@example.com', 'save_ai_configuration', 'plan', 'max'),
+    ('admin@example.com', 'activate_ai_configuration', 'plan', 'max'),
     ('admin@example.com', 'set_provider_key', 'provider', 'openai'),
     ('admin@example.com', 'remove_provider_key', 'provider', 'openai')$$,
   'every write is recorded once, with its admin, and the refusals and no-ops not at all');

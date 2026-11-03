@@ -13,15 +13,11 @@ export type Keys = {
 };
 
 /**
- * The keys of Vault, each kept for `KEY_CACHE_MS` by [now]'s clock, OpenRouter's falling back to
- * [openRouterSecret] while Vault holds none (the transition, ADR 0162). A key appears in no log,
- * error or answer: a failure to read one names only the status.
+ * The keys of Vault, each kept for `KEY_CACHE_MS` by [now]'s clock. A key appears in no log, error
+ * or answer: a failure to read one names only the status.
  */
 export function vaultKeys(
-  deps: SupabaseDeps & {
-    readonly now: () => number;
-    readonly openRouterSecret: string | null;
-  },
+  deps: SupabaseDeps & { readonly now: () => number },
 ): Keys {
   const kept = new Map<Provider, { key: string | null; until: number }>();
   const read = async (provider: Provider): Promise<string | null> => {
@@ -53,8 +49,7 @@ export function vaultKeys(
       if (hit === undefined || hit.until <= deps.now()) {
         kept.set(provider, { key: stored, until: deps.now() + KEY_CACHE_MS });
       }
-      return stored ??
-        (provider === "openrouter" ? deps.openRouterSecret : null);
+      return stored;
     },
     forget: (provider) => {
       kept.delete(provider);

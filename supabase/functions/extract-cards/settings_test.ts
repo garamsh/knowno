@@ -98,7 +98,6 @@ async function post(
       serviceRoleKey: "service-role-key",
       fetch: send,
       now: () => 0,
-      openRouterSecret: null,
     }),
   });
   const printed: string[] = [];
