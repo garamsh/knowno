@@ -191,9 +191,9 @@ class _CurrentCardState extends State<CurrentCard>
                   final answer? => _Demo(
                     answer: answer,
                     progress: widget.demoProgress,
-                    child: _CardFace(card: widget.card),
+                    child: CardFace.of(widget.card),
                   ),
-                  null => _CardFace(card: widget.card),
+                  null => CardFace.of(widget.card),
                 },
               ),
             ),
@@ -387,16 +387,21 @@ class _DragFeedback extends StatelessWidget {
 
 /// The card itself: its front alone, centred, in the largest of the card's
 /// three sizes at which it fits, scrolling inside where it is taller than
-/// the card at the last (ADR 0123); a whole card's 칸 in place, unrevealed.
-class _CardFace extends StatelessWidget {
-  const _CardFace({required this.card});
+/// the card at the last (ADR 0123); a whole card's 칸, [cells], in place,
+/// unrevealed. The card editor's preview draws it too (ADR 0168).
+class CardFace extends StatelessWidget {
+  const CardFace({super.key, required this.cells, required this.front});
 
-  final Card card;
+  /// The face of [card] as study draws it.
+  CardFace.of(Card card, {Key? key})
+    : this(key: key, cells: drawnCellsOf(card), front: card.front);
+
+  final List<Cell> cells;
+  final List<Content> front;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final cells = drawnCellsOf(card);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface,
@@ -417,7 +422,7 @@ class _CardFace extends StatelessWidget {
                     height: height,
                   )
                 : ContentView(
-                    card.front,
+                    front,
                     style: AppType.front,
                     fit: StepFit(width: width, height: height),
                   ),

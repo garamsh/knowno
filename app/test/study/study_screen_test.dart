@@ -13,6 +13,7 @@ import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_button.dart';
 import 'package:knowno/design/app_section_label.dart';
+import 'package:knowno/study/src/card_preview_screen.dart';
 import 'package:knowno/study/src/completion_card.dart';
 import 'package:knowno/study/src/coach_hand_drawing.dart';
 import 'package:knowno/study/src/study_coach.dart';
@@ -3052,6 +3053,142 @@ void main() {
       await study.close();
     });
   });
+
+  group('the card editor\'s preview draws the card as study does (ADR 0168)', () {
+    const photo = ImageContent(
+      media: MediaId('photo'),
+      width: 400,
+      height: 300,
+      boxes: [
+        ImageBox(id: '1', x: 0.1, y: 0.1, w: 0.4, h: 0.3, answer: 'Paris'),
+      ],
+    );
+    final kinds = <String, (List<Content>, List<Content>)>{
+      // Long enough to step down from the front size.
+      '글': ([TextContent(_sentence * 3)], [const TextContent('사과')]),
+      '단어': (
+        [const TextContent('apple')],
+        [
+          const SensesContent([
+            CardSense(meaning: 'fruit'),
+            CardSense(meaning: 'a tree'),
+          ]),
+        ],
+      ),
+      '빈칸': (
+        [
+          const ClozeContent('___ is red.', ['Rose']),
+        ],
+        [const TextContent('A flower.')],
+      ),
+      '표': (
+        [const TextContent('Capitals')],
+        [
+          const TableContent(
+            columns: ['Capital', 'Country'],
+            rows: [
+              ['Paris', 'France'],
+              ['Rome', 'Italy'],
+            ],
+            blanks: [(row: 0, column: 0)],
+          ),
+        ],
+      ),
+      '사진': ([photo], [const TextContent('France')]),
+    };
+
+    for (final MapEntry(key: kind, value: sides) in kinds.entries) {
+      testWidgets(
+        'a $kind card: the preview\'s front is study\'s current card and its turned side study\'s previous card, in size, text, type size and place, on the theme\'s edge',
+        (tester) async {
+          final study = await _open(tester, [kind], sides: {kind: sides});
+          final cells = drawnCellsOf(
+            tester.widget<CurrentCard>(_currentCard).card,
+          );
+          final current = _drawing(tester, _currentCard);
+          await study.know();
+          final previous = _drawing(tester, _previousCard);
+          expect(
+            previous,
+            isNot(current),
+            reason: 'the setup: the two faces draw the card differently',
+          );
+
+          unawaited(
+            study.navigator.currentState!.push(
+              MaterialPageRoute<void>(
+                builder: (_) => CardPreviewScreen(cells: cells),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final preview = find.byType(CardPreviewScreen);
+          expect(_drawing(tester, preview), current, reason: 'the front');
+          await tester.tap(
+            find.descendant(of: preview, matching: find.byType(CardScroll)),
+          );
+          await tester.pumpAndSettle();
+          expect(_drawing(tester, preview), previous, reason: 'turned');
+          expect(
+            _line(tester, preview),
+            AppColors.of(tester.element(preview)).edge,
+            reason: 'no answer, so no grade',
+          );
+          await study.close();
+        },
+      );
+    }
+  });
+}
+
+/// What the face under [of] draws, measured from its top left: its size and
+/// outline, then each paragraph's text, type size and box and each
+/// picture's box, so two faces that draw a card alike measure alike.
+List<String> _drawing(WidgetTester tester, Finder of) {
+  final face = find.descendant(of: of, matching: find.byType(CardScroll)).first;
+  final origin = tester.getTopLeft(face);
+  final decoration =
+      tester
+              .widget<DecoratedBox>(
+                find
+                    .ancestor(of: face, matching: find.byType(DecoratedBox))
+                    .first,
+              )
+              .decoration
+          as BoxDecoration;
+  String box(RenderBox render) =>
+      (render.localToGlobal(Offset.zero) - origin & render.size).toString();
+  return [
+    'face ${tester.getSize(face)}, radius ${decoration.borderRadius}, '
+        'line ${decoration.border?.top.width}',
+    for (final element
+        in find
+            .descendant(of: face, matching: find.byType(RichText))
+            .evaluate())
+      if (element.renderObject case final RenderParagraph paragraph)
+        '${paragraph.text.toPlainText().replaceAll('\u2060', '')} '
+            '${paragraph.text.style?.fontSize} ${box(paragraph)}',
+    for (final element
+        in find
+            .descendant(of: face, matching: find.byType(MediaImage))
+            .evaluate())
+      'picture ${box(element.renderObject! as RenderBox)}',
+  ];
+}
+
+/// The colour of the line around the face under [of].
+Color? _line(WidgetTester tester, Finder of) {
+  final face = find.descendant(of: of, matching: find.byType(CardScroll)).first;
+  final decoration =
+      tester
+              .widget<DecoratedBox>(
+                find
+                    .ancestor(of: face, matching: find.byType(DecoratedBox))
+                    .first,
+              )
+              .decoration
+          as BoxDecoration;
+  return decoration.border?.top.color;
 }
 
 /// Due at 05:00 UTC tomorrow, an hour after the next study day starts.

@@ -58,6 +58,9 @@ final class _FileToPick implements SpreadsheetPick {
   Future<OpenedFile?> pick() async => file;
 }
 
+/// The preview `home/` hands the card editor: study's.
+Widget _preview(List<Cell> cells) => CardPreviewScreen(cells: cells);
+
 const _ada = UserId('00000000-0000-4000-8000-00000000000a');
 
 /// A phone's screen: 390 × 844 logical pixels at twice the density.
@@ -1067,7 +1070,7 @@ void main() {
             locale: const Locale('ko'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: CardEditorScreen(deck: deck),
+            home: CardEditorScreen(preview: _preview, deck: deck),
           ),
         ),
       );
@@ -1110,7 +1113,7 @@ void main() {
             locale: const Locale('ko'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: CardEditorScreen(deck: deck),
+            home: CardEditorScreen(preview: _preview, deck: deck),
           ),
         ),
       );
@@ -1229,7 +1232,7 @@ void main() {
               locale: const Locale('ko'),
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
-              home: CardEditorScreen(deck: deck),
+              home: CardEditorScreen(preview: _preview, deck: deck),
             ),
           ),
         );
@@ -1292,7 +1295,7 @@ void main() {
             locale: const Locale('ko'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: CardEditorScreen(deck: deck, card: card),
+            home: CardEditorScreen(preview: _preview, deck: deck, card: card),
           ),
         ),
       );
@@ -1330,7 +1333,7 @@ void main() {
             locale: const Locale('ko'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: CardEditorScreen(deck: deck),
+            home: CardEditorScreen(preview: _preview, deck: deck),
           ),
         ),
       );
@@ -1442,7 +1445,7 @@ void main() {
               locale: const Locale('ko'),
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
-              home: CardEditorScreen(deck: deck, card: card),
+              home: CardEditorScreen(preview: _preview, deck: deck, card: card),
             ),
           ),
         );
@@ -1494,7 +1497,7 @@ void main() {
             locale: const Locale('ko'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: CardEditorScreen(deck: deck),
+            home: CardEditorScreen(preview: _preview, deck: deck),
           ),
         ),
       );
@@ -1575,7 +1578,7 @@ void main() {
             locale: const Locale('ko'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: CardEditorScreen(deck: deck),
+            home: CardEditorScreen(preview: _preview, deck: deck),
           ),
         ),
       );

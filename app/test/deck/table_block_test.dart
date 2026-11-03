@@ -2,7 +2,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/deck/deck.dart';
-import 'package:knowno/deck/src/card_preview_screen.dart';
+import 'package:knowno/study/study.dart' show CardPreviewScreen;
 import 'package:knowno/deck/src/table_block.dart';
 import 'package:knowno/design/app_chip.dart';
 import 'package:knowno/design/theme.dart';
@@ -40,7 +40,7 @@ void main() {
   /// A new card's editor of a Text for the table's name, then a Table.
   Future<DeckScreens> openTable(WidgetTester tester, {DeckScreens? on}) async {
     final screens = on ?? await DeckScreens.open(tester);
-    await screens.push((deck) => CardEditorScreen(deck: deck));
+    await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck));
     await addBlock(screens, 'Table');
     return screens;
   }
@@ -125,7 +125,7 @@ void main() {
       expect(card.front, [const TextContent('Capitals'), _capitals]);
       expect(card.back, isEmpty, reason: 'a back is the blocks listed on it');
 
-      await screens.push((deck) => CardEditorScreen(deck: deck, card: card));
+      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
       expect(tester.widget<TextField>(_cell(3)).controller!.text, 'Paris');
       await save(screens);
       final saved = await _stored(screens);
@@ -346,7 +346,7 @@ void main() {
         ),
       );
       final card = await _stored(screens);
-      await screens.push((deck) => CardEditorScreen(deck: deck, card: card));
+      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
       expect(tester.widget<TextField>(_name).controller!.text, 'Capitals');
       expect(
         find.descendant(of: blockList, matching: find.byType(TableFields)),
@@ -406,7 +406,7 @@ void main() {
         );
         final card = await stored();
         expect(card.back, back, reason: 'the setup stores the back asked');
-        await screens.push((deck) => CardEditorScreen(deck: deck, card: card));
+        await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
         await save(screens);
         final saved = await stored();
         expect(saved.front, front);
@@ -422,7 +422,7 @@ void main() {
       final card = (await screens.cards()).singleWhere(
         (card) => card.front.first == oldEditor.front.first,
       );
-      await screens.push((deck) => CardEditorScreen(deck: deck, card: card));
+      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
       await enter(tester, _name, 'New capitals');
       await save(screens);
       final renamed = (await screens.cards()).singleWhere(
@@ -541,7 +541,7 @@ void main() {
       );
 
       // Reopened, the span is where the card has it; selected again, it goes.
-      await screens.push((deck) => CardEditorScreen(deck: deck, card: card));
+      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
       expect(spansDrawnIn(tester, 2), ['France']);
       await select(screens, 2);
       controllerOf(tester, 2).selection = const TextSelection(

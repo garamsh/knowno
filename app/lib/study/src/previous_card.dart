@@ -152,7 +152,7 @@ class _PreviousCardViewState extends State<PreviousCardView>
               ],
             );
           },
-          child: _GradedCard(
+          child: GradedCard(
             cells: drawnCellsOf(card.card),
             front: card.card.front,
             back: card.card.back,
@@ -220,7 +220,7 @@ class EarlierCardView extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned.fill(
-              child: _GradedCard(
+              child: GradedCard(
                 cells: drawnCellsOf(card),
                 front: card.front,
                 back: card.back,
@@ -274,7 +274,7 @@ class PreviousCardDemo extends StatelessWidget {
               offset: Offset(offset, 0),
               child: Transform.rotate(
                 angle: offset * StudyStyle.tiltPerPixel,
-                child: _GradedCard(
+                child: GradedCard(
                   cells: cellsToDraw(front, back),
                   front: front,
                   back: back,
@@ -370,9 +370,11 @@ class _Reveal extends StatelessWidget {
 /// place, revealed, in one column centred both ways on the surface, scrolling
 /// inside the card from its top where it is taller. The grade shows by the
 /// line around it alone, in the grade's colour; the card's semantics label
-/// names it (ADR 0151).
-class _GradedCard extends StatelessWidget {
-  const _GradedCard({
+/// names it (ADR 0151). With no [answer], as the card editor's preview draws
+/// it, the line is the theme's edge (ADR 0168).
+class GradedCard extends StatelessWidget {
+  const GradedCard({
+    super.key,
     required this.cells,
     required this.front,
     required this.back,
@@ -382,7 +384,7 @@ class _GradedCard extends StatelessWidget {
   final List<Cell> cells;
   final List<Content> front;
   final List<Content> back;
-  final Answer answer;
+  final Answer? answer;
 
   @override
   Widget build(BuildContext context) {
@@ -390,6 +392,7 @@ class _GradedCard extends StatelessWidget {
     final line = switch (answer) {
       Answer.know => colors.know,
       Answer.dontKnow => colors.dontKnowText,
+      null => colors.edge,
     };
     final front = StudyStyle.previousFront.copyWith(color: colors.ink);
     return SizedBox.expand(

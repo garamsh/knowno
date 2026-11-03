@@ -42,14 +42,14 @@ void main() {
   /// A new card's editor whose one 칸 is a Word.
   Future<DeckScreens> openNew(WidgetTester tester) async {
     final screens = await DeckScreens.open(tester);
-    await screens.push((deck) => CardEditorScreen(deck: deck));
+    await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck));
     await replaceFirstBlock(screens, 'Word');
     return screens;
   }
 
   /// [card]'s editor.
   Future<void> openCard(DeckScreens screens, Card card) =>
-      screens.push((deck) => CardEditorScreen(deck: deck, card: card));
+      screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
 
   testWidgets(
     'a card of a word and a back of senses opens as a Word, each with its label and meaning',
@@ -97,7 +97,7 @@ void main() {
       ]);
 
       // Control: the same card with a Text block on its back.
-      await screens.push((deck) => CardEditorScreen(deck: deck));
+      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck));
       await typeBlock(tester, 'dog');
       await typeBlock(tester, '개', 1);
       await tapVisible(screens, find.text('Save'));
@@ -485,7 +485,7 @@ void main() {
       ]);
 
       // A new block starts as one meaning, with no menu to move or delete it.
-      await screens.push((deck) => CardEditorScreen(deck: deck));
+      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck));
       await replaceFirstBlock(screens, 'Word');
       expect(find.byTooltip('Meaning 1 menu'), findsNothing);
       await tapVisible(screens, find.bySemanticsLabel('Add meaning'));
@@ -504,7 +504,7 @@ void main() {
     'a duplicate front opens the duplicate sheet, a back of senses too',
     (tester) async {
       final screens = await DeckScreens.open(tester, cards: {'apple': '사과'});
-      await screens.push((deck) => CardEditorScreen(deck: deck));
+      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck));
       await replaceFirstBlock(screens, 'Word');
       await typeInto(tester, _term(), ' Apple ');
       await typeInto(tester, _labelField(), '명');
@@ -521,7 +521,7 @@ void main() {
       'in the ${mode.name} theme a Word with its senses and presets meets the tap target, label and contrast guidelines',
       (tester) async {
         final screens = await DeckScreens.open(tester, themeMode: mode);
-        await screens.push((deck) => CardEditorScreen(deck: deck));
+        await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck));
         await replaceFirstBlock(screens, 'Word');
         await tapVisible(screens, find.bySemanticsLabel('Add meaning'));
         await tester.tap(_labelField());

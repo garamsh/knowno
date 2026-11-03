@@ -18,6 +18,7 @@ import '../contrast.dart';
 import '../home/deck_screens.dart';
 import '../media/fakes.dart';
 import '../settle_until.dart';
+import 'editor.dart';
 
 const _sound = AudioContent(
   media: MediaId('sound'),
@@ -187,7 +188,7 @@ void main() {
           audioPlaybackProvider.overrideWithValue(playback),
         ],
       );
-      await screens.push((deck) => CardEditorScreen(deck: deck));
+      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck));
       for (final (index, text) in ['front', 'back'].indexed) {
         await tester.enterText(find.byType(TextField).at(index), text);
       }

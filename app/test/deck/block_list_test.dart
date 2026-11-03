@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_chip.dart';
-import 'package:knowno/deck/src/card_preview_screen.dart';
+import 'package:knowno/study/study.dart' show CardPreviewScreen;
 import 'package:knowno/deck/src/editor_group.dart';
 
 import '../home/deck_screens.dart';
@@ -20,7 +20,7 @@ void main() {
 
   Future<DeckScreens> openNew(WidgetTester tester) async {
     final screens = await DeckScreens.open(tester);
-    await screens.push((deck) => CardEditorScreen(deck: deck));
+    await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck));
     return screens;
   }
 
@@ -138,7 +138,7 @@ void main() {
         TextCell(front: 'a fruit'),
       ]);
 
-      await screens.push((deck) => CardEditorScreen(deck: deck, card: card));
+      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
       expect(
         [
           for (final field in tester.widgetList<TextField>(
@@ -305,7 +305,7 @@ void main() {
       ], reason: 'the meaning shows first');
       expect(card.back, const [TextContent('apple')]);
 
-      await screens.push((deck) => CardEditorScreen(deck: deck, card: card));
+      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
       expect(
         tester
             .widget<AppChip>(find.widgetWithText(AppChip, 'Meaning'))

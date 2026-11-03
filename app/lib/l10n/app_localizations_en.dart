@@ -384,9 +384,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previewCard => 'Preview';
 
   @override
-  String get previewTapToBack => 'Tap the card to see its back';
-
-  @override
   String get previewTapToFront => 'Tap again to go back to the front';
 
   @override

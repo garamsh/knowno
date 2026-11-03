@@ -372,6 +372,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
           updatedAt: widget.deck.updatedAt,
         ),
         card: card,
+        preview: (cells) => CardPreviewScreen(cells: cells),
       ),
     ),
   );
