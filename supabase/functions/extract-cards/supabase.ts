@@ -9,8 +9,13 @@ import type { CursorToken } from "./continuation.ts";
 import { type ModelId, modelId } from "./model.ts";
 import { parseProvider, type Provider } from "./providers.ts";
 
-/** A plan, as `private.plan_versions` names it. */
-export type Plan = "free" | "pro" | "max";
+/** The plans, as `private.plan_versions` names them; `special` has no photo limit (ADR 0177). */
+export const PLANS = ["free", "pro", "max", "special"] as const;
+export type Plan = (typeof PLANS)[number];
+
+export function parsePlan(value: unknown): Plan | null {
+  return PLANS.find((known) => known === value) ?? null;
+}
 
 /** The period a plan's photo limit counts over: a calendar month or a day in Asia/Seoul. */
 export type Period = "month" | "day";
@@ -110,30 +115,40 @@ export async function beginExtraction(
     throw new SupabaseError("begin_extraction answered a row that is not one");
   }
   const {
-    plan,
+    plan: planName,
     provider: providerName,
     model,
     available,
-    photo_limit: photoLimit,
+    photo_limit: limit,
     period,
     allowed,
     prompt_version_id: versionId,
     prompt,
     usage_id: usageId,
   } = row as Record<string, unknown>;
+  const plan = parsePlan(planName);
   const provider = parseProvider(providerName);
+  // Null for a plan with no limit, whose photos are never refused.
+  const photoLimit = typeof limit === "number" ? limit : null;
   if (
-    (plan !== "free" && plan !== "pro" && plan !== "max") ||
+    plan === null ||
     (period !== "month" && period !== "day") || provider === null ||
     typeof available !== "boolean" ||
-    typeof allowed !== "boolean" || typeof photoLimit !== "number" ||
+    typeof allowed !== "boolean" || (limit !== null && photoLimit === null) ||
     typeof versionId !== "number" || !Number.isSafeInteger(versionId) ||
     typeof prompt !== "string"
   ) {
     throw new SupabaseError("begin_extraction answered a row it should not");
   }
   if (!available) return { kind: "unavailable", plan };
-  if (!allowed) return { kind: "rate_limited", plan, photoLimit, period };
+  if (!allowed) {
+    if (photoLimit === null) {
+      throw new SupabaseError(
+        "begin_extraction refused a photo under no limit",
+      );
+    }
+    return { kind: "rate_limited", plan, photoLimit, period };
+  }
   if (typeof usageId !== "number" || !Number.isSafeInteger(usageId)) {
     throw new SupabaseError(
       "begin_extraction allowed a photo it did not record",
@@ -258,7 +273,7 @@ export async function resumeExtraction(
   }
   const {
     usage_id: usageId,
-    plan,
+    plan: planName,
     provider: providerName,
     model,
     prompt_version_id: versionId,
@@ -266,9 +281,10 @@ export async function resumeExtraction(
     cards_read: cardsRead,
     continuations,
   } = row as Record<string, unknown>;
+  const plan = parsePlan(planName);
   const provider = parseProvider(providerName);
   if (
-    (plan !== "free" && plan !== "pro" && plan !== "max") ||
+    plan === null ||
     provider === null ||
     !isCount(usageId) || !isCount(versionId) || typeof prompt !== "string" ||
     !isCount(cardsRead) || !isCount(continuations)

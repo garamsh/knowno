@@ -247,7 +247,7 @@ select throws_ok($$select public.admin_create_plan_version('pro', 'daily', 10000
   'nor an amount over 100,000');
 select throws_ok($$select public.admin_create_plan_version('pro', 'weekly', 30)$$, '23514', null,
   'nor a quota of another kind');
-select throws_ok($$select public.admin_create_plan_version('special', 'daily', 30)$$, '23514', null,
+select throws_ok($$select public.admin_create_plan_version('gold', 'daily', 30)$$, '23514', null,
   'nor a plan that does not exist');
 select results_eq($$select plan, amount, current from public.admin_plan_versions() where plan = 'free'$$,
   $$values ('free', 60, false), ('free', 50, false), ('free', 2, true), ('free', 5, false)$$,
@@ -266,10 +266,10 @@ select results_eq(
   $$select public.admin_grant_plan('00000000-0000-4000-8000-00000000000b', 'pro', now() + interval '1 day'),
            public.admin_grant_plan('00000000-0000-4000-8000-00000000000b', 'max', now() - interval '1 day'),
            public.admin_grant_plan('00000000-0000-4000-8000-00000000000b', 'free'),
-           public.admin_grant_plan('00000000-0000-4000-8000-00000000000b', 'special'),
+           public.admin_grant_plan('00000000-0000-4000-8000-00000000000b', 'gold'),
            public.admin_grant_plan('00000000-0000-4000-8000-00000000ffff', 'pro')$$,
   $$values ('bad_plan', 'bad_plan', 'bad_plan', 'bad_plan', 'no_user')$$,
-  'Pro with an end, Max ending in the past, Free, Special and an unknown user are refused');
+  'Pro with an end, Max ending in the past, Free, a plan that does not exist and an unknown user are refused');
 select results_eq(
   $$select plan, amount, used, granted_plan from public.admin_user_plan('00000000-0000-4000-8000-00000000000f')$$,
   $$values ('free', 5, 1, 'max')$$,

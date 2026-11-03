@@ -313,4 +313,21 @@ Deno.test("a plan's provider and model are saved as its draft only after a call 
   });
   assert.equal(malformed.status, 400, "a model id of another provider's form");
   assert.equal(malformed.modelCalls.length, 0);
+
+  const special = await post("configuration", { ...body, plan: "special" }, {
+    vault: { anthropic: VAULT_KEY },
+    provider: anthropicReply,
+  });
+  assert.equal(special.status, 200, "special's draft is saved as any plan's");
+  assert.deepEqual(special.saves, [{
+    admin_id: ADMIN_ID,
+    ...body,
+    plan: "special",
+  }]);
+  const unknown = await post("configuration", { ...body, plan: "gold" }, {
+    vault: { anthropic: VAULT_KEY },
+    provider: anthropicReply,
+  });
+  assert.equal(unknown.status, 400, "a plan that does not exist");
+  assert.equal(unknown.modelCalls.length + unknown.saves.length, 0);
 });

@@ -8,7 +8,8 @@ insert into auth.users (id, email, created_at, banned_until) values
   ('5eed0000-0000-4000-8000-0000000000a1', 'seed-learner@example.com', now() - interval '60 days', null),
   ('5eed0000-0000-4000-8000-0000000000a2', 'seed-sharer@example.com', now() - interval '45 days', null),
   ('5eed0000-0000-4000-8000-0000000000a3', 'seed-admin@example.com', now() - interval '90 days', null),
-  ('5eed0000-0000-4000-8000-0000000000a4', 'seed-suspended@example.com', now() - interval '10 days', 'infinity');
+  ('5eed0000-0000-4000-8000-0000000000a4', 'seed-suspended@example.com', now() - interval '10 days', 'infinity'),
+  ('5eed0000-0000-4000-8000-0000000000a5', 'seed-special@example.com', now() - interval '30 days', null);
 
 insert into public.profiles (user_id, display_name) values
   ('5eed0000-0000-4000-8000-0000000000a1', 'Seed Learner'),
@@ -120,9 +121,18 @@ from private.plan_versions where plan = 'pro';
 insert into private.user_plans (user_id, plan, ends_at, granted_by, version_id)
 select '5eed0000-0000-4000-8000-0000000000a1', 'max', now() - interval '3 days', '5eed0000-0000-4000-8000-0000000000a3', max(id)
 from private.plan_versions where plan = 'max';
--- A 무제한 grant beside the Pro grant, ending in a week.
-insert into private.unlimited_grants (user_id, ends_at, granted_by) values
-  ('5eed0000-0000-4000-8000-0000000000a2', now() + interval '7 days', '5eed0000-0000-4000-8000-0000000000a3');
+-- A 스페셜 grant ending in a week, moved from a 무제한 grant over a Pro grant, with both backed up.
+insert into private.user_plans (user_id, plan, ends_at, granted_by, granted_at, version_id)
+select '5eed0000-0000-4000-8000-0000000000a5', 'special', now() + interval '7 days',
+  '5eed0000-0000-4000-8000-0000000000a3', now() - interval '5 days', max(id)
+from private.plan_versions where plan = 'special';
+insert into private.unlimited_grants_before_special (user_id, ends_at, granted_by, granted_at) values
+  ('5eed0000-0000-4000-8000-0000000000a5', now() + interval '7 days', '5eed0000-0000-4000-8000-0000000000a3',
+   now() - interval '5 days');
+insert into private.user_plans_before_special (user_id, plan, ends_at, granted_by, granted_at, version_id)
+select '5eed0000-0000-4000-8000-0000000000a5', 'pro', null, '5eed0000-0000-4000-8000-0000000000a3',
+  now() - interval '15 days', max(id)
+from private.plan_versions where plan = 'pro';
 insert into private.user_plans_before_versions (user_id, plan, ends_at, granted_by, granted_at) values
   ('5eed0000-0000-4000-8000-0000000000a2', 'pro', null, '5eed0000-0000-4000-8000-0000000000a3', now() - interval '20 days');
 

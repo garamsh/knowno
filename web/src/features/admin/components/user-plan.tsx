@@ -29,7 +29,6 @@ export function UserPlan({
 }) {
   const grant = plan.grant;
   const entitlement = plan.entitlement;
-  const ended = grant !== null && entitlement?.plan !== grant.plan;
   const facts: (readonly [string, string])[] = [
     [
       "지금",
@@ -56,7 +55,7 @@ export function UserPlan({
             ? []
             : [
                 [
-                  ended ? "끝난 날" : "마지막 날",
+                  grant.ended ? "끝난 날" : "마지막 날",
                   formatDate(studyDayStart(grant.endsAt - 1, timeZone), timeZone),
                 ] as const,
               ]),

@@ -44,7 +44,8 @@ type FakePlanVersion = {
   id: number;
   plan: string;
   quota: string;
-  amount: number;
+  /** Null for 스페셜's quota, none. */
+  amount: number | null;
   starts_at: string;
   applies_to_all: boolean;
   created_by: string | null;
@@ -55,7 +56,7 @@ function version(
   id: number,
   plan: string,
   quota: string,
-  amount: number,
+  amount: number | null,
   startsAt: string,
 ): FakePlanVersion {
   return {
@@ -118,6 +119,7 @@ export class FakeAdmin {
     version(4, "free", "monthly", 10, "2026-10-26T00:00:00Z"),
     { ...version(5, "pro", "daily", 100, "2026-10-26T00:00:00Z"), applies_to_all: true },
     { ...version(6, "max", "unlimited", 1000, "2026-10-26T00:00:00Z"), applies_to_all: true },
+    version(7, "special", "none", null, "2026-11-03T00:00:00Z"),
   ];
   /**
    * The saved AI configurations (ADR 0162), each plan's active one first as the migration seeds
@@ -130,7 +132,7 @@ export class FakeAdmin {
     provider: string;
     model: string;
     created_by: string | null;
-  }[] = ["free", "pro", "max"].map((plan, index) => ({
+  }[] = ["free", "pro", "max", "special"].map((plan, index) => ({
     id: index + 1,
     plan,
     label: "active",
@@ -161,8 +163,6 @@ export class FakeAdmin {
     string,
     { plan: string; endsAt: string | null; grantedBy: string | null }
   >();
-  /** Each user's 무제한 grant, ended or not. */
-  readonly unlimitedGrants = new Map<string, { endsAt: string | null; grantedBy: string | null }>();
   /** The functions called, as `<name> <args as JSON>`. */
   readonly calls: string[] = [];
 
@@ -553,7 +553,7 @@ export class FakeAdmin {
         return "removed";
       }
       case "admin_plan_versions": {
-        const rank = (plan: string) => ["free", "pro", "max"].indexOf(plan);
+        const rank = (plan: string) => ["free", "pro", "max", "special"].indexOf(plan);
         return [...this.planVersions]
           .sort(
             (a, b) =>
@@ -585,7 +585,7 @@ export class FakeAdmin {
             (entry) =>
               entry.plan === plan &&
               (quotas.indexOf(entry.quota) > quotas.indexOf(String(args.quota)) ||
-                entry.amount > Number(args.amount)),
+                (entry.amount !== null && entry.amount > Number(args.amount))),
           )
         ) {
           return "not_in_favour";
@@ -617,8 +617,10 @@ export class FakeAdmin {
         const user = this.users.find((candidate) => candidate.id === args.user_id);
         if (!user) return [];
         const grant = this.userPlans.get(user.id);
-        const active =
-          grant && (grant.endsAt === null || Date.parse(grant.endsAt) > Date.now())
+        // An admin is on 스페셜 whatever it was granted (ADR 0177).
+        const active = this.admins.has(user.id)
+          ? "special"
+          : grant && (grant.endsAt === null || Date.parse(grant.endsAt) > Date.now())
             ? grant.plan
             : "free";
         const terms = this.currentVersion(active);
@@ -646,7 +648,7 @@ export class FakeAdmin {
         if (!this.users.some((user) => user.id === id)) return "no_user";
         const endsAt = typeof args.ends_at === "string" ? args.ends_at : null;
         if (
-          (args.plan !== "pro" && args.plan !== "max") ||
+          (args.plan !== "pro" && args.plan !== "max" && args.plan !== "special") ||
           (args.plan === "pro" && endsAt !== null) ||
           (endsAt !== null && Date.parse(endsAt) <= Date.now())
         ) {
@@ -668,43 +670,6 @@ export class FakeAdmin {
         this.record(admin, "revoke_plan", "user", id, {
           email: this.users.find((user) => user.id === id)?.email ?? "",
           plan: grant.plan,
-        });
-        return true;
-      }
-      case "admin_user_unlimited": {
-        const user = this.users.find((candidate) => candidate.id === args.user_id);
-        if (!user) return [];
-        const grant = this.unlimitedGrants.get(user.id);
-        const live = grant && (grant.endsAt === null || Date.parse(grant.endsAt) > Date.now());
-        return [
-          {
-            unlimited: this.admins.has(user.id) || live === true,
-            ends_at: grant?.endsAt ?? null,
-            granted_at: grant ? "2026-10-19T03:00:00Z" : null,
-            granted_by_email: this.users.find((u) => u.id === grant?.grantedBy)?.email ?? null,
-          },
-        ];
-      }
-      case "admin_grant_unlimited": {
-        const id = String(args.user_id);
-        if (!this.users.some((user) => user.id === id)) return "no_user";
-        const endsAt = typeof args.ends_at === "string" ? args.ends_at : null;
-        if (endsAt !== null && Date.parse(endsAt) <= Date.now()) return "bad_end";
-        this.unlimitedGrants.set(id, { endsAt, grantedBy: admin });
-        this.record(admin, "grant_unlimited", "user", id, {
-          email: this.users.find((user) => user.id === id)?.email ?? "",
-          ends_at: endsAt,
-        });
-        return "granted";
-      }
-      case "admin_revoke_unlimited": {
-        const id = String(args.user_id);
-        const grant = this.unlimitedGrants.get(id);
-        if (!grant) return false;
-        this.unlimitedGrants.delete(id);
-        this.record(admin, "revoke_unlimited", "user", id, {
-          email: this.users.find((user) => user.id === id)?.email ?? "",
-          ends_at: grant.endsAt,
         });
         return true;
       }

@@ -227,7 +227,7 @@ describe("a plan's provider and model: saved after a check, tried by admins, app
       ),
     ).toBeInTheDocument();
     const tried = sent.filter((request) => request.route === "extract").map((r) => r.body);
-    expect(tried.map((body) => body.configuration_id).sort()).toEqual([2, 4]);
+    expect(tried.map((body) => body.configuration_id).sort()).toEqual([2, 5]);
     expect(tried.every((body) => body.image === "AQID")).toBe(true);
 
     expect(await activateAiConfiguration("pro")).toEqual({
@@ -260,6 +260,41 @@ describe("a plan's provider and model: saved after a check, tried by admins, app
       changed: false,
       message: "테스트 중인 설정이 없어요.",
     });
+  });
+
+  it("lists 스페셜 like any plan, and saves, applies and ends its draft, refusing a plan that does not exist", async () => {
+    await render(AiSettingsContent, {});
+    const special = within(screen.getByRole("region", { name: "스페셜" }));
+    expect(special.getByText("OpenRouter · anthropic/claude-haiku-5.5")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "스페셜" })).not.toHaveTextContent("숨김");
+
+    admin.providerKeys.set("anthropic", { lastFour: "3333", setBy: testUser.id });
+    expect(
+      await saveAiConfiguration(
+        { message: null, reauth: false },
+        form({ plan: "special", provider: "anthropic", model: "claude-haiku-5-5" }),
+      ),
+    ).toEqual({ message: "확인하고 테스트로 저장했어요. 관리자만 이 설정을 써요.", reauth: false });
+    expect(await activateAiConfiguration("special")).toEqual({
+      changed: true,
+      message: "모든 사용자에게 적용했어요.",
+    });
+    expect(await clearAiTest("special")).toEqual({
+      changed: false,
+      message: "테스트 중인 설정이 없어요.",
+    });
+
+    const sentBefore = sent.length;
+    expect(
+      (
+        await saveAiConfiguration(
+          { message: null, reauth: false },
+          form({ plan: "gold", provider: "anthropic", model: "claude-haiku-5-5" }),
+        )
+      ).message,
+    ).toBe("하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    expect(await activateAiConfiguration("gold")).toMatchObject({ changed: false });
+    expect(sent).toHaveLength(sentBefore);
   });
 
   it("refuses a model id of another provider's form before the function is called", async () => {

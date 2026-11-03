@@ -84,10 +84,11 @@ select results_eq(
     where l.label = 'active' order by array_position(array['free', 'pro', 'max'], l.plan)$$,
   $$values ('free', 'openrouter', true), ('pro', 'openrouter', true), ('max', 'openrouter', true)$$,
   'each plan is served on OpenRouter by its current version''s model, as before the change');
-select is(
-  (select count(*) from private.plan_versions_models_before_ai),
-  (select count(*) from private.plan_versions),
-  'every version''s model is kept in the backup');
+select results_eq(
+  $$select v.plan from private.plan_versions as v
+    where not exists (select from private.plan_versions_models_before_ai as m where m.version_id = v.id)$$,
+  $$values ('special')$$,
+  'every version''s model is kept in the backup, but 스페셜''s, which came after the change');
 select is((select count(*) from private.ai_configuration_labels where label = 'test'), 0::bigint,
   'no plan has a draft');
 select hasnt_column('private', 'plan_versions', 'model', 'the versions hold no model');
@@ -201,7 +202,8 @@ select results_eq(
   'a short key, a key with a space and an unknown provider are refused');
 select is(pg_temp.as_service($q$select public.provider_key('openai')$q$), null, 'a provider without a key reads none');
 
--- A draft, served to admins alone, tried by id and applied to everyone.
+-- A draft, served to admins alone, tried by id and applied to everyone. Every admin is on 스페셜
+-- (ADR 0177), so the admin is served 스페셜's draft.
 
 
 select throws_ok(
@@ -211,13 +213,13 @@ select throws_ok(
   $$select pg_temp.as_service($q$select public.save_ai_configuration('00000000-0000-4000-8000-00000000000a', 'free', 'anthropic', 'vendor/claude')$q$)$$,
   '23514', null, 'nor with a model id of another provider''s form');
 create temp table saved_openai as
-  select pg_temp.as_service($q$select public.save_ai_configuration('00000000-0000-4000-8000-00000000000a', 'free', 'openai', 'gpt-model')$q$)::bigint as id;
+  select pg_temp.as_service($q$select public.save_ai_configuration('00000000-0000-4000-8000-00000000000a', 'special', 'openai', 'gpt-model')$q$)::bigint as id;
 select results_eq(
   $$select l.configuration_id, c.provider, c.model from private.ai_configuration_labels as l
     join private.ai_configurations as c on c.id = l.configuration_id
-    where l.plan = 'free' and l.label = 'test'$$,
+    where l.plan = 'special' and l.label = 'test'$$,
   $$select id, 'openai', 'gpt-model' from saved_openai$$,
-  'an admin saves a draft for Free, on OpenAI, which has no key');
+  'an admin saves a draft for 스페셜, on OpenAI, which has no key');
 select results_eq($$select provider, available, allowed, usage_id is null from pg_temp.start('a')$$,
   $$values ('openai', false, false, true)$$,
   'the admin is served the draft, unavailable without a key, and nothing is counted');
@@ -238,11 +240,11 @@ select results_eq($$select provider, available, allowed from pg_temp.start_offer
 delete from private.provider_keys where provider = 'openrouter';
 reset role;
 create temp table saved_anthropic as
-  select pg_temp.as_service($q$select public.save_ai_configuration('00000000-0000-4000-8000-00000000000a', 'free', 'anthropic', 'claude-model')$q$)::bigint as id;
+  select pg_temp.as_service($q$select public.save_ai_configuration('00000000-0000-4000-8000-00000000000a', 'special', 'anthropic', 'claude-model')$q$)::bigint as id;
 select results_eq(
   $$select l.configuration_id, c.provider, c.model from private.ai_configuration_labels as l
     join private.ai_configurations as c on c.id = l.configuration_id
-    where l.plan = 'free' and l.label = 'test'$$,
+    where l.plan = 'special' and l.label = 'test'$$,
   $$select id, 'anthropic', 'claude-model' from saved_anthropic$$,
   'a later draft replaces the earlier one');
 select results_eq($$select provider, model, available, allowed, usage_id is not null from pg_temp.start('a')$$,
@@ -254,17 +256,19 @@ select results_eq(
     where u.user_id = '00000000-0000-4000-8000-00000000000a'$$,
   $$values ('anthropic', 'claude-model')$$, 'and recorded with the provider and model that served it');
 select results_eq(
-  $$select provider from pg_temp.start('a', pg_temp.config('free', 'active'))$$,
+  $$select provider from pg_temp.start('a', pg_temp.config('special', 'active'))$$,
   $$values ('openrouter')$$, 'the admin''s trial names the active configuration to compare with');
-select is((select count(*) from pg_temp.start('b', pg_temp.config('free', 'test'))), 0::bigint,
+select is((select count(*) from pg_temp.start('b', pg_temp.config('special', 'test'))), 0::bigint,
   'a user who is not an admin naming a configuration is served nothing');
 select is((select count(*) from pg_temp.start('a', 999999)), 0::bigint,
   'nor is an admin naming a configuration no label holds');
 
 select pg_temp.sign_in('a');
-select is(public.admin_activate_ai_configuration('free'), 'activated', '모두에게 적용');
-select is(public.admin_activate_ai_configuration('free'), 'no_test', 'with no draft left, nothing more');
+select is(public.admin_activate_ai_configuration('special'), 'activated', '모두에게 적용');
+select is(public.admin_activate_ai_configuration('special'), 'no_test', 'with no draft left, nothing more');
 reset role;
+insert into private.user_plans (user_id, plan, version_id)
+  select '00000000-0000-4000-8000-00000000000b', 'special', id from private.plan_versions where plan = 'special';
 select results_eq($$select provider, model from pg_temp.start('b')$$,
   $$values ('anthropic', 'claude-model')$$, 'every user of the plan is now served it');
 select ok(
@@ -292,9 +296,9 @@ delete from private.provider_keys where provider = 'openrouter';
 select pg_temp.sign_in('a');
 select results_eq(
   $$select plan, label, provider, model, created_by_email from public.admin_ai_configurations()
-    where plan in ('free', 'pro')$$,
-  $$values ('free', 'active', 'anthropic', 'claude-model', 'admin@example.com'),
-           ('pro', 'active', 'openrouter', 'anthropic/claude-haiku-5.5', null::text)$$,
+    where plan in ('special', 'pro')$$,
+  $$values ('pro', 'active', 'openrouter', 'anthropic/claude-haiku-5.5', null::text),
+           ('special', 'active', 'anthropic', 'claude-model', 'admin@example.com')$$,
   'each plan''s labelled configurations');
 
 -- A key in use is kept; removing one needs a recent sign-in.
@@ -329,9 +333,9 @@ select results_eq(
   $$values
     ('admin@example.com', 'set_provider_key', 'provider', 'anthropic'),
     ('admin@example.com', 'set_provider_key', 'provider', 'anthropic'),
-    ('admin@example.com', 'save_ai_configuration', 'plan', 'free'),
-    ('admin@example.com', 'save_ai_configuration', 'plan', 'free'),
-    ('admin@example.com', 'activate_ai_configuration', 'plan', 'free'),
+    ('admin@example.com', 'save_ai_configuration', 'plan', 'special'),
+    ('admin@example.com', 'save_ai_configuration', 'plan', 'special'),
+    ('admin@example.com', 'activate_ai_configuration', 'plan', 'special'),
     ('admin@example.com', 'save_ai_configuration', 'plan', 'pro'),
     ('admin@example.com', 'clear_ai_test', 'plan', 'pro'),
     ('admin@example.com', 'save_ai_configuration', 'plan', 'max'),
