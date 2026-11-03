@@ -116,7 +116,6 @@ function fakeFetch(fake: Fake): typeof fetch {
       return Promise.resolve(Response.json(fake.suspended));
     }
     if (url === `${SUPABASE_URL}/rest/v1/rpc/begin_extraction`) {
-      const asked = JSON.parse(String(init?.body));
       const provider = fake.plan?.provider ?? "openrouter";
       // As the server decides it: a key in Vault.
       const available = provider in fake.vault;
