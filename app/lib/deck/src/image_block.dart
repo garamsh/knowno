@@ -9,7 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../design/app_button.dart';
 import '../../design/app_text_field.dart';
 import '../../design/theme.dart';
-import '../../design/undo_snack_bar.dart';
+import 'undo_snack_bar.dart';
 import '../../l10n/app_localizations.dart';
 import '../../media/media.dart';
 import 'content.dart';
@@ -336,12 +336,17 @@ class ImageBlockFields extends ConsumerStatefulWidget {
     required this.draft,
     required this.showErrors,
     required this.onChanged,
+    required this.edits,
     required this.onPicked,
   });
 
   final ImageDraft draft;
   final bool showErrors;
   final VoidCallback onChanged;
+
+  /// The edits in this 칸's group, which end an undo offered for what this
+  /// widget took out.
+  final Listenable edits;
 
   /// Called with each photo stored for the block, so the editor can let go
   /// of one it does not save.
@@ -415,6 +420,7 @@ class _ImageBlockFieldsState extends ConsumerState<ImageBlockFields> {
         if (mounted) _change(removal.undo);
       },
       onGone: removal.forget,
+      endOn: widget.edits,
     );
   }
 

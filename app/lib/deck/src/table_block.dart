@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../design/app_chip.dart';
-import '../../design/undo_snack_bar.dart';
+import 'undo_snack_bar.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
@@ -304,6 +304,7 @@ class TableFields extends StatefulWidget {
     required this.draft,
     required this.showErrors,
     required this.onChanged,
+    required this.edits,
   });
 
   final TableDraft draft;
@@ -311,6 +312,10 @@ class TableFields extends StatefulWidget {
 
   /// Called after every change, which this widget makes on [draft].
   final VoidCallback onChanged;
+
+  /// The edits in this 칸's group, which end an undo offered for what this
+  /// widget took out.
+  final Listenable edits;
 
   @override
   State<TableFields> createState() => _TableFieldsState();
@@ -385,6 +390,7 @@ class _TableFieldsState extends State<TableFields> {
         if (mounted) _change(removal.undo);
       },
       onGone: removal.forget,
+      endOn: widget.edits,
     );
   }
 

@@ -665,6 +665,35 @@ void main() {
     );
 
     testWidgets(
+      "an edit in the photo's 칸 ends Delete photo's Undo, and an edit in another 칸 does not (#632)",
+      (tester) async {
+        await openWithPhoto(tester);
+        await tapVisible(tester, find.text('Delete photo'));
+        expect(find.text('Photo deleted'), findsOneWidget);
+        await typeBlock(tester, 'more');
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Photo deleted'),
+          findsOneWidget,
+          reason: "the Text's edit is outside the photo's group",
+        );
+        await tapVisible(
+          tester,
+          find.descendant(
+            of: find.ancestor(
+              of: find.text('Photo').first,
+              matching: find.byType(EditorGroup),
+            ),
+            matching: find.widgetWithText(AppChip, 'Back'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Photo deleted'), findsNothing);
+        expect(find.text('Undo'), findsNothing);
+      },
+    );
+
+    testWidgets(
       'a photo the card is saved with is kept, and one left unsaved goes when the editor is left',
       (tester) async {
         await openWithPhoto(tester);

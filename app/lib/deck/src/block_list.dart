@@ -5,7 +5,7 @@ import '../../design/app_chip.dart';
 import '../../design/app_sheet.dart';
 import '../../design/app_text_field.dart';
 import '../../design/theme.dart';
-import '../../design/undo_snack_bar.dart';
+import 'undo_snack_bar.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import '../../media/media.dart';
@@ -107,6 +107,10 @@ sealed class BlockDraft {
   /// moves, and which the editor scrolls into view.
   final key = GlobalKey();
 
+  /// The edits made in the block's group, which end an undo offered for what
+  /// was taken out of it.
+  final edits = GroupEdits();
+
   /// The field a new 칸 is typed in first; null for one with no text field.
   FocusNode? get entry => null;
 
@@ -127,7 +131,8 @@ sealed class BlockDraft {
   /// Whether the block can be saved as it is.
   bool get isComplete;
 
-  void dispose() {}
+  @mustCallSuper
+  void dispose() => edits.dispose();
 }
 
 /// A 글: its front and its back as typed.
@@ -168,6 +173,7 @@ final class TextBlockDraft extends BlockDraft {
     front.dispose();
     back.dispose();
     focus.dispose();
+    super.dispose();
   }
 }
 
@@ -219,6 +225,7 @@ final class SensesBlockDraft extends BlockDraft {
     for (final sense in senses) {
       sense.dispose();
     }
+    super.dispose();
   }
 }
 
@@ -246,7 +253,10 @@ final class TableBlockDraft extends BlockDraft {
   bool get isComplete => table.problem == null;
 
   @override
-  void dispose() => table.dispose();
+  void dispose() {
+    table.dispose();
+    super.dispose();
+  }
 }
 
 /// A 빈칸 문장: its line and blanks, kept as stored until either is edited, so
@@ -306,6 +316,7 @@ final class ClozeBlockDraft extends BlockDraft {
       ..removeListener(_sync)
       ..dispose();
     focus.dispose();
+    super.dispose();
   }
 }
 
@@ -334,7 +345,10 @@ final class ImageBlockDraft extends BlockDraft {
   bool get isComplete => image.image != null;
 
   @override
-  void dispose() => image.dispose();
+  void dispose() {
+    image.dispose();
+    super.dispose();
+  }
 }
 
 /// A 소리: its sound, once recorded or picked (ADR 0112), and its side.
@@ -589,6 +603,12 @@ class _Block extends StatelessWidget {
   final bool canMoveUp;
   final bool canMoveDown;
 
+  /// Tells the group's listeners and then the editor of an edit in it.
+  void _edited() {
+    block.edits.edited();
+    onChanged();
+  }
+
   /// The two chips of a side, the one [selected] tinted.
   Widget _sideRow(
     AppLocalizations l10n,
@@ -605,7 +625,7 @@ class _Block extends StatelessWidget {
           selected: side == selected,
           onPressed: () {
             onSelected(side);
-            onChanged();
+            _edited();
           },
         ),
     ],
@@ -639,13 +659,13 @@ class _Block extends StatelessWidget {
           controller: block.front,
           focusNode: block.focus,
           multiline: true,
-          onChanged: onChanged,
+          onChanged: _edited,
         ),
         _NamedField(
           name: l10n.cardBack,
           controller: block.back,
           multiline: true,
-          onChanged: onChanged,
+          onChanged: _edited,
         ),
       ],
       SensesBlockDraft(:final senses, :final ask) => [
@@ -655,12 +675,13 @@ class _Block extends StatelessWidget {
           focusNode: block.termFocus,
           // The group names 뜻 right after it.
           onNext: () => senses.first.meaningFocus.requestFocus(),
-          onChanged: onChanged,
+          onChanged: _edited,
         ),
         SenseFields(
           senses: senses,
           showErrors: showErrors,
-          onChanged: onChanged,
+          onChanged: _edited,
+          edits: block.edits,
         ),
         _ChoiceRow(
           name: l10n.wordAskFirst,
@@ -674,7 +695,7 @@ class _Block extends StatelessWidget {
                 selected: ask == value,
                 onPressed: () {
                   block.ask = value;
-                  onChanged();
+                  _edited();
                 },
               ),
           ],
@@ -686,16 +707,13 @@ class _Block extends StatelessWidget {
           child: TableFields(
             draft: table,
             showErrors: showErrors,
-            onChanged: onChanged,
+            onChanged: _edited,
+            edits: block.edits,
           ),
         ),
       ],
       ClozeBlockDraft() => [
-        _ClozeFields(
-          draft: block,
-          showErrors: showErrors,
-          onChanged: onChanged,
-        ),
+        _ClozeFields(draft: block, showErrors: showErrors, onChanged: _edited),
       ],
       ImageBlockDraft(:final image, :final side) => [
         Padding(
@@ -703,7 +721,8 @@ class _Block extends StatelessWidget {
           child: ImageBlockFields(
             draft: image,
             showErrors: showErrors,
-            onChanged: onChanged,
+            onChanged: _edited,
+            edits: block.edits,
             onPicked: onMediaStored,
           ),
         ),
@@ -716,7 +735,8 @@ class _Block extends StatelessWidget {
           child: AudioBlockFields(
             draft: audio,
             showErrors: showErrors,
-            onChanged: onChanged,
+            onChanged: _edited,
+            edits: block.edits,
             onStored: onMediaStored,
           ),
         ),

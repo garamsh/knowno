@@ -6,7 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_button.dart';
 import '../../design/theme.dart';
-import '../../design/undo_snack_bar.dart';
+import 'undo_snack_bar.dart';
 import '../../l10n/app_localizations.dart';
 import '../../media/media.dart';
 import 'content.dart';
@@ -127,12 +127,17 @@ class AudioBlockFields extends ConsumerStatefulWidget {
     required this.draft,
     required this.showErrors,
     required this.onChanged,
+    required this.edits,
     required this.onStored,
   });
 
   final AudioDraft draft;
   final bool showErrors;
   final VoidCallback onChanged;
+
+  /// The edits in this 칸's group, which end an undo offered for what this
+  /// widget took out.
+  final Listenable edits;
 
   /// Called with each sound stored for the block, so the editor can let go
   /// of one it does not save.
@@ -264,6 +269,7 @@ class _AudioBlockFieldsState extends ConsumerState<AudioBlockFields> {
         setState(() => widget.draft.audio = sound);
         widget.onChanged();
       },
+      endOn: widget.edits,
     );
   }
 

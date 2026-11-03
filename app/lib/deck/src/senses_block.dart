@@ -4,7 +4,7 @@ import '../../design/app_button.dart';
 import '../../design/app_chip.dart';
 import '../../design/app_text_field.dart';
 import '../../design/theme.dart';
-import '../../design/undo_snack_bar.dart';
+import 'undo_snack_bar.dart';
 import '../../l10n/app_localizations.dart';
 import 'content.dart';
 import 'editor_group.dart';
@@ -91,6 +91,7 @@ class SenseFields extends StatelessWidget {
     required this.senses,
     required this.showErrors,
     required this.onChanged,
+    required this.edits,
   });
 
   final List<SenseDraft> senses;
@@ -98,6 +99,10 @@ class SenseFields extends StatelessWidget {
 
   /// Called after every change to [senses], which this widget makes in place.
   final VoidCallback onChanged;
+
+  /// The edits in this 칸's group, which end an undo offered for what this
+  /// widget took out.
+  final Listenable edits;
 
   void _act(BuildContext context, int index, RowAction action) {
     switch (action) {
@@ -115,6 +120,7 @@ class SenseFields extends StatelessWidget {
             onChanged();
           },
           onGone: removed.dispose,
+          endOn: edits,
         );
     }
     onChanged();

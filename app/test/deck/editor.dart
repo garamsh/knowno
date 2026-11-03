@@ -2,7 +2,7 @@ import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/deck/src/block_list.dart';
-import 'package:knowno/design/undo_snack_bar.dart';
+import 'package:knowno/deck/src/undo_snack_bar.dart';
 import 'package:knowno/study/study.dart';
 
 import '../home/deck_screens.dart';

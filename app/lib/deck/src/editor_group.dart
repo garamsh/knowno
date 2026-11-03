@@ -218,3 +218,9 @@ class RowMenu extends StatelessWidget {
     );
   }
 }
+
+/// Tells its listeners of each edit in one 칸's group, which ends an undo
+/// offered for what was taken out of it.
+class GroupEdits extends ChangeNotifier {
+  void edited() => notifyListeners();
+}

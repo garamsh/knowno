@@ -5,7 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_chip.dart';
 import 'package:knowno/design/app_sheet.dart';
-import 'package:knowno/design/undo_snack_bar.dart';
+import 'package:knowno/deck/src/undo_snack_bar.dart';
 import 'package:knowno/study/study.dart' show CardPreviewScreen;
 import 'package:knowno/deck/src/editor_group.dart';
 

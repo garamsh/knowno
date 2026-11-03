@@ -594,6 +594,33 @@ void main() {
   );
 
   testWidgets(
+    "an edit in the Word's group ends a meaning's Undo, and an edit in another 칸 does not (#632)",
+    (tester) async {
+      final screens = await openNew(tester);
+      await typeInto(tester, _back('Meaning'), '사과');
+      await tapVisible(screens, find.bySemanticsLabel('Add meaning'));
+      await typeInto(tester, _back('Meaning 2'), '능금');
+      await addBlock(screens, 'Text');
+
+      await tapVisible(screens, find.byTooltip('Meaning 2 menu'));
+      await screens.tap(find.text('Delete').last);
+      expect(find.text('Meaning deleted'), findsOneWidget);
+      await typeInto(tester, namedField('Front'), '뒤');
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Meaning deleted'),
+        findsOneWidget,
+        reason: "the Text's edit is outside the Word's group",
+      );
+
+      await typeInto(tester, _term(), 'apple');
+      await tester.pumpAndSettle();
+      expect(find.text('Meaning deleted'), findsNothing);
+      expect(find.text('Undo'), findsNothing);
+    },
+  );
+
+  testWidgets(
     "a meaning's Examples label starts where the field's text does, not at the field's unbordered edge",
     (tester) async {
       final screens = await DeckScreens.open(tester);

@@ -375,6 +375,29 @@ void main() {
       },
     );
 
+    testWidgets("an edit in the sound's 칸 ends Delete sound's Undo (#632)", (
+      tester,
+    ) async {
+      await openWithSoundBlock(tester);
+      await tapPick(tester, find.text('Choose a file'));
+      await stored(tester);
+      await tapVisible(tester, find.text('Delete sound'));
+      expect(find.text('Sound deleted'), findsOneWidget);
+      await tapVisible(
+        tester,
+        find.descendant(
+          of: find.ancestor(
+            of: find.text('Sound').first,
+            matching: find.byType(EditorGroup),
+          ),
+          matching: find.widgetWithText(AppChip, 'Back'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Sound deleted'), findsNothing);
+      expect(find.text('Undo'), findsNothing);
+    });
+
     testWidgets(
       'while one sound block records, Record is off in every other block, and on again once it has stopped',
       (tester) async {

@@ -261,6 +261,20 @@ void main() {
     },
   );
 
+  testWidgets("an edit in the table ends a deleted row's Undo (#632)", (
+    tester,
+  ) async {
+    final screens = await openTable(tester);
+    await typeCapitals(screens);
+    await select(screens, 3);
+    await remove(screens, 'Delete row 1');
+    expect(find.text('Row 1 deleted'), findsOneWidget);
+    await enter(tester, _cell(3), 'Korea');
+    await tester.pumpAndSettle();
+    expect(find.text('Row 1 deleted'), findsNothing);
+    expect(find.text('Undo'), findsNothing);
+  });
+
   testWidgets(
     'a table with no blank, or with a blank on an empty cell, is refused with a message under it, and saves once both are fixed',
     (tester) async {
