@@ -62,9 +62,7 @@ describe("the design's class rules", () => {
     expect(
       refusals('const a = <div role="dialog" aria-modal="true" />;', sharedRules),
     ).toHaveLength(1);
-    expect(refusals('const a = <div role="dialog" aria-label="안내" />;', sharedRules)).toEqual(
-      [],
-    );
+    expect(refusals('const a = <div role="dialog" aria-label="안내" />;', sharedRules)).toEqual([]);
   });
 
   it("refuses a section's label drawn by hand, and passes a heading in another place", () => {

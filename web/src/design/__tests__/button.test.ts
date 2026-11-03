@@ -38,7 +38,7 @@ describe("the one button", () => {
     ["cta", ["min-h-cta", "text-button"]],
     ["header", ["min-h-tap-target", "text-label"]],
   ] as const)("sizes %s as the phone's AppButtonSize", (size, sized) => {
-    expect(classes("secondary", size)).toEqual(expect.arrayContaining(sized));
+    expect(classes("secondary", size)).toEqual(expect.arrayContaining([...sized]));
   });
 
   it("rings a focused file input inside a label drawn as a button", () => {
