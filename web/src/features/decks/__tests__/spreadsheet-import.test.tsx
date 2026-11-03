@@ -13,7 +13,8 @@ import { parseCells, sidesOf } from "../card-content";
 import { parseDeckId } from "../library";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));let db: FakePostgrest;
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+let db: FakePostgrest;
 beforeEach(async () => {
   db = new FakePostgrest();
   db.seed("decks", deckRow("deck", "단어장"));
