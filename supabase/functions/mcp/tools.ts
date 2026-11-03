@@ -340,6 +340,13 @@ const filesNotReleased = {
     "The media ids of deleted photos and sounds whose files could not be deleted now; the cards stay deleted.",
 };
 
+const photosNotReleased = {
+  type: "array",
+  items: { type: "string" },
+  description:
+    "The media ids of photos this call stored for cards it refused, whose files could not be deleted now.",
+};
+
 /** The tools as `tools/list` returns them. */
 export const TOOLS = [
   {
@@ -494,7 +501,7 @@ export const TOOLS = [
     name: "add_cards",
     title: "Add cards to a deck",
     description:
-      `Adds up to ${MAX_CARDS} new cards to one of the signed-in user's decks; send more in several calls. Each card is {"blocks":[...]}, a list of text, senses, cloze, table and image blocks, or the plain front (the word or question) and back (its meaning or answer) with optional labels and examples. Read the resource ${GUIDE_URI} for which form fits. A card needs something shown first and something added at the reveal; a cloze, a table or an image with boxes counts for both. At most ${MAX_PHOTOS} photos are fetched per call. It never changes or deletes a card. A card whose first-shown text matches a card already in the deck, or an earlier card in the same call (ignoring case, spacing and width), is skipped as a duplicate unless allow_duplicates is true. The answer lists the cards added, those skipped as duplicates and those refused, each with its index in the request and why. The cards appear on the user's phone and on the web at their next sync.`,
+      `Adds up to ${MAX_CARDS} new cards to one of the signed-in user's decks; send more in several calls. Each card is {"blocks":[...]}, a list of text, senses, cloze, table and image blocks, or the plain front (the word or question) and back (its meaning or answer) with optional labels and examples. Read the resource ${GUIDE_URI} for which form fits. A card needs something shown first and something added at the reveal; a cloze, a table or an image with boxes counts for both. At most ${MAX_PHOTOS} photos are fetched per call. It never changes or deletes a card. A card whose first-shown text matches a card already in the deck, or an earlier card in the same call (ignoring case, spacing and width), is skipped as a duplicate unless allow_duplicates is true. The answer lists the cards added, those skipped as duplicates and those refused, each with its index in the request and why, and the media ids of photos stored for refused cards that could not be deleted now. The cards appear on the user's phone and on the web at their next sync.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -555,8 +562,9 @@ export const TOOLS = [
             required: ["index", "reason"],
           },
         },
+        files_not_released: photosNotReleased,
       },
-      required: ["deck", "added", "skipped", "refused"],
+      required: ["deck", "added", "skipped", "refused", "files_not_released"],
     },
     annotations: {
       readOnlyHint: false,
@@ -568,7 +576,7 @@ export const TOOLS = [
     name: "update_cards",
     title: "Change cards",
     description:
-      `Replaces the blocks of up to ${MAX_CARDS} of the signed-in user's cards, keeping each card's id, deck and study history. Each card is {"id":..., "blocks":[...]} in add_cards' forms, or its id with the plain front and back; the new blocks replace all of the card's blocks, so send every block the card should keep. Read the card with list_cards or search_cards first and send its blocks back changed: a block keeps its identity by the id list_cards gave it, and a photo or sound the card holds is kept by its media, without fetching it again. A new photo is fetched from its url, at most ${MAX_PHOTOS} per call. A card whose new first-shown text matches another card in its deck is refused unless allow_duplicates is true. The answer lists the cards updated and those refused, each with its index in the request and why. The changes reach the user's phone and the web at their next sync.`,
+      `Replaces the blocks of up to ${MAX_CARDS} of the signed-in user's cards, keeping each card's id, deck and study history. Each card is {"id":..., "blocks":[...]} in add_cards' forms, or its id with the plain front and back; the new blocks replace all of the card's blocks, so send every block the card should keep. Read the card with list_cards or search_cards first and send its blocks back changed: a block keeps its identity by the id list_cards gave it, and a photo or sound the card holds is kept by its media, without fetching it again. A new photo is fetched from its url, at most ${MAX_PHOTOS} per call. A card whose new first-shown text matches another card in its deck is refused unless allow_duplicates is true. The answer lists the cards updated and those refused, each with its index in the request and why, and the media ids of photos stored for refused cards that could not be deleted now. The changes reach the user's phone and the web at their next sync.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -621,8 +629,9 @@ export const TOOLS = [
             required: ["index", "reason"],
           },
         },
+        files_not_released: photosNotReleased,
       },
-      required: ["updated", "refused"],
+      required: ["updated", "refused", "files_not_released"],
     },
     annotations: {
       readOnlyHint: false,
@@ -897,22 +906,31 @@ async function createDeck(
   return result({ deck: { id, name } });
 }
 
-/** [card]'s blocks with its photos fetched and stored, or the sentence refusing the card. */
+/** Why a card was refused, and the media ids of the photos stored for it before. */
+type PhotoRefusal = { readonly reason: string; readonly stored: string[] };
+
+/** [card]'s blocks with every one of its photos fetched and stored, or why the card is refused. */
 async function withPhotos(
   card: ReadCard,
   store: Store,
   deps: ToolDeps,
-): Promise<readonly StoredBlock[] | string> {
+): Promise<readonly StoredBlock[] | PhotoRefusal> {
   const sizes = new Map<unknown, { width: number; height: number }>();
+  const stored: string[] = [];
   for (const { media, url } of card.photos) {
     const photo = await fetchPhoto(url, { ...deps, fetch: store.fetch });
-    if (typeof photo === "string") return photo;
+    if (typeof photo === "string") return { reason: photo, stored };
     try {
       await storePhoto(store, media, photo);
     } catch (error) {
       if (!(error instanceof SupabaseError)) throw error;
-      return "The photo could not be stored: try this card again in a moment.";
+      return {
+        reason:
+          "The photo could not be stored: try this card again in a moment.",
+        stored,
+      };
     }
+    stored.push(media);
     sizes.set(media, { width: photo.width, height: photo.height });
   }
   return card.blocks.map((block) => {
@@ -960,6 +978,9 @@ async function addCards(
   }[] = [];
   const refused: { index: number; reason: string }[] = [];
   const rows: Record<string, unknown>[] = [];
+  // The photos stored for the cards refused, and for those to insert.
+  const orphans: string[] = [];
+  const photos: string[] = [];
   let photosLeft = MAX_PHOTOS;
   for (const [index, value] of input.entries()) {
     const card = readCard(value, deps);
@@ -987,10 +1008,12 @@ async function addCards(
     }
     photosLeft -= card.photos.length;
     const blocks = await withPhotos(card, store, deps);
-    if (typeof blocks === "string") {
-      refused.push({ index, reason: blocks });
+    if ("reason" in blocks) {
+      orphans.push(...blocks.stored);
+      refused.push({ index, reason: blocks.reason });
       continue;
     }
+    photos.push(...card.photos.map((photo) => photo.media));
     const cardId = uuidV7(deps);
     keys.set(card.key, cardId);
     // A deck lists its cards by creation time: one millisecond apart keeps the request's order.
@@ -1010,8 +1033,20 @@ async function addCards(
     });
     added.push({ index, id: cardId, front: card.front });
   }
-  if (rows.length > 0) await insert(store, "cards", rows);
-  return result({ deck, added, skipped, refused });
+  if (rows.length > 0) {
+    await releasingOnFailure(
+      store,
+      [...orphans, ...photos],
+      () => insert(store, "cards", rows),
+    );
+  }
+  return result({
+    deck,
+    added,
+    skipped,
+    refused,
+    files_not_released: await release(store, orphans),
+  });
 }
 
 const CARD_NOT_FOUND =
@@ -1060,6 +1095,8 @@ async function updateCards(
   const now = new Date(deps.now()).toISOString();
   const updated: { index: number; id: string; front: string }[] = [];
   const refused: { index: number; reason: string }[] = [];
+  // The photos stored for the cards refused.
+  const orphans: string[] = [];
   let photosLeft = MAX_PHOTOS;
   for (const [index, value] of input.entries()) {
     const id = wanted[index];
@@ -1107,25 +1144,28 @@ async function updateCards(
     }
     photosLeft -= read.photos.length;
     const blocks = await withPhotos(read, store, deps);
-    if (typeof blocks === "string") {
-      refused.push({ index, reason: blocks });
+    if ("reason" in blocks) {
+      orphans.push(...blocks.stored);
+      refused.push({ index, reason: blocks.reason });
       continue;
     }
+    const photos = read.photos.map((photo) => photo.media);
     // The later edit wins, as on the web: a row edited after this call's time is left as it is.
-    const changed = await update(
+    const changed = await releasingOnFailure(
       store,
-      "cards",
-      `id=eq.${id}&updated_at=lt.${now}`,
-      {
-        front: blocks,
-        back: [],
-        card_key: read.key,
-        template: "free",
-        template_version: 2,
-        updated_at: now,
-      },
+      [...orphans, ...photos],
+      () =>
+        update(store, "cards", `id=eq.${id}&updated_at=lt.${now}`, {
+          front: blocks,
+          back: [],
+          card_key: read.key,
+          template: "free",
+          template_version: 2,
+          updated_at: now,
+        }),
     );
     if (changed.length === 0) {
+      orphans.push(...photos);
       refused.push({
         index,
         reason:
@@ -1137,7 +1177,11 @@ async function updateCards(
     hold(id, key);
     updated.push({ index, id, front: read.front });
   }
-  return result({ updated, refused });
+  return result({
+    updated,
+    refused,
+    files_not_released: await release(store, orphans),
+  });
 }
 
 /** The columns a deletion sets, as the clients write a tombstone: deleted at the call's time. */
@@ -1210,6 +1254,23 @@ async function release(
   } catch (error) {
     if (!(error instanceof SupabaseError)) throw error;
     return candidates;
+  }
+}
+
+/**
+ * Runs [write], and when it fails releases [media], the photos the call stored for what it was
+ * writing, before the failure goes on to the handler.
+ */
+async function releasingOnFailure<T>(
+  store: Store,
+  media: readonly string[],
+  write: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    await release(store, media);
+    throw error;
   }
 }
 
