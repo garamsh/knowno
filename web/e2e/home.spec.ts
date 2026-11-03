@@ -41,6 +41,12 @@ async function signUp(context: BrowserContext, baseURL: string, name: string) {
   return { userId, db };
 }
 
+/** A one-pixel PNG, the photo 새 노트 picks. */
+const png = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==",
+  "base64",
+);
+
 const text = (id: string, value: string) => ({ type: "text", v: 1, id, payload: { text: value } });
 
 /**
@@ -324,14 +330,23 @@ test("draws the first-run home, 홈 over its week card, the 노트 page, a note,
     expect(await labelLines(note.getByRole("button", { name: label, exact: true })), label).toBe(1);
   }
   await expectScreenAtWidths(page, note);
-  await capture(page, "new-note");
-  // 저장하고 카드 추가 opens the new note with its 카드 추가 sheet up, its colour stored.
   // The radio is visually hidden inside its swatch, which takes the pointer.
   await note.getByRole("radio", { name: "모래" }).check({ force: true });
+  await capture(page, "new-note");
+  // A photo folds the icon and the colour, and the note is made with it.
+  await note
+    .getByLabel("앨범에서 고르기")
+    .setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
+  await expect(note.getByRole("button", { name: "사진 빼기", exact: true })).toBeVisible();
+  await expect(note.getByRole("group", { name: "색" })).toHaveCount(0);
+  await capture(page, "new-note-photo");
+  // 저장하고 카드 추가 opens the new note with its 카드 추가 sheet up, its colour and photo stored.
   await note.getByRole("button", { name: "저장하고 카드 추가", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "카드 추가" })).toBeVisible();
-  const stored = await db.from("decks").select("name,color").eq("name", "토익 900");
-  expect(stored.data).toEqual([{ name: "토익 900", color: "sand" }]);
+  const stored = await db.from("decks").select("name,color,image_media_id").eq("name", "토익 900");
+  expect(stored.data).toEqual([
+    { name: "토익 900", color: "sand", image_media_id: expect.any(String) as unknown },
+  ]);
 });
 
 test("answers the browser's back on an authoring screen as the phone's back, and leaves 새 노트 for its note", async ({
