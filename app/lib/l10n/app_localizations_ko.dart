@@ -166,6 +166,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get blockText => '글';
 
   @override
+  String get blockTextDescription => '앞면과 뒷면에 글을 적어요';
+
+  @override
   String get blockSenses => '단어';
 
   @override

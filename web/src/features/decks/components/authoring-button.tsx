@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { AudioLines, BookA, Image, Table, TextCursorInput, Type } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { v7 } from "uuid";
 import { addCard, createDeck, editCard, storeCardMedia } from "../actions";
@@ -252,13 +253,14 @@ function NewNote({ close }: { close: () => void }) {
   );
 }
 
+// The phone's add sheet: each type its icon, its name and one line.
 const cellChoices = [
-  { kind: "text", name: "글", line: "" },
-  { kind: "word", name: "단어", line: "단어와 뜻을 함께 적어요" },
-  { kind: "cloze", name: "빈칸 문장", line: "문장 속 단어를 가려요" },
-  { kind: "table", name: "표", line: "가릴 부분을 골라요" },
-  { kind: "image", name: "사진", line: "사진 위에 가릴 곳을 그려요" },
-  { kind: "audio", name: "소리", line: "녹음하거나 파일을 넣어요" },
+  { kind: "text", Icon: Type, name: "글", line: "앞면과 뒷면에 글을 적어요" },
+  { kind: "word", Icon: BookA, name: "단어", line: "단어와 뜻을 함께 적어요" },
+  { kind: "cloze", Icon: TextCursorInput, name: "빈칸 문장", line: "문장 속 단어를 가려요" },
+  { kind: "table", Icon: Table, name: "표", line: "가릴 부분을 골라요" },
+  { kind: "image", Icon: Image, name: "사진", line: "사진 위에 가릴 곳을 그려요" },
+  { kind: "audio", Icon: AudioLines, name: "소리", line: "녹음하거나 파일을 넣어요" },
 ] as const;
 
 /** The editor's starting 칸: a stored card's, or one empty 글. */
@@ -457,7 +459,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
           }}
         >
           <div className="divide-y divide-hairline overflow-hidden rounded-group bg-surface">
-            {cellChoices.map(({ kind, name, line }) => (
+            {cellChoices.map(({ kind, Icon, name, line }) => (
               <button
                 key={kind}
                 type="button"
@@ -468,10 +470,13 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
                   focusIn.current = added.id;
                   setAdding(false);
                 }}
-                className="pressable flex min-h-button w-full flex-col items-start px-4 py-4 text-left text-body"
+                className="pressable flex min-h-button w-full items-center gap-4 px-4 py-3 text-left text-body"
               >
-                {name}
-                {line && <span className="text-caption text-muted">{line}</span>}
+                <Icon aria-hidden className="size-6 shrink-0 text-ink-2" />
+                <span className="flex flex-col">
+                  <span className="text-body-strong">{name}</span>
+                  <span className="text-caption text-muted">{line}</span>
+                </span>
               </button>
             ))}
           </div>

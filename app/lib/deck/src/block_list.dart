@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_chip.dart';
 import '../../design/app_sheet.dart';
@@ -47,10 +48,19 @@ enum BlockType {
     audio => l10n.blockAudio,
   };
 
-  /// The line under the type in the add sheet, or null where its name says
-  /// enough: 글.
-  String? description(AppLocalizations l10n) => switch (this) {
-    text => null,
+  /// The type's icon at the start of its row in the add sheet.
+  IconData get icon => switch (this) {
+    text => LucideIcons.type,
+    senses => LucideIcons.bookA,
+    cloze => LucideIcons.textCursorInput,
+    table => LucideIcons.table,
+    image => LucideIcons.image,
+    audio => LucideIcons.audioLines,
+  };
+
+  /// The line under the type in the add sheet.
+  String description(AppLocalizations l10n) => switch (this) {
+    text => l10n.blockTextDescription,
     senses => l10n.blockSensesDescription,
     cloze => l10n.blockClozeDescription,
     table => l10n.blockTableDescription,
@@ -426,8 +436,8 @@ class BlockList extends StatelessWidget {
   }
 }
 
-/// The add sheet's one grouped list of block types, each its name and,
-/// where the name does not say enough, one line under it; a tap picks it.
+/// The add sheet's one grouped list of block types, each row its icon, its
+/// name and one line under it; a tap picks it.
 class _TypeList extends StatelessWidget {
   const _TypeList();
 
@@ -456,18 +466,25 @@ class _TypeList extends StatelessWidget {
                       horizontal: AppSpace.s16,
                       vertical: AppSpace.s12,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
+                      spacing: AppSpace.s16,
                       children: [
-                        Text(type.title(l10n), style: AppType.bodyStrong),
-                        if (type.description(l10n) case final line?)
-                          Text(
-                            keepWords(line),
-                            semanticsLabel: line,
-                            style: AppType.caption.copyWith(
-                              color: colors.muted,
-                            ),
+                        Icon(type.icon, color: colors.ink2),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(type.title(l10n), style: AppType.bodyStrong),
+                              Text(
+                                keepWords(type.description(l10n)),
+                                semanticsLabel: type.description(l10n),
+                                style: AppType.caption.copyWith(
+                                  color: colors.muted,
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
                       ],
                     ),
                   ),

@@ -38,6 +38,7 @@
   "clozeBlankMarker": "Remove ___ from the line",
   "addBlock": "Add block",
   "blockText": "Text",
+  "blockTextDescription": "Write a front and a back",
   "blockSenses": "Word",
   "blockSensesDescription": "A word and its meanings",
   "blockTable": "Table",

@@ -167,6 +167,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get blockText => 'Text';
 
   @override
+  String get blockTextDescription => 'Write a front and a back';
+
+  @override
   String get blockSenses => 'Word';
 
   @override
