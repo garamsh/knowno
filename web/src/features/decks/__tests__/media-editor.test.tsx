@@ -206,6 +206,89 @@ describe("a 사진 칸", () => {
     expect(mark()).toEqual([20, 20, 40, 40]);
   });
 
+  it("replaces the photo under its boxes, and deletes it at once, offering it back with its boxes", async () => {
+    await newCardWith("사진");
+    await pickPhoto();
+    // The picker's button went with the photo in; the one in its place takes the focus.
+    expect(screen.getByLabelText("다른 사진 고르기")).toHaveFocus();
+    expect(screen.getByLabelText("다시 찍기")).toHaveAttribute("capture", "environment");
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 추가" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "정답 (선택)" }), "Paris");
+    const urls = vi.spyOn(URL, "createObjectURL").mockReturnValueOnce("blob:second");
+    vi.mocked(prepareImage).mockResolvedValueOnce({
+      jpeg: new Blob([jpeg], { type: "image/jpeg" }),
+      sha256: digestOf(jpeg),
+      width: 800,
+      height: 400,
+    });
+    await userEvent.upload(
+      screen.getByLabelText("다른 사진 고르기"),
+      new File([new Uint8Array([2])], "other.png", { type: "image/png" }),
+    );
+    await waitFor(() => {
+      expect(frame().style.aspectRatio).toBe("800 / 400");
+    });
+    expect(frame().style.backgroundImage).toBe('url("blob:second")');
+    expect(screen.getByLabelText("다른 사진 고르기")).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 1" }));
+    expect(screen.getByRole("textbox", { name: "정답 (선택)" })).toHaveValue("Paris");
+
+    await userEvent.click(screen.getByRole("button", { name: "사진 삭제" }));
+    expect(document.querySelector("[data-photo]")).toBeNull();
+    expect(screen.getByLabelText("앨범에서 고르기")).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent("사진을 삭제했어요");
+    // The photo's own URL was revoked as it left; the one put back is drawn from a new one.
+    urls.mockReturnValueOnce("blob:back");
+    await userEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+    expect(frame().style.backgroundImage).toBe('url("blob:back")');
+    expect(screen.getByRole("button", { name: "빈칸 1" })).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "저장" }));
+    await waitFor(() => {
+      expect(db.rows.cards).toHaveLength(1);
+    });
+    expect(storedCells()[1]).toMatchObject({
+      block: { kind: "image", width: 800, height: 400, boxes: [{ answer: "Paris" }] },
+    });
+  });
+
+  it("deletes a box at once, focusing the next, and offers it back with its answer", async () => {
+    await newCardWith("사진");
+    await pickPhoto();
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 추가" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "정답 (선택)" }), "A");
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 추가" }));
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 1" }));
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 삭제" }));
+    expect(screen.queryByRole("button", { name: "빈칸 2" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "빈칸 1" })).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent("빈칸을 삭제했어요");
+    await userEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+    expect(screen.getByRole("button", { name: "빈칸 2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "빈칸 1" })).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 1" }));
+    expect(screen.getByRole("textbox", { name: "정답 (선택)" })).toHaveValue("A");
+    // With no box left, "빈칸 추가" takes the focus.
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 삭제" }));
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 1" }));
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 삭제" }));
+    expect(screen.getByRole("button", { name: "빈칸 추가" })).toHaveFocus();
+  });
+
+  it("puts a deleted 사진 칸 back drawn from a new URL, its own revoked as it left", async () => {
+    await newCardWith("사진");
+    await pickPhoto();
+    const urls = vi.spyOn(URL, "createObjectURL");
+    urls.mockClear().mockReturnValueOnce("blob:back");
+    await userEvent.click(screen.getByRole("button", { name: "2번째 칸 메뉴" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "삭제" }));
+    expect(screen.queryByRole("heading", { name: "사진" })).not.toBeInTheDocument();
+    // The 칸 before it takes the focus, the last one gone.
+    expect(screen.getByRole("textbox", { name: "앞면" })).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+    expect(frame().style.backgroundImage).toBe('url("blob:back")');
+    expect(urls).toHaveBeenCalledTimes(1);
+  });
+
   it("says a photo the browser cannot read could not be loaded", async () => {
     vi.mocked(prepareImage).mockResolvedValue(null);
     await newCardWith("사진");
@@ -367,7 +450,7 @@ describe("a 소리 칸", () => {
     });
   });
 
-  it("says a sound past the minute or 5 MiB is refused, and takes it out by '소리 빼기'", async () => {
+  it("says a sound past the minute or 5 MiB is refused, and deletes one at once by '소리 삭제', offering it back", async () => {
     vi.mocked(prepareSound).mockResolvedValueOnce("tooLarge");
     await newCardWith("소리");
     await userEvent.upload(
@@ -379,8 +462,15 @@ describe("a 소리 칸", () => {
       screen.getByLabelText("파일에서 고르기"),
       new File([mp4], "short.m4a", { type: "audio/mp4" }),
     );
-    await userEvent.click(await screen.findByRole("button", { name: "소리 빼기" }));
+    // The pick's input goes with the sound in; the one in its place takes the focus.
+    expect(await screen.findByLabelText("다른 파일 고르기")).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "소리 삭제" }));
     expect(screen.queryByRole("button", { name: "소리 듣기" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("파일에서 고르기")).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent("소리를 삭제했어요");
+    await userEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+    expect(screen.getByRole("button", { name: "소리 듣기" })).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "소리 삭제" }));
     await userEvent.click(screen.getByRole("button", { name: "저장" }));
     expect(screen.getByText("소리를 넣어 주세요")).toBeInTheDocument();
   });

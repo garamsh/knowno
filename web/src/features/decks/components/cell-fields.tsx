@@ -4,6 +4,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
   type SyntheticEvent,
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -15,6 +16,7 @@ import {
   type CellDraft,
   cellProblem,
   emptySense,
+  type MediaFile,
   movedSpans,
   type SenseDraft,
   senseRequired,
@@ -27,19 +29,32 @@ import {
   withSpan,
 } from "../authoring";
 import type { CellSide, WordAsk } from "../card-content";
-import { AuthoringSheet } from "./authoring-sheet";
+import {
+  cellSection,
+  type Editing,
+  EditingContext,
+  type Find,
+  firstField,
+  UndoSnack,
+  useEditing,
+} from "./editing";
 import { type CellChange, PhotoFields, SoundFields } from "./media-fields";
 import { RowMenu } from "./row-menu";
 
 type Draft<K extends CellDraft["kind"]> = Extract<CellDraft, { kind: K }>;
 
 /** A field's box, padded as the phone's `AppTextField`: 16 across, and down the field's height past a line. */
-const fieldBox = "min-h-field whitespace-pre-wrap break-words field-padding text-body";
+const fieldBox = "whitespace-pre-wrap break-words field-padding text-body";
+/** A field's least height: one line, or two as the phone's 빈칸 문장 line. */
+const fieldHeight = {
+  1: "min-h-field",
+  2: "min-h-[calc(var(--spacing-field)+var(--text-body--line-height))]",
+} as const;
 /** A table cell's box, padded 12 on every side as the phone's table pads a cell's field. */
 const cellBox = "whitespace-pre-wrap break-words p-3 text-body";
 /** A small outlined control, its target the tap target's height past what it draws. */
 const chipShape =
-  "pressable relative h-8 rounded-chip border px-3 text-secondary before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-[''] disabled:opacity-40";
+  "pressable relative h-8 min-w-tap-target rounded-chip border px-3 text-secondary before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-[''] disabled:opacity-40";
 const chip = `${chipShape} border-outline bg-surface`;
 const chipOn = `${chipShape} border-ink bg-brand-tint`;
 
@@ -47,7 +62,7 @@ const chipOn = `${chipShape} border-ink bg-brand-tint`;
  * A field that grows with its text and tints each of [marks] in it as a blank, as the phone's line
  * draws its blanks: the text sits in a textarea over a copy that draws the tint. An empty blank,
  * the mark of no width, is a short underline where the caret stands, which moves no text. A table's
- * [shape] "cell" takes the cell's padding in place of the field's.
+ * [shape] "cell" takes the cell's padding in place of the field's; a field is [lines] tall at least.
  */
 function Field({
   label,
@@ -59,8 +74,10 @@ function Field({
   input,
   keyDown,
   shape = "field",
+  lines = 1,
 }: {
   shape?: "field" | "cell";
+  lines?: 1 | 2;
   label: string;
   value: string;
   change: (value: string, selection: Span) => void;
@@ -92,7 +109,7 @@ function Field({
     at = end;
   }
   parts.push(value.slice(at));
-  const box = shape === "cell" ? cellBox : fieldBox;
+  const box = shape === "cell" ? cellBox : `${fieldBox} ${fieldHeight[lines]}`;
   return (
     <div className="relative min-w-0 flex-1">
       <div aria-hidden className={`${box} text-transparent`}>
@@ -181,18 +198,24 @@ function TextGroup({ draft, change }: { draft: Draft<"text">; change: (next: Cel
   );
 }
 
+/** The row of meaning [key]. */
+const senseRow = (key: string | undefined) =>
+  key === undefined ? null : document.querySelector(`[data-sense="${key}"]`);
+
 function SenseRow({
   sense,
   at,
   senses,
   showErrors,
   replace,
+  remove,
 }: {
   sense: SenseDraft;
   at: number;
   senses: SenseDraft[];
   showErrors: boolean;
   replace: (senses: SenseDraft[]) => void;
+  remove: () => void;
 }) {
   const many = senses.length > 1;
   const name = many ? `뜻 ${String(at + 1)}` : "뜻";
@@ -206,17 +229,20 @@ function SenseRow({
     replace(next);
   };
   return (
-    <div>
+    <div data-sense={sense.key}>
       <div className="flex min-w-0 items-start gap-2 px-3 py-1">
-        <input
-          aria-label={many ? `${name} 라벨` : "라벨"}
-          value={sense.label}
-          placeholder="라벨"
-          onChange={(event) => {
-            update({ label: event.target.value });
-          }}
-          className="mt-1 h-8 w-14 shrink-0 rounded-chip bg-brand-tint px-2 text-center text-secondary placeholder:text-muted focus:outline-2 focus:outline-ink"
-        />
+        {/* Its target is the tap target's height: a press around the chip focuses it. */}
+        <label className="-mt-0.5 shrink-0 cursor-text py-1.5">
+          <input
+            aria-label={many ? `${name} 라벨` : "라벨"}
+            value={sense.label}
+            placeholder="라벨"
+            onChange={(event) => {
+              update({ label: event.target.value });
+            }}
+            className="block h-8 w-14 rounded-chip bg-brand-tint px-2 text-center text-secondary placeholder:text-muted focus:outline-2 focus:outline-ink"
+          />
+        </label>
         <Field
           label={name}
           placeholder="뜻"
@@ -243,22 +269,19 @@ function SenseRow({
                   moved(1);
                 },
               },
-              {
-                label: "삭제",
-                danger: true,
-                pick: () => {
-                  replace(senses.filter((item) => item !== sense));
-                },
-              },
+              { label: "삭제", danger: true, pick: remove },
             ]}
           />
         )}
       </div>
       {sense.withExamples && (
-        <div className="px-3 pb-1">
+        <div className="flex items-start gap-1 px-3 pb-1">
+          <span aria-hidden className="w-10 shrink-0 px-1 py-2 text-body text-muted">
+            예문
+          </span>
           <Field
             label={`${name} 예문`}
-            placeholder="예문"
+            placeholder="한 줄에 하나씩, 없으면 비워 두세요"
             value={sense.examples}
             change={(examples) => {
               update({ examples });
@@ -280,6 +303,7 @@ function WordGroup({
   showErrors: boolean;
   change: (next: CellDraft) => void;
 }) {
+  const editing = useEditing();
   const replace = (senses: SenseDraft[]) => {
     change({ ...draft, senses });
   };
@@ -305,12 +329,25 @@ function WordGroup({
           senses={draft.senses}
           showErrors={showErrors}
           replace={replace}
+          remove={() => {
+            const { senses } = draft;
+            const nearest = senses[at + 1]?.key ?? senses[at - 1]?.key;
+            editing.remove({
+              said: "뜻을 삭제했어요",
+              before: draft,
+              after: { ...draft, senses: senses.filter((item) => item !== sense) },
+              next: () => firstField(senseRow(nearest)),
+              back: () => firstField(senseRow(sense.key)),
+            });
+          }}
         />
       ))}
       <button
         type="button"
         onClick={() => {
-          replace([...draft.senses, emptySense()]);
+          const added = emptySense();
+          replace([...draft.senses, added]);
+          editing.focusSoon(() => senseRow(added.key)?.querySelector("textarea"));
         }}
         className="pressable min-h-tap-target w-full px-4 text-left text-body text-ink-2"
       >
@@ -397,7 +434,8 @@ function ClozeGroup({
     >
       <Field
         label="문장"
-        placeholder="문장을 적고 가릴 곳을 골라요"
+        placeholder="문장 속 단어를 가려요"
+        lines={2}
         input={line}
         value={draft.line}
         marks={draft.blanks}
@@ -456,7 +494,8 @@ function TableGroup({
 }) {
   const [cell, setCell] = useState<{ row: number; column: number } | null>(null);
   const [selection, setSelection] = useState<Span>({ start: 0, end: 0 });
-  const [removing, setRemoving] = useState<{ row: number } | { column: number } | null>(null);
+  const grid = useRef<HTMLTableElement>(null);
+  const editing = useEditing();
   const body = cell && cell.row >= 0 ? cell : null;
   const isBlank = (row: number, column: number) =>
     draft.blanks.some((blank) => blank.row === row && blank.column === column);
@@ -470,33 +509,40 @@ function TableGroup({
     const fields = Array.from(grid?.querySelectorAll("textarea") ?? []);
     fields[fields.indexOf(event.currentTarget) + 1]?.focus();
   }
-  function remove(target: { row: number } | { column: number }) {
-    change("row" in target ? withoutRow(draft, target.row) : withoutColumn(draft, target.column));
-    setCell(null);
-    setRemoving(null);
-  }
-  function asked(target: { row: number } | { column: number }) {
-    const text =
-      "row" in target
-        ? draft.rows[target.row]
-        : draft.rows
-            .map((row) => row[target.column] ?? "")
-            .concat(draft.columns[target.column] ?? "");
-    if (text?.some((value) => value.trim() !== "")) setRemoving(target);
-    else remove(target);
+  /** The field of [row] (-1 for the headers) and [column]. */
+  const fieldAt = (row: number, column: number) =>
+    (row < 0
+      ? grid.current?.querySelectorAll("thead th")[column]
+      : grid.current?.querySelectorAll("tbody tr")[row]?.querySelectorAll("td")[column]
+    )?.querySelector("textarea");
+  /** Removes [cell]'s row or column at once, the selection kept on the field the caret is in. */
+  function remove(what: "row" | "column", { row, column }: { row: number; column: number }) {
+    const at = what === "row" ? row : column;
+    const kept =
+      what === "row"
+        ? { row: Math.min(row, draft.rows.length - 2), column }
+        : { row, column: Math.min(column, draft.columns.length - 2) };
+    // Focusing the kept field selects it, as a press on it does.
+    editing.remove({
+      said: `${String(at + 1)}${what === "row" ? "행" : "열"}을 삭제했어요`,
+      before: draft,
+      after: what === "row" ? withoutRow(draft, row) : withoutColumn(draft, column),
+      next: () => fieldAt(kept.row, kept.column),
+      back: () => fieldAt(row, column),
+    });
   }
   const keepFocus = (event: React.MouseEvent) => {
     event.preventDefault();
   };
-  const rowName = (target: { row: number }) => `${String(target.row + 1)}행`;
-  const columnName = (target: { column: number }) => `${String(target.column + 1)}열`;
   return (
     <div>
+      {/* The phone's fixed toolbar: each control always drawn, off where it cannot act. */}
       <div role="toolbar" aria-label="표 도구" className="flex flex-wrap gap-x-2 gap-y-3 px-3 py-2">
         <button
           type="button"
           onClick={() => {
             change({ ...draft, rows: [...draft.rows, draft.columns.map(() => "")] });
+            editing.focusSoon(() => fieldAt(draft.rows.length, 0));
           }}
           className={chip}
         >
@@ -510,53 +556,57 @@ function TableGroup({
               columns: [...draft.columns, ""],
               rows: draft.rows.map((row) => [...row, ""]),
             });
+            editing.focusSoon(() => fieldAt(-1, draft.columns.length));
           }}
           className={chip}
         >
           열 추가
         </button>
-        {body && (
-          <button
-            type="button"
-            aria-pressed={blankPressed(draft, body.row, body.column, selection)}
-            onMouseDown={keepFocus}
-            onClick={() => {
-              change(withBlankToggled(draft, body.row, body.column, selection));
-            }}
-            className={blankPressed(draft, body.row, body.column, selection) ? chipOn : chip}
-          >
-            빈칸
-          </button>
-        )}
-        {body && (
-          <button
-            type="button"
-            disabled={draft.rows.length === 1}
-            onMouseDown={keepFocus}
-            onClick={() => {
-              asked({ row: body.row });
-            }}
-            className={chip}
-          >
-            {`${rowName(body)} 삭제`}
-          </button>
-        )}
-        {cell && (
-          <button
-            type="button"
-            disabled={draft.columns.length === 1}
-            onMouseDown={keepFocus}
-            onClick={() => {
-              asked({ column: cell.column });
-            }}
-            className={chip}
-          >
-            {`${columnName(cell)} 삭제`}
-          </button>
-        )}
+        <button
+          type="button"
+          disabled={!body}
+          aria-pressed={!!body && blankPressed(draft, body.row, body.column, selection)}
+          onMouseDown={keepFocus}
+          onClick={() => {
+            if (body) change(withBlankToggled(draft, body.row, body.column, selection));
+          }}
+          className={body && blankPressed(draft, body.row, body.column, selection) ? chipOn : chip}
+        >
+          빈칸
+        </button>
+        <RowMenu
+          label="삭제"
+          face="삭제"
+          disabled={!cell}
+          trigger={chip}
+          items={[
+            ...(body
+              ? [
+                  {
+                    label: `${String(body.row + 1)}행 삭제`,
+                    disabled: draft.rows.length === 1,
+                    pick: () => {
+                      remove("row", body);
+                    },
+                  },
+                ]
+              : []),
+            ...(cell
+              ? [
+                  {
+                    label: `${String(cell.column + 1)}열 삭제`,
+                    disabled: draft.columns.length === 1,
+                    pick: () => {
+                      remove("column", cell);
+                    },
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
       <div className="overflow-x-auto px-3 pb-3">
-        <table className="w-full border-collapse overflow-hidden rounded-field">
+        <table ref={grid} className="w-full border-collapse overflow-hidden rounded-field">
           <thead>
             <tr>
               {draft.columns.map((header, column) => (
@@ -617,36 +667,6 @@ function TableGroup({
           </tbody>
         </table>
       </div>
-      {removing && (
-        <AuthoringSheet
-          title={`${"row" in removing ? rowName(removing) : columnName(removing)}을 삭제할까요?`}
-          close={() => {
-            setRemoving(null);
-          }}
-        >
-          <p className="text-secondary text-muted">그 줄에 적은 내용도 함께 삭제돼요.</p>
-          <div className="mt-4 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setRemoving(null);
-              }}
-              className="pressable min-h-button text-body"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                remove(removing);
-              }}
-              className="pressable min-h-button rounded-button bg-dont-know px-4 text-button text-on-ink"
-            >
-              삭제
-            </button>
-          </div>
-        </AuthoringSheet>
-      )}
     </div>
   );
 }
@@ -774,7 +794,34 @@ function CellGroup({
   );
 }
 
-/** A card's 칸 as a column of groups; "+ 칸 추가" comes after the last, as on the phone. */
+/**
+ * [draft] with each file it picked drawn from a new object URL, for one put back after its own
+ * was revoked as it left the editor.
+ */
+function revived(draft: CellDraft): CellDraft {
+  const fresh = <F extends MediaFile>(file: F | null) =>
+    file?.upload ? { ...file, url: URL.createObjectURL(file.upload.file) } : file;
+  if (draft.kind === "image") return { ...draft, photo: fresh(draft.photo) };
+  if (draft.kind === "audio") return { ...draft, sound: fresh(draft.sound) };
+  return draft;
+}
+
+/**
+ * A delete the snack offers back: [restore] puts the 칸 [put] back while [valid] holds, which is
+ * while nothing it would undo has changed since, and [back] finds what then takes the focus.
+ */
+type Offer = {
+  said: string;
+  put: CellDraft;
+  valid: (drafts: CellDraft[]) => boolean;
+  restore: (drafts: CellDraft[], put: CellDraft) => CellDraft[];
+  back: Find;
+};
+
+/**
+ * A card's 칸 as a column of groups; "+ 칸 추가" comes after the last, as on the phone. Every delete
+ * acts at once and the snack offers the latest back (design.md §Principles 5).
+ */
 export function CellFields({
   drafts,
   showErrors,
@@ -788,47 +835,128 @@ export function CellFields({
 }) {
   // The 칸 recording, one at a time, as the phone's one recorder.
   const [recording, setRecording] = useState<string | null>(null);
+  const [offer, setOffer] = useState<{ key: number; offer: Offer } | null>(null);
+  const [focusing, setFocusing] = useState<{ find: Find } | null>(null);
+  const addButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const field = focusing?.find();
+    field?.focus();
+    // A focus scrolls no grid sideways in Chromium, so a new column's header is brought in too.
+    if (field && "scrollIntoView" in field)
+      field.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [focusing]);
+  const dismiss = useCallback(() => {
+    setOffer(null);
+  }, []);
+  const offerBack = (next: Offer) => {
+    setOffer((now) => ({ key: (now?.key ?? 0) + 1, offer: next }));
+  };
+  const editing: Editing = {
+    remove: ({ said, before, after, next, back }) => {
+      change((current) => current.map((item) => (item.id === before.id ? after : item)));
+      offerBack({
+        said,
+        put: before,
+        valid: (current) => current.some((item) => item === after),
+        restore: (current, put) => current.map((item) => (item === after ? put : item)),
+        back,
+      });
+      setFocusing({ find: next });
+    },
+    focusSoon: (find) => {
+      setFocusing({ find });
+    },
+  };
+  const shown = offer?.offer.valid(drafts) ? offer : null;
   return (
-    <div className="flex flex-col gap-3">
-      {drafts.map((draft, at) => (
-        <CellGroup
-          key={draft.id}
-          draft={draft}
-          at={at}
-          count={drafts.length}
-          showErrors={showErrors}
-          recorder={{
-            taken: recording !== null && recording !== draft.id,
-            hold: (holding) => {
-              setRecording((holder) => (holding ? draft.id : holder === draft.id ? null : holder));
-            },
-          }}
-          change={(next) => {
-            change((current) =>
-              current.map((item) =>
-                item.id === draft.id ? (typeof next === "function" ? next(item) : next) : item,
-              ),
-            );
-          }}
-          move={(by) => {
-            change((current) => {
-              const next = current.filter((item) => item.id !== draft.id);
-              next.splice(at + by, 0, current.find((item) => item.id === draft.id) ?? draft);
-              return next;
-            });
-          }}
-          remove={() => {
-            change((current) => current.filter((item) => item.id !== draft.id));
-          }}
-        />
-      ))}
-      <button
-        type="button"
-        onClick={add}
-        className="pressable min-h-tap-target w-full px-1 text-left text-body text-ink-2"
-      >
-        + 칸 추가
-      </button>
-    </div>
+    <EditingContext value={editing}>
+      <div className="flex flex-col gap-3">
+        {drafts.map((draft, at) => (
+          <CellGroup
+            key={draft.id}
+            draft={draft}
+            at={at}
+            count={drafts.length}
+            showErrors={showErrors}
+            recorder={{
+              taken: recording !== null && recording !== draft.id,
+              hold: (holding) => {
+                setRecording((holder) =>
+                  holding ? draft.id : holder === draft.id ? null : holder,
+                );
+              },
+            }}
+            change={(next) => {
+              change((current) =>
+                current.map((item) =>
+                  item.id === draft.id ? (typeof next === "function" ? next(item) : next) : item,
+                ),
+              );
+            }}
+            move={(by) => {
+              change((current) => {
+                const next = current.filter((item) => item.id !== draft.id);
+                next.splice(at + by, 0, current.find((item) => item.id === draft.id) ?? draft);
+                return next;
+              });
+            }}
+            remove={() => {
+              const following = drafts[at + 1]?.id;
+              const preceding = drafts[at - 1]?.id;
+              const others = drafts.filter((item) => item !== draft).map((item) => item.id);
+              change((current) => current.filter((item) => item.id !== draft.id));
+              offerBack({
+                said: "칸을 삭제했어요",
+                put: draft,
+                // A card saved and started again holds none of the 칸 this one was beside.
+                valid: (current) =>
+                  !current.some((item) => item.id === draft.id) &&
+                  (others.length === 0 || current.some((item) => others.includes(item.id))),
+                restore: (current, put) => {
+                  const next = [...current];
+                  const after = next.findIndex((item) => item.id === following);
+                  const before = next.findIndex((item) => item.id === preceding);
+                  next.splice(after >= 0 ? after : before + 1, 0, put);
+                  return next;
+                },
+                back: () => {
+                  const section = cellSection(draft.id);
+                  return firstField(section) ?? section?.querySelector("[aria-haspopup]");
+                },
+              });
+              setFocusing({
+                find: () =>
+                  firstField(cellSection(following)) ??
+                  firstField(cellSection(preceding)) ??
+                  addButton.current,
+              });
+            }}
+          />
+        ))}
+        <button
+          ref={addButton}
+          type="button"
+          onClick={add}
+          className="pressable min-h-tap-target w-full px-1 text-left text-body text-ink-2"
+        >
+          + 칸 추가
+        </button>
+        {shown && (
+          <UndoSnack
+            key={shown.key}
+            said={shown.offer.said}
+            dismiss={dismiss}
+            undo={() => {
+              const { put, restore } = shown.offer;
+              // Made once here, not in the update, which may run twice.
+              const back = revived(put);
+              change((current) => restore(current, back));
+              setOffer(null);
+              setFocusing({ find: shown.offer.back });
+            }}
+          />
+        )}
+      </div>
+    </EditingContext>
   );
 }

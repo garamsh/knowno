@@ -181,6 +181,37 @@ test("writes every 칸 type as free v2, and opens and saves a stored card over i
   await page.getByRole("textbox", { name: "단어", exact: true }).fill("capital");
   await page.getByRole("textbox", { name: "라벨", exact: true }).fill("명");
   await page.getByRole("textbox", { name: "뜻", exact: true }).fill("수도");
+  // Each target is 44 px at least: the 라벨 chip's, and the one-letter "뜻" chip's.
+  const target = async (name: string, role: "textbox" | "button") =>
+    page.getByRole(role, { name, exact: true }).evaluate((element) => {
+      // A press reaches a field through the label around it, and a chip through its ::before.
+      if (element instanceof HTMLInputElement) {
+        const rect = (element.labels?.[0] ?? element).getBoundingClientRect();
+        return { width: Math.round(rect.width), height: Math.round(rect.height) };
+      }
+      const rect = element.getBoundingClientRect();
+      const before = getComputedStyle(element, "::before");
+      const past = (inset: string) => Math.max(0, -(parseFloat(inset) || 0));
+      return {
+        width: Math.round(rect.width + past(before.left) + past(before.right)),
+        height: Math.round(rect.height + past(before.top) + past(before.bottom)),
+      };
+    });
+  for (const [name, role] of [
+    ["라벨", "textbox"],
+    ["뜻", "button"],
+  ] as const) {
+    const { width, height } = await target(name, role);
+    expect(width, `${name}'s width`).toBeGreaterThanOrEqual(44);
+    expect(height, `${name}'s height`).toBeGreaterThanOrEqual(44);
+  }
+  // "+ 뜻 추가" focuses the new 뜻 in view.
+  await dialog.getByRole("button", { name: "+ 뜻 추가" }).click();
+  await expect(page.getByRole("textbox", { name: "뜻 2", exact: true })).toBeFocused();
+  await expect(page.getByRole("textbox", { name: "뜻 2", exact: true })).toBeInViewport();
+  await dialog.getByRole("button", { name: "2번째 뜻 메뉴" }).click();
+  await page.getByRole("menuitem", { name: "삭제" }).click();
+  await expect(page.getByRole("textbox", { name: "라벨", exact: true })).toBeFocused();
   await addCell("빈칸 문장");
   const line = page.getByRole("textbox", { name: "문장", exact: true });
   await line.fill("The capital of France is Paris");
@@ -197,12 +228,45 @@ test("writes every 칸 type as free v2, and opens and saves a stored card over i
   await page.getByRole("button", { name: "빈칸", exact: true }).click();
   await page.getByRole("textbox", { name: "2행 1열" }).fill("한국");
   await page.getByRole("textbox", { name: "2행 2열" }).fill("서울");
-  await expect(page.getByRole("button", { name: "2행 삭제" })).toBeVisible();
-  // A one-line field is the phone's AppTextField, 50 high and padded 13 by 16; a table's cell is
-  // the phone's cell field, padded 12 all round, 48 high.
+  // The toolbar is the phone's, fixed: its four tools on one line at 390 px, the cell selected.
+  const toolbar = dialog.getByRole("toolbar", { name: "표 도구" });
+  const tops = await toolbar
+    .getByRole("button")
+    .evaluateAll((tools) => tools.map((tool) => Math.round(tool.getBoundingClientRect().top)));
+  expect(tops).toHaveLength(4);
+  expect(new Set(tops).size, "one line of tools").toBe(1);
+  // A row goes at once, the caret kept in its cell, and the snack offers it back inside the dialog,
+  // above the editor's actions.
+  await toolbar.getByRole("button", { name: "삭제", exact: true }).click();
+  await page.getByRole("menuitem", { name: "2행 삭제" }).click();
+  await expect(page.getByRole("textbox", { name: "1행 2열, 빈칸" })).toBeFocused();
+  const snack = dialog.getByRole("status");
+  await expect(snack).toHaveText("2행을 삭제했어요");
+  const undo = dialog.getByRole("button", { name: "되돌리기" });
+  const snackBottom = await undo.evaluate((button) => button.getBoundingClientRect().bottom);
+  const actionsTop = await dialog
+    .getByRole("button", { name: "저장", exact: true })
+    .evaluate((button) => button.getBoundingClientRect().top);
+  expect(snackBottom).toBeLessThanOrEqual(actionsTop);
+  expect((await undo.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await undo.focus();
+  await capture(page, "snack");
+  await undo.click();
+  await expect(page.getByRole("textbox", { name: "2행 1열" })).toHaveValue("한국");
+  await expect(page.getByRole("textbox", { name: "2행 2열" })).toBeFocused();
+  // A new column's header takes the focus, scrolled into view in the grid that scrolls sideways.
+  await toolbar.getByRole("button", { name: "열 추가" }).click();
+  const header = page.getByRole("textbox", { name: "3열 머리글" });
+  await expect(header).toBeFocused();
+  await expect(header).toBeInViewport({ ratio: 1 });
+  await toolbar.getByRole("button", { name: "삭제", exact: true }).click();
+  await page.getByRole("menuitem", { name: "3열 삭제" }).click();
+  await expect(page.getByRole("textbox", { name: "2열 머리글" })).toBeFocused();
+  // A one-line field is the phone's AppTextField, 50 high and padded 13 by 16, the line two lines
+  // tall as the phone's; a table's cell is the phone's cell field, padded 12 all round, 48 high.
   for (const [name, box] of [
     ["뜻", { height: 50, padding: "13px 16px" }],
-    ["문장", { height: 50, padding: "13px 16px" }],
+    ["문장", { height: 74, padding: "13px 16px" }],
     ["1열 머리글", { height: 48, padding: "12px" }],
     ["2행 1열", { height: 48, padding: "12px" }],
   ] as const) {
@@ -376,6 +440,23 @@ test("adds a 사진 칸 with its boxes and a 소리 칸, which study draws and p
     "true",
   );
   await capture(page, "photo");
+  // "사진 삭제" acts at once; "되돌리기" puts the photo back with its boxes, from a URL the browser
+  // still reads.
+  await dialog.getByRole("button", { name: "사진 삭제" }).click();
+  await expect(photo).toHaveCount(0);
+  await expect(dialog.getByLabel("앨범에서 고르기")).toBeFocused();
+  await dialog.getByRole("button", { name: "되돌리기" }).click();
+  await expect(dialog.getByRole("button", { name: "빈칸 1" })).toBeFocused();
+  await expect(dialog.getByRole("button", { name: "빈칸 2" })).toBeVisible();
+  expect(
+    await photo.evaluate(async (drawn: HTMLElement) => {
+      const source = /url\("([^"]+)"\)/.exec(drawn.style.backgroundImage)?.[1] ?? "";
+      return fetch(source).then(
+        (response) => response.ok,
+        () => false,
+      );
+    }),
+  ).toBe(true);
 
   // A sound picked from a file; recording is offered where the browser records AAC alone.
   await addCell("소리");
@@ -385,11 +466,17 @@ test("adds a 사진 칸 with its boxes and a 소리 칸, which study draws and p
       MediaRecorder.isTypeSupported("audio/mp4;codecs=mp4a.40.2"),
   );
   await expect(dialog.getByRole("button", { name: "녹음하기" })).toHaveCount(records ? 1 : 0);
-  await dialog
-    .getByLabel("파일에서 고르기")
-    .setInputFiles({ name: "city.mp3", mimeType: "audio/mpeg", buffer: silentMp3() });
+  // A press on the picker's button focuses its input, which goes once the sound is in.
+  const pick = dialog.getByLabel("파일에서 고르기");
+  await pick.focus();
+  await pick.setInputFiles({ name: "city.mp3", mimeType: "audio/mpeg", buffer: silentMp3() });
   await expect(dialog.getByRole("button", { name: "소리 듣기" })).toBeVisible();
+  await expect(dialog.getByLabel("다른 파일 고르기")).toBeFocused();
   await capture(page, "sound");
+  await dialog.getByRole("button", { name: "소리 삭제" }).click();
+  await expect(dialog.getByRole("status")).toHaveText("소리를 삭제했어요");
+  await dialog.getByRole("button", { name: "되돌리기" }).click();
+  await expect(dialog.getByRole("button", { name: "소리 듣기" })).toBeFocused();
   await dialog.getByRole("button", { name: "저장", exact: true }).click();
   await expect(dialog).toBeHidden();
 

@@ -454,8 +454,8 @@ void main() {
       }
       await addBlock(screens, 'Photo');
       expect(
-        FocusManager.instance.primaryFocus?.context?.widget,
-        isNot(isA<EditableText>()),
+        tester.testTextInput.isVisible,
+        isFalse,
         reason: 'no field keeps the keyboard up',
       );
       expect(inView(tester, find.text('Choose from album')), isTrue);
