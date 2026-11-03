@@ -115,9 +115,11 @@ class SharingApp {
 
   Future<void> tapText(String text) => tap(shownText(text));
 
-  /// Opens the browse screen from the 노트 tab, or from the first-run home
-  /// before the first deck.
+  /// Opens the browse screen from the 노트 tab's ⋯, or from the first-run
+  /// home before the first deck.
   Future<void> browse() async {
+    final menu = find.byTooltip('Notes menu');
+    if (menu.evaluate().isNotEmpty) await tap(menu);
     await tester.ensureVisible(find.text('Browse public notes'));
     await tester.pumpAndSettle();
     await tapText('Browse public notes');

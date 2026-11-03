@@ -4,15 +4,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { decorateDeck, deleteDeck, publishDeck, renameDeck, unpublishDeck } from "../actions";
-import { type DeckIcon, deckIconNames, deckIcons, parseDeckIcon } from "../deck-icon";
-import { type DeckColor, deckColor } from "../deck-tint";
+import { parseDeckIcon } from "../deck-icon";
+import { deckColor } from "../deck-tint";
 import type { Deck } from "../library";
 import { leaveThen } from "../hooks/use-back-entry";
-import { prepareImage, type PreparedImage } from "../prepare-image";
 import { characters, maxDescriptionLength, parseDisplayName } from "../publishing";
 import { AuthoringSheet } from "./authoring-sheet";
-import { DeckColorPicker } from "./deck-color-picker";
-import { DeckTile, IconDrawing } from "./deck-tile";
+import { DeckAppearanceFields, type Look, lookedTile, setPhoto } from "./deck-appearance";
+import { DeckTile } from "./deck-tile";
 import { RowMenu } from "./row-menu";
 
 /** The user's display name as the page read it, or `unread` where it could not be. */
@@ -180,60 +179,25 @@ function RenameSheet({ deck, close, done }: { deck: Deck; close: () => void; don
   );
 }
 
-/** The photo 노트 꾸미기 holds: the deck's own, none, or one picked and not yet stored. */
-type Photo =
-  { kind: "stored" } | { kind: "none" } | { kind: "picked"; image: PreparedImage; url: string };
-
 /**
- * "노트 꾸미기", as the phone's sheet: the tile previewing the choice at twice its size, the icons,
- * the colours and the photo, picked from the album or the camera and cropped to its centred
- * square, or removed, over "저장", which stores them (ADR 0159). A failure is said under the photo's
- * buttons and the note stays as it was.
+ * "노트 꾸미기", as the phone's sheet: the tile previewing the choice at twice its size over the
+ * choices 새 노트 offers (`DeckAppearanceFields`), over "저장", which stores them (ADR 0159). A
+ * failure is said under the photo's buttons and the note stays as it was.
  */
 function DecorateSheet({ deck, close, done }: { deck: Deck; close: () => void; done: () => void }) {
-  const [icon, setIcon] = useState<DeckIcon>(parseDeckIcon(deck.icon) ?? "layers");
-  const [color, setColor] = useState<DeckColor | undefined>(deckColor(deck));
-  const [photo, setPhoto] = useState<Photo>(deck.imageUrl ? { kind: "stored" } : { kind: "none" });
+  const [look, setLook] = useState<Look>({
+    icon: parseDeckIcon(deck.icon) ?? "layers",
+    color: deckColor(deck),
+    photo: deck.imageUrl ? { kind: "stored" } : { kind: "none" },
+  });
   const [problem, setProblem] = useState("");
   const [pending, start] = useTransition();
-  const [picking, setPicking] = useState(false);
-  const iconLegend = useId();
-  const pickedUrl = photo.kind === "picked" ? photo.url : null;
-  useEffect(
-    () => () => {
-      if (pickedUrl) URL.revokeObjectURL(pickedUrl);
-    },
-    [pickedUrl],
-  );
-  const busy = pending || picking;
-  const preview: Deck = {
-    ...deck,
-    icon,
-    color,
-    imageUrl:
-      photo.kind === "picked" ? photo.url : photo.kind === "stored" ? deck.imageUrl : undefined,
-  };
-  async function pick(file: File | undefined) {
-    if (!file) return;
-    setPicking(true);
-    setProblem("");
-    const image = await prepareImage(file, "square");
-    setPicking(false);
-    if (!image) {
-      setProblem("사진을 불러오지 못했어요. 다시 시도해 주세요.");
-      return;
-    }
-    setPhoto({ kind: "picked", image, url: URL.createObjectURL(image.jpeg) });
-  }
   function save() {
     const form = new FormData();
     form.set("deck", deck.id);
-    form.set("icon", icon);
-    form.set("color", color ?? "");
-    if (photo.kind === "picked") {
-      form.set("image", photo.image.jpeg, "image.jpg");
-      form.set("sha256", photo.image.sha256);
-    } else form.set("image", photo.kind === "stored" ? "keep" : "remove");
+    form.set("icon", look.icon);
+    form.set("color", look.color ?? "");
+    setPhoto(form, look.photo);
     setProblem("");
     start(async () => {
       const result = await decorateDeck(form);
@@ -245,89 +209,21 @@ function DecorateSheet({ deck, close, done }: { deck: Deck; close: () => void; d
     <AuthoringSheet title="노트 꾸미기" close={close}>
       <div className="flex flex-col gap-4 pb-2">
         <div className="flex justify-center">
-          <DeckTile deck={preview} size="size-[calc(var(--spacing-deck-tile)*2)]" />
+          <DeckTile
+            deck={lookedTile(look, deck.imageUrl)}
+            size="size-[calc(var(--spacing-deck-tile)*2)]"
+          />
         </div>
-        <fieldset
-          aria-labelledby={iconLegend}
-          className="flex flex-col gap-3 rounded-group bg-surface px-4 py-4"
-        >
-          <span id={iconLegend} className="text-caption text-muted">
-            아이콘
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {deckIcons.map((offered) => (
-              <label
-                key={offered}
-                className="flex size-[calc(var(--spacing-tap-target)+4px)] cursor-pointer items-center justify-center rounded-field border border-outline bg-surface text-ink has-checked:border-2 has-checked:border-accent has-checked:bg-brand-tint has-focus-visible:outline-2 has-focus-visible:outline-ink"
-              >
-                <input
-                  type="radio"
-                  name="icon"
-                  value={offered}
-                  aria-label={deckIconNames[offered]}
-                  checked={icon === offered}
-                  onChange={() => {
-                    setIcon(offered);
-                  }}
-                  className="sr-only"
-                />
-                <IconDrawing icon={offered} className="size-6" />
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <DeckColorPicker legend="색" selected={color} pick={setColor} />
-        <div
-          role="group"
-          aria-label="사진 넣기"
-          className="flex flex-col gap-3 rounded-group bg-surface px-4 py-4"
-        >
-          <span aria-hidden className="text-caption text-muted">
-            사진 넣기
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["앨범에서 고르기", false],
-                ["사진 찍기", true],
-              ] as const
-            ).map(([label, camera]) => (
-              <label
-                key={label}
-                className={`${secondary} border border-outline ${busy ? "pointer-events-none opacity-50" : ""}`}
-              >
-                {label}
-                <input
-                  aria-label={label}
-                  type="file"
-                  accept="image/*"
-                  capture={camera ? "environment" : undefined}
-                  disabled={busy}
-                  onChange={(event) => {
-                    const file = event.currentTarget.files?.[0];
-                    event.currentTarget.value = "";
-                    void pick(file);
-                  }}
-                  className="sr-only"
-                />
-              </label>
-            ))}
-            {photo.kind !== "none" && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setPhoto({ kind: "none" });
-                }}
-                className="pressable min-h-button px-3 text-button text-ink-2 disabled:opacity-50"
-              >
-                사진 빼기
-              </button>
-            )}
-          </div>
-          {problem && <Problem>{problem}</Problem>}
-        </div>
-        <button type="button" disabled={busy} onClick={save} className={primary}>
+        <DeckAppearanceFields
+          look={look}
+          change={(next) => {
+            setLook(next);
+            setProblem("");
+          }}
+          busy={pending}
+          problem={problem}
+        />
+        <button type="button" disabled={pending} onClick={save} className={primary}>
           저장
         </button>
       </div>

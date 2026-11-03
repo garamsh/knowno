@@ -1313,7 +1313,7 @@ test("creates a deck and a card on mobile, warns on a duplicate and keeps saved 
     () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
-  await page.getByRole("textbox", { name: "이름", exact: true }).fill("영어 단어");
+  await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("영어 단어");
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByRole("heading", { name: "영어 단어", exact: true })).toBeVisible();
   await capture(page, "authoring-deck");

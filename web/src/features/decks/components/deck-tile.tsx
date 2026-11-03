@@ -56,13 +56,16 @@ export function IconDrawing({
   return drawings[icon]({ className, strokeWidth: 2 });
 }
 
+/** What a deck's tile draws: its icon, its colour and its photo. */
+export type Tile = Pick<Deck, "icon" | "color" | "imageUrl">;
+
 /**
  * A deck's icon in ink on its colour from the deck palette, as the app draws its tile (ADR 0103):
  * the icon it stores, or `layers` for none or a key this version does not know; with a photo, the
  * photo covering the tile, the icon drawn under it while the photo is read and where it cannot be
  * (ADR 0159). Hidden from screen readers. [size] sizes the tile; the icon takes half of it.
  */
-export function DeckTile({ deck, size = "size-deck-tile" }: { deck: Deck; size?: string }) {
+export function DeckTile({ deck, size = "size-deck-tile" }: { deck: Tile; size?: string }) {
   return (
     <span
       aria-hidden

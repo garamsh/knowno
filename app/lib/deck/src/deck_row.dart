@@ -51,7 +51,7 @@ class DeckRow extends StatelessWidget {
           child: Row(
             spacing: AppSpace.s12,
             children: [
-              DeckTile(deck: deck),
+              DeckTile(look: DeckLook.of(deck)),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -89,50 +89,32 @@ class DeckRow extends StatelessWidget {
   }
 }
 
-/// The deck's image, or else its icon on its colour, on a rounded tile;
-/// decorative, beside the name. A deck that holds no icon or colour this
-/// build knows shows [DeckIcon.fallback] on the brand tint, a colour of the
-/// palette being only what the user chose (ADR 0145); an image not yet on the
-/// device shows the icon until it is.
-///
-/// [icon], [color] and [image] are drawn in place of the deck's own, as the
-/// 노트 꾸미기 sheet previews a choice; [size] is the tile's side.
+/// A deck's look, [image] or else [icon] on [color], on a rounded tile;
+/// decorative, beside the name. No [color] draws the brand tint, a colour of
+/// the palette being only what the user chose (ADR 0145); an image not yet
+/// on the device shows the icon until it is. [size] is the tile's side.
 class DeckTile extends StatelessWidget {
-  const DeckTile({
-    super.key,
-    required this.deck,
-    this.icon,
-    this.color,
-    this.image,
-    this.size = AppSize.deckTile,
-  });
+  const DeckTile({super.key, required this.look, this.size = AppSize.deckTile});
 
-  final Deck deck;
-  final DeckIcon? icon;
-  final DeckColor? color;
-  final TileImage? image;
+  final DeckLook look;
   final double size;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final shown = color ?? deck.color;
+    final color = look.color;
     final radius = BorderRadius.circular(AppRadius.field);
     final iconTile = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: shown == null ? colors.brandTint : deckTileColor(colors, shown),
+        color: color == null ? colors.brandTint : deckTileColor(colors, color),
         borderRadius: radius,
       ),
-      child: Icon(
-        deckIconData(icon ?? deck.icon ?? DeckIcon.fallback),
-        size: size / 2,
-        color: colors.ink,
-      ),
+      child: Icon(deckIconData(look.icon), size: size / 2, color: colors.ink),
     );
-    final picture = switch (image ?? TileImage.of(deck)) {
+    final picture = switch (look.image) {
       StoredTileImage(:final id) => MediaImage(id, fallback: iconTile),
       PickedTileImage(:final image) => Image.memory(
         image.bytes,
@@ -149,6 +131,34 @@ class DeckTile extends StatelessWidget {
             ),
     );
   }
+}
+
+/// What a deck's tile draws: its [image], or else its [icon] on its [color],
+/// none being the brand tint. A deck's own, or a choice being made for one.
+final class DeckLook {
+  const DeckLook({
+    this.icon = DeckIcon.fallback,
+    this.color,
+    this.image = const NoTileImage(),
+  });
+
+  /// [deck]'s look: an icon or colour this build does not know reads as
+  /// none.
+  DeckLook.of(Deck deck)
+    : icon = deck.icon ?? DeckIcon.fallback,
+      color = deck.color,
+      image = TileImage.of(deck);
+
+  final DeckIcon icon;
+  final DeckColor? color;
+  final TileImage image;
+
+  DeckLook withIcon(DeckIcon icon) =>
+      DeckLook(icon: icon, color: color, image: image);
+  DeckLook withColor(DeckColor color) =>
+      DeckLook(icon: icon, color: color, image: image);
+  DeckLook withImage(TileImage image) =>
+      DeckLook(icon: icon, color: color, image: image);
 }
 
 /// What a [DeckTile] draws in place of its icon.

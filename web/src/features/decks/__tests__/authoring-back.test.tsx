@@ -123,7 +123,7 @@ describe("the browser's back on an authoring screen", () => {
   it("leaves 새 노트's entry before opening the note it saved, as the phone pops it first", async () => {
     await render(() => <AuthoringButton compact />, {});
     await userEvent.click(screen.getByRole("button", { name: "새 노트" }));
-    await userEvent.type(screen.getByRole("textbox", { name: "이름" }), "토익");
+    await userEvent.type(screen.getByRole("textbox", { name: "노트 이름" }), "토익");
     let entryAtPush: boolean | undefined;
     testRouter.push.mockImplementationOnce(() => {
       entryAtPush = onPageEntry();

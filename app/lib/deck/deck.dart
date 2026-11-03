@@ -68,7 +68,7 @@ export 'src/content_view.dart'
     show CardFit, ContentView, ShrinkFit, StepFit, contentSpan, sensesSpan;
 export 'src/deck_repository.dart'
     show CardSaved, DeckRepository, DuplicateFront, SaveCardResult;
-export 'src/deck_row.dart' show DeckRow, DeckTile;
+export 'src/deck_row.dart' show DeckLook, DeckRow, DeckTile;
 export 'src/failure.dart'
     show DeckDeleted, DeckFailure, StorageFailure, UnreadableCard;
 export 'src/failure_message.dart'

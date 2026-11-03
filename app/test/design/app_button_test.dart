@@ -132,7 +132,7 @@ void main() {
   }
 
   testWidgets(
-    'a call to action is taller than a button, and a quiet one is a tap target',
+    'a call to action is taller than a button, and a quiet one and a header action are a tap target',
     (tester) async {
       await pumpComponent(
         tester,
@@ -142,6 +142,11 @@ void main() {
           children: [
             AppButton(label: 'cta', size: AppButtonSize.cta, onPressed: () {}),
             AppButton(label: 'regular', onPressed: () {}),
+            AppButton(
+              label: 'header',
+              size: AppButtonSize.header,
+              onPressed: () {},
+            ),
             AppButton(
               label: 'text',
               variant: AppButtonVariant.text,
@@ -160,6 +165,7 @@ void main() {
           .height;
       expect(height('cta'), AppSize.cta);
       expect(height('regular'), AppSize.button);
+      expect(height('header'), AppSize.tapTarget);
       expect(height('text'), AppSize.tapTarget);
     },
   );

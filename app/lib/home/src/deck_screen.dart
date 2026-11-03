@@ -2,17 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
 import '../../design/app_list_row.dart';
 import '../../design/app_sheet.dart';
-import '../../design/app_text_field.dart';
-import '../../design/bottom_actions.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
 import 'above_menu.dart';
+import 'list_header.dart';
 import 'option_sheet.dart';
 import '../../l10n/app_localizations.dart';
 import '../../photo_import/photo_import.dart';
@@ -44,8 +42,8 @@ class DeckScreen extends ConsumerStatefulWidget {
 enum _Add { byHand, camera, album, file }
 
 class _DeckScreenState extends ConsumerState<DeckScreen> {
-  /// The card search, or null while it is closed.
-  String? _query;
+  /// The card search, kept as typed.
+  var _query = '';
 
   /// The "뒷면 보기" switch, off each time the page opens.
   bool _showAll = false;
@@ -76,47 +74,21 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
       AsyncData(:final value) => value.isEmpty,
       _ => false,
     };
-    final query = _query;
-    // An open search closes on the back, and a second back leaves.
-    return PopScope(
-      canPop: query == null,
-      onPopInvokedWithResult: (popped, _) {
-        if (!popped) setState(() => _query = null);
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: query == null
-              ? Semantics(
-                  header: true,
-                  child: Text(current.name, style: AppType.deckName),
-                )
-              : AppTextField(
-                  hint: l10n.searchCards,
-                  prefixIcon: const Icon(LucideIcons.search),
-                  height: AppSize.search,
-                  autofocus: true,
-                  onChanged: (query) => setState(() => _query = query),
-                ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpace.s8),
-              child: query == null
-                  ? RaisedIconButton(
-                      tooltip: l10n.searchCardsAction,
-                      icon: LucideIcons.search,
-                      onPressed: () => setState(() => _query = ''),
-                    )
-                  : RaisedIconButton(
-                      tooltip: l10n.closeSearch,
-                      icon: LucideIcons.x,
-                      onPressed: () => setState(() => _query = null),
-                    ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpace.gutter),
-              child: MenuAnchor(
-                alignmentOffset: const Offset(0, AppSpace.s4),
-                menuChildren: [
+    return Scaffold(
+      appBar: AppBar(
+        title: Semantics(
+          header: true,
+          child: Text(current.name, style: AppType.deckName),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpace.gutter),
+            child: ListHeaderActions(
+              label: l10n.newCard,
+              onPressed: _addCard,
+              menu: (
+                tooltip: l10n.deckActions,
+                items: [
                   MenuItemButton(onPressed: _rename, child: Text(l10n.rename)),
                   MenuItemButton(
                     onPressed: () => _customize(current),
@@ -152,92 +124,89 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
                     ),
                   ),
                 ],
-                builder: (context, menu, _) => RaisedIconButton(
-                  tooltip: l10n.deckActions,
-                  icon: LucideIcons.ellipsis,
-                  onPressed: () => menu.isOpen ? menu.close() : menu.open(),
-                ),
               ),
             ),
-          ],
-        ),
-        body: switch (cards) {
-          AsyncData(:final value) => CustomScrollView(
-            slivers: [
-              // While searching, the matches start under the top bar; with no
-              // card, the empty line and "카드 추가" are the screen's content.
-              if (query == null && !empty)
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpace.gutter,
-                    AppSpace.s8,
-                    AppSpace.gutter,
-                    AppSpace.s16,
+          ),
+        ],
+      ),
+      body: switch (cards) {
+        AsyncData(:final value) => CustomScrollView(
+          slivers: [
+            if (!empty)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpace.gutter,
+                  AppSpace.s8,
+                  AppSpace.gutter,
+                  0,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: ListSearchField(
+                    hint: l10n.searchCards,
+                    onChanged: (query) => setState(() => _query = query),
                   ),
-                  sliver: SliverToBoxAdapter(
-                    child: TodayCounter(
-                      decks: DeckSelection(widget.deck.id),
-                      builder: (context, count) => AppButton(
-                        label: switch (count) {
-                          TodayCounted(:final total) => l10n.studyThisDeck(
-                            total,
-                          ),
-                          _ => l10n.studyThisDeckPlain,
-                        },
-                        size: AppButtonSize.cta,
-                        onPressed: _study,
-                      ),
+                ),
+              ),
+            // While searching, the matches start under the search field;
+            // with no card, the empty line is the screen's content.
+            if (_query.trim().isEmpty && !empty)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpace.gutter,
+                  AppSpace.s8,
+                  AppSpace.gutter,
+                  AppSpace.s16,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: TodayCounter(
+                    decks: DeckSelection(widget.deck.id),
+                    builder: (context, count) => AppButton(
+                      label: switch (count) {
+                        TodayCounted(:final total) => l10n.studyThisDeck(total),
+                        _ => l10n.studyThisDeckPlain,
+                      },
+                      size: AppButtonSize.cta,
+                      onPressed: _study,
                     ),
                   ),
                 ),
-              if (value.isEmpty)
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpace.gutter,
-                    vertical: AppSpace.s40,
+              ),
+            if (value.isEmpty)
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.gutter,
+                  vertical: AppSpace.s40,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    spacing: AppSpace.s16,
+                    children: [
+                      const Mascot(
+                        expression: MascotExpression.sleepy,
+                        size: AppSize.mascotMedium,
+                      ),
+                      Text(
+                        keepWords(l10n.noCards),
+                        semanticsLabel: l10n.noCards,
+                        textAlign: TextAlign.center,
+                        style: AppType.body.copyWith(color: colors.muted),
+                      ),
+                    ],
                   ),
-                  sliver: SliverToBoxAdapter(
-                    child: Column(
-                      spacing: AppSpace.s16,
-                      children: [
-                        const Mascot(
-                          expression: MascotExpression.sleepy,
-                          size: AppSize.mascotMedium,
-                        ),
-                        Text(
-                          keepWords(l10n.noCards),
-                          semanticsLabel: l10n.noCards,
-                          textAlign: TextAlign.center,
-                          style: AppType.body.copyWith(color: colors.muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                ..._cardList(l10n, value, public: public),
-            ],
-          ),
-          AsyncError(:final error, :final stackTrace) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpace.gutter),
-              child: Text(describeProviderError(l10n, error, stackTrace)),
-            ),
-          ),
-          _ => const Center(child: CircularProgressIndicator()),
-        },
-        bottomNavigationBar: BottomActions(
-          secondary: AppButton(
-            label: l10n.newCard,
-            // With no card, adding one is the screen's one primary action.
-            variant: empty
-                ? AppButtonVariant.primary
-                : AppButtonVariant.secondary,
-            size: AppButtonSize.cta,
-            onPressed: _addCard,
+                ),
+              )
+            else
+              ..._cardList(l10n, value, public: public),
+          ],
+        ),
+        AsyncError(:final error, :final stackTrace) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpace.gutter),
+            child: Text(describeProviderError(l10n, error, stackTrace)),
           ),
         ),
-      ),
+        _ => const Center(child: CircularProgressIndicator()),
+      },
     );
   }
 
@@ -251,7 +220,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     List<Card> cards, {
     required bool public,
   }) {
-    final query = (_query ?? '').trim().toLowerCase();
+    final query = _query.trim().toLowerCase();
     final rows = [
       for (final card in cards)
         if ([card.front, card.back].any(

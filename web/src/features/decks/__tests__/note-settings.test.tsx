@@ -172,7 +172,7 @@ describe("노트 설정", () => {
     expect(sheet.queryByRole("button", { name: "사진 빼기" })).not.toBeInTheDocument();
   });
 
-  it("starts 노트 꾸미기 on the stored photo, which 사진 빼기 removes from the preview and the note", async () => {
+  it("starts 노트 꾸미기 on the stored photo with the icon and colour folded, which 사진 빼기 removes from the preview and the note, the icon kept", async () => {
     const photo = uuidOf("photo");
     db.seed("decks", { ...deckRow("deck", "French"), image_media_id: photo, icon: "book" });
     db.rows.media.push({ user_id: testUser.id, id: photo });
@@ -182,12 +182,18 @@ describe("노트 설정", () => {
     });
     const dialog = screen.getByRole("dialog", { name: "노트 꾸미기" });
     const sheet = within(dialog);
-    expect(sheet.getByRole("radio", { name: "책" })).toBeChecked();
     expect(dialog.querySelector("[style*='background-image']")).toHaveStyle({
       backgroundImage: 'url("https://signed/photo")',
     });
+    // A photo covers the icon and the colour, so they fold; another photo is offered instead.
+    expect(sheet.queryByRole("radio", { name: "책" })).not.toBeInTheDocument();
+    expect(sheet.queryByRole("group", { name: "색" })).not.toBeInTheDocument();
+    expect(sheet.getByLabelText("다른 사진")).toBeInTheDocument();
+    expect(sheet.queryByLabelText("사진 찍기")).not.toBeInTheDocument();
     await userEvent.click(sheet.getByRole("button", { name: "사진 빼기" }));
     expect(dialog.querySelector("[style*='background-image']")).toBeNull();
+    expect(sheet.getByRole("radio", { name: "책" })).toBeChecked();
+    expect(sheet.getByLabelText("사진 찍기")).toBeInTheDocument();
     await userEvent.click(sheet.getByRole("button", { name: "저장" }));
     await waitFor(() => {
       expect(db.rows.decks[0]).toMatchObject({ image_media_id: null });

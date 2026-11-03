@@ -316,8 +316,10 @@ test("draws the first-run home, 홈 over its week card, the 노트 page, a note,
     () => page.getByRole("dialog", { name: "새 노트" }).isVisible(),
   );
   const note = page.getByRole("dialog", { name: "새 노트" });
-  await note.getByRole("textbox", { name: "이름", exact: true }).fill("토익 900");
-  expect(await fieldHeight(note.getByRole("textbox", { name: "이름", exact: true }))).toBe(50);
+  // The name field opens focused, as the phone's.
+  await expect(note.getByRole("textbox", { name: "노트 이름", exact: true })).toBeFocused();
+  await note.getByRole("textbox", { name: "노트 이름", exact: true }).fill("토익 900");
+  expect(await fieldHeight(note.getByRole("textbox", { name: "노트 이름", exact: true }))).toBe(50);
   for (const label of ["저장", "저장하고 카드 추가"]) {
     expect(await labelLines(note.getByRole("button", { name: label, exact: true })), label).toBe(1);
   }
@@ -418,7 +420,7 @@ test("answers the browser's back on an authoring screen as the phone's back, and
     () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
     () => page.getByRole("dialog", { name: "새 노트" }).isVisible(),
   );
-  await page.getByRole("textbox", { name: "이름", exact: true }).fill("토익");
+  await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("토익");
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: "토익" })).toBeVisible();
   await page.goBack();

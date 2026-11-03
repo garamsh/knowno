@@ -47,7 +47,7 @@ export function EmptyHome() {
           첫 노트를 만들어 볼까요?
         </h2>
       </section>
-      <AuthoringButton primary />
+      <AuthoringButton />
     </>
   );
 }

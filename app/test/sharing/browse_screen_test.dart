@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:knowno/design/app_text_field.dart';
 import 'package:knowno/sharing/sharing.dart';
 
 import '../word_breaks.dart';
@@ -55,22 +56,29 @@ List<String> _listed(WidgetTester tester) =>
 
 void main() {
   testWidgets(
-    'the 노트 tab offers New note over the deck rows, which opens 새 노트, and Browse public notes under them',
+    "the 노트 tab's header holds New note, which opens 새 노트, and a ⋯ whose one item is Browse public notes, with nothing under the rows",
     (tester) async {
       final app = await SharingApp.open(
         tester,
         server: _server(),
         myDecks: {'Mine': {}},
       );
-      await tester.ensureVisible(find.text('Browse public notes'));
       final mine = tester.getRect(shownText('Mine'));
       final create = tester.getRect(find.text('New note'));
-      final browse = tester.getRect(find.text('Browse public notes'));
+      final menu = tester.getRect(find.byTooltip('Notes menu'));
       expect(create.bottom, lessThan(mine.top));
-      expect(browse.top, greaterThan(mine.bottom));
+      expect(menu.bottom, lessThan(mine.top));
+      expect(find.text('Browse public notes'), findsNothing);
+
+      await app.tap(find.byTooltip('Notes menu'));
+      expect(find.byType(MenuItemButton), findsOneWidget);
+      await app.tapText('Browse public notes');
+      expect(find.text('Public notes'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
 
       await app.tapText('New note');
-      expect(find.text('Note name'), findsOneWidget);
+      expect(find.widgetWithText(AppTextField, 'Note name'), findsOneWidget);
       await app.close();
     },
   );

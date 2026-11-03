@@ -37,6 +37,9 @@ enum AppButtonSize {
 
   /// [AppSize.cta], for the actions at the bottom of a screen or a sheet.
   cta,
+
+  /// [AppSize.tapTarget], for the action beside a screen's title.
+  header,
 }
 
 /// The app's button. A filled one sits on its edge and, pressed, moves down
@@ -75,6 +78,7 @@ class AppButton extends StatelessWidget {
     final colors = AppColors.of(context);
     final height = switch ((variant, size)) {
       (_, AppButtonSize.cta) => AppSize.cta,
+      (_, AppButtonSize.header) => AppSize.tapTarget,
       (
         AppButtonVariant.text ||
             AppButtonVariant.onHeroText ||

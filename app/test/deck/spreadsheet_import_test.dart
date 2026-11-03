@@ -360,7 +360,7 @@ void main() {
         await tester.pumpAndSettle();
         // A new deck is offered 노트 꾸미기, whose dismissal keeps the default.
         expect(find.bySemanticsLabel(ko.deckAppearance), findsOneWidget);
-        await tester.tapAt(const Offset(195, 8));
+        await tester.binding.handlePopRoute();
         await tester.pumpAndSettle();
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 50)),

@@ -1,6 +1,5 @@
 "use client";
 
-import { Search } from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
 
 import { describeContent, holdsBlank, spokenCells, spokenContent } from "../card-content";
@@ -8,12 +7,13 @@ import type { Card, Deck } from "../library";
 import { CardEditor } from "./authoring-button";
 import { SideText } from "./side-text";
 import { EmptyDeck } from "./empty-home";
+import { ListHeader, ListSearch } from "./list-header";
 import { WholeCells } from "./whole-card";
 
 /**
- * A note's page under its name, as the final screens draw it (ADR 0150): the name with a
- * magnifier, "카드 검색", that opens the search, and [settings], its ⋯; [study]; then its cards as one group of rows
- * under that search, which keeps the cards whose 칸 hold it, revealed, ignoring case (ADR 0118,
+ * A note's page under its name, as the final screens draw it (ADR 0150): the name with [add], its
+ * "+ 카드 추가", and [settings], its ⋯; while it holds a card, the "카드 검색" field, always shown;
+ * [study]; then its cards as one group of rows under that search, which keeps the cards whose 칸 hold it, revealed, ignoring case (ADR 0118,
  * ADR 0137). Each row shows its front, and its back muted after it once shown; nothing stands for
  * a hidden back. "뒷면 보기", in a row pinned above the group beside "카드 n" and the [mastered]
  * count, shows or hides every back, starting off each time the page opens. A click on a row opens the card in the editor, as on the phone (ADR 0143). A whole
@@ -25,15 +25,17 @@ export function CardGrid({
   cards,
   mastered = 0,
   study,
+  add,
   settings,
 }: {
   deck: Deck;
   cards: Card[];
   mastered?: number;
   study?: ReactNode;
+  add?: ReactNode;
   settings?: ReactNode;
 }) {
-  const [search, setSearch] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Card | null>(null);
   const label = useId();
@@ -51,31 +53,16 @@ export function CardGrid({
       back: whole ? spokenCells(card.cells, true) : describeContent(card.back),
     };
   });
-  const needle = (search ?? "").trim().toLocaleLowerCase();
+  const needle = search.trim().toLocaleLowerCase();
   const shown = needle
     ? rows.filter((row) => row.faces.some((face) => face.toLocaleLowerCase().includes(needle)))
     : rows;
 
   const header = (
-    <header className="flex items-center justify-between gap-3">
-      <h1 className="min-w-0 text-deck-name break-words">{deck.name}</h1>
-      <span className="flex shrink-0 items-center gap-2">
-        {cards.length > 0 && (
-          <button
-            type="button"
-            aria-label="카드 검색"
-            aria-expanded={search !== null}
-            onClick={() => {
-              setSearch(search === null ? "" : null);
-            }}
-            className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-chip bg-surface text-ink shadow-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            <Search aria-hidden className="size-5" strokeWidth={2.4} />
-          </button>
-        )}
-        {settings}
-      </span>
-    </header>
+    <ListHeader title={<h1 className="min-w-0 text-deck-name break-words">{deck.name}</h1>}>
+      {add}
+      {settings}
+    </ListHeader>
   );
   if (cards.length === 0) {
     return (
@@ -88,21 +75,9 @@ export function CardGrid({
   return (
     <>
       {header}
+      <ListSearch label="카드 검색" value={search} change={setSearch} />
       {study}
       <section aria-label="카드" className="flex flex-col gap-3">
-        {search !== null && (
-          <input
-            type="search"
-            aria-label="카드 검색"
-            placeholder="카드 검색"
-            autoFocus
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-            }}
-            className="h-search w-full rounded-field border border-outline bg-surface px-4 text-body placeholder:text-muted focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ink"
-          />
-        )}
         <div className="sticky top-0 z-[1] flex min-h-tap-target flex-wrap items-center justify-between gap-x-3 bg-ground">
           <span className="flex items-baseline gap-2 px-1">
             <h2 className="text-label">카드 {cards.length}</h2>

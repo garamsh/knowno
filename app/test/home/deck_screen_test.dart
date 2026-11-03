@@ -9,6 +9,7 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_button.dart';
 import 'package:knowno/design/app_list_row.dart';
 import 'package:knowno/design/app_text_field.dart';
+import 'package:knowno/design/bottom_actions.dart';
 import 'package:knowno/design/mascot.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/home/src/deck_screen.dart';
@@ -59,31 +60,34 @@ void main() {
   const cards = {'Chat': 'cat', 'Chien': 'dog', 'Hund': 'DOG'};
 
   testWidgets(
-    'a deck with no card offers adding one as its one primary action, and no Study this note',
+    'a deck with no card offers Add card in the header as a deck with cards does, with no foot bar, no search and no Study this note',
     (tester) async {
       AppButton button(String label) =>
           tester.widget<AppButton>(find.widgetWithText(AppButton, label));
-      // Control: a deck with a card offers Study this note, and adding a card
-      // is quieter.
+      // Control: a deck with a card offers Study this note and the search.
       var screens = await DeckScreens.open(tester, cards: {'Chat': 'cat'});
       await screens.push((deck) => DeckScreen(deck: deck));
       expect(_studyButton, findsOneWidget);
-      expect(button('Add card').variant, AppButtonVariant.secondary);
+      expect(find.widgetWithText(AppTextField, 'Search'), findsOneWidget);
+      expect(button('Add card').variant, AppButtonVariant.primary);
       await screens.close();
 
       screens = await DeckScreens.open(tester);
       await screens.push((deck) => DeckScreen(deck: deck));
       expect(shownText('No cards yet'), findsOneWidget);
       expect(_studyButton, findsNothing);
+      expect(find.byType(AppTextField), findsNothing);
       expect(button('Add card').variant, AppButtonVariant.primary);
-      // The one button at the foot is its label alone.
       expect(
         find.descendant(
-          of: find.widgetWithText(AppButton, 'Add card'),
-          matching: find.byType(Icon),
+          of: find.byType(AppBar),
+          matching: find.widgetWithText(AppButton, 'Add card'),
         ),
-        findsNothing,
+        findsOneWidget,
       );
+      expect(find.byType(BottomActions), findsNothing);
+      await screens.tap(find.widgetWithText(AppButton, 'Add card'));
+      expect(find.text('Enter by hand'), findsOneWidget);
       await screens.close();
     },
   );
@@ -143,7 +147,7 @@ void main() {
   }
 
   testWidgets(
-    'the top bar holds the deck\'s name, a Search cards button at least 44 square that opens the search field, and a Note settings button at least 44 square whose menu holds Rename, Customize note and Delete note',
+    'the top bar holds the deck\'s name, + Add card in the primary fill 44 high, and a Note settings button at least 44 square whose menu holds Rename, Customize note and Delete note, over the search field and no magnifier',
     (tester) async {
       final screens = await DeckScreens.open(tester, cards: cards);
       await screens.push((deck) => DeckScreen(deck: deck));
@@ -151,13 +155,25 @@ void main() {
           find.descendant(of: find.byType(AppBar), matching: finder);
 
       expect(inTopBar(find.text('French')), findsOneWidget);
-      for (final tooltip in ['Search cards', 'Note settings']) {
-        final button = inTopBar(find.byTooltip(tooltip));
-        expect(button, findsOneWidget, reason: tooltip);
-        final size = tester.getSize(button);
-        expect(size.width, greaterThanOrEqualTo(44), reason: tooltip);
-        expect(size.height, greaterThanOrEqualTo(44), reason: tooltip);
-      }
+      final add = inTopBar(find.widgetWithText(AppButton, 'Add card'));
+      expect(tester.widget<AppButton>(add).variant, AppButtonVariant.primary);
+      expect(tester.widget<AppButton>(add).icon, LucideIcons.plus);
+      final drawn = find.descendant(of: add, matching: find.byType(Material));
+      expect(tester.getSize(drawn.first).height, AppSize.tapTarget);
+      final settings = inTopBar(find.byTooltip('Note settings'));
+      expect(settings, findsOneWidget);
+      expect(tester.getSize(settings).width, greaterThanOrEqualTo(44));
+      expect(tester.getSize(settings).height, greaterThanOrEqualTo(44));
+      expect(find.byTooltip('Search cards'), findsNothing);
+
+      // The search is always shown, under the bar and not in it.
+      final search = find.widgetWithText(AppTextField, 'Search');
+      expect(search, findsOneWidget);
+      expect(inTopBar(find.byType(AppTextField)), findsNothing);
+      expect(
+        tester.getRect(search).top,
+        greaterThanOrEqualTo(tester.getRect(find.byType(AppBar)).bottom),
+      );
 
       await screens.tap(find.byTooltip('Note settings'));
       final items = ['Rename', 'Customize note', 'Delete note'];
@@ -176,12 +192,6 @@ void main() {
       expect(tops, orderedEquals([...tops]..sort()));
       await tester.tapAt(const Offset(20, 400));
       await tester.pumpAndSettle();
-
-      // Control: the field is closed until the button opens it.
-      expect(find.byType(AppTextField), findsNothing);
-      await screens.tap(find.byTooltip('Search cards'));
-      expect(inTopBar(find.byType(AppTextField)), findsOneWidget);
-      expect(inTopBar(find.byTooltip('Close search')), findsOneWidget);
       await screens.close();
     },
   );
@@ -329,7 +339,7 @@ void main() {
     await screens.tap(find.bySemanticsLabel('Book'));
     // Control: the choice was made, so the sheet's preview shows it.
     expect(onTile(LucideIcons.bookOpen), findsOneWidget);
-    await tester.tapAt(const Offset(195, 10));
+    await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.byType(BottomSheet), findsNothing);
 
@@ -582,7 +592,6 @@ void main() {
     await screens.push((deck) => DeckScreen(deck: deck));
     await screens.tap(find.byType(Switch));
 
-    await screens.tap(find.byTooltip('Search cards'));
     await screens.enter('Search', 'ch');
     expect(_rowFronts(tester), ['Chat', 'Chien']);
     expect(_answers(tester), ['cat', 'dog']);
@@ -654,7 +663,6 @@ void main() {
       await screens.push((deck) => DeckScreen(deck: deck));
       expect(find.byType(CardBackRow), findsNWidgets(2));
 
-      await screens.tap(find.byTooltip('Search cards'));
       await screens.enter('Search', 'rome');
       expect(find.byType(CardBackRow), findsOneWidget);
 
@@ -757,9 +765,6 @@ void main() {
     (tester) async {
       final screens = await DeckScreens.open(tester, cards: cards);
       await screens.push((deck) => DeckScreen(deck: deck));
-      expect(find.byType(AppTextField), findsNothing);
-
-      await screens.tap(find.byTooltip('Search cards'));
       await screens.enter('Search', 'dog');
       expect(_rowFronts(tester), ['Chien', 'Hund']);
 
@@ -770,23 +775,20 @@ void main() {
       expect(_rowFronts(tester), isEmpty);
       expect(shownText('No card matches. Try other words.'), findsOneWidget);
 
-      await screens.enter('Search', 'CHAT');
-      await screens.tap(find.byTooltip('Close search'));
-      expect(find.byType(AppTextField), findsNothing);
+      await screens.enter('Search', '');
       expect(_rowFronts(tester), ['Chat', 'Chien', 'Hund']);
       await screens.close();
     },
   );
 
   testWidgets(
-    'while searching above a phone keyboard, the first match starts under the top bar and shows above the keyboard',
+    'while searching above a phone keyboard, the first match starts under the search field and shows above the keyboard',
     (tester) async {
       final screens = await DeckScreens.open(tester, cards: cards);
       await screens.push((deck) => DeckScreen(deck: deck));
       // Control: before the search, Study this note is up.
       expect(_studyButton, findsOneWidget);
 
-      await screens.tap(find.byTooltip('Search cards'));
       tester.view.viewInsets = const FakeViewPadding(bottom: 336);
       addTearDown(tester.view.resetViewInsets);
       await screens.enter('Search', 'ch');
@@ -794,34 +796,29 @@ void main() {
       expect(tester.view.viewInsets.bottom, 336, reason: 'the keyboard is up');
 
       final first = tester.getRect(find.byType(CardBackRow).first);
-      final topBar = tester.getRect(find.byType(AppBar));
+      final search = tester.getRect(
+        find.widgetWithText(AppTextField, 'Search'),
+      );
       expect(first.bottom, lessThanOrEqualTo(844 - 336));
-      expect(first.top - topBar.bottom, lessThan(AppSize.tapTarget * 2));
+      expect(first.top - search.bottom, lessThan(AppSize.tapTarget * 2));
       expect(_studyButton, findsNothing);
       await screens.close();
     },
   );
 
-  testWidgets(
-    'the back closes an open search and keeps the screen, and a second back leaves it',
-    (tester) async {
-      final screens = await DeckScreens.open(tester, cards: cards);
-      await screens.push((deck) => DeckScreen(deck: deck));
-      await screens.tap(find.byTooltip('Search cards'));
-      await screens.enter('Search', 'ch');
+  testWidgets('the back leaves the screen, a search typed or not', (
+    tester,
+  ) async {
+    final screens = await DeckScreens.open(tester, cards: cards);
+    await screens.push((deck) => DeckScreen(deck: deck));
+    await screens.enter('Search', 'ch');
+    expect(_rowFronts(tester), ['Chat', 'Chien']);
 
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(find.byType(AppTextField), findsNothing);
-      expect(find.byType(DeckScreen), findsOneWidget);
-      expect(_rowFronts(tester), ['Chat', 'Chien', 'Hund']);
-
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(find.byType(DeckScreen), findsNothing);
-      await screens.close();
-    },
-  );
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byType(DeckScreen), findsNothing);
+    await screens.close();
+  });
 
   testWidgets(
     '"Delete note" is drawn in the destructive text colour, where "Rename" is not',

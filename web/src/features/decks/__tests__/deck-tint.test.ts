@@ -2,9 +2,6 @@
 import { describe, expect, it } from "vitest";
 
 import { deckColor, deckColors, deckFill, offeredColors } from "../deck-tint";
-import type { DeckId } from "../library";
-
-const id = "00000000-0000-4000-8000-000000000001" as DeckId;
 
 describe("a deck's colour", () => {
   it("is the palette in the app's order, each drawn with its theme token", () => {
@@ -32,17 +29,15 @@ describe("a deck's colour", () => {
       ["amber", "bg-deck-amber"],
     ]) {
       expect(offeredColors).not.toContain(color);
-      expect(deckFill(deckColor({ id, name: "", public: false, color }))).toBe(fill);
+      expect(deckFill(deckColor({ color }))).toBe(fill);
     }
   });
 
   it("is the stored one when this version knows it, and otherwise none, on the brand tint", () => {
-    expect(deckFill(deckColor({ id, name: "", public: false, color: "amber" }))).toBe(
-      "bg-deck-amber",
-    );
+    expect(deckFill(deckColor({ color: "amber" }))).toBe("bg-deck-amber");
     // Control: the same deck with no key, and with keys this version does not know.
     for (const color of [undefined, "teal", "constructor"]) {
-      expect(deckFill(deckColor({ id, name: "", public: false, color }))).toBe("bg-brand-tint");
+      expect(deckFill(deckColor({ color }))).toBe("bg-brand-tint");
     }
   });
 });

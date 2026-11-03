@@ -1,6 +1,5 @@
 "use client";
 
-import { Search } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, useState } from "react";
 
@@ -8,6 +7,7 @@ import { Chip } from "@/design/chip";
 
 import type { Deck } from "../library";
 import { DeckTile } from "./deck-tile";
+import { ListSearch } from "./list-header";
 
 /**
  * A deck as its row shows it: its card count, what a session over it would study now, and how
@@ -38,21 +38,7 @@ export function DeckList({ rows, notice }: { rows: DeckRow[]; notice?: ReactNode
     : rows;
   return (
     <section aria-label="노트 목록" className="flex flex-col gap-3">
-      {rows.length > 0 && (
-        <label className="flex h-search items-center gap-2 rounded-field border border-outline bg-surface px-4 focus-within:outline-2 focus-within:-outline-offset-1 focus-within:outline-ink">
-          <Search aria-hidden className="size-5 shrink-0 text-ink-2" strokeWidth={2.4} />
-          <input
-            type="search"
-            aria-label="노트 검색"
-            placeholder="노트 검색"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-            }}
-            className="min-w-0 flex-1 bg-transparent text-body placeholder:text-muted focus-visible:outline-none"
-          />
-        </label>
-      )}
+      {rows.length > 0 && <ListSearch label="노트 검색" value={search} change={setSearch} />}
       {notice}
       {shown.length === 0 && needle ? (
         <p role="status" className="text-muted">

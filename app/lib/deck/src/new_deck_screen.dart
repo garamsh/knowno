@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../design/app_button.dart';
-import '../../design/app_section_label.dart';
 import '../../design/app_text_field.dart';
 import '../../design/bottom_actions.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
-import 'appearance_sheet.dart';
+import '../../media/media.dart';
+import 'deck_appearance.dart';
+import 'deck_row.dart';
 import 'editor_group.dart';
 import 'failure_message.dart';
 import 'model.dart';
@@ -16,9 +17,11 @@ import 'providers.dart';
 /// A deck made on 새 노트, and whether cards are to be added to it next.
 typedef NewDeck = ({Deck deck, bool addCards});
 
-/// 새 노트, shaped as 새 카드: the name and the cover colour in their groups,
-/// and "저장" beside "저장하고 카드 추가" at the foot. Makes the deck with the
-/// colour chosen, if any, and pops with it.
+/// 새 노트, shaped as 새 카드: the tile the deck will get, previewing what is
+/// chosen, the name field, focused on opening, and the choices of
+/// 노트 꾸미기 in a group, with "저장" beside "저장하고 카드 추가" at the foot.
+/// Makes the deck with the look chosen, a photo stored through `media`
+/// first, and pops with it.
 class NewDeckScreen extends ConsumerStatefulWidget {
   const NewDeckScreen({super.key});
 
@@ -28,7 +31,7 @@ class NewDeckScreen extends ConsumerStatefulWidget {
 
 class _NewDeckScreenState extends ConsumerState<NewDeckScreen> {
   final _name = TextEditingController();
-  DeckColor? _color;
+  var _look = const DeckLook();
   var _showRequired = false;
   var _busy = false;
 
@@ -49,11 +52,17 @@ class _NewDeckScreenState extends ConsumerState<NewDeckScreen> {
     setState(() => _busy = true);
     Deck? made;
     await reportingFailure(context, () async {
-      final deck = await repository.createDeck(name);
-      if (_color case final color?) {
-        await repository.setAppearance(deck.id, DeckIcon.fallback, color);
-      }
-      made = deck;
+      final image = switch (_look.image) {
+        PickedTileImage(:final image) =>
+          await ref.read(mediaStoreProvider).addImage(image),
+        _ => null,
+      };
+      made = await repository.createDeck(
+        name,
+        icon: _look.icon,
+        color: _look.color,
+        image: image,
+      );
     });
     if (!mounted) return;
     setState(() => _busy = false);
@@ -65,6 +74,7 @@ class _NewDeckScreenState extends ConsumerState<NewDeckScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final colors = AppColors.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Semantics(
@@ -80,39 +90,58 @@ class _NewDeckScreenState extends ConsumerState<NewDeckScreen> {
           AppSpace.s24,
         ),
         children: [
-          EditorGroup(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(groupInset),
-                child: AppTextField(
-                  label: l10n.deckName,
-                  controller: _name,
-                  autofocus: true,
-                  textInputAction: TextInputAction.done,
-                  errorText: _showRequired ? l10n.deckNameRequired : null,
-                  onSubmitted: (_) => _save(addCards: false),
+          // The tile the deck will get, over its name as typed.
+          ExcludeSemantics(
+            child: Column(
+              spacing: AppSpace.s8,
+              children: [
+                DeckTile(look: _look, size: AppSize.deckTile * 2),
+                ListenableBuilder(
+                  listenable: _name,
+                  builder: (context, _) {
+                    final typed = _name.text.trim();
+                    return Text(
+                      typed.isEmpty ? l10n.deckName : typed,
+                      textAlign: TextAlign.center,
+                      style: AppType.bodyStrong.copyWith(
+                        color: typed.isEmpty ? colors.muted : colors.ink,
+                      ),
+                    );
+                  },
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: AppSpace.s16),
           EditorGroup(
             children: [
               Padding(
                 padding: const EdgeInsets.all(AppSpace.s16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: AppSpace.s12,
-                  children: [
-                    AppSectionLabel(l10n.newDeckColor),
-                    DeckColorPicker(
-                      selected: _color,
-                      onPick: (color) => setState(() => _color = color),
-                    ),
-                  ],
+                // The field on the ground, so it shows inside the white
+                // group, the label above it at the group's inset.
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    inputDecorationTheme: groupFieldTheme(colors)
+                        .copyWith(fillColor: colors.ground),
+                  ),
+                  child: AppTextField(
+                    label: l10n.deckName,
+                    hint: l10n.deckNameHint,
+                    controller: _name,
+                    autofocus: true,
+                    textInputAction: TextInputAction.done,
+                    errorText: _showRequired ? l10n.deckNameRequired : null,
+                    onSubmitted: (_) => _save(addCards: false),
+                  ),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: AppSpace.s12),
+          DeckAppearanceFields(
+            look: _look,
+            enabled: !_busy,
+            onChanged: (look) => setState(() => _look = look),
           ),
         ],
       ),

@@ -18,10 +18,12 @@ import 'package:knowno/home/src/home_screen.dart';
 import 'package:knowno/home/src/progress_bar.dart';
 import 'package:knowno/home/src/home_tab.dart';
 import 'package:knowno/l10n/app_localizations.dart';
+import 'package:knowno/media/media.dart';
 import 'package:knowno/photo_import/photo_import.dart';
 import 'package:knowno/study/study.dart';
 
 import '../contrast.dart';
+import '../media/fakes.dart';
 import 'home_data.dart';
 import '../study/minutes_sheet.dart';
 import '../study/study_storage.dart';
@@ -118,6 +120,19 @@ class _List {
 /// [dailyMinutes] stored when given. [photoImport] stands in for the photo import
 /// when given: a screen it pushes, which pops with what photo import resolves
 /// to.
+/// Hands out [photo] on each pick.
+final class _OnePhoto implements ImagePick {
+  const _OnePhoto(this.photo);
+
+  final PreparedImage photo;
+
+  @override
+  Future<PreparedImage?> pick(
+    ImageOrigin origin, {
+    ImageShape shape = ImageShape.square,
+  }) async => photo;
+}
+
 Future<_List> _open(
   WidgetTester tester, {
   Map<String, int> fresh = const {},
@@ -137,6 +152,7 @@ Future<_List> _open(
   Size screen = const Size(390, 844),
   ThemeData? theme,
   int? dailyMinutes,
+  PreparedImage? photo,
 }) async {
   Future<Deck?> pushed(
     BuildContext context,
@@ -236,6 +252,18 @@ Future<_List> _open(
   repository.unreadable.addAll([for (final name in unreadable) created[name]!]);
   final list = _List(tester, repository, created);
   final storage = await openStudyStorage(tester, minutesAsked: minutesAsked);
+  // With a [photo], the device's media store and a pick that hands it out.
+  final directory = photo == null ? null : newMediaDirectory();
+  if (directory != null) addTearDown(() => deleteMediaDirectory(directory));
+  final media = directory == null
+      ? null
+      : MediaStore(
+          db,
+          FakeMediaServer(),
+          directory: directory,
+          clock: () => homeNow,
+          newId: () => 'media${ids++}',
+        );
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -244,6 +272,9 @@ Future<_List> _open(
         if (photoImport != null) photoImportProvider.overrideWithValue(pushed),
         if (spreadsheet != null)
           spreadsheetPickProvider.overrideWithValue(spreadsheet),
+        if (media != null) mediaStoreProvider.overrideWithValue(media),
+        if (photo != null)
+          imagePickProvider.overrideWithValue(_OnePhoto(photo)),
       ],
       child: MaterialApp(
         theme: theme ?? lightTheme,
@@ -728,6 +759,62 @@ void main() {
           tester.element(find.byType(DeckScreen)),
         ).read(decksProvider).value!.firstWhere((deck) => deck.name == 'Delta');
         expect(stored.color, DeckColor.sand);
+        await list.close();
+      },
+    );
+
+    testWidgets(
+      'a note made with a photo shows the photo on its tile in the 노트 tab',
+      (tester) async {
+        final photo = preparedImage(5);
+        final list = await _open(tester, fresh: {'Alpha': 1}, photo: photo);
+        await list.newDeck();
+        await tester.enterText(find.byType(EditableText), 'Delta');
+        await list.tap('Choose from album');
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pumpAndSettle();
+        // The setup picked the photo: 새 노트's preview shows it.
+        expect(find.text('Remove photo'), findsOneWidget);
+
+        await list.tap('Save');
+        for (var step = 0; step < 10; step++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          await tester.pump();
+        }
+        await tester.pumpAndSettle();
+        expect(find.byType(DeckScreen), findsOneWidget);
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+
+        // The tile reads the photo from the device, which takes real time.
+        for (var step = 0; step < 10; step++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          await tester.pump();
+        }
+        Finder onTile(String deck, Finder finder) => find.descendant(
+          of: find.ancestor(
+            of: shownText(deck),
+            matching: find.byType(DeckRow),
+          ),
+          matching: find.descendant(
+            of: find.byType(DeckTile),
+            matching: finder,
+          ),
+        );
+        final image = tester.widget<Image>(onTile('Delta', find.byType(Image)));
+        expect((image.image as MemoryImage).bytes, photo.bytes);
+        // Control: a deck made without a photo draws its icon.
+        expect(onTile('Alpha', find.byType(Image)), findsNothing);
+        expect(
+          onTile('Alpha', find.byIcon(LucideIcons.layers)),
+          findsOneWidget,
+        );
         await list.close();
       },
     );
