@@ -18,7 +18,7 @@ export function UserDecks({ decks }: { decks: UserDeck[] }) {
           {decks.map((deck) => (
             <li key={deck.id}>
               <Link
-                href={`/admin/decks/${deck.id}`}
+                href={`/decks/${deck.id}`}
                 className="pressable flex min-h-13 items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
               >
                 <span className="flex min-w-0 flex-wrap items-center gap-2">

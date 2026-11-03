@@ -58,7 +58,7 @@ export function AiView({
               ? "모든 사용자에게 쓰는 버전이 없어요."
               : `실패율 ${rateWords(week.get(active.id) ?? none)} · 최근 7일`}
           </p>
-          <Link href="/admin/ai/new" className={`${button.row} mt-2 self-start`}>
+          <Link href="/ai/new" className={`${button.row} mt-2 self-start`}>
             새 버전 쓰기
           </Link>
         </section>
@@ -102,7 +102,7 @@ export function AiView({
               return (
                 <li key={version.id}>
                   <Link
-                    href={`/admin/ai/${String(version.id)}`}
+                    href={`/ai/${String(version.id)}`}
                     className="pressable flex min-h-13 items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
                   >
                     <span className="flex min-w-0 flex-col gap-1">

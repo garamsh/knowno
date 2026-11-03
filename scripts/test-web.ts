@@ -87,7 +87,10 @@ async function serve(
   });
   const child = new Deno.Command("node", {
     args: ["web/.next/standalone/server.js"],
-    env: { PORT: `${port}`, HOSTNAME: "127.0.0.1", NODE_ENV: "production" },
+    // `localhost` and not 127.0.0.1: Next.js 16.4.1 names a request by the address the server
+    // was given and compares a proxy's rewrite with it after turning 127.0.0.1 into `localhost`,
+    // so on 127.0.0.1 the admin host's rewrite is taken for another origin's and fetched again.
+    env: { PORT: `${port}`, HOSTNAME: "localhost", NODE_ENV: "production" },
     stdout: "piped",
     stderr: "piped",
   }).spawn();
@@ -163,7 +166,7 @@ async function main(args: string[]): Promise<void> {
     let base = "";
     for (let attempt = 1; attempt <= SERVER_ATTEMPTS; attempt++) {
       const webPort = await stack.reserve(54600, 54699);
-      base = `http://127.0.0.1:${webPort}`;
+      base = `http://localhost:${webPort}`;
       server = await serve(webPort, serverLog, base);
       if (server.running) {
         console.log(`the web app answers on port ${webPort}`);
@@ -188,7 +191,13 @@ async function main(args: string[]): Promise<void> {
       ...args,
     ], {
       cwd: "web",
-      env: { E2E_BASE_URL: base, E2E_SUPABASE_URL: url, E2E_SUPABASE_KEY: key },
+      env: {
+        E2E_BASE_URL: base,
+        E2E_SUPABASE_URL: url,
+        E2E_SUPABASE_KEY: key,
+        // admin-host.spec.ts makes its admin in the stack's database, as the PM makes the first.
+        E2E_DB_CONTAINER: `supabase_db_${stack.projectId}`,
+      },
     });
     console.log(output);
     if (code !== 0) {

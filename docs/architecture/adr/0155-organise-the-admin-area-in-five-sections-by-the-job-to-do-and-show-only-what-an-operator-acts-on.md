@@ -1,6 +1,6 @@
 # ADR 0155: Organise the admin area in five sections by the job to do, and show only what an operator acts on
 
-> Status: accepted
+> Status: accepted; its five-section menu above each page superseded by ADR-0178
 > Date: 2026-11-03
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

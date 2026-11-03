@@ -1,7 +1,9 @@
 export { parseUserId } from "./action-call";
 export { AdminFailureMessage } from "./components/admin-failure";
 export { AdminList } from "./components/admin-list";
-export { AdminNav } from "./components/admin-nav";
+export { AdminBrand } from "./components/admin-brand";
+export { AdminRefusal } from "./components/admin-refusal";
+export { AdminShell } from "./components/admin-shell";
 export { AuditLog } from "./components/audit-log";
 export { DeckView } from "./components/deck-view";
 export { GrantAdminForm } from "./components/grant-admin-form";

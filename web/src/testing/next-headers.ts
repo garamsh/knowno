@@ -24,3 +24,15 @@ export function cookies() {
     },
   });
 }
+
+let requestHeaders = new Headers();
+
+/** Gives the next request [headers], as the proxy hands them to a page. */
+export function setRequestHeaders(headers: Record<string, string>) {
+  requestHeaders = new Headers(headers);
+}
+
+/** Stands in for `next/headers`' `headers()`, holding what [setRequestHeaders] last gave. */
+export function headers() {
+  return Promise.resolve(requestHeaders);
+}

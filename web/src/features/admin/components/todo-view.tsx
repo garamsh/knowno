@@ -113,7 +113,7 @@ export function TodoView({
               ? "처리할 신고가 없어요."
               : `가장 오래된 신고 ${ago(reports.oldestDays)}`
           }
-          action={{ href: "/admin/decks", label: "신고 보기" }}
+          action={{ href: "/decks", label: "신고 보기" }}
         />
         <TodoCard
           label="사진 읽기 실패율 · 7일"
@@ -124,21 +124,21 @@ export function TodoView({
               ? "최근 7일에 기록된 추출이 없어요."
               : `추출 ${failures.calls.toLocaleString("ko-KR")}건 중 ${String(failures.invalidOutput + failures.modelError)}건 실패 · 5%를 넘으면 빨간색`
           }
-          action={{ href: "/admin/ai", label: "자세히" }}
+          action={{ href: "/ai", label: "자세히" }}
         />
         {test === null ? (
           <TodoCard
             label="테스트 중인 프롬프트"
             figure="없음"
             line="관리자만 쓰는 버전이 없어요."
-            action={{ href: "/admin/ai", label: "사진 AI 보기" }}
+            action={{ href: "/ai", label: "사진 AI 보기" }}
           />
         ) : (
           <TodoCard
             label="테스트 중인 프롬프트"
             figure={`버전 ${String(test.versionId)}`}
             line={`관리자만 쓰는 중 · ${String(test.daysSince + 1)}일째`}
-            action={{ href: `/admin/ai/${String(test.versionId)}`, label: "적용 또는 끝내기" }}
+            action={{ href: `/ai/${String(test.versionId)}`, label: "적용 또는 끝내기" }}
           />
         )}
       </div>

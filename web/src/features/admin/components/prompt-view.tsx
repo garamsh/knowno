@@ -123,7 +123,7 @@ export function PromptView({
       />
       <Section label="프롬프트">
         <Link
-          href={`/admin/ai/new?from=${String(version.id)}`}
+          href={`/ai/new?from=${String(version.id)}`}
           className="self-start px-1 text-body text-ink-2 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ink"
         >
           이 버전에서 새 버전 쓰기
