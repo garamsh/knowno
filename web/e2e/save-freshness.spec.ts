@@ -78,19 +78,17 @@ async function seeded(
   const { db, userId } = await signUp(context, baseURL);
   const time = new Date(Date.now() - 86_400_000).toISOString();
   const freshId = randomUUID();
-  const decks = await db
-    .from("decks")
-    .insert(
-      [{ id: randomUUID(), name: "Kept" }, ...(fresh ? [{ id: freshId, name: "Fresh" }] : [])].map(
-        (deck) => ({
-          ...deck,
-          user_id: userId,
-          visibility: "private",
-          created_at: time,
-          updated_at: time,
-        }),
-      ),
-    );
+  const decks = await db.from("decks").insert(
+    [{ id: randomUUID(), name: "Kept" }, ...(fresh ? [{ id: freshId, name: "Fresh" }] : [])].map(
+      (deck) => ({
+        ...deck,
+        user_id: userId,
+        visibility: "private",
+        created_at: time,
+        updated_at: time,
+      }),
+    ),
+  );
   expect(decks.error).toBeNull();
   for (let at = 0; at < (fresh?.cards ?? 0); at++) {
     const card = await db.from("cards").insert({
