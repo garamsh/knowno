@@ -701,11 +701,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get themeDark => '다크';
 
   @override
-  String myDecks(int count) {
-    return '내 노트 $count';
-  }
-
-  @override
   String cardCount(int count) {
     return '카드 $count장';
   }
@@ -1734,9 +1729,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get tabHome => '홈';
 
   @override
-  String get tabSettings => '설정';
-
-  @override
   String homeToday(int count) {
     return '오늘 $count장';
   }
@@ -1748,12 +1740,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get homeStart => '시작';
-
-  @override
-  String get drawerOpen => '올려서 보기';
-
-  @override
-  String get drawerClose => '접기';
 
   @override
   String studyThisDeck(int count) {
@@ -1798,4 +1784,17 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get coachPrevious => '이전';
+
+  @override
+  String get tabNotes => '노트';
+
+  @override
+  String lastWeekCards(int count) {
+    return '지난 7일 $count장';
+  }
+
+  @override
+  String weekDayCards(String day, int count) {
+    return '$day $count장';
+  }
 }

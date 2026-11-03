@@ -1,6 +1,26 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { Suspense } from "react";
 
-/** The notes live in 홈's drawer, so an address kept from the 노트 tab opens 홈 (ADR 0150). */
-export default function DecksPage() {
-  redirect("/");
+import { Skeleton, SkeletonLine } from "@/design/skeleton";
+
+import { Notes } from "./_components/notes";
+
+export const metadata: Metadata = { title: "노트 · 알아몰라" };
+
+/** 노트: every note under its search, and 새 노트 (ADR 0165). */
+export default function NotesPage() {
+  return (
+    <Suspense
+      fallback={
+        <Skeleton status="노트를 불러오는 중이에요." className="flex flex-col gap-3">
+          <SkeletonLine text="text-deck-title" width="w-20" />
+          <span className="h-search rounded-field bg-surface" />
+          <span className="h-19 rounded-row bg-surface" />
+          <span className="h-19 rounded-row bg-surface" />
+        </Skeleton>
+      }
+    >
+      <Notes />
+    </Suspense>
+  );
 }

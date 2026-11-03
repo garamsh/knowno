@@ -713,11 +713,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeDark => 'Dark';
 
   @override
-  String myDecks(int count) {
-    return 'My notes $count';
-  }
-
-  @override
   String cardCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1867,9 +1862,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabHome => 'Home';
 
   @override
-  String get tabSettings => 'Settings';
-
-  @override
   String homeToday(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -1887,12 +1879,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeStart => 'Start';
-
-  @override
-  String get drawerOpen => 'Pull up to see all';
-
-  @override
-  String get drawerClose => 'Collapse';
 
   @override
   String studyThisDeck(int count) {
@@ -1937,4 +1923,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get coachPrevious => 'Back';
+
+  @override
+  String get tabNotes => 'Notes';
+
+  @override
+  String lastWeekCards(int count) {
+    return 'Last 7 days: $count';
+  }
+
+  @override
+  String weekDayCards(String day, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cards',
+      one: '1 card',
+    );
+    return '$day: $_temp0';
+  }
 }

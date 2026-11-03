@@ -125,6 +125,10 @@ abstract final class AppSize {
   /// The mascot over a card's or a screen's words.
   static const mascotMedium = 96.0;
 
+  /// The least 홈's hero mascot gives way to, below [mascotHero], before the
+  /// page scrolls.
+  static const mascotFloor = 64.0;
+
   /// The mascot beside words: the backlog card's, or a photo being read.
   static const mascotGuide = 64.0;
 

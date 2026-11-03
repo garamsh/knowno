@@ -184,8 +184,8 @@ void main() {
     await tapAndSettle(tester, find.text('Save'));
   }
 
-  /// Creates the deck "French" from the first-run home, which opens it, and
-  /// goes back to 홈.
+  /// Creates the deck "French" from the first-run home, which opens it on the
+  /// 노트 tab, and goes back to that tab's first screen.
   Future<void> createDeck(WidgetTester tester) async {
     await createAndOpenDeck(tester);
     await tester.pageBack();
@@ -198,10 +198,18 @@ void main() {
     matching: find.text(name),
   );
 
-  /// Shows the 설정 tab, the account screen.
+  /// Opens 설정, the account screen, from 홈's profile button.
   Future<void> showSettings(WidgetTester tester) async {
     final semantics = tester.ensureSemantics();
-    await tapAndSettle(tester, tab('Settings'));
+    await tapAndSettle(tester, tab('Home'));
+    semantics.dispose();
+    await tapAndSettle(tester, find.byTooltip('Settings'));
+  }
+
+  /// Shows the 노트 tab, where the decks are listed.
+  Future<void> showNotes(WidgetTester tester) async {
+    final semantics = tester.ensureSemantics();
+    await tapAndSettle(tester, tab('Notes'));
     semantics.dispose();
   }
 
@@ -340,11 +348,15 @@ void main() {
     final routes =
         <String, (Future<void> Function(WidgetTester), Finder Function())>{
           'card list': (
-            (tester) => tapAndSettle(tester, shownText('French')),
+            (tester) async {
+              await showNotes(tester);
+              await tapAndSettle(tester, shownText('French'));
+            },
             () => find.byType(DeckScreen),
           ),
           'card editor': (
             (tester) async {
+              await showNotes(tester);
               await tapAndSettle(tester, shownText('French'));
               await tapAndSettle(tester, find.text('Add card'));
               await tapAndSettle(tester, find.text('Enter by hand'));
@@ -353,6 +365,7 @@ void main() {
           ),
           'study': (
             (tester) async {
+              await showNotes(tester);
               await tapAndSettle(tester, shownText('French'));
               await tapAndSettle(
                 tester,
@@ -363,7 +376,7 @@ void main() {
           ),
           'new note': (
             (tester) async {
-              await tapAndSettle(tester, find.text('Pull up to see all'));
+              await showNotes(tester);
               await tapAndSettle(tester, find.text('New note'));
             },
             () => find.byType(NewDeckScreen),
@@ -386,7 +399,7 @@ void main() {
         await tester.enterText(find.byType(TextField).at(0), 'Chat');
         await tester.enterText(find.byType(TextField).at(1), 'cat');
         await tapAndSettle(tester, find.text('Save'));
-        // Back from the deck it opened, to 홈.
+        // Back from the deck it opened, to the 노트 tab.
         await tester.pageBack();
         await tester.pumpAndSettle();
         await open(tester);

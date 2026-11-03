@@ -14,10 +14,23 @@ import { signedInCookies } from "@/testing/session";
 import { typeSizesOf } from "@/testing/type-sizes";
 
 import { Study } from "../../study/_components/study";
+import { Notes } from "../decks/_components/notes";
 import { Today } from "../_components/today";
 
-/** 홈's content: the hero, and the notes in the drawer under it. */
-const renderBoth = () => render(Today, {});
+/** 홈 and the 노트 page, one above the other, as the two pages read the same library. */
+const renderBoth = () =>
+  render(
+    async () => (
+      <>
+        {await Today()}
+        {await Notes()}
+      </>
+    ),
+    {},
+  );
+
+/** The 노트 page alone. */
+const renderNotes = () => render(Notes, {});
 
 // The study screen starts its session once the browser's engine has loaded; its first load
 // compiles the module.
@@ -31,7 +44,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const due = { stability: 3, difficulty: 5, lastReview: start - 4 * day, due: start - day };
 const notDue = { stability: 30, difficulty: 5, lastReview: start - day, due: start + 9 * day };
 
-describe("the 오늘 and 노트 pages", () => {
+describe("홈 and the 노트 page", () => {
   let postgrest: FakePostgrest;
   beforeEach(async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -45,7 +58,7 @@ describe("the 오늘 and 노트 pages", () => {
   });
 
   /** The row of the deck named [name]: a link named for the deck, its count and its chip. */
-  const deckList = () => within(screen.getByRole("region", { name: /^내 노트/ }));
+  const deckList = () => within(screen.getByRole("region", { name: "노트 목록" }));
   const row = (name: string) =>
     deckList().getByRole("link", { name: new RegExp(`^${name}, 카드`) });
   /** The hero's cards left today and their minutes, as drawn: "오늘 n장 · 약 m분이면 끝나요". */
@@ -88,7 +101,7 @@ describe("the 오늘 and 노트 pages", () => {
       "href",
       `/study?decks=${uuidOf("d-fr")},${uuidOf("d-es")}`,
     );
-    expect(screen.getByRole("heading", { name: "내 노트 2" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "노트" })).toBeInTheDocument();
     expect(rowNames()).toEqual(["French, 카드 3장, 오늘 2", "Spanish, 카드 1장"]);
     expect(row("French")).toHaveAttribute("href", `/decks/${uuidOf("d-fr")}`);
   });
@@ -182,7 +195,7 @@ describe("the 오늘 and 노트 pages", () => {
     expect(rowNames()).toEqual(["French, 카드 1장, 오늘 1"]);
     expect(cardsLeft()).toBe(1);
     // Control: the live deck and its live card are read and shown.
-    expect(screen.getByRole("heading", { name: "내 노트 1" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "노트" })).toBeInTheDocument();
   });
 
   it("leaves out another user's public deck, which row-level security lets it read", async () => {
@@ -383,7 +396,7 @@ describe("the 오늘 and 노트 pages", () => {
     await renderBoth();
 
     // Control: the deck list itself rendered.
-    expect(screen.getByRole("heading", { name: "내 노트 1" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "노트" })).toBeInTheDocument();
     expect(screen.queryByText(testUser.email, { exact: false })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "로그아웃" })).not.toBeInTheDocument();
   });
@@ -397,7 +410,7 @@ describe("the 오늘 and 노트 pages", () => {
       ),
     );
 
-    await render(Today, {});
+    await renderNotes();
 
     // New cards are capped at the day's: 20 minutes at 10 s a card, with no answer stored.
     expect(rowNames()).toEqual(["Big, 카드 1001장, 오늘 120"]);
@@ -413,40 +426,43 @@ describe("the 오늘 and 노트 pages", () => {
       ),
     );
 
-    await render(Today, {});
+    await renderNotes();
 
     // Control: every card is read.
     expect(rowNames()).toEqual(["Big, 카드 2000장, 오늘 120"]);
     expect(postgrest.requests.filter((request) => request === "GET cards")).toHaveLength(2);
   });
 
-  it("opens the note search from its magnifier, filters the notes by name, and says so in the app's words when nothing matches", async () => {
+  it("filters the notes by name from the 노트 검색 field over them, and says so in the app's words when nothing matches", async () => {
     postgrest.seed("decks", deckRow("d-fr", "French"), deckRow("d-es", "Spanish"));
-    await render(Today, {});
+    await renderNotes();
     const user = userEvent.setup();
 
-    // The field is closed until the magnifier opens it.
-    expect(screen.queryByRole("searchbox", { name: "노트 검색" })).not.toBeInTheDocument();
-    const magnifier = screen.getByRole("button", { name: "노트 검색" });
-    expect(magnifier).toHaveClass("size-tap-target", "shadow-row");
-    await user.click(magnifier);
-    expect(magnifier).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("searchbox", { name: "노트 검색" })).toHaveFocus();
-    await user.type(screen.getByRole("searchbox", { name: "노트 검색" }), "fre");
+    const search = screen.getByRole("searchbox", { name: "노트 검색" });
+    expect(rowNames()).toEqual(["French, 카드 0장", "Spanish, 카드 0장"]);
+    await user.type(search, "fre");
     expect(rowNames()).toEqual(["French, 카드 0장"]);
 
-    await user.clear(screen.getByRole("searchbox", { name: "노트 검색" }));
-    await user.type(screen.getByRole("searchbox", { name: "노트 검색" }), "zèbre");
+    await user.clear(search);
+    await user.type(search, "zèbre");
     expect(screen.getByRole("status")).toHaveTextContent(
       "찾는 노트가 없어요. 다른 단어로 검색해 보세요.",
     );
+    cleanup();
+
+    // Control: with no note, there is nothing to search.
+    postgrest = new FakePostgrest();
+    server.use(...postgrest.handlers);
+    await renderNotes();
+    expect(screen.queryByRole("searchbox", { name: "노트 검색" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("reads no card's sides, which the deck list does not show", async () => {
     postgrest.seed("decks", deckRow("d-fr", "French"));
     postgrest.seed("cards", cardRow("fr", "d-fr", "chat"));
 
-    await render(Today, {});
+    await renderNotes();
 
     // Control: the card is read and counted.
     expect(rowNames()).toEqual(["French, 카드 1장, 오늘 1"]);
@@ -473,28 +489,34 @@ describe("the 오늘 and 노트 pages", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("서버에 연결할 수 없어요.");
   });
 
-  it("puts a day that cannot be counted at the top of the drawer, over the notes, and keeps 시작 on the hero", async () => {
+  it("puts a day that cannot be counted under the hero, in the week card's place, and over the notes on the 노트 page, and keeps 시작 on the hero", async () => {
     postgrest.seed("decks", deckRow("d-fr", "French"));
     postgrest.seed("cards", cardRow("fr", "d-fr", "chat"));
-    // Control: with the day read, the drawer holds no notice.
-    await render(Today, {});
+    // Control: with the day read, neither page holds a notice, and 홈 holds the week card.
+    await renderBoth();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "0일 연속" })).toBeInTheDocument();
     cleanup();
 
     postgrest.fail("reviews", 500);
     await render(Today, {});
-
-    const drawer = screen.getByRole("region", { name: /^내 노트/ });
-    const alert = within(drawer).getByRole("alert");
+    const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("서버에 연결할 수 없어요.");
-    // Above the rows, which keep the note's card count without the progress the day would give.
-    const french = row("French");
-    expect(alert.compareDocumentPosition(french) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(french).toHaveAccessibleName("French, 카드 1장");
+    const hero = screen.getByRole("region", { name: "오늘 할 카드" });
+    expect(hero.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("region", { name: /일 연속$/ })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "시작" })).toHaveAttribute(
       "href",
       `/study?decks=${uuidOf("d-fr")}`,
     );
+    cleanup();
+
+    await renderNotes();
+    const notice = within(screen.getByRole("region", { name: "노트 목록" })).getByRole("alert");
+    // Above the rows, which keep the note's card count without the progress the day would give.
+    const french = row("French");
+    expect(notice.compareDocumentPosition(french) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(french).toHaveAccessibleName("French, 카드 1장");
   });
 
   it("with no card left today says the cards are done and links 학습하기 to the study page over every deck, which opens on nothing to study or on the completion card", async () => {
@@ -535,7 +557,7 @@ describe("the 오늘 and 노트 pages", () => {
     }
   });
 
-  it("with nothing left says the day is done on the hero, the next review in its three forms, with 학습하기, and starts the drawer higher", async () => {
+  it("with nothing left says the day is done on the hero, the next review in its three forms, with 학습하기, over the week card", async () => {
     const hero = () => screen.getByRole("region", { name: "오늘 할 카드를 다 했어요" });
     // Thursday 15 January 2026 in Seoul. Each card is answered today, so the goal is reached.
     for (const [dueIn, line] of [
@@ -564,48 +586,68 @@ describe("the 오늘 and 노트 pages", () => {
     }
     await render(Today, {});
 
-    expect(hero()).toHaveClass("bg-hero", "min-h-[calc(100dvh-26rem)]");
+    expect(hero()).toHaveClass("bg-hero");
     expect(hero().querySelector('img[src*="knowno-happy"]')).not.toBeNull();
     const study = within(hero()).getByRole("link", { name: "학습하기" });
     expect(study).toHaveClass("bg-hero-button");
     expect(study).toHaveAttribute("aria-keyshortcuts", "Enter");
-    cleanup();
-
-    // Control: a day with cards left keeps the drawer lower.
-    postgrest.seed("cards", cardRow("fr-new", "d-fr", "chat"));
-    await render(Today, {});
-    const today = screen.getByRole("region", { name: "오늘 1장" });
-    expect(today).toHaveClass("min-h-[calc(100dvh-13.5rem)]");
-    expect(today).not.toHaveClass("min-h-[calc(100dvh-26rem)]");
+    // The card answered an hour ago is today's one studied card.
+    const week = screen.getByRole("region", { name: "1일 연속" });
+    expect(within(week).getByText("지난 7일 1장")).toBeInTheDocument();
+    expect(hero().compareDocumentPosition(week) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("draws the streak on the hero as a card in the accent, and none before a first study day", async () => {
+  it("draws under the hero the week card: the streak, its count in the accent, the last seven days' cards and a bar a day, today's last in the accent and a day with no study dashed; and the streak leaves the hero", async () => {
     postgrest.seed("decks", deckRow("d-fr", "French"));
     postgrest.seed(
       "cards",
       ...["a", "b"].map((front) => cardRow(`new-${front}`, "d-fr", front)),
       cardRow("done-e", "d-fr", "e"),
+      cardRow("done-f", "d-fr", "f"),
     );
-    postgrest.seed("card_states", stateRow("done-e", notDue));
+    postgrest.seed("card_states", stateRow("done-e", notDue), stateRow("done-f", notDue));
+    // Yesterday two cards, and today one: a streak of two days.
     postgrest.seed(
       "reviews",
       reviewRow("r-e1", "done-e", start - day, 6_000),
+      reviewRow("r-f1", "done-f", start - day, 6_000),
       reviewRow("r-e2", "done-e", start - 3_600_000, 6_000),
     );
     await render(Today, {});
 
-    const hero = within(screen.getByRole("region", { name: "오늘 2장" }));
-    const streak = hero.getByText("2일 연속");
-    expect(streak).toHaveClass("bg-surface", "text-accent", "shadow-row");
-    // No other line restates it, and the minutes stay the hero's one line under the count.
-    expect(screen.getAllByText("2일 연속")).toHaveLength(1);
+    const hero = screen.getByRole("region", { name: "오늘 2장" });
+    expect(within(hero).queryByText(/일 연속/)).not.toBeInTheDocument();
+    const week = screen.getByRole("region", { name: "2일 연속" });
+    expect(week).toHaveClass("rounded-card", "bg-surface");
+    expect(hero.compareDocumentPosition(week) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      within(within(week).getByRole("heading", { name: "2일 연속" })).getByText("2"),
+    ).toHaveClass("text-accent");
+    expect(within(week).getByText("지난 7일 3장")).toBeInTheDocument();
+    const bars = within(week).getByRole("img");
+    expect(bars).toHaveAccessibleName(
+      /^\S+ 0장, \S+ 0장, \S+ 0장, \S+ 0장, \S+ 0장, \S+ 2장, 오늘 1장$/,
+    );
+    const drawn = [...bars.querySelectorAll("[data-bar]")];
+    expect(drawn.map((bar) => bar.getAttribute("data-bar"))).toEqual([
+      ...Array<string>(5).fill("dashed"),
+      "drawn",
+      "drawn",
+    ]);
+    expect(drawn.at(-1)).toHaveClass("bg-accent");
+    expect(drawn.at(-2)).toHaveClass("bg-heat-1");
+    expect(drawn.at(0)).toHaveClass("border-dashed", "border-edge");
     expect(todayLine()).toBe("오늘 2장 · 약 1분이면 끝나요");
     cleanup();
 
-    // Control: with no study day, there is no badge.
+    // Control: with no study day, the week is all dashed on no streak.
     postgrest.rows.reviews = [];
     await render(Today, {});
-    expect(screen.queryByText(/일 연속$/)).not.toBeInTheDocument();
+    const empty = screen.getByRole("region", { name: "0일 연속" });
+    expect(within(empty).getByText("지난 7일 0장")).toBeInTheDocument();
+    expect(
+      [...empty.querySelectorAll("[data-bar]")].map((bar) => bar.getAttribute("data-bar")),
+    ).toEqual(Array<string>(7).fill("dashed"));
   });
 
   it("agrees with the study page on the day's cards: a card answered 모른다 today is left, one answered 안다 done", async () => {
@@ -639,7 +681,7 @@ describe("the 오늘 and 노트 pages", () => {
   it("opens 모두 학습 on Enter from the page, but not from a control", async () => {
     postgrest.seed("decks", deckRow("d-fr", "French"));
     postgrest.seed("cards", cardRow("fr-new", "d-fr", "chat"));
-    await render(Today, {});
+    await renderBoth();
     const study = screen.getByRole("link", { name: "시작" });
     const clicked = vi.spyOn(study, "click").mockImplementation(() => undefined);
     const user = userEvent.setup();
@@ -654,14 +696,14 @@ describe("the 오늘 and 노트 pages", () => {
     expect(clicked).toHaveBeenCalledOnce();
   });
 
-  it("shows the first-run invitation in place of the hero and the drawer when there is no note", async () => {
+  it("shows the first-run invitation in place of the hero and the week card when there is no note, under the profile button", async () => {
     const title = "첫 노트를 만들어 볼까요?";
-    // Control: a user with one note sees the hero and the drawer, and no invitation.
+    // Control: a user with one note sees the hero and the notes, and no invitation.
     postgrest.seed("decks", deckRow("d-fr", "French"));
     postgrest.seed("cards", cardRow("c-chat", "d-fr", "chat"));
     postgrest.seed("card_states", stateRow("c-chat", notDue));
     await renderBoth();
-    expect(screen.getByRole("heading", { name: "내 노트 1" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "노트" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: title })).not.toBeInTheDocument();
     cleanup();
 
@@ -670,10 +712,13 @@ describe("the 오늘 and 노트 pages", () => {
     await render(Today, {});
 
     expect(screen.getByRole("heading", { level: 1, name: "알아몰라" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: title })).toHaveClass("text-display");
+    expect(screen.getByRole("heading", { name: title })).toHaveClass("text-title");
     expect(document.querySelector('img[src*="knowno-thinking"]')).not.toBeNull();
-    expect(screen.queryByRole("region", { name: /^내 노트/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /일 연속$/ })).not.toBeInTheDocument();
+    // The one link is the profile button, which opens 설정.
+    expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "/account",
+    ]);
     // The first note is the page's one way on, in the primary fill.
     expect(screen.getByRole("button", { name: "새 노트 만들기" })).toHaveClass("bg-primary");
   });
@@ -684,7 +729,9 @@ describe("the 오늘 and 노트 pages", () => {
     await render(Today, {});
 
     const hero = screen.getByRole("region", { name: title });
-    expect(hero).toHaveClass("bg-hero", "min-h-[calc(100dvh-26rem)]");
+    expect(hero).toHaveClass("bg-hero");
+    // No week card: the hero's one way on is the page's.
+    expect(screen.queryByRole("region", { name: /일 연속$/ })).not.toBeInTheDocument();
     // The happy mascot, glad of the note just made (ADR 0141).
     expect(hero.querySelector('img[src*="knowno-happy"]')).not.toBeNull();
     // Its one action opens the one note with its 카드 추가 sheet up.
@@ -694,14 +741,13 @@ describe("the 오늘 and 노트 pages", () => {
     );
     cleanup();
 
-    // With several notes, it leads to the notes in the drawer instead.
+    // With several notes, it leads to the 노트 page instead.
     postgrest.seed("decks", deckRow("d-de", "German"));
     await render(Today, {});
     expect(screen.getByRole("link", { name: "노트에서 카드 추가" })).toHaveAttribute(
       "href",
-      "#notes",
+      "/decks",
     );
-    expect(document.getElementById("notes")).toBe(screen.getByRole("region", { name: /^내 노트/ }));
     cleanup();
 
     // Control: with a card in a note, the day shows.
@@ -710,7 +756,7 @@ describe("the 오늘 and 노트 pages", () => {
     expect(screen.queryByRole("heading", { name: title })).not.toBeInTheDocument();
   });
 
-  it("draws 오늘 and 노트 in three sizes, the title, the body and the caption, in every state", async () => {
+  it("draws 홈 and the 노트 page in three sizes, the title, the body and the caption, in every state", async () => {
     const overdue = {
       stability: 30,
       difficulty: 5,
@@ -764,8 +810,16 @@ describe("the 오늘 and 노트 pages", () => {
       expect(screen.getByRole("heading", { name: state })).toBeInTheDocument();
       expect({ state, sizes: typeSizesOf(document.body) }).toEqual({
         state,
-        // The first run is its title, its sentence and one action: it draws no caption.
-        sizes: state === "첫 노트를 만들어 볼까요?" ? [28] : [13, 16, 28],
+        // Before a first card, 홈 is its title, its sentence, the profile's initial and one
+        // action, and no week card: it draws no caption.
+        sizes: state.startsWith("첫 ") ? [16, 26] : [13, 16, 26],
+      });
+      cleanup();
+      await renderNotes();
+      expect({ state, notes: typeSizesOf(document.body) }).toEqual({
+        state,
+        // With no note, the title and 새 노트 alone.
+        notes: state === "첫 노트를 만들어 볼까요?" ? [16, 28] : [13, 16, 28],
       });
       cleanup();
     }

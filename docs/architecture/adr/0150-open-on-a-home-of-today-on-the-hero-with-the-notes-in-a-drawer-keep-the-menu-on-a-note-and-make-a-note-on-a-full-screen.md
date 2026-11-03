@@ -1,6 +1,6 @@
 # ADR 0150: Open on a home of today on the hero with the notes in a drawer, keep the menu on a note, and make a note on a full screen
 
-> Status: accepted; the web's note page without a ⋯ superseded by ADR 0159
+> Status: accepted; the web's note page without a ⋯ superseded by ADR 0159; the menu of 기록 / 홈 / 설정, 홈's drawer of the notes and 홈's own navigator superseded by ADR-0165
 > Date: 2026-11-02
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

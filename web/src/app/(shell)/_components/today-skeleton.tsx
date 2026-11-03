@@ -1,26 +1,30 @@
 import { Skeleton, SkeletonLine } from "@/design/skeleton";
 
+import { belowHero, heroFit, heroFitGroup, homeFit } from "./hero-fit";
+
 /**
  * 홈 while it is read: the hero with its title, mascot, count and button in their places, and the
- * drawer's heading and two rows.
+ * week card under it, laid out as 홈 is.
  */
 export function TodaySkeleton() {
   return (
-    <Skeleton status="오늘 할 카드를 불러오는 중이에요." className="flex flex-col">
-      <div className="-mx-gutter -mt-6 flex min-h-[calc(100dvh-13.5rem)] flex-col bg-hero px-gutter pt-6 pb-14 lg:mx-0 lg:mt-0 lg:min-h-0 lg:rounded-card lg:p-8">
-        <SkeletonLine text="text-display" width="w-28" />
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-6">
-          <span className="size-mascot-hero rounded-full bg-on-hero/15" />
-          <span className="h-17 w-48 rounded-field bg-on-hero/15" />
-          <span className="mt-4 min-h-cta w-56 rounded-button bg-on-hero/15" />
+    // A block, so that the grid is not one of main's flex items (see homeFit).
+    <div>
+      <Skeleton status="오늘 할 카드를 불러오는 중이에요." className={homeFit}>
+        <div
+          className={`${heroFit} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 lg:mx-0 lg:rounded-card lg:p-8`}
+        >
+          <div className="mb-3 flex min-h-tap-target items-center">
+            <SkeletonLine text="text-title" width="w-28" />
+          </div>
+          <div className={heroFitGroup}>
+            <span className="aspect-square rounded-full bg-on-hero/15" />
+            <span className="h-17 w-48 rounded-field bg-on-hero/15" />
+            <span className="mt-2 min-h-cta w-56 rounded-button bg-on-hero/15" />
+          </div>
         </div>
-      </div>
-      <div className="relative -mx-gutter -mt-8 flex flex-col gap-3 rounded-t-sheet bg-ground px-gutter pt-3 lg:mx-0 lg:mt-6 lg:rounded-none lg:p-0">
-        <span className="mx-auto block h-1.5 w-11 rounded-full bg-edge lg:hidden" />
-        <SkeletonLine text="text-headline" width="w-28" />
-        <span className="h-19 rounded-row bg-surface" />
-        <span className="h-19 rounded-row bg-surface" />
-      </div>
-    </Skeleton>
+        <span className={`${belowHero} h-38 rounded-card bg-surface`} />
+      </Skeleton>
+    </div>
   );
 }

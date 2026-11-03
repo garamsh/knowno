@@ -410,11 +410,6 @@
   "@themeLight": {"description": "Theme choice: always light."},
   "themeDark": "다크",
   "@themeDark": {"description": "Theme choice: always dark."},
-  "myDecks": "내 노트 {count}",
-  "@myDecks": {
-    "description": "Label above the deck rows, with how many decks there are.",
-    "placeholders": {"count": {"type": "int"}}
-  },
   "cardCount": "카드 {count}장",
   "@cardCount": {
     "description": "How many cards a deck holds, under its name.",
@@ -1063,19 +1058,13 @@
   "spreadsheetNotRead": "파일을 읽지 못했어요. 다시 골라 주세요.",
   "@spreadsheetNotRead": {"description": "A file the device could not hand over."},
   "tabHome": "홈",
-  "@tabHome": {"description": "The middle tab: today's study and the notes."},
-  "tabSettings": "설정",
-  "@tabSettings": {"description": "The settings tab."},
+  "@tabHome": {"description": "The middle tab: today's study."},
   "homeToday": "오늘 {count}장",
   "@homeToday": {"description": "Today's cards, large on the home's hero.", "placeholders": {"count": {"type": "int"}}},
   "homeMinutes": "약 {minutes}분이면 끝나요",
   "@homeMinutes": {"description": "How long today's cards take, under the count.", "placeholders": {"minutes": {"type": "int"}}},
   "homeStart": "시작",
   "@homeStart": {"description": "The hero's button that studies every note."},
-  "drawerOpen": "올려서 보기",
-  "@drawerOpen": {"description": "The closed drawer's hint: pull it up for every note."},
-  "drawerClose": "접기",
-  "@drawerClose": {"description": "Closes the drawer back to its one row."},
   "studyThisDeck": "이 노트 학습 · {count}장",
   "@studyThisDeck": {"description": "The note screen's study button with today's count.", "placeholders": {"count": {"type": "int"}}},
   "studyThisDeckPlain": "이 노트 학습",
@@ -1093,5 +1082,11 @@
   "completionTimeLabel": "걸린 시간",
   "@completionTimeLabel": {"description": "Under the minutes on the completion panel's third tile, beside the tiles of answers known and not known."},
   "coachPrevious": "이전",
-  "@coachPrevious": {"description": "Button that moves the study coach back to its step before; disabled on the first step."}
+  "@coachPrevious": {"description": "Button that moves the study coach back to its step before; disabled on the first step."},
+  "tabNotes": "노트",
+  "@tabNotes": {"description": "The notes tab, and its title over every note."},
+  "lastWeekCards": "지난 7일 {count}장",
+  "@lastWeekCards": {"description": "On 홈's week card, beside the streak: the cards studied over the last seven study days.", "placeholders": {"count": {"type": "int"}}},
+  "weekDayCards": "{day} {count}장",
+  "@weekDayCards": {"description": "What a screen reader reads for one of the week card's bars: the day and its cards.", "placeholders": {"day": {"type": "String"}, "count": {"type": "int"}}}
 }

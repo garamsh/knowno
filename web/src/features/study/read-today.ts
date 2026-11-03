@@ -24,6 +24,7 @@ import {
   studyDayWindow,
 } from "./queue";
 import { readCardStates } from "./read-states";
+import { type StudyDayCount, studyDayCounts } from "./stats";
 import { dailyNewCards, type Pace, paceOf, type StudyDayTotal } from "./study-time";
 
 /** An answer stored in today's study day. Times are milliseconds since the epoch. */
@@ -38,8 +39,9 @@ export type TodayAnswer = {
  * Today's study day for the signed-in user: the day, with the new cards it has left, every
  * answer stored in it, across every deck, oldest first, the user's pace, and the stored state of
  * every reviewed card with the time it was read. With [streak], also how many study days in a
- * row before today hold an answer. The day is read in the zone the browser names in its cookie,
- * or `fallbackTimeZone` without one.
+ * row before today hold an answer; with [week], the cards of each of the last seven study days,
+ * counted as 기록 counts them. The day is read in the zone the browser names in its cookie, or
+ * `fallbackTimeZone` without one.
  */
 export type Today = {
   day: StudyDay;
@@ -54,16 +56,21 @@ export type Today = {
   states: CardStates;
   readAt: number;
   streakBefore: number;
+  /** The distinct cards answered on each of the last `weekDays` study days, today's last; empty without [week]. */
+  week: StudyDayCount[];
   /** The time zone the day is read in. */
   timeZone: string;
 };
+
+/** How many study days 홈's week card shows, today's included. */
+export const weekDays = 7;
 
 /** How many card ids one request filters on, so its URL stays short. */
 const idsPerRequest = 100;
 
 /** Reads [Today], or a server failure, or `unreadable` for a row this version cannot read. */
 export async function readToday(
-  options: { streak: boolean } = { streak: false },
+  options: { streak?: boolean; week?: boolean } = {},
 ): Promise<{ today: Today } | { failure: ServerFailure | "unreadable" }> {
   const supabase = await createClient();
   const session = await readUserId(supabase);
@@ -79,7 +86,7 @@ export async function readToday(
       .select(columns, counted ? { count: "exact" } : {})
       .eq("user_id", session.userId);
 
-  const [read, before, states, window, minutes] = await Promise.all([
+  const [read, before, states, window, minutes, week] = await Promise.all([
     selectAll((from, to, counted) =>
       reviews("id, card_id, rating, reviewed_at, duration_ms", counted)
         .gte("reviewed_at", new Date(start).toISOString())
@@ -91,12 +98,14 @@ export async function readToday(
     readCardStates(),
     readStudyDays(supabase, start, timeZone),
     readDailyMinutes(supabase, session.userId),
+    options.week ? readWeek(supabase, now, timeZone) : { week: [] },
   ]);
   if ("failure" in read) return read;
   if ("failure" in before) return before;
   if ("failure" in states) return states;
   if ("failure" in window) return window;
   if ("failure" in minutes) return minutes;
+  if ("failure" in week) return week;
   const answers: TodayAnswer[] = [];
   for (const row of read.rows) {
     const answer = parseAnswer(row);
@@ -160,6 +169,7 @@ export async function readToday(
       states: states.states,
       readAt: states.readAt,
       streakBefore: before.streak,
+      week: week.week,
       timeZone,
     },
   };
@@ -245,6 +255,31 @@ async function readStudyDays(
 /** [value] when it is a whole number at least zero, or null. */
 function count(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+/**
+ * The last `weekDays` of `studyDayCounts` at [now], from the study days `study_record_days`
+ * groups as 기록 reads them, so the two agree.
+ */
+async function readWeek(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  now: number,
+  timeZone: string,
+): Promise<{ week: StudyDayCount[] } | { failure: ServerFailure | "unreadable" }> {
+  const read = await supabase
+    .rpc("study_record_days", { time_zone: timeZone, before: new Date(now).toISOString() })
+    .abortSignal(AbortSignal.timeout(requestTimeoutMs));
+  if (read.error) return { failure: classifyFailure(read.error, read.status) };
+  const rows: unknown = read.data;
+  if (!Array.isArray(rows)) return { failure: "unreadable" };
+  const days = [];
+  for (const row of rows) {
+    const dayStart = parseTime(field(row, "day_start"));
+    const cards = count(field(row, "cards"));
+    if (dayStart === null || cards === null) return { failure: "unreadable" };
+    days.push({ dayStart, cards, reviews: 0, known: 0 });
+  }
+  return { week: studyDayCounts(days, now, timeZone).slice(-weekDays) };
 }
 
 /**

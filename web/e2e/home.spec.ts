@@ -154,7 +154,7 @@ function labelLines(button: Locator): Promise<number> {
   });
 }
 
-test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sheet and 새 노트, a pair of buttons on one line", async ({
+test("draws the first-run home, 홈 over its week card, the 노트 page, a note, its 카드 추가 sheet and 새 노트, a pair of buttons on one line", async ({
   page,
   context,
   baseURL,
@@ -229,31 +229,39 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "오늘 5장", exact: true })).toBeVisible();
-  // At a phone's width the drawer starts below the hero, its first row above the tab bar and the
-  // next under it, pulled up by the page's scroll.
+  // At a phone's width 홈 holds no note: the week card under the hero, above the tab bar.
   await page.setViewportSize({ width: 390, height: 844 });
-  const tabBar = await page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox();
-  const rows = page.getByRole("region", { name: /^내 노트/ }).getByRole("link");
-  await expect(rows).toHaveCount(3);
-  const firstRow = await rows.nth(0).boundingBox();
-  const secondRow = await rows.nth(1).boundingBox();
-  if (!tabBar || !firstRow || !secondRow) throw new Error("the tab bar and the rows are drawn");
-  expect(firstRow.y + firstRow.height).toBeLessThanOrEqual(tabBar.y);
-  expect(secondRow.y).toBeGreaterThanOrEqual(tabBar.y);
+  await expect(page.getByRole("region", { name: "노트 목록" })).toHaveCount(0);
+  const [tabBar, week] = await Promise.all([
+    page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox(),
+    page.getByRole("region", { name: "0일 연속" }).boundingBox(),
+  ]);
+  if (!tabBar || !week) throw new Error("the tab bar and the week card are drawn");
+  expect(week.y + week.height).toBeLessThanOrEqual(tabBar.y);
   await expectEdge(
     page,
     page.getByRole("link", { name: "시작", exact: true }),
     "--color-on-hero-edge",
   );
   await capture(page, "home");
+  // 노트 from the tab bar: every note under the 노트 검색 field, open from the first.
   await untilReacted(
-    () => page.getByRole("button", { name: "노트 검색", exact: true }).click(),
-    () => page.getByRole("searchbox", { name: "노트 검색" }).isVisible(),
+    () =>
+      page
+        .getByRole("navigation", { name: "주 메뉴" })
+        .last()
+        .getByRole("link", { name: "노트" })
+        .click(),
+    async () => (await page.getByRole("heading", { level: 1, name: "노트" }).count()) > 0,
   );
+  await expect(page.getByRole("region", { name: "노트 목록" }).getByRole("link")).toHaveCount(3);
   await page.getByRole("searchbox", { name: "노트 검색" }).fill("한");
-  // Control for the fields below: a search over a list is the phone's search height.
-  expect(await fieldHeight(page.getByRole("searchbox", { name: "노트 검색" }))).toBe(46);
-  await capture(page, "drawer-search");
+  // Control for the fields below: a search over a list is the phone's search height, the box
+  // drawn round the field and its magnifier.
+  expect(
+    await fieldHeight(page.getByRole("searchbox", { name: "노트 검색" }).locator("xpath=..")),
+  ).toBe(46);
+  await capture(page, "notes-search");
 
   await page.goto(`/decks/${decks[0]?.id ?? ""}`);
   await expect(page.getByRole("heading", { level: 1, name: "영단어 기본" })).toBeVisible();
@@ -280,7 +288,7 @@ test("draws the first-run home, 홈 and its drawer, a note, its 카드 추가 sh
     );
   }
 
-  await page.goto("/");
+  await page.goto("/decks");
   await untilReacted(
     () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
     () => page.getByRole("dialog", { name: "새 노트" }).isVisible(),
@@ -382,7 +390,8 @@ test("answers the browser's back on an authoring screen as the phone's back, and
   await page.goBack();
   await expect(page).toHaveURL(`${baseURL}/`);
 
-  // 새 노트 is left before its note opens, so a back from that note returns to 홈.
+  // 새 노트 is left before its note opens, so a back from that note returns to the 노트 page.
+  await page.goto("/decks");
   await untilReacted(
     () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
     () => page.getByRole("dialog", { name: "새 노트" }).isVisible(),
@@ -391,6 +400,144 @@ test("answers the browser's back on an authoring screen as the phone's back, and
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: "토익" })).toBeVisible();
   await page.goBack();
-  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect(page).toHaveURL(`${baseURL}/decks`);
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("fits 홈 to the screen with the owner's 481 cards over four notes on a 19-day streak: 시작 and the week card whole above the tab bar, the mascot giving way from 210 to 64", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  test.setTimeout(120_000);
+  // The owner's case on #610 and #611: 481 cards due today over four notes, studied on each of
+  // the 19 days before.
+  const { userId, db } = await signUp(context, baseURL, "fit");
+  const day = 86_400_000;
+  const time = new Date(Date.now() - 30 * day).toISOString();
+  const decks = ["영단어 기본", "토익 빈출", "일본어 N3", "회화 표현"].map((name) => ({
+    id: randomUUID(),
+    user_id: userId,
+    name,
+    visibility: "private",
+    created_at: time,
+    updated_at: time,
+  }));
+  expect((await db.from("decks").insert(decks)).error).toBeNull();
+  const cards = Array.from({ length: 481 }, (_, at) => ({
+    id: randomUUID(),
+    deck_id: decks[at % decks.length]?.id,
+    user_id: userId,
+    front: [text("f", `word ${String(at)}`)],
+    back: [text("b", `뜻 ${String(at)}`)],
+    card_key: `word ${String(at)}`,
+    source: "manual",
+    template: "free",
+    template_version: 2,
+    created_at: time,
+    updated_at: time,
+  }));
+  expect((await db.from("cards").insert(cards)).error).toBeNull();
+  // Due an hour ago after a day's interval: today's reviews, a day's load, so not a backlog.
+  const states = await db.from("card_states").insert(
+    cards.map((card) => ({
+      user_id: userId,
+      card_id: card.id,
+      stability: 1,
+      difficulty: 5,
+      last_review: new Date(Date.now() - day).toISOString(),
+      due: new Date(Date.now() - 3_600_000).toISOString(),
+      updated_at: time,
+    })),
+  );
+  expect(states.error).toBeNull();
+  // The last six days' cards as the phone's shots count them, ten a day before.
+  const recent = [38, 52, 23, 41, 66, 47];
+  const reviews = Array.from({ length: 19 }, (_, back) => {
+    const daysAgo = back + 1;
+    const count = recent[recent.length - daysAgo] ?? 10;
+    return cards.slice(0, count).map((card) => ({
+      id: randomUUID(),
+      card_id: card.id,
+      user_id: userId,
+      rating: "good",
+      reviewed_at: new Date(Date.now() - daysAgo * day).toISOString(),
+      duration_ms: 3000,
+      updated_at: time,
+    }));
+  }).flat();
+  expect((await db.from("reviews").insert(reviews)).error).toBeNull();
+
+  await page.goto("/");
+  const hero = page.getByRole("region", { name: "오늘 481장" });
+  await expect(hero.getByRole("heading", { name: "오늘 481장", exact: true })).toBeVisible();
+  const week = page.getByRole("region", { name: "19일 연속" });
+  await expect(week.getByText("지난 7일 267장", { exact: true })).toBeVisible();
+  const start = hero.getByRole("link", { name: "시작", exact: true });
+  const mascot = hero.locator("img, svg").first();
+  const directory = process.env.E2E_SCREENSHOTS;
+  for (const [width, height] of [
+    [390, 844],
+    [375, 667],
+    [430, 932],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme });
+      const at = `at ${String(width)} × ${String(height)} in ${colorScheme}`;
+      if (directory)
+        await page.screenshot({
+          path: `${directory}/${colorScheme}/web-home-fit-${String(height)}.png`,
+        });
+      const [button, drawn, card, tabBar, scroll] = await Promise.all([
+        start.boundingBox(),
+        mascot.boundingBox(),
+        week.boundingBox(),
+        page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox(),
+        page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
+      ]);
+      if (!button || !drawn || !card || !tabBar) throw new Error("홈 is drawn");
+      // Nothing to scroll: 시작 and the week card whole on the first screen, the week card under
+      // 시작 and above the tab bar; each size is checked, and shot, whatever an earlier one found.
+      expect.soft(scroll, at).toBeLessThanOrEqual(0);
+      expect.soft(button.y, at).toBeGreaterThanOrEqual(0);
+      expect.soft(button.y + button.height, at).toBeLessThanOrEqual(card.y);
+      expect.soft(card.y + card.height, at).toBeLessThanOrEqual(tabBar.y);
+      // The mascot gives way, from 210 down to its floor of 64, square.
+      expect.soft(drawn.height, at).toBeGreaterThanOrEqual(64);
+      expect.soft(drawn.height, at).toBeLessThanOrEqual(210);
+      expect.soft(drawn.width, at).toBeCloseTo(drawn.height, 0);
+    }
+    // The owner's four notes on the 노트 page.
+    if (directory) {
+      await page.goto("/decks");
+      await expect(page.getByRole("region", { name: "노트 목록" }).getByRole("link")).toHaveCount(
+        4,
+      );
+      for (const colorScheme of ["light", "dark"] as const) {
+        await page.emulateMedia({ colorScheme });
+        await page.screenshot({
+          path: `${directory}/${colorScheme}/web-notes-${String(height)}.png`,
+        });
+      }
+      await page.goto("/");
+      // 홈 itself, not its skeleton, is what the next size measures and shoots.
+      await expect(week.getByText("지난 7일 267장", { exact: true })).toBeVisible();
+    }
+  }
+  // Control: given the room, the mascot is drawn at its full 210.
+  await page.setViewportSize({ width: 430, height: 1300 });
+  expect((await mascot.boundingBox())?.height).toBe(210);
+  // Short of room for the floor, the mascot holds at 64 and the page scrolls, 시작 still above
+  // the week card.
+  await page.setViewportSize({ width: 375, height: 420 });
+  const [floor, button, card] = await Promise.all([
+    mascot.boundingBox(),
+    start.boundingBox(),
+    week.boundingBox(),
+  ]);
+  if (!floor || !button || !card) throw new Error("홈 is drawn");
+  expect(floor.height).toBe(64);
+  expect(button.y + button.height).toBeLessThanOrEqual(card.y);
 });

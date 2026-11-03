@@ -152,7 +152,7 @@ describe("the controls' pointer, hover and pressed states", () => {
 
     const [side, bar] = screen.getAllByRole("navigation", { name: "주 메뉴" });
     for (const menu of [side, bar]) {
-      for (const item of ["기록", "홈", "설정"]) {
+      for (const item of ["기록", "홈", "노트"]) {
         expect(pressable(within(menu as HTMLElement).getByRole("link", { name: item }))).toBe(true);
       }
     }

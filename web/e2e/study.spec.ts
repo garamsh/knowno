@@ -218,7 +218,7 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   ).toBeVisible();
   await page
     .getByRole("navigation", { name: "주 메뉴" })
-    .getByRole("link", { name: "홈", exact: true })
+    .getByRole("link", { name: "노트", exact: true })
     .click();
   const deckRow = page.getByRole("link", {
     name: "French, 카드 2장, 공개, 오늘 2, 2장 중 0장 익힘, 익힘 0장, 학습 중 0장, 새 카드 2장",

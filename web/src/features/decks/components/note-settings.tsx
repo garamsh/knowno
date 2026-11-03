@@ -517,7 +517,7 @@ function DeleteSheet({
               if (result.deleted)
                 leaveThen(() => {
                   close();
-                  router.push("/");
+                  router.push("/decks");
                   router.refresh();
                 });
               else setProblem(result.message);

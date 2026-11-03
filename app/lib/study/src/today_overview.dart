@@ -9,6 +9,7 @@ import 'failure_message.dart';
 import 'overview.dart';
 import 'providers.dart';
 import 'queue.dart';
+import 'stats.dart' show heatmapDays, studyDayCounts;
 import 'today_counter.dart';
 
 /// What a selection holds for today, as the home screen shows it.
@@ -28,13 +29,15 @@ final class OverviewUnavailable extends TodayOverviewRead {
   final String message;
 }
 
-/// Today's [count], the [streak] of study days and the [nextReview].
+/// Today's [count], the [streak] of study days, the [nextReview] and the
+/// last [week].
 final class TodayOverview extends TodayOverviewRead {
   const TodayOverview({
     required this.count,
     required this.streak,
     required this.nextReview,
     required this.days,
+    required this.week,
   });
 
   final TodayCounted count;
@@ -47,6 +50,11 @@ final class TodayOverview extends TodayOverviewRead {
   /// The calendar date each of the [chartDays] study days from today starts
   /// on, at midnight UTC: the days the next review names.
   final List<DateTime> days;
+
+  /// The distinct cards answered on each of the last [chartDays] study days,
+  /// oldest first and today's last, counted as the 기록 tab counts its study
+  /// days, with the calendar date each starts on.
+  final List<({DateTime date, int cards})> week;
 
   /// The whole minutes [cards] reviews take at the user's pace, rounded up.
   int minutesFor(int cards) => count.pace.minutes(reviews: cards, fresh: 0);
@@ -89,7 +97,11 @@ class _TodayOverviewReaderState extends ConsumerState<TodayOverviewReader> {
     final now = ref.read(studyClockProvider)();
     final zone = ref.read(studyZoneProvider);
     final start = today.day.start;
-    final recent = await repository.answersSince(start);
+    var weekStart = start;
+    for (var day = 1; day < chartDays; day++) {
+      weekStart = studyDayBefore(weekStart, zone);
+    }
+    final recent = await repository.answersSince(weekStart);
     final days = <DateTime>[start];
     while (days.length < chartDays) {
       days.add(studyDayEnd(days.last, zone));
@@ -113,6 +125,11 @@ class _TodayOverviewReaderState extends ConsumerState<TodayOverviewReader> {
           if (day.toUtc().add(zone(day)) case final wall)
             DateTime.utc(wall.year, wall.month, wall.day),
       ],
+      week: studyDayCounts(
+        recent,
+        now,
+        offsetAt: zone,
+      ).sublist(heatmapDays - chartDays),
     );
   }
 

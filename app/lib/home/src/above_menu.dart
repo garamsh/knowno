@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../design/theme.dart';
 
 /// The context whose navigator opens a screen or a sheet over the menu, from
-/// anywhere inside 홈's own navigator, which keeps the menu under what it
+/// anywhere inside 노트's own navigator, which keeps the menu under what it
 /// shows.
 BuildContext aboveMenu(BuildContext context) =>
     Navigator.of(context, rootNavigator: true).context;

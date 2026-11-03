@@ -15,9 +15,10 @@ The `account` domain: signing in with Google through Supabase Auth, the session 
   - the failures: `AccountFailure`, `AccountOffline`, `AccountMisconfigured`, `AccountRejected`;
   - `AccountGate`, the app's home, which takes the app it opens while signed in as a constructor argument: the composition site passes `home/`'s `HomeScreen`, so this domain depends on no other ([ADR 0017](adr/0017-require-sign-in-through-an-account-gate.md), [ADR 0039](adr/0039-name-every-top-level-folder-by-its-responsibility-compose-across-domains-in-a-home-shell-and-keep-seams-off-screens.md));
   - `AccountScreen`, the settings screen, which takes the sync status and the study settings' rows it shows as constructor arguments;
+  - `ProfileButton`, the signed-in account's email's first character, upper-cased, in Pretendard, in a round button 44 across over its edge, a person's outline for an account with no email, named "설정", which calls the callback its caller gives; on the hero it takes `heroButton` under `onHeroButton`, elsewhere the raised surface under `accent`;
   - `appVersionProvider`, the version the settings screen names, which the composition site overrides.
 - It is the only domain that imports `google_sign_in` ([ADR 0006](adr/0006-account-native-google-sign-in.md)). `sync` and `sharing` also import `supabase_flutter`, for PostgREST with the client `connectAccount` returns ([ADR 0015](adr/0015-sync-protocol-and-conflict-policy.md), [ADR 0020](adr/0020-public-decks-in-a-sharing-domain.md)).
-- `home/`'s home screen shows `AccountScreen` as its 설정 tab, with `sync`'s `SyncStatusView`, and `study`'s `DailyMinutesRow`, `study`'s `AutoplayAudioRow` and `deck`'s `PartOfSpeechPresetsRow`, in that order, as its study settings' rows ([`home.md`](home.md)).
+- `home/`'s 홈 holds `ProfileButton` at the right of its top bar, which opens `AccountScreen` over the menu ([ADR 0165](adr/0165-open-on-today-over-the-last-seven-days-move-the-notes-to-a-tab-and-open-settings-from-the-profile-button.md)), with `sync`'s `SyncStatusView`, and `study`'s `DailyMinutesRow`, `study`'s `AutoplayAudioRow` and `deck`'s `PartOfSpeechPresetsRow`, in that order, as its study settings' rows ([`home.md`](home.md)).
 
 ### Gate
 
