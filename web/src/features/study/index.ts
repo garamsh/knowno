@@ -1,8 +1,8 @@
 export { DailyMinutes } from "./components/daily-minutes";
 export { RecordView } from "./components/record-view";
 export { RetentionPreview } from "./components/retention-preview";
-export { StudyFreshness } from "./components/study-freshness";
 export { StudyScreen } from "./components/study-screen";
+export { StudyStateRead } from "./components/study-state-read";
 export { type CardStates, newCards, streak, studyDayEnd, studyDayStart } from "./queue";
 export { deckProgress, nextReviewOf } from "./overview";
 export { readRecentRetention, readRecord } from "./read-record";

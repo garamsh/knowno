@@ -6,26 +6,24 @@ import { useEffect, useRef } from "react";
 import { answerSavedAt, subscribeAnswerSaved } from "../answer-saved";
 
 /**
- * Reads the page it is on again, once, when a study answer saved after the page was read has
- * landed: on showing again, for one saved while the page was away, and while shown, for one still
- * in flight when the page came back (ADR 0169). It draws nothing.
+ * Reads the page it is on again, once, when a study answer the server stored after [readAt], the
+ * server's time when the page read its data, has landed: on showing, for one that landed while
+ * the page was away, and while shown, for one still in flight (ADR 0169). It draws nothing.
  */
-export function StudyFreshness() {
+export function StudyFreshness({ readAt }: { readAt: number }) {
   const router = useRouter();
-  /** When the page was last read, by the browser's clock; set on the first show. */
-  const readAt = useRef<number | null>(null);
-  // The App Router keeps a page it leaves hidden, its refs intact, and runs this again when it
-  // shows the page again.
+  /** The latest saved answer this page has already been read again for. */
+  const readAgainFor = useRef<number | null>(null);
   useEffect(() => {
-    readAt.current ??= Date.now();
     const readAgainIfStale = () => {
       const saved = answerSavedAt();
-      if (saved === null || readAt.current === null || saved <= readAt.current) return;
-      readAt.current = Date.now();
+      if (saved === null || saved <= readAt) return;
+      if (readAgainFor.current !== null && saved <= readAgainFor.current) return;
+      readAgainFor.current = saved;
       router.refresh();
     };
     readAgainIfStale();
     return subscribeAnswerSaved(readAgainIfStale);
-  }, [router]);
+  }, [readAt, router]);
   return null;
 }

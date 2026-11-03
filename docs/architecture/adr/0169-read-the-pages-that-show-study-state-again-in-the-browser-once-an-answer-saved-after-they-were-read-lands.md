@@ -19,24 +19,28 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 
 ## Decision
 
-- **`study` records each saved answer in the browser.** Each answer or toggle that the server stores sets a module-level time, by the browser's clock. The store outlives the study screen.
-- **The pages that show study state read themselves again.** `study` exports one client component, `StudyFreshness`, which draws nothing. 홈, the 노트 page and 기록 each mount it.
-  - **On showing again:** if an answer was saved after the page was last read, it calls `router.refresh()` once. The page is read at its first show.
-  - **While shown:** it calls `router.refresh()` once when an answer lands.
-  - A page with no answer saved since it was read does nothing.
+- **Both times are the server's.** Comparing them on one clock does not depend on when a page mounts in the browser, or on the browser's clock against the server's.
+  - **Save time:** `recordAnswer` returns the server's time once both of an answer's rows are stored.
+  - **Read time:** a page that shows study state takes the server's time at the request before it reads its data.
+- **`study` records each saved answer in the browser.** Each answer or toggle that the server stores keeps its save time in a module-level store, the latest one. The store outlives the study screen.
+- **The pages that show study state read themselves again.** 홈, the 노트 page and 기록 each wrap their content, inside its Suspense boundary, in `study`'s `StudyStateRead`.
+  - `StudyStateRead` is a Server Component. It calls `connection()`, takes `Date.now()` (the request-time value Next documents under `cacheComponents`, `next/dist/docs/01-app/01-getting-started/08-caching.md`), and only then renders the page's content. So the time precedes the content's reads.
+  - It hands that time to `StudyFreshness`, a client component that draws nothing.
+  - `StudyFreshness` calls `router.refresh()` once for each answer saved later than its page's read time. It checks whenever it shows: at its first mount, which includes a page drawn again from the router's cache, and on showing again after a back. While shown, it checks again whenever an answer lands.
+  - A page whose read time is later than every saved answer does nothing. A refresh brings a new read time.
 - **The server's write revalidates nothing.**
 
 ## Consequences
 
-- An answer counts on 홈, 노트 and 기록 once its write lands, whether it landed before the back or after. Each such page refreshes once when shown, not once per answer saved while it was away.
+- An answer counts on 홈, 노트 and 기록 once its write lands: landed before the back or after, and whether the page was kept hidden or drawn again from the router's cache. Each such page refreshes once when shown, not once per answer saved while it was away.
 - A study answer costs nothing beyond its write. The page that refreshes reads only itself.
-- A page that newly shows study state must mount `StudyFreshness`, or it can show a count from before the session.
+- A page that newly shows study state must wrap its content in `StudyStateRead`, or it can show a count from before the session.
 - The record lives in one tab. An answer saved in another tab, or on the phone, is not seen until the page is read again by other means.
-- A page the router evicted from its hidden routes (Next keeps 3) mounts again with a new first show. If its content came from the router's cache, an answer saved before that show is not caught.
+- With more than one server instance, the times come from different clocks. A skew larger than the time between a save and a read can miss a refresh or add one.
 
 ## Signs the decision was wrong
 
-- 홈, 노트 or 기록 shows a count from before a session's last answer after a back. Or a new page that shows study state is found without the component.
+- 홈, 노트 or 기록 shows a count from before a session's last answer after a back. Or a new page that shows study state is found without `StudyStateRead`.
 - The refresh shows as a second load: the page flashes, or its scroll or open state resets, after a back.
-- Next stops keeping left routes in `<Activity>`, or changes when hidden routes' effects run, and a page's first show no longer marks when it was read.
+- Next stops running a hidden route's effects again when it shows, so a page kept hidden through a session no longer checks on its return.
 - Next documents a revalidation from a Server Action that does not re-render the current route but does clear the client's cache.

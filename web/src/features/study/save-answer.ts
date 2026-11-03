@@ -24,6 +24,6 @@ export async function saveAnswer(write: AnswerWrite): Promise<SaveResult> {
     editedAt: write.editedAt,
   });
   if (!recorded.saved) return recorded;
-  markAnswerSaved();
+  markAnswerSaved(recorded.savedAt);
   return { saved: true, state: scheduled.state };
 }

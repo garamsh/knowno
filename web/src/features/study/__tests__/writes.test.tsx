@@ -10,7 +10,7 @@ import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
 import { signedInCookies } from "@/testing/session";
 
-import { subscribeAnswerSaved } from "../answer-saved";
+import { answerSavedAt, subscribeAnswerSaved } from "../answer-saved";
 import { StudyScreen } from "../components/study-screen";
 import { recordAnswer } from "../record-answer";
 import { saveAnswer } from "../save-answer";
@@ -112,8 +112,10 @@ describe("recordAnswer", () => {
 
     expect(await answer("c1")).toMatchObject({ saved: false });
     expect([postgrest.rows.reviews, postgrest.rows.card_states]).toEqual([[], []]);
-    // Control: the same answer to the card's uuid is stored.
-    expect(await answer(uuidOf("c1"))).toEqual({ saved: true });
+    // Control: the same answer to the card's uuid is stored, and the result carries the server's
+    // time of the store, not the answer's.
+    vi.setSystemTime(start + 60_000);
+    expect(await answer(uuidOf("c1"))).toEqual({ saved: true, savedAt: start + 60_000 });
     expect(postgrest.rows.card_states.map((row) => row.card_id)).toEqual([uuidOf("c1")]);
   });
 });
@@ -128,7 +130,7 @@ describe("saveAnswer", () => {
     vi.useRealTimers();
   });
 
-  it("records a stored answer for the pages that show study state, and not a refused one", async () => {
+  it("records a stored answer at the server's time for the pages that show study state, and not a refused one", async () => {
     const postgrest = new FakePostgrest();
     server.use(...postgrest.handlers);
     const heard = vi.fn();
@@ -154,6 +156,7 @@ describe("saveAnswer", () => {
     // Control: the same answer to the card's uuid is stored, and recorded once.
     expect(await write(uuidOf("c1"))).toMatchObject({ saved: true });
     expect(heard).toHaveBeenCalledTimes(1);
+    expect(answerSavedAt()).toBe(start);
     stop();
   });
 });

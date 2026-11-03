@@ -1,17 +1,18 @@
 /**
- * When this tab last saved a study answer, by the browser's clock. It lives at module level, so
- * a write that lands after the study screen has gone is still recorded (ADR 0169).
+ * When the server stored this tab's latest study answer, by the server's clock. It lives at
+ * module level, so a write that lands after the study screen has gone is still recorded
+ * (ADR 0169).
  */
 let savedAt: number | null = null;
 const listeners = new Set<() => void>();
 
-/** Records that an answer was saved now, and tells every listener. */
-export function markAnswerSaved(): void {
-  savedAt = Date.now();
+/** Records an answer the server stored at [at], keeping the latest, and tells every listener. */
+export function markAnswerSaved(at: number): void {
+  savedAt = savedAt === null ? at : Math.max(savedAt, at);
   for (const listener of listeners) listener();
 }
 
-/** When the last answer was saved, or null when none has been in this tab. */
+/** When the server stored the latest answer, or null when none has been in this tab. */
 export function answerSavedAt(): number | null {
   return savedAt;
 }

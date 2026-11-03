@@ -39,8 +39,8 @@ export type RecordedAnswer = {
   editedAt: number;
 };
 
-/** Whether a write reached the server; when not, the sentence the user reads. */
-export type WriteResult = { saved: true } | { saved: false; message: string };
+/** Whether a write reached the server: once stored, the server's time then; when not, the sentence the user reads. */
+export type WriteResult = { saved: true; savedAt: number } | { saved: false; message: string };
 
 /** A write's result as the session sees it: once saved, the card's state the engine computed. */
 export type SaveResult = { saved: true; state: CardState } | { saved: false; message: string };
