@@ -60,7 +60,9 @@ void main() {
   /// A new card's editor whose one 칸 is a Cloze sentence.
   Future<DeckScreens> openCloze(WidgetTester tester, {DeckScreens? on}) async {
     final screens = on ?? await DeckScreens.open(tester);
-    await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck));
+    await screens.push(
+      (deck) => CardEditorScreen(preview: studyPreview, deck: deck),
+    );
     await replaceFirstBlock(screens, 'Cloze sentence');
     return screens;
   }
@@ -117,7 +119,10 @@ void main() {
       ]);
       expect(card.back, isEmpty, reason: 'a back is the blocks listed on it');
 
-      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
+      await screens.push(
+        (deck) =>
+            CardEditorScreen(preview: studyPreview, deck: deck, card: card),
+      );
       expect(_blocks(tester), ['H₂O'], reason: 'opens with its blank');
       await save(screens);
       expect((await _stored(screens)).front, card.front, reason: 'unchanged');
@@ -605,12 +610,18 @@ void main() {
         ),
       );
       final card = await _stored(screens);
-      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
+      await screens.push(
+        (deck) =>
+            CardEditorScreen(preview: studyPreview, deck: deck, card: card),
+      );
       expect(_blocks(tester), ['believ']);
       await save(screens);
       expect((await _stored(screens)).front, [cloze]);
 
-      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
+      await screens.push(
+        (deck) =>
+            CardEditorScreen(preview: studyPreview, deck: deck, card: card),
+      );
       await select(tester, 0, 2);
       await insertBlank(screens);
       await save(screens);
@@ -634,7 +645,10 @@ void main() {
         ),
       );
       final card = await _stored(screens);
-      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
+      await screens.push(
+        (deck) =>
+            CardEditorScreen(preview: studyPreview, deck: deck, card: card),
+      );
       await typeLine(tester, '3인칭 재귀칭 : 자기, 자신, 저, 저희');
       await save(screens);
       expect((await _stored(screens)).front, [
@@ -705,7 +719,10 @@ void main() {
         ),
       );
       final card = await _stored(screens);
-      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
+      await screens.push(
+        (deck) =>
+            CardEditorScreen(preview: studyPreview, deck: deck, card: card),
+      );
       await typeLine(tester, 'a x b ___ c');
       await save(screens);
       expect(shownText('Remove ___ from the line'), findsOneWidget);

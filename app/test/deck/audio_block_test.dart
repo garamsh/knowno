@@ -188,7 +188,9 @@ void main() {
           audioPlaybackProvider.overrideWithValue(playback),
         ],
       );
-      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck));
+      await screens.push(
+        (deck) => CardEditorScreen(preview: studyPreview, deck: deck),
+      );
       for (final (index, text) in ['front', 'back'].indexed) {
         await tester.enterText(find.byType(TextField).at(index), text);
       }

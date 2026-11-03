@@ -20,7 +20,9 @@ void main() {
 
   Future<DeckScreens> openNew(WidgetTester tester) async {
     final screens = await DeckScreens.open(tester);
-    await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck));
+    await screens.push(
+      (deck) => CardEditorScreen(preview: studyPreview, deck: deck),
+    );
     return screens;
   }
 
@@ -138,7 +140,10 @@ void main() {
         TextCell(front: 'a fruit'),
       ]);
 
-      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
+      await screens.push(
+        (deck) =>
+            CardEditorScreen(preview: studyPreview, deck: deck, card: card),
+      );
       expect(
         [
           for (final field in tester.widgetList<TextField>(
@@ -305,7 +310,10 @@ void main() {
       ], reason: 'the meaning shows first');
       expect(card.back, const [TextContent('apple')]);
 
-      await screens.push((deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card));
+      await screens.push(
+        (deck) =>
+            CardEditorScreen(preview: studyPreview, deck: deck, card: card),
+      );
       expect(
         tester
             .widget<AppChip>(find.widgetWithText(AppChip, 'Meaning'))
