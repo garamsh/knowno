@@ -7,6 +7,7 @@ import {
   type Content,
   cellRuns,
   clozeBlank,
+  describeContent,
   shownParts,
   spokenContent,
 } from "../card-content";
@@ -41,17 +42,29 @@ export function WholeCard({
  * its title, a 단어's asked side, each blank empty and a front photo or sound, a 칸 with nothing
  * before it drawing nothing; [revealed], every 칸 revealed, a blank filled, an added part under
  * its first part at the back's size and colour, and a back photo or sound in its place.
+ * [studied], as study's cards draw it (#635): each empty blank, a table's hidden cell included, a
+ * box on the hatch [blankEms] wide at its line's height whatever its answer, a filled one its
+ * answer on the hatch, and each photo's box on the hatch, its answer on it once revealed.
  */
 export function WholeCells({
   cells,
   revealed,
   inRow = false,
+  studied = false,
 }: {
   cells: Cell[];
   revealed: boolean;
   inRow?: boolean;
+  studied?: boolean;
 }) {
-  return <WholeParts parts={shownParts(cells, revealed)} revealed={revealed} inRow={inRow} />;
+  return (
+    <WholeParts
+      parts={shownParts(cells, revealed)}
+      revealed={revealed}
+      inRow={inRow}
+      look={studied ? "studied" : "card"}
+    />
+  );
 }
 
 /**
@@ -61,7 +74,45 @@ export function WholeCells({
  * table shows its first [listedRows] rows and how many it leaves.
  */
 export function ListedCells({ cells }: { cells: Cell[] }) {
-  return <WholeParts parts={shownParts(cells, true)} revealed inRow listed />;
+  return <WholeParts parts={shownParts(cells, true)} revealed inRow look="listed" />;
+}
+
+/**
+ * How a whole card is drawn: as the card editor draws a card, as study's cards (#635), or as a
+ * card list's row (#629).
+ */
+type Look = "card" | "studied" | "listed";
+
+/** How wide an empty blank's box is on study's cards, in ems of its text (#635). */
+export const blankEms = 2;
+
+/**
+ * How long a front of [blocks] reads, in characters: its text, each blank counted as [blankEms],
+ * its box's width, as the phone's `faceLength` (#635).
+ */
+export function faceLength(blocks: Content[]): number {
+  return blocks.reduce((sum, block) => {
+    switch (block.kind) {
+      case "text":
+        return sum + block.text.length;
+      case "senses":
+        return sum + describeContent([block]).length;
+      case "cloze":
+        return sum + block.text.split(clozeBlank).join("").length + block.answers.length * blankEms;
+      case "table":
+        return (
+          sum +
+          block.columns.join("").length +
+          block.rows
+            .flatMap((cells, row) => cells.flatMap((_, column) => cellRuns(block, row, column)))
+            .reduce((length, run) => length + (run.blank ? blankEms : run.text.length), 0)
+        );
+      case "image":
+      case "audio":
+      case "unsupported":
+        return sum;
+    }
+  }, 0);
 }
 
 /** The rows of a table a card list's row shows. */
@@ -80,13 +131,14 @@ function WholeParts({
   parts,
   revealed,
   inRow,
-  listed = false,
+  look = "card",
 }: {
   parts: CellPart[];
   revealed: boolean;
   inRow: boolean;
-  listed?: boolean;
+  look?: Look;
 }) {
+  const listed = look === "listed";
   const addedStyle = inRow ? "font-normal text-ink-2" : "text-whole-added text-ink-2";
   /** A part of a card list's row: an added one in a hatched box, a shown one cut at two lines. */
   const listedPart = (index: number, added: boolean, children: ReactNode) =>
@@ -142,14 +194,16 @@ function WholeParts({
           case "cloze":
             return (
               <span key={index} aria-hidden className={listed ? "line-clamp-2 break-keep" : ""}>
-                {block.text.split(clozeBlank).map((part, at) => (
-                  <span key={at}>
-                    {part}
-                    {at < block.answers.length && (
-                      <Blank answer={block.answers[at] ?? ""} revealed={revealed} marked={listed} />
-                    )}
-                  </span>
-                ))}
+                {look === "studied" && !revealed
+                  ? boxedWords(block.text.split(clozeBlank))
+                  : block.text.split(clozeBlank).map((part, at) => (
+                      <span key={at}>
+                        {part}
+                        {at < block.answers.length && (
+                          <Blank answer={block.answers[at] ?? ""} revealed={revealed} look={look} />
+                        )}
+                      </span>
+                    ))}
               </span>
             );
           case "table": {
@@ -180,7 +234,7 @@ function WholeParts({
                     >
                       {cellRuns(block, row, column).map((run, at) =>
                         run.blank ? (
-                          <Blank key={at} answer={run.text} revealed={revealed} marked={listed} />
+                          <Blank key={at} answer={run.text} revealed={revealed} look={look} />
                         ) : (
                           <span key={at}>{run.text}</span>
                         ),
@@ -207,7 +261,14 @@ function WholeParts({
               </span>
             );
           case "image":
-            return <PhotoFrame key={index} image={block} revealed={revealed} />;
+            return (
+              <PhotoFrame
+                key={index}
+                image={block}
+                revealed={revealed}
+                studied={look === "studied"}
+              />
+            );
           case "audio":
             return (
               <span
@@ -232,23 +293,68 @@ function WholeParts({
 }
 
 /**
- * A blank: an empty gap of its answer's width over a muted underline, its answer not drawn, so
- * hidden content shows as nothing (ADR 0119); or its answer filled on the brand tint; [marked], in
- * a card list's row, filled on the hatch (#629).
+ * A sentence of [parts] with an empty blank's box between each two, as study's cards draw it
+ * (#635): each box on one line with the word or punctuation it touches, so a box and its comma
+ * never part. A browser breaks a line beside a box whatever joiner the text holds there.
  */
-function Blank({
-  answer,
-  revealed,
-  marked = false,
-}: {
-  answer: string;
-  revealed: boolean;
-  marked?: boolean;
-}) {
+function boxedWords(parts: string[]): ReactNode[] {
+  const words: ReactNode[] = [];
+  let word: ReactNode[] = [];
+  let boxed = false;
+  const close = () => {
+    if (word.length === 0) return;
+    words.push(
+      boxed ? (
+        <span key={words.length} className="whitespace-nowrap">
+          {word}
+        </span>
+      ) : (
+        word
+      ),
+    );
+    word = [];
+    boxed = false;
+  };
+  parts.forEach((part, at) => {
+    for (const piece of part.split(/(\s+)/)) {
+      if (piece === "") continue;
+      if (/^\s+$/.test(piece)) {
+        close();
+        words.push(piece);
+      } else {
+        word.push(piece);
+      }
+    }
+    if (at < parts.length - 1) {
+      word.push(<Blank key={`box ${String(at)}`} answer="" revealed={false} look="studied" />);
+      boxed = true;
+    }
+  });
+  close();
+  return words;
+}
+
+/**
+ * A blank: an empty gap of its answer's width over a muted underline, its answer not drawn, so
+ * hidden content shows as nothing (ADR 0119); or its answer filled on the brand tint. In a card
+ * list's row it is filled on the hatch (#629). On study's cards it is a box on the hatch
+ * [blankEms] wide at its line's height, its answer not in it, or its answer filled on the hatch
+ * (#635).
+ */
+function Blank({ answer, revealed, look }: { answer: string; revealed: boolean; look: Look }) {
+  if (look === "studied" && !revealed) {
+    return (
+      <span
+        data-blank="boxed"
+        className="hatch inline-block h-[calc(1lh-var(--spacing))] rounded-sm align-middle"
+        style={{ width: `${String(blankEms)}em` }}
+      />
+    );
+  }
   return (
     <span
-      data-blank={marked ? "marked" : revealed ? "filled" : "empty"}
-      className={`rounded-sm px-1 ${marked ? "hatch" : revealed ? "bg-brand-tint" : "text-transparent underline decoration-muted"}`}
+      data-blank={look === "card" ? (revealed ? "filled" : "empty") : "marked"}
+      className={`rounded-sm px-1 ${look === "card" ? (revealed ? "bg-brand-tint" : "text-transparent underline decoration-muted") : "hatch"}`}
     >
       {answer}
     </span>

@@ -23,6 +23,7 @@ const card = (front: string): StudyCard => ({
   back: [{ kind: "text", text: `${front} back` }],
   createdAt: start - day,
   text: { front, back: `${front} back` },
+  frontLength: front.length,
 });
 
 /** A session over two new cards, opened at [start]. */

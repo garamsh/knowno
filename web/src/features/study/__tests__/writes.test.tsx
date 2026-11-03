@@ -38,6 +38,7 @@ const card: StudyCard = {
   back: [{ kind: "text", text: "cat" }],
   createdAt: start - day,
   text: { front: "chat", back: "cat" },
+  frontLength: 4,
 };
 
 /**

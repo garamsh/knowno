@@ -386,9 +386,11 @@ class _DragFeedback extends StatelessWidget {
 }
 
 /// The card itself: its front alone, centred, in the largest of the card's
-/// three sizes at which it fits, scrolling inside where it is taller than
-/// the card at the last (ADR 0123); a whole card's 칸, [cells], in place,
-/// unrevealed. The card editor's preview draws it too (ADR 0168).
+/// sizes at which it fits, from the one its length starts at
+/// ([StudyStyle.frontStart]), scrolling inside where it is taller than the
+/// card at the last (ADR 0123, #635); a whole card's 칸, [cells], in place,
+/// unrevealed, each blank a box on the hatch. The card editor's preview
+/// draws it too (ADR 0168).
 class CardFace extends StatelessWidget {
   const CardFace({super.key, required this.cells, required this.front});
 
@@ -402,6 +404,7 @@ class CardFace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+    final start = StudyStyle.frontStart(faceLength(cells));
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface,
@@ -417,13 +420,13 @@ class CardFace extends StatelessWidget {
                 ? SteppedWholeCardView(
                     cells,
                     revealed: false,
-                    style: AppType.front,
+                    style: start,
                     width: width,
                     height: height,
                   )
                 : ContentView(
                     front,
-                    style: AppType.front,
+                    style: start,
                     fit: StepFit(width: width, height: height),
                   ),
           ),

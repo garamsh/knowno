@@ -1,6 +1,6 @@
 # ADR 0119: Draw every screen from one radius scale, one chip, three type sizes, a press dim and three haptics, and a hidden blank as an empty underlined gap
 
-> Status: accepted; its button radius of 12 superseded by ADR-0139; its radii of 14, 6 and 22 superseded by ADR-0145; a press with no movement and three sizes counting a button's label superseded by ADR-0147
+> Status: accepted; its button radius of 12 superseded by ADR-0139; its radii of 14, 6 and 22 superseded by ADR-0145; a press with no movement and three sizes counting a button's label superseded by ADR-0147; its hidden blank as an empty underlined gap, on study's cards, superseded by ADR 0176
 > Date: 2026-10-27
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

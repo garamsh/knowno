@@ -27,7 +27,7 @@ import { render } from "@/testing/render";
 import { testRouter } from "@/testing/router";
 import { signedInCookies } from "@/testing/session";
 import { sensesUnder } from "@/testing/senses";
-import { blanksUnder } from "@/testing/whole-cards";
+import { boxedBlanksUnder, hatchedBlanksUnder } from "@/testing/whole-cards";
 
 import { Study } from "../_components/study";
 
@@ -2039,7 +2039,8 @@ describe("the study page", () => {
         const whole = within(front).queryByRole("group");
         expect(whole !== null).toBe(expected.whole);
         expect(whole?.getAttribute("aria-label") ?? front.textContent).toBe(expected.before);
-        if (whole) expect(Object.values(blanksUnder(whole))).not.toContain(true);
+        // Every blank before the answer a box on the hatch (#635).
+        if (whole) expect(whole.querySelector('[data-blank]:not([data-blank="boxed"])')).toBeNull();
         // A split side draws its photo whole; a whole card draws it in its frame.
         if (!whole) expect(front.querySelector("[data-image]") !== null).toBe(!!expected.photo);
 
@@ -2047,7 +2048,8 @@ describe("the study page", () => {
 
         const previous = within(cards()).getByRole("article");
         expect(within(previous).getByRole("button").textContent).toBe(expected.after);
-        expect(Object.values(blanksUnder(previous))).not.toContain(false);
+        // Every blank filled, on the hatch (#635): none empty and none a box.
+        expect(previous.querySelector('[data-blank="empty"], [data-blank="boxed"]')).toBeNull();
       });
     });
 
@@ -2061,14 +2063,16 @@ describe("the study page", () => {
       await open("d1");
 
       const current = screen.getByRole("group", { name: "Fill it. 빈칸 is red." });
-      expect(blanksUnder(current)).toEqual({ Rose: false });
+      // A box on the hatch, its answer nowhere on the card (#635).
+      expect(boxedBlanksUnder(current)).toBe(1);
+      expect(current.textContent).not.toContain("Rose");
 
       await answerKnow();
 
       expect(shown()).toEqual([
         "방금 본 카드, 안다. 앞면: Fill it. 빈칸 is red.. 뒷면: Fill it. Rose is red.",
       ]);
-      expect(blanksUnder(within(cards()).getByRole("article"))).toEqual({ Rose: true });
+      expect(hatchedBlanksUnder(within(cards()).getByRole("article"))).toEqual(["Rose"]);
     });
 
     it("keeps a card holding a block this build does not know, its sides as stored", async () => {
@@ -2131,7 +2135,8 @@ describe("the study page", () => {
       seedWhole(cloze);
       await open("d1");
       const current = screen.getByRole("group", { name: "The capital of France is 빈칸" });
-      expect(blanksUnder(current)).toEqual({ Paris: false });
+      expect(boxedBlanksUnder(current)).toBe(1);
+      expect(current.textContent).not.toContain("Paris");
       expect(screen.getByText("0/1")).toBeInTheDocument();
 
       const user = userEvent.setup();
@@ -2142,10 +2147,10 @@ describe("the study page", () => {
         "방금 본 카드, 안다. 앞면: The capital of France is 빈칸. 뒷면: The capital of France is Paris",
       ]);
       const card = within(cards()).getByRole("article");
-      expect(blanksUnder(card)).toEqual({ Paris: true });
+      expect(hatchedBlanksUnder(card)).toEqual(["Paris"]);
       await user.click(within(card).getByRole("button", { name: "카드 전체 보기" }));
       const detail = screen.getByRole("dialog", { name: "카드" });
-      expect(blanksUnder(detail)).toEqual({ Paris: true });
+      expect(hatchedBlanksUnder(detail)).toEqual(["Paris"]);
       expect(within(detail).queryByText("뒷면")).not.toBeInTheDocument();
     });
 
@@ -2158,15 +2163,13 @@ describe("the study page", () => {
       for (const header of ["Capital", "Country", "France", "Germany"]) {
         expect(within(current).getByText(header)).toBeInTheDocument();
       }
-      expect(blanksUnder(current)).toEqual({ Paris: false, Berlin: false });
+      expect(boxedBlanksUnder(current)).toBe(2);
+      expect(current.textContent).not.toMatch(/Paris|Berlin/);
 
       await userEvent.setup().keyboard("{ArrowRight}");
 
       expect(screen.getByText("1/1")).toBeInTheDocument();
-      expect(blanksUnder(within(cards()).getByRole("article"))).toEqual({
-        Paris: true,
-        Berlin: true,
-      });
+      expect(hatchedBlanksUnder(within(cards()).getByRole("article"))).toEqual(["Paris", "Berlin"]);
     });
   });
 

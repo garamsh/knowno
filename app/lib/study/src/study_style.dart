@@ -39,6 +39,27 @@ abstract final class StudyStyle {
   static const previousFront = AppType.deckName;
   static const previousBack = AppType.cardBody;
 
+  /// The largest size the current card's front starts at, by how long it
+  /// reads (`faceLength`): the first step whose length it is within, else
+  /// [AppType.cardBody]. From there it steps down until it fits (#635).
+  static const frontSteps = [
+    (length: 12, style: AppType.front),
+    (length: 40, style: AppType.deckName),
+    (length: 100, style: AppType.back),
+  ];
+
+  /// The size the current card's front of [length] characters starts at.
+  static TextStyle frontStart(int length) =>
+      frontSteps.where((step) => length <= step.length).firstOrNull?.style ??
+      AppType.cardBody;
+
+  /// The size the previous card's front of [length] characters starts at
+  /// over its back: the current card's, never above [previousFront] (#635).
+  static TextStyle previousFrontStart(int length) {
+    final start = frontStart(length);
+    return start.fontSize! > previousFront.fontSize! ? previousFront : start;
+  }
+
   static const topBarHeight = 56.0;
   static const progressHeight = AppSize.progress;
 

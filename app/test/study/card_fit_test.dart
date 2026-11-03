@@ -22,6 +22,7 @@ import 'package:knowno/study/src/study_repository.dart';
 import 'package:knowno/study/src/study_screen.dart';
 import 'package:knowno/study/src/study_style.dart';
 
+import '../deck/whole_cards.dart';
 import 'fixtures.dart';
 import 'study_storage.dart';
 
@@ -172,21 +173,32 @@ void main() {
   });
 
   testWidgets(
-    'a front takes the largest of the three card sizes it fits whole, centred '
-    'above the body size and start-aligned at it, scrolling with a fading '
-    'edge past it, never cut and broken only between words (ADR 0123)',
+    'a front starts at the size its length gives, smaller as it grows, takes '
+    'the largest step from there it fits whole and never one below the body '
+    'size, centred above the body size and start-aligned at it, scrolling '
+    'with a fading edge past it, never cut and broken only between words '
+    '(ADR 0123, #635)',
     (tester) async {
       tester.view.physicalSize = const Size(_phoneWidth, 844);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
-      const steps = [AppType.front, AppType.back, AppType.cardBody];
+      const steps = [
+        AppType.front,
+        AppType.deckName,
+        AppType.back,
+        AppType.cardBody,
+      ];
       final seen = <double>{};
-      for (final front in [
-        'meticulous',
-        _korean(100),
-        _korean(200),
-        _korean(400),
+      var fitAtFloor = false;
+      var scrolled = false;
+      // Each front and the size it takes: the longer, the smaller.
+      for (final (front, taken) in [
+        ('meticulous', AppType.front),
+        (_korean(25), AppType.deckName),
+        (_korean(60), AppType.back),
+        (_korean(110), AppType.cardBody),
+        (_korean(300), AppType.cardBody),
       ]) {
         await tester.pumpWidget(
           MaterialApp(
@@ -228,15 +240,31 @@ void main() {
         final height = card.height - StudyStyle.cardPadding * 2;
         final paragraph = _drawn(tester, face, front);
 
-        // The first step it fits whole, or the last.
+        // The first step from its length's start it fits whole, or the last.
         final size = paragraph.text.style!.fontSize!;
-        final step = steps
-            .take(steps.length - 1)
+        final start = StudyStyle.frontStart(
+          faceLength(drawnCellsOf(_card(front))),
+        );
+        final from = steps.skipWhile((step) => step != start).toList();
+        final step = from
+            .take(from.length - 1)
             .firstWhere(
               (step) => _fits(front, step, width, height),
-              orElse: () => steps.last,
+              orElse: () => from.last,
             );
         expect(size, step.fontSize, reason: front);
+        expect(size, taken.fontSize, reason: front);
+        // Control: but the first and the last, each fits whole one step
+        // larger, so its length, not the fit, made it smaller.
+        final above = steps.indexOf(taken) - 1;
+        if (above >= 0 && front != _korean(300)) {
+          expect(
+            _fits(front, steps[above], width, height),
+            isTrue,
+            reason: front,
+          );
+        }
+        expect(size, greaterThanOrEqualTo(AppType.body.fontSize!));
         seen.add(size);
         // Every line laid out, broken only at a space.
         expect(paragraph.maxLines, isNull);
@@ -251,12 +279,18 @@ void main() {
           );
         }
         final fade = find.byKey(const Key('cardScrollFade'));
-        if (size == AppType.cardBody.fontSize) {
+        if (size == AppType.cardBody.fontSize &&
+            paragraph.size.height <= height) {
+          // Start-aligned, whole in the card, with no fade.
+          expect(paragraph.textAlign, TextAlign.start, reason: front);
+          expect(fade, findsNothing);
+          fitAtFloor = true;
+        } else if (size == AppType.cardBody.fontSize) {
           // Start-aligned, and taller than the card: it scrolls, its edge
           // fading until its last line is in the card.
           expect(paragraph.textAlign, TextAlign.start, reason: front);
-          expect(paragraph.size.height, greaterThan(height));
           expect(fade, findsOneWidget);
+          scrolled = true;
           await tester.drag(face, const Offset(0, -2000));
           await tester.pumpAndSettle();
           final bottom = paragraph
@@ -278,6 +312,86 @@ void main() {
       }
       // Control: the fronts took every step, so each branch above ran.
       expect(seen, {for (final step in steps) step.fontSize});
+      expect((fitAtFloor, scrolled), (true, true));
+    },
+  );
+
+  testWidgets(
+    'a 빈칸 card of nine blanks, each counted as its box, starts at the back '
+    'size, not the front\'s, each blank a box on the hatch two ems wide, '
+    'each 모음 line laid out whole (#635)',
+    (tester) async {
+      tester.view.physicalSize = const Size(_phoneWidth, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      const b = clozeBlank;
+      const cloze = ClozeContent(
+        '양성모음: $b, $b, $b, $b\n음성모음: $b, $b, $b, $b\n중성모음: $b',
+        ['ㅏ', 'ㅗ', 'ㅑ', 'ㅛ', 'ㅓ', 'ㅜ', 'ㅕ', 'ㅠ', 'ㅣ'],
+      );
+      final card = Card(
+        id: const CardId('c'),
+        deckId: const DeckId('d'),
+        front: const [cloze],
+        back: const [],
+        cardKey: CardKey.fromFront('모음'),
+        source: CardSource.manual,
+        createdAt: DateTime.utc(2026, 11, 3),
+        updatedAt: DateTime.utc(2026, 11, 3),
+      );
+      // Setup: it is drawn whole, and its length counts each blank as its
+      // box, which puts it past the front's and the next step's lengths.
+      final cells = drawnCellsOf(card);
+      expect(isDrawnWhole(cells), isTrue);
+      expect(faceLength(cells), 50);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: lightTheme,
+          locale: const Locale('ko'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: StudyStyle.cardMargin,
+              ),
+              child: Center(
+                child: SizedBox(
+                  height: _cardHeight,
+                  child: CurrentCard(
+                    card: card,
+                    onAnswer: (_) {},
+                    onGuide: () {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final sentence = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(CurrentCard),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is RichText && widget.text.toPlainText().contains('양'),
+          ),
+        ),
+      );
+      expect(sentence.text.style!.fontSize, AppType.back.fontSize);
+      expect(boxedBlanksUnder(find.byType(CurrentCard)), 9);
+      final boxes = find.byKey(const Key('hatchedBlank'));
+      for (final box in tester.renderObjectList<RenderBox>(boxes)) {
+        expect(box.size.width, AppType.back.fontSize! * blankEms);
+      }
+      // Each 모음 line holds its blanks on one row: four, four, then one.
+      final rows = <double, int>{};
+      for (final box in tester.renderObjectList<RenderBox>(boxes)) {
+        final top = box.localToGlobal(Offset.zero).dy;
+        rows.update(top, (count) => count + 1, ifAbsent: () => 1);
+      }
+      expect(rows.values.toList(), [4, 4, 1]);
     },
   );
 
@@ -369,6 +483,117 @@ void main() {
               )
               .first,
         ),
+      );
+    },
+  );
+  testWidgets(
+    'the previous card starts its front at the size its length gives, a '
+    'front over its back never above the title size, and steps it down '
+    'until the face fits whole (#635)',
+    (tester) async {
+      tester.view.physicalSize = const Size(_phoneWidth, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      const width = _phoneWidth - 2 * StudyStyle.cardMargin;
+      const inner = width - 2 * StudyStyle.cardPadding;
+      const innerHeight = _cardHeight - 2 * StudyStyle.cardPadding;
+      const b = clozeBlank;
+      const owner = ClozeContent(
+        '양성모음: $b, $b, $b, $b\n음성모음: $b, $b, $b, $b\n중성모음: $b',
+        ['ㅏ', 'ㅗ', 'ㅑ', 'ㅛ', 'ㅓ', 'ㅜ', 'ㅕ', 'ㅠ', 'ㅣ'],
+      );
+      Future<double> frontSize(
+        List<Content> front,
+        List<Content> back,
+        String drawn,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: lightTheme,
+            locale: const Locale('ko'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: width,
+                  height: _cardHeight,
+                  child: GradedCard(
+                    cells: cellsToDraw(front, back),
+                    front: front,
+                    back: back,
+                    answer: Answer.dontKnow,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find
+              .descendant(
+                of: find.byType(GradedCard),
+                matching: find.byWidgetPredicate(
+                  (widget) =>
+                      widget is RichText &&
+                      widget.text
+                          .toPlainText()
+                          .replaceAll('\u2060', '')
+                          .contains(drawn),
+                ),
+              )
+              .first,
+        );
+        return paragraph.text.style!.fontSize!;
+      }
+
+      // A short front over its back keeps the title size, though the
+      // current card's front size starts it and fits.
+      expect(StudyStyle.frontStart('광합성'.length), AppType.front);
+      expect(
+        await frontSize(
+          const [TextContent('광합성')],
+          const [TextContent('빛')],
+          '광합성',
+        ),
+        AppType.deckName.fontSize,
+      );
+
+      // A sentence starts at the back size, though it fits whole at the
+      // title size over its back.
+      final sentence = _korean(58);
+      expect(_fits(sentence, AppType.deckName, inner, innerHeight / 2), isTrue);
+      expect(
+        await frontSize(
+          [TextContent(sentence)],
+          const [TextContent('광합성')],
+          sentence.substring(0, 4),
+        ),
+        AppType.back.fontSize,
+      );
+
+      // A front that fits alone at its starting size steps down to the body
+      // size over a long back, which then scrolls.
+      final front = _korean(30);
+      expect(StudyStyle.previousFrontStart(front.length), AppType.deckName);
+      expect(_fits(front, AppType.deckName, inner, innerHeight / 2), isTrue);
+      expect(
+        await frontSize(
+          [TextContent(front)],
+          [TextContent(_korean(300))],
+          front.substring(0, 4),
+        ),
+        AppType.cardBody.fontSize,
+      );
+      expect(find.byKey(const Key('cardScrollFade')), findsOneWidget);
+
+      // The owner's 빈칸 card, revealed, at the size its length gives, as
+      // the current card.
+      expect(faceLength(cellsToDraw(const [owner], const [])), 50);
+      expect(
+        await frontSize(const [owner], const [], '양'),
+        AppType.back.fontSize,
       );
     },
   );

@@ -626,12 +626,13 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
 
 /**
  * The card under study, [cardHeight] high: its front alone, or a whole card's front with its
- * blanks empty, and the front's sounds' controls under it (ADR 0112), in the largest of the
- * front's three sizes at which it fits, scrolling inside past the last ([CardScroll],
- * ADR 0123); its back shows once answered, above. A horizontal touch swipe ([useSwipe]) moves and
- * tilts it over the answer it would give, and released past the phone's distance, or flung,
- * gives [onAnswer] that answer; a vertical one scrolls the card's content where it is taller
- * than the card, and the page otherwise, and a mouse drags nothing.
+ * blanks as hatched boxes, and the front's sounds' controls under it (ADR 0112), in the largest of
+ * the front's sizes, from the one its length starts at, at which it fits, scrolling inside past
+ * the last ([CardScroll], ADR 0123, #635); its back shows once answered, above. A horizontal
+ * touch swipe ([useSwipe]) moves and tilts it over the answer it would give, and released past
+ * the phone's distance, or flung, gives [onAnswer] that answer; a vertical one scrolls the
+ * card's content where it is taller than the card, and the page otherwise, and a mouse drags
+ * nothing.
  */
 function CurrentCard({
   card,
@@ -662,7 +663,7 @@ function CurrentCard({
         className={`relative flex flex-1 rounded-card bg-surface shadow-card ${dragging ? "" : "motion-safe:transition-transform motion-safe:duration-300"}`}
       >
         <div aria-label="앞면" role="group" className="flex min-h-0 flex-1 rounded-card">
-          <CardScroll>
+          <CardScroll length={card.frontLength}>
             {card.whole ? (
               <div className="w-full">{card.whole.empty}</div>
             ) : card.sides ? (

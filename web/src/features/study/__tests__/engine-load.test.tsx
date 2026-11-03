@@ -33,6 +33,7 @@ const card: StudyCard = {
   back: [{ kind: "text", text: "a back" }],
   createdAt: start,
   text: { front: "a", back: "a back" },
+  frontLength: 1,
 };
 const plan: SessionPlan = {
   startedAt: start,

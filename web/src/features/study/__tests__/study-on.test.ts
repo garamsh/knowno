@@ -15,6 +15,7 @@ const card = (front: string): StudyCard => ({
   back: [{ kind: "text", text: `${front} back` }],
   createdAt: start,
   text: { front, back: `${front} back` },
+  frontLength: front.length,
 });
 
 /**

@@ -2673,6 +2673,18 @@ void main() {
             findsNothing,
             reason: '$name: the box hides its answer',
           );
+          expect(
+            tester
+                .widget<DecoratedBox>(
+                  under(
+                    find.byKey(const ValueKey(('studied box', '1'))),
+                    find.byType(DecoratedBox),
+                  ).first,
+                )
+                .decoration,
+            isA<HatchDecoration>(),
+            reason: '$name: the box is on the hatch (#635)',
+          );
           if (name == 'back photo') {
             expect(
               under(_currentCard, shownText('Where is it?')),
@@ -2687,6 +2699,21 @@ void main() {
             under(_previousCard, shownText('Paris')),
             findsOneWidget,
             reason: '$name: revealed in place',
+          );
+          expect(
+            under(
+              find.descendant(
+                of: _previousCard,
+                matching: find.byKey(const ValueKey(('studied box', '1'))),
+              ),
+              find.byWidgetPredicate(
+                (widget) =>
+                    widget is DecoratedBox &&
+                    widget.decoration is HatchDecoration,
+              ),
+            ),
+            findsOneWidget,
+            reason: '$name: its answer on the same hatch (#635)',
           );
           expect(
             under(_previousCard, find.byType(VerticalDivider)),
@@ -2705,13 +2732,19 @@ void main() {
           _label(tester, _cardNode),
           'Front: The capital of France is blank',
         );
-        expect(blanksUnder(_currentCard), {'Paris': false});
+        // A box on the hatch, its answer nowhere on the card (#635).
+        expect(boxedBlanksUnder(_currentCard), 1);
+        expect(blanksUnder(_currentCard), isEmpty);
+        expect(
+          find.descendant(of: _currentCard, matching: shownText('Paris')),
+          findsNothing,
+        );
         expect(shownText('0/1'), findsOneWidget);
 
         await study.know();
 
         expect(shownText('1/1'), findsOneWidget);
-        expect(blanksUnder(_previousCard), {'Paris': true});
+        expect(hatchedBlanksUnder(_previousCard), ['Paris']);
         expect(
           find.descendant(
             of: _previousCard,
@@ -2729,7 +2762,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(shownText('Card'), findsOneWidget);
         expect(shownText('Back'), findsNothing);
-        expect(blanksUnder(find.byType(BottomSheet)), {'Paris': true});
+        expect(hatchedBlanksUnder(find.byType(BottomSheet)), ['Paris']);
       },
     );
 
@@ -2789,7 +2822,8 @@ void main() {
             findsOneWidget,
           );
         }
-        expect(blanksUnder(_currentCard), {'Paris': false, 'Berlin': false});
+        expect(boxedBlanksUnder(_currentCard), 2);
+        expect(blanksUnder(_currentCard), isEmpty);
         expect(
           _label(tester, _cardNode),
           'Front: Capitals. Capital, Country. blank, France. blank, Germany',
@@ -2803,7 +2837,7 @@ void main() {
           find.descendant(of: _previousCard, matching: find.byType(Table)),
           findsOneWidget,
         );
-        expect(blanksUnder(_previousCard), {'Paris': true, 'Berlin': true});
+        expect(hatchedBlanksUnder(_previousCard), ['Paris', 'Berlin']);
       },
     );
 
@@ -2817,12 +2851,13 @@ void main() {
           matching: find.byWidgetPredicate(
             (widget) =>
                 widget is RichText &&
-                RegExp(r'^\s*5부족 연맹체\s*, 왕 아래 마가$').hasMatch(
+                RegExp(r'^\s*(5부족 연맹체|\uFFFC)\s*, 왕 아래 마가$').hasMatch(
                   widget.text.toPlainText().replaceAll(_wordJoiner, ''),
                 ),
           ),
         );
-        expect(blanksUnder(_currentCard), {'5부족 연맹체': false});
+        expect(boxedBlanksUnder(_currentCard), 1);
+        expect(blanksUnder(_currentCard), isEmpty);
         expect(
           cellUnder(_currentCard),
           findsOneWidget,
@@ -2835,7 +2870,7 @@ void main() {
 
         await study.know();
 
-        expect(blanksUnder(_previousCard), {'5부족 연맹체': true});
+        expect(hatchedBlanksUnder(_previousCard), ['5부족 연맹체']);
         expect(
           cellUnder(_previousCard),
           findsOneWidget,

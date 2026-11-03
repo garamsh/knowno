@@ -551,7 +551,7 @@ test("adds a 사진 칸 with its boxes and a 소리 칸, which study draws and p
   const fetched = await page.request.get(signed);
   expect(fetched.status()).toBe(200);
   expect(fetched.headers()["content-type"]).toBe("image/jpeg");
-  await expect(drawn.locator('[data-box="hidden"]')).toHaveCount(2);
+  await expect(drawn.locator('[data-box="studied"]')).toHaveCount(2);
   await expect(page.getByRole("button", { name: "소리 듣기" })).toBeVisible();
   await capture(page, "study");
 
