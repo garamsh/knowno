@@ -9,6 +9,7 @@ import { deckColor } from "../deck-tint";
 import type { Deck } from "../library";
 import { leaveThen } from "@/design/use-back-entry";
 import { characters, maxDescriptionLength, parseDisplayName } from "../publishing";
+import { buttonClass } from "@/design/button";
 import { Confirm } from "@/design/confirm";
 import { Sheet } from "@/design/sheet";
 import { DeckAppearanceFields, type Look, lookedTile, setPhoto } from "./deck-appearance";
@@ -23,9 +24,9 @@ type Sheet = "rename" | "decorate" | "publish" | "delete";
 const field =
   "min-h-field w-full rounded-field border border-outline bg-surface px-4 text-body text-ink focus:outline-2 focus:outline-ink";
 const primary =
-  "pressable min-h-cta w-full rounded-button bg-primary px-5 text-button text-on-primary disabled:opacity-50";
+  `${buttonClass("primary", "cta")} w-full`;
 const secondary =
-  "pressable flex min-h-button cursor-pointer items-center rounded-button bg-surface px-4 text-button focus-within:outline-2 focus-within:outline-ink";
+  buttonClass("secondary");
 
 /**
  * The note page's ⋯, "노트 설정", as the phone's deck screen has it: "이름 바꾸기", "노트 꾸미기",

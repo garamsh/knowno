@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { useId, useState } from "react";
 import { block, type Block, type CardDraft } from "../authoring";
 import { labelShown, parseContent, type Sense } from "../card-content";
+import { buttonClass } from "@/design/button";
 import { Sheet } from "@/design/sheet";
 import { RowMenu } from "./row-menu";
 
@@ -125,7 +126,7 @@ export function CardEditSheet<Card extends CardDraft & { keptSenses?: boolean[] 
           type="button"
           disabled={!savable}
           onClick={apply}
-          className="pressable mt-1 min-h-cta w-full rounded-button bg-primary text-button text-on-primary disabled:opacity-50"
+          className={`${buttonClass("primary", "cta")} mt-1 w-full`}
         >
           완료
         </button>

@@ -3,6 +3,8 @@
 import { Camera, ImageIcon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 
+import { buttonClass } from "@/design/button";
+
 import { type DeckIcon, deckIconNames, deckIcons } from "../deck-icon";
 import type { DeckColor } from "../deck-tint";
 import { prepareImage, type PreparedImage } from "../prepare-image";
@@ -35,7 +37,7 @@ export function setPhoto(form: FormData, photo: Photo) {
 }
 
 const secondary =
-  "pressable flex min-h-button w-full cursor-pointer items-center justify-center gap-2 rounded-button bg-surface px-4 text-button focus-within:outline-2 focus-within:outline-ink";
+  `${buttonClass("secondary")} w-full`;
 
 /**
  * The choices of a deck's look, as the phone's `DeckAppearanceFields` and 노트 꾸미기 and 새 노트
@@ -167,7 +169,7 @@ export function DeckAppearanceFields({
               onClick={() => {
                 change({ ...look, photo: { kind: "none" } });
               }}
-              className="pressable min-h-button w-full rounded-button bg-surface px-4 text-button disabled:opacity-50"
+              className={`${buttonClass("secondary")} w-full`}
             >
               사진 삭제
             </button>

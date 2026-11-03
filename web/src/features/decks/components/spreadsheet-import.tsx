@@ -15,6 +15,7 @@ import {
   type RowCard,
 } from "../spreadsheet-cards";
 import { leaveThen } from "@/design/use-back-entry";
+import { buttonClass } from "@/design/button";
 import { Confirm } from "@/design/confirm";
 import { Sheet } from "@/design/sheet";
 import { AuthoringScreen } from "./authoring-sheet";
@@ -193,7 +194,7 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
             엑셀(.xlsx)이나 CSV 파일의 한 행이 카드 한 장이 돼요. 파일은 5MB, 1,000행까지 읽어요.
           </p>
           <label
-            className={`pressable flex min-h-cta cursor-pointer items-center justify-center rounded-button bg-primary px-4 text-button text-on-primary has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink ${opening ? "opacity-50" : ""}`}
+            className={`${buttonClass("primary", "cta")} ${opening ? "opacity-50" : ""}`}
           >
             {opening ? "읽는 중" : "파일 고르기"}
             {picker}
@@ -394,7 +395,7 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
             onClick={() => {
               save(false);
             }}
-            className="pressable min-h-cta w-full rounded-button bg-primary px-4 text-button text-on-primary disabled:opacity-50"
+            className={`${buttonClass("primary", "cta")} w-full`}
           >
             {pending ? "저장 중" : `${String(unsaved.length)}장 추가`}
           </button>

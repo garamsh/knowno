@@ -22,14 +22,14 @@ export type ButtonVariant =
 export type ButtonSize = "regular" | "cta" | "header";
 
 const fills: Record<ButtonVariant, string> = {
-  primary: "bg-primary text-on-primary focus-visible:outline-ink",
-  onHero: "bg-hero-button text-on-hero-button focus-visible:outline-on-hero",
-  secondary: "bg-surface text-ink focus-visible:outline-ink",
-  tonal: "bg-brand-tint text-accent focus-visible:outline-ink",
-  destructive: "text-dont-know-text focus-visible:outline-ink",
-  destructiveFinal: "bg-dont-know-text text-on-dont-know-text focus-visible:outline-ink",
-  text: "text-ink focus-visible:outline-ink",
-  onHeroText: "text-on-hero focus-visible:outline-on-hero",
+  primary: "bg-primary text-on-primary outline-ink",
+  onHero: "bg-hero-button text-on-hero-button outline-on-hero",
+  secondary: "bg-surface text-ink outline-ink",
+  tonal: "bg-brand-tint text-accent outline-ink",
+  destructive: "text-dont-know-text outline-ink",
+  destructiveFinal: "bg-dont-know-text text-on-dont-know-text outline-ink",
+  text: "text-ink outline-ink",
+  onHeroText: "text-on-hero outline-on-hero",
 };
 
 /** A filled button's padding across; a text button keeps its words close to its tap target. */
@@ -49,5 +49,5 @@ const sizes: Record<ButtonSize, string> = {
  */
 export function buttonClass(variant: ButtonVariant, size: ButtonSize = "regular"): string {
   const padding = unfilled.has(variant) ? "px-1" : size === "header" ? "px-4" : "px-5";
-  return `pressable flex items-center justify-center gap-2 rounded-button text-center break-keep focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${padding} ${sizes[size]} ${fills[variant]}`;
+  return `pressable flex items-center justify-center gap-2 rounded-button text-center break-keep not-disabled:cursor-pointer outline-offset-2 focus-visible:outline-2 has-focus-visible:outline-2 disabled:opacity-50 ${padding} ${sizes[size]} ${fills[variant]}`;
 }
