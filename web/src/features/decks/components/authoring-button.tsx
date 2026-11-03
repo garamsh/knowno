@@ -215,7 +215,6 @@ function NewNote({ close }: { close: () => void }) {
         leaveThen(() => {
           close();
           router.push(`/decks/${result.deckId}${adding ? "?adding=1" : ""}`);
-          router.refresh();
         });
       } catch {
         setMessage("노트를 만들지 못했어요. 다시 시도해 주세요.");
@@ -364,7 +363,6 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
   const focusIn = useRef(card ? null : (drafts[0]?.id ?? null));
   const opening = useRef(JSON.stringify(drafts));
   const form = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const built = builtCells(drafts);
   // After an adding sheet's close, which hands focus back to what opened it.
   useEffect(() => {
@@ -413,7 +411,6 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
         if (result.saved) {
           setMessage("");
           setDuplicate(false);
-          router.refresh();
           if (next) {
             const fresh = [emptyCell("text")];
             setDrafts(fresh);

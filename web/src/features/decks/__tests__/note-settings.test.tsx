@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { revalidatePath } from "next/cache";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cardRow, deckRow, uuidOf } from "@/testing/library";
@@ -87,7 +88,9 @@ describe("노트 설정", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
     expect(db.rows.decks[0]).toMatchObject({ name: "Français" });
-    expect(testRouter.refresh).toHaveBeenCalled();
+    // The rename's revalidation re-renders the note in its response, and nothing renders it again.
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+    expect(testRouter.refresh).not.toHaveBeenCalled();
   });
 
   it("previews a picked photo on the tile in 노트 꾸미기 and stores it with the icon and colour", async () => {
