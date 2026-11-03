@@ -449,4 +449,75 @@ void main() {
       await tester.pumpAndSettle();
     });
   });
+
+  for (final scale in [1.0, 3.12]) {
+    testWidgets(
+      'at text scale $scale a call to action\'s label, wrapped or not, sits '
+      'inside the button with room above and below, so none of it is cut',
+      (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        const labels = ['Add card', 'Save and add the next card'];
+        await pumpComponent(
+          tester,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppSpace.s8,
+            children: [
+              for (final label in labels)
+                AppButton(
+                  label: label,
+                  size: AppButtonSize.cta,
+                  onPressed: () {},
+                ),
+            ],
+          ),
+        );
+
+        for (final label in labels) {
+          final text = tester.getRect(
+            find.descendant(
+              of: shownText(label),
+              matching: find.byType(RichText),
+            ),
+          );
+          final button = tester.getRect(
+            find
+                .ancestor(of: shownText(label), matching: find.byType(Material))
+                .first,
+          );
+          expect(text.top - button.top, greaterThanOrEqualTo(AppSpace.s8));
+          expect(
+            button.bottom - text.bottom,
+            greaterThanOrEqualTo(AppSpace.s8),
+          );
+        }
+        // The first label holds one line at both sizes and the second wraps
+        // at the largest, so a grown label is what is measured there.
+        // The paragraph's own lines, counted by where its boxes start.
+        int lines(String label) {
+          final paragraph = tester.renderObject<RenderParagraph>(
+            find.descendant(
+              of: shownText(label),
+              matching: find.byType(RichText),
+            ),
+          );
+          return paragraph
+              .getBoxesForSelection(
+                TextSelection(
+                  baseOffset: 0,
+                  extentOffset: paragraph.text.toPlainText().length,
+                ),
+              )
+              .map((box) => box.top)
+              .toSet()
+              .length;
+        }
+
+        expect(lines(labels.first), 1, reason: 'setup');
+        expect(lines(labels.last), scale > 1 ? greaterThan(1) : 1);
+      },
+    );
+  }
 }

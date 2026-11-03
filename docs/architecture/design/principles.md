@@ -115,7 +115,7 @@ Applied today:
 
 ### Nothing clipped
 
-- A box sized for its text grows with the system text size: the tab bar from `AppSize.tabBar` by the text scale, a header that holds an action to that action's line (`ListHeaderActions.barHeight`), a chip's label wrapping inside the chip (issue #295).
+- A box sized for its text grows with the system text size: the tab bar from `AppSize.tabBar` by the text scale, a top bar that holds an action to that action's line (`AppButton.barHeight`), a filled or outlined button to its wrapped label with room above and below it, a chip's label wrapping inside the chip (issues #295 and #655).
 - A raised object's hard edge has room below it: its parent leaves at least the edge's height (`AppShadow`) under it, so the edge is never cut by a scroll view, a bar or a group.
 - Text breaks only between words, our own text and a user's: `keepWords` (`app/lib/design/word_break.dart`) on the phone, `word-break: keep-all` (`break-keep`) on the web, every card surface included ([ADR 0123](../adr/0123-step-a-long-card-side-down-through-three-sizes-then-scroll-it-inside-a-card-that-keeps-its-size.md), issues #321 and #368). Only a word longer than its whole line breaks inside it (PR #631). Where a line cannot wrap, stack the parts or ellipsize; never break a word.
 - A figure or label in a narrow column, the day bars' and the tab bar's among them, stays on one line and shrinks to the column only where it is wider: `FittedBox` with `BoxFit.scaleDown` on the phone, `FittedLine` on the web.

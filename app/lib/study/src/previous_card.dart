@@ -217,27 +217,16 @@ class EarlierCardView extends StatelessWidget {
       excludeSemantics: true,
       child: GestureDetector(
         onTap: () => _showWholeCard(context, card),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              child: GradedCard(
-                cells: drawnCellsOf(card),
-                front: card.front,
-                back: card.back,
-                answer: earlier.answer,
-              ),
-            ),
-            // At the bottom, clear of the notice that may show over the top.
-            Positioned(
-              bottom: AppSpace.s12,
-              left: StudyStyle.cardPadding,
-              child: Text(
-                l10n.earlierCard,
-                style: AppType.micro.copyWith(color: colors.ink2),
-              ),
-            ),
-          ],
+        child: GradedCard(
+          cells: drawnCellsOf(card),
+          front: card.front,
+          back: card.back,
+          answer: earlier.answer,
+          // At the bottom, clear of the notice that may show over the top.
+          footer: Text(
+            keepWords(l10n.earlierCard),
+            style: AppType.micro.copyWith(color: colors.ink2),
+          ),
         ),
       ),
     );
@@ -375,7 +364,8 @@ class _Reveal extends StatelessWidget {
 /// whole, never below the body size (#635). The grade shows by the
 /// line around it alone, in the grade's colour; the card's semantics label
 /// names it (ADR 0151). With no [answer], as the card editor's preview draws
-/// it, the line is the theme's edge (ADR 0168).
+/// it, the line is the theme's edge (ADR 0168). A [footer] sits at the
+/// card's foot, under the face and never over it.
 class GradedCard extends StatelessWidget {
   const GradedCard({
     super.key,
@@ -383,12 +373,14 @@ class GradedCard extends StatelessWidget {
     required this.front,
     required this.back,
     required this.answer,
+    this.footer,
   });
 
   final List<Cell> cells;
   final List<Content> front;
   final List<Content> back;
   final Answer? answer;
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -412,47 +404,50 @@ class GradedCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(
             StudyStyle.previousRadius - StudyStyle.previousLine,
           ),
-          child: CardScroll(
-            padding: StudyStyle.cardPadding,
-            builder: (context, width, height) => isDrawnWhole(cells)
-                ? SteppedWholeCardView(
-                    cells,
-                    revealed: true,
-                    style: StudyStyle.frontStart(length)
-                        .copyWith(color: colors.ink),
-                    width: width,
-                    height: height,
-                  )
-                // Unbounded down, so a long side is never cut: the card
-                // scrolls instead.
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: AppSpace.s8,
-                    children: [
-                      ContentView(
-                        front,
-                        style: _frontStep(
-                          context,
-                          StudyStyle.previousFrontStart(length)
-                              .copyWith(color: colors.ink),
-                          back: back,
-                          width: width,
-                          height: height,
+          child: _WithFooter(
+            footer: footer,
+            child: CardScroll(
+              padding: StudyStyle.cardPadding,
+              builder: (context, width, height) => isDrawnWhole(cells)
+                  ? SteppedWholeCardView(
+                      cells,
+                      revealed: true,
+                      style: StudyStyle.frontStart(length)
+                          .copyWith(color: colors.ink),
+                      width: width,
+                      height: height,
+                    )
+                  // Unbounded down, so a long side is never cut: the card
+                  // scrolls instead.
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: AppSpace.s8,
+                      children: [
+                        ContentView(
+                          front,
+                          style: _frontStep(
+                            context,
+                            StudyStyle.previousFrontStart(length)
+                                .copyWith(color: colors.ink),
+                            back: back,
+                            width: width,
+                            height: height,
+                          ),
+                          fit: StepFit(width: width, height: height),
                         ),
-                        fit: StepFit(width: width, height: height),
-                      ),
-                      ContentView(
-                        this.back,
-                        style: back,
-                        fit: ShrinkFit(
-                          minFontSize: AppType.backFloor,
-                          width: width,
-                          height: double.infinity,
+                        ContentView(
+                          this.back,
+                          style: back,
+                          fit: ShrinkFit(
+                            minFontSize: AppType.backFloor,
+                            width: width,
+                            height: double.infinity,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),
@@ -518,4 +513,34 @@ void _showWholeCard(BuildContext context, Card card) {
             ),
     ),
   );
+}
+
+/// [child] over [footer] at its foot, inset as the card's face is; [child]
+/// alone where there is none.
+class _WithFooter extends StatelessWidget {
+  const _WithFooter({required this.footer, required this.child});
+
+  final Widget? footer;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final footer = this.footer;
+    if (footer == null) return child;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: child),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            StudyStyle.cardPadding,
+            0,
+            StudyStyle.cardPadding,
+            AppSpace.s12,
+          ),
+          child: footer,
+        ),
+      ],
+    );
+  }
 }
