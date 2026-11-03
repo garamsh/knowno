@@ -1184,7 +1184,10 @@ describe("스페셜", () => {
     const account = within(screen.getAllByRole("region", { name: "계정" }).at(-1) as HTMLElement);
     expect(account.getByText("오늘 사진 추출").nextSibling).toHaveTextContent("4장 / 제한 없음");
 
-    expect(await revokePlan(otherUser.id)).toEqual({ changed: true, message: "무료로 되돌렸어요." });
+    expect(await revokePlan(otherUser.id)).toEqual({
+      changed: true,
+      message: "무료로 되돌렸어요.",
+    });
     await render(AuditContent, {});
     expect(auditEntries()).toEqual([
       "무료로 되돌리기 · other@example.com · 스페셜",
@@ -1266,10 +1269,7 @@ describe("a user's plan", () => {
       ),
     ).toEqual({ message: "끝나는 날은 오늘 이후로 정해 주세요." });
     expect(
-      await grantPlan(
-        { message: null },
-        form({ user: otherUser.id, plan: "gold", ends_on: "" }),
-      ),
+      await grantPlan({ message: null }, form({ user: otherUser.id, plan: "gold", ends_on: "" })),
     ).toEqual({ message: "하지 못했어요. 잠시 후 다시 시도해 주세요." });
     expect(
       await grantPlan({ message: null }, form({ user: otherUser.id, plan: "pro", ends_on: "" })),
