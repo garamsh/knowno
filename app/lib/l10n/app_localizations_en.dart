@@ -203,6 +203,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageFromCamera => 'Take a photo';
 
   @override
+  String get imagePickAnother => 'Choose another photo';
+
+  @override
+  String get imageRetake => 'Take again';
+
+  @override
+  String get imageRemove => 'Delete photo';
+
+  @override
   String get imageUnreadable => 'Couldn\'t load the photo. Try again.';
 
   @override
@@ -272,7 +281,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get audioPickAnother => 'Choose another file';
 
   @override
-  String get audioRemove => 'Remove sound';
+  String get audioRemove => 'Delete sound';
 
   @override
   String get audioStopRecording => 'Stop recording';
@@ -330,20 +339,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tableBlankToggle => 'Blank';
 
   @override
+  String get undo => 'Undo';
+
+  @override
+  String get deletedBlock => 'Block deleted';
+
+  @override
+  String get deletedSense => 'Meaning deleted';
+
+  @override
+  String get deletedBox => 'Blank deleted';
+
+  @override
+  String get deletedImage => 'Photo deleted';
+
+  @override
+  String get deletedAudio => 'Sound deleted';
+
+  @override
+  String deletedRow(int row) {
+    return 'Row $row deleted';
+  }
+
+  @override
+  String deletedColumn(int column) {
+    return 'Column $column deleted';
+  }
+
+  @override
   String get tableRemove => 'Delete';
-
-  @override
-  String tableRemoveRowTitle(int row) {
-    return 'Delete row $row?';
-  }
-
-  @override
-  String tableRemoveColumnTitle(int column) {
-    return 'Delete column $column?';
-  }
-
-  @override
-  String get tableRemoveBody => 'What is written in it is deleted too.';
 
   @override
   String tableHeaderCell(int column) {

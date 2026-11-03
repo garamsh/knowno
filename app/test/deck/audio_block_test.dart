@@ -135,10 +135,10 @@ void main() {
     });
 
     /// Waits until the block holds the sound just recorded or picked, which
-    /// "Remove sound" shows only then: the store's file and row are written
+    /// "Delete sound" shows only then: the store's file and row are written
     /// outside the test's fake time.
     Future<void> stored(WidgetTester tester) async {
-      final holding = find.text('Remove sound');
+      final holding = find.text('Delete sound');
       await settleUntil(
         tester,
         'the stored sound',
@@ -152,6 +152,15 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(finder);
       await tester.pumpAndSettle();
+    }
+
+    /// Taps a button that picks a file, leaving the store to [stored]: the
+    /// button's progress turns while it stores, so nothing settles before.
+    Future<void> tapPick(WidgetTester tester, Finder finder) async {
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+      await tester.tap(finder);
+      await tester.pump();
     }
 
     /// Saves the card and waits until the editor closes, which it does once
@@ -294,26 +303,35 @@ void main() {
     );
 
     testWidgets(
-      'a picked file is stored, one too long or large says so, and Remove sound leaves the block to fill',
+      'a picked file is stored, one too long or large says so, and Delete sound leaves the block to fill',
       (tester) async {
         final screens = await openWithSoundBlock(tester);
         pick.failure = const MediaTooLarge('70 s');
-        await tapVisible(tester, find.text('Choose a file'));
-        expect(
-          find.text('Choose a file of up to 60 seconds and 5 MB'),
-          findsOneWidget,
+        await tapPick(tester, find.text('Choose a file'));
+        await settleUntil(
+          tester,
+          'the refusal',
+          () => find
+              .text('Choose a file of up to 60 seconds and 5 MB')
+              .evaluate()
+              .isNotEmpty,
         );
 
         pick.failure = null;
-        await tapVisible(tester, find.text('Choose a file'));
+        await tapPick(tester, find.text('Choose a file'));
+        expect(
+          find.byType(CircularProgressIndicator),
+          findsOneWidget,
+          reason: 'the pressed button shows the file is being stored (#622)',
+        );
         await stored(tester);
         expect(find.text('0:09'), findsWidgets);
-        await tapVisible(tester, find.text('Remove sound'));
+        await tapVisible(tester, find.text('Delete sound'));
         await tapVisible(tester, find.text('Save'));
         expect(find.text('Add a sound'), findsOneWidget);
         expect(await screens.cards(), isEmpty);
 
-        await tapVisible(tester, find.text('Choose a file'));
+        await tapPick(tester, find.text('Choose a file'));
         await stored(tester);
         await save(tester);
         expect(
@@ -324,6 +342,73 @@ void main() {
         expect(await released(tester), {'sound0'}, reason: 'removed unsaved');
       },
     );
+
+    testWidgets(
+      'Save while recording ends the recording, keeps it and saves the card with it (#622)',
+      (tester) async {
+        final screens = await openWithSoundBlock(tester);
+        await tapVisible(tester, find.text('Record'));
+        await tester.pump(const Duration(seconds: 2));
+        expect(find.text('Stop recording'), findsOneWidget, reason: 'setup');
+        await save(tester);
+        expect(
+          (await storedSound(screens)).media,
+          const MediaId('sound0'),
+          reason: 'what was recorded',
+        );
+      },
+    );
+
+    testWidgets(
+      'Delete sound acts at once and offers Undo, which puts the sound back (#622)',
+      (tester) async {
+        final screens = await openWithSoundBlock(tester);
+        await tapPick(tester, find.text('Choose a file'));
+        await stored(tester);
+        await tapVisible(tester, find.text('Delete sound'));
+        expect(find.text('Sound deleted'), findsOneWidget);
+        expect(find.text('Choose a file'), findsOneWidget);
+        await tapVisible(tester, find.text('Undo'));
+        expect(find.text('Delete sound'), findsOneWidget);
+        await save(tester);
+        expect((await storedSound(screens)).media, const MediaId('sound0'));
+      },
+    );
+
+    testWidgets("a sound's actions stack full width under it (#632)", (
+      tester,
+    ) async {
+      await openWithSoundBlock(tester);
+      await tapPick(tester, find.text('Choose a file'));
+      await stored(tester);
+      expectStackedFullWidth(tester, [
+        'Record again',
+        'Choose another file',
+      ], full: 'Delete sound');
+    });
+
+    testWidgets("an edit in the sound's 칸 ends Delete sound's Undo (#632)", (
+      tester,
+    ) async {
+      await openWithSoundBlock(tester);
+      await tapPick(tester, find.text('Choose a file'));
+      await stored(tester);
+      await tapVisible(tester, find.text('Delete sound'));
+      expect(find.text('Sound deleted'), findsOneWidget);
+      await tapVisible(
+        tester,
+        find.descendant(
+          of: find.ancestor(
+            of: find.text('Sound').first,
+            matching: find.byType(EditorGroup),
+          ),
+          matching: find.widgetWithText(AppChip, 'Back'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Sound deleted'), findsNothing);
+      expect(find.text('Undo'), findsNothing);
+    });
 
     testWidgets(
       'while one sound block records, Record is off in every other block, and on again once it has stopped',
@@ -378,7 +463,7 @@ void main() {
         'in the ${mode.name} theme a 음성 block holding a sound meets the tap target, label and contrast guidelines',
         (tester) async {
           await openWithSoundBlock(tester, themeMode: mode);
-          await tapVisible(tester, find.text('Choose a file'));
+          await tapPick(tester, find.text('Choose a file'));
           await stored(tester);
           // The form from its top, where the whole side fits, so no control
           // is left half under the edge of the scroll view.
@@ -387,7 +472,7 @@ void main() {
               .position
               .jumpTo(0);
           await tester.pumpAndSettle();
-          expect(find.text('Remove sound').hitTestable(), findsOneWidget);
+          expect(find.text('Delete sound').hitTestable(), findsOneWidget);
           final handle = tester.ensureSemantics();
           await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
           await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));

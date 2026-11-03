@@ -1,7 +1,7 @@
 "use client";
 
 import { Ellipsis } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 /** A 칸's ⋯: muted, on no surface of its own. */
 const quiet =
@@ -9,16 +9,21 @@ const quiet =
 
 /**
  * A pull-down menu behind ⋯, named [label], as the deck's section menu: Escape closes it alone.
- * [trigger] draws the ⋯ where it is not a 칸's.
+ * [trigger] draws the button where it is not a 칸's, and [face] what it shows in place of ⋯. A
+ * pick hands the focus back to the button before it acts, so the act may move it on.
  */
 export function RowMenu({
   label,
   items,
   trigger = quiet,
+  face,
+  disabled = false,
 }: {
   label: string;
   items: { label: string; disabled?: boolean; danger?: boolean; pick: () => void }[];
   trigger?: string;
+  face?: ReactNode;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
@@ -43,12 +48,13 @@ export function RowMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={label}
+        disabled={disabled}
         onClick={() => {
           setOpen(!open);
         }}
         className={trigger}
       >
-        <Ellipsis aria-hidden className="size-5" />
+        {face ?? <Ellipsis aria-hidden className="size-5" />}
       </button>
       {open && (
         <div
@@ -84,7 +90,7 @@ export function RowMenu({
                 button.current?.focus();
                 item.pick();
               }}
-              className={`pressable min-h-button px-4 text-left text-body disabled:opacity-40 ${item.danger ? "text-dont-know-text" : ""}`}
+              className={`pressable min-h-button px-4 text-left text-body whitespace-nowrap disabled:opacity-40 ${item.danger ? "text-dont-know-text" : ""}`}
             >
               {item.label}
             </button>

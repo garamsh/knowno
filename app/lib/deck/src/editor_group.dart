@@ -59,6 +59,11 @@ class EditorGroup extends StatelessWidget {
   }
 }
 
+/// Something a 칸's editor took out, kept until it is clear it stays out:
+/// [undo] puts it back where it was, and [forget] lets go of its fields once
+/// it will not be.
+typedef Removal = ({VoidCallback undo, VoidCallback forget});
+
 /// A field inside a group: no border and no fill of its own while it rests,
 /// the 1.5 px ink outline while it has the focus, and red in place of ink
 /// while it shows an error.
@@ -212,4 +217,10 @@ class RowMenu extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Tells its listeners of each edit in one 칸's group, which ends an undo
+/// offered for what was taken out of it.
+class GroupEdits extends ChangeNotifier {
+  void edited() => notifyListeners();
 }

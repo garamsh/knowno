@@ -1393,6 +1393,7 @@ void main() {
             CardSense(
               labels: [PartOfSpeechLabel(PartOfSpeech.noun, '명')],
               meaning: '선물',
+              examples: ['a birthday present'],
             ),
             CardSense(
               labels: [PartOfSpeechLabel(PartOfSpeech.verb, '동')],
@@ -1469,6 +1470,11 @@ void main() {
       await open(card);
       await shot(tester, '05x-card-editor-each-kan');
       tester.view.physicalSize = size;
+      // A 칸 deleted, with its undo above the actions (ADR 0174).
+      await open(card);
+      await tap(tester, find.byTooltip(ko.blockMenu(1)));
+      await tap(tester, find.text(ko.deleteBlock).last);
+      await shot(tester, '05zb-card-editor-undo');
       await open(null);
       await shot(tester, '05y-card-editor-new');
       await tap(tester, find.text(ko.save));

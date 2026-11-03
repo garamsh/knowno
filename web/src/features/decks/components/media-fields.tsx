@@ -19,6 +19,7 @@ import { audioLength } from "../card-content";
 import { boxStep, minBoxSide, movedBox, newBox, resizedBox, withBox } from "../photo-boxes";
 import { prepareImage } from "../prepare-image";
 import { maxSoundMs, prepareSound, type SoundProblem } from "../prepare-sound";
+import { cellSection, firstField, focusLost, useEditing } from "./editing";
 
 type Draft<K extends CellDraft["kind"]> = Extract<CellDraft, { kind: K }>;
 
@@ -48,70 +49,88 @@ function useObjectUrl(url: string | undefined) {
  * A 사진's fields, as the phone's `ImageBlockFields` (ADR 0109): "앨범에서 고르기" and "사진 찍기"
  * until a photo is picked, kept whole at its aspect ratio (`prepareImage`); then the photo, over
  * which a drag draws a box, a box is selected by a press, moved by a drag and resized by its
- * corner, each box a target at least 48 px a side named "빈칸 n"; "빈칸 추가"; and, while a box is
- * selected, its answer and tools that move, resize and delete it without a drag.
+ * corner, each box a target at least 48 px a side named "빈칸 n"; "빈칸 추가"; while a box is
+ * selected, its answer and tools that move, resize and delete it without a drag; and "다른 사진
+ * 고르기" and "다시 찍기", which replace the photo under its boxes, and "사진 삭제".
  */
 export function PhotoFields({ draft, change }: { draft: Draft<"image">; change: CellChange }) {
   const [busy, setBusy] = useState(false);
   const [unreadable, setUnreadable] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
+  const addBox = useRef<HTMLButtonElement>(null);
+  const editing = useEditing();
   const { photo, boxes } = draft;
   useObjectUrl(photo?.url);
+  const section = () => cellSection(draft.id);
+  const boxButton = (index: number) =>
+    section()?.querySelector<HTMLElement>(`[aria-label="빈칸 ${String(index + 1)}"]`);
 
-  async function pick(file: File | undefined) {
+  async function pick(file: File | undefined, camera: boolean, label: string) {
     if (!file) return;
     setBusy(true);
     setUnreadable(false);
     const prepared = await prepareImage(file, "whole");
     setBusy(false);
+    // The picker's button, or the one in its place once the photo is in, takes the focus back.
+    const refocus = (name: string) => {
+      editing.focusSoon(() =>
+        focusLost(section())
+          ? section()?.querySelector<HTMLElement>(`input[aria-label="${name}"]`)
+          : null,
+      );
+    };
     if (!prepared) {
       setUnreadable(true);
+      refocus(label);
       return;
     }
     const { jpeg, sha256, width, height } = prepared;
     const photo = { media: v7(), url: URL.createObjectURL(jpeg), upload: { file: jpeg, sha256 } };
-    // The 칸 as it is once the photo is ready, not as it was when it was picked.
+    // The 칸 as it is once the photo is ready, not as it was when it was picked; a photo replaced
+    // keeps its boxes, which are fractions of whichever photo is under them.
     change((current) =>
-      current.kind === "image"
-        ? { ...current, photo: { ...photo, width, height }, boxes: [] }
-        : current,
+      current.kind === "image" ? { ...current, photo: { ...photo, width, height } } : current,
     );
+    refocus(camera ? "다시 찍기" : "다른 사진 고르기");
   }
+
+  // A photo held stacks its pickers full width, so no label breaks inside a word.
+  const pickers = (labels: readonly [string, string], stacked = false) => (
+    <div className={stacked ? "flex flex-col gap-2" : "grid grid-cols-2 gap-2"}>
+      {labels.map((label, camera) => (
+        <label
+          key={label}
+          className={`${secondary} ${busy ? "pointer-events-none opacity-40" : ""}`}
+        >
+          {label}
+          <input
+            aria-label={label}
+            type="file"
+            accept="image/*"
+            capture={camera ? "environment" : undefined}
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              void pick(file, !!camera, label);
+            }}
+            className="sr-only"
+          />
+        </label>
+      ))}
+    </div>
+  );
+  const problem = (
+    <p aria-live="polite" className={problemText}>
+      {unreadable ? "사진을 불러오지 못했어요. 다시 시도해 주세요." : ""}
+    </p>
+  );
 
   if (!photo)
     return (
       <div className="flex flex-col gap-2 px-4 pb-3">
-        <div className="grid grid-cols-2 gap-2">
-          {(
-            [
-              ["앨범에서 고르기", false],
-              ["사진 찍기", true],
-            ] as const
-          ).map(([label, camera]) => (
-            <label
-              key={label}
-              className={`${secondary} ${busy ? "pointer-events-none opacity-40" : ""}`}
-            >
-              {label}
-              <input
-                aria-label={label}
-                type="file"
-                accept="image/*"
-                capture={camera ? "environment" : undefined}
-                disabled={busy}
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  event.currentTarget.value = "";
-                  void pick(file);
-                }}
-                className="sr-only"
-              />
-            </label>
-          ))}
-        </div>
-        <p aria-live="polite" className={problemText}>
-          {unreadable ? "사진을 불러오지 못했어요. 다시 시도해 주세요." : ""}
-        </p>
+        {pickers(["앨범에서 고르기", "사진 찍기"])}
+        {problem}
       </div>
     );
 
@@ -132,6 +151,7 @@ export function PhotoFields({ draft, change }: { draft: Draft<"image">; change: 
         사진 위를 끌어서 빈칸을 그리거나 &apos;빈칸 추가&apos;를 눌러요
       </p>
       <button
+        ref={addBox}
         type="button"
         onClick={() => {
           changeBoxes(withBox(boxes, newBox));
@@ -147,11 +167,40 @@ export function PhotoFields({ draft, change }: { draft: Draft<"image">; change: 
           box={box}
           boxes={boxes}
           change={changeBoxes}
-          removed={() => {
+          remove={() => {
+            const index = selected;
             setSelected(null);
+            editing.remove({
+              said: "빈칸을 삭제했어요",
+              before: draft,
+              after: { ...draft, boxes: boxes.filter((_, at) => at !== index) },
+              next: () =>
+                (index < boxes.length - 1 ? boxButton(index) : boxButton(index - 1)) ??
+                addBox.current,
+              back: () => boxButton(index),
+            });
           }}
         />
       )}
+      {pickers(["다른 사진 고르기", "다시 찍기"], true)}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          setSelected(null);
+          editing.remove({
+            said: "사진을 삭제했어요",
+            before: draft,
+            after: { ...draft, photo: null, boxes: [] },
+            next: () => firstField(section()),
+            back: () => firstField(section()),
+          });
+        }}
+        className={secondary}
+      >
+        사진 삭제
+      </button>
+      {problem}
     </div>
   );
 }
@@ -348,13 +397,13 @@ function BoxTools({
   box,
   boxes,
   change,
-  removed,
+  remove,
 }: {
   index: number;
   box: BoxDraft;
   boxes: BoxDraft[];
   change: (next: BoxDraft[]) => void;
-  removed: () => void;
+  remove: () => void;
 }) {
   const tools = [
     ["왼쪽으로 옮기기", ArrowLeft, () => movedBox(boxes, index, -boxStep, 0)],
@@ -397,14 +446,7 @@ function BoxTools({
           </button>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={() => {
-          change(boxes.filter((_, at) => at !== index));
-          removed();
-        }}
-        className={secondary}
-      >
+      <button type="button" onClick={remove} className={secondary}>
         빈칸 삭제
       </button>
     </div>
@@ -432,7 +474,7 @@ type Recording = { recorder: MediaRecorder; stream: MediaStream; started: number
  * A 소리's fields, as the phone's `AudioBlockFields` (ADR 0112): "녹음하기", where the browser
  * records AAC, and "파일에서 고르기" until a sound is in it; while recording, the time so far
  * against the minute and "녹음 끝내기", which the minute presses itself; then the sound's play
- * control and length, "다시 녹음", "다른 파일 고르기" and "소리 빼기". One 칸 records at a
+ * control and length, "다시 녹음", "다른 파일 고르기" and "소리 삭제". One 칸 records at a
  * time: [recorderTaken] while another does, and [holdRecorder] says when this one starts and stops.
  */
 export function SoundFields({
@@ -450,9 +492,17 @@ export function SoundFields({
   const [problem, setProblem] = useState<SoundProblem | "microphone" | null>(null);
   const [recorded, setRecorded] = useState<number | null>(null);
   const recording = useRef<Recording | null>(null);
+  const editing = useEditing();
   const recordable = canRecord();
   const { sound } = draft;
   useObjectUrl(sound?.url);
+  /** Focuses the 칸's control [selector] names once drawn, unless the focus went elsewhere. */
+  const refocus = (selector: string) => {
+    editing.focusSoon(() => {
+      const section = cellSection(draft.id);
+      return focusLost(section) ? section?.querySelector<HTMLElement>(selector) : null;
+    });
+  };
   // A recording under way when the 칸 goes is let go of, and keeps nothing.
   useEffect(
     () => () => {
@@ -483,6 +533,8 @@ export function SoundFields({
   async function take(file: Blob, durationMs?: number) {
     const prepared = await prepareSound(file, durationMs);
     setBusy(false);
+    // A pick's input, or the recorder's button, in the place of the one pressed.
+    refocus(durationMs === undefined ? "input[type=file]" : "[data-record]");
     if (typeof prepared === "string") {
       setProblem(prepared);
       return;
@@ -507,6 +559,7 @@ export function SoundFields({
     } catch (cause) {
       setBusy(false);
       holdRecorder(false);
+      refocus("[data-record]");
       setProblem(
         cause instanceof DOMException && cause.name === "NotAllowedError"
           ? "microphone"
@@ -535,6 +588,7 @@ export function SoundFields({
     recorder.start();
     setBusy(false);
     setRecorded(0);
+    refocus("[data-record]");
   }
 
   function stop() {
@@ -569,6 +623,7 @@ export function SoundFields({
     recordable && (
       <button
         type="button"
+        data-record
         disabled={busy || recorderTaken}
         onClick={() => {
           void record();
@@ -585,26 +640,31 @@ export function SoundFields({
           <p className="text-center text-body-strong">
             녹음 중 {audioLength(recorded * 1000)} / {audioLength(maxSoundMs)}
           </p>
-          <button type="button" onClick={stop} className={secondary}>
+          <button type="button" data-record onClick={stop} className={secondary}>
             녹음 끝내기
           </button>
         </>
       ) : sound ? (
         <>
           <SoundPlay url={sound.url} length={audioLength(sound.durationMs)} />
-          <div className={recordable ? "grid grid-cols-2 gap-2" : "flex"}>
-            {recordButton("다시 녹음")}
-            {fileButton("다른 파일 고르기")}
-          </div>
+          {/* Stacked full width, so no label breaks inside a word. */}
+          {recordButton("다시 녹음")}
+          {fileButton("다른 파일 고르기")}
           <button
             type="button"
             disabled={busy}
             onClick={() => {
-              change({ ...draft, sound: null });
+              editing.remove({
+                said: "소리를 삭제했어요",
+                before: draft,
+                after: { ...draft, sound: null },
+                next: () => firstField(cellSection(draft.id)),
+                back: () => firstField(cellSection(draft.id)),
+              });
             }}
             className={secondary}
           >
-            소리 빼기
+            소리 삭제
           </button>
         </>
       ) : (

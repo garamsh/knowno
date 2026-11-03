@@ -382,6 +382,16 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    /// Taps a button that picks a photo, leaving the store to the caller:
+    /// the button's progress turns while it stores, so nothing settles
+    /// before.
+    Future<void> tapPick(WidgetTester tester, Finder finder) async {
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+      await tester.tap(finder);
+      await tester.pump();
+    }
+
     /// Saves the card and waits until the editor closes, which it does once
     /// the card is stored and the photos it does not hold are let go.
     Future<void> save(WidgetTester tester) async {
@@ -612,6 +622,89 @@ void main() {
     });
 
     testWidgets(
+      'a new blank takes the focus in its answer; the photo is replaced keeping its blanks, showing progress while stored, or deleted with an undo (#622)',
+      (tester) async {
+        final screens = await openWithPhoto(tester);
+        await tapVisible(tester, find.text('Add blank'));
+        final answer = find.descendant(
+          of: find
+              .ancestor(
+                of: find.text('Answer (optional)'),
+                matching: find.byType(Column),
+              )
+              .first,
+          matching: find.byType(TextField),
+        );
+        expect(hasFocus(tester, answer), isTrue, reason: 'typed next');
+        expect(inView(tester, answer), isTrue);
+        await tester.enterText(answer, 'Paris');
+
+        await tapPick(tester, find.text('Choose another photo'));
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        await settleUntil(
+          tester,
+          'the replacing photo',
+          () => find.byType(CircularProgressIndicator).evaluate().isEmpty,
+        );
+        expect(_target('Blank 1'), findsOneWidget, reason: 'its blank kept');
+
+        await tapVisible(tester, find.text('Delete photo'));
+        expect(find.text('Photo deleted'), findsOneWidget);
+        expect(find.byType(ImagePhoto), findsNothing);
+        expect(find.text('Choose from album'), findsOneWidget);
+        await tapVisible(tester, find.text('Undo'));
+        expect(find.byType(ImagePhoto), findsOneWidget);
+
+        await save(tester);
+        final image = await storedImage(screens);
+        expect(image.media, const MediaId('photo1'), reason: 'the second');
+        expect(image.boxes.single.answer, 'Paris');
+        await anyReleased(tester);
+        expect(await released(tester), {'photo0'}, reason: 'the replaced one');
+      },
+    );
+
+    testWidgets("a photo's three actions stack full width under it (#632)", (
+      tester,
+    ) async {
+      await openWithPhoto(tester);
+      expectStackedFullWidth(tester, [
+        'Choose another photo',
+        'Take again',
+        'Delete photo',
+      ], full: 'Add blank');
+    });
+
+    testWidgets(
+      "an edit in the photo's 칸 ends Delete photo's Undo, and an edit in another 칸 does not (#632)",
+      (tester) async {
+        await openWithPhoto(tester);
+        await tapVisible(tester, find.text('Delete photo'));
+        expect(find.text('Photo deleted'), findsOneWidget);
+        await typeBlock(tester, 'more');
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Photo deleted'),
+          findsOneWidget,
+          reason: "the Text's edit is outside the photo's group",
+        );
+        await tapVisible(
+          tester,
+          find.descendant(
+            of: find.ancestor(
+              of: find.text('Photo').first,
+              matching: find.byType(EditorGroup),
+            ),
+            matching: find.widgetWithText(AppChip, 'Back'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Photo deleted'), findsNothing);
+        expect(find.text('Undo'), findsNothing);
+      },
+    );
+
+    testWidgets(
       'a photo the card is saved with is kept, and one left unsaved goes when the editor is left',
       (tester) async {
         await openWithPhoto(tester);
@@ -632,7 +725,7 @@ void main() {
         await tester.ensureVisible(find.bySemanticsLabel('Add block'));
         await screens.tap(find.bySemanticsLabel('Add block'));
         await screens.tap(find.text('Photo').last);
-        await tapVisible(tester, find.text('Choose from album'));
+        await tapPick(tester, find.text('Choose from album'));
         await chosen(tester);
         await tapVisible(tester, find.byTooltip('Close'));
         await tapVisible(tester, find.text('Discard'));
@@ -660,9 +753,15 @@ void main() {
         await screens.tap(find.bySemanticsLabel('Add block'));
         await screens.tap(find.text('Photo').last);
         final hold = pick.hold = Completer<void>();
-        await tapVisible(tester, find.text('Choose from album'));
-        await tapVisible(tester, find.byTooltip('Close'));
-        await tapVisible(tester, find.text('Discard'));
+        await tapPick(tester, find.text('Choose from album'));
+        // The pick's progress turns until it ends, so nothing settles: each
+        // tap waits out the sheet's transition instead.
+        for (final control in [find.byTooltip('Close'), find.text('Discard')]) {
+          await tester.tap(control);
+          for (var frame = 0; frame < 10; frame++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+        }
         expect(find.byType(CardEditorScreen), findsNothing, reason: 'setup');
 
         hold.complete();

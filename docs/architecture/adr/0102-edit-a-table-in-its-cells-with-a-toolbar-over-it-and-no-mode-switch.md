@@ -1,6 +1,6 @@
 # ADR 0102: Edit a table in its cells, with a toolbar over it and no mode switch
 
-> Status: accepted; its "빈칸" toggle refined by [ADR 0110](0110-blank-a-span-of-a-table-cell-s-text-stored-at-table-block-v2-beside-whole-cell-blanks.md)
+> Status: accepted; its "빈칸" toggle refined by [ADR 0110](0110-blank-a-span-of-a-table-cell-s-text-stored-at-table-block-v2-beside-whole-cell-blanks.md); its question before removing a row or column that holds text superseded by [ADR 0174](0174-undo-every-delete-in-the-card-editor-focus-what-an-add-makes-and-show-what-a-refused-save-refuses.md)
 > Date: 2026-10-26
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

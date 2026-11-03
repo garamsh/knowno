@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../design/app_chip.dart';
-import '../../design/app_sheet.dart';
+import 'undo_snack_bar.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'cloze_block.dart';
 import 'content.dart';
+import 'editor_group.dart';
 
 /// A body cell as a 표 block edits it: its field's controller, which
 /// draws each span as a block in the text, and the spans, kept through an
@@ -92,6 +93,14 @@ class TableDraft {
   /// in.
   final Set<TableBlank> blanks;
 
+  /// Each header's and cell's focus, by its field, so it moves with a row or
+  /// column removed before it.
+  final _focus = <TextEditingController, FocusNode>{};
+
+  /// The focus of the header or cell edited in [field].
+  FocusNode focusOf(TextEditingController field) =>
+      _focus.putIfAbsent(field, FocusNode.new);
+
   void addRow() => rows.add(_cells(columns.length));
 
   void addColumn() {
@@ -101,11 +110,11 @@ class TableDraft {
     }
   }
 
-  /// Removes the row at [index], its blanks with it.
-  void removeRow(int index) {
-    for (final cell in rows.removeAt(index)) {
-      cell.dispose();
-    }
+  /// Removes the row at [index], its blanks with it, and returns what puts
+  /// it back, its blanks included.
+  Removal removeRow(int index) {
+    final removed = rows.removeAt(index);
+    final before = {...blanks};
     _moveBlanks(
       (blank) => switch (blank.row) {
         final row when row == index => null,
@@ -113,14 +122,25 @@ class TableDraft {
         _ => blank,
       },
     );
+    return (
+      undo: () {
+        rows.insert(index, removed);
+        _restore(before);
+      },
+      forget: () {
+        for (final cell in removed) {
+          cell.dispose();
+        }
+      },
+    );
   }
 
-  /// Removes the column at [index], its blanks with it.
-  void removeColumn(int index) {
-    columns.removeAt(index).dispose();
-    for (final row in rows) {
-      row.removeAt(index).dispose();
-    }
+  /// Removes the column at [index], its blanks with it, and returns what
+  /// puts it back, as [removeRow] does.
+  Removal removeColumn(int index) {
+    final header = columns.removeAt(index);
+    final removed = [for (final row in rows) row.removeAt(index)];
+    final before = {...blanks};
     _moveBlanks(
       (blank) => switch (blank.column) {
         final column when column == index => null,
@@ -131,7 +151,26 @@ class TableDraft {
         _ => blank,
       },
     );
+    return (
+      undo: () {
+        columns.insert(index, header);
+        for (final (row, cell) in removed.indexed) {
+          rows[row].insert(index, cell);
+        }
+        _restore(before);
+      },
+      forget: () {
+        header.dispose();
+        for (final cell in removed) {
+          cell.dispose();
+        }
+      },
+    );
   }
+
+  void _restore(Set<TableBlank> kept) => blanks
+    ..clear()
+    ..addAll(kept);
 
   void _moveBlanks(TableBlank? Function(TableBlank blank) move) {
     final moved = [for (final blank in blanks) move(blank)].nonNulls.toList();
@@ -212,7 +251,18 @@ class TableDraft {
       ? TableProblem.emptyBlank
       : null;
 
+  /// The field [problem] names, an empty blank's cell; null without one, as
+  /// a table with no blank names no field.
+  FocusNode? get problemFocus {
+    if (problem != TableProblem.emptyBlank) return null;
+    final blank = blanks.firstWhere((blank) => textAt(blank).isEmpty);
+    return focusOf(rows[blank.row][blank.column].controller);
+  }
+
   void dispose() {
+    for (final node in _focus.values) {
+      node.dispose();
+    }
     for (final header in columns) {
       header.dispose();
     }
@@ -254,6 +304,7 @@ class TableFields extends StatefulWidget {
     required this.draft,
     required this.showErrors,
     required this.onChanged,
+    required this.edits,
   });
 
   final TableDraft draft;
@@ -261,6 +312,10 @@ class TableFields extends StatefulWidget {
 
   /// Called after every change, which this widget makes on [draft].
   final VoidCallback onChanged;
+
+  /// The edits in this 칸's group, which end an undo offered for what this
+  /// widget took out.
+  final Listenable edits;
 
   @override
   State<TableFields> createState() => _TableFieldsState();
@@ -293,41 +348,50 @@ class _TableFieldsState extends State<TableFields> {
     _ => null,
   };
 
-  /// Removes the selected cell's row or column, asking first when it holds
-  /// text the card would lose.
-  Future<void> _remove(_Remove what) async {
+  /// Runs [add], then, once it is built, puts the focus in [field] of what it
+  /// added and scrolls that whole into view, the grid sideways too: the focus
+  /// alone shows only the caret.
+  void _add(VoidCallback add, TextEditingController Function() field) {
+    _change(add);
+    final node = _draft.focusOf(field());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      node.requestFocus();
+      if (node.context case final shown?) {
+        Scrollable.ensureVisible(
+          shown,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        );
+      }
+    });
+  }
+
+  /// Removes the selected cell's row or column at once, and offers to put it
+  /// back.
+  void _remove(_Remove what) {
     final cell = _selected;
     if (cell == null) return;
     final l10n = AppLocalizations.of(context);
-    final texts = switch (what) {
-      _Remove.row => [for (final c in _draft.rows[cell.row]) c.controller.text],
-      _Remove.column => [
-        _draft.columns[cell.column].text,
-        for (final row in _draft.rows) row[cell.column].controller.text,
-      ],
-    };
-    if (texts.any((text) => text.trim().isNotEmpty) &&
-        !await showAppConfirm(
-          context,
-          title: switch (what) {
-            _Remove.row => l10n.tableRemoveRowTitle(cell.row + 1),
-            _Remove.column => l10n.tableRemoveColumnTitle(cell.column + 1),
-          },
-          consequence: l10n.tableRemoveBody,
-          confirmLabel: l10n.tableRemove,
-        )) {
-      return;
-    }
-    if (!mounted) return;
+    late final Removal removal;
     _change(() {
-      switch (what) {
-        case _Remove.row:
-          _draft.removeRow(cell.row);
-        case _Remove.column:
-          _draft.removeColumn(cell.column);
-      }
+      removal = switch (what) {
+        _Remove.row => _draft.removeRow(cell.row),
+        _Remove.column => _draft.removeColumn(cell.column),
+      };
       _selected = null;
     });
+    showUndoSnackBar(
+      context,
+      message: switch (what) {
+        _Remove.row => l10n.deletedRow(cell.row + 1),
+        _Remove.column => l10n.deletedColumn(cell.column + 1),
+      },
+      onUndo: () {
+        if (mounted) _change(removal.undo);
+      },
+      onGone: removal.forget,
+      endOn: widget.edits,
+    );
   }
 
   @override
@@ -351,11 +415,15 @@ class _TableFieldsState extends State<TableFields> {
             children: [
               AppChip.action(
                 label: l10n.addRow,
-                onPressed: () => _change(_draft.addRow),
+                onPressed: () => _add(
+                  _draft.addRow,
+                  () => _draft.rows.last.first.controller,
+                ),
               ),
               AppChip.action(
                 label: l10n.addColumn,
-                onPressed: () => _change(_draft.addColumn),
+                onPressed: () =>
+                    _add(_draft.addColumn, () => _draft.columns.last),
               ),
               _BlankToggle(
                 field: body == null
@@ -493,6 +561,7 @@ class _TableFieldsState extends State<TableFields> {
         },
         child: TextField(
           controller: controller,
+          focusNode: _draft.focusOf(controller),
           maxLines: null,
           textInputAction: TextInputAction.next,
           style: AppType.body.copyWith(

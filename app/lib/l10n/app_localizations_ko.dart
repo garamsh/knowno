@@ -202,6 +202,15 @@ class AppLocalizationsKo extends AppLocalizations {
   String get imageFromCamera => '사진 찍기';
 
   @override
+  String get imagePickAnother => '다른 사진 고르기';
+
+  @override
+  String get imageRetake => '다시 찍기';
+
+  @override
+  String get imageRemove => '사진 삭제';
+
+  @override
   String get imageUnreadable => '사진을 불러오지 못했어요. 다시 시도해 주세요.';
 
   @override
@@ -270,7 +279,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get audioPickAnother => '다른 파일 고르기';
 
   @override
-  String get audioRemove => '소리 빼기';
+  String get audioRemove => '소리 삭제';
 
   @override
   String get audioStopRecording => '녹음 끝내기';
@@ -327,20 +336,35 @@ class AppLocalizationsKo extends AppLocalizations {
   String get tableBlankToggle => '빈칸';
 
   @override
+  String get undo => '되돌리기';
+
+  @override
+  String get deletedBlock => '칸을 삭제했어요';
+
+  @override
+  String get deletedSense => '뜻을 삭제했어요';
+
+  @override
+  String get deletedBox => '빈칸을 삭제했어요';
+
+  @override
+  String get deletedImage => '사진을 삭제했어요';
+
+  @override
+  String get deletedAudio => '소리를 삭제했어요';
+
+  @override
+  String deletedRow(int row) {
+    return '$row행을 삭제했어요';
+  }
+
+  @override
+  String deletedColumn(int column) {
+    return '$column열을 삭제했어요';
+  }
+
+  @override
   String get tableRemove => '삭제';
-
-  @override
-  String tableRemoveRowTitle(int row) {
-    return '$row행을 삭제할까요?';
-  }
-
-  @override
-  String tableRemoveColumnTitle(int column) {
-    return '$column열을 삭제할까요?';
-  }
-
-  @override
-  String get tableRemoveBody => '그 줄에 적은 내용도 함께 삭제돼요.';
 
   @override
   String tableHeaderCell(int column) {

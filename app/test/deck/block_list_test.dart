@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_chip.dart';
+import 'package:knowno/design/app_sheet.dart';
+import 'package:knowno/deck/src/undo_snack_bar.dart';
 import 'package:knowno/study/study.dart' show CardPreviewScreen;
 import 'package:knowno/deck/src/editor_group.dart';
 
@@ -398,6 +400,84 @@ void main() {
           .dy;
       expect(top('first'), lessThan(top('second')));
       expect(top('second'), lessThan(top('its back')));
+    },
+  );
+
+  testWidgets(
+    'deleting a 칸 acts at once and offers Undo, which puts it back in its place with what was typed; left alone, the bar goes and so does the 칸 (#622)',
+    (tester) async {
+      final screens = await openNew(tester);
+      await typeBlock(tester, 'Chat');
+      await typeBlock(tester, 'Cat', 1);
+      await addBlock(screens, 'Text');
+      await typeBlock(tester, 'Hund', 2);
+      await typeBlock(tester, 'Dog', 3);
+
+      await actOnBlock(screens, 1, 'Delete');
+      expect(find.byType(AppSheet), findsNothing, reason: 'nothing asks');
+      expect(find.text('Block deleted'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Chat'), findsNothing);
+      await screens.tap(find.text('Undo'));
+      expect(find.byType(EditorGroup), findsNWidgets(2));
+      expect(
+        tester.widget<TextField>(blockField()).controller!.text,
+        'Chat',
+        reason: 'back first, as it was',
+      );
+
+      await actOnBlock(screens, 2, 'Delete');
+      await tester.pump(undoDuration);
+      await tester.pumpAndSettle();
+      expect(find.text('Undo'), findsNothing, reason: 'the bar went');
+      await tapVisible(screens, find.text('Save'));
+      expect((await _stored(screens)).cells, const [
+        TextCell(front: 'Chat', back: 'Cat'),
+      ]);
+    },
+  );
+
+  testWidgets(
+    'a 칸 added through + 칸 추가 takes the focus in its first field; one with no text field closes the keyboard and is scrolled into view (#622)',
+    (tester) async {
+      final screens = await openNew(tester);
+      expect(hasFocus(tester, blockField()), isTrue, reason: 'setup');
+      Finder lastGroupField() => find
+          .descendant(
+            of: find.byType(EditorGroup).last,
+            matching: find.byType(TextField),
+          )
+          .first;
+      for (final type in ['Word', 'Cloze sentence', 'Table', 'Text']) {
+        await addBlock(screens, type);
+        expect(hasFocus(tester, lastGroupField()), isTrue, reason: type);
+        expect(inView(tester, lastGroupField()), isTrue, reason: type);
+      }
+      await addBlock(screens, 'Photo');
+      expect(
+        tester.testTextInput.isVisible,
+        isFalse,
+        reason: 'no field keeps the keyboard up',
+      );
+      expect(inView(tester, find.text('Choose from album')), isTrue);
+    },
+  );
+
+  testWidgets(
+    'a refused save scrolls to the first 칸 that cannot be saved and puts the focus in its field (#622)',
+    (tester) async {
+      final screens = await openNew(tester);
+      await replaceFirstBlock(screens, 'Word');
+      await typeInto(tester, namedField('Word'), 'apple');
+      for (var index = 0; index < 4; index++) {
+        await addBlock(screens, 'Text');
+        await typeBlock(tester, 'front $index', 3 + 2 * index);
+      }
+      final error = find.text('Write something');
+      await tapVisible(screens, find.text('Save'));
+      expect(error, findsOneWidget, reason: 'refused');
+      expect(inView(tester, error), isTrue, reason: 'its error is in view');
+      expect(hasFocus(tester, labelledField('Meaning')), isTrue);
+      expect(await screens.cards(), isEmpty);
     },
   );
 }
