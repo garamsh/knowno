@@ -244,6 +244,29 @@ describe("a whole card on study's cards", () => {
     }
   });
 
+  it("keeps each box on one line with the word or punctuation it touches", () => {
+    const { container } = render(
+      <WholeCells
+        cells={[
+          {
+            kind: "blank",
+            block: { kind: "cloze", text: "모음: ___, ___이다 끝", answers: ["ㅏ", "ㅗ"] },
+          },
+        ]}
+        revealed={false}
+        studied
+      />,
+    );
+    const words = [...container.querySelectorAll<HTMLElement>("[data-blank='boxed']")].map(
+      (box) => box.parentElement,
+    );
+    expect(words.map((word) => word?.textContent)).toEqual([",", "이다"]);
+    for (const word of words) expect(word?.className).toBe("whitespace-nowrap");
+    // Control: a word with no box is not held together.
+    expect(container.querySelectorAll(".whitespace-nowrap")).toHaveLength(2);
+    expect(container.textContent).toBe("모음: , 이다 끝");
+  });
+
   it("counts a front's length with each blank as its box's width", () => {
     expect(faceLength([{ kind: "text", text: "사과" }])).toBe(2);
     expect(

@@ -194,16 +194,16 @@ function WholeParts({
           case "cloze":
             return (
               <span key={index} aria-hidden className={listed ? "line-clamp-2 break-keep" : ""}>
-                {block.text.split(clozeBlank).map((part, at) => (
-                  <span key={at}>
-                    {look === "studied" && !revealed
-                      ? joined(part, at > 0, at < block.answers.length)
-                      : part}
-                    {at < block.answers.length && (
-                      <Blank answer={block.answers[at] ?? ""} revealed={revealed} look={look} />
-                    )}
-                  </span>
-                ))}
+                {look === "studied" && !revealed
+                  ? boxedWords(block.text.split(clozeBlank))
+                  : block.text.split(clozeBlank).map((part, at) => (
+                      <span key={at}>
+                        {part}
+                        {at < block.answers.length && (
+                          <Blank answer={block.answers[at] ?? ""} revealed={revealed} look={look} />
+                        )}
+                      </span>
+                    ))}
               </span>
             );
           case "table": {
@@ -293,14 +293,45 @@ function WholeParts({
 }
 
 /**
- * [part] of a sentence with boxes, joined by a word joiner to a box [before] or [after] it that it
- * touches, so a box keeps to its word and its punctuation.
+ * A sentence of [parts] with an empty blank's box between each two, as study's cards draw it
+ * (#635): each box on one line with the word or punctuation it touches, so a box and its comma
+ * never part. A browser breaks a line beside a box whatever joiner the text holds there.
  */
-function joined(part: string, before: boolean, after: boolean): string {
-  const space = /\s/;
-  const start = before && part !== "" && !space.test(part.charAt(0)) ? "\u2060" : "";
-  const end = after && part !== "" && !space.test(part.charAt(part.length - 1)) ? "\u2060" : "";
-  return `${start}${part}${end}`;
+function boxedWords(parts: string[]): ReactNode[] {
+  const words: ReactNode[] = [];
+  let word: ReactNode[] = [];
+  let boxed = false;
+  const close = () => {
+    if (word.length === 0) return;
+    words.push(
+      boxed ? (
+        <span key={words.length} className="whitespace-nowrap">
+          {word}
+        </span>
+      ) : (
+        word
+      ),
+    );
+    word = [];
+    boxed = false;
+  };
+  parts.forEach((part, at) => {
+    for (const piece of part.split(/(\s+)/)) {
+      if (piece === "") continue;
+      if (/^\s+$/.test(piece)) {
+        close();
+        words.push(piece);
+      } else {
+        word.push(piece);
+      }
+    }
+    if (at < parts.length - 1) {
+      word.push(<Blank key={`box ${String(at)}`} answer="" revealed={false} look="studied" />);
+      boxed = true;
+    }
+  });
+  close();
+  return words;
 }
 
 /**
