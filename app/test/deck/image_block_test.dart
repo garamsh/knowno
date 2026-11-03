@@ -21,6 +21,7 @@ import '../contrast.dart';
 import '../home/deck_screens.dart';
 import '../media/fakes.dart';
 import '../settle_until.dart';
+import 'editor.dart';
 
 /// Two boxes, one near the top left and one near the bottom right, the first
 /// with an answer.
@@ -361,7 +362,9 @@ void main() {
           imagePickProvider.overrideWithValue(pick),
         ],
       );
-      await screens.push((deck) => CardEditorScreen(deck: deck));
+      await screens.push(
+        (deck) => CardEditorScreen(preview: studyPreview, deck: deck),
+      );
       await fillText(tester);
       await tester.ensureVisible(find.bySemanticsLabel('Add block'));
       await screens.tap(find.bySemanticsLabel('Add block'));
@@ -592,7 +595,9 @@ void main() {
           imagePickProvider.overrideWithValue(pick),
         ],
       );
-      await screens.push((deck) => CardEditorScreen(deck: deck));
+      await screens.push(
+        (deck) => CardEditorScreen(preview: studyPreview, deck: deck),
+      );
       for (final (index, text) in ['front', 'back'].indexed) {
         await tester.enterText(find.byType(TextField).at(index), text);
       }
@@ -620,7 +625,9 @@ void main() {
             imagePickProvider.overrideWithValue(pick),
           ],
         );
-        await screens.push((deck) => CardEditorScreen(deck: deck));
+        await screens.push(
+          (deck) => CardEditorScreen(preview: studyPreview, deck: deck),
+        );
         await fillText(tester);
         await tester.ensureVisible(find.bySemanticsLabel('Add block'));
         await screens.tap(find.bySemanticsLabel('Add block'));
@@ -645,7 +652,9 @@ void main() {
             imagePickProvider.overrideWithValue(pick),
           ],
         );
-        await screens.push((deck) => CardEditorScreen(deck: deck));
+        await screens.push(
+          (deck) => CardEditorScreen(preview: studyPreview, deck: deck),
+        );
         await fillText(tester);
         await tester.ensureVisible(find.bySemanticsLabel('Add block'));
         await screens.tap(find.bySemanticsLabel('Add block'));

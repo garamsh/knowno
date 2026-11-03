@@ -1,3 +1,5 @@
+import 'dart:math' show max;
+
 import 'package:flutter/material.dart';
 
 import '../../design/theme.dart';
@@ -128,4 +130,10 @@ abstract final class StudyStyle {
   /// The current card's edge.
   static List<BoxShadow> currentShadow(AppColors colors) =>
       AppShadow.card(colors);
+
+  /// The height of each of the two cards in a body [body] high under the top
+  /// bar: half of what the gaps and the guide's row leave, the completion
+  /// card's place included.
+  static double cardHeight(double body) =>
+      max(0, (body - topGap - cardGap - guideRow - currentBottomGap) / 2);
 }

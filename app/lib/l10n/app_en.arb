@@ -102,7 +102,6 @@
   "cardNeedsUpdate": "This card was made in a newer version of the app, so this version can't edit it. Update the app.",
   "cardDeck": "Note {deck}",
   "previewCard": "Preview",
-  "previewTapToBack": "Tap the card to see its back",
   "previewTapToFront": "Tap again to go back to the front",
   "previewTapToReveal": "Tap the card to see the answer",
   "previewTapToHide": "Tap again to empty its blanks",

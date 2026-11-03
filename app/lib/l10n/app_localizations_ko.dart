@@ -381,9 +381,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get previewCard => '미리보기';
 
   @override
-  String get previewTapToBack => '카드를 탭하면 뒷면이 보여요';
-
-  @override
   String get previewTapToFront => '다시 탭하면 앞면으로 돌아가요';
 
   @override

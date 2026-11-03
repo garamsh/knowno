@@ -14,7 +14,6 @@ import '../../media/media.dart';
 import 'block_list.dart';
 import 'card_frame.dart';
 import 'card_preview.dart';
-import 'card_preview_screen.dart';
 import 'content.dart';
 import 'deck_repository.dart';
 import 'failure_message.dart';
@@ -25,15 +24,24 @@ import 'providers.dart';
 import 'senses_block.dart';
 
 /// Adds a card to [deck], or edits [card] when one is given. The card is a
-/// column of groups, one per 칸, ending in "+ 칸 추가"; "미리보기" opens the
-/// card as study draws it. A new card opens with one empty 글, and every card,
-/// of whichever template it was made in, opens as its 칸 in order and is
+/// column of groups, one per 칸, ending in "+ 칸 추가"; "미리보기" opens
+/// [preview] over the card's 칸. A new card opens with one empty 글, and every
+/// card, of whichever template it was made in, opens as its 칸 in order and is
 /// written in the frame (ADR 0114, ADR 0117, ADR 0137).
 class CardEditorScreen extends ConsumerStatefulWidget {
-  const CardEditorScreen({super.key, required this.deck, this.card});
+  const CardEditorScreen({
+    super.key,
+    required this.deck,
+    this.card,
+    required this.preview,
+  });
 
   final Deck deck;
   final Card? card;
+
+  /// The screen that shows [cells] as study draws them, which the caller
+  /// takes from `study` (ADR 0168).
+  final Widget Function(List<Cell> cells) preview;
 
   @override
   ConsumerState<CardEditorScreen> createState() => _CardEditorScreenState();
@@ -226,7 +234,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         // Over the editor, so closing it returns to the card being typed.
         await Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => CardEditorScreen(deck: widget.deck, card: existing),
+            builder: (_) => CardEditorScreen(
+              deck: widget.deck,
+              card: existing,
+              preview: widget.preview,
+            ),
           ),
         );
       case null:
@@ -264,7 +276,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
-        builder: (_) => CardPreviewScreen(cells: cells),
+        builder: (_) => widget.preview(cells),
       ),
     );
   }

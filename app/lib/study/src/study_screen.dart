@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -380,18 +379,9 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
     final dimmed = _coach == _CoachStep.know || _coach == _CoachStep.dontKnow;
     return LayoutBuilder(
       builder: (context, constraints) {
-        // The two cards share the height between the top bar and the guide's
-        // row equally, the completion card's place included, so the
-        // previous card keeps its size when the completion card arrives.
-        final card = max(
-          0.0,
-          (constraints.maxHeight -
-                  StudyStyle.topGap -
-                  StudyStyle.cardGap -
-                  StudyStyle.guideRow -
-                  StudyStyle.currentBottomGap) /
-              2,
-        );
+        // The completion card's place counts as a card's, so the previous
+        // card keeps its size when the completion card arrives.
+        final card = StudyStyle.cardHeight(constraints.maxHeight);
         return Padding(
           padding: const EdgeInsets.fromLTRB(
             StudyStyle.cardMargin,

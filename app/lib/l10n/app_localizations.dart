@@ -710,19 +710,13 @@ abstract class AppLocalizations {
   /// **'미리보기'**
   String get previewCard;
 
-  /// Hint under the preview's card while it shows the front of a card studied front then back.
-  ///
-  /// In ko, this message translates to:
-  /// **'카드를 탭하면 뒷면이 보여요'**
-  String get previewTapToBack;
-
-  /// Hint under the preview's card while it shows the back.
+  /// Hint under the preview's card while it shows a card studied front then back as answered, its front over its back.
   ///
   /// In ko, this message translates to:
   /// **'다시 탭하면 앞면으로 돌아가요'**
   String get previewTapToFront;
 
-  /// Hint under the preview's card while it shows a card studied on one face with its blanks empty.
+  /// Hint under the preview's card while it shows the card as study's current card does: a front, or a card studied on one face with its blanks empty.
   ///
   /// In ko, this message translates to:
   /// **'카드를 탭하면 답이 보여요'**
