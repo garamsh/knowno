@@ -89,8 +89,8 @@ const _uncounted = {
   'PreviousCardView',
   'EarlierCardView',
   'PreviousCardDemo',
-  '_CardFace',
-  '_Face',
+  'CardFace',
+  'GradedCard',
   'GoogleSignInButton',
 };
 
