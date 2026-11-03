@@ -26,12 +26,6 @@ const noAnswerToday = {
 };
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
-const revalidated = vi.hoisted(() => [] as [string, string | undefined][]);
-vi.mock("next/cache", () => ({
-  revalidatePath: (path: string, type?: string) => {
-    revalidated.push([path, type]);
-  },
-}));
 
 const iso = (time: number) => new Date(time).toISOString();
 
@@ -88,7 +82,6 @@ beforeAll(loadEngine);
 
 describe("recordAnswer", () => {
   beforeEach(async () => {
-    revalidated.length = 0;
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(start);
     setRequestCookies(await signedInCookies());
@@ -120,31 +113,6 @@ describe("recordAnswer", () => {
     // Control: the same answer to the card's uuid is stored.
     expect(await answer(uuidOf("c1"))).toEqual({ saved: true });
     expect(postgrest.rows.card_states.map((row) => row.card_id)).toEqual([uuidOf("c1")]);
-  });
-
-  it("revalidates every page once the answer is stored, and none when it is refused", async () => {
-    const postgrest = new FakePostgrest();
-    server.use(...postgrest.handlers);
-    const answer = (cardId: string) =>
-      recordAnswer({
-        cardId: cardId as CardId,
-        review: {
-          id: "0192a6f0-0000-7000-8000-000000000002",
-          answer: "know",
-          reviewedAt: start,
-          durationMs: 1000,
-          fuzzFactor: 0.5,
-        },
-        change: "answer",
-        state: { stability: 3, difficulty: 5, lastReview: start, due: start + 3 * day },
-        editedAt: start,
-      });
-
-    expect(await answer("c1")).toMatchObject({ saved: false });
-    expect(revalidated).toEqual([]);
-    // Control: the stored answer revalidates the root layout, and with it 홈, 노트 and 기록.
-    expect(await answer(uuidOf("c1"))).toEqual({ saved: true });
-    expect(revalidated).toEqual([["/", "layout"]]);
   });
 });
 

@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { parseCardId } from "@/features/decks";
 import { classifyFailure, requestTimeoutMs, type ServerFailure } from "@/supabase/failure";
 import { field } from "@/supabase/row";
@@ -21,7 +19,6 @@ import type { CardState } from "./queue";
  * a toggle moves its review's rating where the server's edit is older, and either then upserts
  * the card's state. The insert ignores a review already stored, so a retried write is safe.
  * Each row is the signed-in user's, edited at the write's time; the server sets its revision.
- * Once both are stored it revalidates every page, so 홈, 노트 and 기록 count the answer.
  */
 export async function recordAnswer(input: RecordedAnswer): Promise<WriteResult> {
   // The argument crossed the network, whatever its declared type.
@@ -80,9 +77,6 @@ export async function recordAnswer(input: RecordedAnswer): Promise<WriteResult> 
   if (stateWrite.error) {
     return refuse(classifyFailure(stateWrite.error, stateWrite.status), stateWrite.error.code);
   }
-  // The client applies this even to a write the browser's back discarded, and reads the page it
-  // reached again (#603).
-  revalidatePath("/", "layout");
   return { saved: true };
 }
 

@@ -38,8 +38,6 @@ beforeAll(async () => {
 }, 30_000);
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
-// recordAnswer revalidates every page, which Next does only inside a request.
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const hour = 3_600_000;
 
