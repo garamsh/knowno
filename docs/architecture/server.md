@@ -177,7 +177,7 @@ The Supabase schema the app syncs to, and the extraction count, the plans and th
   - it replaces `begin_extraction` and `resume_extraction` with the provider added.
   - Its header states the revert.
 - Migration `20261103133627_remove_openrouter_transition.sql` ends the OpenRouter transition of [ADR 0162](adr/0162-choose-each-plan-s-ai-provider-in-admin-keep-provider-keys-in-vault-and-apply-a-configuration-only-after-a-check-call-and-an-admin-s-trial.md), changing no row: it creates `begin_extraction(uuid, bigint)` with the same grants, and replaces `admin_activate_ai_configuration` without OpenRouter's exception. Its header states the revert.
-- Migration `20261104000000_drop_begin_extraction_wrapper.sql` drops `begin_extraction(uuid, bigint, text[])`, the wrapper kept while the old `extract-cards` bundle named `secret_providers` (#669). It drops a function, so it merges only after the owner approves it (§Location and migrations, "Gate"). Its header states the revert.
+- Migration `20261104000000_drop_begin_extraction_wrapper.sql` drops `begin_extraction(uuid, bigint, text[])`, the wrapper kept while the old `extract-cards` bundle named `secret_providers` (#669). It changes no row. Its header states the revert.
 
 ### Suspension and removal from sharing
 
