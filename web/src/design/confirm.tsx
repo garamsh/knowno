@@ -44,7 +44,12 @@ export function Confirm({
       <p className="text-secondary break-keep text-muted">{consequence}</p>
       {children}
       <div className="mt-4 flex flex-col gap-2">
-        <button ref={cancel} type="button" onClick={close} className={buttonClass("secondary", "cta")}>
+        <button
+          ref={cancel}
+          type="button"
+          onClick={close}
+          className={buttonClass("secondary", "cta")}
+        >
           {cancelLabel}
         </button>
         <button

@@ -148,10 +148,7 @@ function Failure({ failure, back }: { failure: LibraryFailure; back: string }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-4 px-gutter py-6">
       <ReadFailure failure={failure} />
-      <Link
-        href={back}
-        className={`${buttonClass("secondary")} self-start`}
-      >
+      <Link href={back} className={`${buttonClass("secondary")} self-start`}>
         그만하기
       </Link>
     </main>

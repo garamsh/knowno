@@ -193,9 +193,7 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
           <p className="text-secondary break-keep text-muted">
             엑셀(.xlsx)이나 CSV 파일의 한 행이 카드 한 장이 돼요. 파일은 5MB, 1,000행까지 읽어요.
           </p>
-          <label
-            className={`${buttonClass("primary", "cta")} ${opening ? "opacity-50" : ""}`}
-          >
+          <label className={`${buttonClass("primary", "cta")} ${opening ? "opacity-50" : ""}`}>
             {opening ? "읽는 중" : "파일 고르기"}
             {picker}
           </label>

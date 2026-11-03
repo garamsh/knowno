@@ -62,13 +62,19 @@ describe("the design's class rules", () => {
     const section = (heading: string) =>
       `const a = <section aria-labelledby="s">${heading}<div /></section>;`;
     expect(
-      refusals(section('<h2 id="s" className="px-1 text-section text-muted">계정</h2>'), sharedRules),
+      refusals(
+        section('<h2 id="s" className="px-1 text-section text-muted">계정</h2>'),
+        sharedRules,
+      ),
     ).toHaveLength(1);
     expect(
       refusals(section('<h2 id="s" className="text-headline">계정</h2>'), sharedRules),
     ).toEqual([]);
     expect(
-      refusals('const a = <nav><h2 className="text-section text-muted">목차</h2></nav>;', sharedRules),
+      refusals(
+        'const a = <nav><h2 className="text-section text-muted">목차</h2></nav>;',
+        sharedRules,
+      ),
     ).toEqual([]);
   });
 });

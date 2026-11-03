@@ -445,9 +445,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
               save(false);
             }}
             className={
-              card
-                ? `${buttonClass("primary", "cta")} flex-1`
-                : buttonClass("secondary", "cta")
+              card ? `${buttonClass("primary", "cta")} flex-1` : buttonClass("secondary", "cta")
             }
           >
             {card && pending ? "저장 중" : "저장"}

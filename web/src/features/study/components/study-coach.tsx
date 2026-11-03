@@ -102,11 +102,7 @@ export function CoachCaption({
               />
             ))}
           </div>
-          <button
-            type="button"
-            onClick={onNext}
-            className={buttonClass("primary")}
-          >
+          <button type="button" onClick={onNext} className={buttonClass("primary")}>
             {last ? "시작하기" : "다음"}
           </button>
         </div>

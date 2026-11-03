@@ -52,12 +52,7 @@ export function ShortcutHelp({ onClose }: { onClose: () => void }) {
             </div>
           ))}
         </dl>
-        <button
-          ref={close}
-          type="button"
-          onClick={onClose}
-          className={buttonClass("primary")}
-        >
+        <button ref={close} type="button" onClick={onClose} className={buttonClass("primary")}>
           닫기
         </button>
       </div>

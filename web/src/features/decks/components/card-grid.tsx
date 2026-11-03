@@ -78,12 +78,12 @@ export function CardGrid({
     <>
       {header}
       <SearchField
-          label="카드 검색"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-          }}
-        />
+        label="카드 검색"
+        value={search}
+        onChange={(event) => {
+          setSearch(event.target.value);
+        }}
+      />
       {study}
       <section aria-label="카드" className="flex flex-col gap-3">
         <div className="sticky top-0 z-[1] flex min-h-tap-target flex-wrap items-center justify-between gap-x-3 bg-ground">

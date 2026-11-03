@@ -714,10 +714,7 @@ export function PhotoImport({
                 {message}
               </p>
             )}
-            <button
-              disabled={pending || !name.trim()}
-              className={buttonClass("primary", "cta")}
-            >
+            <button disabled={pending || !name.trim()} className={buttonClass("primary", "cta")}>
               {pending ? "만드는 중" : "만들기"}
             </button>
           </form>
@@ -894,9 +891,7 @@ function PhotoPicker({
   disabled?: boolean;
 }) {
   return (
-    <label
-      className={`${buttonClass(primary ? "primary" : "secondary", "cta")} flex-1`}
-    >
+    <label className={`${buttonClass(primary ? "primary" : "secondary", "cta")} flex-1`}>
       {icon && <ImagePlus aria-hidden className="size-small-icon" />}
       {label}
       <input

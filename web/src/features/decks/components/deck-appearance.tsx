@@ -36,8 +36,7 @@ export function setPhoto(form: FormData, photo: Photo) {
   } else form.set("image", photo.kind === "stored" ? "keep" : "remove");
 }
 
-const secondary =
-  `${buttonClass("secondary")} w-full`;
+const secondary = `${buttonClass("secondary")} w-full`;
 
 /**
  * The choices of a deck's look, as the phone's `DeckAppearanceFields` and 노트 꾸미기 and 새 노트

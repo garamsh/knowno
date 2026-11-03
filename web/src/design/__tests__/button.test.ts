@@ -14,11 +14,19 @@ describe("the one button", () => {
     ["destructiveFinal", ["bg-dont-know-text", "text-on-dont-know-text"]],
     ["text", ["text-ink"]],
     ["onHeroText", ["text-on-hero"]],
-  ] as const)("draws %s in the phone's colours on the button radius, pressable", (variant, colours) => {
-    expect(classes(variant)).toEqual(
-      expect.arrayContaining(["pressable", "rounded-button", "focus-visible:outline-2", ...colours]),
-    );
-  });
+  ] as const)(
+    "draws %s in the phone's colours on the button radius, pressable",
+    (variant, colours) => {
+      expect(classes(variant)).toEqual(
+        expect.arrayContaining([
+          "pressable",
+          "rounded-button",
+          "focus-visible:outline-2",
+          ...colours,
+        ]),
+      );
+    },
+  );
 
   it("draws the red final button in one pair, the phone's destructiveFinal", () => {
     expect(classes("destructiveFinal")).not.toContain("bg-dont-know");

@@ -29,8 +29,7 @@ type Draft<K extends CellDraft["kind"]> = Extract<CellDraft, { kind: K }>;
 export type CellChange = (next: CellDraft | ((current: CellDraft) => CellDraft)) => void;
 
 /** The secondary button (`@/design/button`) the width it is given. */
-const secondary =
-  `${buttonClass("secondary")} w-full`;
+const secondary = `${buttonClass("secondary")} w-full`;
 
 /** The editor's photo is at most this tall, so the tools under it stay near, as the phone's. */
 const editorMaxHeight = "480px";

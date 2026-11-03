@@ -602,7 +602,9 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
           onClick={toggleLast}
           aria-keyshortcuts="Z"
           className={
-            touch ? "sr-only" : `${buttonClass("secondary")} self-center ${coach === "redecide" ? coachHighlight : ""}`
+            touch
+              ? "sr-only"
+              : `${buttonClass("secondary")} self-center ${coach === "redecide" ? coachHighlight : ""}`
           }
         >
           마지막 응답 바꾸기 <Hint>Z</Hint>

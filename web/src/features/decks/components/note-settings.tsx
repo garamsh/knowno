@@ -23,10 +23,8 @@ type Sheet = "rename" | "decorate" | "publish" | "delete";
 
 const field =
   "min-h-field w-full rounded-field border border-outline bg-surface px-4 text-body text-ink focus:outline-2 focus:outline-ink";
-const primary =
-  `${buttonClass("primary", "cta")} w-full`;
-const secondary =
-  buttonClass("secondary");
+const primary = `${buttonClass("primary", "cta")} w-full`;
+const secondary = buttonClass("secondary");
 
 /**
  * The note page's ⋯, "노트 설정", as the phone's deck screen has it: "이름 바꾸기", "노트 꾸미기",
@@ -392,7 +390,9 @@ function DeleteSheet({
     <Confirm
       title={`"${deck.name}" 노트를 삭제할까요?`}
       consequence={
-        cardCount === 0 ? "이 노트에는 카드가 없어요." : `카드 ${String(cardCount)}장도 함께 삭제돼요.`
+        cardCount === 0
+          ? "이 노트에는 카드가 없어요."
+          : `카드 ${String(cardCount)}장도 함께 삭제돼요.`
       }
       confirmLabel="삭제"
       destructive

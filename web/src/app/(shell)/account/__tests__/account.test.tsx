@@ -42,7 +42,8 @@ describe("the account page", () => {
     // Each is named by its label.
     expect(
       sections.map(
-        (section) => document.getElementById(section.getAttribute("aria-labelledby") ?? "")?.textContent,
+        (section) =>
+          document.getElementById(section.getAttribute("aria-labelledby") ?? "")?.textContent,
       ),
     ).toEqual(["계정", "학습", "AI 연결", "화면"]);
     expect(sections.map((section) => section.querySelector("h2")?.textContent)).toEqual([

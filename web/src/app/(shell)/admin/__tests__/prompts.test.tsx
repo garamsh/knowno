@@ -193,7 +193,9 @@ describe("a version's page", () => {
       params: Promise.resolve({ id: "1" }),
       searchParams: Promise.resolve({}),
     });
-    expect(screen.getByRole("region", { name: /^사용 중인 버전 \d+과 다른 점$/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: /^사용 중인 버전 \d+과 다른 점$/ }),
+    ).toBeInTheDocument();
     expect(await activatePrompt(1)).toEqual({
       changed: true,
       message: "이 버전을 모든 사용자에게 적용했어요.",

@@ -38,13 +38,15 @@ export function DeckList({ rows, notice }: { rows: DeckRow[]; notice?: ReactNode
     : rows;
   return (
     <section aria-label="노트 목록" className="flex flex-col gap-3">
-      {rows.length > 0 && <SearchField
+      {rows.length > 0 && (
+        <SearchField
           label="노트 검색"
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
           }}
-        />}
+        />
+      )}
       {notice}
       {shown.length === 0 && needle ? (
         <p role="status" className="text-muted">
