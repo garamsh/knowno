@@ -260,7 +260,7 @@ describe("노트 설정", () => {
     expect(
       buttons.map((button) => button.getAttribute("aria-label") ?? button.textContent),
     ).toEqual(["닫기", "취소", "삭제"]);
-    expect(buttons.at(-1)).toHaveClass("bg-dont-know");
+    expect(buttons.at(-1)).toHaveClass("bg-dont-know-text", "text-on-dont-know-text");
     await userEvent.click(within(question).getByRole("button", { name: "취소" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(db.rows.decks[0]).toMatchObject({ deleted_at: null });

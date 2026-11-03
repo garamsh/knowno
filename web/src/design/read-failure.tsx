@@ -1,10 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useTransition } from "react";
 
-import { buttonClass } from "./button";
+import { RetryButton } from "./retry-button";
 
 /** What every read says when the server cannot be reached. */
 export const unreachableMessage = "서버에 연결할 수 없어요. 연결을 확인하고 다시 시도해 주세요.";
@@ -12,7 +8,8 @@ export const unreachableMessage = "서버에 연결할 수 없어요. 연결을 
 /**
  * What a page shows in place of what it could not read, as an alert: the [message] in the red
  * text, then the [next] step — "다시 시도", which reads the page again from the server once per
- * press, "로그인" where the session ended, or none.
+ * press, "로그인" where the session ended, or none. It is no client module, so a server module
+ * reads [unreachableMessage] from it.
  */
 export function ReadFailureMessage({
   message,
@@ -31,24 +28,5 @@ export function ReadFailureMessage({
         </Link>
       )}
     </div>
-  );
-}
-
-function RetryButton() {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  return (
-    <button
-      type="button"
-      disabled={pending}
-      onClick={() => {
-        startTransition(() => {
-          router.refresh();
-        });
-      }}
-      className={`${buttonClass("secondary")} self-start`}
-    >
-      다시 시도
-    </button>
   );
 }
