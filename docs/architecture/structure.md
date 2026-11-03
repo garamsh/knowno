@@ -21,7 +21,7 @@ Each top-level folder has one responsibility, and the lists are closed: an entry
 - `web/src/`:
   - `app/` — routes, the App Router files, their `_components/` and `__tests__/`; the signed-in pages and their shell's menus in the `(shell)` route group ([`web.md`](web.md)); the legal documents in the `(legal)` route group.
   - `features/` — `account`, `admin`, `decks`, `study` and `legal`.
-  - `design/` — the brand's marks and the mascot, the one chip, the canvas JPEG encoder, `FittedLine`, the dialogs' focus trap, the mascot's generated drawings, "다시 시도", the skeleton, and the theme choice and its store ([`design/components.md`](design/components.md)).
+  - `design/` — the components and helpers more than one feature or route draws through, one file each, and the one list of them: the brand's marks and the mascot's moving parts (`brand.tsx`, `mascot-drawings.ts`); the button's roles and sizes (`button.ts`); the one chip (`chip.tsx`); the modal sheet (`sheet.tsx`), its history entry (`use-back-entry.ts`), its focus trap (`focus-trap.ts`) and the confirm built on it (`confirm.tsx`); the search over a list (`search-field.tsx`); the label over a group (`section.tsx`); the read failure with "다시 시도" (`read-failure.tsx`); the skeleton (`skeleton.tsx`); `FittedLine` (`fitted-line.tsx`); the theme choice and its store (`theme-choice.tsx`, `theme.ts`); the canvas JPEG encoder (`encode-jpeg.ts`); and the classes ESLint refuses in the UI code (`class-rules.ts`).
   - `supabase/` — the Supabase adapter, the one vendor adapter.
   - `styles/` — the global stylesheet, the fonts link and the token tests.
   - `testing/` — test infrastructure, imported by tests alone.

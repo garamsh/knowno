@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { Section } from "@/design/section";
+
 import { activatePrompt } from "../activate-prompt";
 import { clearTestPrompt } from "../clear-test-prompt";
 import { formatTime } from "../format";
@@ -78,15 +80,14 @@ export function PromptView({
       </div>
       <DailyRates days={results.days} />
       {diff !== null && version.active !== null && (
-        <section aria-label="사용 중인 버전과 다른 점" className="flex flex-col gap-2">
-          <h2 className="px-1 text-section text-muted">
-            사용 중인 버전 {version.active.id}과 다른 점
-          </h2>
-          <p className="px-1 text-caption text-muted">
-            {changed === 0
+        <Section
+          label={`사용 중인 버전 ${String(version.active.id)}과 다른 점`}
+          note={
+            changed === 0
               ? "내용이 같아요."
-              : `바뀐 줄 ${String(changed)}개: 빼는 줄은 −, 더하는 줄은 +로 표시해요.`}
-          </p>
+              : `바뀐 줄 ${String(changed)}개: 빼는 줄은 −, 더하는 줄은 +로 표시해요.`
+          }
+        >
           <ol className="flex flex-col rounded-group bg-surface p-3 font-mono text-caption">
             {diff.map((line, index) => (
               <li
@@ -111,7 +112,7 @@ export function PromptView({
               </li>
             ))}
           </ol>
-        </section>
+        </Section>
       )}
       <VersionCalls
         versionId={version.id}
@@ -120,8 +121,7 @@ export function PromptView({
         more={more}
         timeZone={timeZone}
       />
-      <section aria-label="프롬프트" className="flex flex-col gap-2">
-        <h2 className="px-1 text-section text-muted">프롬프트</h2>
+      <Section label="프롬프트">
         <Link
           href={`/admin/ai/new?from=${String(version.id)}`}
           className="self-start px-1 text-body text-ink-2 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ink"
@@ -131,7 +131,7 @@ export function PromptView({
         <pre className="rounded-group bg-surface p-4 font-mono text-caption whitespace-pre-wrap">
           {version.text}
         </pre>
-      </section>
+      </Section>
     </>
   );
 }
