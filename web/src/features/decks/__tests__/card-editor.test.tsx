@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cardRow, deckRow, uuidOf } from "@/testing/library";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
@@ -20,15 +20,6 @@ const deckId = parseDeckId(uuidOf("deck"));
 const cardId = parseCardId(uuidOf("card"));
 if (!deckId || !cardId) throw new Error("fixture ids");
 const deck = { id: deckId, name: "단어장", public: false };
-
-beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = function () {
-    this.setAttribute("open", "");
-  };
-  HTMLDialogElement.prototype.close = function () {
-    this.removeAttribute("open");
-  };
-});
 let db: FakePostgrest;
 beforeEach(async () => {
   db = new FakePostgrest();

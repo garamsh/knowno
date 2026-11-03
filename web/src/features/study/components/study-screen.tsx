@@ -14,7 +14,7 @@ import {
 import { v7 } from "uuid";
 
 import { Mascot } from "@/design/brand";
-import { buttonClass } from "@/design/button";
+import { buttonClass, buttonSize } from "@/design/button";
 import { Chip } from "@/design/chip";
 import { FittedLine } from "@/design/fitted-line";
 
@@ -700,7 +700,7 @@ function AnswerButtons({
   const answerButton = (step: CoachStep) =>
     touch
       ? "sr-only"
-      : `${answerBase} min-h-cta flex-1 text-label ${highlight === step ? coachHighlight : ""}`;
+      : `${answerBase} ${buttonSize("cta")} flex-1 ${highlight === step ? coachHighlight : ""}`;
   return (
     <div className="flex justify-center gap-3">
       <button

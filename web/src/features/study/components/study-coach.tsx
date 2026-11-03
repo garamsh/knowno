@@ -34,9 +34,6 @@ export const coachLines: Record<"pointer" | "touch", Record<CoachStep, string>> 
   },
 };
 
-const button =
-  "pressable inline-flex items-center justify-center rounded-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
-
 /**
  * How the pointer coach marks the control its step names: a ring in the hero's colour, held, and
  * a press of the control just before the card moves, as an answer by it does; under reduce motion
@@ -90,7 +87,7 @@ export function CoachCaption({
             type="button"
             onClick={onPrevious}
             disabled={index === 0}
-            className={`${button} min-h-tap-target px-3 text-label text-ink-2 disabled:opacity-35`}
+            className={buttonClass("text", "header")}
           >
             이전
           </button>

@@ -38,12 +38,6 @@ const mp4 = new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x4d, 0x34, 0
 const digestOf = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = function () {
-    this.setAttribute("open", "");
-  };
-  HTMLDialogElement.prototype.close = function () {
-    this.removeAttribute("open");
-  };
   // jsdom makes no object URL and captures no pointer.
   URL.createObjectURL = () => "blob:picked";
   URL.revokeObjectURL = () => undefined;

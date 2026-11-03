@@ -47,6 +47,7 @@ describe("the design's class rules", () => {
   it.each([
     ["a button's type", "rounded-button bg-primary text-button", "rounded-button bg-surface"],
     ["the red fill", "rounded-button bg-dont-know-text", "text-dont-know-text"],
+    ["the old red pair", "bg-dont-know text-on-ink", "bg-dont-know-tint text-on-dont-know-tint"],
     ["a chip", "rounded-chip border px-3 py-1 text-section", "rounded-chip bg-surface"],
   ])("refuses %s drawn by hand outside src/design/ and passes the rest", (_, copy, other) => {
     for (const code of planted(copy)) expect(refusals(code, sharedRules)).toHaveLength(1);
@@ -55,14 +56,25 @@ describe("the design's class rules", () => {
 
   it("refuses a search field drawn by hand, and passes another input", () => {
     expect(refusals('const a = <input type="search" />;', sharedRules)).toHaveLength(1);
+    expect(refusals('const a = <input type={"search"} />;', sharedRules)).toHaveLength(1);
     expect(refusals('const a = <input type="text" />;', sharedRules)).toEqual([]);
+    expect(refusals('const a = <input type={"text"} />;', sharedRules)).toEqual([]);
   });
 
-  it("refuses a modal drawn by hand, and passes another dialog", () => {
-    expect(
-      refusals('const a = <div role="dialog" aria-modal="true" />;', sharedRules),
-    ).toHaveLength(1);
-    expect(refusals('const a = <div role="dialog" aria-label="안내" />;', sharedRules)).toEqual([]);
+  it.each([
+    ["aria-modal", '<div aria-modal="true" />'],
+    ["a dialog role", '<div role="dialog" aria-label="안내" />'],
+    ["an alert dialog role", '<div role={"alertdialog"} aria-label="안내" />'],
+    ["a dialog element", '<dialog open aria-label="안내" />'],
+  ])("refuses a modal drawn by hand by %s", (_, element) => {
+    expect(refusals(`const a = ${element};`, sharedRules)).toHaveLength(1);
+  });
+
+  it("passes a dialog opened through useModalDialog's props, and a region", () => {
+    expect(refusals('const a = <dialog {...modal} aria-labelledby="t" />;', sharedRules)).toEqual(
+      [],
+    );
+    expect(refusals('const a = <div role="region" aria-label="안내" />;', sharedRules)).toEqual([]);
   });
 
   it("refuses a section's label drawn by hand, and passes a heading in another place", () => {

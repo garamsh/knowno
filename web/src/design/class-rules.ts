@@ -67,11 +67,15 @@ export const sharedRules: Restriction[] = [
     "The red fill is the destructive final button's (@/design/button, @/design/confirm) or the don't-know chip's (@/design/chip).",
   ),
   ...inClasses(
+    `${start}bg-dont-know${end}`,
+    "The red final button is buttonClass('destructiveFinal') of @/design/button, one pair: bg-dont-know-text under text-on-dont-know-text.",
+  ),
+  ...inClasses(
     "rounded-chip.*text-section|text-section.*rounded-chip",
     "A status chip is Chip of @/design/chip.",
   ),
   {
-    selector: 'JSXAttribute[name.name="type"][value.value="search"]',
+    selector: 'JSXAttribute[name.name="type"] Literal[value="search"]',
     message: "A search over a list is SearchField of @/design/search-field.",
   },
   {
@@ -82,5 +86,15 @@ export const sharedRules: Restriction[] = [
   {
     selector: 'JSXAttribute[name.name="aria-modal"]',
     message: "A modal is Sheet of @/design/sheet, or Confirm of @/design/confirm.",
+  },
+  {
+    selector: 'JSXAttribute[name.name="role"] Literal[value=/^(alert)?dialog$/]',
+    message: "A modal is Sheet of @/design/sheet, or Confirm of @/design/confirm.",
+  },
+  {
+    // A dialog opened through useModalDialog spreads its props; one with none is drawn by hand.
+    selector: 'JSXOpeningElement[name.name="dialog"]:not(:has(JSXSpreadAttribute))',
+    message:
+      "A modal is Sheet of @/design/sheet, or Confirm of @/design/confirm; a screen opens through useModalDialog.",
   },
 ];

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { delay, http, HttpResponse } from "msw";
 import { render } from "@/testing/render";
 import { cardRow, deckRow, side, uuidOf } from "@/testing/library";
@@ -17,16 +17,7 @@ import { parseDeckId } from "../library";
 import { field } from "@/supabase/row";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = function () {
-    this.setAttribute("open", "");
-  };
-  HTMLDialogElement.prototype.close = function () {
-    this.removeAttribute("open");
-  };
-});
-let db: FakePostgrest;
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));let db: FakePostgrest;
 beforeEach(async () => {
   db = new FakePostgrest();
   db.seed("decks", deckRow("deck", "단어장"));

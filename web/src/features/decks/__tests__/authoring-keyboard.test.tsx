@@ -1,6 +1,6 @@
 import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { uuidOf } from "@/testing/library";
 import { render } from "@/testing/render";
@@ -14,15 +14,6 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const deckId = parseDeckId(uuidOf("deck"));
 if (!deckId) throw new Error("fixture ids");
 const deck = { id: deckId, name: "단어장", public: false };
-
-beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = function () {
-    this.setAttribute("open", "");
-  };
-  HTMLDialogElement.prototype.close = function () {
-    this.removeAttribute("open");
-  };
-});
 
 /** The part of the page a browser shows, which jsdom lacks: 844 px high from the top at first. */
 class VisibleArea extends EventTarget {

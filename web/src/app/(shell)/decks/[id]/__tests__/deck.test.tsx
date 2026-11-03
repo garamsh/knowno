@@ -21,12 +21,6 @@ import { Study } from "../../../../study/_components/study";
 // compiles the module.
 beforeAll(async () => {
   await loadEngine();
-  HTMLDialogElement.prototype.showModal = function () {
-    this.setAttribute("open", "");
-  };
-  HTMLDialogElement.prototype.close = function () {
-    this.removeAttribute("open");
-  };
 }, 30_000);
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));

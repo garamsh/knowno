@@ -42,6 +42,15 @@ const sizes: Record<ButtonSize, string> = {
 };
 
 /**
+ * A button's height and type alone, for a button whose fill no role names: study's answers on
+ * their 안다 and 모른다 tints, which the phone has no button for since it answers by a swipe,
+ * drawn at the size the phone's `AppButton` gives a cta, `AppType.button`.
+ */
+export function buttonSize(size: ButtonSize): string {
+  return sizes[size];
+}
+
+/**
  * The classes of the one button, for a `<button>`, a link or a label drawn as one: its role's fill
  * and text on the `button` radius, its size, the press of `.pressable`, a visible focus ring and
  * the disabled dim. A caller adds only where the button sits — its width, its flex share, its
@@ -49,5 +58,5 @@ const sizes: Record<ButtonSize, string> = {
  */
 export function buttonClass(variant: ButtonVariant, size: ButtonSize = "regular"): string {
   const padding = unfilled.has(variant) ? "px-1" : size === "header" ? "px-4" : "px-5";
-  return `pressable flex items-center justify-center gap-2 rounded-button text-center break-keep not-disabled:cursor-pointer outline-offset-2 focus-visible:outline-2 has-focus-visible:outline-2 disabled:opacity-50 ${padding} ${sizes[size]} ${fills[variant]}`;
+  return `pressable flex items-center justify-center gap-2 rounded-button text-center break-keep not-disabled:cursor-pointer outline-offset-2 focus-visible:outline-2 has-focus-visible:outline-2 disabled:opacity-50 ${padding} ${buttonSize(size)} ${fills[variant]}`;
 }
