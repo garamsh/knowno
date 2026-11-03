@@ -15,7 +15,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - the owner-approved canvas itself used four title sizes (22, 24, 26, 28) and six radii (14 to 24).
 - ADR 0011 allowed sizes and timings to stay as constants beside the screen that uses them. That left the values above free to drift, one screen at a time.
 - The PM decided the scales and the component set in issue #58; this ADR records them as the project's rule. Alternatives considered:
-  - Keep Material's widgets and theme them only through `ThemeData`. A theme can set a dialog's colours but not its layout: the "새 덱" dialog would still put two small text buttons at the top of the screen, against [`design.md`](../design.md) principle 1.
+  - Keep Material's widgets and theme them only through `ThemeData`. A theme can set a dialog's colours but not its layout: the "새 덱" dialog would still put two small text buttons at the top of the screen, against [`design/principles.md`](../design/principles.md) §One primary action per screen.
   - Put the components in a domain, or in each domain. They serve every domain, so in one domain the others would depend on it for buttons; in each, they would drift apart again.
   - A third-party component library. It would bring its own visual language to restyle, and a dependency to pin and move, for widgets that are each a few dozen lines over Material.
 

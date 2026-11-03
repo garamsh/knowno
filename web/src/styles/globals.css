@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* The tokens of app/lib/design/theme.dart (docs/architecture/design.md), light first. */
+/* The tokens of app/lib/design/theme.dart (docs/architecture/design/theme.md), light first. */
 @theme {
   --color-ground: #eef3ff;
   --color-surface: #ffffff;
@@ -538,7 +538,7 @@
 }
 
 /* Every button and row's hover and pressed state, as the phone's AppButton shows pressed
-   feedback (design.md §Details): a dim, a layer of the control's own text colour at 4% over its
+   feedback (design/principles.md §Meaningful motion): a dim, a layer of the control's own text colour at 4% over its
    fill, with no change of size. A solid object sits on an edge of a darker colour, a hard offset
    with no blur, and a press moves it down onto that edge; reduce motion keeps the dim alone. */
 @layer components {

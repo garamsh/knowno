@@ -7,7 +7,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 
 ## Context
 
-- **Issue #593.** At 390 px the web opened 새 노트, 새 카드, photo import and spreadsheet import in one bottom sheet, `AuthoringSheet`, as ADR 0122's "grouped app-aligned sheets" had them, while the phone pushes each as a screen: a title bar, the fields, and its actions in a bar at the foot. The owner's rule of 2026-11-03, recorded on #579 and in `design.md` §Principles 9, makes mobile web the app: the web differs only in input and in what a width calls for.
+- **Issue #593.** At 390 px the web opened 새 노트, 새 카드, photo import and spreadsheet import in one bottom sheet, `AuthoringSheet`, as ADR 0122's "grouped app-aligned sheets" had them, while the phone pushes each as a screen: a title bar, the fields, and its actions in a bar at the foot. The owner's rule of 2026-11-03, recorded on #579 and in `design/principles.md` §One style on every client, makes mobile web the app: the web differs only in input and in what a width calls for.
 - **The browser's back left the page.** A sheet was component state, so the back closed nothing: it left the note, and an edited card with it, without the question the phone's back asks.
 - **The phone's sheets stay sheets.** 카드 추가, 칸 추가, 추가할 노트, photo import's 새 노트 and card edit, 파일에서 카드 추가 and every discard question are sheets on the phone too.
 - **Next.js 16.4.1 keeps a page's own history entries.** Its `pushState` patch copies the router's state into an entry the page pushes, a same-address entry included, and a traversal to one restores the page from the tree it holds (`dist/client/components/app-router.js`, `copyNextJsInternalHistoryState` and `handlePopState`).

@@ -78,7 +78,7 @@ The app's `home/` shell: the signed-in screens that show more than one domain or
 ### Interface
 
 - Every string the screens show comes from the shared ARB set, and every tap target carries a semantic label: its text, or a tooltip for an icon button.
-- The screens follow the principles and the theme of [`design.md`](design.md).
+- The screens follow the principles and the theme of [`design/`](design/principles.md).
 
 ### Tests
 

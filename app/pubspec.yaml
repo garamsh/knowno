@@ -52,7 +52,7 @@ dependencies:
   image: ^4.12.0
   http: ^1.6.0
   connectivity_plus: ^7.3.2
-  # Lucide's 2 px, round-capped icons (docs/architecture/design.md).
+  # Lucide's 2 px, round-capped icons (docs/architecture/design/brand.md).
   lucide_icons_flutter: 4.0.1
   url_launcher: 6.3.3
   package_info_plus: 10.2.2
@@ -117,8 +117,8 @@ flutter:
   # ofl/jua/Jua-Regular.ttf and OFL.txt of github.com/google/fonts at commit
   # 6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec (SHA-256
   # 769677aef240bfc3b9965f2b50748075bff885e6c6992fc591a3fb268279f898).
-  # Google's "G" mark, from its Sign in with Google assets (docs/architecture/design.md).
-  # The brand's stacked lockup and circled mark (docs/architecture/design.md).
+  # Google's "G" mark, from its Sign in with Google assets (docs/architecture/design/theme.md).
+  # The brand's stacked lockup and circled mark (docs/architecture/design/brand.md).
   assets:
     - assets/fonts/OFL.txt
     - assets/fonts/OFL-Jua.txt

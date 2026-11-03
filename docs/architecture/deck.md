@@ -130,7 +130,7 @@ Cards from an `.xlsx` or a UTF-8 `.csv`, read on the device with no AI call ([AD
 
 - Every string the screens show comes from the shared ARB set.
 - Every tap target carries a semantic label: its text, or a tooltip for an icon button.
-- The screens follow the principles and the theme of [`design.md`](design.md). Widget tests check each screen against Flutter's `labeledTapTargetGuideline`, `androidTapTargetGuideline` and `textContrastGuideline` in the light and the dark theme.
+- The screens follow the principles and the theme of [`design/`](design/principles.md). Widget tests check each screen against Flutter's `labeledTapTargetGuideline`, `androidTapTargetGuideline` and `textContrastGuideline` in the light and the dark theme.
 - An empty deck name or card side is refused with a message on its field.
 
 ### Row
@@ -165,7 +165,7 @@ Cards from an `.xlsx` or a UTF-8 `.csv`, read on the device with no AI call ([AD
     - The block's one action is a small outlined chip right under the line while the line has focus, never a primary fill, and follows the caret ([ADR 0117](adr/0117-draw-the-card-editor-as-one-group-per-side-with-a-full-screen-preview-and-every-action-in-words-or-a-row-menu.md)).
       - With the caret in a blank, between its ends or at either end, so a tap on a blank of one character reaches it, or a selection the blank holds, it reads "빈칸 풀기", named for a screen reader as "빈칸 풀기, {answer}" ("빈칸" while empty), and turns exactly that blank back into text.
       - Elsewhere it reads "빈칸 넣기". With characters selected in the line, it makes exactly them a blank, any run of characters, punctuation included, replacing the blanks it overlaps: `H₂O예요` blanks `H₂O`, `서울은` blanks `서울`. With none selected, it opens an empty blank at the cursor, a cursor beside a blank being in it; what is typed there becomes its answer until the cursor leaves it, and one left empty goes. An empty blank is drawn in the line as a gap over a `muted` underline, ending where the caret stands; the line's text is unchanged by it.
-    - A selection in the line stays, with its "빈칸 넣기", while the editor scrolls, however the drag starts ([ADR 0171](adr/0171-give-every-type-in-the-add-sheet-an-icon-and-a-line-and-keep-a-field-s-selection-through-a-scrolling-drag.md), `design.md` §Components).
+    - A selection in the line stays, with its "빈칸 넣기", while the editor scrolls, however the drag starts ([ADR 0171](adr/0171-give-every-type-in-the-add-sheet-an-icon-and-a-line-and-keep-a-field-s-selection-through-a-scrolling-drag.md), `design/components.md`).
     - No row under the line repeats the blanks; the blocks in it show them.
     - Blanks are spans of the line ([ADR 0092](adr/0092-make-each-chosen-cloze-word-a-blank-of-its-own-without-its-punctuation-narrowable-to-letters-and-keep-stored-blanks-through-an-edit.md)): a stored cloze opens with each blank where the card has it, and an edit to the line keeps every blank it leaves whole, before or after the changed part, and leaves out one it changes.
     - The block shows no count of its blanks and no line explaining them.

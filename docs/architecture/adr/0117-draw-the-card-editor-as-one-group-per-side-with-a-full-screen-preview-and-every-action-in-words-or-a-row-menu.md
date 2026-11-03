@@ -12,7 +12,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - the split preview at its top named neither half, and the fields under it repeated it;
   - the full-width outlined "+ 앞면에 추가" read as the line between the sides, and on an empty back it was the back;
   - one viewport held seven to nine bordered shapes of similar weight.
-- **Issue #449** found two defects against `design.md` §Principles:
+- **Issue #449** found two defects against `design/principles.md`:
   - a one-meaning 뜻 목록 labelled its field with the side's name, under the side's own label;
   - the 빈칸 문장 bar's "빈칸 넣기" was a second navy fill beside "저장하고 다음 카드".
 - **Issue #445** applies [ADR 0116](0116-draw-an-icon-only-where-it-says-what-the-words-beside-it-do-not-or-follows-the-platform.md) to the editor. A type icon on each block's header, the tinted icon squares in the add sheet, the layers icon before the deck's name and each sense's ↑ ↓ 🗑 buttons all say what words beside them say.

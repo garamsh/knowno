@@ -66,7 +66,7 @@ The `sharing` domain: publishing a deck, and browsing, previewing, copying, repo
 ### Interface
 
 - Every string comes from the shared ARB set, in Korean and English. Icon buttons carry tooltips, headings are marked as headers, progress indicators carry a label, and a sheet's error is a live region.
-- The screens follow [`design.md`](design.md) and are built from the shared components ([ADR 0021](adr/0021-type-and-spacing-scales-and-a-shared-component-layer.md)): browse rows are `AppListRow`s, the preview's cards `CardSplitRow`s, the publish, import and report sheets `AppSheet`s, the block confirmation `showAppConfirm`, the chip `AppChip`, and each screen's or sheet's one primary action an `AppButton` at the bottom.
+- The screens follow [`design/`](design/principles.md) and are built from the shared components ([ADR 0021](adr/0021-type-and-spacing-scales-and-a-shared-component-layer.md)): browse rows are `AppListRow`s, the preview's cards `CardSplitRow`s, the publish, import and report sheets `AppSheet`s, the block confirmation `showAppConfirm`, the chip `AppChip`, and each screen's or sheet's one primary action an `AppButton` at the bottom.
 
 ### Tests
 

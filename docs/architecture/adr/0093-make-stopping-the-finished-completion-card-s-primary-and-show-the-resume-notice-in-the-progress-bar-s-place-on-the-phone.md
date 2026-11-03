@@ -7,10 +7,10 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 
 ## Context
 
-- **Issue #318**, filed by QA and accepted by the PM. It found two places where the phone's study screen breaks `design.md` §Principles.
+- **Issue #318**, filed by QA and accepted by the PM. It found two places where the phone's study screen breaks `design/principles.md`.
 - **The finished completion card.** With no new card left past today's, the completion card shows "더 학습할 카드가 없어요" as text ([ADR 0049](0049-study-in-one-flow-that-goes-on-past-today-s-cards-as-recorded-study-with-the-current-card-showing-its-front-alone.md)).
   - Its only action is then "그만하기", which [ADR 0035](0035-show-the-previous-and-current-study-card-reach-earlier-cards-three-at-a-time-re-decide-the-centred-card-and-grade-each-card-by-its-colour-and-a-chip.md) set at 44 high on both clients, as a quiet text button.
-  - At the session's natural end, the one thing left to do was the least prominent element on the card, against `design.md` §Principles 1, "One primary action per screen".
+  - At the session's natural end, the one thing left to do was the least prominent element on the card, against `design/principles.md` §One primary action per screen.
 - **The resume notice.** [ADR 0064](0064-teach-study-with-a-first-use-finger-coach-and-show-the-day-s-last-card-and-a-brief-notice-when-a-day-resumes.md) shows "이어서 해요 · 남은 n장 · 약 m분" for 3 s under the progress bar.
   - Drawn 8 pt under the top bar across the cards' margins, it landed on the day's last card, flush against its "안다" chip, for those 3 s.
   - The gap above that card is 20 pt and the notice is about 36 pt tall, so it cannot sit in the gap.
