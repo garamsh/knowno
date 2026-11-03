@@ -464,3 +464,99 @@ test("adds a 사진 칸 with its boxes and a 소리 칸, which study draws and p
   expect(await held(photoId)).toBe(true);
   expect(await rows()).toEqual([{ id: photoId, kind: "image", mime_type: "image/jpeg" }]);
 });
+
+test("keeps a 빈칸 문장's selection and its 빈칸 넣기 while the editor scrolls, by touch and by the wheel", async ({
+  browser,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  const context = await browser.newContext({
+    baseURL,
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 390, height: 844 },
+  });
+  const page = await context.newPage();
+  const { db, userId } = await signUp(context, baseURL);
+  const deckId = randomUUID();
+  const time = new Date(Date.now() - 86_400_000).toISOString();
+  const deck = await db.from("decks").insert({
+    id: deckId,
+    user_id: userId,
+    name: "빈칸 단어장",
+    visibility: "private",
+    created_at: time,
+    updated_at: time,
+  });
+  expect(deck.error).toBeNull();
+  await page.goto(`/decks/${deckId}`);
+  const manual = page.getByRole("button", { name: "직접 입력" });
+  await untilReacted(
+    () => page.getByRole("button", { name: "카드 추가" }).click(),
+    () => manual.isVisible(),
+  );
+  await manual.click();
+  const dialog = page.getByRole("dialog", { name: "새 카드" });
+  // Enough 칸 after the line that the editor scrolls.
+  for (const name of ["빈칸 문장", "글", "글", "글"]) {
+    await dialog.getByRole("button", { name: "+ 칸 추가" }).click();
+    await page
+      .getByRole("dialog", { name: "칸 추가" })
+      .getByRole("button", { name, exact: true })
+      .click();
+  }
+  const line = page.getByRole("textbox", { name: "문장", exact: true });
+  await line.fill("The capital of France is Paris");
+  await line.evaluate((field: HTMLTextAreaElement) => {
+    field.scrollIntoView({ block: "start" });
+    field.focus();
+    field.setSelectionRange(4, 11);
+  });
+  const insert = page.getByRole("button", { name: "빈칸 넣기", exact: true });
+  await expect(insert, "setup: the action shows").toBeVisible();
+  const scroller = dialog.locator(".overflow-y-auto");
+  const offset = () => scroller.evaluate((element) => element.scrollTop);
+  const selection = () =>
+    line.evaluate((field: HTMLTextAreaElement) => [field.selectionStart, field.selectionEnd]);
+  const kept = async (how: string) => {
+    await expect(line, how).toBeFocused();
+    expect(await selection(), how).toEqual([4, 11]);
+    await expect(insert, how).toBeVisible();
+  };
+
+  // A touch drag off the line, on the 글 under it, back toward the top.
+  const before = await offset();
+  const cdp = await context.newCDPSession(page);
+  const box = await dialog.getByRole("textbox", { name: "앞면", exact: true }).nth(1).boundingBox();
+  if (!box) throw new Error("setup: a 글 under the line is on screen");
+  await cdp.send("Input.synthesizeScrollGesture", {
+    x: Math.round(box.x + box.width / 2),
+    y: Math.round(box.y + box.height / 2),
+    yDistance: 200,
+    gestureSourceType: "touch",
+    speed: 800,
+  });
+  await expect.poll(offset, { message: "it scrolled by touch" }).not.toBe(before);
+  await kept("by touch");
+  // Shot as scrolled, at the phone's height rather than capture's.
+  const directory = process.env.E2E_SCREENSHOTS;
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    if (directory)
+      await page.screenshot({
+        path: `${directory}/${colorScheme}/web-card-editor-cloze-scrolled-390.png`,
+      });
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+
+  // The wheel, as a pointer scrolls.
+  const touched = await offset();
+  await page.mouse.move(box.x + box.width / 2, box.y);
+  await page.mouse.wheel(0, 120);
+  await expect.poll(offset, { message: "it scrolled by the wheel" }).not.toBe(touched);
+  await kept("by the wheel");
+
+  await insert.click();
+  await expect(page.getByRole("button", { name: "빈칸 풀기, capital", exact: true })).toBeVisible();
+  await context.close();
+});

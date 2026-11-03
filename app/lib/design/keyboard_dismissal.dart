@@ -5,7 +5,9 @@ import 'package:flutter/widgets.dart';
 /// lands on nothing that handles it or a drag scrolls a scrollable that holds
 /// that field. A tap that a button or another field handles does what it did.
 /// A tap on a field's selection handles or toolbar, and a drag that starts on
-/// the focused field's text, keep it, so a selection survives being adjusted.
+/// the focused field's text, keep it, so a selection survives being adjusted;
+/// so does any drag while the field holds a selection of characters, so the
+/// selection survives scrolling.
 ///
 /// The app root wraps every route in it, so the rule holds on every screen.
 class KeyboardDismissal extends StatefulWidget {
@@ -57,6 +59,7 @@ class _KeyboardDismissalState extends State<KeyboardDismissal> {
           if (notification.dragDetails != null &&
               _start != _Start.focusedField &&
               focused != null &&
+              !_holdsSelection(focused) &&
               _holds(notification.context, focused.context)) {
             focused.unfocus();
           }
@@ -83,6 +86,16 @@ class _KeyboardDismissalState extends State<KeyboardDismissal> {
     final FocusScopeNode _ => null,
     final node => node,
   };
+
+  /// Whether [field] is a text field holding a selection of characters,
+  /// which a scrolling drag keeps so the selection can still be acted on.
+  static bool _holdsSelection(FocusNode field) {
+    final selection = field.context
+        ?.findAncestorStateOfType<EditableTextState>()
+        ?.textEditingValue
+        .selection;
+    return selection != null && selection.isValid && !selection.isCollapsed;
+  }
 
   /// Whether [scrollable] is an ancestor of [field], so a drag on a strip
   /// beside the field, or inside the field's own scrolling text, keeps the

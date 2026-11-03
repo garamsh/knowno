@@ -434,6 +434,72 @@ void main() {
       },
       variant: _phones,
     );
+
+    testWidgets(
+      'is kept, with its action, through a drag that starts off the line and scrolls the form, where a caret alone closes the keyboard',
+      (tester) async {
+        final screens = await selectCapital(tester, longer);
+        final form = tester.state<ScrollableState>(
+          find.ancestor(of: _line, matching: find.byType(Scrollable)).first,
+        );
+        expect(form.position.maxScrollExtent, greaterThan(0), reason: 'setup');
+
+        /// Drags the form by the row after the last group, in the form and
+        /// off the line, and returns whether it scrolled.
+        Future<bool> dragForm() async {
+          final before = form.position.pixels;
+          final start = tester.getCenter(addRow);
+          final hit = [
+            for (final entry in tester.hitTestOnBinding(start).path)
+              entry.target,
+          ];
+          expect(
+            hit,
+            contains(tester.renderObject(addRow)),
+            reason: 'setup: on screen, above the keyboard',
+          );
+          expect(
+            hit,
+            isNot(contains(line(tester))),
+            reason: 'setup: off the line',
+          );
+          final drag = await tester.startGesture(start);
+          for (var step = 0; step < 6; step++) {
+            await drag.moveBy(Offset(0, before > 0 ? 10 : -10));
+            await tester.pump();
+          }
+          await drag.up();
+          await tester.pumpAndSettle();
+          return form.position.pixels != before;
+        }
+
+        final scrolled = await dragForm();
+        expect(
+          tester.testTextInput.isVisible,
+          isTrue,
+          reason: 'the line keeps the focus',
+        );
+        expect(scrolled, isTrue, reason: 'it scrolled');
+        expect(_controller(tester).selection, capital);
+        expect(insert, findsOneWidget, reason: 'its action is offered');
+        expect(
+          tester.widget<TextField>(_line).focusNode!.hasFocus,
+          isTrue,
+          reason: 'the selection is drawn while the line has the focus',
+        );
+
+        // Control: the same drag with the caret alone closes the keyboard.
+        _controller(tester).selection = const TextSelection.collapsed(
+          offset: 13,
+        );
+        await tester.pump();
+        expect(tester.testTextInput.isVisible, isTrue, reason: 'setup');
+        await dragForm();
+        expect(tester.testTextInput.isVisible, isFalse);
+        await screens.close();
+      },
+      variant: _phones,
+    );
   });
 
   for (final mode in [ThemeMode.light, ThemeMode.dark]) {
