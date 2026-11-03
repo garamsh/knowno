@@ -327,8 +327,9 @@ The Supabase schema the app syncs to, and the extraction count, the plans and th
 ### Special plan migration
 
 - Migration `20261103143442_special_plan.sql` makes unlimited use the plan 스페셜 ([ADR 0177](adr/0177-make-unlimited-use-the-plan-special-that-no-user-sees-put-every-admin-on-it-and-move-each-unlimited-grant-onto-it.md), #649). It changes existing data, so it merges only after the owner approves it (§Location and migrations, "Gate").
-- It widens the plan checks to `special` and the quota check to `none`, gives 스페셜 one version, `none` from the migration, and seeds its active AI configuration as a copy of Max's.
-- `private.migrate_special_plan()` moves, and the migration calls it once:
+- It widens the plan checks to `special` and the quota check to `none`, and gives 스페셜 one version, `none` from the migration.
+- `private.migrate_special_plan()` seeds and moves, and the migration calls it once:
+  - while 스페셜 has no active AI configuration, it gives it a copy of Max's active one;
   - each 무제한 grant that has not ended becomes a 스페셜 grant in `private.user_plans` with its end, granter and time, on 스페셜's version;
   - the Pro or Max grant it replaces is first kept in `private.user_plans_before_special`;
   - a grant that had already ended is not moved, so its user keeps its plan;
@@ -419,6 +420,7 @@ The Supabase schema the app syncs to, and the extraction count, the plans and th
   - `revision_lock_test.sql` — a write to each table holds its user's advisory lock, and only that user's;
   - `integrity_test.sql` — references to another user's deck or card are refused;
   - `extraction_usage_test.sql` — users read only their own usage rows and write none, `begin_extraction` lets a user through until the plan's daily limit from 00:00 in Seoul, under that user's lock alone, and `consume_extraction` and `start_extraction` are gone, with `begin_extraction` as control;
+  - `special_plan_migration_test.sql` — 스페셜 served the provider and model Max is on the migrated state, and, with Max and Free configured apart, the seed copying Max's and not Free's, once over two runs;
   - `special_plan_test.sql` — 스페셜's one version with no limit, a limiting quota on it and its quota on another plan refused, with Max's own as control; a Free user at its limit refused with nothing recorded, as control, and a 스페셜 user, an admin with a Pro grant and a 스페셜 ending later allowed again and again on 스페셜's model with no limit, each photo recorded as 스페셜's; an ended 스페셜 back on Free and refused; the allowance null for a 스페셜 user and an admin with the day's photos, and the control's limit by the month; the one function `authenticated` may run outside the admin functions that reads a plan being the allowance, against the same search finding the admin functions; no client reading the grants, the versions, the entitlement or the rule, nor reading, giving or removing 스페셜 through the admin functions; an admin read on 스페셜 beside its own Pro grant; 스페셜 given with a later end, an end past refused, the grantee allowed, removed back to Free, both recorded; and the migration's move, run twice, putting each grant that had not ended on 스페셜 with its end, granter and time, the ended one left on Pro as control, and the replaced Pro grant kept once;
   - `extraction_allowance_test.sql` — a caller on Free by the month, Pro by the day, Max unlimited with its fair-use cap and an ended Max reading its limit, period and count, each agreeing with what `begin_extraction` applies, last month's and yesterday's photos not counted and this month's counted, each quota refusing the photo after its last, `authenticated` holding `execute`, and `anon` refused;
   - `fuzz_factor_test.sql` — a review's fuzz factor is checked to `[0, 1)` and inserted by its client, which cannot update it, with an update of the rating as control;

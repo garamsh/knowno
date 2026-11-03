@@ -84,25 +84,28 @@ alter table private.ai_configuration_labels
 insert into private.plan_versions (plan, quota, amount, starts_at)
   values ('special', 'none', null, now());
 
--- Special's model is Max's until an admin saves another.
-with copied as (
-  insert into private.ai_configurations (plan, provider, model)
-    select 'special', c.provider, c.model
-    from private.ai_configuration_labels as l
-    join private.ai_configurations as c on c.id = l.configuration_id
-    where l.plan = 'max' and l.label = 'active'
-    returning id
-)
-insert into private.ai_configuration_labels (plan, label, configuration_id)
-  select 'special', 'active', copied.id from copied;
-
--- Moves each 무제한 grant in the backup that has not ended onto special, with its end, granter and
--- time, first keeping the Pro or Max grant it replaces. A second run straight after changes nothing.
+-- Gives special a copy of Max's active configuration while it has no active one, so its model is
+-- Max's until an admin saves another. Moves each 무제한 grant in the backup that has not ended
+-- onto special, with its end, granter and time, first keeping the Pro or Max grant it replaces. A
+-- second run straight after changes nothing.
 create function private.migrate_special_plan() returns void
 language plpgsql
 set search_path = ''
 as $$
 begin
+  with copied as (
+    insert into private.ai_configurations (plan, provider, model)
+      select 'special', c.provider, c.model
+      from private.ai_configuration_labels as l
+      join private.ai_configurations as c on c.id = l.configuration_id
+      where l.plan = 'max' and l.label = 'active'
+        and not exists (select from private.ai_configuration_labels as s
+          where s.plan = 'special' and s.label = 'active')
+      returning id
+  )
+  insert into private.ai_configuration_labels (plan, label, configuration_id)
+    select 'special', 'active', copied.id from copied;
+
   insert into private.user_plans_before_special
       (user_id, plan, ends_at, granted_by, granted_at, version_id)
     select p.user_id, p.plan, p.ends_at, p.granted_by, p.granted_at, p.version_id
