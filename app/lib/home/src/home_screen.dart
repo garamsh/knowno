@@ -68,12 +68,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  /// Opens the photo import under way, then, on 노트, the deck it saved into.
+  /// Opens the photo import under way, then, on 노트, the deck it saved into,
+  /// or its deck under the way the user chose to add the cards instead.
   Future<void> _openImport(PhotoImports imports) async {
-    final deck = await openPhotoImport(context, imports);
-    if (deck == null || !mounted) return;
-    _openDeck(deck);
+    final outcome = await openPhotoImport(context, imports);
+    if (outcome == null || !mounted) return;
+    final navigator = Navigator.of(context);
+    switch (outcome) {
+      case PhotoImportSaved(:final deck):
+        _openDeck(deck);
+      case AddByHandInstead(deck: final id):
+        final deck = _deckOf(id);
+        if (deck == null) return;
+        _openDeck(deck);
+        await navigator.push(
+          MaterialPageRoute<void>(
+            builder: (_) => CardEditorScreen(
+              deck: deck,
+              preview: (cells) => CardPreviewScreen(cells: cells),
+            ),
+          ),
+        );
+      case AddFromSpreadsheetInstead(deck: final id):
+        final deck = _deckOf(id);
+        if (deck == null) return;
+        _openDeck(deck);
+        await importFromSpreadsheet(context, id);
+    }
   }
+
+  /// The deck stored under [id], or null once it is gone.
+  Deck? _deckOf(DeckId id) => switch (ref.read(decksProvider)) {
+    AsyncData(value: final decks) =>
+      decks.where((deck) => deck.id == id).firstOrNull,
+    _ => null,
+  };
 
   /// Shows 노트 and opens [deck]'s screen on its navigator.
   void _openDeck(Deck deck, {bool addingCard = false}) {

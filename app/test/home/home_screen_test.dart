@@ -24,6 +24,7 @@ import 'package:knowno/study/study.dart';
 
 import '../contrast.dart';
 import '../media/fakes.dart';
+import '../photo_import/fakes.dart';
 import 'home_data.dart';
 import '../study/minutes_sheet.dart';
 import '../study/study_storage.dart';
@@ -56,6 +57,12 @@ class _List {
 
   /// Each deck's id by name.
   final Map<String, DeckId> ids;
+
+  /// The extraction client photo import reads through.
+  final extraction = FakeExtractionClient();
+
+  /// The app's photo import jobs, where [_open] was asked for them.
+  PhotoImports? imports;
 
   /// The decks of the study session open on top.
   Set<DeckId> get session =>
@@ -119,7 +126,7 @@ class _List {
 /// says otherwise, in the light theme unless [theme] is another, with
 /// [dailyMinutes] stored when given. [photoImport] stands in for the photo import
 /// when given: a screen it pushes, which pops with what photo import resolves
-/// to.
+/// to. With [importing], the app's photo import jobs are [_List.imports].
 /// Hands out [photo] on each pick.
 final class _OnePhoto implements ImagePick {
   const _OnePhoto(this.photo);
@@ -153,14 +160,17 @@ Future<_List> _open(
   ThemeData? theme,
   int? dailyMinutes,
   PreparedImage? photo,
+  bool importing = false,
 }) async {
-  Future<Deck?> pushed(
+  Future<PhotoImportOutcome?> pushed(
     BuildContext context,
     DeckId? deck,
     PhotoOrigin origin,
-  ) => Navigator.of(
-    context,
-  ).push(MaterialPageRoute<Deck>(builder: (_) => photoImport!(deck, origin)));
+  ) => Navigator.of(context).push(
+    MaterialPageRoute<PhotoImportOutcome>(
+      builder: (_) => photoImport!(deck, origin),
+    ),
+  );
   // A phone's screen, so the 오늘 tab's decks are on it.
   tester.view.physicalSize = screen;
   tester.view.devicePixelRatio = 1;
@@ -251,6 +261,17 @@ Future<_List> _open(
   }))!;
   repository.unreadable.addAll([for (final name in unreadable) created[name]!]);
   final list = _List(tester, repository, created);
+  final imports = importing
+      ? PhotoImports(
+          client: list.extraction,
+          photos: FakePhotoSource(),
+          preferences: await openPreferences(tester),
+          store: MemoryImportJobStore(),
+          decks: repository,
+        )
+      : null;
+  await tester.runAsync(() async => imports?.restore());
+  list.imports = imports;
   final storage = await openStudyStorage(tester, minutesAsked: minutesAsked);
   // With a [photo], the device's media store and a pick that hands it out.
   final directory = photo == null ? null : newMediaDirectory();
@@ -270,6 +291,7 @@ Future<_List> _open(
         deckRepositoryProvider.overrideWithValue(repository),
         ...homeOverrides(db, storage: storage),
         if (photoImport != null) photoImportProvider.overrideWithValue(pushed),
+        if (imports != null) photoImportsProvider.overrideWithValue(imports),
         if (spreadsheet != null)
           spreadsheetPickProvider.overrideWithValue(spreadsheet),
         if (media != null) mediaStoreProvider.overrideWithValue(media),
@@ -398,6 +420,44 @@ void main() {
         await list.close();
       },
     );
+  });
+
+  group('photo import', () {
+    for (final (action, opened) in [
+      ('Enter by hand', 'New card'),
+      ('Excel or CSV file', 'Add cards from a file'),
+    ]) {
+      testWidgets(
+        'reopened from the bar where photo import is unavailable, $action opens its way on the job\'s note in 노트, and back returns to that note',
+        (tester) async {
+          final list = await _open(tester, importing: true);
+          final imports = list.imports!;
+          final job = imports.create(list.ids['Beta'], PhotoOrigin.camera);
+          imports.attach(job);
+          await job.add([() async => testPhoto]);
+          await tester.pump();
+          list.extraction.fail(const ExtractionUnavailable());
+          await tester.pumpAndSettle();
+          expect(list.extraction.calls, hasLength(1));
+
+          await tester.tap(find.byType(PhotoImportBar));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text(action));
+          await tester.pumpAndSettle();
+          expect(shownText(opened), findsOneWidget);
+          expect(imports.job, isNull, reason: 'the job ended');
+
+          await tester.binding.handlePopRoute();
+          await tester.pumpAndSettle();
+          expect(shownText(opened), findsNothing);
+          expect(
+            tester.widget<DeckScreen>(find.byType(DeckScreen)).deck.id,
+            list.ids['Beta'],
+          );
+          await list.close();
+        },
+      );
+    }
   });
 
   group('홈', () {
