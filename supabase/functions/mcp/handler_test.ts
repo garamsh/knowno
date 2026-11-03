@@ -49,14 +49,20 @@ type Fake = {
   media: Row[];
   /** The bucket's files by path, as the Storage API received them. */
   objects: Map<string, { bytes: Uint8Array; type: string | null }>;
-  /** "refusing" makes the Storage API answer every upload 400. */
-  storage: "up" | "refusing";
+  /**
+   * "refusing" makes the Storage API answer every upload and deletion 400, and "keeping" every
+   * deletion alone.
+   */
+  storage: "up" | "refusing" | "keeping";
   /** The replies of the internet, by URL. */
   web: Record<string, () => Response>;
   /** Each host's addresses; a host absent here has one public address. */
   dns: Record<string, string[]>;
-  /** "offline" makes every request to PostgREST fail to arrive. */
-  rest: "up" | "offline";
+  /**
+   * "offline" makes every request to PostgREST fail to arrive, and "refusing card writes" answers
+   * every insert into or update of `cards` 500.
+   */
+  rest: "up" | "offline" | "refusing card writes";
   calls: { url: string; method: string; headers: Headers }[];
 };
 
@@ -243,6 +249,10 @@ function rest(
     ? fake.card_states
     : null;
   if (rows === null) return Response.json({}, { status: 404 });
+  if (
+    fake.rest === "refusing card writes" && table === "cards" &&
+    (method === "POST" || method === "PATCH")
+  ) return Response.json({ code: "XX000" }, { status: 500 });
   if (method === "POST") {
     const inserted = body as Row[];
     for (const row of inserted) {
@@ -344,7 +354,7 @@ function fakeFetch(fake: Fake): typeof fetch {
     ) {
       // The bucket's delete policy: files in the caller's own folder alone.
       const user = authUser(headers.get("Authorization")?.slice(7));
-      if (fake.storage === "refusing" || user === null) {
+      if (fake.storage !== "up" || user === null) {
         return Response.json({ error: "refused" }, { status: 400 });
       }
       const { prefixes } = JSON.parse(String(init?.body)) as {
@@ -1734,6 +1744,7 @@ Deno.test("update_cards replaces a card's 칸 whole, keeping the ids it is given
       front: `Heart\n${CARD_PHOTO}\nvalve`,
     }],
     refused: [],
+    files_not_released: [],
   });
   const row = cardRow(fake, FREE_CARD);
   const blocks = row.front as { id: string; payload: Row }[];
@@ -2099,4 +2110,131 @@ Deno.test("delete_deck releases the deck's image and its cards' photos and sound
   });
   assert.equal(fake.objects.size, 0);
   assert.deepEqual(fake.media, []);
+});
+
+/** The media ids of the files the call uploaded, in order. */
+const uploaded = (fake: Fake) =>
+  fake.calls.filter((c) =>
+    c.method === "POST" &&
+    c.url.startsWith(`${SUPABASE_URL}/storage/v1/object/media/${ADA}/`)
+  ).map((c) => c.url.split("/").at(-1)!);
+
+/** A card whose front photo is stored before its back photo's fetch is refused. */
+const REFUSED_AFTER_STORE = {
+  blocks: [
+    { type: "image", url: PHOTO, side: "front" },
+    { type: "image", url: "https://inner.example/a.png", side: "back" },
+  ],
+};
+
+Deno.test("add_cards releases the photo it stored for a card it then refused, and keeps the photo of a card it added", async () => {
+  const fake = withPhoto();
+  fake.dns["inner.example"] = ["10.0.0.1"];
+  const { result } = await call("add_cards", {
+    deck_id: ADA_DECK,
+    cards: [REFUSED_AFTER_STORE, {
+      blocks: [{ type: "image", url: PHOTO, boxes: [BOX] }],
+    }],
+  }, fake);
+  const [orphan, kept] = uploaded(fake);
+  assert.ok(orphan !== undefined && kept !== undefined);
+  assert.deepEqual(
+    (result.structuredContent?.refused as Row[]).map((r) => r.index),
+    [0],
+  );
+  assert.deepEqual(result.structuredContent?.files_not_released, []);
+  assert.deepEqual(fake.media.map((row) => row.id), [kept]);
+  assert.deepEqual([...fake.objects.keys()], [`${ADA}/${kept}`]);
+});
+
+Deno.test("add_cards names the photo of a refused card that Storage would not delete, the call answering", async () => {
+  const fake = withPhoto();
+  fake.dns["inner.example"] = ["10.0.0.1"];
+  fake.storage = "keeping";
+  const { result } = await call("add_cards", {
+    deck_id: ADA_DECK,
+    cards: [REFUSED_AFTER_STORE, {
+      blocks: [{ type: "text", front: "kept", back: "남김" }],
+    }],
+  }, fake);
+  const [orphan] = uploaded(fake);
+  assert.equal(result.isError, undefined);
+  assert.equal((result.structuredContent?.added as Row[]).length, 1);
+  assert.deepEqual(result.structuredContent?.files_not_released, [orphan]);
+  assert.ok(fake.objects.has(`${ADA}/${orphan}`));
+});
+
+Deno.test("add_cards whose insert fails releases every photo it stored, answering the error to retry on", async () => {
+  const fake = withPhoto();
+  fake.dns["inner.example"] = ["10.0.0.1"];
+  fake.rest = "refusing card writes";
+  const { result } = await call("add_cards", {
+    deck_id: ADA_DECK,
+    cards: [REFUSED_AFTER_STORE, {
+      blocks: [{ type: "image", url: PHOTO, boxes: [BOX] }],
+    }],
+  }, fake);
+  assert.equal(uploaded(fake).length, 2);
+  assert.equal(result.isError, true);
+  assert.match(result.content[0]!.text, /try again/);
+  assert.deepEqual(fake.media, []);
+  assert.equal(fake.objects.size, 0);
+  assert.equal(fake.cards.length, seed().cards.length);
+});
+
+Deno.test("update_cards releases the photo it stored for a card edited after the call began, and keeps the photo of a card it updated", async () => {
+  const fake = withPhoto();
+  cardRow(fake, CHERRY).updated_at = "2026-12-01T00:00:00.000Z";
+  const photoBack = { type: "image", url: PHOTO, side: "back" };
+  const { result } = await call("update_cards", {
+    cards: [
+      { id: CHERRY, blocks: [{ type: "text", front: "cherry" }, photoBack] },
+      { id: BANANA, blocks: [{ type: "text", front: "banana" }, photoBack] },
+    ],
+  }, fake);
+  const [orphan, kept] = uploaded(fake);
+  assert.ok(orphan !== undefined && kept !== undefined);
+  assert.deepEqual(
+    (result.structuredContent?.refused as Row[]).map((r) => r.index),
+    [0],
+  );
+  assert.deepEqual(result.structuredContent?.files_not_released, []);
+  assert.deepEqual(fake.media.map((row) => row.id), [kept]);
+  assert.deepEqual([...fake.objects.keys()], [`${ADA}/${kept}`]);
+});
+
+Deno.test("update_cards releases the photos it stored for a card a later photo refuses, naming those Storage would not delete", async () => {
+  const fake = withPhoto();
+  fake.dns["inner.example"] = ["10.0.0.1"];
+  fake.storage = "keeping";
+  const { result } = await call("update_cards", {
+    cards: [{ id: BANANA, ...REFUSED_AFTER_STORE }],
+  }, fake);
+  const [orphan] = uploaded(fake);
+  assert.equal(result.isError, undefined);
+  assert.deepEqual(
+    (result.structuredContent?.refused as Row[]).map((r) => r.index),
+    [0],
+  );
+  assert.deepEqual(result.structuredContent?.files_not_released, [orphan]);
+});
+
+Deno.test("update_cards whose update fails releases the photo it stored for the card, answering the error to retry on", async () => {
+  const fake = withPhoto();
+  fake.rest = "refusing card writes";
+  const { result } = await call("update_cards", {
+    cards: [{
+      id: BANANA,
+      blocks: [{ type: "text", front: "banana" }, {
+        type: "image",
+        url: PHOTO,
+        side: "back",
+      }],
+    }],
+  }, fake);
+  assert.equal(uploaded(fake).length, 1);
+  assert.equal(result.isError, true);
+  assert.match(result.content[0]!.text, /try again/);
+  assert.deepEqual(fake.media, []);
+  assert.equal(fake.objects.size, 0);
 });
