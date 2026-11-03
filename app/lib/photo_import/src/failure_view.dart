@@ -10,8 +10,9 @@ import 'failure.dart';
 import 'failure_message.dart';
 
 /// The sad mascot over what went wrong, in plain words, with a retry where sending the same photo
-/// again can succeed, a retake where a new photo can, and the way to Settings
-/// where access was refused. The top bar's close is the one way out.
+/// again can succeed, a retake where a new photo can, the way to Settings
+/// where access was refused, and the other ways to add cards where photo
+/// import is unavailable. The top bar's close is the one way out.
 class FailureView extends StatelessWidget {
   const FailureView({
     super.key,
@@ -20,6 +21,8 @@ class FailureView extends StatelessWidget {
     required this.onRetake,
     required this.retakeLabel,
     required this.onOpenSettings,
+    this.onAddByHand,
+    this.onAddFromSpreadsheet,
   });
 
   final PhotoImportFailure failure;
@@ -37,12 +40,27 @@ class FailureView extends StatelessWidget {
   /// what failed.
   final VoidCallback? onOpenSettings;
 
+  /// Leaves photo import for adding the note's cards by hand; null where
+  /// photo import is not what is unavailable.
+  final VoidCallback? onAddByHand;
+
+  /// Leaves photo import for adding the note's cards from a spreadsheet;
+  /// null as [onAddByHand] is.
+  final VoidCallback? onAddFromSpreadsheet;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final onRetry = this.onRetry;
     final onOpenSettings = this.onOpenSettings;
-    final primaryElsewhere = onRetry != null || onOpenSettings != null;
+    final onAddByHand = this.onAddByHand;
+    final onAddFromSpreadsheet = this.onAddFromSpreadsheet;
+    final primaryElsewhere =
+        onRetry != null || onOpenSettings != null || onAddByHand != null;
+    final anyAction =
+        isRetakeable(failure) ||
+        primaryElsewhere ||
+        onAddFromSpreadsheet != null;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -76,7 +94,7 @@ class FailureView extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: !isRetakeable(failure) && !primaryElsewhere
+      bottomNavigationBar: !anyAction
           ? null
           : SafeArea(
               child: Padding(
@@ -114,6 +132,23 @@ class FailureView extends StatelessWidget {
                           label: l10n.openSettings,
                           size: AppButtonSize.cta,
                           onPressed: onOpenSettings,
+                        ),
+                      ),
+                    if (onAddFromSpreadsheet != null)
+                      Expanded(
+                        child: AppButton(
+                          label: l10n.spreadsheetPick,
+                          variant: AppButtonVariant.secondary,
+                          size: AppButtonSize.cta,
+                          onPressed: onAddFromSpreadsheet,
+                        ),
+                      ),
+                    if (onAddByHand != null)
+                      Expanded(
+                        child: AppButton(
+                          label: l10n.createManually,
+                          size: AppButtonSize.cta,
+                          onPressed: onAddByHand,
                         ),
                       ),
                   ],

@@ -5,11 +5,39 @@ import '../../deck/deck.dart';
 import 'photo_imports.dart';
 import 'photo_source.dart';
 
+/// How a photo import ended, when it did not end with nothing.
+sealed class PhotoImportOutcome {
+  const PhotoImportOutcome();
+}
+
+/// The cards were saved into [deck].
+final class PhotoImportSaved extends PhotoImportOutcome {
+  const PhotoImportSaved(this.deck);
+
+  final Deck deck;
+}
+
+/// Photo import was unavailable, and the user chose to add [deck]'s cards
+/// by hand instead.
+final class AddByHandInstead extends PhotoImportOutcome {
+  const AddByHandInstead(this.deck);
+
+  final DeckId deck;
+}
+
+/// Photo import was unavailable, and the user chose to add [deck]'s cards
+/// from a spreadsheet instead.
+final class AddFromSpreadsheetInstead extends PhotoImportOutcome {
+  const AddFromSpreadsheetInstead(this.deck);
+
+  final DeckId deck;
+}
+
 /// Adds cards from a photo to [deck], or creates a deck from one when [deck]
 /// is null, starting from the camera or the library, as [origin] names, over
-/// [context]. Resolves to the [Deck] it saved into, or to null when the user
-/// cancelled or left without saving.
-typedef PhotoImport = Future<Deck?> Function(
+/// [context]. Resolves to how it ended, or to null when the user cancelled
+/// or left without saving.
+typedef PhotoImport = Future<PhotoImportOutcome?> Function(
   BuildContext context,
   DeckId? deck,
   PhotoOrigin origin,

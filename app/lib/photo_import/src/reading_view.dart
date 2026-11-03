@@ -18,13 +18,17 @@ import 'photo_viewer.dart';
 /// why, with a retry where sending it again can help and a way to leave it
 /// out, and while any can be sent again, one action at the bottom that sends
 /// them all. [note] says when today's limit left photos out; the privacy note
-/// and a cancel close the screen.
+/// and a cancel close the screen. Once photo import is unavailable for every
+/// photo, the bottom offers the other ways to add the note's cards in the
+/// cancel's place.
 class ReadingView extends StatelessWidget {
   const ReadingView({
     super.key,
     required this.job,
     required this.onBack,
     required this.onCancel,
+    this.onAddByHand,
+    this.onAddFromSpreadsheet,
   });
 
   /// The job whose batch is read.
@@ -35,6 +39,14 @@ class ReadingView extends StatelessWidget {
 
   /// Stops reading and leaves the batch out.
   final VoidCallback onCancel;
+
+  /// Leaves photo import for adding the note's cards by hand; null while
+  /// photo import is not unavailable for every photo.
+  final VoidCallback? onAddByHand;
+
+  /// Leaves photo import for adding the note's cards from a spreadsheet;
+  /// null as [onAddByHand] is.
+  final VoidCallback? onAddFromSpreadsheet;
 
   @override
   Widget build(BuildContext context) {
@@ -143,14 +155,32 @@ class ReadingView extends StatelessWidget {
           child: Row(
             spacing: AppSpace.s12,
             children: [
-              Expanded(
-                child: AppButton(
-                  label: l10n.cancel,
-                  variant: AppButtonVariant.secondary,
-                  size: AppButtonSize.cta,
-                  onPressed: onCancel,
+              if (onAddFromSpreadsheet case final onAddFromSpreadsheet?)
+                Expanded(
+                  child: AppButton(
+                    label: l10n.spreadsheetPick,
+                    variant: AppButtonVariant.secondary,
+                    size: AppButtonSize.cta,
+                    onPressed: onAddFromSpreadsheet,
+                  ),
                 ),
-              ),
+              if (onAddByHand case final onAddByHand?)
+                Expanded(
+                  child: AppButton(
+                    label: l10n.createManually,
+                    size: AppButtonSize.cta,
+                    onPressed: onAddByHand,
+                  ),
+                )
+              else
+                Expanded(
+                  child: AppButton(
+                    label: l10n.cancel,
+                    variant: AppButtonVariant.secondary,
+                    size: AppButtonSize.cta,
+                    onPressed: onCancel,
+                  ),
+                ),
               if (retryable)
                 Expanded(
                   flex: 2,

@@ -1898,7 +1898,7 @@ void main() {
           ('chat', 'talk', CardSource.import),
           ('chien', 'dog', CardSource.import),
         ]);
-        expect((import.popped! as Deck).id, import.spanish.id);
+        expect((import.popped! as PhotoImportSaved).deck.id, import.spanish.id);
         // An existing deck keeps its look: no 노트 꾸미기 on the way.
         expect(_shown('Customize note'), findsNothing);
         await import.close();
@@ -1930,7 +1930,7 @@ void main() {
 
       expect(await import.deckNames(), ['French', 'Page 12', 'Spanish']);
       expect((await import.deck('Page 12')).icon, DeckIcon.star);
-      expect(await import.cards(import.popped! as Deck), [
+      expect(await import.cards((import.popped! as PhotoImportSaved).deck), [
         ('chien', 'dog', CardSource.import),
         ('chat', 'cat', CardSource.import),
       ]);
@@ -1953,7 +1953,7 @@ void main() {
         expect(_shown('Customize note'), findsNothing);
         final deck = await import.deck('Page 13');
         expect((deck.icon, deck.color), (null, null));
-        expect((import.popped! as Deck).id, deck.id);
+        expect((import.popped! as PhotoImportSaved).deck.id, deck.id);
         expect(await import.cards(deck), [('chien', 'dog', CardSource.import)]);
         await import.close();
       },
@@ -2279,7 +2279,7 @@ void main() {
           ),
           findsOneWidget,
         );
-        expect((import.popped! as Deck).id, import.french.id);
+        expect((import.popped! as PhotoImportSaved).deck.id, import.french.id);
         expect(await import.cards(import.french), [
           ('chien', 'dog', CardSource.import),
         ]);
@@ -2612,6 +2612,119 @@ void main() {
       expect(import.client.calls, isEmpty);
       await import.close();
     });
+
+    testWidgets(
+      "unavailable offers adding the note's cards by hand or from a spreadsheet, and by hand ends the import and resolves to it, against a service failure that offers neither",
+      (tester) async {
+        final import = await _Import.open(tester);
+        await import.shoot();
+        import.client.fail(const ServiceFailed('HTTP 503'));
+        await tester.pumpAndSettle();
+        expect(
+          _shown('Enter by hand'),
+          findsNothing,
+          reason: 'control: another 503 is the retryable service failure',
+        );
+        expect(_shown('Excel or CSV file'), findsNothing);
+
+        await tester.tap(_shown('Try again'));
+        await tester.pump();
+        import.client.fail(const ExtractionUnavailable());
+        await tester.pumpAndSettle();
+        expect(_shown('Excel or CSV file'), findsOneWidget);
+        await import.tap(_shown('Enter by hand'));
+
+        expect(
+          import.popped,
+          isA<AddByHandInstead>().having(
+            (outcome) => outcome.deck,
+            'deck',
+            import.french.id,
+          ),
+        );
+        expect(import.imports.job, isNull);
+        await import.close();
+      },
+    );
+
+    testWidgets(
+      'an unavailable photo opened again from the bar offers the spreadsheet, which resolves to it',
+      (tester) async {
+        final import = await _Import.open(tester);
+        await import.shoot();
+        import.client.fail(const ExtractionUnavailable());
+        await tester.pumpAndSettle();
+        await import.tap(find.byTooltip('Close'));
+        expect(import.imports.job, isNotNull, reason: 'closing keeps the job');
+
+        await import.reopen();
+        await tester.pumpAndSettle();
+        await import.tap(_shown('Excel or CSV file'));
+
+        expect(
+          import.popped,
+          isA<AddFromSpreadsheetInstead>().having(
+            (outcome) => outcome.deck,
+            'deck',
+            import.french.id,
+          ),
+        );
+        expect(import.imports.job, isNull);
+        await import.close();
+      },
+    );
+
+    testWidgets(
+      "several photos offer the other ways in the cancel's place once every one failed as unavailable, against one still being read",
+      (tester) async {
+        final import = await _Import.open(tester);
+        await import.pickSeveral(2);
+        import.calls(0).answer.completeError(const ExtractionUnavailable());
+        await import.frames();
+        expect(_shown('Cancel'), findsOneWidget);
+        expect(
+          _shown('Enter by hand'),
+          findsNothing,
+          reason: 'control: the second photo is still being read',
+        );
+
+        import.calls(1).answer.completeError(const ExtractionUnavailable());
+        await import.frames();
+        expect(_shown('Cancel'), findsNothing);
+        expect(_shown('Excel or CSV file'), findsOneWidget);
+        await import.tap(_shown('Enter by hand'));
+
+        expect(import.popped, isA<AddByHandInstead>());
+        expect(import.imports.job, isNull);
+        await import.close();
+      },
+    );
+
+    testWidgets(
+      "photos added to a list that all fail as unavailable ask before the list's cards go, and keep them on a cancel",
+      (tester) async {
+        final import = await _Import.open(tester);
+        await import.extract({'chat': 'cat'});
+        import.photos.libraryPhotos = [Future.value(testPhoto)];
+        await import.tap(_shown('Add more photos'));
+        await tester.tap(_shown('Choose from album'));
+        await import.frames();
+        import.calls(1).answer.completeError(const ExtractionUnavailable());
+        await import.frames();
+
+        await import.tap(_shown('Enter by hand'));
+        expect(_shown('Discard'), findsOneWidget);
+        await import.tap(_shown('Cancel'));
+        expect(import.hasPopped, isFalse);
+        expect(import.imports.job?.list?.cardCount, 1);
+
+        await import.tap(_shown('Enter by hand'));
+        await import.tap(_shown('Discard'));
+        expect(import.popped, isA<AddByHandInstead>());
+        expect(import.imports.job, isNull);
+        await import.close();
+      },
+    );
   });
 
   group('accessibility', () {
