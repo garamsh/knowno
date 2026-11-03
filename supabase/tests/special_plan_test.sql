@@ -198,7 +198,7 @@ select is(public.admin_revoke_plan('00000000-0000-4000-8000-00000000000b'), true
   'an admin removes special, back to Free');
 reset role;
 select results_eq($$select action, detail ->> 'plan' from private.admin_audit order by id$$,
-  $$values ('grant_plan', 'special'), ('revoke_plan', null)$$,
+  $$values ('grant_plan', 'special'), ('revoke_plan', 'special')$$,
   'both are recorded, the refused end recording nothing');
 
 -- The migration's move, on 무제한 grants as they stood before it: B's without an end over Free,
