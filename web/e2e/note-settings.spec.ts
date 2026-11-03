@@ -250,8 +250,8 @@ test("stores a note's photo in Storage, draws it on 홈 from a signed URL, relea
   expect(await held(first)).toBe(true);
   expect(await rows()).toEqual([first]);
 
-  // 홈 draws it from a URL Storage signed for the user, which the browser can read.
-  await page.goto("/");
+  // 노트 draws it from a URL Storage signed for the user, which the browser can read.
+  await page.goto("/decks");
   const photo = page.getByRole("link", { name: /^Photo, / }).locator("[style*='background-image']");
   const style = (await photo.getAttribute("style")) ?? "";
   expect(style).toContain(`/storage/v1/object/sign/media/${userId}/${first}?token=`);
