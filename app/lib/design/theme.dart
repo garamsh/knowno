@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -389,6 +391,80 @@ abstract final class AppShadow {
       edge(colors.edge, AppSize.edgeCard);
 }
 
+/// The card list's one mark for what study hides until the reveal: a light
+/// hatch of [AppColors.hatchStripe] over [AppColors.hatch], stripes 6 wide
+/// every 12 across their own direction, running up to the right, as the
+/// web's `hatch` utility draws it (#629).
+abstract final class AppHatch {
+  /// The distance between two stripes, across them.
+  static const period = 12.0;
+
+  /// The hatch as a paint, for a run of text and for a box; its stripes are
+  /// fixed to the canvas, so neighbouring marks line up.
+  static Paint paint(AppColors colors) {
+    // A gradient from corner to corner of a square repeats every diagonal.
+    final side = period / math.sqrt2;
+    return Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          colors.hatch,
+          colors.hatch,
+          colors.hatchStripe,
+          colors.hatchStripe,
+        ],
+        stops: const [0, 0.5, 0.5, 1],
+        tileMode: TileMode.repeated,
+      ).createShader(Rect.fromLTWH(0, 0, side, side));
+  }
+}
+
+/// A box filled with [AppHatch], in [colors], with [borderRadius] corners and
+/// an optional [border].
+final class HatchDecoration extends Decoration {
+  const HatchDecoration(
+    this.colors, {
+    this.borderRadius = BorderRadius.zero,
+    this.border,
+  });
+
+  final AppColors colors;
+  final BorderRadius borderRadius;
+  final BorderSide? border;
+
+  @override
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) => _HatchPainter(this);
+
+  @override
+  bool operator ==(Object other) =>
+      other is HatchDecoration &&
+      other.colors == colors &&
+      other.borderRadius == borderRadius &&
+      other.border == border;
+
+  @override
+  int get hashCode => Object.hash(colors, borderRadius, border);
+}
+
+final class _HatchPainter extends BoxPainter {
+  _HatchPainter(this.decoration);
+
+  final HatchDecoration decoration;
+
+  @override
+  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
+    final size = configuration.size;
+    if (size == null) return;
+    final box = decoration.borderRadius.toRRect(offset & size);
+    canvas.drawRRect(box, AppHatch.paint(decoration.colors));
+    final border = decoration.border;
+    if (border != null) {
+      canvas.drawRRect(box.deflate(border.width / 2), border.toPaint());
+    }
+  }
+}
+
 /// The app's colour tokens. Every colour a screen draws comes from here or
 /// from the [ColorScheme] built from it.
 @immutable
@@ -409,6 +485,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.hairline,
     required this.outline,
     required this.brandTint,
+    required this.hatch,
+    required this.hatchStripe,
     required this.hero,
     required this.onHero,
     required this.onHeroEdge,
@@ -462,6 +540,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     hairline: Color(0xFFDCE5FD),
     outline: Color(0xFFC9D6FB),
     brandTint: Color(0xFFDCE5FD),
+    hatch: Color(0xFFEEF2FC),
+    hatchStripe: Color(0xFFE2E8F8),
     hero: Color(0xFF2547D0),
     onHero: Color(0xFFFFFFFF),
     onHeroEdge: Color(0xFFC9D6FB),
@@ -515,6 +595,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     hairline: Color(0xFF34405F),
     outline: Color(0xFF34405F),
     brandTint: Color(0xFF34405F),
+    hatch: Color(0xFF2B3757),
+    hatchStripe: Color(0xFF354262),
     hero: Color(0xFF1A2F78),
     onHero: Color(0xFFFFFFFF),
     onHeroEdge: Color(0xFF4A78D6),
@@ -597,6 +679,11 @@ final class AppColors extends ThemeExtension<AppColors> {
 
   /// A quiet tint of the ground: a chip, an avatar's circle, a filled blank.
   final Color brandTint;
+
+  /// The card list's hatch, its ground and its stripes: what study hides
+  /// until the reveal, drawn by [AppHatch] (#629).
+  final Color hatch;
+  final Color hatchStripe;
 
   /// A full-screen colour surface, and the study coach's fill and the study
   /// screen's notice, apart from [primary].
@@ -708,6 +795,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? hairline,
     Color? outline,
     Color? brandTint,
+    Color? hatch,
+    Color? hatchStripe,
     Color? hero,
     Color? onHero,
     Color? onHeroEdge,
@@ -757,6 +846,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     hairline: hairline ?? this.hairline,
     outline: outline ?? this.outline,
     brandTint: brandTint ?? this.brandTint,
+    hatch: hatch ?? this.hatch,
+    hatchStripe: hatchStripe ?? this.hatchStripe,
     hero: hero ?? this.hero,
     onHero: onHero ?? this.onHero,
     onHeroEdge: onHeroEdge ?? this.onHeroEdge,
@@ -812,6 +903,8 @@ final class AppColors extends ThemeExtension<AppColors> {
       hairline: mix(hairline, other.hairline),
       outline: mix(outline, other.outline),
       brandTint: mix(brandTint, other.brandTint),
+      hatch: mix(hatch, other.hatch),
+      hatchStripe: mix(hatchStripe, other.hatchStripe),
       hero: mix(hero, other.hero),
       onHero: mix(onHero, other.onHero),
       onHeroEdge: mix(onHeroEdge, other.onHeroEdge),

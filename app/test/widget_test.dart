@@ -380,12 +380,10 @@ void main() {
       await tester.tap(find.text('Add anyway'));
       await tester.pumpAndSettle();
 
-      // The deck holds both cards; their answers show with the switch.
-      expect(find.text('Chat'), findsNWidgets(2));
-      await tester.tap(find.byType(Switch));
-      await tester.pumpAndSettle();
-      expect(find.text('cat'), findsOneWidget);
-      expect(find.text('chat (talk)'), findsOneWidget);
+      // The deck holds both cards, each shown whole.
+      expect(shownText('Chat'), findsNWidgets(2));
+      expect(shownText('cat'), findsOneWidget);
+      expect(shownText('chat (talk)'), findsOneWidget);
       await unmountApp(tester);
     },
   );
@@ -907,12 +905,6 @@ void main() {
         await tester.tap(find.text('Discard'));
         await tester.pumpAndSettle();
 
-        // Every answer shown by the switch.
-        await tester.tap(find.byType(Switch));
-        await tester.pumpAndSettle();
-        await meetsGuidelines();
-        await tester.tap(find.byType(Switch));
-        await tester.pumpAndSettle();
         // A search typed in the field under the top bar.
         await tester.enterText(
           find.widgetWithText(AppTextField, 'Search'),
@@ -923,7 +915,7 @@ void main() {
         await tester.enterText(find.byType(AppTextField), '');
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Chat'));
+        await tester.tap(shownText('Chat'));
         await tester.pumpAndSettle();
         await meetsGuidelines();
         // Red text at the end of the form.

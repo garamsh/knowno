@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
   audioLength,
   type Cell,
@@ -52,16 +54,51 @@ export function WholeCells({
   return <WholeParts parts={shownParts(cells, revealed)} revealed={revealed} inRow={inRow} />;
 }
 
+/**
+ * A card of [cells] as a note's card list draws it (#629): in a row's style, every 칸 revealed,
+ * and what study hides until the reveal on the hatch: each blank, each photo's box, and each
+ * added part in a hatched box. A shown part is cut at two lines and an added one at three, and a
+ * table shows its first [listedRows] rows and how many it leaves.
+ */
+export function ListedCells({ cells }: { cells: Cell[] }) {
+  return <WholeParts parts={shownParts(cells, true)} revealed inRow listed />;
+}
+
+/** The rows of a table a card list's row shows. */
+const listedRows = 3;
+
+/** [children] in a box on the hatch, cut at three lines, as a card list marks a revealed part. */
+export function HatchedBox({ children }: { children: ReactNode }) {
+  return (
+    <span data-hatched className="hatch block rounded-chip px-3 py-2">
+      <span className="line-clamp-3 break-keep">{children}</span>
+    </span>
+  );
+}
+
 function WholeParts({
   parts,
   revealed,
   inRow,
+  listed = false,
 }: {
   parts: CellPart[];
   revealed: boolean;
   inRow: boolean;
+  listed?: boolean;
 }) {
   const addedStyle = inRow ? "font-normal text-ink-2" : "text-whole-added text-ink-2";
+  /** A part of a card list's row: an added one in a hatched box, a shown one cut at two lines. */
+  const listedPart = (index: number, added: boolean, children: ReactNode) =>
+    added ? (
+      <span key={index} aria-hidden className={addedStyle}>
+        <HatchedBox>{children}</HatchedBox>
+      </span>
+    ) : (
+      <span key={index} aria-hidden className="line-clamp-2 break-keep">
+        {children}
+      </span>
+    );
   return (
     <span
       role="group"
@@ -69,9 +106,28 @@ function WholeParts({
         parts.map(({ block }) => block),
         revealed,
       )}
-      className={`flex w-full flex-col gap-3 break-words whitespace-pre-wrap ${inRow ? "text-left text-body-strong" : "text-center"}`}
+      className={`flex w-full flex-col ${listed ? "gap-2" : "gap-3"} break-words whitespace-pre-wrap ${inRow ? "text-left text-body-strong" : "text-center"}`}
     >
       {parts.map(({ block, added }, index) => {
+        if (listed && block.kind === "text") return listedPart(index, added, block.text);
+        if (listed && block.kind === "senses") {
+          return listedPart(index, added, <SensesText senses={block.senses} />);
+        }
+        if (listed && block.kind === "image") {
+          const answers = block.boxes
+            .map((box) => box.answer?.trim() ?? "")
+            .filter((answer) => answer !== "");
+          return (
+            <span key={index} aria-hidden className="flex flex-col gap-2">
+              <PhotoFrame image={block} revealed marked />
+              {answers.length > 0 && (
+                <span className={addedStyle}>
+                  <HatchedBox>{answers.join(" · ")}</HatchedBox>
+                </span>
+              )}
+            </span>
+          );
+        }
         switch (block.kind) {
           case "text":
             return (
@@ -85,19 +141,22 @@ function WholeParts({
             );
           case "cloze":
             return (
-              <span key={index} aria-hidden>
+              <span key={index} aria-hidden className={listed ? "line-clamp-2 break-keep" : ""}>
                 {block.text.split(clozeBlank).map((part, at) => (
                   <span key={at}>
                     {part}
                     {at < block.answers.length && (
-                      <Blank answer={block.answers[at] ?? ""} revealed={revealed} />
+                      <Blank answer={block.answers[at] ?? ""} revealed={revealed} marked={listed} />
                     )}
                   </span>
                 ))}
               </span>
             );
-          case "table":
-            return (
+          case "table": {
+            // A card list's row shows a table's first rows and how many it leaves.
+            const rows = listed ? block.rows.slice(0, listedRows) : block.rows;
+            const left = block.rows.length - rows.length;
+            const grid = (
               <span
                 key={index}
                 aria-hidden
@@ -113,7 +172,7 @@ function WholeParts({
                     {cell}
                   </span>
                 ))}
-                {block.rows.flatMap((cells, row) =>
+                {rows.flatMap((cells, row) =>
                   cells.map((_, column) => (
                     <span
                       key={`${String(row)}-${String(column)}`}
@@ -121,7 +180,7 @@ function WholeParts({
                     >
                       {cellRuns(block, row, column).map((run, at) =>
                         run.blank ? (
-                          <Blank key={at} answer={run.text} revealed={revealed} />
+                          <Blank key={at} answer={run.text} revealed={revealed} marked={listed} />
                         ) : (
                           <span key={at}>{run.text}</span>
                         ),
@@ -131,6 +190,16 @@ function WholeParts({
                 )}
               </span>
             );
+            if (left === 0) return grid;
+            return (
+              <span key={index} className="flex flex-col gap-1">
+                {grid}
+                <span aria-hidden className="text-caption font-normal text-ink-2">
+                  외 {left}행
+                </span>
+              </span>
+            );
+          }
           case "senses":
             return (
               <span key={index} aria-hidden className={added ? addedStyle : ""}>
@@ -164,13 +233,22 @@ function WholeParts({
 
 /**
  * A blank: an empty gap of its answer's width over a muted underline, its answer not drawn, so
- * hidden content shows as nothing (ADR 0119); or its answer filled on the brand tint.
+ * hidden content shows as nothing (ADR 0119); or its answer filled on the brand tint; [marked], in
+ * a card list's row, filled on the hatch (#629).
  */
-function Blank({ answer, revealed }: { answer: string; revealed: boolean }) {
+function Blank({
+  answer,
+  revealed,
+  marked = false,
+}: {
+  answer: string;
+  revealed: boolean;
+  marked?: boolean;
+}) {
   return (
     <span
-      data-blank={revealed ? "filled" : "empty"}
-      className={`rounded-sm px-1 ${revealed ? "bg-brand-tint" : "text-transparent underline decoration-muted"}`}
+      data-blank={marked ? "marked" : revealed ? "filled" : "empty"}
+      className={`rounded-sm px-1 ${marked ? "hatch" : revealed ? "bg-brand-tint" : "text-transparent underline decoration-muted"}`}
     >
       {answer}
     </span>

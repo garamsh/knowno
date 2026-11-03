@@ -32,6 +32,9 @@ List<Cell> cellsToDraw(List<Content> front, List<Content> back) {
 List<Cell> drawnCellsOf(Card card) =>
     card.cells ?? cellsToDraw(card.front, card.back);
 
+/// The rows of a table a card list's row shows.
+const _listedRows = 3;
+
 /// One block of a card drawn whole, [added] when the reveal added it.
 typedef CardPart = ({Content block, bool added});
 
@@ -62,6 +65,12 @@ List<CardPart> partsOf(List<Cell> cells, {required bool revealed}) => [
 /// [WholeCardView.cells] draws a card's 칸 so: each 칸's part before the
 /// reveal and, when [revealed], the part the reveal adds under it at the
 /// back's size in `ink2` (ADR 0137).
+///
+/// [WholeCardView.listed] draws them as a note's card list does: every 칸
+/// revealed, and what study hides until the reveal on [AppHatch], each blank
+/// and each photo's box, each added part in a hatched box, a shown part cut
+/// at two lines and an added one at three, and a table at its first three
+/// rows (#629).
 class WholeCardView extends StatelessWidget {
   const WholeCardView(
     this.blocks, {
@@ -72,7 +81,8 @@ class WholeCardView extends StatelessWidget {
     this.width,
     this.height,
     this.textAlign = TextAlign.center,
-  }) : cells = null;
+  }) : cells = null,
+       listed = false;
 
   const WholeCardView.cells(
     List<Cell> this.cells, {
@@ -83,7 +93,20 @@ class WholeCardView extends StatelessWidget {
     this.width,
     this.height,
     this.textAlign = TextAlign.center,
-  }) : blocks = const [];
+  }) : blocks = const [],
+       listed = false;
+
+  const WholeCardView.listed(
+    List<Cell> this.cells, {
+    super.key,
+    required this.style,
+  }) : blocks = const [],
+       revealed = true,
+       listed = true,
+       minFontSize = null,
+       width = null,
+       height = null,
+       textAlign = TextAlign.start;
 
   final List<Content> blocks;
   final List<Cell>? cells;
@@ -93,6 +116,9 @@ class WholeCardView extends StatelessWidget {
   final double? width;
   final double? height;
   final TextAlign textAlign;
+
+  /// Whether it is drawn as a card list's row draws it.
+  final bool listed;
 
   @override
   Widget build(BuildContext context) {
@@ -106,10 +132,21 @@ class WholeCardView extends StatelessWidget {
     final column = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: AppSpace.s12,
+      spacing: listed ? AppSpace.s8 : AppSpace.s12,
       children: [
         for (final (:block, :added) in parts)
           switch (block) {
+            TextContent(:final text) when listed => _listedText(
+              context,
+              TextSpan(text: keepWords(text)),
+              added: added,
+            ),
+            SensesContent() when listed => _listedText(
+              context,
+              sensesSpan(block, wrap: keepWords),
+              added: added,
+            ),
+            ImageContent() when listed => _listedImage(context, block),
             TextContent(:final text) => Text(
               text,
               textAlign: textAlign,
@@ -174,6 +211,103 @@ class WholeCardView extends StatelessWidget {
         : AppType.wholeAdded.copyWith(color: ink2);
   }
 
+  /// A part in a card list's row: a shown one in the title's style cut at two
+  /// lines, an [added] one in a hatched box cut at three.
+  Widget _listedText(
+    BuildContext context,
+    InlineSpan span, {
+    required bool added,
+  }) => added
+      ? _hatchedBox(
+          context,
+          Text.rich(
+            span,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: _addedStyle(context),
+          ),
+        )
+      : Text.rich(
+          span,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: _titleStyle,
+        );
+
+  /// [child] in a box on [AppHatch], as a card list marks a revealed part.
+  Widget _hatchedBox(BuildContext context, Widget child) => DecoratedBox(
+    decoration: HatchDecoration(
+      AppColors.of(context),
+      borderRadius: BorderRadius.circular(AppRadius.chip),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.s12,
+        vertical: AppSpace.s8,
+      ),
+      child: child,
+    ),
+  );
+
+  /// A photo in a card list's row: the photo as wide as the row, each box on
+  /// [AppHatch] over what it hides, and the boxes' answers after it in a
+  /// hatched box, as a revealed part.
+  Widget _listedImage(BuildContext context, ImageContent image) {
+    final colors = AppColors.of(context);
+    final answers = [
+      for (final box in image.boxes)
+        if (box.answer case final answer? when answer.trim().isNotEmpty)
+          keepWords(answer),
+    ];
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: AppSpace.s8,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final size = imageFrame(
+              image,
+              Size(constraints.maxWidth, double.infinity),
+            );
+            return Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: SizedBox.fromSize(
+                size: size,
+                child: Stack(
+                  children: [
+                    Positioned.fill(child: ImagePhoto(image)),
+                    for (final box in image.boxes)
+                      Positioned.fromRect(
+                        key: ValueKey(('listed box', box.id)),
+                        rect: box.rectIn(size),
+                        child: DecoratedBox(
+                          decoration: HatchDecoration(
+                            colors,
+                            borderRadius: BorderRadius.circular(AppSpace.s4),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+        if (answers.isNotEmpty)
+          _hatchedBox(
+            context,
+            Text(
+              answers.join(' · '),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: _addedStyle(context),
+            ),
+          ),
+      ],
+    );
+  }
+
   /// Whether [style] is smaller than a card's, as a list row's is.
   bool get _inRow => (style.fontSize ?? 0) < (AppType.headline.fontSize ?? 0);
 
@@ -191,6 +325,15 @@ class WholeCardView extends StatelessWidget {
     );
     final width = this.width;
     final minFontSize = this.minFontSize;
+    if (listed) {
+      return Text.rich(
+        span,
+        style: style,
+        textAlign: textAlign,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
     if (width == null || minFontSize == null) {
       return Text.rich(span, style: style, textAlign: textAlign);
     }
@@ -215,7 +358,9 @@ class WholeCardView extends StatelessWidget {
       ),
       child: child,
     );
-    return Table(
+    // A card list's row shows a table's first rows and how many it leaves.
+    final shown = listed ? table.rows.take(_listedRows).length : null;
+    final grid = Table(
       border: TableBorder.all(color: colors.outline),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       children: [
@@ -226,7 +371,8 @@ class WholeCardView extends StatelessWidget {
               padded(Text(text, style: header, textAlign: TextAlign.center)),
           ],
         ),
-        for (final (row, cells) in table.rows.indexed)
+        for (final (row, cells)
+            in table.rows.take(shown ?? table.rows.length).indexed)
           TableRow(
             children: [
               for (final (column, _) in cells.indexed)
@@ -249,16 +395,32 @@ class WholeCardView extends StatelessWidget {
           ),
       ],
     );
+    final left = table.rows.length - (shown ?? table.rows.length);
+    if (left == 0) return grid;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: AppSpace.s4,
+      children: [
+        grid,
+        Text(
+          AppLocalizations.of(context).moreRows(left),
+          style: AppType.caption.copyWith(color: colors.ink2),
+        ),
+      ],
+    );
   }
 
   /// A blank of [answer]: an empty gap of the answer's width over a muted
   /// underline, so hidden content shows as nothing (#454), or filled on the
-  /// brand tint.
+  /// brand tint; in a card list's row, filled on [AppHatch].
   TextSpan _blank(BuildContext context, String answer) {
     final colors = AppColors.of(context);
     return TextSpan(
       text: ' ${keepWords(answer)} ',
-      style: revealed
+      style: listed
+          ? TextStyle(background: AppHatch.paint(colors))
+          : revealed
           ? TextStyle(backgroundColor: colors.brandTint)
           : TextStyle(
               color: colors.muted.withValues(alpha: 0),
