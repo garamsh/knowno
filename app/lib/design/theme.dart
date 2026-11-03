@@ -100,6 +100,10 @@ abstract final class AppSize {
   /// A deck row's initial tile.
   static const deckTile = 46.0;
 
+  /// The height a photo is drawn at in a note's card list, its width
+  /// following from its aspect ratio (#629).
+  static const listedPhoto = 96.0;
+
   /// A small icon, inside a button or a line of text.
   static const smallIcon = 18.0;
 

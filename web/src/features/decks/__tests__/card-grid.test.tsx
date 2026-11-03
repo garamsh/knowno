@@ -133,6 +133,10 @@ describe("a note's card list row (#629)", () => {
       expect(box).toBeEmptyDOMElement();
     }
     expect(hatched(shown)).toEqual(["한양 · 개성"]);
+    // At the start of its line, no wider than the thumbnail height at its aspect ratio; e2e/card-list.spec.ts measures it.
+    const frame = shown.querySelector<HTMLElement>("[data-image]");
+    expect(frame?.style.maxWidth).toBe("calc(var(--spacing-listed-photo) * 4 / 3)");
+    expect(frame).not.toHaveClass("mx-auto");
   });
 
   it("cuts a long card at two lines shown and three on the hatch, wrapping between words", () => {

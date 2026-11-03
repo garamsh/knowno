@@ -249,8 +249,9 @@ class WholeCardView extends StatelessWidget {
     ),
   );
 
-  /// A photo in a card list's row: the photo as wide as the row, each box on
-  /// [AppHatch] over what it hides, and the boxes' answers after it in a
+  /// A photo in a card list's row: the photo [AppSize.listedPhoto] high, or
+  /// less where the row is narrower than that at its aspect ratio, each box
+  /// on [AppHatch] over what it hides, and the boxes' answers after it in a
   /// hatched box, as a revealed part.
   Widget _listedImage(BuildContext context, ImageContent image) {
     final colors = AppColors.of(context);
@@ -268,7 +269,7 @@ class WholeCardView extends StatelessWidget {
           builder: (context, constraints) {
             final size = imageFrame(
               image,
-              Size(constraints.maxWidth, double.infinity),
+              Size(constraints.maxWidth, AppSize.listedPhoto),
             );
             return Align(
               alignment: AlignmentDirectional.centerStart,

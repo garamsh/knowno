@@ -10,8 +10,8 @@ const photoMaxHeight = "60dvh";
  * A photo drawn whole with the phone's one transform (ADR 0109): a frame the full width, at most
  * [photoMaxHeight] tall, at the photo's aspect ratio, the photo filling it from its signed URL
  * over the ground, which shows while it is read and where it has none, and each box over it;
- * [marked], as a note's card list draws it, each box on the hatch, with no border and no label
- * (#629).
+ * [marked], as a note's card list draws it, at the start of its line and at most the
+ * `listed-photo` height, and each box on the hatch, with no border and no label (#629).
  */
 export function PhotoFrame({
   image,
@@ -26,10 +26,10 @@ export function PhotoFrame({
     <span
       aria-hidden
       data-image={image.media}
-      className="relative mx-auto block w-full rounded-sm bg-ground bg-cover bg-center"
+      className={`relative block w-full rounded-sm bg-ground bg-cover bg-center ${marked ? "" : "mx-auto"}`}
       style={{
         aspectRatio: `${String(image.width)} / ${String(image.height)}`,
-        maxWidth: `calc(${photoMaxHeight} * ${String(image.width)} / ${String(image.height)})`,
+        maxWidth: `calc(${marked ? "var(--spacing-listed-photo)" : photoMaxHeight} * ${String(image.width)} / ${String(image.height)})`,
         ...(image.url && { backgroundImage: `url("${image.url}")` }),
       }}
     >

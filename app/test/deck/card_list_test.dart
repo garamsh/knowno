@@ -220,11 +220,15 @@ void main() {
         tester,
         ProviderScope(
           overrides: [mediaStoreProvider.overrideWithValue(media)],
-          child: CardBackRow(
-            front: sides.front,
-            back: sides.back,
-            cells: cells,
-            onOpen: onOpen ?? () {},
+          // In a scroll view, as the card list lays its rows out: as tall
+          // as their content.
+          child: SingleChildScrollView(
+            child: CardBackRow(
+              front: sides.front,
+              back: sides.back,
+              cells: cells,
+              onOpen: onOpen ?? () {},
+            ),
           ),
         ),
         themeMode: themeMode,
@@ -317,14 +321,15 @@ void main() {
       expect(find.textContaining('태종'), findsOneWidget);
     });
 
-    testWidgets('a 사진 draws each box on the hatch over its photo, and its '
-        'answers on the hatch under it', (tester) async {
+    testWidgets('a 사진 draws its photo at the thumbnail height, each box on '
+        'the hatch over it, and its answers on the hatch under it, the row no '
+        'taller than the two', (tester) async {
       await pumpRow(tester, const [
         BlankCell(
           ImageContent(
             media: MediaId('m'),
-            width: 4,
-            height: 1,
+            width: 3,
+            height: 2,
             boxes: [
               ImageBox(id: 'a', x: 0.1, y: 0.1, w: 0.3, h: 0.2, answer: '한양'),
               ImageBox(id: 'b', x: 0.5, y: 0.6, w: 0.3, h: 0.2, answer: '개성'),
@@ -344,6 +349,30 @@ void main() {
       final answers = shownText('한양 · 개성');
       expect(answers, findsOneWidget);
       expect(hatchOver(tester, answers), hasLength(1));
+      // The photo's frame: the thumbnail's height at the photo's 3:2.
+      final frame = tester.getRect(
+        find
+            .ancestor(
+              of: find.byKey(const ValueKey(('listed box', 'a'))),
+              matching: find.byType(Stack),
+            )
+            .first,
+      );
+      expect(frame.height, AppSize.listedPhoto);
+      expect(frame.width, AppSize.listedPhoto * 3 / 2);
+      // The row holds the frame and the answers' box, and nothing taller.
+      final box = tester.getRect(
+        find.ancestor(of: answers, matching: find.byType(DecoratedBox)).first,
+      );
+      expect(
+        tester.getSize(find.byType(CardBackRow)).height,
+        // A row alone keeps the gap after it.
+        frame.height +
+            AppSpace.s8 +
+            box.height +
+            2 * AppSpace.s12 +
+            AppSpace.rowGap,
+      );
     });
 
     testWidgets('a long card is cut at two lines shown and three on the '
