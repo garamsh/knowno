@@ -138,7 +138,7 @@ describe("새 노트", () => {
     expect(sheet.queryByRole("group", { name: "색" })).not.toBeInTheDocument();
     expect(sheet.queryByRole("radio", { name: "실험" })).not.toBeInTheDocument();
     expect(sheet.getByLabelText("다른 사진")).toBeInTheDocument();
-    expect(sheet.getByRole("button", { name: "사진 빼기" })).toBeInTheDocument();
+    expect(sheet.getByRole("button", { name: "사진 삭제" })).toBeInTheDocument();
     await userEvent.click(sheet.getByRole("button", { name: "저장" }));
 
     await waitFor(() => {

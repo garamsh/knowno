@@ -14,7 +14,7 @@ import 'model.dart';
 /// The choices of a deck's look, as 노트 꾸미기 and 새 노트 offer them, each
 /// a group: "아이콘", the fourteen icons, "색", the offered colours, and
 /// "사진", "앨범에서 고르기" and "사진 찍기"; while [look] holds a photo, the
-/// icon and colour fold and "사진" offers "다른 사진" and "사진 빼기". Each
+/// icon and colour fold and "사진" offers "다른 사진" and "사진 삭제". Each
 /// choice hands the new look to [onChanged]. A photo that cannot be read
 /// says so under the photo's buttons, where [problem], the caller's own
 /// failure, shows too.

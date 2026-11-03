@@ -116,7 +116,7 @@ describe("노트 설정", () => {
       "별",
     ]);
     expect(sheet.getByRole("radio", { name: "카드 묶음" })).toBeChecked();
-    expect(sheet.queryByRole("button", { name: "사진 빼기" })).not.toBeInTheDocument();
+    expect(sheet.queryByRole("button", { name: "사진 삭제" })).not.toBeInTheDocument();
     expect(dialog.querySelector("[style*='background-image']")).toBeNull();
 
     await userEvent.click(sheet.getByRole("radio", { name: "별" }));
@@ -130,7 +130,7 @@ describe("노트 설정", () => {
         backgroundImage: 'url("blob:picked")',
       });
     });
-    expect(sheet.getByRole("button", { name: "사진 빼기" })).toBeInTheDocument();
+    expect(sheet.getByRole("button", { name: "사진 삭제" })).toBeInTheDocument();
     await userEvent.click(sheet.getByRole("button", { name: "저장" }));
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -169,10 +169,10 @@ describe("노트 설정", () => {
     expect(await sheet.findByRole("alert")).toHaveTextContent(
       "사진을 불러오지 못했어요. 다시 시도해 주세요.",
     );
-    expect(sheet.queryByRole("button", { name: "사진 빼기" })).not.toBeInTheDocument();
+    expect(sheet.queryByRole("button", { name: "사진 삭제" })).not.toBeInTheDocument();
   });
 
-  it("starts 노트 꾸미기 on the stored photo with the icon and colour folded, which 사진 빼기 removes from the preview and the note, the icon kept", async () => {
+  it("starts 노트 꾸미기 on the stored photo with the icon and colour folded, which 사진 삭제 removes from the preview and the note, the icon kept", async () => {
     const photo = uuidOf("photo");
     db.seed("decks", { ...deckRow("deck", "French"), image_media_id: photo, icon: "book" });
     db.rows.media.push({ user_id: testUser.id, id: photo });
@@ -190,7 +190,7 @@ describe("노트 설정", () => {
     expect(sheet.queryByRole("group", { name: "색" })).not.toBeInTheDocument();
     expect(sheet.getByLabelText("다른 사진")).toBeInTheDocument();
     expect(sheet.queryByLabelText("사진 찍기")).not.toBeInTheDocument();
-    await userEvent.click(sheet.getByRole("button", { name: "사진 빼기" }));
+    await userEvent.click(sheet.getByRole("button", { name: "사진 삭제" }));
     expect(dialog.querySelector("[style*='background-image']")).toBeNull();
     expect(sheet.getByRole("radio", { name: "책" })).toBeChecked();
     expect(sheet.getByLabelText("사진 찍기")).toBeInTheDocument();

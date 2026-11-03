@@ -24,7 +24,7 @@
   "@deckImageFromCamera": {"description": "In the 노트 꾸미기 sheet: the button that takes the tile's photo with the camera."},
   "deckImageAnother": "다른 사진",
   "@deckImageAnother": {"description": "In the 노트 꾸미기 choices, while the tile shows a photo: the button that picks another from the photo library."},
-  "deckImageRemove": "사진 빼기",
+  "deckImageRemove": "사진 삭제",
   "@deckImageRemove": {"description": "In the 노트 꾸미기 sheet: the button that takes the photo off the tile, which then shows its icon again."},
   "deckImageUnreadable": "사진을 불러오지 못했어요. 다시 시도해 주세요.",
   "@deckImageUnreadable": {"description": "In the 노트 꾸미기 sheet: shown when the picked photo, the camera or the photo library could not be read."},

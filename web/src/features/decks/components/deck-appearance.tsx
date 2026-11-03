@@ -42,7 +42,7 @@ const secondary =
  * offer them, each a group: "아이콘", the fourteen icons in the app's order; "색", the four offered
  * colours; and "사진", "앨범에서 고르기" and "사진 찍기", each the browser's picker of one image,
  * cropped to its centred square. While [look] holds a photo the icon and colour fold, and "사진"
- * offers "다른 사진" and "사진 빼기". Each choice hands the new look to [change]; a photo the browser
+ * offers "다른 사진" and "사진 삭제". Each choice hands the new look to [change]; a photo the browser
  * cannot decode says so under the photo's buttons, where [problem], the caller's failure, shows too.
  */
 export function DeckAppearanceFields({
@@ -169,7 +169,7 @@ export function DeckAppearanceFields({
               }}
               className="pressable min-h-button w-full rounded-button bg-surface px-4 text-button disabled:opacity-50"
             >
-              사진 빼기
+              사진 삭제
             </button>
           ) : (
             picker("사진 찍기", true)

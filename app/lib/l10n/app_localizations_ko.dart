@@ -46,7 +46,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get deckImageAnother => '다른 사진';
 
   @override
-  String get deckImageRemove => '사진 빼기';
+  String get deckImageRemove => '사진 삭제';
 
   @override
   String get deckImageUnreadable => '사진을 불러오지 못했어요. 다시 시도해 주세요.';

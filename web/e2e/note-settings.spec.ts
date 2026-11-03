@@ -239,7 +239,7 @@ test("stores a note's photo in Storage, draws it on the 노트 page from a signe
     await decorate
       .getByLabel("앨범에서 고르기")
       .setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
-    await expect(decorate.getByRole("button", { name: "사진 빼기", exact: true })).toBeVisible();
+    await expect(decorate.getByRole("button", { name: "사진 삭제", exact: true })).toBeVisible();
     await decorate.getByRole("button", { name: "저장", exact: true }).click();
     await expect(decorate).toBeHidden();
   }

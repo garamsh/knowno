@@ -173,7 +173,7 @@ abstract class AppLocalizations {
   /// In the 노트 꾸미기 sheet: the button that takes the photo off the tile, which then shows its icon again.
   ///
   /// In ko, this message translates to:
-  /// **'사진 빼기'**
+  /// **'사진 삭제'**
   String get deckImageRemove;
 
   /// In the 노트 꾸미기 sheet: shown when the picked photo, the camera or the photo library could not be read.
