@@ -375,6 +375,21 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
     };
   }, [unsaved]);
 
+  // The browser's back and forward leave past [exit], and the router draws the page they reach
+  // from its cache, as it stood before this session's answers: once every waiting write is
+  // saved, that page is read again (#603).
+  useEffect(() => {
+    const listener = () => {
+      void writes.flush().then((saved) => {
+        if (saved) router.refresh();
+      });
+    };
+    window.addEventListener("popstate", listener);
+    return () => {
+      window.removeEventListener("popstate", listener);
+    };
+  }, [writes, router]);
+
   const newest = view.previous.at(-1);
   /** The card the previous card's place shows, which a click opens whole. */
   const shown = newest ?? view.earlier;
