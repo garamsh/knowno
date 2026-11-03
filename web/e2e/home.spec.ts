@@ -256,8 +256,11 @@ test("draws the first-run home, 홈 over its week card, the 노트 page, a note,
   );
   await expect(page.getByRole("region", { name: "노트 목록" }).getByRole("link")).toHaveCount(3);
   await page.getByRole("searchbox", { name: "노트 검색" }).fill("한");
-  // Control for the fields below: a search over a list is the phone's search height.
-  expect(await fieldHeight(page.getByRole("searchbox", { name: "노트 검색" }))).toBe(46);
+  // Control for the fields below: a search over a list is the phone's search height, the box
+  // drawn round the field and its magnifier.
+  expect(
+    await fieldHeight(page.getByRole("searchbox", { name: "노트 검색" }).locator("xpath=..")),
+  ).toBe(46);
   await capture(page, "notes-search");
 
   await page.goto(`/decks/${decks[0]?.id ?? ""}`);
@@ -387,7 +390,8 @@ test("answers the browser's back on an authoring screen as the phone's back, and
   await page.goBack();
   await expect(page).toHaveURL(`${baseURL}/`);
 
-  // 새 노트 is left before its note opens, so a back from that note returns to 홈.
+  // 새 노트 is left before its note opens, so a back from that note returns to the 노트 page.
+  await page.goto("/decks");
   await untilReacted(
     () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
     () => page.getByRole("dialog", { name: "새 노트" }).isVisible(),
@@ -396,7 +400,7 @@ test("answers the browser's back on an authoring screen as the phone's back, and
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: "토익" })).toBeVisible();
   await page.goBack();
-  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect(page).toHaveURL(`${baseURL}/decks`);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 

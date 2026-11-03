@@ -20,7 +20,7 @@ import {
 import { Mascot } from "@/design/brand";
 
 import { EnterLink } from "./enter-link";
-import { heroFit, heroFitGroup } from "./hero-fit";
+import { belowHero, heroFit, heroFitGroup, homeFit } from "./hero-fit";
 import { ProfileButton, readInitial } from "./profile-button";
 import { WeekCard } from "./week-card";
 
@@ -189,9 +189,7 @@ function Home({
   initial: string | null;
 }) {
   return (
-    // A grid, not a flex column: as a flex item the hero's least height would hold the mascot at
-    // its largest.
-    <div className="-mt-6 grid min-h-[calc(100dvh-6rem)] grid-rows-[1fr_auto] gap-4 lg:mt-0 lg:min-h-0 lg:gap-6">
+    <div className={homeFit}>
       <section
         aria-labelledby="hero-title"
         className={`${heroFit} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 text-on-hero lg:mx-0 lg:rounded-card lg:p-8`}
@@ -204,7 +202,7 @@ function Home({
         </div>
         <div className={heroFitGroup}>{hero}</div>
       </section>
-      {below}
+      {below && <div className={belowHero}>{below}</div>}
     </div>
   );
 }
