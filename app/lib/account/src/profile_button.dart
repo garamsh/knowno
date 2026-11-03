@@ -44,7 +44,15 @@ class ProfileButton extends ConsumerWidget {
         // What a user wrote, so Pretendard (ADR 0147).
         icon: initial == null
             ? const Icon(LucideIcons.user)
-            : Text(initial, style: AppType.bodyStrong.copyWith(color: ink)),
+            // Shrunk to the circle only where a large text size is
+            // bigger than it.
+            : FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  initial,
+                  style: AppType.bodyStrong.copyWith(color: ink),
+                ),
+              ),
         style: IconButton.styleFrom(
           backgroundColor: onHero ? colors.heroButton : colors.raised,
           foregroundColor: ink,

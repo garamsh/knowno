@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter/services.dart';
@@ -22,6 +23,7 @@ import 'label_presets_screen.dart';
 import 'model.dart';
 import 'providers.dart';
 import 'senses_block.dart';
+import 'undo_snack_bar.dart';
 
 /// Adds a card to [deck], or edits [card] when one is given. The card is a
 /// column of groups, one per 칸, ending in "+ 칸 추가"; "미리보기" opens
@@ -71,6 +73,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
 
   /// The form's own snack bars, an undo among them.
   final _messenger = GlobalKey<ScaffoldMessengerState>();
+
+  /// The height of the form's undo bar, 0 while none shows.
+  final _undoBar = ValueNotifier<double>(0);
 
   /// The line under the column saying why the card as a whole cannot be
   /// saved.
@@ -126,6 +131,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   @override
   void dispose() {
     FocusManager.instance.removeListener(_focusChanged);
+    _undoBar.dispose();
     for (final block in _blocks) {
       block.dispose();
     }
@@ -327,6 +333,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       onPopInvokedWithResult: (didPop, _) => _confirmLeave(didPop),
       child: Scaffold(
         appBar: AppBar(
+          toolbarHeight: AppButton.barHeight(context),
           leading: IconButton(
             tooltip: l10n.close,
             icon: const Icon(LucideIcons.x),
@@ -344,110 +351,167 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         ),
         // The actions sit in the body under the form, not in the bottom bar, so
         // they stay above the keyboard, which shrinks the body (issue #307).
-        body: Column(
+        body: CustomMultiChildLayout(
+          delegate: _BodyLayout(undoBar: _undoBar),
           children: [
-            Expanded(
+            LayoutId(
+              id: _Part.form,
               // The form's own snack bars, an undo among them, which sit
               // over its foot rather than over the actions, and go with
               // the editor.
-              child: ScaffoldMessenger(
-                key: _messenger,
-                child: Scaffold(
-                  resizeToAvoidBottomInset: false,
-                  // A column, not a lazy list, so every block is built and its
-                  // error shows wherever it scrolls.
-                  body: SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppSpace.gutter),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // The deck, in the form rather than the top bar, where a
-                        // long name pushed the title out (issue #310).
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpace.s4,
-                          ),
-                          child: Text(
-                            widget.deck.name,
-                            semanticsLabel: l10n.cardDeck(widget.deck.name),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppType.caption.copyWith(
-                              color: colors.muted,
+              child: UndoBarRoom(
+                height: _undoBar,
+                child: ScaffoldMessenger(
+                  key: _messenger,
+                  child: Scaffold(
+                    resizeToAvoidBottomInset: false,
+                    // A column, not a lazy list, so every block is built and its
+                    // error shows wherever it scrolls.
+                    body: SingleChildScrollView(
+                      padding: const EdgeInsets.all(AppSpace.gutter),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // The deck, in the form rather than the top bar, where a
+                          // long name pushed the title out (issue #310).
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpace.s4,
+                            ),
+                            child: Text(
+                              widget.deck.name,
+                              semanticsLabel: l10n.cardDeck(widget.deck.name),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppType.caption.copyWith(
+                                color: colors.muted,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: AppSpace.s20),
-                        BlockList(
-                          blocks: _blocks,
-                          showErrors: _showRequired,
-                          error: _showRequired && _blocksComplete
-                              ? _cardProblem(l10n)
-                              : null,
-                          errorKey: _cardProblemKey,
-                          onChanged: _change,
-                          onMediaStored: _mediaStored,
-                        ),
-                        if (card != null) ...[
-                          const SizedBox(height: AppSpace.sectionGap),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: AppButton(
-                              label: l10n.deleteCard,
-                              variant: AppButtonVariant.destructive,
-                              onPressed: () => _delete(card),
-                            ),
+                          const SizedBox(height: AppSpace.s20),
+                          BlockList(
+                            blocks: _blocks,
+                            showErrors: _showRequired,
+                            error: _showRequired && _blocksComplete
+                                ? _cardProblem(l10n)
+                                : null,
+                            errorKey: _cardProblemKey,
+                            onChanged: _change,
+                            onMediaStored: _mediaStored,
                           ),
+                          if (card != null) ...[
+                            const SizedBox(height: AppSpace.sectionGap),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: AppButton(
+                                label: l10n.deleteCard,
+                                variant: AppButtonVariant.destructive,
+                                onPressed: () => _delete(card),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-            if (_isNew)
-              BottomActions(
-                secondary: AppButton(
-                  label: l10n.save,
-                  variant: AppButtonVariant.secondary,
-                  size: AppButtonSize.cta,
-                  onPressed: () => _save(_AfterSave.close),
-                ),
-                primary: AppButton(
-                  label: l10n.saveAndNext,
-                  size: AppButtonSize.cta,
-                  onPressed: () => _save(_AfterSave.next),
-                ),
-              )
-            else
-              BottomActions(
-                secondary: AppButton(
-                  label: l10n.save,
-                  size: AppButtonSize.cta,
-                  onPressed: () => _save(_AfterSave.close),
-                ),
+            LayoutId(
+              id: _Part.actions,
+              child: SingleChildScrollView(
+                primary: false,
+                child: _isNew
+                    ? BottomActions(
+                        secondary: AppButton(
+                          label: l10n.save,
+                          variant: AppButtonVariant.secondary,
+                          size: AppButtonSize.cta,
+                          onPressed: () => _save(_AfterSave.close),
+                        ),
+                        primary: AppButton(
+                          label: l10n.saveAndNext,
+                          size: AppButtonSize.cta,
+                          onPressed: () => _save(_AfterSave.next),
+                        ),
+                      )
+                    : BottomActions(
+                        secondary: AppButton(
+                          label: l10n.save,
+                          size: AppButtonSize.cta,
+                          onPressed: () => _save(_AfterSave.close),
+                        ),
+                      ),
               ),
-            // Last, so it sits right above the keyboard.
+            ),
             if (_focusedSense() case final sense?)
-              LabelPresetStrip(
-                presets: labelPresets(
-                  ref.read(deckStorageProvider),
-                  defaultLabelPresets(l10n),
+              LayoutId(
+                id: _Part.strip,
+                child: LabelPresetStrip(
+                  presets: labelPresets(
+                    ref.read(deckStorageProvider),
+                    defaultLabelPresets(l10n),
+                  ),
+                  current: sense.label.text,
+                  onPick: (label) => _change(() {
+                    sense.label.value = TextEditingValue(
+                      text: label,
+                      selection: TextSelection.collapsed(offset: label.length),
+                    );
+                  }),
+                  onManage: () => openPartOfSpeechPresets(context),
                 ),
-                current: sense.label.text,
-                onPick: (label) => _change(() {
-                  sense.label.value = TextEditingValue(
-                    text: label,
-                    selection: TextSelection.collapsed(offset: label.length),
-                  );
-                }),
-                onManage: () => openPartOfSpeechPresets(context),
               ),
           ],
         ),
       ),
     );
   }
+}
+
+/// The parts of the editor's body, top to bottom.
+enum _Part { form, actions, strip }
+
+/// Lays out the form over the actions over the label presets, the presets
+/// right above the keyboard. The actions take at most half the body, and
+/// while an undo bar shows, at most what leaves the form its height; past
+/// that they scroll.
+class _BodyLayout extends MultiChildLayoutDelegate {
+  _BodyLayout({required this.undoBar}) : super(relayout: undoBar);
+
+  final ValueNotifier<double> undoBar;
+
+  @override
+  void performLayout(Size size) {
+    final across = BoxConstraints.tightFor(width: size.width);
+    final strip = hasChild(_Part.strip)
+        ? layoutChild(
+            _Part.strip,
+            across.copyWith(maxHeight: size.height),
+          ).height
+        : 0.0;
+    final cap = min(
+      size.height / 2,
+      max(0.0, size.height - strip - undoBar.value),
+    );
+    final actions = layoutChild(
+      _Part.actions,
+      across.copyWith(maxHeight: cap),
+    ).height;
+    final form = max(0.0, size.height - strip - actions);
+    layoutChild(
+      _Part.form,
+      BoxConstraints.tightFor(width: size.width, height: form),
+    );
+    positionChild(_Part.actions, Offset(0, form));
+    if (hasChild(_Part.strip)) {
+      positionChild(_Part.strip, Offset(0, form + actions));
+    }
+  }
+
+  @override
+  bool shouldRelayout(_BodyLayout oldDelegate) =>
+      undoBar != oldDelegate.undoBar;
 }
 
 /// A card whose template this build does not know: shown as it is, with a

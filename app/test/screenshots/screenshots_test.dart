@@ -238,6 +238,17 @@ void main() {
       expect(sizes.length, lessThanOrEqualTo(3), reason: '$name: $sizes');
     }
 
+    /// Shoots the screen as it is at the largest text size too, as
+    /// "[name]-largest-text", then goes back to the text size before. An
+    /// overflow there fails the test.
+    Future<void> largest(WidgetTester tester, String name) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+      await tester.pumpAndSettle();
+      await shot(tester, '$name-largest-text');
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.pumpAndSettle();
+    }
+
     void phone(WidgetTester tester) {
       // Release builds draw neither the debug banner nor flat shadows;
       // [unmount] restores both before the test's own checks run.
@@ -297,7 +308,7 @@ void main() {
       await tester.tap(shownText(ko.tabRecord));
       for (
         var tries = 0;
-        tries < 20000 && find.text(ko.retentionTitle).evaluate().isEmpty;
+        tries < 20000 && shownText(ko.retentionTitle).evaluate().isEmpty;
         tries++
       ) {
         await tester.runAsync(
@@ -305,7 +316,7 @@ void main() {
         );
         await tester.pump();
       }
-      expect(find.text(ko.retentionTitle), findsOneWidget);
+      expect(shownText(ko.retentionTitle), findsOneWidget);
       await tester.pumpAndSettle();
     }
 
@@ -349,9 +360,22 @@ void main() {
       );
       await tester.pumpAndSettle();
       await shot(tester, '01-sign-in');
+      await largest(tester, '01-sign-in');
 
       await tap(tester, find.text(ko.signInWithGoogle));
       await shot(tester, '02-deck-list-empty');
+      await largest(tester, '02-deck-list-empty');
+      // Its second action, reached by scrolling at the largest text size.
+      tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        shownText(ko.browsePublicDecks),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await shot(tester, '02-deck-list-empty-largest-text-below');
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.pumpAndSettle();
 
       // Types a new card's [front] and [back] into its two 글, the editor's only
       // fields: the front's first, then the back's.
@@ -376,6 +400,7 @@ void main() {
       // 홈 while no deck holds a card: how to start.
       await showHome(tester);
       await shot(tester, '16-today-no-cards');
+      await largest(tester, '16-today-no-cards');
       await showNotes(tester);
       await tap(tester, shownText(ko.newDeck));
       await tester.enterText(find.byType(EditableText), '일본어 N3 한자');
@@ -398,7 +423,10 @@ void main() {
         if (index == 0) await shot(tester, '04b-add-card-sheet');
         await tap(tester, shownText(ko.createManually));
         await enterSides(front, back);
-        if (index == 0) await shot(tester, '05-card-editor');
+        if (index == 0) {
+          await shot(tester, '05-card-editor');
+          await largest(tester, '05-card-editor');
+        }
         await tap(tester, shownText(ko.save));
       }
       await tap(tester, shownText(ko.newCard));
@@ -880,6 +908,7 @@ void main() {
       );
       await tap(tester, shownText(ko.todayStudy));
       await shot(tester, '15d-study-extra');
+      await largest(tester, '15d-study-extra');
       await unmount(tester);
     });
 
@@ -1167,6 +1196,7 @@ void main() {
       await tester.pumpAndSettle();
       await tap(tester, find.widgetWithText(AppChip, '명'));
       await shot(tester, '05c-card-editor-label-presets');
+      await largest(tester, '05c-card-editor-label-presets');
       tester.view.resetViewInsets();
       await tester.pumpAndSettle();
       await fill(ko.senseMeaning, '선물');
@@ -1470,6 +1500,7 @@ void main() {
       await tap(tester, find.byTooltip(ko.blockMenu(1)));
       await tap(tester, shownText(ko.deleteBlock).last);
       await shot(tester, '05zb-card-editor-undo');
+      await largest(tester, '05zb-card-editor-undo');
       await open(null);
       await shot(tester, '05y-card-editor-new');
       await tap(tester, shownText(ko.save));
@@ -1808,6 +1839,7 @@ void main() {
       await tester.pumpAndSettle();
       await showRecord(tester);
       await shot(tester, '16e-record-history');
+      await largest(tester, '16e-record-history');
       await tester.drag(find.byType(ListView), const Offset(0, -600));
       await tester.pumpAndSettle();
       await shot(tester, '16f-record-history-scrolled');
@@ -2318,6 +2350,9 @@ void main() {
               ? '24a-photo-unavailable'
               : '26c-photo-all-unavailable',
         );
+        if (origin == PhotoOrigin.camera) {
+          await largest(tester, '24a-photo-unavailable');
+        }
       }
       await unmount(tester);
       semantics.dispose();

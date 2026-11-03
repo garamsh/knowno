@@ -415,7 +415,7 @@ void main() {
 
       await actOnBlock(screens, 1, 'Delete');
       expect(find.byType(AppSheet), findsNothing, reason: 'nothing asks');
-      expect(find.text('Block deleted'), findsOneWidget);
+      expect(shownText('Block deleted'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'Chat'), findsNothing);
       await screens.tap(find.text('Undo'));
       expect(find.byType(EditorGroup), findsNWidgets(2));

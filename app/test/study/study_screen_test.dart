@@ -653,6 +653,60 @@ void main() {
     },
   );
 
+  for (final scale in [1.0, 3.12]) {
+    testWidgets(
+      'at text scale $scale the day\'s last card from an earlier session '
+      'names itself at its foot, under its sides and never over them',
+      (tester) async {
+        final (names, states) = _deck(_quota + 2, today: _quota);
+        await _open(tester, names, states: states, textScale: scale);
+        final label = find.descendant(
+          of: shownText(_earlier),
+          matching: find.byType(RichText),
+        );
+        expect(label, findsOneWidget, reason: 'setup');
+
+        // The sides scroll inside the card where they are taller than it,
+        // so what shows of them is the scroll's viewport.
+        final face = find.descendant(
+          of: find.byType(EarlierCardView),
+          matching: find.byType(Scrollable),
+        );
+        expect(face, findsOneWidget, reason: 'setup: the sides are drawn');
+        expect(tester.getRect(face).overlaps(tester.getRect(label)), isFalse);
+      },
+    );
+
+    testWidgets(
+      'at text scale $scale the top bar holds the close, the bar and both '
+      'counts on the screen, the counts shrunk only where they do not fit',
+      (tester) async {
+        final (names, states) = _deck(_quota + 2, today: _quota);
+        final study = await _open(
+          tester,
+          names,
+          states: states,
+          textScale: scale,
+        );
+        await study.know();
+        expect(shownText('+1 extra'), findsOneWidget, reason: 'setup');
+
+        expect(tester.takeException(), isNull);
+        for (final count in ['30/30', '+1 extra']) {
+          expect(
+            tester.getRect(shownText(count)).right,
+            lessThanOrEqualTo(_phone.width),
+            reason: count,
+          );
+        }
+        expect(
+          tester.getSize(find.byType(LinearProgressIndicator)).width,
+          greaterThan(0),
+        );
+      },
+    );
+  }
+
   testWidgets(
     "the day's bar is full when another deck's answers took the day's new cards, as the web draws it",
     (tester) async {

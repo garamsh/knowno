@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -25,16 +23,6 @@ class ListHeaderActions extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
   final HeaderMenu? menu;
-
-  /// The height of a top bar holding these actions: the bar's own, or, at a
-  /// text size whose label is taller, that label's line with the bar's
-  /// inset, so the label is never clipped.
-  static double barHeight(BuildContext context) {
-    final line =
-        MediaQuery.textScalerOf(context).scale(AppType.label.fontSize!) *
-        AppType.label.height!;
-    return math.max(kToolbarHeight, line + 2 * AppSpace.s8);
-  }
 
   @override
   Widget build(BuildContext context) {

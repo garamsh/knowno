@@ -235,7 +235,7 @@ void main() {
 
       expect(find.byType(SignInScreen), findsOneWidget);
       expect(find.bySemanticsLabel('알아몰라'), findsOneWidget);
-      expect(find.text('밀어서 응답하고,\n잊을 때쯤 다시 만나는 암기 카드'), findsOneWidget);
+      expect(shownText('밀어서 응답하고,\n잊을 때쯤 다시 만나는 암기 카드'), findsOneWidget);
       expect(shownText('Apple로 계속하기 · 준비 중'), findsOneWidget);
       // Besides Google's button, only the links to the terms answer a tap.
       expect(enabledButtons(tester), ['Google로 계속하기', '이용약관', '개인정보 처리방침']);

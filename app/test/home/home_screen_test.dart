@@ -351,7 +351,7 @@ void main() {
 
         await tester.tap(record);
         await tester.pumpAndSettle();
-        expect(find.text('Correct in reviews'), findsOneWidget);
+        expect(shownText('Correct in reviews'), findsOneWidget);
         expect(await tester.binding.handlePopRoute(), isTrue);
         await tester.pumpAndSettle();
         expect(shownText('1 card today'), findsOneWidget);

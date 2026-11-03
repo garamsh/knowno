@@ -156,7 +156,8 @@ class _StatsCard extends StatelessWidget {
                 Semantics(
                   header: true,
                   child: Text(
-                    title,
+                    keepWords(title),
+                    semanticsLabel: title,
                     style: AppType.label.copyWith(color: colors.ink),
                   ),
                 ),
@@ -307,7 +308,8 @@ class _Pill extends StatelessWidget {
           vertical: AppSpace.s4,
         ),
         child: Text(
-          label,
+          keepWords(label),
+          semanticsLabel: label,
           style: AppType.section.copyWith(
             color: shortfall ? colors.ink : colors.onKnowTint,
           ),

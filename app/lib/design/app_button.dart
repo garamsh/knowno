@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'app_raised.dart';
@@ -80,6 +82,17 @@ class AppButton extends StatelessWidget {
   /// What the progress is read as while [loading]; the [label] when null.
   final String? loadingLabel;
 
+  /// The height of a top bar holding a header or quiet button: the bar's
+  /// own, or, at a text size whose label is taller, that label's line with a
+  /// filled button's inset around it and the bar's around that, so the label
+  /// is never cut.
+  static double barHeight(BuildContext context) {
+    final line =
+        MediaQuery.textScalerOf(context).scale(AppType.label.fontSize!) *
+        AppType.label.height!;
+    return math.max(kToolbarHeight, line + 4 * AppSpace.s8);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
@@ -113,6 +126,12 @@ class AppButton extends StatelessWidget {
       AppButtonVariant.destructive => (colors.surface, colors.dontKnowText),
       AppButtonVariant.onHeroText => (colors.hero, colors.onHero),
     };
+    final quiet = switch (variant) {
+      AppButtonVariant.text ||
+      AppButtonVariant.onHeroText ||
+      AppButtonVariant.destructive => true,
+      _ => false,
+    };
     final child = loading
         ? SizedBox.square(
             dimension: AppSpace.s20,
@@ -122,27 +141,33 @@ class AppButton extends StatelessWidget {
               semanticsLabel: loadingLabel ?? label,
             ),
           )
-        : switch (icon) {
-            final icon? => Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: AppSpace.s8,
-              children: [
-                Icon(icon, size: AppSize.smallIcon),
-                Flexible(
-                  child: Text(
-                    keepWords(label),
-                    semanticsLabel: label,
-                    textAlign: TextAlign.center,
+        // Inset from a filled or outlined button's top and bottom, which
+        // Material pads at the sides alone, so a label a large text size
+        // makes taller than the button grows it and is never cut.
+        : Padding(
+            padding: EdgeInsets.symmetric(vertical: quiet ? 0 : AppSpace.s8),
+            child: switch (icon) {
+              final icon? => Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: AppSpace.s8,
+                children: [
+                  Icon(icon, size: AppSize.smallIcon),
+                  Flexible(
+                    child: Text(
+                      keepWords(label),
+                      semanticsLabel: label,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            null => Text(
-              keepWords(label),
-              semanticsLabel: label,
-              textAlign: TextAlign.center,
-            ),
-          };
+                ],
+              ),
+              null => Text(
+                keepWords(label),
+                semanticsLabel: label,
+                textAlign: TextAlign.center,
+              ),
+            },
+          );
     final edge = switch (variant) {
       _ when pressed == null => null,
       AppButtonVariant.primary => colors.primaryEdge,
