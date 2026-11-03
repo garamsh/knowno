@@ -113,8 +113,9 @@ void main() {
   /// finish.
   Future<void> tapAndFinish(WidgetTester tester, Finder finder) async {
     await tester.ensureVisible(finder);
-    // The scroll lands on the next frame, where the tap must find it.
-    await tester.pump();
+    // A scroll still running, such as the focused field's reveal, takes the
+    // tap from the form, so the tap waits for the form to settle.
+    await tester.pumpAndSettle();
     await tester.tap(finder);
     for (var step = 0; step < 20; step++) {
       await tester.runAsync(
