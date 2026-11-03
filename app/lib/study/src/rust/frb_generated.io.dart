@@ -4,180 +4,266 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/engine.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
+
 import 'frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
+abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
+  RustLibApiImplPlatform({
+    required super.handler,
+    required super.wire,
+    required super.generalizedFrbRustBinding,
+    required super.portManager,
+  });
 
+  @protected
+  Answer dco_decode_answer(dynamic raw);
 
+  @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw);
 
-                abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
-                  RustLibApiImplPlatform({
-                    required super.handler,
-                    required super.wire,
-                    required super.generalizedFrbRustBinding,
-                    required super.portManager,
-                  });
+  @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
-                  
+  @protected
+  MemoryStateParts dco_decode_box_autoadd_memory_state_parts(dynamic raw);
 
-                  @protected Answer dco_decode_answer(dynamic raw);
+  @protected
+  EngineError dco_decode_engine_error(dynamic raw);
 
-@protected double dco_decode_box_autoadd_f_64(dynamic raw);
+  @protected
+  double dco_decode_f_64(dynamic raw);
 
-@protected PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+  @protected
+  int dco_decode_i_32(dynamic raw);
 
-@protected MemoryStateParts dco_decode_box_autoadd_memory_state_parts(dynamic raw);
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
 
-@protected EngineError dco_decode_engine_error(dynamic raw);
+  @protected
+  List<ReviewRecord> dco_decode_list_review_record(dynamic raw);
 
-@protected double dco_decode_f_64(dynamic raw);
+  @protected
+  List<Today> dco_decode_list_today(dynamic raw);
 
-@protected int dco_decode_i_32(dynamic raw);
+  @protected
+  List<TodayCard> dco_decode_list_today_card(dynamic raw);
 
-@protected PlatformInt64 dco_decode_i_64(dynamic raw);
+  @protected
+  MemoryStateParts dco_decode_memory_state_parts(dynamic raw);
 
-@protected List<ReviewRecord> dco_decode_list_review_record(dynamic raw);
+  @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
-@protected List<Today> dco_decode_list_today(dynamic raw);
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
-@protected List<TodayCard> dco_decode_list_today_card(dynamic raw);
+  @protected
+  MemoryStateParts? dco_decode_opt_box_autoadd_memory_state_parts(dynamic raw);
 
-@protected MemoryStateParts dco_decode_memory_state_parts(dynamic raw);
+  @protected
+  Quantity dco_decode_quantity(dynamic raw);
 
-@protected double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
+  @protected
+  ReviewRecord dco_decode_review_record(dynamic raw);
 
-@protected PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+  @protected
+  Scheduled dco_decode_scheduled(dynamic raw);
 
-@protected MemoryStateParts? dco_decode_opt_box_autoadd_memory_state_parts(dynamic raw);
+  @protected
+  Today dco_decode_today(dynamic raw);
 
-@protected Quantity dco_decode_quantity(dynamic raw);
+  @protected
+  TodayCard dco_decode_today_card(dynamic raw);
 
-@protected ReviewRecord dco_decode_review_record(dynamic raw);
+  @protected
+  int dco_decode_u_8(dynamic raw);
 
-@protected Scheduled dco_decode_scheduled(dynamic raw);
+  @protected
+  void dco_decode_unit(dynamic raw);
 
-@protected Today dco_decode_today(dynamic raw);
+  @protected
+  Answer sse_decode_answer(SseDeserializer deserializer);
 
-@protected TodayCard dco_decode_today_card(dynamic raw);
+  @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
-@protected int dco_decode_u_8(dynamic raw);
+  @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
-@protected void dco_decode_unit(dynamic raw);
+  @protected
+  MemoryStateParts sse_decode_box_autoadd_memory_state_parts(
+    SseDeserializer deserializer,
+  );
 
-@protected Answer sse_decode_answer(SseDeserializer deserializer);
+  @protected
+  EngineError sse_decode_engine_error(SseDeserializer deserializer);
 
-@protected double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer);
 
-@protected PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
 
-@protected MemoryStateParts sse_decode_box_autoadd_memory_state_parts(SseDeserializer deserializer);
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
-@protected EngineError sse_decode_engine_error(SseDeserializer deserializer);
+  @protected
+  List<ReviewRecord> sse_decode_list_review_record(
+    SseDeserializer deserializer,
+  );
 
-@protected double sse_decode_f_64(SseDeserializer deserializer);
+  @protected
+  List<Today> sse_decode_list_today(SseDeserializer deserializer);
 
-@protected int sse_decode_i_32(SseDeserializer deserializer);
+  @protected
+  List<TodayCard> sse_decode_list_today_card(SseDeserializer deserializer);
 
-@protected PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+  @protected
+  MemoryStateParts sse_decode_memory_state_parts(SseDeserializer deserializer);
 
-@protected List<ReviewRecord> sse_decode_list_review_record(SseDeserializer deserializer);
+  @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
-@protected List<Today> sse_decode_list_today(SseDeserializer deserializer);
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
-@protected List<TodayCard> sse_decode_list_today_card(SseDeserializer deserializer);
+  @protected
+  MemoryStateParts? sse_decode_opt_box_autoadd_memory_state_parts(
+    SseDeserializer deserializer,
+  );
 
-@protected MemoryStateParts sse_decode_memory_state_parts(SseDeserializer deserializer);
+  @protected
+  Quantity sse_decode_quantity(SseDeserializer deserializer);
 
-@protected double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
+  @protected
+  ReviewRecord sse_decode_review_record(SseDeserializer deserializer);
 
-@protected PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+  @protected
+  Scheduled sse_decode_scheduled(SseDeserializer deserializer);
 
-@protected MemoryStateParts? sse_decode_opt_box_autoadd_memory_state_parts(SseDeserializer deserializer);
+  @protected
+  Today sse_decode_today(SseDeserializer deserializer);
 
-@protected Quantity sse_decode_quantity(SseDeserializer deserializer);
+  @protected
+  TodayCard sse_decode_today_card(SseDeserializer deserializer);
 
-@protected ReviewRecord sse_decode_review_record(SseDeserializer deserializer);
+  @protected
+  int sse_decode_u_8(SseDeserializer deserializer);
 
-@protected Scheduled sse_decode_scheduled(SseDeserializer deserializer);
+  @protected
+  void sse_decode_unit(SseDeserializer deserializer);
 
-@protected Today sse_decode_today(SseDeserializer deserializer);
+  @protected
+  bool sse_decode_bool(SseDeserializer deserializer);
 
-@protected TodayCard sse_decode_today_card(SseDeserializer deserializer);
+  @protected
+  void sse_encode_answer(Answer self, SseSerializer serializer);
 
-@protected int sse_decode_u_8(SseDeserializer deserializer);
+  @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
-@protected void sse_decode_unit(SseDeserializer deserializer);
+  @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  );
 
-@protected bool sse_decode_bool(SseDeserializer deserializer);
+  @protected
+  void sse_encode_box_autoadd_memory_state_parts(
+    MemoryStateParts self,
+    SseSerializer serializer,
+  );
 
-@protected void sse_encode_answer(Answer self, SseSerializer serializer);
+  @protected
+  void sse_encode_engine_error(EngineError self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_i_64(PlatformInt64 self, SseSerializer serializer);
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
 
-@protected void sse_encode_box_autoadd_memory_state_parts(MemoryStateParts self, SseSerializer serializer);
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
-@protected void sse_encode_engine_error(EngineError self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_review_record(
+    List<ReviewRecord> self,
+    SseSerializer serializer,
+  );
 
-@protected void sse_encode_f_64(double self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_today(List<Today> self, SseSerializer serializer);
 
-@protected void sse_encode_i_32(int self, SseSerializer serializer);
+  @protected
+  void sse_encode_list_today_card(
+    List<TodayCard> self,
+    SseSerializer serializer,
+  );
 
-@protected void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+  @protected
+  void sse_encode_memory_state_parts(
+    MemoryStateParts self,
+    SseSerializer serializer,
+  );
 
-@protected void sse_encode_list_review_record(List<ReviewRecord> self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
-@protected void sse_encode_list_today(List<Today> self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  );
 
-@protected void sse_encode_list_today_card(List<TodayCard> self, SseSerializer serializer);
+  @protected
+  void sse_encode_opt_box_autoadd_memory_state_parts(
+    MemoryStateParts? self,
+    SseSerializer serializer,
+  );
 
-@protected void sse_encode_memory_state_parts(MemoryStateParts self, SseSerializer serializer);
+  @protected
+  void sse_encode_quantity(Quantity self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
+  @protected
+  void sse_encode_review_record(ReviewRecord self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_i_64(PlatformInt64? self, SseSerializer serializer);
+  @protected
+  void sse_encode_scheduled(Scheduled self, SseSerializer serializer);
 
-@protected void sse_encode_opt_box_autoadd_memory_state_parts(MemoryStateParts? self, SseSerializer serializer);
+  @protected
+  void sse_encode_today(Today self, SseSerializer serializer);
 
-@protected void sse_encode_quantity(Quantity self, SseSerializer serializer);
+  @protected
+  void sse_encode_today_card(TodayCard self, SseSerializer serializer);
 
-@protected void sse_encode_review_record(ReviewRecord self, SseSerializer serializer);
+  @protected
+  void sse_encode_u_8(int self, SseSerializer serializer);
 
-@protected void sse_encode_scheduled(Scheduled self, SseSerializer serializer);
+  @protected
+  void sse_encode_unit(void self, SseSerializer serializer);
 
-@protected void sse_encode_today(Today self, SseSerializer serializer);
-
-@protected void sse_encode_today_card(TodayCard self, SseSerializer serializer);
-
-@protected void sse_encode_u_8(int self, SseSerializer serializer);
-
-@protected void sse_encode_unit(void self, SseSerializer serializer);
-
-@protected void sse_encode_bool(bool self, SseSerializer serializer);
-                }
-                
-
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer);
+}
 
 // Section: wire_class
 
+class RustLibWire implements BaseWire {
+  factory RustLibWire.fromExternalLibrary(ExternalLibrary lib) =>
+      RustLibWire(lib.ffiDynamicLibrary);
 
-        class RustLibWire implements BaseWire {
+  /// Holds the symbol lookup function.
+  final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
+  _lookup;
 
-            factory RustLibWire.fromExternalLibrary(ExternalLibrary lib) =>
-              RustLibWire(lib.ffiDynamicLibrary);
-        
-            /// Holds the symbol lookup function.
-            final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
-                _lookup;
-  
-            /// The symbols are looked up in [dynamicLibrary].
-            RustLibWire(ffi.DynamicLibrary dynamicLibrary)
-                : _lookup = dynamicLibrary.lookup;
-
-            
-        }
-        
+  /// The symbols are looked up in [dynamicLibrary].
+  RustLibWire(ffi.DynamicLibrary dynamicLibrary)
+    : _lookup = dynamicLibrary.lookup;
+}

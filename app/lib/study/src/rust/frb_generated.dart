@@ -4,575 +4,907 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/engine.dart';
+
 import 'dart:async';
 import 'dart:convert';
+
 import 'frb_generated.dart';
-import 'frb_generated.io.dart' if (dart.library.js_interop) 'frb_generated.web.dart';
+import 'frb_generated.io.dart'
+    if (dart.library.js_interop) 'frb_generated.web.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+/// Main entrypoint of the Rust API
+class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
+  @internal
+  static final instance = RustLib._();
 
-                /// Main entrypoint of the Rust API
-                class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
-                  @internal
-                  static final instance = RustLib._();
+  RustLib._();
 
-                  RustLib._();
+  /// Initialize flutter_rust_bridge
+  static Future<void> init({
+    RustLibApi? api,
+    BaseHandler? handler,
+    ExternalLibrary? externalLibrary,
+    bool forceSameCodegenVersion = true,
+  }) async {
+    await instance.initImpl(
+      api: api,
+      handler: handler,
+      externalLibrary: externalLibrary,
+      forceSameCodegenVersion: forceSameCodegenVersion,
+    );
+  }
 
-                  /// Initialize flutter_rust_bridge
-                  static Future<void> init({
-                    RustLibApi? api,
-                    BaseHandler? handler,
-                    ExternalLibrary? externalLibrary,
-                    bool forceSameCodegenVersion = true,
-                  }) async {
-                    await instance.initImpl(
-                      api: api,
-                      handler: handler,
-                      externalLibrary: externalLibrary,
-                      forceSameCodegenVersion: forceSameCodegenVersion,
-                    );
-                  }
+  /// Initialize flutter_rust_bridge in mock mode.
+  /// No libraries for FFI are loaded.
+  static void initMock({required RustLibApi api}) {
+    instance.initMockImpl(api: api);
+  }
 
-                  /// Initialize flutter_rust_bridge in mock mode.
-                  /// No libraries for FFI are loaded.
-                  static void initMock({
-                    required RustLibApi api,
-                  }) {
-                    instance.initMockImpl(
-                      api: api,
-                    );
-                  }
+  /// Dispose flutter_rust_bridge
+  ///
+  /// The call to this function is optional, since flutter_rust_bridge (and everything else)
+  /// is automatically disposed when the app stops.
+  static void dispose() => instance.disposeImpl();
 
-                  /// Dispose flutter_rust_bridge
-                  ///
-                  /// The call to this function is optional, since flutter_rust_bridge (and everything else)
-                  /// is automatically disposed when the app stops.
-                  static void dispose() => instance.disposeImpl();
+  @override
+  ApiImplConstructor<RustLibApiImpl, RustLibWire> get apiImplConstructor =>
+      RustLibApiImpl.new;
 
-                  @override
-                  ApiImplConstructor<RustLibApiImpl, RustLibWire> get apiImplConstructor => RustLibApiImpl.new;
+  @override
+  WireConstructor<RustLibWire> get wireConstructor =>
+      RustLibWire.fromExternalLibrary;
 
-                  @override
-                  WireConstructor<RustLibWire> get wireConstructor => RustLibWire.fromExternalLibrary;
+  @override
+  Future<void> executeRustInitializers() async {
+    await api.crateApiEngineInitApp();
+  }
 
-                  @override
-                  Future<void> executeRustInitializers() async {
-                    await api.crateApiEngineInitApp();
+  @override
+  ExternalLibraryLoaderConfig get defaultExternalLibraryLoaderConfig =>
+      kDefaultExternalLibraryLoaderConfig;
 
-                    
-                  }
+  @override
+  String get codegenVersion => '2.13.0';
 
-                  @override
-                  ExternalLibraryLoaderConfig get defaultExternalLibraryLoaderConfig => kDefaultExternalLibraryLoaderConfig;
+  @override
+  int get rustContentHash => 1870521538;
 
-                  @override
-                  String get codegenVersion => '2.13.0';
+  static const kDefaultExternalLibraryLoaderConfig =
+      ExternalLibraryLoaderConfig(
+        stem: 'rust_lib_knowno',
+        ioDirectory: 'rust/target/release/',
+        webPrefix: 'pkg/',
+        wasmBindgenName: 'wasm_bindgen',
+      );
+}
 
-                  @override
-                  int get rustContentHash => 1870521538;
+abstract class RustLibApi extends BaseApi {
+  Future<void> crateApiEngineInitApp();
 
-                  static const kDefaultExternalLibraryLoaderConfig = ExternalLibraryLoaderConfig(
-                    stem: 'rust_lib_knowno',
-                    ioDirectory: 'rust/target/release/',
-                    webPrefix: 'pkg/',
-                    wasmBindgenName: 'wasm_bindgen',
-                  );
-                }
-                
+  Future<MemoryStateParts?> crateApiEngineReplay({
+    required List<ReviewRecord> history,
+  });
 
-                abstract class RustLibApi extends BaseApi {
-                  Future<void> crateApiEngineInitApp();
+  Future<double> crateApiEngineRetrievability({
+    required MemoryStateParts state,
+    required PlatformInt64 at,
+  });
 
-Future<MemoryStateParts?> crateApiEngineReplay({required List<ReviewRecord> history });
+  Future<Scheduled> crateApiEngineReviewCard({
+    required MemoryStateParts state,
+    required Answer answer,
+    required PlatformInt64 at,
+    double? fuzzFactor,
+  });
 
-Future<double> crateApiEngineRetrievability({required MemoryStateParts state , required PlatformInt64 at });
+  Future<Scheduled> crateApiEngineReviewNewCard({
+    required Answer answer,
+    required PlatformInt64 at,
+    double? fuzzFactor,
+  });
 
-Future<Scheduled> crateApiEngineReviewCard({required MemoryStateParts state , required Answer answer , required PlatformInt64 at , double? fuzzFactor });
+  List<Today> crateApiEngineTodaysList({
+    required List<TodayCard> cards,
+    required PlatformInt64 dayStart,
+    required PlatformInt64 dayEnd,
+  });
+}
 
-Future<Scheduled> crateApiEngineReviewNewCard({required Answer answer , required PlatformInt64 at , double? fuzzFactor });
+class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
+  RustLibApiImpl({
+    required super.handler,
+    required super.wire,
+    required super.generalizedFrbRustBinding,
+    required super.portManager,
+  });
 
-List<Today> crateApiEngineTodaysList({required List<TodayCard> cards , required PlatformInt64 dayStart , required PlatformInt64 dayEnd });
-
-
-                }
-                
-
-                class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
-                  RustLibApiImpl({
-                    required super.handler,
-                    required super.wire,
-                    required super.generalizedFrbRustBinding,
-                    required super.portManager,
-                  });
-
-                  @override Future<void> crateApiEngineInitApp()  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
+  @override
+  Future<void> crateApiEngineInitApp() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiEngineInitAppConstMeta,
-            argValues: [],
-            apiImpl: this,
-        )); }
+        ),
+        constMeta: kCrateApiEngineInitAppConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
 
+  TaskConstMeta get kCrateApiEngineInitAppConstMeta =>
+      const TaskConstMeta(debugName: "init_app", argNames: []);
 
-        TaskConstMeta get kCrateApiEngineInitAppConstMeta => const TaskConstMeta(
-            debugName: "init_app",
-            argNames: [],
-        );
-        
-
-@override Future<MemoryStateParts?> crateApiEngineReplay({required List<ReviewRecord> history })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_list_review_record(history, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
+  @override
+  Future<MemoryStateParts?> crateApiEngineReplay({
+    required List<ReviewRecord> history,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_review_record(history, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_memory_state_parts,
           decodeErrorData: sse_decode_engine_error,
-        )
-        ,
-            constMeta: kCrateApiEngineReplayConstMeta,
-            argValues: [history],
-            apiImpl: this,
-        )); }
+        ),
+        constMeta: kCrateApiEngineReplayConstMeta,
+        argValues: [history],
+        apiImpl: this,
+      ),
+    );
+  }
 
+  TaskConstMeta get kCrateApiEngineReplayConstMeta =>
+      const TaskConstMeta(debugName: "replay", argNames: ["history"]);
 
-        TaskConstMeta get kCrateApiEngineReplayConstMeta => const TaskConstMeta(
-            debugName: "replay",
-            argNames: ["history"],
-        );
-        
-
-@override Future<double> crateApiEngineRetrievability({required MemoryStateParts state , required PlatformInt64 at })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_memory_state_parts(state, serializer);
-sse_encode_i_64(at, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
+  @override
+  Future<double> crateApiEngineRetrievability({
+    required MemoryStateParts state,
+    required PlatformInt64 at,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_memory_state_parts(state, serializer);
+          sse_encode_i_64(at, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
           decodeSuccessData: sse_decode_f_64,
           decodeErrorData: sse_decode_engine_error,
-        )
-        ,
-            constMeta: kCrateApiEngineRetrievabilityConstMeta,
-            argValues: [state, at],
-            apiImpl: this,
-        )); }
+        ),
+        constMeta: kCrateApiEngineRetrievabilityConstMeta,
+        argValues: [state, at],
+        apiImpl: this,
+      ),
+    );
+  }
 
+  TaskConstMeta get kCrateApiEngineRetrievabilityConstMeta =>
+      const TaskConstMeta(
+        debugName: "retrievability",
+        argNames: ["state", "at"],
+      );
 
-        TaskConstMeta get kCrateApiEngineRetrievabilityConstMeta => const TaskConstMeta(
-            debugName: "retrievability",
-            argNames: ["state", "at"],
-        );
-        
-
-@override Future<Scheduled> crateApiEngineReviewCard({required MemoryStateParts state , required Answer answer , required PlatformInt64 at , double? fuzzFactor })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_box_autoadd_memory_state_parts(state, serializer);
-sse_encode_answer(answer, serializer);
-sse_encode_i_64(at, serializer);
-sse_encode_opt_box_autoadd_f_64(fuzzFactor, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
+  @override
+  Future<Scheduled> crateApiEngineReviewCard({
+    required MemoryStateParts state,
+    required Answer answer,
+    required PlatformInt64 at,
+    double? fuzzFactor,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_memory_state_parts(state, serializer);
+          sse_encode_answer(answer, serializer);
+          sse_encode_i_64(at, serializer);
+          sse_encode_opt_box_autoadd_f_64(fuzzFactor, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
           decodeSuccessData: sse_decode_scheduled,
           decodeErrorData: sse_decode_engine_error,
-        )
-        ,
-            constMeta: kCrateApiEngineReviewCardConstMeta,
-            argValues: [state, answer, at, fuzzFactor],
-            apiImpl: this,
-        )); }
+        ),
+        constMeta: kCrateApiEngineReviewCardConstMeta,
+        argValues: [state, answer, at, fuzzFactor],
+        apiImpl: this,
+      ),
+    );
+  }
 
+  TaskConstMeta get kCrateApiEngineReviewCardConstMeta => const TaskConstMeta(
+    debugName: "review_card",
+    argNames: ["state", "answer", "at", "fuzzFactor"],
+  );
 
-        TaskConstMeta get kCrateApiEngineReviewCardConstMeta => const TaskConstMeta(
-            debugName: "review_card",
-            argNames: ["state", "answer", "at", "fuzzFactor"],
-        );
-        
-
-@override Future<Scheduled> crateApiEngineReviewNewCard({required Answer answer , required PlatformInt64 at , double? fuzzFactor })  { return handler.executeNormal(NormalTask(
-            callFfi: (port_) {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_answer(answer, serializer);
-sse_encode_i_64(at, serializer);
-sse_encode_opt_box_autoadd_f_64(fuzzFactor, serializer);
-            pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5, port: port_);
-            
-            },
-            codec: 
-        SseCodec(
+  @override
+  Future<Scheduled> crateApiEngineReviewNewCard({
+    required Answer answer,
+    required PlatformInt64 at,
+    double? fuzzFactor,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_answer(answer, serializer);
+          sse_encode_i_64(at, serializer);
+          sse_encode_opt_box_autoadd_f_64(fuzzFactor, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
           decodeSuccessData: sse_decode_scheduled,
           decodeErrorData: sse_decode_engine_error,
-        )
-        ,
-            constMeta: kCrateApiEngineReviewNewCardConstMeta,
-            argValues: [answer, at, fuzzFactor],
-            apiImpl: this,
-        )); }
+        ),
+        constMeta: kCrateApiEngineReviewNewCardConstMeta,
+        argValues: [answer, at, fuzzFactor],
+        apiImpl: this,
+      ),
+    );
+  }
 
+  TaskConstMeta get kCrateApiEngineReviewNewCardConstMeta =>
+      const TaskConstMeta(
+        debugName: "review_new_card",
+        argNames: ["answer", "at", "fuzzFactor"],
+      );
 
-        TaskConstMeta get kCrateApiEngineReviewNewCardConstMeta => const TaskConstMeta(
-            debugName: "review_new_card",
-            argNames: ["answer", "at", "fuzzFactor"],
-        );
-        
-
-@override List<Today> crateApiEngineTodaysList({required List<TodayCard> cards , required PlatformInt64 dayStart , required PlatformInt64 dayEnd })  { return handler.executeSync(SyncTask(
-            callFfi: () {
-              
-            final serializer = SseSerializer(generalizedFrbRustBinding);sse_encode_list_today_card(cards, serializer);
-sse_encode_i_64(dayStart, serializer);
-sse_encode_i_64(dayEnd, serializer);
-            return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
-            
-            },
-            codec: 
-        SseCodec(
+  @override
+  List<Today> crateApiEngineTodaysList({
+    required List<TodayCard> cards,
+    required PlatformInt64 dayStart,
+    required PlatformInt64 dayEnd,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_today_card(cards, serializer);
+          sse_encode_i_64(dayStart, serializer);
+          sse_encode_i_64(dayEnd, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
+        },
+        codec: SseCodec(
           decodeSuccessData: sse_decode_list_today,
           decodeErrorData: null,
-        )
-        ,
-            constMeta: kCrateApiEngineTodaysListConstMeta,
-            argValues: [cards, dayStart, dayEnd],
-            apiImpl: this,
-        )); }
+        ),
+        constMeta: kCrateApiEngineTodaysListConstMeta,
+        argValues: [cards, dayStart, dayEnd],
+        apiImpl: this,
+      ),
+    );
+  }
 
+  TaskConstMeta get kCrateApiEngineTodaysListConstMeta => const TaskConstMeta(
+    debugName: "todays_list",
+    argNames: ["cards", "dayStart", "dayEnd"],
+  );
 
-        TaskConstMeta get kCrateApiEngineTodaysListConstMeta => const TaskConstMeta(
-            debugName: "todays_list",
-            argNames: ["cards", "dayStart", "dayEnd"],
+  @protected
+  Answer dco_decode_answer(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Answer.values[raw as int];
+  }
+
+  @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_i_64(raw);
+  }
+
+  @protected
+  MemoryStateParts dco_decode_box_autoadd_memory_state_parts(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_memory_state_parts(raw);
+  }
+
+  @protected
+  EngineError dco_decode_engine_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return EngineError_ReviewBeforeLastReview(
+          lastReview: dco_decode_i_64(raw[1]),
+          review: dco_decode_i_64(raw[2]),
         );
-        
-
-
-
-                  @protected Answer dco_decode_answer(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return Answer.values[raw as int]; }
-
-@protected double dco_decode_box_autoadd_f_64(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as double; }
-
-@protected PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_i_64(raw); }
-
-@protected MemoryStateParts dco_decode_box_autoadd_memory_state_parts(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dco_decode_memory_state_parts(raw); }
-
-@protected EngineError dco_decode_engine_error(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-switch (raw[0]) {
-                case 0: return EngineError_ReviewBeforeLastReview(lastReview: dco_decode_i_64(raw[1]),review: dco_decode_i_64(raw[2]),);
-case 1: return EngineError_UnknownRating(value: dco_decode_u_8(raw[1]),);
-case 2: return EngineError_NonFinite(quantity: dco_decode_quantity(raw[1]),);
-case 3: return EngineError_OutOfRange(quantity: dco_decode_quantity(raw[1]),value: dco_decode_f_64(raw[2]),);
-                default: throw Exception("unreachable");
-            } }
-
-@protected double dco_decode_f_64(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as double; }
-
-@protected int dco_decode_i_32(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as int; }
-
-@protected PlatformInt64 dco_decode_i_64(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return dcoDecodeI64(raw); }
-
-@protected List<ReviewRecord> dco_decode_list_review_record(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_review_record).toList(); }
-
-@protected List<Today> dco_decode_list_today(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_today).toList(); }
-
-@protected List<TodayCard> dco_decode_list_today_card(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return (raw as List<dynamic>).map(dco_decode_today_card).toList(); }
-
-@protected MemoryStateParts dco_decode_memory_state_parts(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 3) throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-                return MemoryStateParts(stability: dco_decode_f_64(arr[0]),
-difficulty: dco_decode_f_64(arr[1]),
-lastReview: dco_decode_i_64(arr[2]),); }
-
-@protected double? dco_decode_opt_box_autoadd_f_64(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_f_64(raw); }
-
-@protected PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_i_64(raw); }
-
-@protected MemoryStateParts? dco_decode_opt_box_autoadd_memory_state_parts(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw == null ? null : dco_decode_box_autoadd_memory_state_parts(raw); }
-
-@protected Quantity dco_decode_quantity(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return Quantity.values[raw as int]; }
-
-@protected ReviewRecord dco_decode_review_record(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return ReviewRecord(answer: dco_decode_answer(arr[0]),
-at: dco_decode_i_64(arr[1]),); }
-
-@protected Scheduled dco_decode_scheduled(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return Scheduled(state: dco_decode_memory_state_parts(arr[0]),
-due: dco_decode_i_64(arr[1]),); }
-
-@protected Today dco_decode_today(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return Today.values[raw as int]; }
-
-@protected TodayCard dco_decode_today_card(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-final arr = raw as List<dynamic>;
-                if (arr.length != 2) throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-                return TodayCard(due: dco_decode_opt_box_autoadd_i_64(arr[0]),
-reviews: dco_decode_list_review_record(arr[1]),); }
-
-@protected int dco_decode_u_8(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return raw as int; }
-
-@protected void dco_decode_unit(dynamic raw){ // Codec=Dco (DartCObject based), see doc to use other codecs
-return; }
-
-@protected Answer sse_decode_answer(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var inner = sse_decode_i_32(deserializer);
-        return Answer.values[inner]; }
-
-@protected double sse_decode_box_autoadd_f_64(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_f_64(deserializer)); }
-
-@protected PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_i_64(deserializer)); }
-
-@protected MemoryStateParts sse_decode_box_autoadd_memory_state_parts(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return (sse_decode_memory_state_parts(deserializer)); }
-
-@protected EngineError sse_decode_engine_error(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            var tag_ = sse_decode_i_32(deserializer);
-            switch (tag_) { case 0: var var_lastReview = sse_decode_i_64(deserializer);
-var var_review = sse_decode_i_64(deserializer);
-return EngineError_ReviewBeforeLastReview(lastReview: var_lastReview, review: var_review);case 1: var var_value = sse_decode_u_8(deserializer);
-return EngineError_UnknownRating(value: var_value);case 2: var var_quantity = sse_decode_quantity(deserializer);
-return EngineError_NonFinite(quantity: var_quantity);case 3: var var_quantity = sse_decode_quantity(deserializer);
-var var_value = sse_decode_f_64(deserializer);
-return EngineError_OutOfRange(quantity: var_quantity, value: var_value); default: throw UnimplementedError(''); }
-             }
-
-@protected double sse_decode_f_64(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getFloat64(); }
-
-@protected int sse_decode_i_32(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getInt32(); }
-
-@protected PlatformInt64 sse_decode_i_64(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getPlatformInt64(); }
-
-@protected List<ReviewRecord> sse_decode_list_review_record(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <ReviewRecord>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_review_record(deserializer)); }
-        return ans_;
-         }
-
-@protected List<Today> sse_decode_list_today(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <Today>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_today(deserializer)); }
-        return ans_;
-         }
-
-@protected List<TodayCard> sse_decode_list_today_card(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-        var len_ = sse_decode_i_32(deserializer);
-        var ans_ = <TodayCard>[];
-        for (var idx_ = 0; idx_ < len_; ++idx_) { ans_.add(sse_decode_today_card(deserializer)); }
-        return ans_;
-         }
-
-@protected MemoryStateParts sse_decode_memory_state_parts(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_stability = sse_decode_f_64(deserializer);
-var var_difficulty = sse_decode_f_64(deserializer);
-var var_lastReview = sse_decode_i_64(deserializer);
-return MemoryStateParts(stability: var_stability, difficulty: var_difficulty, lastReview: var_lastReview); }
-
-@protected double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_f_64(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_i_64(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected MemoryStateParts? sse_decode_opt_box_autoadd_memory_state_parts(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-            if (sse_decode_bool(deserializer)) {
-                return (sse_decode_box_autoadd_memory_state_parts(deserializer));
-            } else {
-                return null;
-            }
-             }
-
-@protected Quantity sse_decode_quantity(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var inner = sse_decode_i_32(deserializer);
-        return Quantity.values[inner]; }
-
-@protected ReviewRecord sse_decode_review_record(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_answer = sse_decode_answer(deserializer);
-var var_at = sse_decode_i_64(deserializer);
-return ReviewRecord(answer: var_answer, at: var_at); }
-
-@protected Scheduled sse_decode_scheduled(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_state = sse_decode_memory_state_parts(deserializer);
-var var_due = sse_decode_i_64(deserializer);
-return Scheduled(state: var_state, due: var_due); }
-
-@protected Today sse_decode_today(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var inner = sse_decode_i_32(deserializer);
-        return Today.values[inner]; }
-
-@protected TodayCard sse_decode_today_card(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-var var_due = sse_decode_opt_box_autoadd_i_64(deserializer);
-var var_reviews = sse_decode_list_review_record(deserializer);
-return TodayCard(due: var_due, reviews: var_reviews); }
-
-@protected int sse_decode_u_8(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getUint8(); }
-
-@protected void sse_decode_unit(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
- }
-
-@protected bool sse_decode_bool(SseDeserializer deserializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-return deserializer.buffer.getUint8() != 0; }
-
-@protected void sse_encode_answer(Answer self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.index, serializer); }
-
-@protected void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_f_64(self, serializer); }
-
-@protected void sse_encode_box_autoadd_i_64(PlatformInt64 self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_64(self, serializer); }
-
-@protected void sse_encode_box_autoadd_memory_state_parts(MemoryStateParts self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_memory_state_parts(self, serializer); }
-
-@protected void sse_encode_engine_error(EngineError self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-switch (self) { case EngineError_ReviewBeforeLastReview(lastReview: final lastReview,review: final review): sse_encode_i_32(0, serializer); sse_encode_i_64(lastReview, serializer);
-sse_encode_i_64(review, serializer);
-case EngineError_UnknownRating(value: final value): sse_encode_i_32(1, serializer); sse_encode_u_8(value, serializer);
-case EngineError_NonFinite(quantity: final quantity): sse_encode_i_32(2, serializer); sse_encode_quantity(quantity, serializer);
-case EngineError_OutOfRange(quantity: final quantity,value: final value): sse_encode_i_32(3, serializer); sse_encode_quantity(quantity, serializer);
-sse_encode_f_64(value, serializer);
-  } }
-
-@protected void sse_encode_f_64(double self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putFloat64(self); }
-
-@protected void sse_encode_i_32(int self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putInt32(self); }
-
-@protected void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putPlatformInt64(self); }
-
-@protected void sse_encode_list_review_record(List<ReviewRecord> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_review_record(item, serializer); } }
-
-@protected void sse_encode_list_today(List<Today> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_today(item, serializer); } }
-
-@protected void sse_encode_list_today_card(List<TodayCard> self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.length, serializer);
-        for (final item in self) { sse_encode_today_card(item, serializer); } }
-
-@protected void sse_encode_memory_state_parts(MemoryStateParts self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_f_64(self.stability, serializer);
-sse_encode_f_64(self.difficulty, serializer);
-sse_encode_i_64(self.lastReview, serializer);
- }
-
-@protected void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_f_64(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_i_64(PlatformInt64? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_i_64(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_opt_box_autoadd_memory_state_parts(MemoryStateParts? self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-
-                sse_encode_bool(self != null, serializer);
-                if (self != null) {
-                    sse_encode_box_autoadd_memory_state_parts(self, serializer);
-                }
-                 }
-
-@protected void sse_encode_quantity(Quantity self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.index, serializer); }
-
-@protected void sse_encode_review_record(ReviewRecord self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_answer(self.answer, serializer);
-sse_encode_i_64(self.at, serializer);
- }
-
-@protected void sse_encode_scheduled(Scheduled self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_memory_state_parts(self.state, serializer);
-sse_encode_i_64(self.due, serializer);
- }
-
-@protected void sse_encode_today(Today self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_i_32(self.index, serializer); }
-
-@protected void sse_encode_today_card(TodayCard self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-sse_encode_opt_box_autoadd_i_64(self.due, serializer);
-sse_encode_list_review_record(self.reviews, serializer);
- }
-
-@protected void sse_encode_u_8(int self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putUint8(self); }
-
-@protected void sse_encode_unit(void self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
- }
-
-@protected void sse_encode_bool(bool self, SseSerializer serializer){ // Codec=Sse (Serialization based), see doc to use other codecs
-serializer.buffer.putUint8(self ? 1 : 0); }
-                }
-                
+      case 1:
+        return EngineError_UnknownRating(value: dco_decode_u_8(raw[1]));
+      case 2:
+        return EngineError_NonFinite(quantity: dco_decode_quantity(raw[1]));
+      case 3:
+        return EngineError_OutOfRange(
+          quantity: dco_decode_quantity(raw[1]),
+          value: dco_decode_f_64(raw[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  double dco_decode_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
+  }
+
+  @protected
+  List<ReviewRecord> dco_decode_list_review_record(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_review_record).toList();
+  }
+
+  @protected
+  List<Today> dco_decode_list_today(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_today).toList();
+  }
+
+  @protected
+  List<TodayCard> dco_decode_list_today_card(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_today_card).toList();
+  }
+
+  @protected
+  MemoryStateParts dco_decode_memory_state_parts(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return MemoryStateParts(
+      stability: dco_decode_f_64(arr[0]),
+      difficulty: dco_decode_f_64(arr[1]),
+      lastReview: dco_decode_i_64(arr[2]),
+    );
+  }
+
+  @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_f_64(raw);
+  }
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
+  }
+
+  @protected
+  MemoryStateParts? dco_decode_opt_box_autoadd_memory_state_parts(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_memory_state_parts(raw);
+  }
+
+  @protected
+  Quantity dco_decode_quantity(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Quantity.values[raw as int];
+  }
+
+  @protected
+  ReviewRecord dco_decode_review_record(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ReviewRecord(
+      answer: dco_decode_answer(arr[0]),
+      at: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
+  Scheduled dco_decode_scheduled(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return Scheduled(
+      state: dco_decode_memory_state_parts(arr[0]),
+      due: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
+  Today dco_decode_today(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Today.values[raw as int];
+  }
+
+  @protected
+  TodayCard dco_decode_today_card(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return TodayCard(
+      due: dco_decode_opt_box_autoadd_i_64(arr[0]),
+      reviews: dco_decode_list_review_record(arr[1]),
+    );
+  }
+
+  @protected
+  int dco_decode_u_8(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  void dco_decode_unit(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return;
+  }
+
+  @protected
+  Answer sse_decode_answer(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return Answer.values[inner];
+  }
+
+  @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_f_64(deserializer));
+  }
+
+  @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
+  MemoryStateParts sse_decode_box_autoadd_memory_state_parts(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_memory_state_parts(deserializer));
+  }
+
+  @protected
+  EngineError sse_decode_engine_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_lastReview = sse_decode_i_64(deserializer);
+        var var_review = sse_decode_i_64(deserializer);
+        return EngineError_ReviewBeforeLastReview(
+          lastReview: var_lastReview,
+          review: var_review,
+        );
+      case 1:
+        var var_value = sse_decode_u_8(deserializer);
+        return EngineError_UnknownRating(value: var_value);
+      case 2:
+        var var_quantity = sse_decode_quantity(deserializer);
+        return EngineError_NonFinite(quantity: var_quantity);
+      case 3:
+        var var_quantity = sse_decode_quantity(deserializer);
+        var var_value = sse_decode_f_64(deserializer);
+        return EngineError_OutOfRange(quantity: var_quantity, value: var_value);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat64();
+  }
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
+  List<ReviewRecord> sse_decode_list_review_record(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ReviewRecord>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_review_record(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<Today> sse_decode_list_today(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <Today>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_today(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<TodayCard> sse_decode_list_today_card(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <TodayCard>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_today_card(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  MemoryStateParts sse_decode_memory_state_parts(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_stability = sse_decode_f_64(deserializer);
+    var var_difficulty = sse_decode_f_64(deserializer);
+    var var_lastReview = sse_decode_i_64(deserializer);
+    return MemoryStateParts(
+      stability: var_stability,
+      difficulty: var_difficulty,
+      lastReview: var_lastReview,
+    );
+  }
+
+  @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_f_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_i_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  MemoryStateParts? sse_decode_opt_box_autoadd_memory_state_parts(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_memory_state_parts(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  Quantity sse_decode_quantity(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return Quantity.values[inner];
+  }
+
+  @protected
+  ReviewRecord sse_decode_review_record(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_answer = sse_decode_answer(deserializer);
+    var var_at = sse_decode_i_64(deserializer);
+    return ReviewRecord(answer: var_answer, at: var_at);
+  }
+
+  @protected
+  Scheduled sse_decode_scheduled(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_state = sse_decode_memory_state_parts(deserializer);
+    var var_due = sse_decode_i_64(deserializer);
+    return Scheduled(state: var_state, due: var_due);
+  }
+
+  @protected
+  Today sse_decode_today(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return Today.values[inner];
+  }
+
+  @protected
+  TodayCard sse_decode_today_card(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_due = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_reviews = sse_decode_list_review_record(deserializer);
+    return TodayCard(due: var_due, reviews: var_reviews);
+  }
+
+  @protected
+  int sse_decode_u_8(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8();
+  }
+
+  @protected
+  void sse_decode_unit(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  bool sse_decode_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  void sse_encode_answer(Answer self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_memory_state_parts(
+    MemoryStateParts self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_memory_state_parts(self, serializer);
+  }
+
+  @protected
+  void sse_encode_engine_error(EngineError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case EngineError_ReviewBeforeLastReview(
+        lastReview: final lastReview,
+        review: final review,
+      ):
+        sse_encode_i_32(0, serializer);
+        sse_encode_i_64(lastReview, serializer);
+        sse_encode_i_64(review, serializer);
+      case EngineError_UnknownRating(value: final value):
+        sse_encode_i_32(1, serializer);
+        sse_encode_u_8(value, serializer);
+      case EngineError_NonFinite(quantity: final quantity):
+        sse_encode_i_32(2, serializer);
+        sse_encode_quantity(quantity, serializer);
+      case EngineError_OutOfRange(quantity: final quantity, value: final value):
+        sse_encode_i_32(3, serializer);
+        sse_encode_quantity(quantity, serializer);
+        sse_encode_f_64(value, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat64(self);
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
+  void sse_encode_list_review_record(
+    List<ReviewRecord> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_review_record(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_today(List<Today> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_today(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_today_card(
+    List<TodayCard> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_today_card(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_memory_state_parts(
+    MemoryStateParts self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.stability, serializer);
+    sse_encode_f_64(self.difficulty, serializer);
+    sse_encode_i_64(self.lastReview, serializer);
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_f_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_i_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_memory_state_parts(
+    MemoryStateParts? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_memory_state_parts(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_quantity(Quantity self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_review_record(ReviewRecord self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_answer(self.answer, serializer);
+    sse_encode_i_64(self.at, serializer);
+  }
+
+  @protected
+  void sse_encode_scheduled(Scheduled self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_memory_state_parts(self.state, serializer);
+    sse_encode_i_64(self.due, serializer);
+  }
+
+  @protected
+  void sse_encode_today(Today self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_today_card(TodayCard self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_i_64(self.due, serializer);
+    sse_encode_list_review_record(self.reviews, serializer);
+  }
+
+  @protected
+  void sse_encode_u_8(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self);
+  }
+
+  @protected
+  void sse_encode_unit(void self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
+  }
+}
