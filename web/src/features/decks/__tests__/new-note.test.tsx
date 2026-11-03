@@ -73,7 +73,8 @@ describe("새 노트", () => {
     // No sheet of ways to start comes first: 새 노트 is the note's own screen.
     expect(sheet.queryByRole("button", { name: "직접 입력" })).not.toBeInTheDocument();
     const name = sheet.getByRole("textbox", { name: "노트 이름" });
-    // jsdom's stand-in for showModal runs no focusing steps; e2e/home.spec.ts checks the focus.
+    // Focused once the dialog is open; e2e/home.spec.ts checks it past a browser's focusing steps.
+    expect(name).toHaveFocus();
     expect(name).toHaveAttribute("placeholder", "예: 토익 단어");
     expect(name).toHaveClass("bg-ground");
     expect(name.parentElement).toHaveClass("rounded-group", "bg-surface", "px-4", "py-4");

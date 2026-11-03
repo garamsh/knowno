@@ -182,7 +182,12 @@ function NewNote({ close }: { close: () => void }) {
   const router = useRouter();
   const formId = useId();
   const nameId = useId();
+  const nameField = useRef<HTMLInputElement>(null);
   const typed = name.trim();
+  // After the dialog opens, whose focusing steps would move an autofocus away.
+  useEffect(() => {
+    nameField.current?.focus();
+  }, []);
   function save(adding: boolean) {
     if (busy.current) return;
     busy.current = true;
@@ -265,8 +270,8 @@ function NewNote({ close }: { close: () => void }) {
             노트 이름
           </label>
           <input
+            ref={nameField}
             id={nameId}
-            autoFocus
             required
             maxLength={500}
             placeholder="예: 토익 단어"

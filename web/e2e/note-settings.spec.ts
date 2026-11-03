@@ -232,12 +232,12 @@ test("stores a note's photo in Storage, draws it on the 노트 page from a signe
   const rows = async (): Promise<unknown[]> =>
     ((await db.from("media").select("id")).data ?? []).map((row): unknown => row.id);
 
-  /** Picks the PNG in 노트 꾸미기 and saves it. */
-  async function savePhoto() {
+  /** Picks the PNG in 노트 꾸미기 through [picker], "다른 사진" once the note has one, and saves it. */
+  async function savePhoto(picker = "앨범에서 고르기") {
     await choose(page, "노트 꾸미기");
     const decorate = page.getByRole("dialog", { name: "노트 꾸미기" });
     await decorate
-      .getByLabel("앨범에서 고르기")
+      .getByLabel(picker, { exact: true })
       .setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
     await expect(decorate.getByRole("button", { name: "사진 삭제", exact: true })).toBeVisible();
     await decorate.getByRole("button", { name: "저장", exact: true }).click();
@@ -262,7 +262,7 @@ test("stores a note's photo in Storage, draws it on the 노트 page from a signe
 
   // A new photo replaces it: the old object and row go, and the new one is readable.
   await page.goto(`/decks/${deckId}`);
-  await savePhoto();
+  await savePhoto("다른 사진");
   const second = await image();
   expect(second).not.toBe(first);
   expect(await held(first)).toBe(false);
