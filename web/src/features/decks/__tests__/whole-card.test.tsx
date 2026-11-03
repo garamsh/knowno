@@ -185,7 +185,7 @@ describe("a whole card on study's cards", () => {
     { kind: "blank", block: { kind: "cloze", text: "Le ___ dort", answers: [answer] } },
   ];
 
-  it("draws an empty blank as a box on the hatch three ems wide whatever its answer, with no underline and no answer, and a filled one its answer on the hatch", () => {
+  it("draws an empty blank as a box on the hatch two ems wide whatever its answer, with no underline and no answer, and a filled one its answer on the hatch", () => {
     for (const answer of ["a", "un chat très grand"]) {
       const { container, unmount } = render(
         <WholeCells cells={cells(answer)} revealed={false} studied />,
@@ -195,7 +195,7 @@ describe("a whole card on study's cards", () => {
       const names = blank?.className.split(" ") ?? [];
       expect(names).toEqual(expect.arrayContaining(["hatch", "inline-block"]));
       expect(names).not.toContain("underline");
-      expect(blank?.style.width).toBe("3em");
+      expect(blank?.style.width).toBe("2em");
       expect(blank?.textContent).toBe("");
       expect(container.textContent).not.toContain(answer);
       unmount();
@@ -248,7 +248,7 @@ describe("a whole card on study's cards", () => {
     expect(faceLength([{ kind: "text", text: "사과" }])).toBe(2);
     expect(
       faceLength([{ kind: "cloze", text: "Le ___ dort", answers: ["un chat très grand"] }]),
-    ).toBe("Le  dort".length + 3);
+    ).toBe("Le  dort".length + 2);
   });
 });
 

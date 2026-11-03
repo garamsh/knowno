@@ -84,7 +84,7 @@ export function ListedCells({ cells }: { cells: Cell[] }) {
 type Look = "card" | "studied" | "listed";
 
 /** How wide an empty blank's box is on study's cards, in ems of its text (#635). */
-export const blankEms = 3;
+export const blankEms = 2;
 
 /**
  * How long a front of [blocks] reads, in characters: its text, each blank counted as [blankEms],

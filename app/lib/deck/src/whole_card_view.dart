@@ -561,7 +561,7 @@ enum _Look { card, studied, listed }
 
 /// How wide an empty blank's box is on study's cards, in ems of its text,
 /// whatever its answer's length (#635).
-const blankEms = 3;
+const blankEms = 2;
 
 /// An empty blank's box as measured: [blankEms] ideographic spaces, each an
 /// em wide, joined so no line breaks inside it.
