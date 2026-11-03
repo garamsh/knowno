@@ -15,7 +15,7 @@ import { parseProvider, type Provider } from "./providers.ts";
 import type { Image } from "./request.ts";
 import {
   adminSession,
-  type Plan,
+  parsePlan,
   saveConfiguration,
   saveProviderKey,
 } from "./supabase.ts";
@@ -191,10 +191,8 @@ export async function saveDraft(
   if (!("id" in caller)) return caller;
   const value = await body(request);
   const chosen = value === null ? null : target(value);
-  const plan = value?.plan;
-  if (
-    chosen === null || (plan !== "free" && plan !== "pro" && plan !== "max")
-  ) {
+  const plan = parsePlan(value?.plan);
+  if (chosen === null || plan === null) {
     return { kind: "bad_request" };
   }
   const key = await deps.keys.get(chosen.provider);
@@ -206,7 +204,7 @@ export async function saveDraft(
   if (failure !== null) return { kind: failure };
   const configurationId = await saveConfiguration(
     caller.id,
-    plan satisfies Plan,
+    plan,
     chosen.provider,
     chosen.model,
     deps.supabase,

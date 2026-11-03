@@ -7,11 +7,12 @@ import { Section } from "@/design/section";
 import { group, row } from "./admin-section";
 import { PlanForm } from "./plan-form";
 
-const plans: PlanId[] = ["free", "pro", "max"];
+const plans: PlanId[] = ["free", "pro", "max", "special"];
 
 /**
  * Each plan's version a user subscribing now takes, the form for a new version, and every version,
- * the latest start first. A plan's provider and model are 설정 → AI 제공자's (ADR 0162).
+ * the latest start first; 스페셜's terms are always 제한 없음, so it has no form (ADR 0177). A plan's
+ * provider and model are 설정 → AI 제공자's (ADR 0162).
  */
 export function PlansView({ versions, timeZone }: { versions: PlanVersion[]; timeZone: string }) {
   return (
@@ -34,12 +35,14 @@ export function PlansView({ versions, timeZone }: { versions: PlanVersion[]; tim
                   </p>
                 </div>
               </div>
-              <PlanForm
-                plan={plan}
-                name={name}
-                quota={start?.quota ?? "daily"}
-                amount={start?.amount ?? 0}
-              />
+              {plan !== "special" && start?.quota !== "none" && (
+                <PlanForm
+                  plan={plan}
+                  name={name}
+                  quota={start?.quota ?? "daily"}
+                  amount={start?.amount ?? 0}
+                />
+              )}
               <h3 className="mt-3 px-1 text-section text-muted">버전</h3>
               <ul aria-label={`${name} 버전`} className={group}>
                 {own.map((version) => (

@@ -7,7 +7,7 @@ import { requestTimeoutMs } from "@/supabase/failure";
 
 /**
  * The current plan's period and remaining photos, or `unlimited` when no limit applies to the user
- * (an admin, or a 무제한 grant; ADR 0157).
+ * (스페셜, which every admin is on; ADR 0177).
  */
 export type Allowance =
   | { kind: "limited"; remaining: number; limit: number; period: "day" | "month" }

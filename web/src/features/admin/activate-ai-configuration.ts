@@ -3,13 +3,14 @@
 import { revalidatePath } from "next/cache";
 
 import { type ActionResult, call, refused } from "./action-call";
+import { parsePlanId } from "./read-admin";
 
 /**
  * Applies [plan]'s draft to everyone (모두에게 적용): its users are served it from their next photo.
  * The server checks the role, refuses a draft whose provider has no key, and records it.
  */
 export async function activateAiConfiguration(plan: string): Promise<ActionResult> {
-  if (plan !== "free" && plan !== "pro" && plan !== "max") return refused("malformed");
+  if (parsePlanId(plan) === null) return refused("malformed");
   const result = await call("admin_activate_ai_configuration", { plan });
   if ("failure" in result) return refused(result.failure);
   switch (result.data) {

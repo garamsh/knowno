@@ -8,9 +8,7 @@ import {
   createPlanVersion,
   dismissReports,
   grantPlan,
-  grantUnlimited,
   revokePlan,
-  revokeUnlimited,
   grantAdmin,
   hideDeck,
   removeDeck,
@@ -1134,87 +1132,86 @@ describe("the plans page", () => {
   });
 });
 
-describe("a user's 무제한", () => {
-  it("shows an admin unlimited without a grant, and a user on its plan's limit", async () => {
+describe("스페셜", () => {
+  it("shows an admin on 스페셜 with no limit, like any plan, with no 무제한 section", async () => {
     await render(UserContent, { params: Promise.resolve({ id: testUser.id }) });
-    const own = within(screen.getByRole("region", { name: "무제한" }));
-    expect(own.getByText("지금").nextSibling).toHaveTextContent("무제한 · 관리자");
-    expect(screen.getByRole("heading", { level: 1 }).parentElement).toHaveTextContent("무제한");
+    const plan = within(screen.getByRole("region", { name: "요금제" }));
+    expect(plan.getByText("지금").nextSibling).toHaveTextContent("스페셜 · 제한 없음");
+    const header = screen.getByRole("heading", { level: 1 }).parentElement;
+    expect(header).toHaveTextContent("스페셜");
+    expect(header).not.toHaveTextContent(/무제한|숨김/);
+    expect(screen.queryByRole("region", { name: "무제한" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "계정" })).toHaveTextContent("0장 / 제한 없음");
 
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
-    const other = within(screen.getAllByRole("region", { name: "무제한" }).at(-1) as HTMLElement);
-    expect(other.getByText("지금").nextSibling).toHaveTextContent("요금제 한도대로");
-    expect(other.queryByRole("button", { name: "무제한 해제" })).not.toBeInTheDocument();
-    const account = within(screen.getAllByRole("region", { name: "계정" }).at(-1) as HTMLElement);
-    expect(account.getByText("이번 달 사진 추출").nextSibling).toHaveTextContent(
-      "4장 / 한 달 10장",
-    );
+    const other = within(screen.getAllByRole("region", { name: "요금제" }).at(-1) as HTMLElement);
+    expect(
+      other.getByText("지금").nextSibling,
+      "control: a user who is not an admin is on its plan",
+    ).toHaveTextContent("무료 · 한 달 10장");
   });
 
-  it("grants 무제한 until a day's end, shows it on the page and in the log, and revokes it", async () => {
+  it("is offered in 요금제 바꾸기, given until a day's end, logged, and taken back to Free", async () => {
+    await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
+    const choices = within(screen.getByRole("combobox", { name: "바꿀 요금제" }));
+    expect(choices.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "프로",
+      "맥스",
+      "스페셜",
+    ]);
+
     const ends = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
     expect(
-      await grantUnlimited({ message: null }, form({ user: otherUser.id, ends_on: ends })),
-    ).toEqual({ message: "무제한으로 지정했어요." });
+      await grantPlan(
+        { message: null },
+        form({ user: otherUser.id, plan: "special", ends_on: ends }),
+      ),
+    ).toEqual({ message: "스페셜로 지정했어요." });
     const next = new Date(Date.parse(`${ends}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
-    expect(admin.unlimitedGrants.get(otherUser.id)).toEqual({
+    expect(admin.userPlans.get(otherUser.id)).toEqual({
+      plan: "special",
       endsAt: `${next}T04:00:00.000Z`,
       grantedBy: testUser.id,
     });
 
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
-    const granted = within(screen.getByRole("region", { name: "무제한" }));
-    expect(granted.getByText("지금").nextSibling).toHaveTextContent(/^무제한$/);
-    expect(granted.getByText("마지막 날", { selector: "dt" }).nextSibling).toHaveTextContent(ends);
-    expect(granted.getByText("무제한 지정", { selector: "dt" }).nextSibling).toHaveTextContent(
+    const granted = within(screen.getAllByRole("region", { name: "요금제" }).at(-1) as HTMLElement);
+    expect(granted.getByText("지금").nextSibling).toHaveTextContent("스페셜 · 제한 없음");
+    expect(granted.getByText("스페셜 지정", { selector: "dt" }).nextSibling).toHaveTextContent(
       testUser.email,
     );
-    expect(granted.getByRole("button", { name: "무제한 해제" })).toBeInTheDocument();
-    const account = within(screen.getByRole("region", { name: "계정" }));
-    expect(account.getByText("이번 달 사진 추출").nextSibling).toHaveTextContent("4장 / 무제한");
+    expect(granted.getByText("마지막 날", { selector: "dt" }).nextSibling).toHaveTextContent(ends);
+    const account = within(screen.getAllByRole("region", { name: "계정" }).at(-1) as HTMLElement);
+    expect(account.getByText("오늘 사진 추출").nextSibling).toHaveTextContent("4장 / 제한 없음");
 
-    expect(await revokeUnlimited(otherUser.id)).toEqual({
-      changed: true,
-      message: "무제한을 해제했어요.",
-    });
-    expect(await revokeUnlimited(otherUser.id)).toEqual({
-      changed: false,
-      message: "이미 무제한이 아니에요.",
-    });
-    expect(admin.audit).toMatchObject([
-      { action: "revoke_unlimited", target_id: otherUser.id },
-      { action: "grant_unlimited", target_id: otherUser.id },
-    ]);
+    expect(await revokePlan(otherUser.id)).toEqual({ changed: true, message: "무료로 되돌렸어요." });
     await render(AuditContent, {});
-    expect(screen.getByText("무제한 지정")).toBeInTheDocument();
-    expect(screen.getByText("무제한 해제")).toBeInTheDocument();
+    expect(auditEntries()).toEqual([
+      "무료로 되돌리기 · other@example.com · 스페셜",
+      "요금제 지정 · other@example.com · 스페셜",
+    ]);
   });
 
-  it("shows an ended grant with the user back on its plan's limit", async () => {
-    admin.unlimitedGrants.set(otherUser.id, {
+  it("shows an ended 스페셜 as ended, with the user on Free", async () => {
+    admin.userPlans.set(otherUser.id, {
+      plan: "special",
       endsAt: new Date(Date.now() - 86_400_000).toISOString(),
       grantedBy: testUser.id,
     });
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
-    const ended = within(screen.getByRole("region", { name: "무제한" }));
-    expect(ended.getByText("지금").nextSibling).toHaveTextContent("요금제 한도대로");
-    expect(ended.getByText("끝난 날", { selector: "dt" })).toBeInTheDocument();
+    const plan = within(screen.getByRole("region", { name: "요금제" }));
+    expect(plan.getByText("지금").nextSibling).toHaveTextContent("무료 · 한 달 10장");
+    expect(plan.getByText("끝난 날", { selector: "dt" })).toBeInTheDocument();
   });
 
-  it("refuses an end already past, and refuses a user who is not an admin", async () => {
-    expect(
-      await grantUnlimited({ message: null }, form({ user: otherUser.id, ends_on: "2020-01-01" })),
-    ).toEqual({ message: "끝나는 날은 오늘 이후로 정해 주세요." });
-    await signIn(otherUser);
-    expect(
-      await grantUnlimited({ message: null }, form({ user: otherUser.id, ends_on: "" })),
-    ).toEqual({ message: "관리자만 할 수 있어요." });
-    expect(await revokeUnlimited(otherUser.id)).toEqual({
-      changed: false,
-      message: "관리자만 할 수 있어요.",
-    });
-    expect(admin.unlimitedGrants.has(otherUser.id)).toBe(false);
-    expect(admin.audit).toEqual([]);
+  it("lists 스페셜 on the plans page with no limit and no form for a new version", async () => {
+    await render(PlansContent, {});
+    const special = within(screen.getByRole("region", { name: "스페셜" }));
+    expect(special.getByText("지금 가입하면 제한 없음")).toBeInTheDocument();
+    expect(special.queryByRole("form")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "스페셜" })).not.toHaveTextContent("숨김");
+    const max = within(screen.getByRole("region", { name: "맥스" }));
+    expect(max.getByRole("form"), "control: Max has its form").toBeInTheDocument();
   });
 });
 
@@ -1261,7 +1258,7 @@ describe("a user's plan", () => {
         { message: null },
         form({ user: otherUser.id, plan: "pro", ends_on: "2030-01-01" }),
       ),
-    ).toEqual({ message: "끝나는 날은 맥스에만 정할 수 있어요." });
+    ).toEqual({ message: "끝나는 날은 맥스와 스페셜에만 정할 수 있어요." });
     expect(
       await grantPlan(
         { message: null },
@@ -1271,7 +1268,7 @@ describe("a user's plan", () => {
     expect(
       await grantPlan(
         { message: null },
-        form({ user: otherUser.id, plan: "special", ends_on: "" }),
+        form({ user: otherUser.id, plan: "gold", ends_on: "" }),
       ),
     ).toEqual({ message: "하지 못했어요. 잠시 후 다시 시도해 주세요." });
     expect(

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { failureMessages } from "./action-call";
 import { type AiFormState, postSettings } from "./ai-settings";
-import { parseProvider } from "./read-admin";
+import { parsePlanId, parseProvider } from "./read-admin";
 
 /**
  * Saves the form's `provider` and `model` as its `plan`'s draft, served to admins only, after
@@ -15,10 +15,10 @@ export async function saveAiConfiguration(
   _previous: AiFormState,
   form: FormData,
 ): Promise<AiFormState> {
-  const plan = form.get("plan");
+  const plan = parsePlanId(form.get("plan"));
   const provider = parseProvider(form.get("provider"));
   const model = form.get("model");
-  if ((plan !== "free" && plan !== "pro" && plan !== "max") || provider === null) {
+  if (plan === null || provider === null) {
     return { message: failureMessages.malformed, reauth: false };
   }
   const id = typeof model === "string" ? model.trim() : "";
