@@ -526,7 +526,7 @@ export function PhotoImport({
           )}
         </div>
       ) : single ? (
-        <div className="flex min-w-0 flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-5 pt-4">
           <div className="flex items-center gap-4">
             <Thumbnail url={single.url} className="h-24 w-18" />
             <div
@@ -553,7 +553,7 @@ export function PhotoImport({
           <p className="text-center text-caption break-keep text-muted">{privacyNote}</p>
         </div>
       ) : unfinished ? (
-        <div className="flex min-w-0 flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-5 pt-4">
           <p role="status" className="sr-only">
             {readingTitle}
           </p>
