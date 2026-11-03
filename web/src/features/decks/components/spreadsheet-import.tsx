@@ -14,8 +14,10 @@ import {
   headerByDefault,
   type RowCard,
 } from "../spreadsheet-cards";
-import { leaveThen } from "../hooks/use-back-entry";
-import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
+import { leaveThen } from "@/design/use-back-entry";
+import { Confirm } from "@/design/confirm";
+import { Sheet } from "@/design/sheet";
+import { AuthoringScreen } from "./authoring-sheet";
 import { SideText } from "./side-text";
 
 type Opened = { name: string; book: Spreadsheet };
@@ -375,9 +377,9 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
   // The sheet stating the limits picks the file; the review is a screen, as the phone pushes it.
   if (!opened)
     return (
-      <AuthoringSheet title="파일에서 카드 추가" close={leave}>
+      <Sheet title="파일에서 카드 추가" close={leave}>
         {content}
-      </AuthoringSheet>
+      </Sheet>
     );
   return (
     <AuthoringScreen
@@ -401,32 +403,16 @@ export function SpreadsheetImport({ deck, close }: { deck: Deck; close: () => vo
     >
       {content}
       {discarding && (
-        <AuthoringSheet
+        <Confirm
           title="읽은 카드를 버릴까요?"
+          consequence="저장하지 않은 카드는 사라져요."
+          confirmLabel="버리기"
+          destructive
+          onConfirm={close}
           close={() => {
             setDiscarding(false);
           }}
-        >
-          <p className="text-secondary break-keep text-muted">저장하지 않은 카드는 사라져요.</p>
-          <div className="mt-4 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setDiscarding(false);
-              }}
-              className="pressable min-h-button text-body"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={close}
-              className="pressable min-h-button rounded-button bg-dont-know text-button text-on-ink"
-            >
-              버리기
-            </button>
-          </div>
-        </AuthoringSheet>
+        />
       )}
     </AuthoringScreen>
   );

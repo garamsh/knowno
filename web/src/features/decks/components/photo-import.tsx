@@ -21,8 +21,10 @@ import {
   type SectionForm,
   sectionsOf,
 } from "../section-form";
-import { leaveThen } from "../hooks/use-back-entry";
-import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
+import { leaveThen } from "@/design/use-back-entry";
+import { Confirm } from "@/design/confirm";
+import { Sheet } from "@/design/sheet";
+import { AuthoringScreen } from "./authoring-sheet";
 import { CardEditSheet } from "./card-fields";
 import { ImportList } from "./import-list";
 import { RowMenu } from "./row-menu";
@@ -647,7 +649,7 @@ export function PhotoImport({
         </div>
       )}
       {choosing && (
-        <AuthoringSheet
+        <Sheet
           title="추가할 노트"
           close={() => {
             setChoosing(false);
@@ -677,10 +679,10 @@ export function PhotoImport({
               </button>
             ))}
           </div>
-        </AuthoringSheet>
+        </Sheet>
       )}
       {naming && (
-        <AuthoringSheet
+        <Sheet
           title="새 노트"
           close={() => {
             if (!busy.current) setNaming(false);
@@ -718,7 +720,7 @@ export function PhotoImport({
               {pending ? "만드는 중" : "만들기"}
             </button>
           </form>
-        </AuthoringSheet>
+        </Sheet>
       )}
       {editing && (
         <CardEditSheet
@@ -733,37 +735,19 @@ export function PhotoImport({
         />
       )}
       {discarding && (
-        <AuthoringSheet
+        <Confirm
           title="찾은 카드를 버릴까요?"
+          consequence={`찾은 카드 ${String(candidates.length)}장이 사라져요. 다시 읽으면 오늘 사진 한도가 다시 쓰여요.`}
+          confirmLabel="버리기"
+          destructive
+          onConfirm={() => {
+            setDiscarding(null);
+            discarding();
+          }}
           close={() => {
             setDiscarding(null);
           }}
-        >
-          <p className="text-secondary break-keep text-muted">
-            찾은 카드 {candidates.length}장이 사라져요. 다시 읽으면 오늘 사진 한도가 다시 쓰여요.
-          </p>
-          <div className="mt-4 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setDiscarding(null);
-              }}
-              className="pressable min-h-button text-body"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDiscarding(null);
-                discarding();
-              }}
-              className="pressable min-h-button rounded-button bg-dont-know text-button text-on-ink"
-            >
-              버리기
-            </button>
-          </div>
-        </AuthoringSheet>
+        />
       )}
     </AuthoringScreen>
   );

@@ -7,9 +7,10 @@ import { decorateDeck, deleteDeck, publishDeck, renameDeck, unpublishDeck } from
 import { parseDeckIcon } from "../deck-icon";
 import { deckColor } from "../deck-tint";
 import type { Deck } from "../library";
-import { leaveThen } from "../hooks/use-back-entry";
+import { leaveThen } from "@/design/use-back-entry";
 import { characters, maxDescriptionLength, parseDisplayName } from "../publishing";
-import { AuthoringSheet } from "./authoring-sheet";
+import { Confirm } from "@/design/confirm";
+import { Sheet } from "@/design/sheet";
 import { DeckAppearanceFields, type Look, lookedTile, setPhoto } from "./deck-appearance";
 import { DeckTile } from "./deck-tile";
 import { RowMenu } from "./row-menu";
@@ -140,7 +141,7 @@ function RenameSheet({ deck, close, done }: { deck: Deck; close: () => void; don
   const [problem, setProblem] = useState("");
   const [pending, start] = useTransition();
   return (
-    <AuthoringSheet title="노트 이름 바꾸기" close={close}>
+    <Sheet title="노트 이름 바꾸기" close={close}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -173,7 +174,7 @@ function RenameSheet({ deck, close, done }: { deck: Deck; close: () => void; don
           저장
         </button>
       </form>
-    </AuthoringSheet>
+    </Sheet>
   );
 }
 
@@ -204,7 +205,7 @@ function DecorateSheet({ deck, close, done }: { deck: Deck; close: () => void; d
     });
   }
   return (
-    <AuthoringSheet title="노트 꾸미기" close={close}>
+    <Sheet title="노트 꾸미기" close={close}>
       <div className="flex flex-col gap-4 pb-2">
         <div className="flex justify-center">
           <DeckTile
@@ -225,7 +226,7 @@ function DecorateSheet({ deck, close, done }: { deck: Deck; close: () => void; d
           저장
         </button>
       </div>
-    </AuthoringSheet>
+    </Sheet>
   );
 }
 
@@ -258,7 +259,7 @@ function PublishSheet({
   const title = `"${deck.name}" 공개`;
   if (displayName === "unread") {
     return (
-      <AuthoringSheet title={title} close={close}>
+      <Sheet title={title} close={close}>
         <div className="flex flex-col gap-4 pb-2">
           <p className="text-secondary text-muted">
             지금은 처리할 수 없어요. 잠시 후 다시 시도해 주세요.
@@ -273,14 +274,14 @@ function PublishSheet({
             다시 시도
           </button>
         </div>
-      </AuthoringSheet>
+      </Sheet>
     );
   }
   const askName = displayName.name === null;
   const nameInvalid = showErrors && askName && parseDisplayName(name) === null;
   const tooLong = characters(description.trim()) > maxDescriptionLength;
   return (
-    <AuthoringSheet title={title} close={close}>
+    <Sheet title={title} close={close}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -365,7 +366,7 @@ function PublishSheet({
           공개
         </button>
       </form>
-    </AuthoringSheet>
+    </Sheet>
   );
 }
 
@@ -387,40 +388,32 @@ function DeleteSheet({
   const [problem, setProblem] = useState("");
   const [pending, start] = useTransition();
   return (
-    <AuthoringSheet title={`"${deck.name}" 노트를 삭제할까요?`} close={close}>
-      <p className="text-secondary text-muted">
-        {cardCount === 0
-          ? "이 노트에는 카드가 없어요."
-          : `카드 ${String(cardCount)}장도 함께 삭제돼요.`}
-      </p>
+    <Confirm
+      title={`"${deck.name}" 노트를 삭제할까요?`}
+      consequence={
+        cardCount === 0 ? "이 노트에는 카드가 없어요." : `카드 ${String(cardCount)}장도 함께 삭제돼요.`
+      }
+      confirmLabel="삭제"
+      destructive
+      pending={pending}
+      onConfirm={() => {
+        start(async () => {
+          const result = await deleteDeck(deck.id);
+          if (result.deleted)
+            leaveThen(() => {
+              close();
+              router.push("/decks");
+            });
+          else setProblem(result.message);
+        });
+      }}
+      close={close}
+    >
       {problem && (
         <div className="mt-3">
           <Problem>{problem}</Problem>
         </div>
       )}
-      <div className="mt-4 flex flex-col gap-2">
-        <button type="button" onClick={close} className="pressable min-h-button text-body">
-          취소
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => {
-            start(async () => {
-              const result = await deleteDeck(deck.id);
-              if (result.deleted)
-                leaveThen(() => {
-                  close();
-                  router.push("/decks");
-                });
-              else setProblem(result.message);
-            });
-          }}
-          className="pressable min-h-button rounded-button bg-dont-know px-4 text-button text-on-ink disabled:opacity-50"
-        >
-          삭제
-        </button>
-      </div>
-    </AuthoringSheet>
+    </Confirm>
   );
 }

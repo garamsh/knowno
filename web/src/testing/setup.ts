@@ -23,6 +23,14 @@ vi.mock("next/navigation", async (importOriginal) => {
 
 beforeAll(() => {
   server.listen({ onUnhandledFrame: "error" });
+  // jsdom has no modal dialog, which every sheet (`@/design/sheet`) opens: open and close mark it.
+  if (typeof HTMLDialogElement === "undefined") return;
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
 });
 afterEach(() => {
   server.resetHandlers();

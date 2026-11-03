@@ -4,7 +4,7 @@ import { Check } from "lucide-react";
 import { useId, useState } from "react";
 import { block, type Block, type CardDraft } from "../authoring";
 import { labelShown, parseContent, type Sense } from "../card-content";
-import { AuthoringSheet } from "./authoring-sheet";
+import { Sheet } from "@/design/sheet";
 import { RowMenu } from "./row-menu";
 
 const fieldClass =
@@ -77,7 +77,7 @@ export function CardEditSheet<Card extends CardDraft & { keptSenses?: boolean[] 
   }
 
   return (
-    <AuthoringSheet title="카드 편집" close={close}>
+    <Sheet title="카드 편집" close={close}>
       <div className="flex flex-col gap-4">
         <label className="text-section text-muted">
           앞면
@@ -130,7 +130,7 @@ export function CardEditSheet<Card extends CardDraft & { keptSenses?: boolean[] 
           완료
         </button>
       </div>
-    </AuthoringSheet>
+    </Sheet>
   );
 }
 

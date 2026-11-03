@@ -15,8 +15,10 @@ import {
 } from "../authoring";
 import { holdsBlank } from "../card-content";
 import type { Card, Deck } from "../library";
-import { leaveThen } from "../hooks/use-back-entry";
-import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
+import { leaveThen } from "@/design/use-back-entry";
+import { Confirm } from "@/design/confirm";
+import { Sheet } from "@/design/sheet";
+import { AuthoringScreen } from "./authoring-sheet";
 import { CellFields } from "./cell-fields";
 import { cellSection, firstField } from "./editing";
 import { DeckAppearanceFields, type Look, lookedTile, setPhoto } from "./deck-appearance";
@@ -76,7 +78,7 @@ export function AuthoringButton({
         {label}
       </button>
       {screen === "options" && deck && (
-        <AuthoringSheet
+        <Sheet
           title="카드 추가"
           close={() => {
             setScreen(null);
@@ -122,7 +124,7 @@ export function AuthoringButton({
               ),
             )}
           </div>
-        </AuthoringSheet>
+        </Sheet>
       )}
       {screen === "name" && (
         <NewNote
@@ -509,7 +511,7 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
         </button>
       )}
       {adding && (
-        <AuthoringSheet
+        <Sheet
           title="칸 추가"
           close={() => {
             setAdding(false);
@@ -537,35 +539,20 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
               </button>
             ))}
           </div>
-        </AuthoringSheet>
+        </Sheet>
       )}
       {discarding && (
-        <AuthoringSheet
+        <Confirm
           title="작성 중인 카드를 버릴까요?"
+          consequence="입력한 내용은 저장되지 않아요."
+          cancelLabel="계속 쓰기"
+          confirmLabel="버리기"
+          destructive
+          onConfirm={close}
           close={() => {
             setDiscarding(false);
           }}
-        >
-          <p className="text-secondary text-muted">입력한 내용은 저장되지 않아요.</p>
-          <div className="mt-4 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setDiscarding(false);
-              }}
-              className="pressable min-h-button text-body"
-            >
-              계속 쓰기
-            </button>
-            <button
-              type="button"
-              onClick={close}
-              className="pressable min-h-button rounded-button bg-dont-know px-4 text-button text-on-ink"
-            >
-              버리기
-            </button>
-          </div>
-        </AuthoringSheet>
+        />
       )}
     </AuthoringScreen>
   );
