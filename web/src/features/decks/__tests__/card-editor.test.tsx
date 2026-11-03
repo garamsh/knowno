@@ -198,6 +198,46 @@ describe("a new card", () => {
     });
   });
 
+  it("focuses a new 사진 or 소리 칸's pick, as a new 글 its 앞면", async () => {
+    await newCard();
+    await add("사진");
+    expect(screen.getByLabelText("앨범에서 고르기")).toHaveFocus();
+    await add("소리");
+    expect(screen.getByLabelText("파일에서 고르기")).toHaveFocus();
+    // Control: a new 글 takes its 앞면's focus.
+    await add("글");
+    expect(screen.getAllByRole("textbox", { name: "앞면" }).at(-1)).toHaveFocus();
+  });
+
+  it("shows a refused save's problem and focuses the field of the 칸 it is in", async () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    try {
+      await newCard();
+      await removeFirst();
+      await add("글");
+      await add("단어");
+      await userEvent.type(screen.getByRole("textbox", { name: "앞면" }), "front");
+      await userEvent.type(screen.getByRole("textbox", { name: "뒷면" }), "back");
+      await userEvent.type(screen.getByRole("textbox", { name: "단어" }), "apple");
+      // The adds scroll their fields into view; only the save's scroll counts.
+      scrolled.mockClear();
+      await userEvent.click(screen.getByRole("button", { name: "저장" }));
+      expect(screen.getByRole("alert")).toHaveTextContent("내용을 적어 주세요");
+      expect(scrolled.mock.contexts).toEqual([screen.getByRole("alert")]);
+      expect(screen.getByRole("textbox", { name: "단어" })).toHaveFocus();
+      // A second refusal reveals it again.
+      await userEvent.click(screen.getByRole("textbox", { name: "앞면" }));
+      scrolled.mockClear();
+      await userEvent.click(screen.getByRole("button", { name: "저장" }));
+      expect(scrolled.mock.contexts).toEqual([screen.getByRole("alert")]);
+      expect(screen.getByRole("textbox", { name: "단어" })).toHaveFocus();
+      expect(db.rows.cards).toHaveLength(0);
+    } finally {
+      Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+    }
+  });
+
   it("makes a selection a blank through the line's one action, and turns it back", async () => {
     await newCard();
     await removeFirst();

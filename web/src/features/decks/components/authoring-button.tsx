@@ -18,6 +18,7 @@ import type { Card, Deck } from "../library";
 import { leaveThen } from "../hooks/use-back-entry";
 import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
 import { CellFields } from "./cell-fields";
+import { cellSection, firstField } from "./editing";
 import { DeckAppearanceFields, type Look, lookedTile, setPhoto } from "./deck-appearance";
 import { DeckTile } from "./deck-tile";
 import { PhotoImport } from "./photo-import";
@@ -353,6 +354,8 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
   const [cardId, setCardId] = useState<string>(card?.id ?? v7());
   const [message, setMessage] = useState("");
   const [showErrors, setShowErrors] = useState(false);
+  // Counts the refused saves, so each one reveals its problem once drawn.
+  const [refused, setRefused] = useState(0);
   const [duplicate, setDuplicate] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -366,14 +369,23 @@ function EditableCard({ deck, card, close }: { deck: Deck; card?: Card; close: (
   // After an adding sheet's close, which hands focus back to what opened it.
   useEffect(() => {
     if (!focusIn.current) return;
-    form.current?.querySelector<HTMLElement>(`[data-cell="${focusIn.current}"] textarea`)?.focus();
+    firstField(cellSection(focusIn.current))?.focus();
     focusIn.current = null;
   }, [drafts]);
+  // A refused save shows its first problem and focuses the field of the 칸 it is in.
+  useEffect(() => {
+    if (refused === 0) return;
+    const alert = form.current?.querySelector<HTMLElement>("[role=alert]");
+    if (!alert) return;
+    if ("scrollIntoView" in alert) alert.scrollIntoView({ block: "nearest" });
+    firstField(alert.closest("[data-cell]"))?.focus();
+  }, [refused]);
   function save(next: boolean, allow = false) {
     if (busy.current) return;
     const { cells } = built;
     if (!cells) {
       setShowErrors(true);
+      setRefused((count) => count + 1);
       return;
     }
     busy.current = true;
