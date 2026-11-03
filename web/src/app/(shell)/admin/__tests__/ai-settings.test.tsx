@@ -110,13 +110,13 @@ beforeEach(async () => {
 });
 
 describe("설정 → AI 제공자's keys", () => {
-  it("shows each provider's key by its last four characters alone, OpenRouter on its transition secret, and an empty key field", async () => {
+  it("shows each provider's key by its last four characters alone, OpenRouter without one unusable as every provider, and an empty key field", async () => {
     admin.providerKeys.set("anthropic", { lastFour: "3333", setBy: testUser.id });
     await render(AiSettingsContent, {});
     const keys = within(screen.getByRole("list", { name: "제공자 키" }));
     const rows = keys.getAllByRole("listitem");
     // Each row holds the name, the state and the form, so a substring is right.
-    expect(rows[0]).toHaveTextContent(/OpenRouter사용 중키 없음 · 전환 중이라 OPENROUTER_API_KEY/);
+    expect(rows[0]).toHaveTextContent(/OpenRouter사용 중키 없음 · 이 제공자는 쓸 수 없어요/);
     expect(rows[1]).toHaveTextContent(/OpenAI키 없음 · 이 제공자는 쓸 수 없어요/);
     expect(rows[2]).toHaveTextContent(/Anthropic끝자리 3333 · .* · learner@example.com/);
     const anthropic = within(keys.getByRole("form", { name: "Anthropic 키" }));

@@ -237,10 +237,11 @@ async function handle(
       supabase,
     });
   }
-  const start = await beginExtraction(userId, {
-    configurationId: parsed.request.configuration,
-    secretProviders: config.openRouterSecret === null ? [] : ["openrouter"],
-  }, supabase);
+  const start = await beginExtraction(
+    userId,
+    parsed.request.configuration,
+    supabase,
+  );
   if (start.kind === "not_configured") return refused("not_configured", userId);
   if (start.kind === "unavailable") {
     return { ...refused("unavailable", userId), plan: start.plan };
