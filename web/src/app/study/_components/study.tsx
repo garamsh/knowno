@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { buttonClass } from "@/design/button";
+
 import {
   audioLength,
   audioOf,
@@ -148,7 +150,7 @@ function Failure({ failure, back }: { failure: LibraryFailure; back: string }) {
       <ReadFailure failure={failure} />
       <Link
         href={back}
-        className="pressable flex min-h-button items-center justify-center self-start rounded-button bg-surface px-5 text-button text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className={`${buttonClass("secondary")} self-start`}
       >
         그만하기
       </Link>

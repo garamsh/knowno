@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Mascot } from "@/design/brand";
+import { buttonClass } from "@/design/button";
 
 import { coachHand } from "./coach-hand-drawing";
 
@@ -104,7 +105,7 @@ export function CoachCaption({
           <button
             type="button"
             onClick={onNext}
-            className={`${button} min-h-button bg-primary px-6 text-button text-on-primary`}
+            className={buttonClass("primary")}
           >
             {last ? "시작하기" : "다음"}
           </button>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { buttonClass } from "@/design/button";
 import { Section } from "@/design/section";
 import { createClient } from "@/supabase/browser";
 
@@ -81,7 +82,7 @@ export function ConsentForm({
           onClick={() => {
             answer(false);
           }}
-          className="pressable flex min-h-cta items-center justify-center rounded-button bg-surface px-6 text-button text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+          className={buttonClass("secondary", "cta")}
         >
           취소
         </button>
@@ -91,7 +92,7 @@ export function ConsentForm({
           onClick={() => {
             answer(true);
           }}
-          className="pressable flex min-h-cta items-center justify-center rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+          className={buttonClass("primary", "cta")}
         >
           연결
         </button>

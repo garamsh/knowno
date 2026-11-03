@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { FittedLine } from "@/design/fitted-line";
+import { buttonClass } from "@/design/button";
 import { keepFocusInside } from "@/design/focus-trap";
 
 import { saveDailyMinutes } from "../actions";
@@ -284,7 +285,7 @@ function MinutesDialog({
               router.refresh();
             });
           }}
-          className="pressable flex min-h-cta items-center justify-center rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+          className={buttonClass("primary", "cta")}
         >
           {saving ? "저장 중" : "저장"}
         </button>

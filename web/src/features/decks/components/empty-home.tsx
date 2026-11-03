@@ -4,6 +4,7 @@ import { AuthoringButton } from "./authoring-button";
 import type { Deck } from "../library";
 
 import { Mascot, type MascotExpression } from "@/design/brand";
+import { buttonClass } from "@/design/button";
 
 /**
  * The first run's layout: the one sentence [title] as a heading, under the mascot in its [mascot]
@@ -86,7 +87,7 @@ export function NoCardsHome({ decks }: { decks: Deck[] }) {
         href={
           decks.length === 1 && only ? `/decks/${encodeURIComponent(only.id)}?adding=1` : "/decks"
         }
-        className="pressable mt-3 flex min-h-cta w-full max-w-56 items-center justify-center rounded-button bg-hero-button px-6 text-button text-on-hero-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero"
+        className={`${buttonClass("onHero", "cta")} mt-3 w-full max-w-56`}
       >
         {decks.length === 1 ? "카드 추가" : "노트에서 카드 추가"}
       </Link>

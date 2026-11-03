@@ -14,6 +14,7 @@ import {
 import { v7 } from "uuid";
 
 import { Mascot } from "@/design/brand";
+import { buttonClass } from "@/design/button";
 import { Chip } from "@/design/chip";
 import { FittedLine } from "@/design/fitted-line";
 
@@ -45,10 +46,9 @@ import {
   coachSteps,
 } from "./study-coach";
 
-const button =
-  "pressable flex min-h-button items-center justify-center gap-2 rounded-button px-5 text-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
-
-const quiet = `${button} bg-surface text-ink`;
+/** An answer button's shape, under its own tint. */
+const answerBase =
+  "pressable flex items-center justify-center gap-2 rounded-button px-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
 
 /** A key hint beside a control's name, left out of the name screen readers announce. */
 function Hint({ children }: { children: string }) {
@@ -163,11 +163,11 @@ export function StudyScreen({
               onClick={() => {
                 setEngine("loading");
               }}
-              className={`${button} bg-primary text-on-primary`}
+              className={buttonClass("primary")}
             >
               다시 시도
             </button>
-            <Link href={back} className={quiet}>
+            <Link href={back} className={buttonClass("secondary")}>
               그만하기
             </Link>
           </div>
@@ -474,7 +474,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
             setHelpOpen(true);
           }}
           aria-keyshortcuts="?"
-          className={`${quiet} hidden lg:flex`}
+          className={`${buttonClass("secondary")} hidden lg:flex`}
         >
           단축키 <Hint>?</Hint>
         </button>
@@ -492,7 +492,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
             onClick={() => {
               writes.retry();
             }}
-            className={`${button} self-start bg-primary text-on-primary`}
+            className={`${buttonClass("primary")} self-start`}
           >
             다시 시도
           </button>
@@ -513,7 +513,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                 onClick={(event) => {
                   exit(event, back);
                 }}
-                className={`${button} mt-1 min-h-cta bg-primary text-on-primary`}
+                className={`${buttonClass("primary", "cta")} mt-1`}
               >
                 닫기
               </Link>
@@ -602,7 +602,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
           onClick={toggleLast}
           aria-keyshortcuts="Z"
           className={
-            touch ? "sr-only" : `${quiet} self-center ${coach === "redecide" ? coachHighlight : ""}`
+            touch ? "sr-only" : `${buttonClass("secondary")} self-center ${coach === "redecide" ? coachHighlight : ""}`
           }
         >
           마지막 응답 바꾸기 <Hint>Z</Hint>
@@ -698,7 +698,7 @@ function AnswerButtons({
   const answerButton = (step: CoachStep) =>
     touch
       ? "sr-only"
-      : `${button} min-h-cta flex-1 text-body-strong ${highlight === step ? coachHighlight : ""}`;
+      : `${answerBase} min-h-cta flex-1 text-label ${highlight === step ? coachHighlight : ""}`;
   return (
     <div className="flex justify-center gap-3">
       <button

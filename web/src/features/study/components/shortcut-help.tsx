@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
+import { buttonClass } from "@/design/button";
 import { keepFocusInside } from "@/design/focus-trap";
 
 /** Each keyboard shortcut of the study screen, and what it does. */
@@ -55,7 +56,7 @@ export function ShortcutHelp({ onClose }: { onClose: () => void }) {
           ref={close}
           type="button"
           onClick={onClose}
-          className="pressable min-h-button rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className={buttonClass("primary")}
         >
           닫기
         </button>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
+import { buttonClass } from "@/design/button";
 import { keepFocusInside } from "@/design/focus-trap";
 
 import type { PreviousAnswer } from "../session";
@@ -83,7 +84,7 @@ export function CardDetail({
           type="button"
           onClick={onClose}
           aria-keyshortcuts="Escape"
-          className="pressable min-h-button rounded-button bg-primary px-6 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className={buttonClass("primary")}
         >
           닫기
         </button>
