@@ -135,6 +135,11 @@ class _StatsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final trailing = this.trailing;
+    final titleStyle = AppType.label.copyWith(color: colors.ink);
+    final trailingStyle = AppType.caption.copyWith(color: colors.ink2);
+    // Each placed at the heading's first baseline, so on one line the two
+    // share it, as the web's `items-baseline` does.
+    final baseline = _baseline(context, title, titleStyle);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface,
@@ -150,21 +155,25 @@ class _StatsCard extends StatelessWidget {
             // The line goes under the heading where both do not fit.
             Wrap(
               alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.end,
               spacing: AppSpace.s8,
               children: [
-                Semantics(
-                  header: true,
-                  child: Text(
-                    keepWords(title),
-                    semanticsLabel: title,
-                    style: AppType.label.copyWith(color: colors.ink),
+                Baseline(
+                  baseline: baseline,
+                  baselineType: TextBaseline.alphabetic,
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      keepWords(title),
+                      semanticsLabel: title,
+                      style: titleStyle,
+                    ),
                   ),
                 ),
                 if (trailing != null)
-                  Text(
-                    trailing,
-                    style: AppType.caption.copyWith(color: colors.ink2),
+                  Baseline(
+                    baseline: baseline,
+                    baselineType: TextBaseline.alphabetic,
+                    child: Text(trailing, style: trailingStyle),
                   ),
               ],
             ),
@@ -174,6 +183,22 @@ class _StatsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// How far below its top [text] in [style] puts its first baseline, at the
+/// text size of [context].
+double _baseline(BuildContext context, String text, TextStyle style) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textScaler: MediaQuery.textScalerOf(context),
+    textDirection: Directionality.of(context),
+    maxLines: 1,
+  )..layout();
+  final baseline = painter.computeDistanceToActualBaseline(
+    TextBaseline.alphabetic,
+  );
+  painter.dispose();
+  return baseline;
 }
 
 /// A share as whole percent.

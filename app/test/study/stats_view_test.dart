@@ -294,6 +294,43 @@ void main() {
   );
 
   testWidgets(
+    "each chart's heading and the line beside it share a baseline, as the web "
+    'aligns them',
+    (tester) async {
+      await _pump(tester, await _seed(_history, recall: _recall));
+
+      // The alphabetic baseline of the paragraph [finder] finds, on screen.
+      double baseline(Finder finder) {
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find.descendant(of: finder, matching: find.byType(RichText)),
+        );
+        return paragraph
+            .localToGlobal(
+              Offset(
+                0,
+                paragraph.getDryBaseline(
+                  paragraph.constraints,
+                  TextBaseline.alphabetic,
+                )!,
+              ),
+            )
+            .dy;
+      }
+
+      // Both cards' headings are drawn by one widget; Study days' line goes
+      // under its heading in the test's wide glyphs, so Memory's is measured.
+      final heading = tester.getRect(shownText('Memory'));
+      final beside = tester.getRect(find.text('Average 87%'));
+      expect(beside.top, lessThan(heading.bottom), reason: 'setup: one line');
+      expect(beside.left, greaterThan(heading.right), reason: 'setup: beside');
+      expect(
+        baseline(find.text('Average 87%')),
+        closeTo(baseline(shownText('Memory')), 0.01),
+      );
+    },
+  );
+
+  testWidgets(
     'the recall bands show each band\'s count and the mean, and read them in one label',
     (tester) async {
       await _pump(tester, await _seed(_history, recall: _recall));
