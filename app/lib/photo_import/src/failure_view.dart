@@ -33,7 +33,7 @@ class FailureView extends StatelessWidget {
 
   final VoidCallback onRetake;
 
-  /// What the retake is called: "다시 찍기", or "다른 사진 고르기" for a photo
+  /// What the retake is called: "다시 찍기", or "다시 선택" for a photo
   /// from the album.
   final String retakeLabel;
 

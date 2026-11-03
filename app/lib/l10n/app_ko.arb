@@ -587,7 +587,7 @@
   "duplicateAddNew": "새 카드로 추가",
   "@duplicateAddNew": {"description": "Duplicate option: add this candidate as a separate card."},
   "retake": "다시 찍기",
-  "pickAnother": "다른 사진 고르기",
+  "pickAnother": "다시 선택",
   "@pickAnother": {"description": "Takes another photo from the album, on photo import's list and failure screens, when the photo came from the album."},
   "@retake": {"description": "Button that offers the camera and the album again for a new photo."},
   "retry": "다시 시도",

@@ -932,7 +932,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get retake => '다시 찍기';
 
   @override
-  String get pickAnother => '다른 사진 고르기';
+  String get pickAnother => '다시 선택';
 
   @override
   String get retry => '다시 시도';

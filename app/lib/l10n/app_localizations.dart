@@ -1648,7 +1648,7 @@ abstract class AppLocalizations {
   /// Takes another photo from the album, on photo import's list and failure screens, when the photo came from the album.
   ///
   /// In ko, this message translates to:
-  /// **'다른 사진 고르기'**
+  /// **'다시 선택'**
   String get pickAnother;
 
   /// Button that sends the same photo again.

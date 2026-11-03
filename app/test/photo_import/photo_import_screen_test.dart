@@ -73,6 +73,7 @@ class _Import {
     DeckId? Function(_Import import)? deck,
     Map<String, String> french = const {},
     ThemeMode themeMode = ThemeMode.light,
+    Locale locale = const Locale('en'),
     bool disableAnimations = false,
     bool refuseWrites = false,
     MemoryImportJobStore? restoring,
@@ -119,7 +120,7 @@ class _Import {
           theme: lightTheme,
           darkTheme: darkTheme,
           themeMode: themeMode,
-          locale: const Locale('en'),
+          locale: locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           builder: (context, child) => MediaQuery(
@@ -1256,7 +1257,7 @@ void main() {
 
         // From the camera, "Retake" takes another with it.
         await import.extract({'a': '1'});
-        expect(_shown('Pick another photo'), findsNothing);
+        expect(_shown('Choose again'), findsNothing);
         await import.retake('Retake');
         expect((import.photos.cameraCalls, import.photos.libraryCalls), (2, 0));
         await import.close();
@@ -1264,7 +1265,7 @@ void main() {
     );
 
     testWidgets(
-      'from the album, the retake reads "Pick another photo" and picks from it again',
+      'from the album, the retake reads "Choose again" and picks from it again',
       (tester) async {
         final import = await _Import.open(tester);
         await import.pick();
@@ -1272,9 +1273,36 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(_shown('Retake'), findsNothing);
-        await import.retake('Pick another photo');
+        await import.retake('Choose again');
         expect((import.photos.cameraCalls, import.photos.libraryCalls), (0, 2));
         expect(_shown('Finding cards'), findsOneWidget);
+        await import.close();
+      },
+    );
+
+    testWidgets(
+      'in Korean, an album photo\'s retake reads "다시 선택" on its failure and under the list\'s ⋯ (#638)',
+      (tester) async {
+        final ko = lookupAppLocalizations(const Locale('ko'));
+        final import = await _Import.open(
+          tester,
+          locale: const Locale('ko'),
+          before: (import) =>
+              import.photos.libraryFailure = const PhotoUnreadable('heic'),
+        );
+
+        await import.start(PhotoOrigin.album);
+        expect(_shown(ko.photoUnreadable), findsOneWidget);
+        expect(_shown('다시 선택'), findsOneWidget);
+        expect(_shown('다른 사진 고르기'), findsNothing);
+
+        import.photos.libraryFailure = null;
+        await import._pumpPast(_shown('다시 선택'));
+        import.client.answer({'a': '1'});
+        await tester.pumpAndSettle();
+        await import.tap(find.byTooltip(ko.importActions));
+        expect(_shown('다시 선택'), findsOneWidget);
+        expect(_shown('다른 사진 고르기'), findsNothing);
         await import.close();
       },
     );
@@ -1332,7 +1360,7 @@ void main() {
 
     for (final (source, origin, retake) in [
       ('the camera', PhotoOrigin.camera, 'Retake'),
-      ('the album', PhotoOrigin.album, 'Pick another photo'),
+      ('the album', PhotoOrigin.album, 'Choose again'),
     ]) {
       testWidgets(
         'a refused permission behind $source says so with a way to Settings, where an unreadable photo has none',
@@ -1420,7 +1448,7 @@ void main() {
         import.client.answer({'a': '1'});
         await tester.pumpAndSettle();
         await import.openActions();
-        expect(_shown('Pick another photo'), findsOneWidget);
+        expect(_shown('Choose again'), findsOneWidget);
         await import.close();
       },
     );
@@ -2607,7 +2635,7 @@ void main() {
         findsOneWidget,
       );
       expect(_shown('Try again'), findsNothing);
-      await import.tap(_shown('Pick another photo'));
+      await import.tap(_shown('Choose again'));
       expect(import.photos.libraryCalls, 2);
       expect(import.client.calls, isEmpty);
       await import.close();
