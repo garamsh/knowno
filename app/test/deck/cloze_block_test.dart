@@ -588,28 +588,18 @@ void main() {
           reason: 'one face, no split card',
         );
         expect(find.text('Front'), findsNothing, reason: 'one face: no side');
-        // The blanks as blocks of their answers on brandTint.
-        List<String> blocks() {
-          final colors = AppColors.of(tester.element(preview));
-          final blocks = <String>[];
-          for (final paragraph in tester.widgetList<RichText>(
-            find.descendant(of: preview, matching: find.byType(RichText)),
-          )) {
-            paragraph.text.visitChildren((span) {
-              if (span is TextSpan &&
-                  span.style?.backgroundColor == colors.brandTint) {
-                blocks.add(blankAnswer(span.text!));
-              }
-              return true;
-            });
-          }
-          return blocks;
-        }
-
-        expect(blocks(), isEmpty, reason: 'the blanks empty, as study asks');
+        // Before the tap, each blank a box on the hatch with no answer, as
+        // study's current card draws it; after it, each answer on the hatch,
+        // as study's previous card does (ADR 0168, ADR 0176).
+        expect(boxedBlanksUnder(preview), 2, reason: 'the blanks boxed');
+        expect(
+          hatchedBlanksUnder(preview),
+          isEmpty,
+          reason: 'no answer before the tap, as study asks',
+        );
         expect(shownText('Tap the card to see the answer'), findsOneWidget);
         await screens.tap(preview);
-        expect(blocks(), ['cat', '']);
+        expect(hatchedBlanksUnder(preview), ['cat', '']);
         expect(shownText('Tap again to empty its blanks'), findsOneWidget);
         await screens.close();
       },

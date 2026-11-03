@@ -100,7 +100,12 @@ void main() {
   Future<Map<String, bool>> previewedBlanks(DeckScreens screens) async {
     await screens.tap(find.text('Preview'));
     await screens.tap(find.byType(CardPreviewScreen));
-    final blanks = blanksUnder(find.byType(CardPreviewScreen));
+    // The turned side is study's previous card: each answer on the hatch
+    // (ADR 0168, ADR 0176).
+    final blanks = {
+      for (final answer in hatchedBlanksUnder(find.byType(CardPreviewScreen)))
+        answer: true,
+    };
     await screens.tap(find.byTooltip('Close'));
     return blanks;
   }
