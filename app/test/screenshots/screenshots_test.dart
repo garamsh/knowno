@@ -95,7 +95,7 @@ Future<void> _swipeCurrent(WidgetTester tester, double dx) async {
 const _density = 2.0;
 
 /// The widgets whose text a screen's three sizes leave out: a card's own
-/// content on the study and preview cards, which `design.md` §Details leaves
+/// content on the study and preview cards, which `design/principles.md` §One visual language leaves
 /// out, and Google's button, drawn to Google's guidelines.
 const _uncounted = {
   'CardText',
@@ -147,7 +147,7 @@ bool _isFigureUnit(Element element) {
 
 /// The font sizes of the text the current route draws, a sheet's alone while
 /// one is open, leaving out a card's own content on the study and preview
-/// cards and a large figure with its unit, as `design.md` §Details counts a
+/// cards and a large figure with its unit, as `design/principles.md` §One visual language counts a
 /// screen's three sizes.
 List<double> _chromeSizes(WidgetTester tester) {
   final sizes = <double>{};

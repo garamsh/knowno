@@ -15,7 +15,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - a quiet line on the completion card, "내일도 하루 20분 · 바꾸기";
   - the web's 오늘 page, with the same control and dialog;
   - the account or settings screen, which lists the setting too.
-- **The app's idioms** ([`design.md`](../design.md)): one primary action per sheet, actions pinned at the bottom with the primary last, no cancel in a sheet, 44 pt targets, plain-language states, tokens only.
+- **The app's idioms** ([`design/principles.md`](../design/principles.md)): one primary action per sheet, actions pinned at the bottom with the primary last, no cancel in a sheet, 44 pt targets, plain-language states, tokens only.
 - **The 오늘 tab stays built behind the 덱 tab** (`IndexedStack`, [`home.md`](../home.md)). A step that asked as soon as a deck had cards would open over whatever screen the user was on.
 - **Alternatives considered:**
   - **A custom value typed into a field.** The keyboard would cover the preview the value moves, and a field needs its own validation message. Steps of 5 from 5 to 180 reach every preset and the bounds with two large buttons.

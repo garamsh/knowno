@@ -13,7 +13,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
     - One choice has different names on the two sheets: "직접 만들기" and "직접 입력", "사진으로 만들기" and "사진".
     - "다시 찍기" reopens the source sheet even for an album photo.
     - The failure screen offers two closes when nothing else applies.
-  - **#208.** `sharing.md` names a home "둘러보기" icon button that does not exist, and `design.md`'s list of Material widgets misses `DropdownMenu` and `RadioListTile`, which the public-deck import sheet uses.
+  - **#208.** `sharing.md` names a home "둘러보기" icon button that does not exist, and `design/components.md`'s list of Material widgets misses `DropdownMenu` and `RadioListTile`, which the public-deck import sheet uses.
 - **The PM's direction** (the issues' triage, 2026-10-19):
   - keep the 덱 tab's "공개 덱 둘러보기" row ([ADR 0050](0050-make-a-deck-from-a-button-under-the-deck-list-and-remove-the-deck-selection-mode.md)), and drop "공개 덱에서 가져오기" from the new-deck sheet;
   - title the browse screen "공개 덱", with "공개 덱 둘러보기" as its entry everywhere;
@@ -38,7 +38,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - The name sheet for a new deck is "새 덱" on the manual path, as it is on photo import's.
 - **Retake.** On the import list and a failure, the retake takes another photo from the same source with no sheet. It reads "다시 찍기" for the camera and "다른 사진 고르기" for the album. Where the camera cannot open, it reads "앨범에서 고르기" and picks from the album, and later retakes follow the album.
 - **Failure screen.** The top bar's close is its one way out. The bottom bar holds the retry, the retake or the way to Settings where one applies, and is absent where none does.
-- **Docs (#208).** `sharing.md` names the browse screen's actual entries, and `design.md`'s list of Material widgets names `DropdownMenu` and `RadioListTile`.
+- **Docs (#208).** `sharing.md` names the browse screen's actual entries, and `design/components.md`'s list of Material widgets names `DropdownMenu` and `RadioListTile`.
 - **Supersessions.**
   - This replaces ADR 0054's source sheet, "사진 가져오기", and its retake that reopened it.
   - It replaces ADR 0036's new-deck sheet option "공개 덱에서 가져오기" and its "사진으로 만들기", and the first-run home's three buttons.

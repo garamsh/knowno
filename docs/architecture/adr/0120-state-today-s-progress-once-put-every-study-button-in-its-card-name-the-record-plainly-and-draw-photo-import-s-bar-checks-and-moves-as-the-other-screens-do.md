@@ -7,7 +7,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 
 ## Context
 
-- Issue #458 brings the screens the redesign had not reached to `design.md` §Copy and §Details (issue #454, [ADR 0118](0118-name-each-concept-once-write-each-role-in-one-form-hold-every-screen-to-one-set-of-visual-details-and-redraw-settings-and-the-deck-screen-by-them.md)): the 오늘 tab, the 기록 tab and photo import. The QA UX audit of 2026-10-27 found, on `origin/main` at `2661941`:
+- Issue #458 brings the screens the redesign had not reached to `design/copy.md` and `design/principles.md` (issue #454, [ADR 0118](0118-name-each-concept-once-write-each-role-in-one-form-hold-every-screen-to-one-set-of-visual-details-and-redraw-settings-and-the-deck-screen-by-them.md)): the 오늘 tab, the 기록 tab and photo import. The QA UX audit of 2026-10-27 found, on `origin/main` at `2661941`:
   - **오늘, today card (16a1).** The cards done, "2 / 4장", "약 1분 남음", the bar, and a status line, "거의 다 왔어요", state the same progress four ways. The status line ([ADR 0046](0046-state-where-the-user-stands-today-on-the-today-card-in-place-of-the-goal-s-numbers.md)) was chosen when the card showed no figures; since [ADR 0091](0091-draw-the-today-card-as-a-progress-bar-and-change-the-daily-study-minutes-only-in-settings.md) it restates them, and its streak variant restates the streak chip beside it.
   - **오늘, done card (16i).** "학습하기" sat under the last seven days, outside every card, the one study button on the tab not inside the card it acts on, so the tab had two focal points.
   - **오늘, backlog card (16d).** The button "84장 학습 · 약 14분" invited all 84 overdue reviews now, while the chart under it planned "하루 3장씩 하면 28일이면 따라잡아요", and its note said "하루 3장씩" again. The session over a backlog takes every due card ([`study.md`](../study.md), ADR 0025), and the user stops whenever they like, so the count on the button was the session's size, not a plan.
@@ -42,7 +42,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - A read photo's check is ink. Green and red stay 안다 and 모른다.
   - Refines [ADR 0065](0065-import-a-photo-s-cards-from-one-list-of-sections-each-with-its-form-menu-row-checks-and-an-edit-sheet.md)'s edit sheet and [ADR 0089](0089-import-up-to-ten-photos-into-one-list-read-two-at-a-time-and-state-today-s-limit-before-reading.md)'s read state.
 - **Word breaks.** The backlog card's sentence, which the redesign's screenshots showed breaking "카드 / 는", a whole card's cloze sentence and its blanks, and photo import's failure screen and a failed photo's line, break only between words, through `keepWords`. A whole card's title and table cells are left as they are: the audit found no break there.
-- **Refines** `design.md` §Copy's study buttons: "모두 학습" on the today and backlog cards, "학습하기" on the done card and the deck screen.
+- **Refines** `design/copy.md` §Forms's study buttons: "모두 학습" on the today and backlog cards, "학습하기" on the done card and the deck screen.
 
 ## Consequences
 

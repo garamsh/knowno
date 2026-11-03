@@ -1,6 +1,6 @@
 import { type ReactNode, useId } from "react";
 
-/** One group of rows, as `design.md` §Details draws a list: the surface, split by hairlines. */
+/** One group of rows, as `design/frames.md` §Group and section draws a list: the surface, split by hairlines. */
 export const group = "flex flex-col divide-y divide-hairline rounded-group bg-surface";
 
 /** A row inside a [group]. */
@@ -12,7 +12,7 @@ const buttonBase =
 /**
  * The admin area's buttons by role: the screen's one primary in the ink fill, a secondary
  * outlined, a destructive one as red text, and the red fill only as the last step of an action
- * that cannot be undone (`design.md` §Details).
+ * that cannot be undone (`design/principles.md` §One primary action per screen).
  */
 export const button = {
   primary: `${buttonBase} bg-primary text-on-primary`,
@@ -31,7 +31,7 @@ export const card = "flex flex-col gap-2 rounded-group bg-surface p-5";
 
 /**
  * A link of the menu or of a section's view switch: the current one in `accent` on the brand
- * tint, the others `ink-2`, as design.md §Details draws the current menu item.
+ * tint, the others `ink-2`, as design/components.md §Material widgets draws the current menu item.
  */
 export function switchLink(current: boolean): string {
   return `pressable flex min-h-tap-target items-center rounded-button px-3 text-label whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${

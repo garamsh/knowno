@@ -11,7 +11,7 @@ const styles = new Map(
 );
 
 /**
- * The styles a page's three sizes leave out (`design.md` §Details): a large figure, with its unit
+ * The styles a page's three sizes leave out (`design/principles.md` §One visual language): a large figure, with its unit
  * after it, a card's own content, a button's label, and Google's button.
  */
 const outside = new Set(["figure", "hero-figure", "front", "back", "button", "google"]);

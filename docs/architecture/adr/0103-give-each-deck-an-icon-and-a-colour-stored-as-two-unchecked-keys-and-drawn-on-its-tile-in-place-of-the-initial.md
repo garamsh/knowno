@@ -13,7 +13,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - the colour comes from a fixed palette;
   - a deck nobody has customised shows a default icon on the colour its id selects;
   - no stored row is rewritten.
-- `design.md` §Principles 6 reserves green and red for 안다 and 모른다, so two of the four tints cannot be in a palette the user picks from.
+- `design/principles.md` §One visual language reserves green and red for 안다 and 모른다, so two of the four tints cannot be in a palette the user picks from.
 - A newer app may offer icons or colours this build does not know. The PM decided on #382 that the server checks neither key against a list, as #388 decided for a card's template, since a list check would refuse a newer app's sync.
 
 ## Decision

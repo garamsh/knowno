@@ -14,7 +14,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - a card's sides as 단어 and 뜻, and as 앞 and 뒤, on one photo import screen, and the deck screen's switch "뜻 보기" filling the blanks of a card with no meaning (#451, against [ADR 0079](0079-name-a-card-s-sides-front-and-back-and-its-grade-the-response-on-the-phone-the-web-and-in-the-docs.md));
   - 개 for words beside 장 for cards;
   - and, in one role, several forms: "공개" and "공개하기" both publish, a sheet title as a noun, a verb phrase or a statement, field errors in "…입력하세요" and "…해 주세요".
-- `design.md` §Voice ([ADR 0024](0024-one-voice-and-a-sheet-action-rule.md)) fixes the endings, 해요체, and not the terms or the forms, so no rule a reviewer can check said which name or form is right.
+- `design/copy.md` §Voice ([ADR 0024](0024-one-voice-and-a-sheet-action-rule.md)) fixes the endings, 해요체, and not the terms or the forms, so no rule a reviewer can check said which name or form is right.
 - **The owner approved a standard** on 2026-10-27, issue #454: one term per concept, one sentence form per role, and the visual details that keep a screen calm rather than decorated, with drafts of the settings screen and the deck screen drawn by it. The owner's decisions on #452: 학습 everywhere, and the settings screen is titled 설정, its account section first.
 - **The settings screen** was titled "계정" though it held the study settings and the theme. Each row was a rounded surface of its own; the theme was a boxed segmented control; "계정 삭제" carried a two-sentence note its confirmation repeats; the foot held the mascot, the version and two links on two lines.
 - **The deck screen** stated the card count twice, in the line under the name and in "카드 n" over the list. Each row was its own surface, a hidden back drawn as a grey bar, a pencil at its end ([ADR 0095](0095-give-each-card-row-on-the-deck-screen-a-pencil-that-opens-the-card-in-the-editor.md)), and a tap showed or hid that row's back (issue #142). The today card held a progress bar under "n장 중 m장 익힘".
@@ -27,8 +27,8 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 
 ## Decision
 
-- **Terms and forms.** `design.md` §Copy holds the two tables of #454 §1 and §2 as the rule for every string on the phone. They are applied to every Korean and English string outside the card editor, its block-add sheet and the label presets, which #445, #447 and #450 change. The web's copy follows in its own issue.
-- **Visual details.** `design.md` §Details holds #454 §3 as the rule every screen redesigned from now on follows. A shared `AppGroup`, and `SliverAppGroup` for a long list, draws rows as one white surface with radius 14, `AppRadius.group`, split by hairlines; a row inside draws no surface of its own. `AppType.figure` takes tabular digits. The other radii in §Details are reached screen by screen, as each is redesigned.
+- **Terms and forms.** `design/copy.md` holds the two tables of #454 §1 and §2 as the rule for every string on the phone. They are applied to every Korean and English string outside the card editor, its block-add sheet and the label presets, which #445, #447 and #450 change. The web's copy follows in its own issue.
+- **Visual details.** `design/principles.md` holds #454 §3 as the rule every screen redesigned from now on follows. A shared `AppGroup`, and `SliverAppGroup` for a long list, draws rows as one white surface with radius 14, `AppRadius.group`, split by hairlines; a row inside draws no surface of its own. `AppType.figure` takes tabular digits. The other radii in §Details are reached screen by screen, as each is redesigned.
 - **설정.** The screen the 오늘 tab's avatar opens is titled "설정", with three muted section labels over one group each: "계정", the email with the sync status under it, then "로그아웃"; "학습", "하루 학습 시간" with the minutes and a chevron, "앞면 소리 자동 재생" with its switch and no second line, and the labels' row; "화면", "테마" with the current choice and a chevron, which opens a sheet of 시스템, 라이트 and 다크 in place of the segmented control. Then "계정 삭제" alone in a group, in red, with no second line: its consequence is said by its confirmation alone. Then, centred and muted on one line, "버전 x.y.z · 이용약관 · 개인정보 처리방침". No avatar and no mascot.
 - **The deck screen.**
   - The bar holds back, search and ⋯; search keeps its place.
@@ -45,10 +45,10 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - A long front and back share the row's width with nothing else.
 - Toggling one card's back alone is gone: a user who wants to test themselves on one card does so in study.
 - Strings the editor's owners change keep their old terms until those changes land: "품사 표시" on the settings screen's label row and in the photo import menu (#447), and "음성" as the sound block's name (#445).
-- The radius scale and the motion and haptics of `design.md` §Details are not yet what every screen draws; a screen not yet redesigned is not a defect against them until it is.
+- The radius scale and the motion and haptics of `design/principles.md` are not yet what every screen draws; a screen not yet redesigned is not a defect against them until it is.
 
 ## Signs the decision was wrong
 
 - Users ask how to see one card's back without opening it.
 - Users miss the settings screen's sections, or take "테마" for something other than light and dark.
-- Strings drift again: a new term for a concept `design.md` §Copy names lands without the table changing.
+- Strings drift again: a new term for a concept `design/copy.md` names lands without the table changing.

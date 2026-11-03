@@ -11,7 +11,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - With no card in any deck, that tab shows the done card, "오늘 할 카드를 다 했어요", and "학습하기".
   - The new deck's screen offers the navy card's white "학습하기" as its most prominent action, over an outlined "카드 추가".
   - A deck made from a photo, by contrast, opens.
-- `design.md` §Principles 1, one primary action per screen, and 8, plain-language states, are both broken there. The tab says the day is done when nothing was ever studied, and the empty deck's primary leads to "오늘은 학습할 카드가 없어요".
+- `design/principles.md` §One primary action per screen and §Plain-language states are both broken there. The tab says the day is done when nothing was ever studied, and the empty deck's primary leads to "오늘은 학습할 카드가 없어요".
 - [ADR 0040](0040-keep-every-study-button-enabled-at-zero-cards-left.md) keeps every study button enabled at zero cards left. Its context is a day whose cards are done, not a deck that holds no card.
 - **The PM's direction**, on the issue's triage (2026-10-19) and on the worker's question:
   - after "직접 만들기", the new deck opens, as the photo path does;
