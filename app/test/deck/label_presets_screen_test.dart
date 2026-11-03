@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/deck/src/label_presets.dart';
 import 'package:knowno/deck/src/label_presets_screen.dart';
+import 'package:knowno/design/app_text_field.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/l10n/app_localizations.dart';
 
@@ -101,9 +102,9 @@ void main() {
       await tester.scrollUntilVisible(find.bySemanticsLabel('Add label'), 200);
       await tester.tap(find.bySemanticsLabel('Add label'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(TextField, 'Label'), '숙어');
+      await tester.enterText(find.widgetWithText(AppTextField, 'Label'), '숙어');
       await tester.enterText(
-        find.widgetWithText(TextField, 'Name (optional)'),
+        find.widgetWithText(AppTextField, 'Name (optional)'),
         'idiom',
       );
       await tester.tap(shownText('Done'));
@@ -117,7 +118,7 @@ void main() {
       );
       await tester.tap(find.bySemanticsLabel('Edit 숙어 idiom'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(TextField, 'Label'), '관용');
+      await tester.enterText(find.widgetWithText(AppTextField, 'Label'), '관용');
       await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(_stored(storage).last, '관용:idiom');
@@ -129,18 +130,39 @@ void main() {
   );
 
   testWidgets(
+    "the editing row draws each field's label inside the row, above its "
+    'field, not over its border',
+    (tester) async {
+      await _open(tester);
+      await tester.scrollUntilVisible(find.bySemanticsLabel('Add label'), 200);
+      await tester.tap(find.bySemanticsLabel('Add label'));
+      await tester.pumpAndSettle();
+      for (final (index, label) in ['Label', 'Name (optional)'].indexed) {
+        final field = find.byType(InputDecorator).at(index);
+        final row = tester.getRect(
+          find.ancestor(of: field, matching: find.byType(Row)).first,
+        );
+        final text = tester.getRect(find.text(label));
+        final border = tester.getRect(field);
+        expect(text.top, greaterThanOrEqualTo(row.top), reason: label);
+        expect(text.bottom, lessThanOrEqualTo(border.top), reason: label);
+      }
+    },
+  );
+
+  testWidgets(
     'an empty label is refused with a message, and an added row left empty goes',
     (tester) async {
       final storage = await _open(tester);
       await tester.tap(find.bySemanticsLabel('Edit 명 noun'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(TextField, 'Label'), ' ');
+      await tester.enterText(find.widgetWithText(AppTextField, 'Label'), ' ');
       await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(find.text('Write a label'), findsOneWidget);
       expect(_stored(storage), isEmpty, reason: 'nothing stored');
 
-      await tester.enterText(find.widgetWithText(TextField, 'Label'), '명');
+      await tester.enterText(find.widgetWithText(AppTextField, 'Label'), '명');
       await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(find.text('Write a label'), findsNothing, reason: 'control');
@@ -242,7 +264,7 @@ void main() {
         200,
         scrollable: _list,
       );
-      await tester.enterText(find.widgetWithText(TextField, 'Label'), '숙어');
+      await tester.enterText(find.widgetWithText(AppTextField, 'Label'), '숙어');
       await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(_stored(storage).last, '숙어:');

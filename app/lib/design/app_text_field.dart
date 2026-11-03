@@ -20,6 +20,7 @@ class AppTextField extends StatelessWidget {
     this.textInputAction,
     this.prefixIcon,
     this.style,
+    this.textAlign = TextAlign.start,
     this.height = AppSize.field,
     this.onChanged,
     this.onSubmitted,
@@ -42,6 +43,9 @@ class AppTextField extends StatelessWidget {
 
   /// The text's style; [AppType.body] when null.
   final TextStyle? style;
+
+  /// How the text lines up in the field.
+  final TextAlign textAlign;
 
   /// The field's least height: [AppSize.field], or [AppSize.search] for a
   /// search over a list.
@@ -67,6 +71,7 @@ class AppTextField extends StatelessWidget {
         maxLength: maxLength,
         textInputAction: textInputAction,
         style: style ?? AppType.body,
+        textAlign: textAlign,
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         decoration: InputDecoration(

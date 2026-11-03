@@ -91,7 +91,7 @@ void main() {
   /// Removes the selected cell's row or column through "삭제", read as
   /// [item] in its menu.
   Future<void> remove(DeckScreens screens, String item) async {
-    await tap(screens, find.byTooltip('Delete'));
+    await tap(screens, find.widgetWithText(AppChip, 'Delete'));
     await screens.tap(find.text(item));
   }
 
@@ -109,6 +109,36 @@ void main() {
     await screens.tap(find.byTooltip('Close'));
     return blanks;
   }
+
+  testWidgets(
+    'the toolbar draws its four tools, Delete among them, as one chip style',
+    (tester) async {
+      final screens = await openTable(tester);
+      await typeCapitals(screens);
+      await select(screens, 3);
+      final tools = ['Add row', 'Add column', 'Blank', 'Delete'];
+      for (final tool in tools) {
+        expect(
+          find.widgetWithText(AppChip, tool),
+          findsOneWidget,
+          reason: tool,
+        );
+      }
+      final styles = {
+        for (final tool in tools)
+          tester
+              .widget<Text>(
+                find.descendant(
+                  of: find.widgetWithText(AppChip, tool),
+                  matching: find.text(tool),
+                ),
+              )
+              .style,
+      };
+      expect(styles, hasLength(1), reason: 'one label style');
+      await screens.close();
+    },
+  );
 
   testWidgets(
     'a table saves its name, a table block of its cells and the blanks toggled on the selected cells, and reopens with them, unchanged when saved as it was',
@@ -244,19 +274,15 @@ void main() {
       await remove(screens, 'Delete column 2');
       // One heading and one cell are left.
       await select(screens, 1);
-      await tap(screens, find.byTooltip('Delete'));
-      PopupMenuItem<Object?> item(String text) => tester.widget(
-        find.ancestor(
-          of: find.text(text),
-          matching: find.byWidgetPredicate((widget) => widget is PopupMenuItem),
-        ),
-      );
+      await tap(screens, find.widgetWithText(AppChip, 'Delete'));
+      MenuItemButton item(String text) =>
+          tester.widget(find.widgetWithText(MenuItemButton, text));
       expect(item('Delete row 1').enabled, isFalse, reason: 'one row');
       expect(item('Delete column 1').enabled, isFalse, reason: 'one column');
       await tester.tapAt(Offset.zero);
       await tester.pumpAndSettle();
       await tap(screens, find.text('Add row'));
-      await tap(screens, find.byTooltip('Delete'));
+      await tap(screens, find.widgetWithText(AppChip, 'Delete'));
       expect(
         item('Delete row 2').enabled,
         isTrue,
