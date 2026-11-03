@@ -23,63 +23,38 @@ export type DeckRow = {
 };
 
 /**
- * 홈's notes (ADR 0150): "내 노트 n", a magnifier, "노트 검색", that opens a search keeping the
- * decks whose name holds it, ignoring case, and [action] beside it; then [notice], and a row per
- * deck that opens it: its tile, its name, "n장 중 m장 익힘" under it and its progress bar under
+ * The 노트 page's notes, as the phone's 노트 tab lists them (ADR 0165): the "노트 검색" field,
+ * keeping the decks whose name holds it, ignoring case, while there is any deck; then [notice],
+ * and a row per deck that opens it: its tile, its name, "n장 중 m장 익힘" under it and its progress bar under
  * that, or "0장" and no bar for a deck with no card, "공개" when it is published, and what a
  * session over it would study now, in the accent (ADR 0096). The row's name ends with the bar's
  * mastered, learning and new counts, the one place a screen reader hears the learning cards.
  */
-export function DeckList({
-  rows,
-  action,
-  notice,
-}: {
-  rows: DeckRow[];
-  action?: ReactNode;
-  notice?: ReactNode;
-}) {
-  const [search, setSearch] = useState<string | null>(null);
-  const needle = (search ?? "").trim().toLocaleLowerCase();
+export function DeckList({ rows, notice }: { rows: DeckRow[]; notice?: ReactNode }) {
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLocaleLowerCase();
   const shown = needle
     ? rows.filter((row) => row.deck.name.toLocaleLowerCase().includes(needle))
     : rows;
   return (
-    <section id="notes" aria-labelledby="notes-title" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="notes-title" className="text-label">
-          내 노트 {rows.length}
-        </h2>
-        <span className="flex items-center gap-2">
-          <button
-            type="button"
+    <section aria-label="노트 목록" className="flex flex-col gap-3">
+      {rows.length > 0 && (
+        <label className="flex h-search items-center gap-2 rounded-field border border-outline bg-surface px-4 focus-within:outline-2 focus-within:-outline-offset-1 focus-within:outline-ink">
+          <Search aria-hidden className="size-5 shrink-0 text-ink-2" strokeWidth={2.4} />
+          <input
+            type="search"
             aria-label="노트 검색"
-            aria-expanded={search !== null}
-            onClick={() => {
-              setSearch(search === null ? "" : null);
+            placeholder="노트 검색"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
             }}
-            className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-chip bg-surface text-ink shadow-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            <Search aria-hidden className="size-5" strokeWidth={2.4} />
-          </button>
-          {action}
-        </span>
-      </div>
-      {notice}
-      {search !== null && (
-        <input
-          type="search"
-          aria-label="노트 검색"
-          placeholder="노트 검색"
-          autoFocus
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-          }}
-          className="h-search w-full rounded-field border border-outline bg-surface px-4 text-body placeholder:text-muted focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ink"
-        />
+            className="min-w-0 flex-1 bg-transparent text-body placeholder:text-muted focus-visible:outline-none"
+          />
+        </label>
       )}
-      {shown.length === 0 ? (
+      {notice}
+      {shown.length === 0 && needle ? (
         <p role="status" className="text-muted">
           찾는 노트가 없어요. 다른 단어로 검색해 보세요.
         </p>

@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 
+import { ProfileButton, SideProfile } from "./_components/profile-button";
 import { SideMenu, SideMenuAt, TabBar, TabBarAt } from "./_components/shell-menu";
 
 /**
- * The signed-in pages' shell (ADR 0038, ADR 0150): from 1024 px wide a side menu beside the
- * content; below it a tab bar at the foot, each page drawing its own top. The skip link leads past
- * the menus to the page's content.
+ * The signed-in pages' shell (ADR 0038, ADR 0165): from 1024 px wide a side menu beside the
+ * content, the profile button at its foot; below it a tab bar at the foot, each page drawing its
+ * own top, 홈's holding the profile button. The skip link leads past the menus to the page's
+ * content.
  */
 export default function ShellLayout({ children }: LayoutProps<"/">) {
   return (
@@ -18,7 +20,13 @@ export default function ShellLayout({ children }: LayoutProps<"/">) {
       </a>
       {/* The current page is read from the URL, which the static shell does not know. */}
       <Suspense fallback={<SideMenuAt path={null} />}>
-        <SideMenu />
+        <SideMenu
+          profile={
+            <Suspense fallback={<ProfileButton initial={null} labelled />}>
+              <SideProfile />
+            </Suspense>
+          }
+        />
       </Suspense>
       <div className="flex min-w-0 flex-1 flex-col">
         <main

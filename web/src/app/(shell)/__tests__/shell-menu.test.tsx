@@ -23,11 +23,12 @@ describe("the shell's menus", () => {
 
   it.each([
     ["/", "홈"],
-    ["/decks/d-fr", "홈"],
+    ["/decks", "노트"],
+    ["/decks/d-fr", "노트"],
     ["/record", "기록"],
-    ["/account", "설정"],
+    ["/account", "none"],
   ])(
-    "on %s hold 기록, 홈 and 설정 in that order, %s current, in the side menu and the tab bar",
+    "on %s hold 기록, 홈 and 노트 in that order, %s current, in the side menu and the tab bar, and no 설정",
     (at, current) => {
       path = at;
       render(
@@ -37,7 +38,7 @@ describe("the shell's menus", () => {
         </>,
       );
       const [side, tabs] = screen.getAllByRole("navigation", { name: "주 메뉴" });
-      const pages = ["기록 → /record", "홈 → /", "설정 → /account"].map((link) =>
+      const pages = ["기록 → /record", "홈 → /", "노트 → /decks"].map((link) =>
         link.startsWith(current) ? `${link} (current)` : link,
       );
 
@@ -57,7 +58,7 @@ describe("the shell's menus", () => {
     const menus = screen.getAllByRole("navigation", { name: "주 메뉴" });
     expect(menus).toHaveLength(2);
     for (const menu of menus) {
-      const current = within(menu).getByRole("link", { name: "홈" });
+      const current = within(menu).getByRole("link", { name: "노트" });
       expect(current).toHaveClass("text-label", "text-accent");
       // Control: another page takes neither.
       const other = within(menu).getByRole("link", { name: "기록" });
@@ -68,10 +69,32 @@ describe("the shell's menus", () => {
     if (!side || !tabs) throw new Error("the two menus are checked above");
     const pill = (menu: HTMLElement, name: string) =>
       within(menu).getByRole("link", { name }).querySelector("svg")?.parentElement;
-    expect(pill(side, "홈")).toHaveClass("bg-brand-tint");
+    expect(pill(side, "노트")).toHaveClass("bg-brand-tint");
     expect(pill(side, "기록")).not.toHaveClass("bg-brand-tint");
     // The tab bar's tabs are their names alone.
     expect(tabs.querySelector("svg")).toBeNull();
+  });
+
+  it("hold the profile button at the side menu's foot, after its pages, and none in the tab bar", () => {
+    path = "/";
+    render(
+      <>
+        <SideMenu profile={<a href="/account">설정</a>} />
+        <TabBar />
+      </>,
+    );
+    const [side, tabs] = screen.getAllByRole("navigation", { name: "주 메뉴" });
+    if (!side || !tabs) throw new Error("the two menus are drawn");
+
+    expect(links(side)).toEqual([
+      "알아몰라, 홈 → /",
+      "기록 → /record",
+      "홈 → / (current)",
+      "노트 → /decks",
+      "설정 → /account",
+    ]);
+    expect(within(side).getByRole("link", { name: "설정" }).parentElement).toHaveClass("mt-auto");
+    expect(within(tabs).queryByRole("link", { name: "설정" })).not.toBeInTheDocument();
   });
 
   it("show the side menu from 1024 px wide and the tab bar below it", () => {
@@ -99,7 +122,7 @@ describe("the shell's menus", () => {
       const restore = layOutLines(tab);
       render(<TabBar />);
       const tabs = screen.getByRole("navigation", { name: "주 메뉴" });
-      for (const name of ["기록", "설정"]) {
+      for (const name of ["기록", "노트"]) {
         expect(zoomOf(within(tabs).getByText(name)), `${name} in a ${String(tab)} px tab`).toBe(
           zoom,
         );

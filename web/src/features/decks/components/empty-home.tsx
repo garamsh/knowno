@@ -31,19 +31,19 @@ function FirstRun({
 }
 
 /**
- * 홈 for a user with no note, as the final screens draw it (ADR 0150): the thinking mascot, the
- * invitation in the title's size, and "새 노트 만들기" in the primary fill, which opens 새 노트.
+ * 홈 for a user with no note, under 홈's top bar, as the final screens draw it (ADR 0150): the
+ * thinking mascot, the invitation in the title's size, and "새 노트 만들기" in the primary fill,
+ * which opens 새 노트.
  */
 export function EmptyHome() {
   return (
     <>
-      <h1 className="text-display">알아몰라</h1>
       <section
         aria-labelledby="empty-home-title"
         className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center"
       >
         <Mascot expression="thinking" className="size-mascot-large" />
-        <h2 id="empty-home-title" className="text-display break-keep">
+        <h2 id="empty-home-title" className="text-title break-keep">
           첫 노트를 만들어 볼까요?
         </h2>
       </section>
@@ -71,20 +71,20 @@ export function EmptyDeck() {
 /**
  * 홈's hero while no note holds a card, in the hero's colours (ADR 0150): the mascot glad of the
  * note just made, "첫 카드를 만들어 볼까요?" and the one way there: with one note, "카드 추가",
- * which opens it with its 카드 추가 sheet up; with several, "노트에서 카드 추가", which leads to
- * the notes under the hero.
+ * which opens it with its 카드 추가 sheet up; with several, "노트에서 카드 추가", which opens the
+ * 노트 page (ADR 0165). The mascot takes the hero's fitted row, as the phone's does.
  */
 export function NoCardsHome({ decks }: { decks: Deck[] }) {
   const [only] = decks;
   return (
     <>
-      <Mascot expression="happy" className="size-mascot-large" />
-      <h2 id="hero-title" className="text-display break-keep">
+      <Mascot expression="happy" className="" />
+      <h2 id="hero-title" className="text-title break-keep">
         첫 카드를 만들어 볼까요?
       </h2>
       <Link
         href={
-          decks.length === 1 && only ? `/decks/${encodeURIComponent(only.id)}?adding=1` : "#notes"
+          decks.length === 1 && only ? `/decks/${encodeURIComponent(only.id)}?adding=1` : "/decks"
         }
         className="pressable mt-3 flex min-h-cta w-full max-w-56 items-center justify-center rounded-button bg-hero-button px-6 text-button text-on-hero-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero"
       >
