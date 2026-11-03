@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_button.dart';
+import 'package:knowno/design/app_list_row.dart';
+import 'package:knowno/design/app_raised.dart';
+import 'package:knowno/design/theme.dart';
 import 'package:knowno/sharing/sharing.dart';
 
 import 'fakes.dart';
 import 'sharing_app.dart';
 import 'sharing_service_test.dart' show publicCard, publicDeck;
+import '../deck/whole_cards.dart';
 import '../word_breaks.dart';
 
 final _spanish = publicDeck(
@@ -51,6 +55,13 @@ Future<SharingApp> _openSpanish(
   return app;
 }
 
+/// Whether [text] sits in a box on the hatch.
+bool _onHatch(WidgetTester tester, Finder text) => tester
+    .widgetList<DecoratedBox>(
+      find.ancestor(of: text, matching: find.byType(DecoratedBox)),
+    )
+    .any((box) => box.decoration is HatchDecoration);
+
 void main() {
   testWidgets(
     'the preview draws a framed card as the deck screen does, split or whole',
@@ -77,17 +88,17 @@ void main() {
         ),
       );
 
-      final rows = find.byType(CardSplitRow);
+      final rows = find.byType(CardBackRow);
+      // The 글 shows its back after its front, in a box on the hatch.
       expect(
-        find.descendant(of: rows.first, matching: find.byType(VerticalDivider)),
+        find.descendant(of: rows.first, matching: shownText('dog')),
         findsOneWidget,
       );
-      expect(find.text('dog'), findsOneWidget);
-      expect(
-        find.descendant(of: rows.last, matching: find.byType(VerticalDivider)),
-        findsNothing,
-      );
-      double top(String text) => tester.getTopLeft(find.text(text)).dy;
+      expect(_onHatch(tester, shownText('dog')), isTrue);
+      expect(_onHatch(tester, shownText('perro')), isFalse);
+      // The whole card draws its 칸 in order, its blank on the hatch.
+      expect(hatchedBlanksUnder(rows.last), ['Dog']);
+      double top(String text) => tester.getTopLeft(shownText(text)).dy;
       expect(top('one'), lessThan(top('two')));
       expect(top('two'), lessThan(top('A pet.')));
       await app.close();
@@ -95,16 +106,67 @@ void main() {
   );
 
   testWidgets(
-    'the preview shows the name, owner, description, counts and cards as split rows',
+    'the preview shows the name, owner, description, counts and cards',
     (tester) async {
       final app = await _openSpanish(tester);
 
       expect(find.text('Dee · 3 cards · copied 2 times'), findsOneWidget);
       expect(find.text('Animals'), findsOneWidget);
       for (final text in ['perro', 'dog', 'gato', 'cat', 'pez', 'fish']) {
-        expect(find.text(text), findsOneWidget, reason: text);
+        expect(shownText(text), findsOneWidget, reason: text);
       }
-      expect(find.byType(CardSplitRow), findsNWidgets(3));
+      expect(find.byType(CardBackRow), findsNWidgets(3));
+      await app.close();
+    },
+  );
+
+  testWidgets(
+    "the preview's cards are one group split by hairlines, each its front "
+    'and then its back from one left edge, as the note draws them, opening '
+    'nothing',
+    (tester) async {
+      final handle = tester.ensureSemantics();
+      final app = await _openSpanish(tester);
+
+      final rows = find.byType(CardBackRow);
+      expect(rows, findsNWidgets(3));
+      final group = find.byType(AppGroup);
+      expect(group, findsOneWidget);
+      expect(find.descendant(of: group, matching: rows), findsNWidgets(3));
+      // A row draws no surface of its own: the group draws one.
+      expect(
+        find.descendant(of: rows.first, matching: find.byType(AppRaised)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: group, matching: find.byType(Divider)),
+        findsNWidgets(2),
+      );
+      for (final (front, back) in [
+        ('perro', 'dog'),
+        ('gato', 'cat'),
+        ('pez', 'fish'),
+      ]) {
+        final shownFront = tester.getRect(shownText(front));
+        final box = tester.getRect(
+          find
+              .ancestor(
+                of: shownText(back),
+                matching: find.byType(DecoratedBox),
+              )
+              .first,
+        );
+        expect(_onHatch(tester, shownText(back)), isTrue, reason: back);
+        // The back's box starts on the front's left edge, under it.
+        expect(box.left, shownFront.left, reason: back);
+        expect(box.top, greaterThanOrEqualTo(shownFront.bottom), reason: back);
+        expect(
+          tester.getSemantics(find.bySemanticsLabel('$front, back $back')),
+          isSemantics(isButton: false, hasTapAction: false),
+          reason: front,
+        );
+      }
+      handle.dispose();
       await app.close();
     },
   );
@@ -125,7 +187,7 @@ void main() {
       await app.browse();
       await app.tapText('Big');
 
-      expect(find.byType(CardSplitRow, skipOffstage: false), findsNWidgets(20));
+      expect(find.byType(CardBackRow, skipOffstage: false), findsNWidgets(20));
       await tester.scrollUntilVisible(find.text('First 20 of 25 cards'), 200);
       expect(find.text('First 20 of 25 cards'), findsOneWidget);
       await app.close();
