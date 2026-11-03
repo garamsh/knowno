@@ -2244,6 +2244,84 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('photo import unavailable in $mode', skip: !_capture, (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      phone(tester);
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      var ids = 0;
+      final repository = DeckRepository(
+        db,
+        clock: DateTime.now,
+        newId: () => 'id${ids++}',
+      );
+      final deck = (await tester.runAsync(
+        () => repository.createDeck('영단어 기본'),
+      ))!;
+      final client = FakeExtractionClient();
+      final photos = FakePhotoSource()
+        ..libraryPhotos = [for (var i = 0; i < 3; i++) Future.value(testPhoto)];
+      final preferences = await openPreferences(tester);
+      Widget start(PhotoOrigin origin) => Builder(
+        builder: (context) => TextButton(
+          onPressed: () => importFromPhoto(
+            context,
+            imports: PhotoImports(
+              client: client,
+              photos: photos,
+              preferences: preferences,
+              store: MemoryImportJobStore(),
+              decks: repository,
+            ),
+            deck: deck.id,
+            origin: origin,
+          ),
+          child: Text(origin.name),
+        ),
+      );
+      Future<void> frames() async {
+        for (var frame = 0; frame < 5; frame++) {
+          await tester.pump(const Duration(milliseconds: 200));
+        }
+      }
+
+      for (final origin in [PhotoOrigin.camera, PhotoOrigin.album]) {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [deckRepositoryProvider.overrideWithValue(repository)],
+            child: MaterialApp(
+              key: ValueKey(origin),
+              theme: lightTheme,
+              darkTheme: darkTheme,
+              themeMode: ThemeMode.values.byName(mode),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(body: Center(child: start(origin))),
+            ),
+          ),
+        );
+        client.calls.clear();
+        await tester.tap(find.text(origin.name));
+        await frames();
+        // Each photo read in its turn fails as the function answers 503.
+        while (client.open.isNotEmpty) {
+          client.open.first.answer.completeError(const ExtractionUnavailable());
+          await frames();
+        }
+        await tester.pumpAndSettle();
+        await shot(
+          tester,
+          origin == PhotoOrigin.camera
+              ? '24a-photo-unavailable'
+              : '26c-photo-all-unavailable',
+        );
+      }
+      await unmount(tester);
+      semantics.dispose();
+    });
+
     testWidgets('the photo import bar in $mode', skip: !_capture, (
       tester,
     ) async {
