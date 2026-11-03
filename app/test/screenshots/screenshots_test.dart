@@ -442,7 +442,7 @@ void main() {
       await shot(tester, '09-delete-deck-confirm');
       await tap(tester, find.text(ko.cancel));
 
-      await tap(tester, find.text('meticulous'));
+      await tap(tester, shownText('meticulous'));
       await shot(tester, '10-card-editor-existing');
       await tester.ensureVisible(find.text(ko.deleteCard));
       await tester.pumpAndSettle();
