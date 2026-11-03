@@ -178,7 +178,7 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(find.byType(DeckScreen), findsOneWidget);
-    expect(find.text(name), findsOneWidget);
+    expect(shownText(name), findsOneWidget);
   }
 
   /// The deck page's "이 노트 학습", with its count or without.
