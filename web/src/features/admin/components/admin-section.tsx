@@ -18,9 +18,9 @@ export const button = {
   destructive: `${buttonClass("destructive")} self-start`,
   destructiveFinal: `${buttonClass("destructiveFinal")} self-start`,
   /** An action in a row or a card: on the surface, a tap target high, in the label type. */
-  row: `${buttonClass("secondary", "header")} self-start`,
+  row: `${buttonClass("secondary", "header")} w-fit self-start`,
   /** A destructive action in a row or a menu: red text, a tap target high. */
-  rowDestructive: `${buttonClass("destructive", "header")} self-start`,
+  rowDestructive: `${buttonClass("destructive", "header")} w-fit self-start`,
 } as const;
 
 /** A card of 처리할 일 or 사진 AI: one solid surface on its edge, holding a figure and one action. */
