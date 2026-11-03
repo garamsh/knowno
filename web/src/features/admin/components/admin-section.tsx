@@ -9,7 +9,8 @@ export const row = "flex flex-col gap-1 px-4 py-3";
 /**
  * The admin area's buttons by role, each the one button (`@/design/button`) at the start of its
  * column: the screen's one primary, a secondary on the surface, a destructive one as red text, and
- * the red fill only as the last step of an action that cannot be undone (`design/principles.md` §One primary action per screen).
+ * the red fill only as the last step of an action that cannot be undone (`design/principles.md`
+ * §One primary action per screen).
  */
 export const button = {
   primary: `${buttonClass("primary")} self-start`,

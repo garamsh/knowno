@@ -11,6 +11,7 @@ The tests and checks that hold the phone and the web to the design documents, ea
 - `app/test/home/hero_test.dart` checks 홈's quiet text at 4.5:1 and a deck's progress bar on its track at 3:1 in both themes.
 - `app/test/design/jua_coverage_test.dart` reads the fonts' tables against every string we write.
 - `web/src/styles/__tests__/theme-tokens.test.ts` checks the `hatch` utility against `AppHatch`.
+- On the web, `web/eslint.config.mjs` takes `web/src/design/class-rules.ts`'s selectors, so `make lint` fails on a colour, a type size, a radius at a token's value or a length written out in UI code, and, outside `web/src/design/`, on a job a design component draws written by hand: the button type, the red fill or the old red pair, a chip's radius and type together, a search input, a section's label, and a modal by `aria-modal`, a dialog role or a `<dialog>` that does not spread `useModalDialog`'s props ([`web.md`](../web.md) §Checks).
 
 ### Accessibility and layout
 
@@ -55,4 +56,4 @@ The tests and checks that hold the phone and the web to the design documents, ea
 
 ## Open questions
 
-- Which rules in [`principles.md`](principles.md) no check enforces yet: one primary per screen, one component per UI job, no over-splitting, alignment, a raised edge's room, literal values on the web, and before and after shots in a pull request (#642, #645).
+- Which rules in [`principles.md`](principles.md) no check enforces yet: one primary per screen, one component per UI job, no over-splitting, alignment, a raised edge's room, and before and after shots in a pull request (#645). On the web, `make lint` catches the literal values and the hand-drawn copies the selectors in `web/src/design/class-rules.ts` name, and no more ([`web.md`](../web.md) §Checks).

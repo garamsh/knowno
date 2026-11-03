@@ -7,27 +7,27 @@ The shared components of the phone and the web: which one draws each UI job, whe
 ### Where they live
 
 - `app/lib/design/` is the app's foundation of shared, domain-free components, one file per component, tested under `app/test/design/` ([ADR 0021](../adr/0021-type-and-spacing-scales-and-a-shared-component-layer.md), [ADR 0039](../adr/0039-name-every-top-level-folder-by-its-responsibility-compose-across-domains-in-a-home-shell-and-keep-seams-off-screens.md), [`structure.md`](../structure.md)). It imports no domain and holds nothing one domain alone uses. It holds `app_button.dart`, `app_chip.dart`, `app_list_row.dart`, `app_raised.dart`, `app_section_label.dart`, `app_sheet.dart`, `app_text_field.dart`, `bottom_actions.dart`, `keyboard_dismissal.dart`, `mascot.dart`, `mascot_drawings.dart`, `theme.dart`, `theme_choice.dart` and `word_break.dart`.
-- `web/src/design/` is the web's foundation ([`web.md`](../web.md)). It holds `brand.tsx` (the brand's marks and `Mascot`), `chip.tsx` (`Chip`), `encode-jpeg.ts` (every canvas JPEG encode), `fitted-line.tsx` (`FittedLine`), `focus-trap.ts` (the dialogs' `keepFocusInside`), `mascot-drawings.ts`, `retry-button.tsx` ("다시 시도"), `skeleton.tsx` (`Skeleton`, `SkeletonLine`), `theme-choice.tsx` and `theme.ts` (the theme choice and its store).
+- `web/src/design/` is the web's foundation ([`web.md`](../web.md)), one file per component or helper that two or more features or routes draw through; [`structure.md`](../structure.md) §Top-level folders is the one list of its files.
 - A piece one domain or feature alone uses stays in it: `CardText` in `deck` ([`deck.md`](../deck.md)); `GoogleButtonStyle` in `account` ([`theme.md`](theme.md)); `ListHeaderActions` and `ListSearchField` in `app/lib/home/src/list_header.dart`, which `home` alone draws today.
 
 ### One component per job
 
-A screen draws each job through the component named here, not from Material widgets or raw elements ([`principles.md`](principles.md) §One component per UI job). Where the web column says "none yet", the web repeats the job per site today (#642).
+A screen draws each job through the component named here, not from Material widgets or raw elements ([`principles.md`](principles.md) §One component per UI job). Where the web column says "none yet", the web repeats the job per site today.
 
 | Job | Phone | Web |
 |---|---|---|
-| A button, every one in content and in bars | `AppButton`; `AppButtonVariant` and `AppButtonSize` say which variant and size a use takes | none yet: `.pressable` and a chain per site |
+| A button, every one in content and in bars | `AppButton`; `AppButtonVariant` and `AppButtonSize` say which variant and size a use takes | `buttonClass` (`button.ts`), a closed `ButtonVariant` of the roles the web draws at a `ButtonSize`, on a button, a link or a file input's label (#642) |
 | A solid object on its edge, moved down by a press | `AppRaised` | `shadow-card`, `shadow-row` |
 | A text field | `AppTextField`, `AppSize.field` high | none yet |
-| A list's search field | `ListSearchField` (`home`), `AppSize.search` high | `ListSearch` (`decks`); the admin area's own copies |
-| A modal | `AppSheet` opened with `showAppSheet`; no dialog | native `<dialog>` with `keepFocusInside`, a shell per feature |
-| A confirmation of what cannot be undone | `showAppConfirm` | none yet: a copy per site |
+| A list's search field | `ListSearchField` (`home`), `AppSize.search` high | `SearchField` |
+| A modal | `AppSheet` opened with `showAppSheet`; no dialog | `Sheet` (`sheet.tsx`), a native modal `<dialog>` at the foot below 1024 px and centred from 1024 px, its title beside "닫기" over an optional one or two sentences of body; `decks`' full-screen authoring screens open through its `useModalDialog` |
+| A confirmation of what cannot be undone | `showAppConfirm` | `Confirm` |
 | A screen's bottom bar | `BottomActions` | none yet |
 | A list row | `AppListRow`, or `AppRowSurface` for a row with its own layout (a card row, a skeleton row) | none yet |
 | A group of rows | `AppGroup`, `SliverAppGroup` for a long list | the `group` radius and hairlines per site |
-| A section label over a group | `AppSectionLabel` | `AdminSection` (`admin`); a copy per site elsewhere |
-| A chip, status or action | `AppChip`, `AppChip.action`; tones `AppChipTone` | `Chip` |
-| A read failure with "다시 시도" | none yet | `RetryButton` under a sentence; `ReadFailure` (`decks`) |
+| A section label over a group | `AppSectionLabel` | `Section` |
+| A chip, status or action | `AppChip`, `AppChip.action`; tones `AppChipTone` | `Chip`, in `AppChipTone`'s tones and `knowTint`, the green tint 기록's gain draws |
+| A read failure with "다시 시도" | none yet | `ReadFailureMessage`, a sentence over "다시 시도" (`RetryButton`), a way to sign in, or nothing more |
 | A skeleton while content loads | `AppRowSurface` rows (photo import) | `Skeleton`, `SkeletonLine` |
 | A figure or label fitted to a narrow column | `FittedBox` with `BoxFit.scaleDown` | `FittedLine` |
 | The keyboard's dismissal | `KeyboardDismissal`, wrapping every route from `KnownoApp` | the browser's |
@@ -45,7 +45,7 @@ A screen draws each job through the component named here, not from Material widg
 - `AppGroup`: one group per meaning; the settings screen's sections, and the deck screen's cards as a `SliverAppGroup` ([ADR 0118](../adr/0118-name-each-concept-once-write-each-role-in-one-form-hold-every-screen-to-one-set-of-visual-details-and-redraw-settings-and-the-deck-screen-by-them.md)).
 - `AppSectionLabel`: "계정", "학습", "화면", the import sheet's duplicate options, and the front and the back in the whole-card sheet.
 - `BottomActions`: 새 노트, the card editor, and photo import's failure and reading screens where it is unavailable ([ADR 0150](../adr/0150-open-on-a-home-of-today-on-the-hero-with-the-notes-in-a-drawer-keep-the-menu-on-a-note-and-make-a-note-on-a-full-screen.md), [ADR 0173](../adr/0173-keep-a-bottom-pair-in-one-row-only-while-both-labels-fit-on-one-line-and-stack-it-otherwise.md)).
-- `AppChip` ([ADR 0119](../adr/0119-draw-every-screen-from-one-radius-scale-one-chip-three-type-sizes-a-press-dim-and-three-haptics-and-a-hidden-blank-as-an-empty-underlined-gap.md)), 12 by 4 around its words: the "오늘 n" and "공개" chips, the 기록 tab's retention chip and the study card's drag hint. `AppChip.action`, its tap target made up to 48: the cloze's and the table's tools and the label strip's labels. No screen draws a Material chip.
+- `AppChip` ([ADR 0119](../adr/0119-draw-every-screen-from-one-radius-scale-one-chip-three-type-sizes-a-press-dim-and-three-haptics-and-a-hidden-blank-as-an-empty-underlined-gap.md)), 12 by 4 around its words: the "오늘 n" and "공개" chips, the 기록 tab's retention chip and the study card's drag hint. On the web, 기록's gap and gain chips and the admin menu's count of new reports, neutral, are `Chip`s too. `AppChip.action`, its tap target made up to 48: the cloze's and the table's tools and the label strip's labels. No screen draws a Material chip.
 - `CardText` ([ADR 0027](../adr/0027-draw-both-clients-in-the-smartman-brand-and-the-v2-screens.md)): a card side's text, centred, scaled from its style's size to a floor (front 42 to 18, back 20 to 15) until its widest word fits the half. The current card and the full-screen preview step their text instead, through `cardSteps` and `steppedStyle`: the largest of the steps `front`, `deckName`, `back` and `cardBody`, from the one the caller starts at, at which the side fits whole, its widest word inside the card's width; study starts its front at the step its length gives ([ADR 0176](../adr/0176-start-study-s-front-at-a-size-its-length-gives-and-draw-what-study-hides-on-the-hatch.md)); centred above the body size and start-aligned at it; past it `CardScroll` scrolls the side inside the card, its bottom edge fading into `surface` ([ADR 0123](../adr/0123-step-a-long-card-side-down-through-three-sizes-then-scroll-it-inside-a-card-that-keeps-its-size.md)). The previous card's sides, run together as one paragraph, are scaled further, as far as the floor, until they fit their half's height, and cut there ([ADR 0042](../adr/0042-show-only-the-previous-and-the-current-study-card-at-one-size-re-decide-the-previous-card-by-a-swipe-and-open-it-on-a-tap.md)). A whole card's sentence is drawn through it as a span ([ADR 0068](../adr/0068-store-a-table-or-cloze-card-as-typed-content-blocks-and-draw-it-whole-its-blanks-filled-in-place-once-answered.md)).
 - `keepWords` (`word_break.dart`): every Korean string the app lays out, read by a screen reader as written ([`principles.md`](principles.md) §Nothing clipped).
 
@@ -66,4 +66,4 @@ A screen draws each job through the component named here, not from Material widg
 
 ## Open questions
 
-- Whether the web's buttons, modal shell, confirmation, search field, section label and read failure become one shared piece each in `web/src/design/` (#642), and the app's search, retry state and rows the same in `app/lib/design/` (#645).
+- Whether the app's search, retry state and rows become one shared piece each in `app/lib/design/` (#645).

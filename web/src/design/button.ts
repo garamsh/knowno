@@ -1,8 +1,8 @@
 /**
- * A button's role, as the phone's `AppButtonVariant` ranks the actions on a screen (design.md
- * §Components): the one primary fill, the primary on the hero, the surface beside it, the tonal
- * action beside a list's title, red text, the red fill as the last step of a destructive action,
- * and a quiet action in text, on the ground or on the hero.
+ * A button's role, as the phone's `AppButtonVariant` ranks the actions on a screen
+ * (`design/components.md` §When each is used): the one primary fill, the primary on the hero, the
+ * surface beside it, the tonal action beside a list's title, red text, the red fill as the last
+ * step of a destructive action, and a quiet action in text, on the ground or on the hero.
  */
 export type ButtonVariant =
   | "primary"
