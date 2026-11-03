@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../design/app_button.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
+import 'coach_hand_drawing.dart';
 import 'study_style.dart';
 
 /// One cycle of a coach's demonstration: the card moves out, holds, and
@@ -86,12 +87,13 @@ class StudyCoachTouch extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Its fingertip on the ring's centre.
                 Positioned(
-                  left: size / 2 - StudyStyle.coachHandTip.dx,
-                  top: size / 2 - StudyStyle.coachHandTip.dy,
-                  child: Image.asset(
-                    AppBrand.coachHand,
-                    width: StudyStyle.coachHand,
+                  left: size / 2 - CoachHandDrawing.tip.dx * _handScale,
+                  top: size / 2 - CoachHandDrawing.tip.dy * _handScale,
+                  child: CustomPaint(
+                    size: const Size.square(StudyStyle.coachHand),
+                    painter: _Hand(colors),
                   ),
                 ),
               ],
@@ -101,6 +103,40 @@ class StudyCoachTouch extends StatelessWidget {
       ),
     );
   }
+}
+
+/// How much the hand's drawing is scaled to [StudyStyle.coachHand].
+const _handScale = StudyStyle.coachHand / CoachHandDrawing.box;
+
+/// The coach's pointing hand, [CoachHandDrawing], in the theme's colours:
+/// filled in the surface on a hard edge, its lines in ink, with no blur.
+class _Hand extends CustomPainter {
+  const _Hand(this.colors);
+
+  final AppColors colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(_handScale);
+    final outline = CoachHandDrawing.outline();
+    final lines = Paint()
+      ..color = colors.ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = CoachHandDrawing.line
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    canvas
+      ..drawPath(
+        outline.shift(CoachHandDrawing.edge),
+        Paint()..color = colors.edge,
+      )
+      ..drawPath(outline, Paint()..color = colors.surface)
+      ..drawPath(outline, lines)
+      ..drawPath(CoachHandDrawing.creases(), lines);
+  }
+
+  @override
+  bool shouldRepaint(_Hand old) => old.colors != colors;
 }
 
 /// A dashed line across its box, its dashes rounded.

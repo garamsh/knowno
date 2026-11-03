@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 
 import { Mascot } from "@/design/brand";
 
+import { coachHand } from "./coach-hand-drawing";
+
 import type { Answer } from "../answer-write";
 import { answerTints, GradedFace, grades } from "./graded-card";
 
@@ -118,12 +120,20 @@ export function coachAnnouncement(step: CoachStep, touch: boolean): string {
 }
 
 /**
- * The coach's touch, moving with the card it demonstrates on: the brand's pointing hand, tilted,
- * its fingertip on a ring in the accent around a solid dot, over a soft fill, on a hard edge, and a
+ * The coach's touch, moving with the card it demonstrates on: the brand's pointing hand
+ * ([coachHand]), in the surface on a hard edge with ink lines, its fingertip on a ring in the accent around a solid dot, over a soft fill, on a hard edge, and a
  * dashed trail [trail] long back to where the touch began, toward [from], drawn out as the card
  * moves; under reduce motion held where the card is out. Hidden from screen readers.
  */
-function Touch({ className, from, trail }: { className: string; from: "left" | "right"; trail: string }) {
+function Touch({
+  className,
+  from,
+  trail,
+}: {
+  className: string;
+  from: "left" | "right";
+  trail: string;
+}) {
   return (
     <div
       aria-hidden
@@ -137,12 +147,31 @@ function Touch({ className, from, trail }: { className: string; from: "left" | "
       <span className="absolute inset-0 flex items-center justify-center rounded-full border-4 border-accent bg-accent/18 shadow-[0_4px_0_color-mix(in_srgb,var(--color-primary-edge)_35%,transparent)]">
         <span className="size-3 rounded-full bg-accent" />
       </span>
-      {/* eslint-disable-next-line @next/next/no-img-element -- a fixed brand drawing, as the mascot's still image is */}
-      <img
-        src="/brand/knowno-coach-hand.svg"
-        alt=""
-        className="absolute top-[calc(50%-16px)] left-[calc(50%-14px)] w-17.5 max-w-none"
-      />
+      {/* Its fingertip on the ring's centre. */}
+      <svg
+        viewBox={`0 0 ${String(coachHand.box)} ${String(coachHand.box)}`}
+        data-testid="coach-hand"
+        className="absolute size-11 overflow-visible"
+        style={{
+          left: `calc(50% - ${String((44 * coachHand.tip.x) / coachHand.box)}px)`,
+          top: `calc(50% - ${String((44 * coachHand.tip.y) / coachHand.box)}px)`,
+        }}
+      >
+        <path
+          d={coachHand.outline}
+          transform={`translate(${String(coachHand.edge.x)} ${String(coachHand.edge.y)})`}
+          className="fill-edge"
+        />
+        <g
+          className="stroke-ink"
+          strokeWidth={coachHand.line}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        >
+          <path d={coachHand.outline} className="fill-surface" />
+          <path d={coachHand.creases} fill="none" />
+        </g>
+      </svg>
     </div>
   );
 }

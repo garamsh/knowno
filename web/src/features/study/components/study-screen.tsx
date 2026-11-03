@@ -382,11 +382,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
   // Keyed by the answers given, so each answer shows the next card as a new one, at rest,
   // rather than easing it in from where a swipe let go.
   const currentCard = view.kind === "studying" && (
-    <CurrentCard
-      key={view.previous.length}
-      card={view.current}
-      onAnswer={answer}
-    />
+    <CurrentCard key={view.previous.length} card={view.current} onAnswer={answer} />
   );
   const current: ReactNode =
     view.kind === "studying" ? (

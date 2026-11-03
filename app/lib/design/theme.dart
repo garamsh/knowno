@@ -370,9 +370,6 @@ abstract final class AppBrand {
   /// The mascot in its [expression], the same on either ground.
   static String mascot(String expression) =>
       'assets/brand/knowno-$expression.png';
-
-  /// The touch coach's pointing hand, tilted, its fingertip at its top left.
-  static const coachHand = 'assets/brand/knowno-coach-hand.png';
 }
 
 /// The edges solid objects sit on: a hard offset of a darker colour, with no

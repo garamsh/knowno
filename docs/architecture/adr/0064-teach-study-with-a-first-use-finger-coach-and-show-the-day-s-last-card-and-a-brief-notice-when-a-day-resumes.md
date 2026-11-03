@@ -1,6 +1,6 @@
 # ADR 0064: Teach study with a first-use finger coach, and show the day's last card and a brief notice when a day resumes
 
-> Status: accepted; on the phone, its notice under the progress bar superseded by ADR-0093
+> Status: accepted; on the phone, its notice under the progress bar superseded by ADR-0093; its coach's 건너뛰기, its finger and its caption on the hero superseded by ADR-0166
 > Date: 2026-10-18
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

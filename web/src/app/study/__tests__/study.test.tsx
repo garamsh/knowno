@@ -29,6 +29,8 @@ import { signedInCookies } from "@/testing/session";
 import { sensesUnder } from "@/testing/senses";
 import { blanksUnder } from "@/testing/whole-cards";
 
+import { coachHand } from "@/features/study/components/coach-hand-drawing";
+
 import { Study } from "../_components/study";
 
 // The study screen starts its session once the browser's engine has loaded; its first load
@@ -1556,7 +1558,8 @@ describe("the study page", () => {
       // The hand, tilted, on its ring, with its trail drawn back to where it began.
       const touch = within(screen.getByTestId("coach-demo")).getByTestId("coach-touch");
       expect(touch).toBeVisible();
-      expect(touch.querySelector('img[src="/brand/knowno-coach-hand.svg"]')).not.toBeNull();
+      const hand = within(touch).getByTestId("coach-hand");
+      expect(hand.querySelector(`path[d="${coachHand.outline}"].fill-surface`)).not.toBeNull();
       expect(within(touch).getByTestId("coach-trail").className).toContain("origin-right");
       // 이전 is off on the first step; there is no 건너뛰기.
       expect(screen.getByRole("button", { name: "이전" })).toBeDisabled();

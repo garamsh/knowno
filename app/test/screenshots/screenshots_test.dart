@@ -514,10 +514,11 @@ void main() {
       }
       await tester.pump(const Duration(milliseconds: 1500));
       await shot(tester, '12-study-coach');
-      for (var step = 0; step < 2; step++) {
-        await tester.tap(find.text(ko.coachNext));
-        await tester.pump();
-      }
+      await tester.tap(find.text(ko.coachNext));
+      await tester.pump(const Duration(milliseconds: 2800));
+      await shot(tester, '12a-study-coach-dont-know');
+      await tester.tap(find.text(ko.coachNext));
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 2800));
       await shot(tester, '12b-study-coach-change');
       await tap(tester, find.text(ko.coachStart));

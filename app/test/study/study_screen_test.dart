@@ -14,6 +14,7 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_button.dart';
 import 'package:knowno/design/app_section_label.dart';
 import 'package:knowno/study/src/completion_card.dart';
+import 'package:knowno/study/src/coach_hand_drawing.dart';
 import 'package:knowno/study/src/study_coach.dart';
 import 'package:knowno/design/mascot.dart';
 import 'package:knowno/design/theme.dart';
@@ -2484,6 +2485,25 @@ void main() {
         );
         expect(touch.shown, isTrue);
         expect(touch.travel, closeTo(held, 0.5));
+        // The hand, its fingertip pinned on the ring's centre.
+        final hand = find.descendant(
+          of: find.byType(StudyCoachTouch),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is CustomPaint &&
+                widget.size == const Size.square(StudyStyle.coachHand),
+          ),
+        );
+        expect(hand, findsOneWidget);
+        expect(
+          tester.getTopLeft(hand) +
+              CoachHandDrawing.tip *
+                  (StudyStyle.coachHand / CoachHandDrawing.box),
+          offsetMoreOrLessEquals(
+            tester.getCenter(find.byType(StudyCoachTouch)),
+            epsilon: 0.5,
+          ),
+        );
         // It stays there: nothing repeats, so the screen settles.
         await tester.pumpAndSettle();
         expect(

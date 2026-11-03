@@ -107,9 +107,8 @@ abstract final class StudyStyle {
   static const coachTrailDash = 10.0;
   static const coachTrailGap = 8.0;
 
-  /// The coach's hand, this wide, and where on it its fingertip presses.
-  static const coachHand = 70.0;
-  static const coachHandTip = Offset(14, 16);
+  /// The coach's hand, this wide; its drawing is `CoachHandDrawing`'s.
+  static const coachHand = 44.0;
 
   /// The mascot that presents the coach, beside its bubble.
   static const coachMascot = 56.0;
