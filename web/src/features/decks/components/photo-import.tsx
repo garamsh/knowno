@@ -25,6 +25,7 @@ import { leaveThen } from "../hooks/use-back-entry";
 import { AuthoringScreen, AuthoringSheet } from "./authoring-sheet";
 import { CardFields } from "./card-fields";
 import { ImportList } from "./import-list";
+import { RowMenu } from "./row-menu";
 
 import { Mascot } from "@/design/brand";
 
@@ -51,18 +52,21 @@ const privacyNote = "사진은 카드를 만드는 데만 쓰고 서버에 남�
 /**
  * A browser-bound photo job drawn as the phone's photo import: one photo at 카드를 찾고 있어요 or
  * its failure, several at 사진 n장 중 k장 읽음 with a row per photo, then the list to review, whose
- * cards go into [deck] or a new deck.
+ * cards go into [deck] or a new deck. While photo import is unavailable, [addInstead] leaves it for
+ * adding [deck]'s cards by hand or from a spreadsheet.
  */
 export function PhotoImport({
   deck,
   camera,
   files,
   close,
+  addInstead,
 }: {
   deck: Deck;
   camera: boolean;
   files: File[];
   close: () => void;
+  addInstead: (way: "manual" | "file") => void;
 }) {
   const [photos, setPhotos] = useState(() => photosOf(files, maxPhotos));
   const photosRef = useRef(photos);
@@ -94,7 +98,9 @@ export function PhotoImport({
   }, [target]);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [editing, setEditing] = useState<Candidate | null>(null);
-  const [discarding, setDiscarding] = useState(false);
+  // What 버리기 goes on to do once the found cards may go; null while nothing asks.
+  const [discarding, setDiscarding] = useState<(() => void) | null>(null);
+  const retakeInput = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
   const pumping = useRef(false);
   const closed = useRef(false);
@@ -273,9 +279,13 @@ export function PhotoImport({
     setTarget(next);
     setChoosing(false);
   }
+  // Does [then] at once, or once the user agrees that the found cards go.
+  function discardThen(then: () => void) {
+    if (candidates.length) setDiscarding(() => then);
+    else then();
+  }
   function leave() {
-    if (candidates.length) setDiscarding(true);
-    else close();
+    discardThen(close);
   }
   function cancel() {
     if (listOpen) remove((photo) => photo.state.kind === "read");
@@ -367,6 +377,48 @@ export function PhotoImport({
   const single = !listOpen && photos.length === 1 ? photos[0] : undefined;
   const singleFailure = single?.state.kind === "failed" ? single.state.failure : null;
   const failure = jobFailure ?? singleFailure;
+  // Unavailable for the one photo, or for every photo of the batch, as the phone's: the photos
+  // chosen first, or those added to an open list and not read.
+  const batch = listOpen ? photos.filter((photo) => photo.state.kind !== "read") : photos;
+  const unavailable = failure
+    ? failure.kind === "unavailable"
+    : batch.length > 0 &&
+      batch.every(
+        (photo) => photo.state.kind === "failed" && photo.state.failure.kind === "unavailable",
+      );
+  const insteadBar = unavailable && (
+    <div className="flex gap-3">
+      {(["file", "manual"] as const).map((way) => (
+        <button
+          key={way}
+          type="button"
+          onClick={() => {
+            discardThen(() => {
+              addInstead(way);
+            });
+          }}
+          className={`pressable min-h-cta flex-1 rounded-button px-4 text-button break-keep ${way === "manual" ? "bg-primary text-on-primary" : "bg-surface"}`}
+        >
+          {way === "manual" ? "직접 입력" : "엑셀·CSV 파일"}
+        </button>
+      ))}
+    </div>
+  );
+  // The phone's ⋯ on a list read from one photo: its retake, asking first once cards are found.
+  const retakeMenu = listOpen && !unfinished && photos.length === 1 && (
+    <RowMenu
+      label="사진 작업"
+      trigger="pressable flex size-tap-target shrink-0 items-center justify-center rounded-button text-ink focus-visible:outline-2 focus-visible:outline-ink"
+      items={[
+        {
+          label: camera ? "다시 찍기" : "다른 사진 고르기",
+          pick: () => {
+            discardThen(() => retakeInput.current?.click());
+          },
+        },
+      ]}
+    />
+  );
   const failed = photos.filter((photo) => photo.state.kind === "failed").length;
   const waiting = photos.some(
     (photo) => photo.state.kind === "waiting" || photo.state.kind === "reading",
@@ -387,7 +439,9 @@ export function PhotoImport({
           ? "단어를 찾았어요"
           : `카드 ${String(candidates.length)}장을 만들었어요`;
 
-  const actions = failure ? (
+  const actions = insteadBar ? (
+    insteadBar
+  ) : failure ? (
     (isRetakeable(failure) || (single && isRetryable(failure))) && (
       <div className="flex gap-3">
         {isRetakeable(failure) && (
@@ -437,9 +491,28 @@ export function PhotoImport({
   return (
     <AuthoringScreen
       title={title}
+      // The phone heads each of these screens' content, and its failure screen has no title.
+      heading={failure ? "none" : "body"}
+      menu={retakeMenu}
       actions={actions}
       close={unfinished && !failure ? cancel : leave}
     >
+      <input
+        ref={retakeInput}
+        type="file"
+        accept="image/*"
+        capture={camera ? "environment" : undefined}
+        tabIndex={-1}
+        aria-hidden
+        onChange={(event) => {
+          const chosen = Array.from(event.currentTarget.files ?? []);
+          event.currentTarget.value = "";
+          if (!chosen.length) return;
+          setListOpen(false);
+          replace(chosen);
+        }}
+        className="sr-only"
+      />
       {failure ? (
         <div className="flex min-w-0 flex-col">
           <div className="flex flex-col items-center gap-4 py-10">
@@ -671,7 +744,7 @@ export function PhotoImport({
         <AuthoringSheet
           title="찾은 카드를 버릴까요?"
           close={() => {
-            setDiscarding(false);
+            setDiscarding(null);
           }}
         >
           <p className="text-secondary break-keep text-muted">
@@ -681,7 +754,7 @@ export function PhotoImport({
             <button
               type="button"
               onClick={() => {
-                setDiscarding(false);
+                setDiscarding(null);
               }}
               className="pressable min-h-button text-body"
             >
@@ -689,7 +762,10 @@ export function PhotoImport({
             </button>
             <button
               type="button"
-              onClick={close}
+              onClick={() => {
+                setDiscarding(null);
+                discarding();
+              }}
               className="pressable min-h-button rounded-button bg-dont-know text-button text-on-ink"
             >
               버리기
