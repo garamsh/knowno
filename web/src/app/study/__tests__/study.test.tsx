@@ -210,6 +210,30 @@ function past(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `f${String(index).padStart(2, "0")}`);
 }
 
+/**
+ * Stores the first [count] cards of `seedDeck`'s "d1" as answered "안다" an hour before [start],
+ * each with its review and its state, as a session earlier today leaves them. A test whose subject
+ * is the day's end builds the day this way rather than answering each card on screen, which
+ * costs a render and three requests a card (#641).
+ */
+function answeredThisMorning(postgrest: FakePostgrest, count: number) {
+  for (let index = 0; index < count; index++) {
+    postgrest.seed(
+      "card_states",
+      stateRow(`d1-${String(index)}`, {
+        stability: 1,
+        difficulty: 5,
+        lastReview: start - hour,
+        due: start + 2 * day,
+      }),
+    );
+    postgrest.seed(
+      "reviews",
+      reviewRow(`r-${String(index)}`, `d1-${String(index)}`, start - hour, 1_000),
+    );
+  }
+}
+
 async function answerAll(key: string, count: number) {
   const user = userEvent.setup();
   const fronts: string[] = [];
@@ -256,28 +280,32 @@ describe("the study page", () => {
     const fronts = ["un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit"];
 
     /**
-     * Opens a session over a fresh copy of the deck at [at], so no write of an earlier session
-     * changes what it studies.
+     * Opens a session over a fresh copy of a deck of [deck] at [at], so no write of an earlier
+     * session changes what it studies.
      */
-    async function openFresh(at = start) {
+    async function openFresh(at = start, deck = fronts) {
       cleanup();
       postgrest = new FakePostgrest();
       postgrest.studySettings.set(testUser.id, fiveMinutes);
       server.use(...postgrest.handlers);
-      seedDeck(postgrest, "d1", fronts);
+      seedDeck(postgrest, "d1", deck);
       await open("d1", at);
     }
 
     it("orders the cards by the session's seeded random source", async () => {
-      await openFresh();
-      const first = await answerAll("{ArrowRight}", fronts.length);
-      await openFresh();
-      const again = await answerAll("{ArrowRight}", fronts.length);
+      // Five cards, 120 orders: each card shown is a render and three requests (#641).
+      const five = fronts.slice(0, 5);
+      await openFresh(start, five);
+      const first = await answerAll("{ArrowRight}", five.length);
+      await openFresh(start, five);
+      const again = await answerAll("{ArrowRight}", five.length);
       // Control: a session started at another time draws another order.
-      await openFresh(start + 1);
-      const other = await answerAll("{ArrowRight}", fronts.length);
+      await openFresh(start + 1, five);
+      const other = await answerAll("{ArrowRight}", five.length);
 
-      expect([...first].sort()).toEqual([...fronts].sort());
+      // The setup's state: the seed did not leave the cards in the deck's order.
+      expect(first).not.toEqual(five);
+      expect([...first].sort()).toEqual([...five].sort());
       expect(again).toEqual(first);
       expect(other).not.toEqual(first);
     });
@@ -306,15 +334,24 @@ describe("the study page", () => {
         stateRow("later", { stability: 9, difficulty: 5, lastReview: start, due: start + day }),
       );
 
+      // The oldest 24 new cards were answered this morning, so the session shows only the rest
+      // of the day's plan.
+      answeredThisMorning(postgrest, 24);
+
       await open("d1");
-      // (5 min - the due card at 10 s) / 10 s: 29 new cards.
-      const shown = await answerAll("{ArrowRight}", 30);
+      // The setup's state: the morning's 24 answers count toward the day.
+      expect(screen.getByRole("progressbar", { name: "진행" })).toHaveAttribute(
+        "aria-valuenow",
+        "24",
+      );
+      // (5 min - the due card at 10 s) / 10 s: 29 new cards, 24 of them done.
+      const shown = await answerAll("{ArrowRight}", 6);
 
       expect(screen.getByRole("progressbar", { name: "진행" })).toHaveAttribute(
         "aria-valuemax",
         "30",
       );
-      expect([...shown].sort()).toEqual(["due", ...news.slice(0, 29)].sort());
+      expect([...shown].sort()).toEqual(["due", ...news.slice(24, 29)].sort());
       expect(screen.getByRole("heading", { name: "오늘 학습 완료" })).toBeInTheDocument();
     });
   });
@@ -663,21 +700,7 @@ describe("the study page", () => {
 
     it("draws the day's bar full, as the phone does, when another note's answers took the day's new cards", async () => {
       seedDeck(postgrest, "d1", past(todayNewCards));
-      for (let index = 0; index < todayNewCards; index++) {
-        postgrest.seed(
-          "card_states",
-          stateRow(`d1-${String(index)}`, {
-            stability: 1,
-            difficulty: 5,
-            lastReview: start - hour,
-            due: start + 2 * day,
-          }),
-        );
-        postgrest.seed(
-          "reviews",
-          reviewRow(`r-${String(index)}`, `d1-${String(index)}`, start - hour, 1_000),
-        );
-      }
+      answeredThisMorning(postgrest, todayNewCards);
       postgrest.seed("decks", deckRow("d2", "d2"));
       postgrest.seed("cards", cardRow("d2-0", "d2", "neuf", 1_000));
       await open("d2");
@@ -692,8 +715,12 @@ describe("the study page", () => {
     it("goes on with the new cards past today's on 학습하기, oldest first, each answer written and counted apart from the day's", async () => {
       const fronts = past(todayNewCards + 2);
       seedDeck(postgrest, "d1", fronts);
+      // All but the last of the day's new cards were answered this morning.
+      answeredThisMorning(postgrest, todayNewCards - 1);
       await open("d1");
-      await answerAll("{ArrowRight}", todayNewCards);
+      // The setup's state: one card of the day is left.
+      expect(currentFront()).toBe(fronts[todayNewCards - 1]);
+      await answerAll("{ArrowRight}", 1);
       await waitFor(() => {
         expect(postgrest.rows.reviews).toHaveLength(todayNewCards);
       });
@@ -1264,21 +1291,7 @@ describe("the study page", () => {
       // The first day's new cards answered this morning, and two more.
       const fronts = past(todayNewCards + 2);
       seedDeck(postgrest, "d1", fronts);
-      for (let index = 0; index < todayNewCards; index++) {
-        postgrest.seed(
-          "card_states",
-          stateRow(`d1-${String(index)}`, {
-            stability: 1,
-            difficulty: 5,
-            lastReview: start - hour,
-            due: start + 2 * day,
-          }),
-        );
-        postgrest.seed(
-          "reviews",
-          reviewRow(`r-${String(index)}`, `d1-${String(index)}`, start - hour, 1_000),
-        );
-      }
+      answeredThisMorning(postgrest, todayNewCards);
       await open("d1");
 
       expect(screen.queryByRole("region", { name: "오늘 학습 완료" })).not.toBeInTheDocument();
