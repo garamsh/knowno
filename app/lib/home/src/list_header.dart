@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -10,8 +12,8 @@ import 'above_menu.dart';
 typedef HeaderMenu = ({String tooltip, List<Widget> items});
 
 /// The actions at the right of a list screen's title, the 노트 tab's and a
-/// deck screen's: the screen's one primary, "+" and [label], and, with a
-/// [menu], its ⋯ holding the screen's other actions.
+/// deck screen's: the screen's own action, "+" and [label] in the tonal
+/// fill, and, with a [menu], its ⋯ holding the screen's other actions.
 class ListHeaderActions extends StatelessWidget {
   const ListHeaderActions({
     super.key,
@@ -24,6 +26,16 @@ class ListHeaderActions extends StatelessWidget {
   final VoidCallback onPressed;
   final HeaderMenu? menu;
 
+  /// The height of a top bar holding these actions: the bar's own, or, at a
+  /// text size whose label is taller, that label's line with the bar's
+  /// inset, so the label is never clipped.
+  static double barHeight(BuildContext context) {
+    final line =
+        MediaQuery.textScalerOf(context).scale(AppType.label.fontSize!) *
+        AppType.label.height!;
+    return math.max(kToolbarHeight, line + 2 * AppSpace.s8);
+  }
+
   @override
   Widget build(BuildContext context) {
     final menu = this.menu;
@@ -34,6 +46,7 @@ class ListHeaderActions extends StatelessWidget {
         AppButton(
           label: label,
           icon: LucideIcons.plus,
+          variant: AppButtonVariant.tonal,
           size: AppButtonSize.header,
           onPressed: onPressed,
         ),

@@ -27,7 +27,7 @@ The `sharing` domain: publishing a deck, and browsing, previewing, copying, repo
 
 ### Browsing
 
-- "공개 노트 둘러보기" opens the browse screen: the one item of the 노트 tab's ⋯ ([ADR 0172](adr/0172-make-a-note-with-the-choices-of-its-customization-head-the-notes-and-a-note-with-a-primary-and-a-menu-over-an-always-shown-search.md)), and the first-run home's quiet button ([`home.md`](home.md), [ADR 0067](adr/0067-start-a-deck-or-a-card-from-one-sheet-that-holds-the-photo-source-and-name-public-decks-once.md)).
+- "공개 노트 둘러보기" opens the browse screen: the one item of the 노트 tab's ⋯ ([ADR 0172](adr/0172-make-a-note-with-the-choices-of-its-customization-head-the-notes-and-a-note-with-a-tonal-action-and-a-menu-over-an-always-shown-search.md)), and the first-run home's quiet button ([`home.md`](home.md), [ADR 0067](adr/0067-start-a-deck-or-a-card-from-one-sheet-that-holds-the-photo-source-and-name-public-decks-once.md)).
 - The screen has a large title, "공개 노트", a search over name and description (ignoring case, run 300 ms after typing pauses), and a segmented "최신순" / "가져오기 많은 순".
 - Each row shows the deck's name and "{display name} · 카드 n장 · 가져오기 m회". The listing comes from `list_public_decks` ([`server.md`](server.md)), at most 100 decks; decks of users the user blocked are absent.
 - Offline, the screen shows "인터넷에 연결되지 않았어요. 연결되면 공개 노트를 볼 수 있어요." and lists once the connection returns; a failed request shows its message with "다시 시도".

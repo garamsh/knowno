@@ -7,7 +7,7 @@ import { Chip } from "@/design/chip";
 
 import type { Deck } from "../library";
 import { DeckTile } from "./deck-tile";
-import { ListSearch } from "./list-header";
+import { ListSearch } from "./list-search";
 
 /**
  * A deck as its row shows it: its card count, what a session over it would study now, and how

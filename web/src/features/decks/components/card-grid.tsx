@@ -7,12 +7,12 @@ import type { Card, Deck } from "../library";
 import { CardEditor } from "./authoring-button";
 import { SideText } from "./side-text";
 import { EmptyDeck } from "./empty-home";
-import { ListHeader, ListSearch } from "./list-header";
+import { ListSearch } from "./list-search";
 import { WholeCells } from "./whole-card";
 
 /**
- * A note's page under its name, as the final screens draw it (ADR 0150): the name with [add], its
- * "+ 카드 추가", and [settings], its ⋯; while it holds a card, the "카드 검색" field, always shown;
+ * A note's page, as the final screens draw it (ADR 0150): [add], its "+ 카드 추가", and
+ * [settings], its ⋯, over its name, on a line of its own, two lines at most; while it holds a card, the "카드 검색" field, always shown;
  * [study]; then its cards as one group of rows under that search, which keeps the cards whose 칸 hold it, revealed, ignoring case (ADR 0118,
  * ADR 0137). Each row shows its front, and its back muted after it once shown; nothing stands for
  * a hidden back. "뒷면 보기", in a row pinned above the group beside "카드 n" and the [mastered]
@@ -58,11 +58,15 @@ export function CardGrid({
     ? rows.filter((row) => row.faces.some((face) => face.toLocaleLowerCase().includes(needle)))
     : rows;
 
+  // The name has a line of its own under the actions, so every name stays readable beside them.
   const header = (
-    <ListHeader title={<h1 className="min-w-0 text-deck-name break-words">{deck.name}</h1>}>
-      {add}
-      {settings}
-    </ListHeader>
+    <header className="flex flex-col gap-2">
+      <span className="flex items-center justify-end gap-2">
+        {add}
+        {settings}
+      </span>
+      <h1 className="line-clamp-2 text-deck-name break-words">{deck.name}</h1>
+    </header>
   );
   if (cards.length === 0) {
     return (

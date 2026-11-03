@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/design/app_button.dart';
+import 'package:knowno/design/app_raised.dart';
 import 'package:knowno/design/theme.dart';
 
 import '../contrast.dart';
@@ -126,6 +127,54 @@ void main() {
               .height,
           AppSize.tapTarget,
         );
+        await meetsGuidelines(tester);
+        expectScreenTextReadable(tester);
+      },
+    );
+  }
+
+  for (final MapEntry(key: mode, value: colors) in themeModes.entries) {
+    testWidgets(
+      'in ${mode.name} the tonal action draws the tint under an accent label '
+      'and icon, on the edge a quiet button sits on',
+      (tester) async {
+        await pumpComponent(
+          tester,
+          AppButton(
+            label: 'tonal',
+            icon: Icons.add,
+            variant: AppButtonVariant.tonal,
+            size: AppButtonSize.header,
+            onPressed: () {},
+          ),
+          themeMode: mode,
+        );
+
+        expect(_fill(tester, 'tonal'), colors.brandTint);
+        expect(
+          tester
+              .renderObject<RenderParagraph>(find.text('tonal'))
+              .text
+              .style!
+              .color,
+          colors.accent,
+        );
+        expect(
+          tester
+              .widget<RichText>(
+                find.descendant(
+                  of: find.byIcon(Icons.add),
+                  matching: find.byType(RichText),
+                ),
+              )
+              .text
+              .style!
+              .color,
+          colors.accent,
+        );
+        final raised = tester.widget<AppRaised>(find.byType(AppRaised));
+        expect(raised.edge, colors.edge);
+        expect(raised.height, AppSize.edgeCard);
         await meetsGuidelines(tester);
         expectScreenTextReadable(tester);
       },

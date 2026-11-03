@@ -105,14 +105,28 @@ describe("the deck page", () => {
     expect(screen.queryByRole("navigation", { name: "위치" })).not.toBeInTheDocument();
   });
 
-  it("puts + 카드 추가 in the primary fill beside the name, over the card search, always shown, with no magnifier", async () => {
+  it("puts + 카드 추가 in the tonal fill beside the name, over the card search, always shown, with no magnifier, leaving 이 노트 학습 the one primary", async () => {
     await open("d-fr");
 
     const header = screen.getByRole("heading", { level: 1, name: "French" }).closest("header");
     const add = screen.getByRole("button", { name: "카드 추가" });
     expect(add.closest("header")).toBe(header);
-    expect(add).toHaveClass("bg-primary", "min-h-tap-target", "text-label");
+    expect(add).toHaveClass(
+      "rounded-button",
+      "bg-brand-tint",
+      "text-accent",
+      "min-h-tap-target",
+      "text-label",
+    );
     expect(add.querySelector("svg")).not.toBeNull();
+    // The name has its own line under the actions, two lines at most.
+    const name = screen.getByRole("heading", { level: 1, name: "French" });
+    expect(add.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(name.parentElement).toBe(header);
+    expect(add.parentElement?.contains(name)).toBe(false);
+    expect(name).toHaveClass("line-clamp-2");
+    // The page's one primary fill is 이 노트 학습.
+    expect([...document.querySelectorAll(".bg-primary")]).toEqual([studyLink()]);
     const search = screen.getByRole("searchbox", { name: "카드 검색" });
     expect(search.closest("header")).toBeNull();
     // Control: the header's other button is 노트 설정; there is no magnifier.
@@ -260,9 +274,9 @@ describe("the deck page", () => {
     await open("d-empty");
 
     const empty = screen.getByRole("region", { name: "아직 카드가 없어요" });
-    // Its one action is the header's, in the primary fill, as on a note with cards.
+    // Its one action is the header's, in the tonal fill, as on a note with cards.
     const add = screen.getByRole("button", { name: "카드 추가" });
-    expect(add).toHaveClass("bg-primary");
+    expect(add).toHaveClass("bg-brand-tint", "text-accent");
     expect(add.closest("header")).not.toBeNull();
     expect(screen.queryByRole("searchbox", { name: "카드 검색" })).not.toBeInTheDocument();
     // The sleepy mascot over the words (ADR 0141).

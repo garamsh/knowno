@@ -93,6 +93,20 @@ describe("the controls' pointer, hover and pressed states", () => {
     }
   });
 
+  it("sits the tonal button on the edge a quiet button sits on, and the primary on its own", () => {
+    /** The edge declared by the rule whose selector list holds [selector]. */
+    const edgeOf = (selector: string) =>
+      new RegExp(`${selector.replaceAll(".", "\\.")}[,\\s][^{]*\\{([^}]*)\\}`).exec(
+        globalsCss,
+      )?.[1];
+    const quiet = "--edge: var(--spacing-edge-card);\n    --edge-colour: var(--color-edge);";
+    expect(edgeOf(".rounded-button.bg-brand-tint")).toContain(quiet);
+    // Control: the same reading finds the primary's own edge, not the quiet one.
+    expect(edgeOf(".rounded-button.bg-primary")).toContain(
+      "--edge-colour: var(--color-primary-edge);",
+    );
+  });
+
   it("dims a hovered or pressed control under a layer of its text colour, with no change of size", () => {
     const rule = /\.pressable \{([^}]*)\}/.exec(globalsCss)?.[1] ?? "";
     expect(rule).toContain("--state-layer: color-mix(in srgb, currentColor 4%, transparent);");

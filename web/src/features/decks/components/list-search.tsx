@@ -1,18 +1,4 @@
 import { Search } from "lucide-react";
-import type { ReactNode } from "react";
-
-/**
- * The header of the 노트 page and a note's page, as the phone's: [title], the page's heading,
- * with [children] at its right, the page's "+" primary and, where it has one, its ⋯.
- */
-export function ListHeader({ title, children }: { title: ReactNode; children: ReactNode }) {
-  return (
-    <header className="flex items-center justify-between gap-3">
-      {title}
-      <span className="flex shrink-0 items-center gap-2">{children}</span>
-    </header>
-  );
-}
 
 /** The search field under a list page's header, always shown, named and hinted [label]. */
 export function ListSearch({

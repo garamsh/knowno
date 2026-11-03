@@ -1,4 +1,4 @@
-import { AuthoringButton, DeckList, ListHeader, ReadFailure, readDeckList } from "@/features/decks";
+import { AuthoringButton, DeckList, ReadFailure, readDeckList } from "@/features/decks";
 import { countDay, dayPlanOf, deckProgress, readToday, readyServerEngine } from "@/features/study";
 
 /**
@@ -10,9 +10,10 @@ import { countDay, dayPlanOf, deckProgress, readToday, readyServerEngine } from 
 export async function Notes() {
   const [read, today] = await Promise.all([readDeckList(), readToday()]);
   const title = (
-    <ListHeader title={<h1 className="text-deck-title">노트</h1>}>
+    <header className="flex items-center justify-between gap-3">
+      <h1 className="text-deck-title">노트</h1>
       <AuthoringButton compact />
-    </ListHeader>
+    </header>
   );
   if ("failure" in read) {
     return (

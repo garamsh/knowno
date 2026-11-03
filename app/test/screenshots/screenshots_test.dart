@@ -413,6 +413,12 @@ void main() {
       await tap(tester, find.byTooltip(ko.close));
       await tap(tester, find.text(ko.discardCard));
       await shot(tester, '07-card-list');
+      // The bar and the name under it at the largest text size.
+      tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+      await tester.pumpAndSettle();
+      await shot(tester, '07e-card-list-largest-text');
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.pumpAndSettle();
       final cardSearch = find.widgetWithText(AppTextField, ko.searchCards);
       await tester.enterText(cardSearch, 'ent');
       await tester.pumpAndSettle();

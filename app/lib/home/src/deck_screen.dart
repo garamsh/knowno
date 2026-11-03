@@ -18,13 +18,13 @@ import '../../sharing/sharing.dart';
 import '../../study/study.dart';
 import '../../design/word_break.dart';
 
-/// A deck's page, above the menu: its name in the top bar with "카드 검색"
-/// and "노트 설정", "이 노트 학습" at the top, then its cards as one group under
-/// a pinned row of their count, the mastered count and the "뒷면 보기" switch,
-/// and "카드 추가" fixed at the foot. A tap opens a card for editing; 노트 설정
+/// A deck's page, above the menu: "+ 카드 추가" and "노트 설정" in the top
+/// bar, the deck's name on its own line under it, then, while the deck holds
+/// a card, the card search, "이 노트 학습", the screen's one primary, and its
+/// cards as one group under a pinned row of their count, the mastered count
+/// and the "뒷면 보기" switch. A tap opens a card for editing; 노트 설정
 /// renames, decorates, publishes or deletes the deck. While the deck holds no
-/// card, adding one is its one primary action and there is nothing to
-/// study.
+/// card there is nothing to study.
 class DeckScreen extends ConsumerStatefulWidget {
   const DeckScreen({super.key, required this.deck, this.addingCard = false});
 
@@ -76,10 +76,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     };
     return Scaffold(
       appBar: AppBar(
-        title: Semantics(
-          header: true,
-          child: Text(current.name, style: AppType.deckName),
-        ),
+        toolbarHeight: ListHeaderActions.barHeight(context),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: AppSpace.gutter),
@@ -129,84 +126,119 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
           ),
         ],
       ),
-      body: switch (cards) {
-        AsyncData(:final value) => CustomScrollView(
-          slivers: [
-            if (!empty)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpace.gutter,
-                  AppSpace.s8,
-                  AppSpace.gutter,
-                  0,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: ListSearchField(
-                    hint: l10n.searchCards,
-                    onChanged: (query) => setState(() => _query = query),
-                  ),
+      body: CustomScrollView(
+        slivers: [
+          // The name has a line of its own, so every name stays readable
+          // beside a labelled action at every text size.
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.gutter,
+              0,
+              AppSpace.gutter,
+              AppSpace.s8,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  current.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppType.deckName.copyWith(color: colors.ink),
                 ),
               ),
-            // While searching, the matches start under the search field;
-            // with no card, the empty line is the screen's content.
-            if (_query.trim().isEmpty && !empty)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpace.gutter,
-                  AppSpace.s8,
-                  AppSpace.gutter,
-                  AppSpace.s16,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: TodayCounter(
-                    decks: DeckSelection(widget.deck.id),
-                    builder: (context, count) => AppButton(
-                      label: switch (count) {
-                        TodayCounted(:final total) => l10n.studyThisDeck(total),
-                        _ => l10n.studyThisDeckPlain,
-                      },
-                      size: AppButtonSize.cta,
-                      onPressed: _study,
+            ),
+          ),
+          ...switch (cards) {
+            AsyncData(:final value) => [
+              if (!empty)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpace.gutter,
+                    AppSpace.s8,
+                    AppSpace.gutter,
+                    0,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: ListSearchField(
+                      hint: l10n.searchCards,
+                      onChanged: (query) => setState(() => _query = query),
                     ),
                   ),
                 ),
-              ),
-            if (value.isEmpty)
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpace.gutter,
-                  vertical: AppSpace.s40,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: Column(
-                    spacing: AppSpace.s16,
-                    children: [
-                      const Mascot(
-                        expression: MascotExpression.sleepy,
-                        size: AppSize.mascotMedium,
+              // While searching, the matches start under the search field;
+              // with no card, the empty line is the screen's content.
+              if (_query.trim().isEmpty && !empty)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpace.gutter,
+                    AppSpace.s8,
+                    AppSpace.gutter,
+                    AppSpace.s16,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: TodayCounter(
+                      decks: DeckSelection(widget.deck.id),
+                      builder: (context, count) => AppButton(
+                        label: switch (count) {
+                          TodayCounted(:final total) => l10n.studyThisDeck(
+                            total,
+                          ),
+                          _ => l10n.studyThisDeckPlain,
+                        },
+                        size: AppButtonSize.cta,
+                        onPressed: _study,
                       ),
-                      Text(
-                        keepWords(l10n.noCards),
-                        semanticsLabel: l10n.noCards,
-                        textAlign: TextAlign.center,
-                        style: AppType.body.copyWith(color: colors.muted),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              )
-            else
-              ..._cardList(l10n, value, public: public),
-          ],
-        ),
-        AsyncError(:final error, :final stackTrace) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpace.gutter),
-            child: Text(describeProviderError(l10n, error, stackTrace)),
-          ),
-        ),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
+              if (value.isEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpace.gutter,
+                    vertical: AppSpace.s40,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      spacing: AppSpace.s16,
+                      children: [
+                        const Mascot(
+                          expression: MascotExpression.sleepy,
+                          size: AppSize.mascotMedium,
+                        ),
+                        Text(
+                          keepWords(l10n.noCards),
+                          semanticsLabel: l10n.noCards,
+                          textAlign: TextAlign.center,
+                          style: AppType.body.copyWith(color: colors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ..._cardList(l10n, value, public: public),
+            ],
+            AsyncError(:final error, :final stackTrace) => [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpace.gutter),
+                    child: Text(describeProviderError(l10n, error, stackTrace)),
+                  ),
+                ),
+              ),
+            ],
+            _ => [
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ],
+          },
+        ],
+      ),
     );
   }
 

@@ -337,7 +337,7 @@ test("draws the first-run home, 홈 over its week card, the 노트 page, a note,
   await note
     .getByLabel("앨범에서 고르기")
     .setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
-  await expect(note.getByRole("button", { name: "사진 빼기", exact: true })).toBeVisible();
+  await expect(note.getByRole("button", { name: "사진 삭제", exact: true })).toBeVisible();
   await expect(note.getByRole("group", { name: "색" })).toHaveCount(0);
   await capture(page, "new-note-photo");
   // 저장하고 카드 추가 opens the new note with its 카드 추가 sheet up, its colour and photo stored.

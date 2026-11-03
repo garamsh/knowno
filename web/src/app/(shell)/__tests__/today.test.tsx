@@ -458,6 +458,24 @@ describe("홈 and the 노트 page", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
+  it("heads the 노트 page with + 새 노트 in the tonal fill beside its title, which holds no primary fill", async () => {
+    postgrest.seed("decks", deckRow("d-fr", "French"));
+    await renderNotes();
+
+    const header = screen.getByRole("heading", { level: 1, name: "노트" }).closest("header");
+    const add = screen.getByRole("button", { name: "새 노트" });
+    expect(add.closest("header")).toBe(header);
+    expect(add).toHaveClass("rounded-button", "bg-brand-tint", "text-accent", "text-label");
+    expect(add.querySelector("svg")).not.toBeNull();
+    expect(document.querySelector(".bg-primary")).toBeNull();
+    // Control: the selector finds a primary fill where the page draws one, 홈's first run.
+    cleanup();
+    postgrest = new FakePostgrest();
+    server.use(...postgrest.handlers);
+    await render(Today, {});
+    expect(document.querySelector(".bg-primary")).not.toBeNull();
+  });
+
   it("reads no card's sides, which the deck list does not show", async () => {
     postgrest.seed("decks", deckRow("d-fr", "French"));
     postgrest.seed("cards", cardRow("fr", "d-fr", "chat"));

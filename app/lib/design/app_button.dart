@@ -16,6 +16,11 @@ enum AppButtonVariant {
   /// An action beside the primary one: the surface on its edge.
   secondary,
 
+  /// A list screen's own action beside its title, which is not the screen's
+  /// primary: the [AppColors.brandTint] fill under an [AppColors.accent]
+  /// label on its [AppColors.edge].
+  tonal,
+
   /// A destructive action that is not yet the final step: red text.
   destructive,
 
@@ -97,6 +102,7 @@ class AppButton extends StatelessWidget {
     final (fill, onFill) = switch (variant) {
       AppButtonVariant.primary => (colors.primary, colors.onPrimary),
       AppButtonVariant.onHero => (colors.heroButton, colors.onHeroButton),
+      AppButtonVariant.tonal => (colors.brandTint, colors.accent),
       AppButtonVariant.destructiveFinal => (
         colors.dontKnowText,
         colors.onDontKnowText,
@@ -131,12 +137,13 @@ class AppButton extends StatelessWidget {
       AppButtonVariant.primary => colors.primaryEdge,
       AppButtonVariant.onHero => colors.onHeroEdge,
       AppButtonVariant.destructiveFinal => colors.dontKnowEdge,
-      AppButtonVariant.secondary => colors.edge,
+      AppButtonVariant.secondary || AppButtonVariant.tonal => colors.edge,
       _ => null,
     };
-    final edgeHeight = variant == AppButtonVariant.secondary
-        ? AppSize.edgeCard
-        : AppSize.edgeButton;
+    final edgeHeight = switch (variant) {
+      AppButtonVariant.secondary || AppButtonVariant.tonal => AppSize.edgeCard,
+      _ => AppSize.edgeButton,
+    };
     return AppRaised(
       edge: edge,
       height: edgeHeight,
@@ -144,6 +151,7 @@ class AppButton extends StatelessWidget {
       builder: (context, states) => switch (variant) {
         AppButtonVariant.primary ||
         AppButtonVariant.onHero ||
+        AppButtonVariant.tonal ||
         AppButtonVariant.destructiveFinal => FilledButton(
           statesController: states,
           style: FilledButton.styleFrom(

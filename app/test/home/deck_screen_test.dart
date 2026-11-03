@@ -69,7 +69,7 @@ void main() {
       await screens.push((deck) => DeckScreen(deck: deck));
       expect(_studyButton, findsOneWidget);
       expect(find.widgetWithText(AppTextField, 'Search'), findsOneWidget);
-      expect(button('Add card').variant, AppButtonVariant.primary);
+      expect(button('Add card').variant, AppButtonVariant.tonal);
       await screens.close();
 
       screens = await DeckScreens.open(tester);
@@ -77,7 +77,7 @@ void main() {
       expect(shownText('No cards yet'), findsOneWidget);
       expect(_studyButton, findsNothing);
       expect(find.byType(AppTextField), findsNothing);
-      expect(button('Add card').variant, AppButtonVariant.primary);
+      expect(button('Add card').variant, AppButtonVariant.tonal);
       expect(
         find.descendant(
           of: find.byType(AppBar),
@@ -147,17 +147,34 @@ void main() {
   }
 
   testWidgets(
-    'the top bar holds the deck\'s name, + Add card in the primary fill 44 high, and a Note settings button at least 44 square whose menu holds Rename, Customize note and Delete note, over the search field and no magnifier',
+    'the top bar holds + Add card in the tonal fill 44 high, over the deck\'s name on its own line, leaving Study this note the screen\'s one primary, and a Note settings button at least 44 square whose menu holds Rename, Customize note and Delete note, over the search field and no magnifier',
     (tester) async {
       final screens = await DeckScreens.open(tester, cards: cards);
       await screens.push((deck) => DeckScreen(deck: deck));
       Finder inTopBar(Finder finder) =>
           find.descendant(of: find.byType(AppBar), matching: finder);
 
-      expect(inTopBar(find.text('French')), findsOneWidget);
+      // The name sits under the bar, a header, over the search.
+      expect(inTopBar(find.text('French')), findsNothing);
+      final name = find.text('French');
+      expect(
+        tester.getSemantics(name),
+        isSemantics(label: 'French', isHeader: true),
+      );
+      expect(
+        tester.getRect(name).top,
+        greaterThanOrEqualTo(tester.getRect(find.byType(AppBar)).bottom),
+      );
       final add = inTopBar(find.widgetWithText(AppButton, 'Add card'));
-      expect(tester.widget<AppButton>(add).variant, AppButtonVariant.primary);
+      expect(tester.widget<AppButton>(add).variant, AppButtonVariant.tonal);
       expect(tester.widget<AppButton>(add).icon, LucideIcons.plus);
+      expect(
+        tester
+            .widgetList<AppButton>(find.byType(AppButton))
+            .where((button) => button.variant == AppButtonVariant.primary)
+            .map((button) => button.label),
+        [tester.widget<AppButton>(_studyButton).label],
+      );
       final drawn = find.descendant(of: add, matching: find.byType(Material));
       expect(tester.getSize(drawn.first).height, AppSize.tapTarget);
       final settings = inTopBar(find.byTooltip('Note settings'));
@@ -172,7 +189,7 @@ void main() {
       expect(inTopBar(find.byType(AppTextField)), findsNothing);
       expect(
         tester.getRect(search).top,
-        greaterThanOrEqualTo(tester.getRect(find.byType(AppBar)).bottom),
+        greaterThanOrEqualTo(tester.getRect(name).bottom),
       );
 
       await screens.tap(find.byTooltip('Note settings'));

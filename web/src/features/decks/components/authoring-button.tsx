@@ -40,7 +40,8 @@ const pairClass = "grid grid-cols-[auto_minmax(0,1fr)] gap-3";
  * With [deck], "+ 카드 추가" beside the note's name, which opens the 카드 추가 sheet of the ways to
  * add a card, open on arrival with [adding]. Without one, "새 노트 만들기" in the primary fill
  * across the column, or, with [compact], "+ 새 노트" beside the 노트 page's title, which opens
- * 새 노트. Beside a title it is the page's primary, 44 high, as the phone's header action.
+ * 새 노트. Beside a title it is the page's own action in the tonal fill, the brand tint under an
+ * accent label on the edge a quiet button sits on, 44 high, as the phone's header action.
  */
 export function AuthoringButton({
   deck,
@@ -66,7 +67,7 @@ export function AuthoringButton({
         }}
         className={
           deck || compact
-            ? "pressable flex min-h-tap-target shrink-0 items-center gap-1.5 rounded-button bg-primary px-4 text-label text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            ? "pressable flex min-h-tap-target shrink-0 items-center gap-1.5 rounded-button bg-brand-tint px-4 text-label text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             : "pressable min-h-cta w-full rounded-button bg-primary px-5 text-button text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         }
       >

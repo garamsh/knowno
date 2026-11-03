@@ -13,7 +13,6 @@ export { CardGrid } from "./components/card-grid";
 export { DeckList } from "./components/deck-list";
 export { DeckTile } from "./components/deck-tile";
 export { EmptyHome, NoCardsHome } from "./components/empty-home";
-export { ListHeader } from "./components/list-header";
 export { ReadFailure } from "./components/read-failure";
 export { SideText } from "./components/side-text";
 export { WholeCells } from "./components/whole-card";

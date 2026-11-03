@@ -647,13 +647,24 @@ void main() {
     );
 
     testWidgets(
-      'the 노트 tab holds its title, New note, the search field, every deck and no public decks without sharing',
+      'the 노트 tab holds its title, + New note in the tonal fill and no primary, the search field, every deck and no public decks without sharing',
       (tester) async {
         final list = await _open(tester, fresh: {'Alpha': 1});
         await list.decks();
         expect(
           tester.getSemantics(shownText('Notes').first),
           isSemantics(label: 'Notes', isHeader: true),
+        );
+        final add = tester.widget<AppButton>(
+          find.widgetWithText(AppButton, 'New note'),
+        );
+        expect(add.variant, AppButtonVariant.tonal);
+        expect(add.icon, LucideIcons.plus);
+        expect(
+          tester
+              .widgetList<AppButton>(find.byType(AppButton))
+              .where((button) => button.variant == AppButtonVariant.primary),
+          isEmpty,
         );
         expect(find.byType(DeckRow), findsNWidgets(3));
         expect(

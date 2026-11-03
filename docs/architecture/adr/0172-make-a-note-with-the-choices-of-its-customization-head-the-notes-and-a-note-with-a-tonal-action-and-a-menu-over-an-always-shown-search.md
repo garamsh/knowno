@@ -1,4 +1,4 @@
-# ADR 0172: Make a note with the choices of its customization, and head the notes and a note with a primary and a menu over an always-shown search
+# ADR 0172: Make a note with the choices of its customization, and head the notes and a note with a tonal action and a menu over an always-shown search
 
 > Status: accepted
 > Date: 2026-11-03
@@ -14,7 +14,9 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **Alternatives considered:**
   - **Inset the label inside `AppTextField`.** It would move every labelled field's label off its outline on the screens where it is right.
   - **A second copy of 노트 꾸미기's choices in 새 노트.** Two copies drift. The owner's issue asks for one.
-  - **A hand-built 44 pt primary in the header.** It would be a second primary button beside `AppButton`. A size of `AppButton` keeps one.
+  - **A hand-built 44 pt button in the header.** It would be a second button beside `AppButton`. A size and a variant of `AppButton` keep one.
+  - **The header action in the primary fill.** A note's screen would then hold two primary fills, the action and "이 노트 학습", against `design.md` §Principles 1, one primary per screen. The PM's decision on PR #631 (2026-11-03) keeps "이 노트 학습" the note's one primary and gives the header action a tonal fill of its own, stronger than the white chip the owner found weak.
+  - **The note's name in the top bar, beside the actions, as the mockup draws it.** At 390 pt the bar left the name about 40 pt beside "+ Add card" in the test font, and at the largest text size none, so a name could be cut to an ellipsis. Dropping the action's label when room is short would make it an icon whose meaning a user must guess.
   - **Keep 카드 추가 at the note's foot and give only the 노트 tab a header action.** The two screens would then differ in the one place the owner asked them to match.
 
 ## Decision
@@ -23,7 +25,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - "아이콘": the fourteen icons;
   - "색": the four offered colours;
   - "사진": "앨범에서 고르기" and "사진 찍기".
-  While a photo is shown, the icon and the colour fold, since the photo covers them, and "사진" offers "다른 사진" and "사진 빼기". 노트 꾸미기 and 새 노트 are both built from it. A deck's look is one value, `DeckLook` on the phone, which `DeckTile` draws.
+  While a photo is shown, the icon and the colour fold, since the photo covers them, and "사진" offers "다른 사진" and "사진 삭제". 노트 꾸미기 and 새 노트 are both built from it. A deck's look is one value, `DeckLook` on the phone, which `DeckTile` draws.
 - **새 노트**, top to bottom:
   - the tile the note will get, at twice its size, over its name as typed, or "노트 이름" muted while there is none;
   - "노트 이름" in a white group, its label at the group's inset over a field on the ground, one line high, hinted "예: 토익 단어" and focused on opening;
@@ -31,9 +33,10 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - at its foot, as before, "저장" beside "저장하고 카드 추가".
   On the phone the deck is made with its icon, colour and photo in one write, the photo stored through `media` first. On the web the note is made, then a chosen icon or photo is stored through 노트 꾸미기's `decorateDeck`. A retry keeps the note's id, so it makes no second note.
 - **The header form [action] + ⋯**, shared by the 노트 tab and a note's screen, on both clients:
-  - The screen's title has its one primary at its right, "+" and its name, 44 high: "+ 새 노트" on the 노트 tab and "+ 카드 추가" on a note.
+  - The screen's own action is "+" and its name, 44 high, in the tonal fill: the brand tint under an accent label and icon, on the edge a quiet button sits on. It is "+ 새 노트" on the 노트 tab and "+ 카드 추가" on a note. It is not the screen's primary: a note's is "이 노트 학습".
+  - On the 노트 tab the action is at the right of the title "노트". On a note it is in the top bar, and the note's name has its own line under the bar, in `deckName`, two lines at most, then elided. So the action keeps its words and every name is readable at every text size. This departs from the mockup only in where the name sits. On the phone the bar grows with the text size to hold the action's label.
   - Then the screen's ⋯, where it has other actions. On a note it is "노트 설정", as before. On the phone's 노트 tab, with sharing, it is "노트 탭 메뉴", whose one item is "공개 노트 둘러보기". It is not drawn with sharing off, nor on the web's 노트 page, which has no browse screen.
-  - The phone builds it from `home/`'s `ListHeaderActions`, and `AppButton` gains the size `header`, `AppSize.tapTarget`. The web builds it from `features/decks`' `ListHeader`.
+  - The phone builds it from `home/`'s `ListHeaderActions`, and `AppButton` gains the size `header`, `AppSize.tapTarget`, and the variant `tonal`. The web builds the action from `features/decks`' `AuthoringButton`, its tonal style the `bg-brand-tint` fill on `rounded-button`, which `globals.css` gives a quiet button's edge.
 - **One always-shown search** under the header: "노트 검색" on the 노트 tab while there is a note, and "카드 검색" on a note while it holds a card. It is `home/`'s `ListSearchField` on the phone and `ListSearch` on the web. The magnifier, "검색 닫기" and the back that closed the search are deleted.
 - **A note's screen has no foot bar.** "카드 추가" is in the header in every state, an empty note included, whose body is the sleepy mascot and its sentence.
 
@@ -42,10 +45,12 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - A note can be given its look as it is made, and 노트 꾸미기 changes the same choices later.
 - Both screens head their content the same way, and their search needs no tap to open.
 - On a note, adding a card is at the top of the screen, out of the thumb's reach that the foot bar gave.
+- A note's name takes a line of its own under the bar, so the note's content starts lower than the mockup draws it.
 - `senses_block.dart`'s 예문 field, a labelled `AppTextField` inside an `EditorGroup`, has the clipped label 새 노트 had. It is left to the card editor's issue (#622).
 
 ## Signs the decision was wrong
 
 - Users miss 공개 노트 둘러보기 inside ⋯, or the web needs a ⋯ for something added later.
 - "+ 카드 추가" at the top is reported as hard to reach, or users look for it at the foot.
+- The tonal "+" action is reported as easy to miss beside the primary "이 노트 학습", or as a second primary.
 - An always-shown search is reported as noise on a note with few cards.
