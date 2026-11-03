@@ -798,6 +798,74 @@ function longKorean(length: number) {
   return end < 0 ? text : text.slice(0, end);
 }
 
+/**
+ * The study screen's layout at [width] (#656): at 390 px the top bar's close, bar and count at the
+ * phone's x (`study_screen.dart`'s `_TopBar`: 8 in, a 48 tap target, 12 before the bar, the count
+ * 12 from its end); with [answered], the previous card whole inside its place, its face fitted or
+ * scrolling inside its border, and from 1024 px "마지막 응답 바꾸기" centred under the cards'
+ * column and "이번 학습"'s rows on the panel's heading and counts.
+ */
+async function expectStudyLayout(page: Page, width: number, answered: boolean) {
+  const box = async (locator: ReturnType<Page["locator"]>) => {
+    const read = await locator.boundingBox();
+    if (!read) throw new Error(`${locator.toString()} has no box`);
+    return read;
+  };
+  if (width === 390) {
+    const close = await box(page.getByRole("link", { name: "그만하기", exact: true }));
+    const bar = await box(page.getByRole("progressbar", { name: "진행" }));
+    const count = await box(page.locator("header").getByText(/^\d+\/\d+$/));
+    expect(Math.abs(close.x + close.width / 2 - 32), "the close's centre").toBeLessThanOrEqual(2);
+    expect(Math.abs(bar.x - 68), "the bar's start").toBeLessThanOrEqual(2);
+    expect(Math.abs(count.x + count.width - 370), "the count's end").toBeLessThanOrEqual(2);
+  }
+  if (!answered) return;
+  const previous = page.getByRole("article", { name: /^방금 본 카드/ });
+  await expect(async () => {
+    const read = await previous.evaluate((node) => {
+      const place = node.parentElement?.getBoundingClientRect();
+      const card = node.querySelector("button")?.getBoundingClientRect();
+      const face = node.querySelector("[data-card-step]");
+      return {
+        place: place && { top: place.top, bottom: place.bottom },
+        card: card && { top: card.top, bottom: card.bottom },
+        step: face?.getAttribute("data-card-step") ?? "",
+        fits: face ? face.scrollHeight <= face.clientHeight + 1 : false,
+      };
+    });
+    if (!read.place || !read.card) throw new Error("no previous card or place");
+    // The card, and the border it draws, end inside its place rather than at the place's cut.
+    expect(read.card.top, `previous card's top at ${String(width)} px`).toBeGreaterThanOrEqual(
+      read.place.top - 0.5,
+    );
+    expect(read.card.bottom, `previous card's bottom at ${String(width)} px`).toBeLessThanOrEqual(
+      read.place.bottom + 0.5,
+    );
+    // Its face fits whole above the body size, and scrolls inside the border at it.
+    if (read.step !== "text-card-body") expect(read.fits, read.step).toBe(true);
+  }).toPass({ timeout: 5_000 });
+  if (width < 1024) return;
+  const cards = await box(page.getByRole("region", { name: "카드", exact: true }));
+  const change = await box(page.getByRole("button", { name: /^마지막 응답 바꾸기/ }));
+  expect(
+    Math.abs(change.x + change.width / 2 - (cards.x + cards.width / 2)),
+    "마지막 응답 바꾸기 under the cards' column",
+  ).toBeLessThanOrEqual(2);
+  const list = page.getByRole("complementary", { name: "이번 학습" });
+  const heading = await box(list.getByRole("heading", { name: "이번 학습", exact: true }));
+  const counts = await box(list.getByText(/^안다 \d+ · 모른다 \d+$/));
+  const row = list.getByRole("listitem").first();
+  const front = await box(row.locator("button > span").first());
+  const chip = await box(row.locator("button > span").last());
+  expect(Math.abs(front.x - heading.x), "a row's front on the heading's start").toBeLessThanOrEqual(
+    1,
+  );
+  expect(
+    Math.abs(chip.x + chip.width - (counts.x + counts.width)),
+    "a row's chip on the counts' end",
+  ).toBeLessThanOrEqual(1);
+}
+
 test("a card of 100, 200 and 400 characters, and one of several senses, are studied whole", async ({
   page,
   context,
@@ -914,6 +982,7 @@ test("a card of 100, 200 and 400 characters, and one of several senses, are stud
       for (const name of ["모른다", "안다"]) {
         await expect(page.getByRole("button", { name: new RegExp(`^${name}`) })).toBeInViewport();
       }
+      await expectStudyLayout(page, width, step > 1);
     }
     await shot(page, `07-long-study-${String(step)}`);
     const shown = (await front.textContent()) ?? "";
