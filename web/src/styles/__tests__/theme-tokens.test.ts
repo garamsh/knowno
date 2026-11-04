@@ -135,12 +135,13 @@ describe("the web's Google button tokens", () => {
     expect(onlyGoogle(cssColors(chosenDarkCss))).toEqual(dartGoogleColors("dark"));
   });
 
-  it("are GoogleButtonStyle's label, mark and Android and web spacing", () => {
+  it("are GoogleButtonStyle's label, mark, Android and web spacing and height", () => {
     const body = /final class GoogleButtonStyle \{([\s\S]*?)\n\}/.exec(googleButtonDart)?.[1] ?? "";
     const label = /labelStyle = TextStyle\(([^)]*)\)/.exec(body)?.[1] ?? "";
     const spacing = /_ => \(start: ([\d.]+), gap: ([\d.]+), end: ([\d.]+)\)/.exec(body);
     // Control: both sides are read.
     expect(Number(/markSize = ([\d.]+);/.exec(body)?.[1])).toBe(20);
+    expect(Number(/height = ([\d.]+);/.exec(body)?.[1])).toBe(48);
     expect(spacing).not.toBeNull();
 
     expect(cssType().get("google")).toEqual({
@@ -156,6 +157,7 @@ describe("the web's Google button tokens", () => {
         ["google-start", Number(spacing?.[1])],
         ["google-gap", Number(spacing?.[2])],
         ["google-end", Number(spacing?.[3])],
+        ["google-height", Number(/height = ([\d.]+);/.exec(body)?.[1])],
       ]),
     );
   });

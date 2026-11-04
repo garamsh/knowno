@@ -10,10 +10,9 @@ import {
   appleRedirectUri,
   appleScriptUrl,
   appleServicesId,
-  createNonce,
+  drawNoncePair,
   isAppleCancel,
   parseAppleSuccess,
-  sha256Hex,
   signInWithApple,
 } from "../apple-sign-in";
 
@@ -67,21 +66,22 @@ function drawnDark(): boolean {
 export function AppleSignInButton() {
   const dark = useSyncExternalStore(subscribeToTheme, drawnDark, () => false);
   const [state, setState] = useState<"loading" | "ready" | "pending" | "unavailable">("loading");
-  const rawNonce = useRef("");
+  // The nonce pair Apple is configured with, kept until a sign-in spends its token: Apple's
+  // script builds a popup from the nonce it was last given, and a press that replaces an open
+  // popup reports the old one closed after the new one has taken that nonce.
+  const pair = useRef<Promise<{ raw: string; hashed: string }> | null>(null);
   const router = useRouter();
 
-  /** Configures Apple's script with a new nonce, which draws its button. */
+  /** Configures Apple's script with the current nonce pair, drawing one if none is kept. */
   function prepare() {
     const auth = window.AppleID?.auth;
     if (!auth) {
       setState("unavailable");
       return;
     }
-    const nonce = createNonce();
-    sha256Hex(nonce)
-      .then((hashed) => {
-        // The pair is set together, so the last nonce Apple was given is the one Supabase gets.
-        rawNonce.current = nonce;
+    pair.current ??= drawNoncePair();
+    pair.current
+      .then(({ hashed }) => {
         auth.init({
           clientId: appleServicesId,
           scope: "name email",
@@ -92,8 +92,17 @@ export function AppleSignInButton() {
         setState("ready");
       })
       .catch(() => {
+        pair.current = null;
         setState("unavailable");
       });
+  }
+
+  /** Spends the kept pair on one sign-in and readies the next with a new one. */
+  async function spendNonce(): Promise<string> {
+    const spent = pair.current;
+    pair.current = null;
+    if (!spent) throw new Error("Apple answered before a nonce was drawn");
+    return (await spent).raw;
   }
 
   /** Shows [reason] under the buttons, as `/auth/callback` does, and readies another sign-in. */
@@ -110,7 +119,8 @@ export function AppleSignInButton() {
       return;
     }
     setState("pending");
-    void signInWithApple(createClient().auth, credential, rawNonce.current)
+    void spendNonce()
+      .then((rawNonce) => signInWithApple(createClient().auth, credential, rawNonce))
       .catch(() => "failed" as const)
       .then((outcome) => {
         if (outcome === "signedIn") router.replace("/");
@@ -118,9 +128,8 @@ export function AppleSignInButton() {
       });
   });
   const failed = useEffectEvent((event: Event) => {
-    // Each sign-in draws its own nonce, as on the phone; a cancel shows nothing.
-    if (event instanceof CustomEvent && isAppleCancel(event.detail)) prepare();
-    else fail("failed");
+    // A cancel shows nothing and keeps the nonce, which the popup replacing it may carry.
+    if (!(event instanceof CustomEvent && isAppleCancel(event.detail))) fail("failed");
   });
   useEffect(() => {
     function onSuccess(event: Event) {
@@ -163,9 +172,9 @@ export function AppleSignInButton() {
           data-type="sign-in"
           data-color={dark ? "white" : "black"}
           data-border="false"
-          // A percentage of the height to Apple's script: 38% of h-cta's 64 px is rounded-button's 24.
-          data-border-radius="38"
-          className="flex h-cta w-full justify-center"
+          // A percentage of the height to Apple's script: 50% of 48 px is the 24 px of rounded-button.
+          data-border-radius="50"
+          className="flex h-google-height w-full justify-center"
         />
       </div>
     </>

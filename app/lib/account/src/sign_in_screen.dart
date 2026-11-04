@@ -122,8 +122,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             _ when _busy => [
                               SizedBox(
                                 height: offersApple
-                                    ? AppSize.cta + AppSpace.s8 + AppSize.cta
-                                    : AppSize.cta,
+                                    ? GoogleButtonStyle.height +
+                                          AppSpace.s8 +
+                                          GoogleButtonStyle.height
+                                    : GoogleButtonStyle.height,
                                 child: Center(
                                   child: CircularProgressIndicator(
                                     semanticsLabel: l10n.signingIn,

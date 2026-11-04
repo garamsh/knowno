@@ -59,6 +59,32 @@ function answer(name: "AppleIDSignInOnSuccess" | "AppleIDSignInOnFailure", detai
 
 const token = { authorization: { code: "c", id_token: "apple-token", state: "" } };
 
+/**
+ * A press of Apple's button as appleid.auth.js 1.5.7 handles it: the popup's URL is built from
+ * the nonce `init` last gave the script, then any popup still open is closed, which the script
+ * answers with `popup_closed_by_user`, and the new popup opens. Returns the hashed nonce the
+ * popup carries, which the identity token it returns will hold.
+ */
+function pressApple(popupOpen: boolean): string {
+  const carried = hashedNonce(init.mock.calls.length - 1);
+  if (popupOpen) answer("AppleIDSignInOnFailure", { error: "popup_closed_by_user" });
+  return carried;
+}
+
+/** The user signing in inside Apple's popup: whatever the page started meanwhile settles. */
+async function whileThePopupIsOpen(during?: () => void) {
+  during?.();
+  await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+}
+
+/** The SHA-256 of the raw nonce the [call]th sign-in sent Supabase. */
+function hashSentToSupabase(call: number): string {
+  const sent: unknown = signInWithIdToken.mock.calls[call]?.[0];
+  if (typeof sent !== "object" || sent === null || !("nonce" in sent))
+    throw new Error(`no nonce sent at sign-in ${String(call)}`);
+  return createHash("sha256").update(String(sent.nonce)).digest("hex");
+}
+
 describe("AppleSignInButton", () => {
   beforeEach(() => {
     scriptLoads = true;
@@ -104,6 +130,56 @@ describe("AppleSignInButton", () => {
     expect(updateUser).not.toHaveBeenCalled();
   });
 
+  it("signs in with the nonce of the popup that answered when a second press replaced an open one", async () => {
+    render(<AppleSignInButton />);
+    await waitFor(() => {
+      expect(init).toHaveBeenCalledTimes(1);
+    });
+
+    const first = pressApple(false);
+    await whileThePopupIsOpen();
+    const second = pressApple(true);
+    // The setup: the replacing popup carries the nonce Apple was configured with.
+    expect(second).toBe(first);
+    await whileThePopupIsOpen(() => {
+      document.documentElement.dataset.theme = "dark";
+    });
+    answer("AppleIDSignInOnSuccess", token);
+
+    await waitFor(() => {
+      expect(testRouter.replace).toHaveBeenCalledWith("/");
+    });
+    expect(hashSentToSupabase(0)).toBe(second);
+  });
+
+  it("draws a new nonce for the next sign-in once Supabase has refused a token", async () => {
+    signInWithIdToken.mockResolvedValueOnce({
+      data: {},
+      error: new AuthError("invalid nonce", 400, "bad_jwt"),
+    });
+    render(<AppleSignInButton />);
+    await waitFor(() => {
+      expect(init).toHaveBeenCalledTimes(1);
+    });
+
+    const refused = pressApple(false);
+    answer("AppleIDSignInOnSuccess", token);
+    await waitFor(() => {
+      expect(init).toHaveBeenCalledTimes(2);
+    });
+    expect(testRouter.replace).toHaveBeenCalledWith("/login?error=failed");
+
+    const next = pressApple(false);
+    answer("AppleIDSignInOnSuccess", token);
+
+    await waitFor(() => {
+      expect(testRouter.replace).toHaveBeenLastCalledWith("/");
+    });
+    expect(next).not.toBe(refused);
+    expect(hashSentToSupabase(0)).toBe(refused);
+    expect(hashSentToSupabase(1)).toBe(next);
+  });
+
   it("is Apple's sign-in button, black in the light theme and white in the dark, drawn again when the theme changes", async () => {
     document.documentElement.dataset.theme = "dark";
     render(<AppleSignInButton />);
@@ -126,18 +202,16 @@ describe("AppleSignInButton", () => {
     expect(renderButton.mock.calls.length).toBeGreaterThan(drawn);
   });
 
-  it("stays quiet with a new nonce when the popup is closed, and reports any other failure", async () => {
+  it("stays quiet and keeps its nonce when the popup is closed, and reports any other failure", async () => {
     render(<AppleSignInButton />);
     await waitFor(() => {
       expect(init).toHaveBeenCalledTimes(1);
     });
 
     answer("AppleIDSignInOnFailure", { error: "popup_closed_by_user" });
+    await whileThePopupIsOpen();
 
-    await waitFor(() => {
-      expect(init).toHaveBeenCalledTimes(2);
-    });
-    expect(hashedNonce(1)).not.toBe(hashedNonce(0));
+    expect(hashedNonce(init.mock.calls.length - 1)).toBe(hashedNonce(0));
     expect(testRouter.replace).not.toHaveBeenCalled();
     expect(appleButton().parentElement).toBeVisible();
 

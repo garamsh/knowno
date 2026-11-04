@@ -27,6 +27,12 @@ export async function sha256Hex(value: string): Promise<string> {
   );
 }
 
+/** A nonce pair for one sign-in: the raw nonce Supabase is given and its SHA-256 Apple is given. */
+export async function drawNoncePair(): Promise<{ raw: string; hashed: string }> {
+  const raw = createNonce();
+  return { raw, hashed: await sha256Hex(raw) };
+}
+
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
