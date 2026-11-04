@@ -179,7 +179,7 @@ describe("AI's panel", () => {
     expect(panel.getByRole("button", { name: "모두에게 적용" })).toHaveClass("bg-primary");
     expect(panel.getByRole("button", { name: "테스트 끝내기" })).not.toHaveClass("bg-primary");
     // The table marks the plan shown.
-    expect(screen.getAllByRole("row")[2]).toHaveClass("bg-ground");
+    expect(screen.getAllByRole("row")[2]).toHaveClass("lg:bg-ground");
   });
 
   it("opens the plan the address names, and without a draft its active configuration and the form", async () => {
