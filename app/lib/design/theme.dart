@@ -89,7 +89,7 @@ abstract final class AppSize {
   static const field = 50.0;
 
   /// The search field over a list.
-  static const search = 46.0;
+  static const search = 48.0;
 
   /// The least width and height of anything tapped.
   static const tapTarget = 44.0;

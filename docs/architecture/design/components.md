@@ -19,7 +19,7 @@ A screen draws each job through the component named here, not from Material widg
 | A button, every one in content and in bars | `AppButton`; `AppButtonVariant` and `AppButtonSize` say which variant and size a use takes | `buttonClass` (`button.ts`), a closed `ButtonVariant` of the roles the web draws at a `ButtonSize`, on a button, a link or a file input's label (#642) |
 | A solid object on its edge, moved down by a press | `AppRaised` | `shadow-card`, `shadow-row` |
 | A text field | `AppTextField`, `AppSize.field` high | none yet |
-| A list's search field | `AppSearchField`, `AppSize.search` high, which its magnifier's tap target raises to 48 (#645) | `SearchField` |
+| A list's search field | `AppSearchField`, `AppSize.search` high, 48, since the whole field is its tap target (#645) | `SearchField` |
 | A row choosing one of several options, and its sheet | `AppChoiceRow`, opening `showAppChoice`, whose rows are `AppListRow`s, the current one checked | none yet |
 | A row marked as chosen in a list | `RoundCheck` | none yet |
 | A modal | `AppSheet` opened with `showAppSheet`; no dialog | `Sheet` (`sheet.tsx`), a native modal `<dialog>` at the foot below 1024 px and centred from 1024 px, its title beside "닫기" over an optional one or two sentences of body; `decks`' full-screen authoring screens open through its `useModalDialog` |

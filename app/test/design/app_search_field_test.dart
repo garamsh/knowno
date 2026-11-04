@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/design/app_search_field.dart';
@@ -9,8 +7,8 @@ import 'package:knowno/design/theme.dart';
 import 'harness.dart';
 
 void main() {
-  testWidgets('a search is shorter than a text field, its magnifier holding '
-      'it at a tap target, and hands each change and its search key on', (
+  testWidgets('a search is drawn at its token, a tap target high and shorter '
+      'than a text field, and hands each change and its search key on', (
     tester,
   ) async {
     final changes = <String>[];
@@ -35,10 +33,11 @@ void main() {
           find.ancestor(of: find.text(hint), matching: find.byType(TextField)),
         )
         .height;
-    // AppSize.search, raised to the magnifier's tap target (#645).
+    expect(height('Search'), AppSize.search, reason: 'drawn at its token');
     expect(
       height('Search'),
-      math.max(AppSize.search, kMinInteractiveDimension),
+      greaterThanOrEqualTo(kMinInteractiveDimension),
+      reason: 'the whole field is a tap target',
     );
     expect(height('Name'), AppSize.field, reason: 'control: a field');
     expect(height('Search'), lessThan(height('Name')));
