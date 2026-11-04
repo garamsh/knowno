@@ -32,18 +32,18 @@ enum MascotExpression {
   bool get blinks => _drawings[this]!.any((shape) => shape.move == _Move.eye);
 }
 
-/// How much a mascot moves at its size (ADR 0152).
+/// How much a mascot moves at its size (ADR 0152, ADR 0193).
 enum _Motion {
-  /// Blinks, and a thinking one glances about: from 41 to 199 across.
+  /// Blinks, and a thinking one glances about: from 41 to 127 across.
   blink,
 
-  /// Blinks and breathes, or wobbles, or dozes: 200 across and more.
+  /// Blinks and breathes, or wobbles, or dozes: 128 across and more.
   full;
 
   /// What a mascot of [expression] [size] across does, or null if it holds
   /// still: at 40 or less, and where it has nothing to move at its size.
   static _Motion? of(MascotExpression expression, double size) {
-    if (size >= 200) return full;
+    if (size >= 128) return full;
     if (size > 40 && expression.blinks) return blink;
     return null;
   }
@@ -53,8 +53,8 @@ enum _Motion {
 /// from screen readers.
 ///
 /// It moves inside its own layer, drawn from the parts `make brand` writes
-/// (ADR 0152): at 200 and more it blinks and breathes, the happy one wobbles
-/// (ADR 0185) and the sleepy one dozes; from 41 to 199 it only blinks. At 40
+/// (ADR 0152): at 128 and more it blinks and breathes, the happy one wobbles
+/// (ADR 0185) and the sleepy one dozes; from 41 to 127 it only blinks. At 40
 /// or less, under reduce motion, and where its expression has nothing to move
 /// at its size, it is the still image.
 class Mascot extends StatelessWidget {

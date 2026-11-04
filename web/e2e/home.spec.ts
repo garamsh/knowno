@@ -159,15 +159,15 @@ function undrawn(boxes: Record<string, unknown>): string {
 }
 
 /**
- * Waits until the happy [mascot] is the drawing it keeps at its size. The server draws it still;
- * on screen from 200 px across, the client puts its moving drawing in the still one's place
- * (ADR 0152), and a box read across that swap finds no element.
+ * Waits until the [mascot] is the drawing it keeps at its size. The server draws it still; on
+ * screen from 128 px across, the client puts its moving drawing in the still one's place (ADR 0152,
+ * ADR 0193), and a box read across that swap finds no element.
  */
 async function untilMascotSettled(mascot: Locator): Promise<void> {
   await expect
     .poll(() =>
       mascot.evaluate(
-        (element) => element.tagName === "svg" || element.getBoundingClientRect().width < 200,
+        (element) => element.tagName === "svg" || element.getBoundingClientRect().width < 128,
       ),
     )
     .toBe(true);
@@ -523,6 +523,8 @@ test("draws 홈 as one screen with the owner's 481 cards over four notes on a 19
   const start = page.getByRole("link", { name: "시작", exact: true });
   const mascot = sky.locator('img[src*="/brand/knowno-"], svg.mascot').first();
   await untilMascotSettled(mascot);
+  // At 140 the thinking mascot breathes as well as blinks.
+  await expect.soft(mascot).toHaveAttribute("data-motion", "full");
   // The page covers the screen, so the sky runs up behind the status bar.
   expect(
     await page.evaluate(
@@ -671,6 +673,10 @@ test("draws 홈 with the day done and in a backlog at 390 and 1280 px and at 200
   ).toBeNull();
   await page.goto("/");
   await expect(page.getByRole("link", { name: "학습하기", exact: true })).toBeVisible();
+  // At 140 the sleepy mascot breathes.
+  await expect
+    .soft(page.locator('svg.mascot[data-expression="sleepy"]'))
+    .toHaveAttribute("data-motion", "full");
   await capture(page, "home-done");
 
   // A backlog, another account's: three cards a month overdue and nothing else, against a

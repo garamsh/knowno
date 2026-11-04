@@ -15,6 +15,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - **Shrink the mascot to fit.** The owner set one size, 140, across states and phones; at the largest text sizes the page scrolls instead.
   - **Scroll the ground alone under a fixed sky.** At text scale 3.12 the sky's words alone are taller than a 667 pt screen, so a fixed sky would cut them; the whole page scrolls there.
   - **Draw the today dot's label in the dot's coral.** It is 2.5:1 on the light ground; the label takes a darker coral of its own, and the dot is decoration beside it.
+  - **Keep the breath from 200 px, as [ADR 0152](0152-let-the-mascot-blink-and-breathe-from-its-own-drawing-and-put-the-launcher-icon-on-cobalt.md) set it.** 홈's thinking mascot at 140 would only blink and glance, and the sleepy one, with no open eyes, would not move at all, where #742 has the mascot's breathing apply on 홈. The PM's decision in PR #744's review lowers the threshold instead.
 
 ## Decision
 
@@ -23,12 +24,13 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **The hill:** the ground rises into the sky's foot in a quadratic curve, 32 high at its crest. The mascot stands on the crest at 140 in every state and on every screen, thinking while cards are left or nothing is done yet, sleepy once the day is done; nothing else is drawn at its upper right, where the assistant's bubble is to go (#721).
 - **The ground:** "n일 연속", its count in `accent`, over a dot a day for the last seven study days, today's last: a day with cards filled in `accent`, a day without one outlined, today outlined in `todayMark` and filled in it once the day is done, each over its weekday, today's "오늘" in `todayText`. Then the one action at the cta size on its edge.
 - **By the day:** with cards left, the count and its minutes, and the primary "시작"; in a backlog, "다시 시작하면 돼요" and its sentence in the sky, and "시작"; with the day done, "오늘" / "다 했어요" / "n장", the cards answered today, or the next review where none was answered, and the secondary "학습하기"; with notes but no card, "첫 카드를 만들어 볼까요?" and "카드 추가" or "노트에서 카드 추가", with no streak; before the first note, "첫 노트를 만들어 볼까요?" and "새 노트 만들기", with the public notes as a secondary on the phone where sharing is on; a day that cannot be counted, why in the streak's place over "시작".
+- **The mascot breathes from 128 px**, on both clients and every screen, in place of ADR 0152's 200: 홈's 140 breathes, thinking or sleepy, and from 41 to 127 a mascot blinks alone. This supersedes ADR 0152's threshold.
 - **Deleted from 홈:** the week card's bar chart and its "지난 7일 n장", which 기록 keeps; the hero's rounded foot; the first-run screen's own layout; ADR 0179's fill of the first screen and its scroll to the week card. This supersedes ADR 0179.
 
 ## Consequences
 
 - 홈 is read at a glance with nothing to scroll at the default text size on a 667 pt phone; at the largest text sizes it scrolls as one page.
-- The mascot is drawn at 140 on 홈, below the 200 px from which it breathes; it blinks and glances.
+- The mascot is drawn at 140 on 홈 and breathes there. No other screen draws one from 128 to 199, so nothing else starts to breathe.
 - The happy mascot has no moment on 홈; the sleepy one gains 홈's done day.
 - Two colour tokens join both themes: `todayMark`, the mascot's coral, and `todayText`, 4.5:1 on the ground. Coral, the mascot's alone until now, also marks today on 홈.
 - The phone's 홈 and the web's draw every state in one composition, so a later state is drawn in it too.

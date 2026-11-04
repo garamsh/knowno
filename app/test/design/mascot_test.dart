@@ -165,7 +165,7 @@ void main() {
     });
   }
 
-  testWidgets('from 41 to 199 a mascot with open eyes blinks, ticking only '
+  testWidgets('from 41 to 127 a mascot with open eyes blinks, ticking only '
       'through a blink', (tester) async {
     await pumpComponent(
       tester,
@@ -186,22 +186,45 @@ void main() {
   });
 
   for (final expression in [MascotExpression.happy, MascotExpression.sleepy]) {
-    testWidgets('below 200, ${expression.name}, with no open eyes, is still', (
+    testWidgets('below 128, ${expression.name}, with no open eyes, is still', (
       tester,
     ) async {
       await pumpComponent(
         tester,
-        Mascot(expression: expression, size: 199),
+        Mascot(expression: expression, size: 127),
         settle: false,
       );
       expect(_asset(tester), 'assets/brand/knowno-${expression.name}.png');
-      // Control: at 200 it moves.
+      // Control: at 128 it moves.
       await pumpComponent(
         tester,
-        Mascot(expression: expression, size: 200),
+        Mascot(expression: expression, size: 128),
         settle: false,
       );
       expect(_asset(tester), isNull);
+    });
+  }
+
+  for (final expression in [
+    MascotExpression.thinking,
+    MascotExpression.sleepy,
+  ]) {
+    testWidgets('${expression.name} at 홈\'s mascotHero breathes from the '
+        'first frame, where at 127 it does not', (tester) async {
+      await pumpComponent(
+        tester,
+        Mascot(expression: expression, size: AppSize.mascotHero),
+        settle: false,
+      );
+      expect(_asset(tester), isNull);
+      expect(tester.hasRunningAnimations, isTrue);
+      // Control: below 128 nothing ticks before a blink.
+      await pumpComponent(
+        tester,
+        Mascot(expression: expression, size: 127),
+        settle: false,
+      );
+      expect(tester.hasRunningAnimations, isFalse);
     });
   }
 
