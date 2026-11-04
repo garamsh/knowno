@@ -3,17 +3,23 @@
 //   check <tag>               refuses unless the tag is v<major>.<minor>.<patch> on a commit of main
 //                             that a pull request landed with ci (ubuntu) and ci (macos) passed on
 //                             its tree
-//   build <run> <config> [tag]  fetches the App Store signing files, creating the certificate from
-//                             IOS_DISTRIBUTION_CERT_PRIVATE_KEY where none matches it, and builds the
-//                             ipa; with no tag, a dry run as 0.0.0
+//   build <run> <config> [tag]  fetches the App Store signing files into a signing keychain, creating
+//                             the certificate from IOS_DISTRIBUTION_CERT_PRIVATE_KEY where none
+//                             matches it, and builds the ipa; with no tag, an unsigned dry run as
+//                             0.0.0 that reads no key
 //   upload                    publishes the ipa to App Store Connect
-//   cleanup                   restores the login keychain and removes what the steps wrote
-// Each key is written under TMPDIR readable by its owner alone, dropped from the environment before
-// any tool starts, and removed when the step ends.
+//   cleanup                   restores the login keychain, deletes the signing keychain and removes
+//                             what the steps wrote
+// Each key file is written under TMPDIR readable by its owner alone, dropped from the environment
+// before any tool starts, and removed when the step ends. The signing keychain holds the
+// certificate's private key until cleanup deletes it.
 import { attached, entry, fail, read, status } from "./process.ts";
 
 /** The checks a pull request must have passed on the tree a release builds. */
 export const REQUIRED_CHECKS = ["ci (ubuntu)", "ci (macos)"];
+
+/** The GitHub Actions app, the one branch protection requires those checks from. */
+const GITHUB_ACTIONS_APP = 15368;
 
 /** Added to the workflow's run number, so the first build number is 2: TestFlight holds 1.0.0 (1). */
 export const BUILD_NUMBER_OFFSET = 1;
@@ -26,6 +32,12 @@ const ENTITLEMENTS = "app/ios/Runner/Runner.entitlements";
 
 /** Where flutter build ipa writes the ipa, relative to the repository. */
 const IPA_DIR = "app/build/ios/ipa";
+
+/** Where flutter build ipa --no-codesign writes the archive, relative to the repository. */
+const ARCHIVE = "app/build/ios/archive/Runner.xcarchive";
+
+/** The uv project that pins Codemagic CLI tools. */
+const TOOLS = "tools/release";
 
 /** The version a release tag names, or nothing where the tag is not v<major>.<minor>.<patch>. */
 export function versionOf(tag: string): string | undefined {
@@ -120,7 +132,7 @@ async function check(tag: string): Promise<void> {
     const found = await gh(
       `repos/${repo}/commits/${head}/check-runs?check_name=${
         encodeURIComponent(name)
-      }&filter=latest`,
+      }&filter=latest&app_id=${GITHUB_ACTIONS_APP}`,
     ) as { check_runs: CheckRun[] };
     runs.push(...found.check_runs);
   }
@@ -139,31 +151,55 @@ async function check(tag: string): Promise<void> {
   );
 }
 
+/** Removes a path, recursively where asked; a path already gone is no error, and any other failure is. */
+async function removeIfPresent(path: string, recursive = false): Promise<void> {
+  try {
+    await Deno.remove(path, { recursive });
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
+}
+
 /** Writes a secret readable by its owner alone and drops it from the environment the tools inherit. */
 async function writeSecret(variable: string, file: string): Promise<string> {
   const value = required(variable);
   Deno.env.delete(variable);
   await Deno.mkdir(work(), { recursive: true, mode: 0o700 });
   const path = `${work()}/${file}`;
-  await Deno.remove(path).catch(() => {});
+  await removeIfPresent(path);
   await Deno.writeTextFile(path, value, { mode: 0o600, createNew: true });
   return path;
 }
 
-/** Runs the step with the files named by `secrets` (variable to file name), removing them after. */
+/**
+ * Runs the step with the files named by `secrets` (variable to file name), then removes every one of
+ * them. A removal that fails is reported and fails the program, after the step's own error if any.
+ */
 async function withSecrets(
   secrets: Record<string, string>,
   step: (paths: Record<string, string>) => Promise<void>,
 ): Promise<void> {
   const paths: Record<string, string> = {};
+  let outcome: { error: unknown } | undefined;
   try {
     for (const [variable, file] of Object.entries(secrets)) {
       paths[variable] = await writeSecret(variable, file);
     }
     await step(paths);
-  } finally {
-    for (const path of Object.values(paths)) await Deno.remove(path);
+  } catch (error) {
+    outcome = { error };
   }
+  const unremoved: unknown[] = [];
+  for (const path of Object.values(paths)) {
+    try {
+      await removeIfPresent(path);
+    } catch (error) {
+      console.error(`could not remove ${path}: ${error}`);
+      unremoved.push(error);
+    }
+  }
+  if (outcome !== undefined) throw outcome.error;
+  if (unremoved.length > 0) throw unremoved[0];
 }
 
 /** The App Store Connect key's arguments: the IDs read from the environment, the key from its file. */
@@ -182,6 +218,24 @@ function apiKey(path: string): string[] {
 const API_KEY = "APP_STORE_CONNECT_KEY_P8";
 const CERTIFICATE_KEY = "IOS_DISTRIBUTION_CERT_PRIVATE_KEY";
 
+/** Runs one of Codemagic CLI tools at the release tools/release/uv.lock pins. */
+function codemagic(
+  tool: string,
+  args: string[],
+  options: { cwd?: string } = {},
+): Promise<void> {
+  return attached("uv", [
+    "run",
+    "--project",
+    TOOLS,
+    "--locked",
+    tool,
+    ...args,
+  ], options.cwd ? { cwd: options.cwd } : {});
+}
+
+const keychain = () => `${work()}/signing.keychain-db`;
+
 async function theIpa(): Promise<string> {
   const ipas: string[] = [];
   for await (const { name } of Deno.readDir(IPA_DIR)) {
@@ -198,7 +252,8 @@ async function build(run: string, config: string, tag?: string): Promise<void> {
   if (number === undefined) {
     fail(`the run number "${run}" is not a positive integer`);
   }
-  const version = tag === undefined ? "0.0.0" : versionOf(tag);
+  if (tag === undefined) return await dryRun(config, number);
+  const version = versionOf(tag);
   if (version === undefined) {
     fail(`the tag "${tag}" is not v<major>.<minor>.<patch>`);
   }
@@ -209,8 +264,8 @@ async function build(run: string, config: string, tag?: string): Promise<void> {
   await withSecrets(
     { [API_KEY]: "api_key.p8", [CERTIFICATE_KEY]: "certificate_key.pem" },
     async (paths) => {
-      await attached("keychain", ["initialize"]);
-      await attached("app-store-connect", [
+      await codemagic("keychain", ["initialize", "--path", keychain()]);
+      await codemagic("app-store-connect", [
         "fetch-signing-files",
         BUNDLE_ID,
         "--platform",
@@ -225,22 +280,24 @@ async function build(run: string, config: string, tag?: string): Promise<void> {
         certificates,
         ...apiKey(paths[API_KEY]),
       ]);
-      await attached("keychain", [
+      await codemagic("keychain", [
         "add-certificates",
+        "--path",
+        keychain(),
         "--certificate",
         `${certificates}/*.p12`,
       ]);
     },
   );
   await Deno.remove(certificates, { recursive: true });
-  await attached("xcode-project", [
+  await codemagic("xcode-project", [
     "use-profiles",
     "--project",
     "ios/Runner.xcodeproj",
     "--export-options-plist",
     options,
   ], { cwd: "app" });
-  await Deno.remove(IPA_DIR, { recursive: true }).catch(() => {});
+  await removeIfPresent(IPA_DIR, true);
   await attached("flutter", [
     "build",
     "ipa",
@@ -251,9 +308,51 @@ async function build(run: string, config: string, tag?: string): Promise<void> {
     `--export-options-plist=${options}`,
   ], { cwd: "app" });
   await verify(await theIpa(), version, String(number));
-  if (tag === undefined) {
-    console.log("no tag was given, so this was a dry run as 0.0.0");
+}
+
+/** Fails unless the app's Info.plist holds the version and build number asked for. */
+async function checkVersion(
+  what: string,
+  app: string,
+  version: string,
+  number: string,
+): Promise<void> {
+  const key = async (name: string) =>
+    (await read("plutil", ["-extract", name, "raw", `${app}/Info.plist`]))
+      .trim();
+  const found = {
+    version: await key("CFBundleShortVersionString"),
+    number: await key("CFBundleVersion"),
+  };
+  if (found.version !== version || found.number !== number) {
+    fail(
+      `${what} holds ${found.version} (${found.number}), not ${version} (${number})`,
+    );
   }
+}
+
+/** Builds the release unsigned as 0.0.0, with no key and no signing tool: a pull request's dry run. */
+async function dryRun(config: string, number: number): Promise<void> {
+  const version = "0.0.0";
+  await removeIfPresent(ARCHIVE, true);
+  await attached("flutter", [
+    "build",
+    "ipa",
+    "--release",
+    "--no-codesign",
+    config,
+    `--build-name=${version}`,
+    `--build-number=${number}`,
+  ], { cwd: "app" });
+  await checkVersion(
+    ARCHIVE,
+    `${ARCHIVE}/Products/Applications/Runner.app`,
+    version,
+    String(number),
+  );
+  console.log(
+    `built the unsigned archive ${ARCHIVE}: ${version} (${number}); no tag was given, so this dry run signed and uploaded nothing`,
+  );
 }
 
 /** The entitlement keys an entitlements plist grants. */
@@ -268,7 +367,7 @@ async function verify(
   number: string,
 ): Promise<void> {
   const unpacked = `${work()}/unpacked`;
-  await Deno.remove(unpacked, { recursive: true }).catch(() => {});
+  await removeIfPresent(unpacked, true);
   await attached("unzip", ["-q", ipa, "-d", unpacked]);
   const apps: string[] = [];
   for await (const { name } of Deno.readDir(`${unpacked}/Payload`)) {
@@ -276,18 +375,7 @@ async function verify(
   }
   if (apps.length !== 1) fail(`${ipa} holds ${apps.length} apps, not one`);
   const app = apps[0];
-  const key = async (name: string) =>
-    (await read("plutil", ["-extract", name, "raw", `${app}/Info.plist`]))
-      .trim();
-  const found = {
-    version: await key("CFBundleShortVersionString"),
-    number: await key("CFBundleVersion"),
-  };
-  if (found.version !== version || found.number !== number) {
-    fail(
-      `${ipa} holds ${found.version} (${found.number}), not ${version} (${number})`,
-    );
-  }
+  await checkVersion(ipa, app, version, number);
   await attached("codesign", ["--verify", "--strict", app]);
   const signed = entitlementKeys(
     await read("codesign", ["-d", "--entitlements", "-", "--xml", app]),
@@ -313,7 +401,7 @@ async function upload(): Promise<void> {
   await withSecrets(
     { [API_KEY]: "api_key.p8" },
     (paths) =>
-      attached("app-store-connect", [
+      codemagic("app-store-connect", [
         "publish",
         "--path",
         ipa,
@@ -323,19 +411,42 @@ async function upload(): Promise<void> {
   console.log(`uploaded ${ipa} to App Store Connect`);
 }
 
-/** Makes the login keychain the default again, as the doc requires after keychain initialize. */
+/**
+ * Makes the login keychain the default again, as the doc requires after keychain initialize, deletes
+ * the signing keychain with the certificate's private key, and removes what the steps wrote.
+ */
 async function cleanup(): Promise<void> {
   let restored: number | undefined;
   try {
-    restored = await status("keychain", ["use-login"]);
+    restored = await status("uv", [
+      "run",
+      "--project",
+      TOOLS,
+      "--locked",
+      "keychain",
+      "use-login",
+    ]);
+    if (await exists(keychain())) {
+      await codemagic("keychain", ["delete", "--path", keychain()]);
+    }
   } catch (error) {
     if (!(error instanceof Deno.errors.NotFound)) throw error;
-    console.log("keychain is not installed, so no keychain was initialized");
+    console.log("uv is not installed, so no keychain was initialized");
   }
-  await Deno.remove(work(), { recursive: true }).catch(() => {});
+  await removeIfPresent(work(), true);
   console.log(`removed ${work()}`);
   if (restored !== undefined && restored !== 0) {
     fail(`keychain use-login exited ${restored}`, restored);
+  }
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await Deno.lstat(path);
+    return true;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return false;
+    throw error;
   }
 }
 

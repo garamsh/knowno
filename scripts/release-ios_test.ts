@@ -1,4 +1,4 @@
-// scripts/release-ios.ts against stubs of gh, keychain, app-store-connect, xcode-project, flutter, unzip, plutil and codesign.
+// scripts/release-ios.ts against stubs of gh, uv, keychain, app-store-connect, xcode-project, flutter, unzip, plutil and codesign.
 import assert from "node:assert/strict";
 import {
   buildNumberOf,
@@ -121,8 +121,12 @@ case "$2" in
   repos/o/r/git/commits/${pull.head}) echo '${
     JSON.stringify({ tree: { sha: tree } })
   }' ;;
-  *check_name=ci%20\\(ubuntu\\)*) echo '${run("ci (ubuntu)", "success")}' ;;
-  *check_name=ci%20\\(macos\\)*) echo '${run("ci (macos)", macos)}' ;;
+  *check_name=ci%20\\(ubuntu\\)*app_id=15368*) echo '${
+    run("ci (ubuntu)", "success")
+  }' ;;
+  *check_name=ci%20\\(macos\\)*app_id=15368*) echo '${
+    run("ci (macos)", macos)
+  }' ;;
   *) exit 1 ;;
 esac`;
 }
@@ -267,12 +271,20 @@ const keyLine = (label: string, path: string) =>
 const ENV_LINE =
   `echo "keys in env: \${APP_STORE_CONNECT_KEY_P8:-no} \${IOS_DISTRIBUTION_CERT_PRIVATE_KEY:-no}" >>"$(dirname "$0")/calls"`;
 
+/** A uv that records its call and runs the tool after `run --project tools/release --locked`. */
+const UV = `${RECORD}\nshift 4\nexec "$@"`;
+
+/** The `app-store-connect` stub's arguments, as shell variables: the two key files and the certificates' directory. */
+const ASC_ARGS =
+  `prev=; for a in "$@"; do case $prev in --certificate-key) cert=\${a#@file:} ;; --private-key) api=\${a#@file:} ;; --certificates-dir) dir=$a ;; esac; prev=$a; done`;
+
 /** Stubs of the build's tools; the built app holds `version` (`number`) and `entitled`. */
 function buildTools(version: string, number: string, entitled: string) {
   return {
+    uv: UV,
     keychain: RECORD,
     "app-store-connect": `${RECORD}
-prev=; for a in "$@"; do case $prev in --certificate-key) cert=\${a#@file:} ;; --private-key) api=\${a#@file:} ;; --certificates-dir) dir=$a ;; esac; prev=$a; done
+${ASC_ARGS}
 ${keyLine("api key", "$api")}
 [ -z "$cert" ] || ${keyLine("certificate key", "$cert")}
 ${ENV_LINE}
@@ -280,7 +292,10 @@ ${ENV_LINE}
     "xcode-project": RECORD,
     flutter: `${RECORD}
 ${ENV_LINE}
-/bin/mkdir -p build/ios/ipa && echo ipa >build/ios/ipa/knowno.ipa`,
+case " $* " in
+  *" --no-codesign "*) /bin/mkdir -p build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app ;;
+  *) /bin/mkdir -p build/ios/ipa && echo ipa >build/ios/ipa/knowno.ipa ;;
+esac`,
     unzip: `${RECORD}\n/bin/mkdir -p "$4/Payload/Runner.app"`,
     plutil:
       `case "$2" in CFBundleShortVersionString) echo ${version} ;; CFBundleVersion) echo ${number} ;; esac`,
@@ -295,6 +310,8 @@ const KEYS = {
     "-----BEGIN RSA PRIVATE KEY-----\ncertsecret\n-----END RSA PRIVATE KEY-----\n",
 };
 const IPA = "app/build/ios/ipa/knowno.ipa";
+const ARCHIVE = "app/build/ios/archive/Runner.xcarchive";
+const TOOLS = "uv run --project tools/release --locked";
 
 async function appRepo(): Promise<{ repo: string; tmp: string }> {
   const repo = await repository();
@@ -303,7 +320,13 @@ async function appRepo(): Promise<{ repo: string; tmp: string }> {
   return { repo, tmp: await Deno.realPath(await Deno.makeTempDir()) };
 }
 
-const built = (repo: string, path: string, tmp: string, tag?: string) =>
+const built = (
+  repo: string,
+  path: string,
+  tmp: string,
+  tag?: string,
+  env: Record<string, string> = KEYS,
+) =>
   program(
     repo,
     "release-ios",
@@ -313,7 +336,7 @@ const built = (repo: string, path: string, tmp: string, tag?: string) =>
       "--dart-define-from-file=config/dev.json",
       ...(tag ? [tag] : []),
     ],
-    { PATH: path, TMPDIR: tmp, ...KEYS },
+    { PATH: path, TMPDIR: tmp, ...env },
   );
 
 async function exists(path: string): Promise<boolean> {
@@ -323,7 +346,7 @@ async function exists(path: string): Promise<boolean> {
 const linesOf = (calls: string, prefix: string) =>
   calls.split("\n").filter((l) => l.startsWith(prefix));
 
-Deno.test("build fetches the signing files with both keys, owner-only and out of the environment, and removes them after", async () => {
+Deno.test("build signs a tag through the locked tools with both keys, owner-only and out of the environment, and removes them after", async () => {
   const { repo, tmp } = await appRepo();
   const { path, log } = await host(
     buildTools("1.2.3", "8", "com.apple.developer.applesignin"),
@@ -331,15 +354,16 @@ Deno.test("build fetches the signing files with both keys, owner-only and out of
   const ran = await built(repo, path, tmp, "v1.2.3");
   assert.equal(ran.code, 0, ran.stderr);
   const work = `${tmp}/release-ios`;
+  const keychain = `--path ${work}/signing.keychain-db`;
   const calls = await log();
   const api =
     `--issuer-id @env:APP_STORE_CONNECT_ISSUER_ID --key-id @env:APP_STORE_CONNECT_KEY_ID --private-key @file:${work}/api_key.p8 --disable-jwt-cache`;
   for (
     const call of [
-      "keychain initialize",
-      `app-store-connect fetch-signing-files app.knowno --platform IOS --type IOS_APP_STORE --certificate-key @file:${work}/certificate_key.pem --create --strict-match-identifier --certificates-dir ${work}/certificates ${api}`,
-      `keychain add-certificates --certificate ${work}/certificates/*.p12`,
-      `xcode-project use-profiles --project ios/Runner.xcodeproj --export-options-plist ${work}/export_options.plist`,
+      `${TOOLS} keychain initialize ${keychain}`,
+      `${TOOLS} app-store-connect fetch-signing-files app.knowno --platform IOS --type IOS_APP_STORE --certificate-key @file:${work}/certificate_key.pem --create --strict-match-identifier --certificates-dir ${work}/certificates ${api}`,
+      `${TOOLS} keychain add-certificates ${keychain} --certificate ${work}/certificates/*.p12`,
+      `${TOOLS} xcode-project use-profiles --project ios/Runner.xcodeproj --export-options-plist ${work}/export_options.plist`,
       `flutter build ipa --release --dart-define-from-file=config/dev.json --build-name=1.2.3 --build-number=8 --export-options-plist=${work}/export_options.plist`,
     ]
   ) {
@@ -364,17 +388,20 @@ Deno.test("build fetches the signing files with both keys, owner-only and out of
   );
 });
 
-Deno.test("build with no tag is a dry run as 0.0.0", async () => {
+Deno.test("build with no tag builds unsigned as 0.0.0 with no key and no signing tool", async () => {
   const { repo, tmp } = await appRepo();
   const { path, log } = await host(
     buildTools("0.0.0", "8", "com.apple.developer.applesignin"),
   );
-  const ran = await built(repo, path, tmp);
+  const ran = await built(repo, path, tmp, undefined, {});
   assert.equal(ran.code, 0, ran.stderr);
-  assert.ok((await log()).includes("--build-name=0.0.0 --build-number=8 "));
-  assert.ok(
-    ran.stdout.endsWith("no tag was given, so this was a dry run as 0.0.0\n"),
+  assert.equal(
+    await log(),
+    "flutter build ipa --release --no-codesign --dart-define-from-file=config/dev.json --build-name=0.0.0 --build-number=8\nkeys in env: no no\n",
+  );
+  assert.equal(
     ran.stdout,
+    `built the unsigned archive ${ARCHIVE}: 0.0.0 (8); no tag was given, so this dry run signed and uploaded nothing\n`,
   );
 });
 
@@ -402,6 +429,18 @@ Deno.test("build fails on an ipa of another version, or signed without the app's
   );
 });
 
+Deno.test("build fails on an unsigned archive of another version, and passes one of the dry run's", async () => {
+  const { repo, tmp } = await appRepo();
+  const right = await host(buildTools("0.0.0", "8", "x"));
+  const control = await built(repo, right.path, tmp, undefined, {});
+  assert.equal(control.code, 0, control.stderr);
+
+  const wrong = await host(buildTools("1.0.0", "1", "x"));
+  const stale = await built(repo, wrong.path, tmp, undefined, {});
+  assert.equal(stale.code, 1);
+  assert.equal(stale.stderr, `${ARCHIVE} holds 1.0.0 (1), not 0.0.0 (8)\n`);
+});
+
 Deno.test("build removes both keys when fetching the signing files fails", async () => {
   const { repo, tmp } = await appRepo();
   const { path } = await host({
@@ -415,7 +454,39 @@ Deno.test("build removes both keys when fetching the signing files fails", async
   }
 });
 
-Deno.test("upload publishes the built ipa with the API key alone, removed after", async () => {
+/** An app-store-connect that turns the API key's path into a directory no plain removal deletes, then exits `code`. */
+const unremovable = (code: number) =>
+  `${ASC_ARGS}\nrm "$api" && /bin/mkdir -p "$api/held" "$dir" && echo p12 >"$dir/distribution.p12" && exit ${code}`;
+
+Deno.test("build removes every key a removal can, reports the one it cannot, and keeps a failing step's own exit code", async () => {
+  const { repo, tmp } = await appRepo();
+  const passing = await host({
+    ...buildTools("1.2.3", "8", "com.apple.developer.applesignin"),
+    "app-store-connect": unremovable(0),
+  });
+  const ran = await built(repo, passing.path, tmp, "v1.2.3");
+  assert.equal(ran.code, 1);
+  assert.match(ran.stderr, /could not remove .*\/release-ios\/api_key\.p8/);
+  assert.equal(
+    await exists(`${tmp}/release-ios/certificate_key.pem`),
+    false,
+  );
+
+  const { repo: again, tmp: other } = await appRepo();
+  const failing = await host({
+    ...buildTools("1.2.3", "8", "x"),
+    "app-store-connect": unremovable(4),
+  });
+  const failed = await built(again, failing.path, other, "v1.2.3");
+  assert.equal(failed.code, 4);
+  assert.match(failed.stderr, /could not remove .*\/release-ios\/api_key\.p8/);
+  assert.equal(
+    await exists(`${other}/release-ios/certificate_key.pem`),
+    false,
+  );
+});
+
+Deno.test("upload publishes the built ipa through the locked tools with the API key alone, removed after", async () => {
   const { repo, tmp } = await appRepo();
   await write(repo, IPA, "ipa");
   const { path, log } = await host(buildTools("1.2.3", "8", "x"));
@@ -426,37 +497,45 @@ Deno.test("upload publishes the built ipa with the API key alone, removed after"
   });
   assert.equal(ran.code, 0, ran.stderr);
   const key = `${tmp}/release-ios/api_key.p8`;
+  const call =
+    `app-store-connect publish --path ${IPA} --issuer-id @env:APP_STORE_CONNECT_ISSUER_ID --key-id @env:APP_STORE_CONNECT_KEY_ID --private-key @file:${key} --disable-jwt-cache`;
   assert.equal(
     await log(),
-    `app-store-connect publish --path ${IPA} --issuer-id @env:APP_STORE_CONNECT_ISSUER_ID --key-id @env:APP_STORE_CONNECT_KEY_ID --private-key @file:${key} --disable-jwt-cache\napi key mode -rw-------, holds secret\nkeys in env: no no\n`,
+    `${TOOLS} ${call}\n${call}\napi key mode -rw-------, holds secret\nkeys in env: no no\n`,
   );
   assert.equal(await exists(key), false);
 });
 
-Deno.test("cleanup restores the login keychain and removes the work directory, and fails when the restore fails", async () => {
+Deno.test("cleanup restores the login keychain, deletes the signing keychain and removes the work directory, and fails when the restore fails", async () => {
   const { repo, tmp } = await appRepo();
-  await write(tmp, "release-ios/certificates/distribution.p12", "p12");
-  const { path, log } = await host({ keychain: RECORD });
+  const work = `${tmp}/release-ios`;
+  await write(tmp, "release-ios/signing.keychain-db", "keychain");
+  const { path, log } = await host({ uv: UV, keychain: RECORD });
   const ran = await program(repo, "release-ios", ["cleanup"], {
     PATH: path,
     TMPDIR: tmp,
   });
   assert.equal(ran.code, 0, ran.stderr);
-  assert.equal(await log(), "keychain use-login\n");
-  assert.equal(await exists(`${tmp}/release-ios`), false);
+  const calls = await log();
+  assert.ok(calls.includes("\nkeychain use-login\n"), calls);
+  assert.ok(
+    calls.includes(`\nkeychain delete --path ${work}/signing.keychain-db\n`),
+    calls,
+  );
+  assert.equal(await exists(work), false);
 
   await write(tmp, "release-ios/left", "x");
-  const broken = await host({ keychain: "exit 3" });
+  const broken = await host({ uv: UV, keychain: "exit 3" });
   const failed = await program(repo, "release-ios", ["cleanup"], {
     PATH: broken.path,
     TMPDIR: tmp,
   });
   assert.equal(failed.code, 3);
   assert.equal(failed.stderr, "keychain use-login exited 3\n");
-  assert.equal(await exists(`${tmp}/release-ios`), false);
+  assert.equal(await exists(work), false);
 });
 
-Deno.test("cleanup with no keychain tool removes the work directory and says why it restored nothing", async () => {
+Deno.test("cleanup with no uv removes the work directory and says why it restored nothing", async () => {
   const { repo, tmp } = await appRepo();
   await write(tmp, "release-ios/left", "x");
   const { path } = await host({});
@@ -467,7 +546,30 @@ Deno.test("cleanup with no keychain tool removes the work directory and says why
   assert.equal(ran.code, 0, ran.stderr);
   assert.equal(
     ran.stdout,
-    `keychain is not installed, so no keychain was initialized\nremoved ${tmp}/release-ios\n`,
+    `uv is not installed, so no keychain was initialized\nremoved ${tmp}/release-ios\n`,
   );
+  assert.equal(await exists(`${tmp}/release-ios`), false);
+});
+
+Deno.test("cleanup fails when the work directory cannot be removed, and succeeds where it can", async () => {
+  const { repo, tmp } = await appRepo();
+  await write(tmp, "release-ios/left", "x");
+  const { path } = await host({ uv: UV, keychain: "exit 0" });
+  await Deno.chmod(tmp, 0o555);
+  try {
+    const held = await program(repo, "release-ios", ["cleanup"], {
+      PATH: path,
+      TMPDIR: tmp,
+    });
+    assert.notEqual(held.code, 0);
+    assert.ok(!held.stdout.includes("removed "), held.stdout);
+  } finally {
+    await Deno.chmod(tmp, 0o755);
+  }
+  const control = await program(repo, "release-ios", ["cleanup"], {
+    PATH: path,
+    TMPDIR: tmp,
+  });
+  assert.equal(control.code, 0, control.stderr);
   assert.equal(await exists(`${tmp}/release-ios`), false);
 });

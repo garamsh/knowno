@@ -105,7 +105,8 @@ preview-migrations:
 # The release workflow's steps (release.md), each reading the environment: TAG, the tag to release;
 # RUN, the workflow's run number; GITHUB_REPOSITORY; the App Store Connect key; and the distribution
 # certificate's private key. Not part of make ci: they sign and upload. release-ios with TAG unset
-# is a dry run that uploads nothing; release-cleanup restores the login keychain.
+# is a dry run that builds unsigned and reads no key; release-cleanup restores the login keychain
+# and deletes the signing keychain.
 release-check:
 	scripts/run.sh release-ios check "$$TAG"
 

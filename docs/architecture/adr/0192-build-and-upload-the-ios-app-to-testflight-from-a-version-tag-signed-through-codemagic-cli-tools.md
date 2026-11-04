@@ -38,6 +38,10 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - `fetch-signing-files` found no distribution certificate signed by the key and created `SXTR5TZ9RY`. It then created the App Store profile `MQNKD5L8P3`.
   - `flutter build ipa` built `knowno.ipa`, which held 0.0.0 (4) and passed the ipa check with the Sign in with Apple entitlement.
   - `keychain use-login` ran in the cleanup step. The upload did not run.
+- **The PM's review of #741** (2026-11-04) found the gate against an upload from a branch to be workflow text only. Repository secrets reach a workflow that any branch of this repository edits.
+  - GitHub's environments hold secrets that only a job bound to the environment reads, and a deployment rule can admit only tags matching a pattern.
+  - `tools/fonts/` already pins Python tools with uv, `uv.lock` and Dependabot's `uv` ecosystem.
+  - GitHub cancels a pending run in a concurrency group when a newer one joins it ([Control the concurrency of workflows and jobs](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency), read 2026-11-04).
 - **Alternatives considered:**
   - **Cloud-managed signing through `xcodebuild` and the API key.** Run 41818551017 refused it under the App Manager key. Apple Developer Forums [thread 698117](https://developer.apple.com/forums/thread/698117) (January 2022, a user's report) says only an Admin key succeeds. An Admin key is a wider grant than releasing needs. Rejected.
   - **fastlane with match**, as Flutter's CD page shows. It keeps certificates in a separate store, a git repository or a bucket, behind a passphrase, and needs a Ruby toolchain. Rejected: the owner chose no certificate repository.
@@ -45,42 +49,56 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - **`flutter build ipa` with automatic signing.** It passes no authentication key to `xcodebuild` (Flutter 3.47.7's `packages/flutter_tools/lib/src/ios/mac.dart`), so it signs only through an account signed into Xcode. Rejected.
   - **`xcrun altool --upload-package`** to upload. Codemagic's `publish` runs `altool` itself, takes the same key from a file, and is the step Flutter's section shows. Not taken.
   - **A separate production configuration file.** `app/config/dev.json` is the only configuration and already names `api.knowno.app` ([ADR 0134](0134-name-the-app-knowno-serve-it-at-knowno-app-identify-it-as-app-knowno-and-reach-the-backend-at-api-knowno-app.md)). Not taken.
+  - **Signed dry runs on pull requests**, as runs 41825198633 and 41826451786 were, need the keys on a pull request. Rejected: keys a branch can reach are the gap the review found.
 
 ## Decision
 
 - **A tag `v<major>.<minor>.<patch>` releases.**
-  - The `release` workflow runs on a pushed tag of that form, or by hand through `workflow_dispatch` naming one.
-  - `make release-check` refuses any other name, and any tag whose commit is not on `main`. It also refuses unless the pull request named by the commit's `(#N)` subject merged as that commit, its head held the same tree, and that head's latest `ci (ubuntu)` and `ci (macos)` succeeded.
+  - The `release` workflow runs on a pushed tag of that form, or by hand from one (`workflow_dispatch`, "Use workflow from" the tag).
+  - `make release-check` refuses any other name, and any tag whose commit is not on `main`. It also refuses unless:
+    - the pull request named by the commit's `(#N)` subject merged as that commit;
+    - its head held the same tree;
+    - that head's latest `ci (ubuntu)` and `ci (macos)` runs from GitHub Actions (app 15368, which branch protection names) succeeded.
+- **The keys live in the environment `release`.** Only the job `release` is bound to it, and its deployment rule admits only tags matching `v*`. The owner creates the environment and moves the four secrets into it; the pull request lists the steps.
 - **The version is the tag's, and the build number is the workflow's run number plus 1.** It rises with every run and is above TestFlight's 1. Dry runs share the count.
 - **Signing follows Flutter's Codemagic CLI tools section.** `make release-ios` runs, in order:
-  1. `keychain initialize`.
+  1. `keychain initialize --path` creates a signing keychain under the runner's temporary directory.
   2. `app-store-connect fetch-signing-files app.knowno --platform IOS --type IOS_APP_STORE --create --strict-match-identifier`, with the certificate key and the API key as files and the IDs from the environment.
-  3. `keychain add-certificates`.
+  3. `keychain add-certificates` adds the certificate to that keychain.
   4. `xcode-project use-profiles`.
   5. `flutter build ipa --release --dart-define-from-file=config/dev.json --build-name=<tag's version> --build-number=<run + 1> --export-options-plist=<use-profiles' output>`.
   - `use-profiles` rewrites the project's signing settings on the runner only, and nothing commits them.
   - The job selects Xcode 26.6 through `DEVELOPER_DIR`.
 - **The ipa is checked before anything uploads.** It must hold the tag's version and the build number, pass `codesign --verify --strict`, and be signed with every entitlement `app/ios/Runner/Runner.entitlements` grants.
 - **`make release-upload` runs `app-store-connect publish --path <ipa>`** with the API key.
-- **`make release-cleanup` runs `keychain use-login` in an `if: always()` step** and removes what the steps wrote.
-- **The tools are pinned by hash.** `tools/release/requirements.txt` pins Codemagic CLI tools 0.70.2 and its 30 dependencies with hashes, compiled from `requirements.in` by `uv pip compile --generate-hashes`.
-  - The job installs them with `pip install --require-hashes --no-deps` on Python 3.14.10 from `actions/setup-python` v7.1.0.
-  - OSV reported no advisory for any of the 31 versions on 2026-11-04. Dependabot's `pip` entry moves them.
-- **Each key exists only while a step needs it.** `scripts/release-ios.ts` writes the API key and the certificate key under the runner's temporary directory, mode 600. It removes their contents from the environment before any tool starts, and deletes the files when the step ends.
-  - The certificates `fetch-signing-files` saves go to the same directory and are deleted once they are in the keychain.
+- **`make release-cleanup` runs in an `if: always()` step.** It runs `keychain use-login`, deletes the signing keychain with `keychain delete --path`, and removes what the steps wrote.
+- **The tools are a uv project, as `tools/fonts/` is.**
+  - `tools/release/pyproject.toml` names Codemagic CLI tools 0.70.2. `tools/release/uv.lock` pins it and its 30 dependencies with each file's hash.
+  - The program runs them with `uv run --project tools/release --locked`. Dependabot's `uv` entry moves them.
+  - OSV reported no advisory for any of the 31 versions on 2026-11-04.
+- **Key files exist only while a step needs them.**
+  - `scripts/release-ios.ts` writes the API key and the certificate key under the runner's temporary directory, mode 600, and removes their contents from the environment before any tool starts.
+  - It deletes every file when the step ends. A removal that fails is reported and fails the step, after the step's own error.
+  - The certificates `fetch-signing-files` saves are deleted once they are in the keychain.
+  - The signing keychain holds the certificate's private key until the cleanup step deletes it.
   - Nothing is committed: no key, certificate, profile, team or export options, and no signing setting in `project.pbxproj`.
-- **A pull request that changes the workflow, `scripts/release-ios.ts` or `tools/release/requirements.txt` runs a dry run.** It signs and builds the app as 0.0.0 and uploads nothing. Pull requests from forks and from Dependabot get no secrets and skip it.
+- **A pull request that changes what the release runs gets the job `dry-run`.** That is the workflow, `Makefile`, `scripts/release-ios.ts`, `scripts/grants.txt`, `scripts/process.ts`, `scripts/run.sh` or `tools/release/`.
+  - The job runs in no environment and reads no secret.
+  - It installs the locked tools and builds the app unsigned as 0.0.0 with `flutter build ipa --no-codesign`, then checks the archive's version and build number.
+  - It runs on pull requests from forks and Dependabot too.
+- **Runs share a concurrency group per pull request and per tag.** A pull request's dry run in progress is cancelled by a new push, and a release in progress never is. A newer run of a tag cancels an older pending one.
 - **App Review stays manual.** The owner chooses a build, writes its notes and submits it in App Store Connect.
 
 ## Consequences
 
-- A release is a tag push, with no Mac of ours involved. The first is the PM's `v1.0.1` after this merges.
+- A release is a tag push, with no Mac of ours involved. The first is the PM's `v1.0.1` after the environment exists and this merges.
+- No branch or pull request reaches the keys, so signing and upload are tested only by a release. The dry run tests the build, the version and the locked tools, not the signature.
 - One distribution certificate serves every run: the first run that finds none signed by `IOS_DISTRIBUTION_CERT_PRIVATE_KEY` creates it, and later runs find it.
 - **The certificate cap.** If the team already holds 3 distribution certificates and none matches the key, `--create` is refused and the build fails before signing. The owner then deletes one in the developer portal.
 - **Expiry.** The listing filters on the key alone, so an expired certificate still listed by Apple would be kept, and signing would fail. Revoking it lets the next run create a new one from the same key.
 - Apple's help names Account Holder or Admin for creating distribution certificates. The App Manager key still created one through the API in run 41825198633, as Flutter's section implies it can.
 - A tag on a commit that did not land through a pull request is refused, even if CI ran on it some other way.
-- The upload depends on Codemagic CLI tools and the `altool` they call. A change to either reaches the release through a Dependabot pull request, whose dry run is skipped. It is therefore tested by the next pull request that touches the workflow, or by the next release.
+- A Dependabot change to the tools runs the dry run, which installs them but does not sign or upload with them. Signing and upload with a new release of the tools are tested by the next release.
 
 ## Signs the decision was wrong
 
