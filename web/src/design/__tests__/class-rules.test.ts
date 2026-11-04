@@ -44,6 +44,22 @@ describe("the design's class rules", () => {
     for (const code of planted(token)) expect(refusals(code, tokenRules)).toEqual([]);
   });
 
+  it("refuses a backdrop other than the scrim token, whatever its colour or opacity", () => {
+    for (const bad of [
+      "backdrop:bg-hero/40",
+      "backdrop:bg-black/50",
+      "backdrop:bg-scrim/50",
+      "backdrop:blur-sm",
+      "lg:backdrop:bg-hero",
+    ]) {
+      for (const code of planted(bad)) expect(refusals(code, tokenRules), bad).not.toEqual([]);
+    }
+    // Controls: the token itself, on its own or last, and a class with no backdrop.
+    for (const good of ["backdrop:bg-scrim", "p-4 backdrop:bg-scrim", "bg-surface"]) {
+      for (const code of planted(good)) expect(refusals(code, tokenRules), good).toEqual([]);
+    }
+  });
+
   it.each([
     ["a button's type", "rounded-button bg-primary text-button", "rounded-button bg-surface"],
     ["the red fill", "rounded-button bg-dont-know-text", "text-dont-know-text"],
