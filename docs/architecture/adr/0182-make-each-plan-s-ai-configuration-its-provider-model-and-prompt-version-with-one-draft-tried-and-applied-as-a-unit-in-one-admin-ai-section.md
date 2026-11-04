@@ -27,13 +27,13 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **The flow.** 저장 saves the draft, which serves admins (관리자만 테스트); 사진 한 장으로 시험 reads one photo with the draft and the active configuration side by side, each with its own prompt; 모두에게 적용 makes the three active together; 테스트 끝내기 clears the draft. A new prompt version is saved, serves no one, and reaches a plan only through its draft.
 - **The global labels go.** `admin_set_prompt_label`, `admin_clear_test_prompt` and `admin_prompt_labels` are dropped. A version's labels read `active` while some plan's active configuration sends it and `test` while some plan's draft does.
 - **The results** read per provider, model and prompt version over 1 to 90 UTC days through `admin_configuration_results`.
-- **The admin section AI** (`/ai`) holds all of it, as the mockup's section 5: the plans' active configurations with cost and 7-day failure rate, the selected plan's draft panel with the trial, apply and end, provider keys, prompt versions, and results per configuration over 30 days. `/ai/[id]`, `/ai/new` and `/settings/ai` are removed.
+- **The admin section AI** (`/ai`) holds all of it, as the mockup's section 5: the plans' active configurations with cost and 7-day failure rate, the selected plan's draft panel with the trial, apply and end, provider keys, prompt versions, and results per configuration over 30 days. `/ai/[id]`, `/ai/new` and `/settings/ai` redirect to it, `/ai/new` to its new version's form, as ADR 0155's addresses before the sections do.
 - **The migration** `20261104021846_configuration_prompts.sql` changes existing data, so it merges after the owner approves it:
   - for each plan, it appends the active configuration's provider and model with the active prompt version and points the `active` label at it;
   - while the plan has a draft or a test version was set, it appends a draft: the draft's provider and model, or else the active ones, with the test version, or else the active one;
   - everyone is served what they were served before;
   - every label row is kept in `private.ai_configuration_labels_before_prompts`, and the global labels, renamed, in `private.prompt_labels_before_configurations`;
-  - `private.revert_configuration_prompts()` renames the labels back and restores `begin_extraction` and the three prompt functions as they were.
+  - `private.revert_configuration_prompts()` renames the labels back and restores `begin_extraction` and the five prompt functions the migration replaced or dropped, `admin_prompt_versions`, `admin_prompt_version`, `admin_set_prompt_label`, `admin_clear_test_prompt` and `admin_prompt_labels`, as they were.
 
 This supersedes ADR 0073's global `active` and `test` labels, the admin functions that set them, and the trial served the admin's test version; and ADR 0162's configuration as a provider and model alone, its prompt served apart, and its settings page under 설정.
 
