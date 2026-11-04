@@ -167,6 +167,16 @@ insert into private.provider_keys (provider, secret_id, last_four, set_by)
 values ('openai', vault.create_secret('seed-not-a-real-key-0000', 'knowno_provider_key_openai'),
   '0000', '5eed0000-0000-4000-8000-0000000000a3');
 
+-- Two assistant messages of the Free user: one recorded with what it used, one never finished.
+insert into private.assistant_messages (user_id, plan, configuration_id, created_at, outcome,
+  model_calls, input_tokens, output_tokens, reasoning_tokens, web_search_requests, latency_ms)
+select '5eed0000-0000-4000-8000-0000000000a1', 'free', l.configuration_id,
+  now() - interval '1 hour', 'ok', 2, 3200, 410, 0, 0, 5200
+from private.assistant_configuration_labels as l where l.plan = 'free' and l.label = 'active';
+insert into private.assistant_messages (user_id, plan, configuration_id, created_at)
+select '5eed0000-0000-4000-8000-0000000000a1', 'free', l.configuration_id, now() - interval '30 minutes'
+from private.assistant_configuration_labels as l where l.plan = 'free' and l.label = 'active';
+
 insert into private.revision_marks (taken_at, revision)
 select now() - interval '1 day', coalesce(max(revision), 0) from public.cards;
 
