@@ -172,8 +172,8 @@
   --spacing-google-start: 12px;
   --spacing-google-gap: 10px;
   --spacing-google-end: 12px;
-  /* Both sign-in buttons' height (ADR 0194): GoogleButtonStyle.height in google_button.dart. */
-  --spacing-sign-in-button: 48px;
+  /* GoogleButtonStyle.height, which Apple's button beside it shares (ADR 0194). */
+  --spacing-google-height: 48px;
 
   /* The column a list sits in at desktop width, and the widest a study card grows. */
   --container-list: 560px;

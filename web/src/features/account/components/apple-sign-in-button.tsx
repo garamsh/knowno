@@ -174,7 +174,7 @@ export function AppleSignInButton() {
           data-border="false"
           // A percentage of the height to Apple's script: 50% of 48 px is the 24 px of rounded-button.
           data-border-radius="50"
-          className="flex h-sign-in-button w-full justify-center"
+          className="flex h-google-height w-full justify-center"
         />
       </div>
     </>

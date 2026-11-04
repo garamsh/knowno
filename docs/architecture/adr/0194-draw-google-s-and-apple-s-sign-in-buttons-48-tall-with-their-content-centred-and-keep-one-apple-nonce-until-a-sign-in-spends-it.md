@@ -33,7 +33,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 ## Decision
 
 - **Both buttons are 48 tall at the default text size, on both clients.** 48 is the least height the screen's tap-target check accepts. It is no smaller than Google's button, as Apple asks, and it is above Apple's 30 pt minimum and its 44. At 48, Apple's title is 43% of the height, about 20.6 px, beside Google's 14 px label.
-  - On the web the height is `--spacing-sign-in-button` in `globals.css`. Google's button takes it as its least height. Apple's wrapper takes it as its height, and Apple's script draws its button to fit.
+  - On the web the height is `--spacing-google-height` in `globals.css`. Google's button takes it as its least height. Apple's wrapper takes it as its height, and Apple's script draws its button to fit.
   - On the phone it is `GoogleButtonStyle.height`. `GoogleSignInButton.heightFor` gives 48, or the wrapped label's height where a large text size makes that taller. Apple's button is laid out at that height ([ADR 0187](0187-make-apple-s-sign-in-button-as-tall-as-google-s-when-a-large-text-size-grows-google-s.md)), and the package is given 48, so its title stays at 43% of 48 at every text size.
 - **Centred content.** Apple's button is `data-mode="center-align"` on the web and the package's centred icon on the phone. Google's mark and label stay centred together.
 - **Google's metrics are unchanged:** the 14/20 Google Sans Medium label, the 20 px mark and the 12, 10 and 12 (web and Android) or 16, 12 and 16 (iOS) spacing.
