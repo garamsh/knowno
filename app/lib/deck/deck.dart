@@ -104,8 +104,9 @@ export 'src/spreadsheet.dart'
         Spreadsheet,
         SpreadsheetRefusal,
         parseSpreadsheet;
-export 'src/spreadsheet_import.dart'
-    show SpreadsheetPick, importFromSpreadsheet, spreadsheetPickProvider;
+export 'src/spreadsheet_import.dart' show importFromSpreadsheet;
+export 'src/spreadsheet_pick.dart'
+    show SpreadsheetPick, spreadsheetPickProvider;
 export 'src/whole_card_view.dart'
     show
         SteppedWholeCardView,

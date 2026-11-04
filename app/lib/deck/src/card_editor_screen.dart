@@ -12,6 +12,7 @@ import '../../design/app_sheet.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../media/media.dart';
+import 'block_draft.dart';
 import 'block_list.dart';
 import 'card_frame.dart';
 import 'card_preview.dart';
