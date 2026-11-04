@@ -11,6 +11,7 @@ import 'package:google_sign_in_platform_interface/google_sign_in_platform_interf
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:knowno/account/account.dart';
@@ -219,6 +220,10 @@ void main() {
       find.byType(GoogleSignInButton),
     ))
       button.label,
+    for (final button in tester.widgetList<SignInWithAppleButton>(
+      find.byType(SignInWithAppleButton),
+    ))
+      if (button.onPressed != null) button.text,
     for (final button in tester.widgetList<ButtonStyleButton>(
       find.byWidgetPredicate((w) => w is ButtonStyleButton),
     ))
@@ -226,7 +231,7 @@ void main() {
   ];
 
   testWidgets(
-    'signed out, only the sign-in screen shows, in Korean, with Apple sign-in disabled',
+    'signed out on iOS, only the sign-in screen shows, in Korean, with Google and Apple sign-in',
     (tester) async {
       tester.platformDispatcher.localesTestValue = const [Locale('ko')];
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);
@@ -236,12 +241,17 @@ void main() {
       expect(find.byType(SignInScreen), findsOneWidget);
       expect(find.bySemanticsLabel('알아몰라'), findsOneWidget);
       expect(shownText('밀어서 응답하고,\n잊을 때쯤 다시 만나는 암기 카드'), findsOneWidget);
-      expect(shownText('Apple로 계속하기 · 준비 중'), findsOneWidget);
-      // Besides Google's button, only the links to the terms answer a tap.
-      expect(enabledButtons(tester), ['Google로 계속하기', '이용약관', '개인정보 처리방침']);
+      // Besides the sign-in buttons, only the links to the terms answer a tap.
+      expect(enabledButtons(tester), [
+        'Google로 계속하기',
+        'Apple로 계속하기',
+        '이용약관',
+        '개인정보 처리방침',
+      ]);
       expect(find.byType(HomeScreen), findsNothing);
       await unmountApp(tester);
     },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
   );
 
   testWidgets('signing in shows 홈', (tester) async {
@@ -453,7 +463,7 @@ void main() {
         // The setup holds the expired session it asked for.
         expect(auth.currentSession?.isExpired, isTrue);
       }
-      return GoogleAccountService.start(
+      return NativeAccountService.start(
         auth,
         GoogleSignIn.instance,
         functions: FunctionsClient('https://example.test/functions/v1', {}),

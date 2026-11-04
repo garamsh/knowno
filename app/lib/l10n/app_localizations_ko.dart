@@ -664,7 +664,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get signInWithGoogle => 'Google로 계속하기';
 
   @override
-  String get signInWithAppleSoon => 'Apple로 계속하기 · 준비 중';
+  String get signInWithApple => 'Apple로 계속하기';
 
   @override
   String get signingIn => '로그인 중';
@@ -685,7 +685,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get accountMisconfigured => '이 앱의 로그인 설정에 문제가 있어 로그인할 수 없어요.';
 
   @override
-  String get accountRejected => 'Google 로그인이 거부됐어요. 다시 시도해 주세요.';
+  String get accountRejected => '로그인이 거부됐어요. 다시 시도해 주세요.';
 
   @override
   String get accountSection => '계정';

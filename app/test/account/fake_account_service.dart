@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:knowno/account/account.dart';
 
-/// Stands in for the account service at the auth boundary. [signIn] signs in
-/// as [email], or throws [failure] when one is set; [cancelSignIn] makes it
-/// return as a cancelled picker does, and [pendingSignIn] holds it until it
-/// completes. [deleteAccount] counts [deletions], leaving the session to
-/// [signOut], or throws [deletionFailure] when one is set.
+/// Stands in for the account service at the auth boundary.
+/// [signInWithGoogle] and [signInWithApple] count [googleSignIns] and
+/// [appleSignIns] and sign in as [email], or throw [failure] when one is set;
+/// [cancelSignIn] makes them return as a cancelled picker or sheet does, and
+/// [pendingSignIn] holds them until it completes. [deleteAccount] counts
+/// [deletions], leaving the session to [signOut], or throws [deletionFailure]
+/// when one is set.
 class FakeAccountService implements AccountService {
   FakeAccountService([this._state = const SignedOut()]);
 
@@ -20,6 +22,8 @@ class FakeAccountService implements AccountService {
   Completer<void>? pendingSignIn;
   AccountFailure? deletionFailure;
   var deletions = 0;
+  var googleSignIns = 0;
+  var appleSignIns = 0;
 
   @override
   AccountState get state => _state;
@@ -33,7 +37,18 @@ class FakeAccountService implements AccountService {
   }
 
   @override
-  Future<void> signIn() async {
+  Future<void> signInWithGoogle() async {
+    googleSignIns++;
+    await _signIn();
+  }
+
+  @override
+  Future<void> signInWithApple() async {
+    appleSignIns++;
+    await _signIn();
+  }
+
+  Future<void> _signIn() async {
     await pendingSignIn?.future;
     if (failure case final failure?) throw failure;
     if (cancelSignIn) return;

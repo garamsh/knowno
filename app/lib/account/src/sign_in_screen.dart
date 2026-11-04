@@ -1,11 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../design/app_button.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'account_state.dart';
+import 'apple_button.dart';
 import 'failure.dart';
 import 'failure_message.dart';
 import 'google_button.dart';
@@ -13,8 +14,9 @@ import 'legal.dart';
 import 'providers.dart';
 
 /// The app's welcome while no account is signed in: its stacked logo on the
-/// ground's panel, what it does, Google sign-in, and the terms the user
-/// agrees to; or, when this build cannot sign anyone in, why.
+/// ground's panel, what it does, Google sign-in and, on iOS, Apple sign-in,
+/// and the terms the user agrees to; or, when this build cannot sign anyone
+/// in, why.
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
@@ -31,6 +33,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final colors = AppColors.of(context);
     final state = ref.watch(accountStateProvider);
     final brightness = Theme.of(context).brightness;
+    // Apple's sheet is the system's on iOS; no other platform has one.
+    final offersApple = defaultTargetPlatform == TargetPlatform.iOS;
     return Scaffold(
       backgroundColor: colors.surface,
       // The panel takes what the sign-in column leaves of the screen; where a
@@ -116,10 +120,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             ],
                             _ when _busy => [
                               SizedBox(
-                                height:
-                                    AppSize.cta +
-                                    AppSpace.s8 +
-                                    AppSize.tapTarget,
+                                height: offersApple
+                                    ? AppSize.cta + AppSpace.s8 + AppSize.cta
+                                    : AppSize.cta,
                                 child: Center(
                                   child: CircularProgressIndicator(
                                     semanticsLabel: l10n.signingIn,
@@ -130,15 +133,23 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             _ => [
                               GoogleSignInButton(
                                 label: l10n.signInWithGoogle,
-                                onPressed: _signIn,
+                                onPressed: () => _signIn(
+                                  ref
+                                      .read(accountServiceProvider)
+                                      .signInWithGoogle,
+                                ),
                               ),
-                              const SizedBox(height: AppSpace.s8),
-                              // Apple sign-in (M4b) fills this slot.
-                              AppButton(
-                                label: l10n.signInWithAppleSoon,
-                                variant: AppButtonVariant.text,
-                                onPressed: null,
-                              ),
+                              if (offersApple) ...[
+                                const SizedBox(height: AppSpace.s8),
+                                AppleSignInButton(
+                                  label: l10n.signInWithApple,
+                                  onPressed: () => _signIn(
+                                    ref
+                                        .read(accountServiceProvider)
+                                        .signInWithApple,
+                                  ),
+                                ),
+                              ],
                             ],
                           },
                           const SizedBox(height: AppSpace.s16),
@@ -166,15 +177,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     );
   }
 
-  /// Signs in with Google; an [AccountFailure] is shown in a snack bar. Any
-  /// other exception propagates.
-  Future<void> _signIn() async {
-    final service = ref.read(accountServiceProvider);
+  /// Signs in through [signIn]; an [AccountFailure] is shown in a snack bar.
+  /// Any other exception propagates.
+  Future<void> _signIn(Future<void> Function() signIn) async {
     final messenger = ScaffoldMessenger.of(context);
     final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
-      await service.signIn();
+      await signIn();
     } on AccountFailure catch (failure) {
       messenger.showSnackBar(
         SnackBar(content: Text(describeAccountFailure(l10n, failure))),

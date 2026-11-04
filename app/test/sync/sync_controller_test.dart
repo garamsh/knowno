@@ -68,7 +68,7 @@ void main() {
     await device.deck.createDeck('French');
     expect(controller.status.value, isA<SyncIdle>());
 
-    await account.signIn();
+    await account.signInWithGoogle();
     await until(controller.status, (status) => status is Synced);
 
     expect(server.decks, hasLength(1));
@@ -77,7 +77,7 @@ void main() {
   });
 
   test('an edit while signed in syncs after a pause', () async {
-    await account.signIn();
+    await account.signInWithGoogle();
     await until(controller.status, (status) => status is Synced);
     server.requests.clear();
 
@@ -94,14 +94,14 @@ void main() {
 
     expect(server.requests, isEmpty);
     // Control: the same edit, once signed in, is sent.
-    await account.signIn();
+    await account.signInWithGoogle();
     await until(controller.status, (status) => status is Synced);
     expect(server.decks, hasLength(1));
   });
 
   test('a failed run is shown and retried until it succeeds', () async {
     server.failure = const SyncOffline('no route to host');
-    await account.signIn();
+    await account.signInWithGoogle();
     await until(
       controller.status,
       (status) => status is SyncInterrupted && status.failure is SyncOffline,
@@ -112,7 +112,7 @@ void main() {
   });
 
   test('push reports whether every change reached the server', () async {
-    await account.signIn();
+    await account.signInWithGoogle();
     await until(controller.status, (status) => status is Synced);
     await device.deck.createDeck('French');
     server.failure = const SyncOffline('no route to host');
@@ -125,7 +125,7 @@ void main() {
   });
 
   test("a deck's image is uploaded once its deck is pushed, and goes from the server with its deck", () async {
-    await account.signIn();
+    await account.signInWithGoogle();
     await until(controller.status, (status) => status is Synced);
     final deck = await device.deck.createDeck('French');
     final image = await device.media.addImage(preparedImage(1));
@@ -144,7 +144,7 @@ void main() {
   });
 
   test('an image the media server does not take keeps push false, and is retried until it lands', () async {
-    await account.signIn();
+    await account.signInWithGoogle();
     await until(controller.status, (status) => status is Synced);
     final deck = await device.deck.createDeck('French');
     media.offline = true;
@@ -167,7 +167,7 @@ void main() {
 
   test('clear removes every row and the owner', () async {
     await device.deck.createDeck('French');
-    await account.signIn();
+    await account.signInWithGoogle();
     await until(controller.status, (status) => status is Synced);
     expect(await device.store.owner(), _ada);
 
