@@ -10,7 +10,8 @@
 --   - the assistant's first prompt;
 --   - per plan, Free, Pro, Max and 스페셜, a configuration on the provider and model of the plan's
 --     active photo configuration, with that prompt, web search off for Free and on for the others,
---     3 searches a turn and no reasoning, labelled 'active';
+--     3 searches a turn and no reasoning, or effort 'low' on a model whose thinking is always on,
+--     labelled 'active', through `private.seed_assistant_configurations`, which stays;
 --   - a daily limit of 10 messages for Free, 100 for Pro, 300 for Max and none for 스페셜.
 --
 -- Revert, run once against production: `select private.revert_assistant();`, then
@@ -158,9 +159,39 @@ revoke all on private.assistant_prompts, private.assistant_configurations,
   private.assistant_limits, private.assistant_messages
   from public, anon, authenticated, service_role;
 
--- The seed: the first prompt, and each plan's active configuration on its photo model.
-with prompt as (
-  insert into private.assistant_prompts (text, note) values (
+-- Gives each plan whose assistant has no active configuration one on the provider and model of
+-- its active photo configuration, with the first prompt, web search off for Free alone, 3 searches
+-- a turn and no reasoning, or the lowest effort, 'low', on a model whose thinking is always on. A
+-- second run straight after changes nothing.
+create function private.seed_assistant_configurations() returns void
+language plpgsql
+set search_path = ''
+as $$
+begin
+  with seeded as (
+    insert into private.assistant_configurations
+      (plan, provider, model, prompt_version_id, web_search, max_searches, reasoning_effort)
+    select l.plan, c.provider, c.model, (select min(id) from private.assistant_prompts),
+      l.plan <> 'free', 3,
+      case when private.assistant_effort_fits(c.provider, c.model, 'none') then 'none'
+        else 'low' end
+    from private.ai_configuration_labels as l
+    join private.ai_configurations as c on c.id = l.configuration_id
+    where l.label = 'active'
+      and not exists (select from private.assistant_configuration_labels as a
+        where a.plan = l.plan and a.label = 'active')
+    order by array_position(array['free', 'pro', 'max', 'special'], l.plan)
+    returning id, plan
+  )
+  insert into private.assistant_configuration_labels (plan, label, configuration_id)
+    select seeded.plan, 'active', seeded.id from seeded;
+end;
+$$;
+
+revoke all on function private.seed_assistant_configurations() from public, anon, authenticated;
+
+-- The seed: the first prompt, each plan's active configuration on its photo model, and the limits.
+insert into private.assistant_prompts (text, note) values (
 $prompt$You are 말랑이, the study helper inside knowno, a flashcard app. You talk with the user the way a friendly tutor does and help them build notes (decks) and cards from what they want to learn.
 
 Scope
@@ -182,23 +213,9 @@ Asking first
 
 Facts
 - Do not invent facts. When web search is available and the user asks about something you are unsure of, search, and keep to what the sources say.$prompt$,
-    '말랑이 assistant prompt v1 (#713)')
-  returning id
-),
-photo as (
-  select l.plan, c.provider, c.model
-  from private.ai_configuration_labels as l
-  join private.ai_configurations as c on c.id = l.configuration_id
-  where l.label = 'active'
-)
-insert into private.assistant_configurations
-  (plan, provider, model, prompt_version_id, web_search, max_searches, reasoning_effort)
-select photo.plan, photo.provider, photo.model, prompt.id, photo.plan <> 'free', 3, 'none'
-from photo, prompt
-order by array_position(array['free', 'pro', 'max', 'special'], photo.plan);
+    '말랑이 assistant prompt v1 (#713)');
 
-insert into private.assistant_configuration_labels (plan, label, configuration_id)
-  select c.plan, 'active', c.id from private.assistant_configurations as c;
+select private.seed_assistant_configurations();
 
 insert into private.assistant_limits (plan, daily_messages) values
   ('free', 10), ('pro', 100), ('max', 300), ('special', null);
@@ -613,6 +630,7 @@ begin
   drop table private.assistant_configuration_labels;
   drop table private.assistant_configurations;
   drop table private.assistant_prompts;
+  drop function private.seed_assistant_configurations();
   drop function private.keep_assistant_configuration();
   drop function private.assistant_effort_fits(text, text, text);
 end;

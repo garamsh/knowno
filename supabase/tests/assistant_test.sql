@@ -4,7 +4,7 @@
 -- a limit set; every write recorded; configurations append-only; no client reaching the tables or
 -- the service functions; and the revert.
 begin;
-select plan(70);
+select plan(74);
 
 delete from private.admin_audit;
 
@@ -337,6 +337,41 @@ select throws_ok($$insert into private.assistant_configurations
       (select min(id) from private.assistant_prompts), false, 3, 'none')$$,
   '23514', null, 'the table refuses such a configuration however it is written');
 
+-- The seed on photo models of each kind: an always-on Anthropic model seeded at 'low', against
+-- one that runs without thinking seeded at 'none'.
+
+with c as (
+  insert into private.ai_configurations (plan, provider, model, prompt_version_id) values
+    ('free', 'anthropic', 'claude-opus-5-5', (select min(id) from private.prompt_versions)),
+    ('pro', 'anthropic', 'claude-haiku-5-5', (select min(id) from private.prompt_versions))
+  returning id, plan
+)
+insert into private.ai_configuration_labels (plan, label, configuration_id)
+  select c.plan, 'active', c.id from c
+  on conflict (plan, label) do update set configuration_id = excluded.configuration_id;
+delete from private.assistant_configuration_labels where plan in ('free', 'pro');
+create temp table configurations_before as select id from private.assistant_configurations;
+select results_eq(
+  $$select l.plan, c.provider, c.model, exists (select from private.assistant_configuration_labels
+      as a where a.plan = l.plan)
+    from private.ai_configuration_labels as l
+    join private.ai_configurations as c on c.id = l.configuration_id
+    where l.label = 'active' and l.plan in ('free', 'pro') order by l.plan$$,
+  $$values ('free', 'anthropic', 'claude-opus-5-5', false),
+    ('pro', 'anthropic', 'claude-haiku-5-5', false)$$,
+  'setup: Free''s photo model thinks always and Pro''s need not, and neither has an assistant');
+select lives_ok($$select private.seed_assistant_configurations()$$, 'the seed runs on them');
+select lives_ok($$select private.seed_assistant_configurations()$$, 'and runs again');
+select results_eq(
+  $$select c.plan, c.provider, c.model, c.reasoning_effort,
+      exists (select from private.assistant_configuration_labels as l
+        where l.configuration_id = c.id and l.label = 'active')
+    from private.assistant_configurations as c
+    where c.id not in (select id from configurations_before) order by c.plan$$,
+  $$values ('free', 'anthropic', 'claude-opus-5-5', 'low', true),
+    ('pro', 'anthropic', 'claude-haiku-5-5', 'none', true)$$,
+  'the always-on model is seeded at low and the other at none, once over two runs, no other plan');
+
 -- The revert: every table and function the migration made is gone, its own revert aside.
 
 create function pg_temp.made_tables() returns text[] language sql stable as $$
@@ -355,13 +390,14 @@ select is(pg_temp.made_tables(), array['assistant_configuration_labels',
   'control: the migration''s five tables are found before the revert');
 select is(pg_temp.made_functions(), array['private.assistant_effort_fits',
     'private.keep_assistant_configuration', 'private.revert_assistant',
+    'private.seed_assistant_configurations',
     'public.admin_activate_assistant_configuration', 'public.admin_assistant_configurations',
     'public.admin_assistant_limits', 'public.admin_assistant_prompts',
     'public.admin_clear_assistant_test', 'public.admin_save_assistant_prompt',
     'public.admin_set_assistant_limit', 'public.assistant_allowance',
     'public.begin_assistant_message', 'public.finish_assistant_message',
     'public.save_assistant_configuration'],
-  'control: its fourteen functions are found before the revert');
+  'control: its fifteen functions are found before the revert');
 select lives_ok($$select private.revert_assistant()$$, 'the revert runs');
 select is(pg_temp.made_tables(), '{}'::text[], 'every table is gone');
 select is(pg_temp.made_functions(), array['private.revert_assistant'],
