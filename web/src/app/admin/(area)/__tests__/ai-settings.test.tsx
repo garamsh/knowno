@@ -17,7 +17,7 @@ import { setRequestCookies } from "@/testing/next-headers";
 import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 
-import { AiSettingsContent, AuditContent } from "../_components/content";
+import { AdminsContent, AiSettingsContent } from "../_components/content";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
 vi.mock("next/navigation", async (importOriginal) => ({
@@ -237,7 +237,7 @@ describe("a plan's provider and model: saved after a check, tried by admins, app
     expect(
       admin.aiConfigurations.filter((entry) => entry.plan === "pro").map((entry) => entry.label),
     ).toEqual(["active"]);
-    await render(AuditContent, {});
+    await render(AdminsContent, {});
     expect(screen.getByRole("list", { name: "작업 기록" })).toHaveTextContent(
       /AI 설정 적용 · 프로 · Anthropic · claude-haiku-5-5/,
     );

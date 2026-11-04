@@ -27,7 +27,7 @@ function Target({ entry }: { entry: AuditEntry }) {
       : entry.targetKind === "user"
         ? `/users/${entry.targetId}`
         : entry.targetKind === "plan" && entry.action.endsWith("_plan_version")
-          ? "/settings"
+          ? "/plans"
           : entry.targetKind === "plan" || entry.targetKind === "provider"
             ? "/settings/ai"
             : entry.targetKind === "prompt"

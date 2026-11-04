@@ -5,10 +5,9 @@ import { useActionState } from "react";
 import type { AiFormState } from "../ai-settings";
 import { providerLabels } from "../labels";
 import { saveAiConfiguration } from "../save-ai-configuration";
-import { button, field, group } from "./admin-section";
+import { button, field, formInput, formLine, group } from "./admin-section";
 
-const line = "flex min-h-button items-center justify-between gap-3 px-4";
-const input = `${field} h-tap-target min-w-0 px-2 text-right`;
+const input = `${field} ${formInput}`;
 
 /**
  * A plan's new provider and model, saved as its draft only after one call with them parsed (ADR
@@ -34,7 +33,7 @@ export function AiConfigurationForm({
     <form action={action} aria-label={`${name} 새 AI 설정`} className="flex flex-col gap-2">
       <input type="hidden" name="plan" value={plan} />
       <div className={group}>
-        <label className={line}>
+        <label className={formLine}>
           <span className="text-body">제공자</span>
           <select name="provider" defaultValue={provider} className={input}>
             {Object.entries(providerLabels).map(([id, label]) => (
@@ -44,7 +43,7 @@ export function AiConfigurationForm({
             ))}
           </select>
         </label>
-        <label className={line}>
+        <label className={formLine}>
           <span className="shrink-0 text-body">모델</span>
           <input name="model" defaultValue={model} required className={`${input} flex-1`} />
         </label>

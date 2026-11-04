@@ -493,6 +493,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.heroButton,
     required this.onHeroButton,
     required this.bar,
+    required this.scrim,
     required this.brand,
     required this.know,
     required this.onKnow,
@@ -548,6 +549,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     heroButton: Color(0xFFFFFFFF),
     onHeroButton: Color(0xFF2547D0),
     bar: Color(0xFFFFFFFF),
+    scrim: Color(0x66000000),
     brand: Color(0xFF2547D0),
     know: Color(0xFF14683F),
     onKnow: Color(0xFFFFFFFF),
@@ -603,6 +605,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     heroButton: Color(0xFF8AB4FF),
     onHeroButton: Color(0xFF0D1424),
     bar: Color(0xFF2C3A60),
+    scrim: Color(0x99000000),
     brand: Color(0xFF1A2F78),
     know: Color(0xFF8CE6BC),
     onKnow: Color(0xFF1D1833),
@@ -704,6 +707,10 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// the dark.
   final Color bar;
 
+  /// What a sheet or a dialog dims the screen behind it with: black at 40% in
+  /// the light theme and 60% in the dark, never a brand tint (issue #717).
+  final Color scrim;
+
   /// A photo's box outline and its hidden fill.
   final Color brand;
 
@@ -803,6 +810,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? heroButton,
     Color? onHeroButton,
     Color? bar,
+    Color? scrim,
     Color? brand,
     Color? know,
     Color? onKnow,
@@ -854,6 +862,7 @@ final class AppColors extends ThemeExtension<AppColors> {
     heroButton: heroButton ?? this.heroButton,
     onHeroButton: onHeroButton ?? this.onHeroButton,
     bar: bar ?? this.bar,
+    scrim: scrim ?? this.scrim,
     brand: brand ?? this.brand,
     know: know ?? this.know,
     onKnow: onKnow ?? this.onKnow,
@@ -911,6 +920,7 @@ final class AppColors extends ThemeExtension<AppColors> {
       heroButton: mix(heroButton, other.heroButton),
       onHeroButton: mix(onHeroButton, other.onHeroButton),
       bar: mix(bar, other.bar),
+      scrim: mix(scrim, other.scrim),
       brand: mix(brand, other.brand),
       know: mix(know, other.know),
       onKnow: mix(onKnow, other.onKnow),
@@ -1048,6 +1058,7 @@ ThemeData _theme(Brightness brightness, AppColors colors) {
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: colors.ground,
       modalBackgroundColor: colors.ground,
+      modalBarrierColor: colors.scrim,
       showDragHandle: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(

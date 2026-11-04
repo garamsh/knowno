@@ -80,10 +80,28 @@ export type AdminDeck = {
   cards: { id: string; front: string; back: string }[];
 };
 
-export type UserMatch = { id: string; email: string; createdAt: number; suspended: boolean };
+/** A user as the users' list shows it: one row of the table (ADR 0181). */
+export type UserRow = {
+  id: string;
+  email: string;
+  createdAt: number;
+  lastAnswerAt: number | null;
+  decks: number;
+  cards: number;
+  /** The plan it is entitled to now, null while that plan has no version. */
+  plan: PlanId | null;
+  admin: boolean;
+  suspended: boolean;
+};
 
-/** A page of the users a search matched, and how many it matched in all. */
-export type UserPage = { users: UserMatch[]; total: number };
+/** A page of the users' list, and how many users matched in all. */
+export type UserPage = { users: UserRow[]; total: number };
+
+/** What the users' list is narrowed by: the email search, the plan and the status. */
+export type UserFilter = { query: string; plan: PlanId | null; status: UserStatus | null };
+
+/** A user's status as the list filters it. */
+export type UserStatus = "active" | "suspended";
 
 /** A user's deck as the user's page lists it. */
 export type UserDeck = {
@@ -345,39 +363,20 @@ export async function readDeck(id: string): Promise<AdminRead<AdminDeck | null>>
 }
 
 /**
- * The search's pages 0 to [last], as one page: the users of each in order and the matches in
- * all, read as "더 보기" would have read them. Past the matches' last page it reads no further.
+ * The [page]th page, from 0, of [size] users matching [filter], newest sign-up first, with the
+ * matches in all (ADR 0181).
  */
-export async function searchUsersThrough(
-  query: string,
-  last: number,
+export async function listUsers(
+  filter: UserFilter,
+  page: number,
+  size: number,
 ): Promise<AdminRead<UserPage>> {
-  const first = await searchUsers(query, 0);
-  if ("failure" in first) return first;
-  const pages = Math.min(last, Math.ceil(first.data.total / userPageSize) - 1);
-  const rest = await Promise.all(
-    Array.from({ length: Math.max(pages, 0) }, (_, index) => searchUsers(query, index + 1)),
-  );
-  const users = [...first.data.users];
-  for (const page of rest) {
-    if ("failure" in page) return page;
-    users.push(...page.data.users);
-  }
-  return { data: { users, total: first.data.total } };
-}
-
-/** How many users a page of the search holds. */
-const userPageSize = 20;
-
-/**
- * The [page]th page of the users whose email holds [query], ignoring case, those it starts first,
- * with the matches in all.
- */
-export async function searchUsers(query: string, page: number): Promise<AdminRead<UserPage>> {
-  const read = await call("admin_search_users", {
-    query,
-    page_size: userPageSize,
-    page_offset: page * userPageSize,
+  const read = await call("admin_users", {
+    query: filter.query,
+    plan: filter.plan,
+    status: filter.status,
+    page_size: size,
+    page_offset: page * size,
   });
   if ("failure" in read) return read;
   let total = 0;
@@ -385,12 +384,23 @@ export async function searchUsers(query: string, page: number): Promise<AdminRea
     const id = text(field(row, "user_id"));
     const email = text(field(row, "email"));
     const createdAt = parseTime(field(row, "created_at"));
+    const lastAnswer = field(row, "last_answer_at");
+    const lastAnswerAt = lastAnswer === null ? null : parseTime(lastAnswer);
+    const decks = count(field(row, "decks"));
+    const cards = count(field(row, "cards"));
+    const planValue = field(row, "user_plan");
+    const plan = planValue === null ? null : parsePlanId(planValue);
+    const admin = field(row, "admin");
     const suspended = field(row, "suspended");
     const matches = count(field(row, "total"));
     if (id === null || email === null || createdAt === null || matches === null) return null;
+    if ((lastAnswer !== null && lastAnswerAt === null) || decks === null || cards === null) {
+      return null;
+    }
+    if ((planValue !== null && plan === null) || typeof admin !== "boolean") return null;
     if (typeof suspended !== "boolean") return null;
     total = matches;
-    return { id, email, createdAt, suspended };
+    return { id, email, createdAt, lastAnswerAt, decks, cards, plan, admin, suspended };
   });
   return users ? { data: { users, total } } : { failure: "unreadable" };
 }

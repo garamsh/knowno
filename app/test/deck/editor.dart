@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart' hide Card;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/deck/src/block_list.dart';
+import 'package:knowno/deck/src/label_presets.dart';
 import 'package:knowno/design/app_button.dart';
 import 'package:knowno/deck/src/undo_snack_bar.dart';
 import 'package:knowno/study/study.dart';
@@ -11,6 +13,18 @@ import '../word_breaks.dart';
 
 /// The preview the shell hands the editor: study's (ADR 0168).
 Widget studyPreview(List<Cell> cells) => CardPreviewScreen(cells: cells);
+
+/// Stores [presets] as the device's own under the open card editor, which a
+/// device otherwise has none of (ADR 0184).
+Future<void> storeLabelPresets(
+  WidgetTester tester,
+  List<LabelPreset> presets,
+) async {
+  final storage = ProviderScope.containerOf(
+    tester.element(find.byType(CardEditorScreen)),
+  ).read(deckStorageProvider);
+  await tester.runAsync(() => saveLabelPresets(storage, presets));
+}
 
 /// The card's column of 칸.
 final blockList = find.byType(BlockList);

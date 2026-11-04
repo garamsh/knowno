@@ -3,111 +3,116 @@ import Link from "next/link";
 
 import { Chip } from "@/design/chip";
 
-import { dismissReports } from "../dismiss-reports";
-import { hideDeck } from "../hide-deck";
+import { formatDate } from "../format";
 import { labelOf, reasonLabels } from "../labels";
 import type { NoteRow } from "../read-admin";
-import { removeDeck } from "../remove-deck";
-import { unhideDeck } from "../unhide-deck";
-import { button, Empty, group } from "./admin-section";
-import { ConfirmAction } from "./confirm-action";
-import { ReasonAction } from "./reason-action";
+import { button, Email, Empty } from "./admin-section";
+import { AdminTable, CellLabel, cellClass, rowClass } from "./admin-table";
+import { DismissAction, HideAction, RemoveAction } from "./moderation-actions";
+import { SheetButton } from "./sheet-button";
+import { SheetLink } from "./sheet-link";
+
+const head = [
+  { label: "노트" },
+  { label: "만든 사람" },
+  { label: "카드", align: "end" },
+  { label: "가져오기", align: "end" },
+  { label: "첫 신고" },
+  { label: "신고", align: "center" },
+  { label: "작업" },
+] as const;
 
 /**
- * One public note: its name with its reports and state, its owner and counts, and three actions
- * fixed in place, 카드 보기, 문제없음 and 숨기기 (숨김 해제 on a hidden note), each asked first; under
- * ⋯ the owner's page and the removal from sharing, whose last step is red.
+ * One public note as a row: its name, which opens its cards, with its state and reasons, its owner,
+ * counts, first report and reports, and two actions fixed in place, 문제없음 and 숨기기 (숨김 해제
+ * on a hidden note), each asked first; ⋯ opens, in the shared sheet, the owner's page and the
+ * removal from sharing, whose last step is red. The actions keep one width from 1024 px, so a
+ * question opened in place wraps inside it rather than widening the table.
  */
-function NoteItem({ note }: { note: NoteRow }) {
+function NoteItem({ note, timeZone }: { note: NoteRow; timeZone: string }) {
   return (
-    <li className="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-body-strong break-words">{note.name}</span>
-          {note.reports > 0 && <Chip tone="amber">신고 {note.reports}</Chip>}
-          {note.hidden && <Chip tone="amber">숨김</Chip>}
-        </div>
-        <p className="text-caption text-ink-2">
-          {note.owner.email} · 카드 {note.cards.toLocaleString("ko-KR")}장 · 가져오기{" "}
-          {note.copies.toLocaleString("ko-KR")}회
-          {note.reasons.length === 0
-            ? ""
-            : ` · 사유: ${note.reasons.map((reason) => labelOf(reasonLabels, reason)).join(", ")}`}
-        </p>
-      </div>
-      <div className="flex flex-col items-start gap-2 lg:items-end">
-        <div className="flex flex-wrap items-start gap-2 lg:justify-end">
-          <Link href={`/decks/${note.id}`} className={button.row}>
-            카드 보기
-          </Link>
-          <ConfirmAction
-            compact
-            disabled={note.reports === 0}
-            label="문제없음"
-            question={`'${note.name}' 노트의 신고 ${String(note.reports)}건을 정리할까요? 숨김은 그대로예요.`}
-            confirmLabel="문제없음"
-            action={dismissReports.bind(null, note.id)}
-          />
-          {note.hidden ? (
-            <ConfirmAction
-              compact
-              label="숨김 해제"
-              question={`'${note.name}' 노트를 공개 목록에 다시 보일까요?`}
-              confirmLabel="숨김 해제"
-              action={unhideDeck.bind(null, note.id)}
-            />
-          ) : (
-            <ConfirmAction
-              compact
-              label="숨기기"
-              question={`'${note.name}' 노트를 공개 목록에서 숨길까요?`}
-              confirmLabel="숨기기"
-              action={hideDeck.bind(null, note.id)}
-            />
-          )}
-          <details className="open:basis-full">
-            <summary
-              aria-label={`'${note.name}' 더 보기`}
-              className={`${button.row} list-none [&::-webkit-details-marker]:hidden`}
+    <tr className={rowClass()}>
+      <td className={`${cellClass({ lead: true })} lg:min-w-40`}>
+        <span className="flex flex-col gap-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/decks/${note.id}`}
+              className="inline-flex min-h-tap-target items-center text-body-strong break-words underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              <Ellipsis aria-hidden className="size-5" strokeWidth={2} />
-            </summary>
-            <NoteMenu note={note} />
-          </details>
+              {note.name}
+            </Link>
+            {note.hidden && <Chip tone="amber">숨김</Chip>}
+          </span>
+          {note.reasons.length > 0 && (
+            <span className="text-caption text-ink-2">
+              사유: {note.reasons.map((reason) => labelOf(reasonLabels, reason)).join(", ")}
+            </span>
+          )}
+        </span>
+      </td>
+      <td className={`${cellClass()} break-words`}>
+        <CellLabel>만든 사람</CellLabel>
+        <Email email={note.owner.email} />
+      </td>
+      <td className={cellClass({ align: "end" })}>
+        <CellLabel>카드</CellLabel>
+        {note.cards.toLocaleString("ko-KR")}장
+      </td>
+      <td className={cellClass({ align: "end" })}>
+        <CellLabel>가져오기</CellLabel>
+        {note.copies.toLocaleString("ko-KR")}회
+      </td>
+      <td className={`${cellClass()} whitespace-nowrap`}>
+        <CellLabel>첫 신고</CellLabel>
+        {note.firstReportedAt === null ? "없음" : formatDate(note.firstReportedAt, timeZone)}
+      </td>
+      <td className={`${cellClass({ align: "center" })} whitespace-nowrap`}>
+        {note.reports > 0 ? (
+          <Chip tone="amber">신고 {note.reports}</Chip>
+        ) : (
+          <>
+            <CellLabel>신고</CellLabel>없음
+          </>
+        )}
+      </td>
+      <td className={`${cellClass({ lead: true })} max-lg:pt-2`}>
+        <div className="flex flex-wrap items-start gap-2 pb-2 lg:w-64 [&>*:has([role=group])]:basis-full">
+          <DismissAction compact note={note} reports={note.reports} label="문제없음" />
+          <HideAction compact note={note} hidden={note.hidden} />
+          <SheetButton
+            label={`'${note.name}' 더 보기`}
+            icon={<Ellipsis aria-hidden className="size-5" strokeWidth={2} />}
+            title={note.name}
+          >
+            <div className="flex flex-col items-start gap-3 pt-2">
+              <SheetLink href={`/users/${note.owner.id}`} className={button.row}>
+                만든 사람 보기
+              </SheetLink>
+              <RemoveAction compact note={note} />
+            </div>
+          </SheetButton>
         </div>
-      </div>
-    </li>
+      </td>
+    </tr>
   );
 }
 
-/** What ⋯ opens under a note's actions: the owner's page and the removal from sharing. */
-function NoteMenu({ note }: { note: NoteRow }) {
-  return (
-    <div className="mt-2 flex flex-col items-start gap-2 lg:items-end">
-      <Link href={`/users/${note.owner.id}`} className={button.row}>
-        만든 사람 보기
-      </Link>
-      <ReasonAction
-        compact
-        label="공유에서 영구 삭제"
-        reasonLabel="삭제하는 이유"
-        question={`'${note.name}' 노트를 공유에서 영구 삭제할까요? 노트는 주인에게 남고, 다시 공개할 수 없어요.`}
-        confirmLabel="영구 삭제"
-        final
-        action={removeDeck.bind(null, note.id)}
-      />
-    </div>
-  );
-}
-
-/** The notes of one view of 노트, each with its actions, or what is true when there are none. */
-export function NoteList({ notes, empty }: { notes: NoteRow[]; empty: string }) {
+/** The notes of one view of 노트 as a table, each with its actions, or what is true when there are none. */
+export function NoteList({
+  notes,
+  empty,
+  timeZone,
+}: {
+  notes: NoteRow[];
+  empty: string;
+  timeZone: string;
+}) {
   if (notes.length === 0) return <Empty>{empty}</Empty>;
   return (
-    <ul aria-label="노트 목록" className={group}>
+    <AdminTable label="노트 목록" head={head}>
       {notes.map((note) => (
-        <NoteItem key={note.id} note={note} />
+        <NoteItem key={note.id} note={note} timeZone={timeZone} />
       ))}
-    </ul>
+    </AdminTable>
   );
 }

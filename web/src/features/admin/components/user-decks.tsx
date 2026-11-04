@@ -4,7 +4,7 @@ import { Chip } from "@/design/chip";
 
 import type { UserDeck } from "../read-admin";
 import { Section } from "@/design/section";
-import { Empty, group } from "./admin-section";
+import { Empty, group, linkRow } from "./admin-section";
 import { DeckStateChips } from "./deck-state";
 
 /** Every live note of a user, public or private, with its reports, each opening the note read-only. */
@@ -17,10 +17,7 @@ export function UserDecks({ decks }: { decks: UserDeck[] }) {
         <ul className={`${group} overflow-hidden`}>
           {decks.map((deck) => (
             <li key={deck.id}>
-              <Link
-                href={`/decks/${deck.id}`}
-                className="pressable flex min-h-13 items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
-              >
+              <Link href={`/decks/${deck.id}`} className={linkRow}>
                 <span className="flex min-w-0 flex-wrap items-center gap-2">
                   <span className="truncate text-body-strong">{deck.name}</span>
                   <DeckStateChips

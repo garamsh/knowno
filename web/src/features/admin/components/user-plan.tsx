@@ -1,35 +1,32 @@
+import type { ReactNode } from "react";
+
 import { studyDayStart } from "@/features/study";
 
-import { revokePlan } from "../revoke-plan";
 import { formatDate, formatTime } from "../format";
 import { labelOf, planLabels, providerLabels, termsLabel } from "../labels";
 import type { UserPlan as Plan } from "../read-admin";
 import { Section } from "@/design/section";
-import { button, group } from "./admin-section";
-import { ConfirmAction } from "./confirm-action";
-import { GrantPlanForm } from "./grant-plan-form";
+import { type Fact, Facts } from "./admin-section";
 
 /**
- * A user's plan now, the grant behind it and the next renewal, with 요금제 바꾸기 opening the form
- * to grant another and the way back to Free.
+ * A user's plan now, the provider serving it with its model under it, the grant behind it and the
+ * next renewal, ended by [children], the rows that change it (`user-view.tsx`).
  */
 export function UserPlan({
-  userId,
-  email,
   plan,
   timeZone,
   renewal,
+  children,
 }: {
-  userId: string;
-  email: string;
   plan: Plan;
   timeZone: string;
   /** The next renewal, as "2026-12-01". */
   renewal: string;
+  children?: ReactNode;
 }) {
   const grant = plan.grant;
   const entitlement = plan.entitlement;
-  const facts: (readonly [string, string])[] = [
+  const facts: Fact[] = [
     [
       "지금",
       entitlement === null
@@ -41,7 +38,8 @@ export function UserPlan({
       : [
           [
             "모델",
-            `${labelOf(providerLabels, entitlement.serving.provider)} · ${entitlement.serving.model}`,
+            labelOf(providerLabels, entitlement.serving.provider),
+            entitlement.serving.model,
           ] as const,
         ]),
     ...(grant === null
@@ -64,31 +62,7 @@ export function UserPlan({
   ];
   return (
     <Section label="요금제">
-      <dl className={group}>
-        {facts.map(([term, value]) => (
-          <div key={term} className="flex items-baseline justify-between gap-3 px-4 py-3">
-            <dt className="shrink-0 text-body text-ink-2">{term}</dt>
-            <dd className="text-right text-body-strong break-all tabular-nums">{value}</dd>
-          </div>
-        ))}
-      </dl>
-      <details className="flex flex-col gap-2">
-        <summary
-          className={`${button.row} mt-2 w-fit list-none [&::-webkit-details-marker]:hidden`}
-        >
-          요금제 바꾸기
-        </summary>
-        <GrantPlanForm userId={userId} />
-        {grant !== null && (
-          <ConfirmAction
-            compact
-            label="무료로 되돌리기"
-            question={`${email}의 요금제를 무료로 되돌릴까요?`}
-            confirmLabel="무료로 되돌리기"
-            action={revokePlan.bind(null, userId)}
-          />
-        )}
-      </details>
+      <Facts facts={facts}>{children}</Facts>
     </Section>
   );
 }
