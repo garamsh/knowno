@@ -492,6 +492,86 @@ describe("photo import", () => {
       expect(db.rows.cards).toHaveLength(1);
     });
   });
+  // Leaving a failed import closes it at once: nothing is lost and nothing is left to read (#690).
+  for (const [kind, failure] of [
+    ["model", failed502],
+    ["unavailable", { status: 503, body: { error: "unavailable" } }],
+    ["limit", { status: 429, body: { error: "photo_limit", photo_limit: 10, period: "month" } }],
+    ["no cards", { status: 422, body: { error: "no_cards" } }],
+  ] as const) {
+    it(`closes a failed photo (${kind}) on 닫기 at once, and the next import starts afresh`, async () => {
+      const sent = answer(failure);
+      await choose(1);
+      await screen.findByText((_, node) => node?.matches("p[aria-live]") ?? false);
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+      expect(
+        screen.queryByRole("dialog", { name: "찾은 카드를 버릴까요?" }),
+      ).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+      expect(sent.count).toBe(1);
+
+      answer(read);
+      await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+      fireEvent.change(screen.getByLabelText("앨범에서 고르기", { selector: "input" }), {
+        target: { files: [new File([], "again.jpg")] },
+      });
+      expect(
+        await screen.findByRole("heading", { name: "카드 1장을 만들었어요" }),
+      ).toBeInTheDocument();
+    });
+  }
+  it("closes several photos that all failed on 닫기 at once, and asks once one was read", async () => {
+    answer(failed502, { status: 422, body: { error: "no_cards" } });
+    await choose(2);
+    expect(
+      await screen.findByRole("heading", { name: "사진 2장을 읽지 못했어요" }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    cleanup();
+
+    answer(failed502, read);
+    await choose(2);
+    expect(
+      await screen.findByRole("heading", { name: "사진 1장을 읽지 못했어요" }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+    expect(
+      await screen.findByRole("dialog", { name: "찾은 카드를 버릴까요?" }),
+      "control: a read photo's card would be lost",
+    ).toBeInTheDocument();
+  });
+  it("sends no further photo after 닫기 while reading, and the reply under way changes nothing", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const sent = { count: 0 };
+    server.use(
+      http.post(`${supabaseUrl}/functions/v1/extract-cards`, async () => {
+        sent.count += 1;
+        await held;
+        return HttpResponse.json(read.body);
+      }),
+    );
+    await choose(2);
+    await waitFor(() => {
+      expect(sent.count).toBe(1);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(sent.count, "the second photo is never sent").toBe(1);
+  });
   it("offers no retry for a failure sending again cannot fix, against the retake it does offer", async () => {
     answer({ status: 422, body: { error: "no_cards" } });
     await choose(1);

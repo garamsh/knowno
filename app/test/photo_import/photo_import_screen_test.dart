@@ -2623,6 +2623,106 @@ void main() {
       );
     }
 
+    // Leaving a failed import dismisses it: nothing is left to read (#690).
+    for (final (failure, _, _, _) in cases) {
+      for (final (way, leave) in <(String, Future<void> Function(_Import))>[
+        ('the close', (import) => import.tap(find.byTooltip('Close'))),
+        ('the system back', (import) => import.back()),
+      ]) {
+        testWidgets('after $failure, $way closes the screen and ends the job', (
+          tester,
+        ) async {
+          final import = await _Import.open(tester);
+          await import.shoot();
+          import.client.fail(failure);
+          await tester.pumpAndSettle();
+          expect(import.imports.job, isNotNull, reason: 'the failed job');
+
+          await leave(import);
+
+          expect(import.hasPopped, isTrue);
+          expect(import.popped, isNull);
+          expect(import.imports.job, isNull);
+          expect(import.bar, isNull);
+          await import.shoot();
+          expect(
+            _shown('Finding cards'),
+            findsOneWidget,
+            reason: 'a new import starts',
+          );
+          await import.close();
+        });
+      }
+    }
+
+    testWidgets(
+      'several photos that all failed are dismissed by the back and the system back, against a batch still reading, which goes on',
+      (tester) async {
+        final import = await _Import.open(tester);
+        await import.pickSeveral(2);
+        import.calls(0).answer.completeError(const ModelFailed());
+        await import.frames();
+        await tester.tap(find.byTooltip('Back'));
+        await import.frames();
+        expect(import.hasPopped, isTrue);
+        expect(
+          import.imports.job,
+          isNotNull,
+          reason: 'control: photo 2 is still read, so leaving keeps the job',
+        );
+        expect(import.calls(1).cancelled, isFalse);
+        await import.close();
+
+        for (final leave in [
+          (_Import import) async {
+            await tester.tap(find.byTooltip('Back'));
+            await import.frames();
+          },
+          (_Import import) => import.back(),
+        ]) {
+          final failed = await _Import.open(tester);
+          await failed.pickSeveral(2);
+          failed.calls(0).answer.completeError(const ModelFailed());
+          failed
+              .calls(1)
+              .answer
+              .completeError(
+                const PhotoLimitReached(limit: 30, period: LimitPeriod.day),
+              );
+          await failed.frames();
+          expect(_shown("Couldn't read 2 photos"), findsOneWidget);
+
+          await leave(failed);
+
+          expect(failed.hasPopped, isTrue);
+          expect(failed.imports.job, isNull);
+          expect(failed.bar, isNull);
+          await failed.close();
+        }
+      },
+    );
+
+    testWidgets(
+      '"Cancel" while several are read ends the job, and a late reply changes nothing',
+      (tester) async {
+        final import = await _Import.open(tester);
+        await import.pickSeveral(2);
+        await import.tap(_shown('Cancel'));
+        expect(import.hasPopped, isTrue);
+        expect(import.imports.job, isNull);
+        expect(import.client.calls.map((call) => call.cancelled), [true, true]);
+
+        await import.answerCall(0, {'chat': 'cat'});
+        await import.answerCall(1, {'chien': 'dog'});
+        await tester.pumpAndSettle();
+        expect(import.imports.job, isNull);
+        expect(import.bar, isNull);
+        expect(_shown('Words found'), findsNothing);
+        expect(import.client.calls, hasLength(2), reason: 'none sent after');
+        await import.close();
+      },
+    );
+
     testWidgets('an unreadable album photo is shown with a retake', (
       tester,
     ) async {
@@ -2677,14 +2777,17 @@ void main() {
     );
 
     testWidgets(
-      'an unavailable photo opened again from the bar offers the spreadsheet, which resolves to it',
+      'photos that fail as unavailable while the screen is left offer the spreadsheet when opened again from the bar, which resolves to it',
       (tester) async {
         final import = await _Import.open(tester);
-        await import.shoot();
-        import.client.fail(const ExtractionUnavailable());
-        await tester.pumpAndSettle();
-        await import.tap(find.byTooltip('Close'));
-        expect(import.imports.job, isNotNull, reason: 'closing keeps the job');
+        await import.pickSeveral(2);
+        import.calls(0).answer.completeError(const ExtractionUnavailable());
+        await import.frames();
+        await tester.tap(find.byTooltip('Back'));
+        await import.frames();
+        expect(import.imports.job, isNotNull, reason: 'photo 2 still read');
+        import.calls(1).answer.completeError(const ExtractionUnavailable());
+        await import.frames();
 
         await import.reopen();
         await tester.pumpAndSettle();

@@ -153,8 +153,8 @@ Future<_Take?> _takePhotos(
 }
 
 /// A photo import's screen over [job]: its one photo being read, a failure,
-/// the photos being read, or the list. Leaving it leaves [job] reading;
-/// "취소" ends it.
+/// the photos being read, or the list. Leaving it leaves [job] reading, or
+/// ends it once every photo failed; "취소" ends it.
 class PhotoImportScreen extends ConsumerStatefulWidget {
   const PhotoImportScreen({
     super.key,
@@ -225,8 +225,29 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
     job?.addListener(_jobChanged);
   }
 
+  /// Whether [job] holds only photos that failed, with no list: leaving it
+  /// then dismisses it, as nothing is left to read (#690).
+  static bool _failed(ImportJob job) =>
+      job.list == null &&
+      job.batch.isNotEmpty &&
+      job.batch.every((photo) => photo.state is PhotoFailed);
+
+  /// Ends the job once the screen is left with it failed, by the close, the
+  /// system back or the edge swipe; a job still reading goes on.
+  void _popped(bool didPop) {
+    final job = _job;
+    if (!didPop || job == null || !_failed(job)) return;
+    _watch(null);
+    unawaited(widget.imports.end(job));
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => PopScope(
+    onPopInvokedWithResult: (didPop, _) => _popped(didPop),
+    child: _view(context),
+  );
+
+  Widget _view(BuildContext context) {
     final decks = ref.watch(_decksProvider);
     final job = _job;
     final target = switch (decks) {
