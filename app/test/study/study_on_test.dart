@@ -183,7 +183,7 @@ void _answerAll(StudySession session) {
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
-  test('past today\'s cards, 학습하기 goes on with the next new cards oldest first, each answer written and counted apart from the day\'s goal', () async {
+  test('past today\'s cards, going on takes the next new cards oldest first, each answer written and counted apart from the day\'s goal', () async {
     final deck = await _Deck.open(_names(_today + 2));
     final session = await deck.session();
     _answerAll(session);
@@ -342,7 +342,7 @@ void main() {
     expect((again.state as SessionStudying).progress.extra, 1);
   });
 
-  test('with no new card left past today\'s, the completion card offers none and 학습하기 does nothing', () async {
+  test('with no new card left past today\'s, the completion sheet offers none and going on does nothing', () async {
     final deck = await _Deck.open(['a', 'b']);
     final session = await deck.session();
     _answerAll(session);
@@ -352,7 +352,7 @@ void main() {
     session.studyOn();
     expect(session.state, isA<SessionComplete>());
 
-    // Reopened, with both answered today, it opens on the completion card.
+    // Reopened, with both answered today, it opens on the completion sheet.
     await session.settled;
     final again = await deck.session();
     expect(again.state, isA<SessionComplete>());

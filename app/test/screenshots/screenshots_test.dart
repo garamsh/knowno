@@ -569,9 +569,10 @@ void main() {
       ) {
         await answer(ko.know);
       }
-      // No new card is left past today's, so the card says so.
+      // No new card is left past today's, so the sheet says so.
       await shot(tester, '15-study-complete');
-      await tap(tester, find.byTooltip(ko.close));
+      await largest(tester, '15-study-complete');
+      await tap(tester, shownText(ko.studyDone));
       await untilWritten(tester);
 
       // The empty deck has nothing to study today.

@@ -809,7 +809,7 @@ void main() {
   );
 
   testWidgets(
-    'with no card left and one answered today, the deck\'s Study this note and 홈\'s Study open the completion card',
+    'with no card left and one answered today, the deck\'s Study this note and 홈\'s Study open the completion sheet',
     (tester) async {
       await pumpApp(tester);
       await createDeckAndOpen(tester, 'French');
@@ -837,16 +837,13 @@ void main() {
         );
         await tester.pump();
       }
-      // On this 600-high test screen the completion card scrolls inside.
-      await tester.ensureVisible(shownText('Stop'));
-      await tester.tap(shownText('Stop'));
+      await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
 
       await tester.tap(studyThisDeck);
       await tester.pumpAndSettle();
       expect(shownText('Done for today'), findsOneWidget);
-      await tester.ensureVisible(shownText('Stop'));
-      await tester.tap(shownText('Stop'));
+      await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       await showTab(tester, 'Home');
 

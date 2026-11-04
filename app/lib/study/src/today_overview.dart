@@ -67,7 +67,7 @@ typedef TodayOverviewBuilder = Widget Function(
 );
 
 /// Reads [decks]' [TodayOverview]: [TodayCounter]'s count, the streak as the
-/// completion card counts it, and the next review; shows it through
+/// completion sheet counts it, and the next review; shows it through
 /// [builder].
 ///
 /// It is read again when [decks] changes and whenever the route that shows it

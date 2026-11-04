@@ -322,7 +322,7 @@ final class StudyStats {
   /// [studyDayCounts] over every stored answer.
   final List<StudyDayCount> days;
 
-  /// The current streak, as the completion card counts it.
+  /// The current streak, as the completion sheet counts it.
   final int streak;
 
   /// The longest streak ever.

@@ -72,7 +72,7 @@ function current(study: StudySession): string {
 beforeAll(loadEngine);
 
 describe("studying past today's cards", () => {
-  it("goes on from the completion card with the new cards past today's, oldest first, each answer written and counted apart from the day's", () => {
+  it("goes on from the completion sheet with the new cards past today's, oldest first, each answer written and counted apart from the day's", () => {
     const study = session(["a", "b"], ["c", "d"]);
     study.answer("know");
     study.answer("know");
@@ -134,7 +134,7 @@ describe("studying past today's cards", () => {
     expect(session([], [], 2).view()).toMatchObject({ done: 2, total: 2, extra: 0 });
   });
 
-  it("with no card left to take opens on the completion card when today holds an answer, and on nothing to study otherwise", () => {
+  it("with no card left to take opens on the completion sheet when today holds an answer, and on nothing to study otherwise", () => {
     const answered = session([], [], 1);
     expect(answered.view()).toMatchObject({ kind: "complete", more: false });
     answered.studyOn();

@@ -1,6 +1,6 @@
 # ADR 0093: Make stopping the finished completion card's primary, and show the resume notice in the progress bar's place, on the phone
 
-> Status: accepted
+> Status: accepted; its finished completion card superseded by ADR-0189, which keeps stopping as the primary
 > Date: 2026-10-26
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

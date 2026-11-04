@@ -9,12 +9,13 @@ import 'daily_minutes_sheet.dart';
 import 'study_coach.dart';
 import '../../design/app_chip.dart';
 import '../../design/app_button.dart';
+import '../../design/app_sheet.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'autoplay.dart';
-import 'completion_card.dart';
+import 'completion_sheet.dart';
 import 'current_card.dart';
 import 'failure.dart';
 import 'failure_message.dart';
@@ -64,9 +65,9 @@ Future<void> openStudy(BuildContext context, DeckSelection decks) async {
 }
 
 /// Studies the cards of [decks] left today in one session, one card at a time,
-/// answered by swiping, below the card answered just before it; then shows the
-/// completion card, from which the new cards past today's go on in the same
-/// session.
+/// answered by swiping, below the card answered just before it; then asks in
+/// the completion sheet whether to go on with the new cards past today's in
+/// the same session, and leaves the screen otherwise.
 ///
 /// On a device's first session, a coach teaches the swipes on the cards, and
 /// "안내 다시 보기" shows it again. A session that goes on with a day that has
@@ -97,6 +98,9 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
   /// Whether the session has loaded, after which the notice is not offered
   /// again.
   var _loaded = false;
+
+  /// Whether the completion sheet is open, or has closed to leave the screen.
+  var _asking = false;
 
   /// The notice that the session goes on with the day, while it shows.
   String? _resume;
@@ -162,9 +166,11 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
 
   /// Once the session has loaded, says for a moment that it goes on with the
   /// day where it does; the first time a card is on screen, starts the coach
-  /// unless it has shown on this device, and stores it as shown.
+  /// unless it has shown on this device, and stores it as shown; once no card
+  /// is left, asks whether to go on.
   void _onSession() {
     final state = _session.state;
+    if (state is SessionComplete && !_asking) unawaited(_askToGoOn(state));
     if (!_loaded && state is! SessionLoading) {
       _loaded = true;
       final size = _session.size;
@@ -191,6 +197,25 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
     _coach = _CoachStep.know;
     if (!MediaQuery.disableAnimationsOf(context) && !_demo.isAnimating) {
       _demo.repeat();
+    }
+  }
+
+  /// Opens the completion sheet over the screen: going on takes the new cards
+  /// past today's, and stopping, or dismissing the sheet, leaves the screen.
+  Future<void> _askToGoOn(SessionComplete state) async {
+    _asking = true;
+    final goOn = await showAppSheet<bool>(
+      context,
+      builder: (_) =>
+          CompletionSheet(completion: state.completion, more: state.more),
+    );
+    if (!mounted) return;
+    if (goOn ?? false) {
+      _asking = false;
+      _session.studyOn();
+    } else if (ModalRoute.of(context)?.isCurrent ?? false) {
+      // Not when the screen was closed under the sheet, which closed it too.
+      Navigator.of(context).pop();
     }
   }
 
@@ -313,13 +338,10 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
           ),
         ),
       ),
-      SessionComplete(:final completion, :final previous, :final more) => (
+      // The completion sheet covers the current card's place.
+      SessionComplete(:final previous) => (
         previous,
-        CompletionCard(
-          key: const ValueKey('completion'),
-          completion: completion,
-          onStudyOn: more ? _session.studyOn : null,
-        ),
+        const SizedBox.shrink(key: ValueKey('completion')),
       ),
     };
     if (previous == null) return current;
@@ -379,8 +401,6 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
     final dimmed = _coach == _CoachStep.know || _coach == _CoachStep.dontKnow;
     return LayoutBuilder(
       builder: (context, constraints) {
-        // The completion card's place counts as a card's, so the previous
-        // card keeps its size when the completion card arrives.
         final card = StudyStyle.cardHeight(constraints.maxHeight);
         return Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -401,8 +421,6 @@ class _StudyScreenState extends ConsumerState<StudyScreen>
                 ),
               ),
               const SizedBox(height: StudyStyle.cardGap),
-              // The completion card may take the guide's row's place too,
-              // so its actions stay in reach.
               Expanded(child: switcher(current, _emerge)),
             ],
           ),

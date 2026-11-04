@@ -1,6 +1,6 @@
 # ADR 0151: Draw the previous study card as one centred, scrolling column on a grade line, put the mascot between the cards, finish on a hero panel, and redraw the record
 
-> Status: accepted; the mascot between the study cards superseded by ADR-0166; the previous card's front at `deckName` superseded by ADR 0176
+> Status: accepted; the mascot between the study cards superseded by ADR-0166; the previous card's front at `deckName` superseded by ADR 0176; the completion panel on the hero superseded by ADR-0189
 > Date: 2026-11-02
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

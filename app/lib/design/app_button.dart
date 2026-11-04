@@ -12,8 +12,8 @@ enum AppButtonVariant {
   /// edge.
   primary,
 
-  /// An action on the hero surface, such as the completion panel's
-  /// "학습하기": the [AppColors.heroButton] fill on its edge.
+  /// An action on the hero surface, such as 홈's hero's "시작": the
+  /// [AppColors.heroButton] fill on its edge.
   onHero,
 
   /// An action beside the primary one: the surface on its edge.
@@ -44,8 +44,8 @@ enum AppButtonVariant {
   /// [AppSpace.s4] at its sides so it sits in a line of text.
   link,
 
-  /// A quiet action on the hero surface, such as the completion panel's
-  /// "그만하기" under "학습하기": text in the colour drawn on the hero.
+  /// A quiet action on the hero surface: text in the colour drawn on the
+  /// hero.
   onHeroText,
 }
 

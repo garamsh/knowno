@@ -545,7 +545,7 @@ describe("홈 and the 노트 page", () => {
     expect(french).toHaveAccessibleName("French, 카드 1장");
   });
 
-  it("with no card left today says the cards are done and links 학습하기 to the study page over every deck, which opens on nothing to study or on the completion card", async () => {
+  it("with no card left today says the cards are done and links 학습하기 to the study page over every deck, which opens on nothing to study or on the completion sheet", async () => {
     postgrest.seed("decks", deckRow("d-fr", "French"), deckRow("d-es", "Spanish"));
     postgrest.seed("cards", cardRow("fr-later", "d-fr", "oiseau"));
     postgrest.seed("card_states", stateRow("fr-later", notDue));
@@ -577,7 +577,7 @@ describe("홈 and the 노트 page", () => {
       if (answered === "yesterday") {
         expect(screen.getByText("오늘은 학습할 카드가 없어요")).toBeInTheDocument();
       } else {
-        expect(screen.getByRole("region", { name: "오늘 학습 완료" })).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "오늘 학습을 다 했어요" })).toBeInTheDocument();
       }
       cleanup();
     }
