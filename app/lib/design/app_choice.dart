@@ -44,7 +44,8 @@ Future<({T value})?> showAppChoice<T>(
 
 /// A row that chooses one of several options: its [title], the [value]
 /// chosen in [AppColors.ink2] and a chevron, which [onTap] follows to the
-/// choices, usually [showAppChoice]'s sheet; a null [onTap] disables it.
+/// choices, usually [showAppChoice]'s sheet; a null [onTap] disables it, and
+/// it draws all three in [AppColors.muted].
 ///
 /// It lies on [AppListRow]'s insets. Where the title and the value do not fit
 /// one line, as at a large text size, the value and the chevron go under the
@@ -69,9 +70,12 @@ class AppChoiceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final value = this.value;
+    final colors = AppColors.of(context);
+    final enabled = onTap != null;
     return MergeSemantics(
       child: Semantics(
         button: true,
+        enabled: enabled,
         child: AppRowSurface(
           onTap: onTap,
           child: Padding(
@@ -80,7 +84,9 @@ class AppChoiceRow extends StatelessWidget {
               title: Text(
                 keepWords(title),
                 semanticsLabel: title,
-                style: AppType.bodyStrong,
+                style: enabled
+                    ? AppType.bodyStrong
+                    : AppType.bodyStrong.copyWith(color: colors.muted),
               ),
               value: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -93,11 +99,14 @@ class AppChoiceRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppType.secondary.copyWith(
-                          color: AppColors.of(context).ink2,
+                          color: enabled ? colors.ink2 : colors.muted,
                         ),
                       ),
                     ),
-                  const Icon(LucideIcons.chevronRight),
+                  Icon(
+                    LucideIcons.chevronRight,
+                    color: enabled ? null : colors.muted,
+                  ),
                 ],
               ),
             ),

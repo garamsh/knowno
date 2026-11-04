@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/design/app_choice.dart';
 import 'package:knowno/design/app_list_row.dart';
+import 'package:knowno/design/theme.dart';
 
 import '../app_fonts.dart';
 import '../word_breaks.dart';
@@ -101,6 +102,61 @@ void main() {
       },
     );
   }
+
+  testWidgets('a choice row with no action reads as disabled and draws its '
+      'title and chevron muted, against an enabled one', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpComponent(
+      tester,
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppChoiceRow(title: 'On', value: 'a', onTap: () {}),
+          const AppChoiceRow(title: 'Off', value: 'b', onTap: null),
+        ],
+      ),
+    );
+    final colors = AppColors.light;
+    Color? drawn(Finder text) => tester.widget<Text>(text).style?.color;
+    Color? chevron(String title) => tester
+        .widget<RichText>(
+          find.descendant(
+            of: find.ancestor(
+              of: shownText(title),
+              matching: find.byType(AppChoiceRow),
+            ),
+            matching: find.descendant(
+              of: find.byType(Icon),
+              matching: find.byType(RichText),
+            ),
+          ),
+        )
+        .text
+        .style
+        ?.color;
+
+    expect(drawn(shownText('On')), isNot(colors.muted), reason: 'control');
+    expect(chevron('On'), isNot(colors.muted), reason: 'control');
+    expect(drawn(shownText('Off')), colors.muted);
+    expect(drawn(find.text('b')), colors.muted);
+    expect(chevron('Off'), colors.muted);
+    expect(
+      tester.getSemantics(
+        find.ancestor(of: shownText('On'), matching: find.byType(AppChoiceRow)),
+      ),
+      isSemantics(isButton: true, hasEnabledState: true, isEnabled: true),
+    );
+    expect(
+      tester.getSemantics(
+        find.ancestor(
+          of: shownText('Off'),
+          matching: find.byType(AppChoiceRow),
+        ),
+      ),
+      isSemantics(isButton: true, hasEnabledState: true, isEnabled: false),
+    );
+    semantics.dispose();
+  });
 
   testWidgets(
     'on a 390 wide phone a value too long for its line is cut with an ellipsis, under '
