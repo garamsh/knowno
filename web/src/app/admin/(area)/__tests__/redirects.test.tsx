@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { redirectTarget } from "@/testing/redirect";
 
+import AiVersionPage from "../ai/[id]/page";
+import AiNewPage from "../ai/new/page";
 import AuditPage from "../audit/page";
 import ExtractionsPage from "../extractions/page";
 import PromptPage from "../prompts/[id]/page";
 import PromptsPage from "../prompts/page";
 import ReportsPage from "../reports/page";
+import SettingsAiPage from "../settings/ai/page";
 import SettingsAdminsPage from "../settings/admins/page";
 import SettingsAuditPage from "../settings/audit/page";
 import SettingsPage from "../settings/page";
@@ -23,6 +26,8 @@ describe("an address the admin area had before its sections", () => {
     expect(await target(SettingsAuditPage)).toBe("/admins");
     expect(await target(ExtractionsPage)).toBe("/ai");
     expect(await target(PromptPage)).toBe("/ai");
+    expect(await target(AiVersionPage)).toBe("/ai");
+    expect(await target(SettingsAiPage)).toBe("/ai");
   });
 
   it("opens AI's form from the version the prompts page's form started from, and AI without one", async () => {
@@ -32,5 +37,14 @@ describe("an address the admin area had before its sections", () => {
       );
     expect(await prompts({ from: "3" })).toBe("/ai?write=3");
     expect(await prompts({})).toBe("/ai");
+  });
+
+  it("opens AI's form from the version AI's own new version page started from, or from the active one", async () => {
+    const write = (searchParams: Record<string, string>) =>
+      target(() =>
+        AiNewPage({ params: Promise.resolve({}), searchParams: Promise.resolve(searchParams) }),
+      );
+    expect(await write({ from: "3" })).toBe("/ai?write=3");
+    expect(await write({})).toBe("/ai?write=");
   });
 });
