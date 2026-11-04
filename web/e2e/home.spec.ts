@@ -607,3 +607,169 @@ test("fills 홈's first screen with the hero with the owner's 481 cards over fou
   expect(card.y).toBeGreaterThan(panel.y + panel.height);
   expect(card.x).toBe(panel.x);
 });
+
+/**
+ * Where the side menu's parts start, in whole px from the viewport's left: the lockup as drawn,
+ * the leading box of each item and of the profile (its pill or circle), and each label's first
+ * letter, the items and the profile named by their labels.
+ */
+function menuEdges(page: Page) {
+  return page
+    .getByRole("navigation", { name: "주 메뉴" })
+    .first()
+    .evaluate((nav) => {
+      // A row's label, its own text beside its pill or circle, and where its first letter starts.
+      const label = (element: Element) => {
+        const node = [...element.childNodes].find(
+          (child) => child.nodeType === Node.TEXT_NODE && (child.textContent ?? "").trim() !== "",
+        );
+        if (!node) return { label: null, text: null };
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        return {
+          label: (node.textContent ?? "").trim(),
+          text: Math.round(range.getBoundingClientRect().left),
+        };
+      };
+      const lockup = [...nav.querySelectorAll("a img")].find(
+        (image) => image.getBoundingClientRect().width > 0,
+      );
+      const rows = [...nav.querySelectorAll("a")].filter((link) => !link.querySelector("img"));
+      return {
+        lockup: lockup ? Math.round(lockup.getBoundingClientRect().left) : null,
+        boxes: rows.map((row) => ({
+          ...label(row),
+          box: row.firstElementChild
+            ? Math.round(row.firstElementChild.getBoundingClientRect().left)
+            : null,
+        })),
+      };
+    });
+}
+
+/**
+ * How many times the app's name is drawn on [page]: the lockup's image, and each element whose
+ * own text is 알아몰라, unless it or a box around it is no bigger than the pixel a visually hidden
+ * element is clipped to.
+ */
+function drawnNames(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      [...document.querySelectorAll<HTMLElement>("body *")].filter((element) => {
+        for (let at: Element | null = element; at; at = at.parentElement) {
+          const box = at.getBoundingClientRect();
+          if (box.width <= 1 || box.height <= 1) return false;
+        }
+        if (element instanceof HTMLImageElement)
+          return element.alt === "" && element.closest("nav") !== null;
+        return [...element.childNodes].some(
+          (node) =>
+            node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() === "알아몰라",
+        );
+      }).length,
+  );
+}
+
+test("draws 알아몰라 once on 홈 from 1024 px, the side menu's lockup, and starts the lockup, 기록, 홈, 노트 and 설정 on one left edge with their labels on one x", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  // Four pages at three widths in two themes each.
+  test.setTimeout(120_000);
+  const { userId, db } = await signUp(context, baseURL, "menu");
+  const time = new Date(Date.now() - 86_400_000).toISOString();
+  const deck = randomUUID();
+  const inserted = await db.from("decks").insert({
+    id: deck,
+    user_id: userId,
+    name: "영단어 기본",
+    color: "blue",
+    visibility: "private",
+    created_at: time,
+    updated_at: time,
+  });
+  expect(inserted.error).toBeNull();
+  const card = await db.from("cards").insert({
+    id: randomUUID(),
+    deck_id: deck,
+    user_id: userId,
+    front: [text("f", "ephemeral")],
+    back: [text("b", "덧없는")],
+    card_key: "ephemeral",
+    source: "manual",
+    template: "free",
+    template_version: 2,
+    created_at: time,
+    updated_at: time,
+  });
+  expect(card.error).toBeNull();
+
+  const directory = process.env.E2E_SCREENSHOTS;
+  const edges: Record<string, Awaited<ReturnType<typeof menuEdges>>> = {};
+  const names: Record<string, number> = {};
+  // Every shot is taken before anything is asserted, so a failing run still shows each page. Each
+  // page is shot once what it read is drawn, not its skeleton.
+  for (const { name, path, ready } of [
+    {
+      name: "home",
+      path: "/",
+      ready: page.getByRole("heading", { name: "오늘 1장", exact: true }),
+    },
+    { name: "notes", path: "/decks", ready: page.getByRole("region", { name: "노트 목록" }) },
+    { name: "record", path: "/record", ready: page.getByRole("radiogroup", { name: "기간" }) },
+    {
+      name: "settings",
+      path: "/account",
+      ready: page.getByRole("button", { name: "로그아웃", exact: true }),
+    },
+  ]) {
+    await page.goto(path);
+    await expect(ready).toBeVisible();
+    for (const [width, height] of [
+      [390, 844],
+      [1024, 768],
+      [1280, 800],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      for (const colorScheme of ["light", "dark"] as const) {
+        await page.emulateMedia({ colorScheme });
+        if (directory)
+          await page.screenshot({
+            path: `${directory}/menu/${colorScheme}/web-${name}-${String(width)}.png`,
+            fullPage: true,
+          });
+      }
+      await page.emulateMedia({ colorScheme: "light" });
+      if (width === 390) continue;
+      edges[`${name} at ${String(width)}`] = await menuEdges(page);
+      if (name === "home") names[`홈 at ${String(width)}`] = await drawnNames(page);
+    }
+  }
+  // Control: 홈 is still named 알아몰라 by its heading, for a screen reader.
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "알아몰라", exact: true })).toHaveCount(1);
+
+  expect(names).toEqual({ "홈 at 1024": 1, "홈 at 1280": 1 });
+  for (const [at, { lockup, boxes }] of Object.entries(edges)) {
+    // Setup: the lockup and each of 기록, 홈, 노트 and 설정 are drawn.
+    expect(
+      boxes.map(({ label }) => label),
+      at,
+    ).toEqual(["기록", "홈", "노트", "설정"]);
+    expect(lockup, at).not.toBeNull();
+    const starts: Record<string, number | null> = { 알아몰라: lockup };
+    const labels: Record<string, number | null> = {};
+    for (const row of boxes) {
+      starts[row.label ?? ""] = row.box;
+      labels[row.label ?? ""] = row.text;
+    }
+    expect(new Set(Object.values(starts)).size, `${at} starts at ${JSON.stringify(starts)}`).toBe(
+      1,
+    );
+    expect(new Set(Object.values(labels)).size, `${at} labels at ${JSON.stringify(labels)}`).toBe(
+      1,
+    );
+  }
+});

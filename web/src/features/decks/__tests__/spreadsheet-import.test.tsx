@@ -119,6 +119,54 @@ describe("cards from a file", () => {
     });
   });
 
+  it("reads another sheet, takes the first row as a card once the header is off, and asks for distinct columns", async () => {
+    await openFile(
+      new File(
+        [
+          xlsxOf([
+            { name: "과일", rows: [["pear", "배"]] },
+            {
+              name: "단어",
+              rows: [
+                ["단어", "뜻"],
+                ["plum", "자두"],
+                ["kiwi", "키위"],
+              ],
+            },
+          ]),
+        ],
+        "words.xlsx",
+      ),
+    );
+    expect(screen.getByRole("heading", { name: "카드 1장" })).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "시트" }), "단어");
+    const header = screen.getByRole("switch", { name: "첫 행은 머리글" });
+    expect(header, "the new sheet's header is detected").toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("heading", { name: "카드 2장" })).toBeInTheDocument();
+    await userEvent.click(header);
+    expect(header).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("heading", { name: "카드 3장" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "1행 단어" })).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "뒷면" }), "A · 단어");
+    expect(screen.getByRole("alert")).toHaveTextContent("항목마다 다른 열을 골라 주세요");
+    expect(screen.queryByRole("heading", { name: /^카드 \d+장$/ })).not.toBeInTheDocument();
+  });
+
+  it("leaves every card out on 모두 빼기 and takes them all back on 모두 선택, and says which rows are too long", async () => {
+    await openFile(
+      new File([`단어,뜻\npear,배\nplum,${"자".repeat(501)}\nkiwi,키위\n`], "words.csv"),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("3행은 500자가 넘는 칸이 있어 뺐어요");
+    await userEvent.click(screen.getByRole("button", { name: "모두 빼기" }));
+    for (const name of ["2행 pear", "4행 kiwi"])
+      expect(screen.getByRole("checkbox", { name })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("button", { name: "0장 추가" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "모두 선택" }));
+    for (const name of ["2행 pear", "4행 kiwi"])
+      expect(screen.getByRole("checkbox", { name })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: "2장 추가" })).toBeEnabled();
+  });
+
   it("names a row repeating a stored card and saves nothing until it is left out, never overwriting the stored card", async () => {
     const stored = structuredClone(db.rows.cards[0]);
     await openFile(new File(["front,back\nApple,사과\nbanana,바나나\n"], "words.csv"));
