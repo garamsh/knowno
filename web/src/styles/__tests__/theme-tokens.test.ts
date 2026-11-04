@@ -26,25 +26,26 @@ function dartClass(name: string): string {
   return body;
 }
 
-/** The colours of one `AppColors` set in theme.dart, by token name, as lowercase #rrggbb. */
+/** The colours of one `AppColors` set in theme.dart, by token name, as lowercase #rrggbb, or #rrggbbaa below full opacity. */
 function dartColors(set: "light" | "dark"): Map<string, string> {
   const body = new RegExp(`static const ${set} = AppColors\\(([^;]*)\\);`).exec(themeDart)?.[1];
   if (body === undefined) throw new Error(`theme.dart has no AppColors.${set}`);
   return new Map(
-    [...body.matchAll(/(\w+): Color\(0xFF([0-9A-Fa-f]{6})\)/g)].map(([, name, hex]) => [
-      kebab(String(name)),
-      `#${String(hex).toLowerCase()}`,
-    ]),
+    [...body.matchAll(/(\w+): Color\(0x([0-9A-Fa-f]{2})([0-9A-Fa-f]{6})\)/g)].map(
+      ([, name, alpha, hex]) => [
+        kebab(String(name)),
+        `#${String(hex).toLowerCase()}${String(alpha).toLowerCase() === "ff" ? "" : String(alpha).toLowerCase()}`,
+      ],
+    ),
   );
 }
 
 /** The `--color-*` tokens a CSS block declares, by token name. */
 function cssColors(block: string): Map<string, string> {
   return new Map(
-    [...block.matchAll(/--color-([\w-]+):\s*(#[0-9a-f]{6});/g)].map(([, name, hex]) => [
-      String(name),
-      String(hex),
-    ]),
+    [...block.matchAll(/--color-([\w-]+):\s*(#[0-9a-f]{6}(?:[0-9a-f]{2})?);/g)].map(
+      ([, name, hex]) => [String(name), String(hex)],
+    ),
   );
 }
 
@@ -65,13 +66,21 @@ const withoutGoogle = <T>(tokens: Map<string, T>) =>
 const onlyGoogle = <T>(tokens: Map<string, T>) => new Map([...tokens].filter(isGoogle));
 
 describe("the web theme's colour tokens", () => {
+  it("hold the scrim as black at 40% in light and 60% in dark, on both clients", () => {
+    expect(dartColors("light").get("scrim")).toBe("#00000066");
+    expect(dartColors("dark").get("scrim")).toBe("#00000099");
+    expect(cssColors(lightCss).get("scrim")).toBe("#00000066");
+    expect(cssColors(systemDarkCss).get("scrim")).toBe("#00000099");
+    expect(cssColors(chosenDarkCss).get("scrim")).toBe("#00000099");
+  });
+
   it("are the light tokens of app/lib/design/theme.dart", () => {
-    expect(dartColors("light").size).toBe(50);
+    expect(dartColors("light").size).toBe(51);
     expect(withoutGoogle(cssColors(lightCss))).toEqual(dartColors("light"));
   });
 
   it("are the dark tokens of app/lib/design/theme.dart, for the system's dark mode and for 다크", () => {
-    expect(dartColors("dark").size).toBe(50);
+    expect(dartColors("dark").size).toBe(51);
     expect(withoutGoogle(cssColors(systemDarkCss))).toEqual(dartColors("dark"));
     expect(withoutGoogle(cssColors(chosenDarkCss))).toEqual(dartColors("dark"));
   });

@@ -34,7 +34,8 @@ const noon = (start: number) => start + 12 * 3_600_000;
  * backlog's words and 시작; with nothing left, that the day is done, the next review and
  * 학습하기; with notes but no card, how to start, and no week card. With no note, the first run;
  * with a failed read of the notes, why. A day that cannot be counted leaves the hero with 시작
- * alone and puts why in the week card's place, since it asks the user to act.
+ * alone and puts why in the week card's place, since it asks the user to act. From 1024 px the
+ * side menu's lockup draws the app's name, so 홈's is read and not drawn.
  */
 export async function Today() {
   const [read, today, initial] = await Promise.all([
@@ -45,7 +46,7 @@ export async function Today() {
   if ("failure" in read) {
     return (
       <>
-        <h1 className="text-title">알아몰라</h1>
+        <h1 className="text-title lg:sr-only">알아몰라</h1>
         <ReadFailure failure={read.failure} />
       </>
     );
@@ -54,7 +55,7 @@ export async function Today() {
   if (decks.length === 0) {
     return (
       <>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 lg:sr-only">
           <h1 className="text-title">알아몰라</h1>
           <span className="lg:hidden">
             <ProfileButton initial={initial} />
@@ -197,7 +198,7 @@ function Home({
         aria-labelledby="hero-title"
         className={`${heroFold(below !== undefined)} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 text-on-hero lg:mx-0 lg:rounded-card lg:p-8`}
       >
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex items-center justify-between gap-3 lg:sr-only">
           <h1 className="text-title">알아몰라</h1>
           <span className="lg:hidden">
             <ProfileButton initial={initial} onHero />

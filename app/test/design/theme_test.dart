@@ -160,6 +160,49 @@ void main() {
     ], isEmpty);
   });
 
+  test('every modal barrier is the scrim token, and the theme draws sheets '
+      'behind it: black at 40% light, 60% dark', () {
+    final barrier = RegExp(
+      r'\b(barrierColor|modalBarrierColor|scrimColor)\s*:\s*([^,)\n]+)|ModalBarrier\(',
+    );
+    final token = RegExp(r'^(colors|AppColors\.(light|dark))\.scrim$');
+    List<String> refused(Map<String, String> sources) => [
+      for (final MapEntry(key: path, value: source) in sources.entries)
+        for (final match in barrier.allMatches(source))
+          if (match[2] == null || !token.hasMatch(match[2]!.trim()))
+            '$path: ${match[0]}',
+    ];
+    // Controls: a brand tint, Material's default and a hand-drawn barrier are
+    // found, and the token is not.
+    expect(
+      refused({
+        'a.dart': 'modalBarrierColor: colors.hero.withValues(alpha: 0.4),',
+        'b.dart': 'barrierColor: Colors.black54,',
+        'c.dart': 'ModalBarrier(color: x)',
+        'd.dart': 'scrimColor: AppColors.dark.hero',
+      }),
+      hasLength(4),
+    );
+    expect(
+      refused({
+        'e.dart': 'modalBarrierColor: colors.scrim,',
+        'f.dart': 'barrierColor: AppColors.light.scrim)',
+      }),
+      isEmpty,
+    );
+    expect(AppColors.light.scrim, const Color(0x66000000));
+    expect(AppColors.dark.scrim, const Color(0x99000000));
+    expect(
+      lightTheme.bottomSheetTheme.modalBarrierColor,
+      AppColors.light.scrim,
+    );
+    expect(darkTheme.bottomSheetTheme.modalBarrierColor, AppColors.dark.scrim);
+
+    final sources = _appSources();
+    expect(sources['lib/design/theme.dart'], contains('modalBarrierColor'));
+    expect(refused(sources), isEmpty);
+  });
+
   test('no screen draws a Material chip, so every chip is AppChip', () {
     final materialChip = RegExp(
       r'(?<![\w.])(Chip|ActionChip|FilterChip|ChoiceChip|InputChip|RawChip)\(',

@@ -14,7 +14,8 @@ import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 
 import { parseCardContent, parseCells } from "../card-content";
-import { AuthoringButton, CardEditor } from "../components/authoring-button";
+import { AuthoringButton } from "../components/authoring-button";
+import { CardEditor } from "../components/card-editor";
 import { type Card, parseCardId, parseDeckId } from "../library";
 import { prepareImage } from "../prepare-image";
 import { prepareSound } from "../prepare-sound";

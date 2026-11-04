@@ -25,6 +25,7 @@
   --color-hero-button: #ffffff;
   --color-on-hero-button: #2547d0;
   --color-bar: #ffffff;
+  --color-scrim: #00000066;
   --color-brand: #2547d0;
   --color-know: #14683f;
   --color-on-know: #ffffff;
@@ -414,6 +415,7 @@
     --color-hero-button: #8ab4ff;
     --color-on-hero-button: #0d1424;
     --color-bar: #2c3a60;
+    --color-scrim: #00000099;
     --color-brand: #1a2f78;
     --color-know: #8ce6bc;
     --color-on-know: #1d1833;
@@ -471,6 +473,7 @@
   --color-hero-button: #8ab4ff;
   --color-on-hero-button: #0d1424;
   --color-bar: #2c3a60;
+  --color-scrim: #00000099;
   --color-brand: #1a2f78;
   --color-know: #8ce6bc;
   --color-on-know: #1d1833;
