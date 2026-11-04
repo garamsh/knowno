@@ -4,6 +4,9 @@ import { ChevronLeft, X } from "lucide-react";
 import { type ReactNode, useId } from "react";
 import { useModalDialog } from "@/design/sheet";
 
+/** A pair of buttons on one line at a phone's width: the first sized to its label. */
+export const pairClass = "grid grid-cols-[auto_minmax(0,1fr)] gap-3";
+
 /**
  * An authoring flow's screen, as the phone pushes one (ADR 0158): below 1024 px the whole page,
  * its title bar led by "닫기", or "뒤로" with [back], over the scrolling [children] and the
@@ -36,7 +39,7 @@ export function AuthoringScreen({
     <dialog
       {...dialog}
       aria-labelledby={titleId}
-      className="fixed inset-x-0 top-[var(--visible-top,0px)] m-0 h-[var(--visible-height,100dvh)] w-full max-h-none max-w-none overflow-hidden bg-ground break-keep p-0 text-ink backdrop:bg-hero/40 lg:inset-0 lg:m-auto lg:h-fit lg:max-h-[90dvh] lg:max-w-list lg:rounded-sheet"
+      className="fixed inset-x-0 top-[var(--visible-top,0px)] m-0 h-[var(--visible-height,100dvh)] w-full max-h-none max-w-none overflow-hidden bg-ground break-keep p-0 text-ink backdrop:bg-scrim lg:inset-0 lg:m-auto lg:h-fit lg:max-h-[90dvh] lg:max-w-list lg:rounded-sheet"
     >
       <div className="flex h-full min-h-0 flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:h-auto lg:max-h-[90dvh]">
         <header className="flex shrink-0 items-center gap-2 px-2 py-2 lg:px-3">

@@ -3,7 +3,7 @@
  * documentation, and their calls, each answering a result or a refusal the model can act on.
  */
 
-import { SupabaseError } from "../_shared/auth.ts";
+import { SupabaseError } from "./auth.ts";
 import {
   cardKey,
   type IdSource,

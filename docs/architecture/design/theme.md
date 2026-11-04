@@ -20,6 +20,7 @@ The colours are cobalt ([ADR 0147](../adr/0147-draw-both-clients-in-cobalt-with-
 | `surface` | `#FFFFFF` | `#232F4E` | a card, a group, a row |
 | `raised` | `#FFFFFF` | `#2E3B60` | a menu, a neutral chip |
 | `bar` | `#FFFFFF` | `#2C3A60` | the tab bar |
+| `scrim` | black at 40%, `#00000066` | black at 60%, `#00000099` | what a sheet or a dialog dims the screen behind it with; never a brand tint |
 | `edge` | `#C9D6FB` | `#0A1020` | a solid object's hard edge; decoration, carries nothing |
 | `ink` | `#13224A` | `#EEF2FF` | text; the quiet fill of a selection, the segmented control and a snack bar, under `onInk` |
 | `ink2`, `muted` | `#44527A` | `#B3BEDC` | quieter text |
@@ -32,6 +33,7 @@ The colours are cobalt ([ADR 0147](../adr/0147-draw-both-clients-in-cobalt-with-
 | `hero` | `#2547D0` | `#1A2F78` | a full-screen colour surface and the completion panel, under white `onHero` |
 | `heroButton` | white | `#8AB4FF` | a button or chip on the hero, under `onHeroButton` (`#2547D0` light, `#0D1424` dark), on `onHeroEdge` (`#C9D6FB` light, `#4A78D6` dark) |
 
+- Every modal's barrier is `scrim` alone: the phone's `bottomSheetTheme.modalBarrierColor`, the web's `backdrop:bg-scrim` on `Sheet` and `AuthoringScreen`. `theme_test.dart` and the web's `class-rules.ts` refuse any other barrier or `backdrop:` colour (issue #717).
 - `accent` is the current tab's label, a count, the progress bars' fill, a chart's today bar, a selected ring, a quiet button's label on a coloured ground and the on switch.
 - `primary` is the one fill; [`principles.md`](principles.md) §One primary action per screen says how many.
 - Green and red mean "안다" and "모른다" alone: answers, grades and the completion card's counts. No grade has a fill of its own: a previous card's grade is a 3 px line on the surface, `know` or `dontKnowText` ([ADR 0151](../adr/0151-draw-the-previous-study-card-as-one-centred-scrolling-column-on-a-grade-line-put-the-mascot-between-the-cards-finish-on-a-hero-panel-and-redraw-the-record.md)). Words on the green and red tints, the coach's demonstration's, are `onKnowTint` (`#14683F` light, `#8CE6BC` dark) and `onDontKnowTint` (`#A3202F` light, `#FFA8BA` dark). No screen draws a streak flame, so no token holds one.

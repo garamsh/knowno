@@ -27,7 +27,7 @@ function Serving({ configuration }: { configuration: AiConfiguration }) {
   const usd = usdPerPhoto(configuration.model);
   return (
     <>
-      <p className="text-body-strong break-all">
+      <p className="text-body-strong break-words">
         {labelOf(providerLabels, configuration.provider)} · {configuration.model}
       </p>
       <p className="text-caption text-muted">
@@ -103,7 +103,7 @@ export function AiSettingsView({
           })}
         </ul>
       </Section>
-      <div className="grid items-start gap-section-gap lg:grid-cols-3 lg:gap-4">
+      <div className="grid grid-cols-1 items-start gap-section-gap lg:grid-cols-3 lg:gap-4">
         {plans.map((plan) => {
           const name = planLabels[plan] ?? plan;
           const serving = active(plan);
@@ -169,7 +169,7 @@ export function AiSettingsView({
         <ul className={group}>
           {measuredModels.map(({ model, usdPerPhoto: cost }) => (
             <li key={model} className="flex items-baseline justify-between gap-3 px-4 py-3">
-              <span className="text-body-strong break-all">{model}</span>
+              <span className="text-body-strong break-words">{model}</span>
               <span className="text-body tabular-nums">{estimatedCost(1, cost)}</span>
             </li>
           ))}

@@ -2,13 +2,12 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import AdminsPage from "../settings/admins/page";
+import AdminsPage from "../admins/page";
 import AiPage from "../ai/page";
 import AiSettingsPage from "../settings/ai/page";
-import AuditPage from "../settings/audit/page";
 import DecksPage from "../decks/page";
 import Page from "../page";
-import PlansPage from "../settings/page";
+import PlansPage from "../plans/page";
 import UsersPage from "../users/page";
 
 // The sections' content reads the server; only each page's own heading is under test here.
@@ -20,7 +19,6 @@ vi.mock("../_components/content", () => ({
   PlansContent: () => null,
   AiSettingsContent: () => null,
   AdminsContent: () => null,
-  AuditContent: () => null,
 }));
 
 const props = { params: Promise.resolve({}), searchParams: Promise.resolve({}) };
@@ -46,6 +44,5 @@ describe("the admin area's pages", () => {
     expect(headingOf(<AiSettingsPage />)).toBe("AI");
     expect(headingOf(<PlansPage />)).toBe("요금제");
     expect(headingOf(<AdminsPage />)).toBe("관리자");
-    expect(headingOf(<AuditPage />)).toBe("관리자");
   });
 });

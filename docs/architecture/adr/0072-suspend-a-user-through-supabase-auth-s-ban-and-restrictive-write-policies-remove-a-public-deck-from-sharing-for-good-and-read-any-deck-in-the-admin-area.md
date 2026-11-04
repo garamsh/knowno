@@ -1,6 +1,6 @@
 # ADR 0072: Suspend a user through Supabase Auth's ban and restrictive write policies, remove a public deck from sharing for good, and read any deck in the admin area
 
-> Status: accepted
+> Status: accepted; its user search as the admin types with 더 보기 superseded by ADR-0181
 > Date: 2026-10-19
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

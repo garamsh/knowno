@@ -12,13 +12,12 @@ import { useModalDialog } from "@/design/sheet";
 import { leaveThen } from "@/design/use-back-entry";
 
 import { AdminBrand } from "./admin-brand";
-import { switchLink } from "./admin-section";
+import { Email, switchLink } from "./admin-section";
 
 /**
- * The admin area's six sections on the admin host, one per job (ADR 0178), each with the paths it
- * is current on. Until the sections are redrawn (#650, #651), 설정's pages sit under the section
- * whose job they hold: 요금제 is `/settings`, AI 제공자 is AI's, and 관리자 and 작업 기록 are
- * 관리자's.
+ * The admin area's six sections on the admin host, one per job (ADR 0178, ADR 0181), each with the
+ * paths it is current on. Until AI is drawn as one section (#650), AI 제공자 (`/settings/ai`) is
+ * AI's.
  */
 const sections = [
   { href: "/", label: "처리할 일", current: (path: string) => path === "/" },
@@ -29,12 +28,8 @@ const sections = [
     label: "AI",
     current: (path: string) => path.startsWith("/ai") || path === "/settings/ai",
   },
-  { href: "/settings", label: "요금제", current: (path: string) => path === "/settings" },
-  {
-    href: "/settings/admins",
-    label: "관리자",
-    current: (path: string) => path === "/settings/admins" || path === "/settings/audit",
-  },
+  { href: "/plans", label: "요금제", current: (path: string) => path === "/plans" },
+  { href: "/admins", label: "관리자", current: (path: string) => path === "/admins" },
 ] as const;
 
 /** What the shell shows besides the page: the open reports' count, the account and the service. */
@@ -210,7 +205,8 @@ function Sections({
   onNavigate?: (href: string) => void;
 }) {
   return (
-    <ul className="flex flex-col gap-1">
+    // Apart by more than the current item's edge, so the edge never lies under the next item.
+    <ul className="flex flex-col gap-2">
       {sections.map(({ href, label, current }) => {
         const selected = current(path);
         return (
@@ -255,7 +251,9 @@ function Foot({
 }: Account & { signOut: SignOut; leave?: Leave }) {
   return (
     <div className="mt-auto flex flex-col gap-1 border-t border-hairline pt-3">
-      <p className="px-1 text-caption break-all text-muted">{email}</p>
+      <p className="px-1 text-caption break-words text-muted">
+        <Email email={email} />
+      </p>
       {serviceUrl !== null && (
         <a
           href={serviceUrl}

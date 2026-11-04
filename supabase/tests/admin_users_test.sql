@@ -1,9 +1,9 @@
 -- The admin area's users and decks (ADR 0072): suspension blocks a user's sync writes and sets the
 -- ban Supabase Auth reads, against an active user as control; a removed deck stays private; a
--- user's decks and the user search read for an admin only; and no admin function writes an email,
--- a password or a profile field.
+-- user's decks read for an admin only; and no admin function writes an email, a password or a
+-- profile field.
 begin;
-select plan(43);
+select plan(40);
 
 -- The log starts empty here: a migration may record a change of its own, as
 -- 20261019230003_activate_prompt_v9.sql records prompt v9's activation.
@@ -48,7 +48,6 @@ create function pg_temp.calls() returns setof text language sql as $$
     ($q$select public.admin_suspend_user('00000000-0000-4000-8000-00000000ffff', 'x')$q$),
     ($q$select public.admin_unsuspend_user('00000000-0000-4000-8000-00000000000d')$q$),
     ($q$select * from public.admin_user_suspension('00000000-0000-4000-8000-00000000000d')$q$),
-    ($q$select * from public.admin_search_users('example')$q$),
     ($q$select * from public.admin_user_decks('00000000-0000-4000-8000-00000000000c')$q$),
     ($q$select * from public.admin_user_deck('d0000000-0000-4000-8000-0000000000c2')$q$),
     ($q$select * from public.admin_user_deck_cards('d0000000-0000-4000-8000-0000000000c2')$q$),
@@ -88,11 +87,11 @@ create temp table personal_before as select pg_temp.personal() as digest;
 
 select results_eq(
   $$select count(*) from pg_temp.refused_as('b') as r (call) where call not like 'failed: %'$$,
-  $$values (8::bigint)$$, 'a signed-in user who is not an admin is refused by every new admin function');
+  $$values (7::bigint)$$, 'a signed-in user who is not an admin is refused by every new admin function');
 reset role;
 select results_eq(
   $$select count(*) from pg_temp.refused_as(null) as r (call) where call not like 'failed: %'$$,
-  $$values (8::bigint)$$, 'anon is refused by every new admin function');
+  $$values (7::bigint)$$, 'anon is refused by every new admin function');
 reset role;
 select is_empty($$select * from pg_temp.refused_as('a')$$, 'control: an admin is refused by none, and none fails');
 reset role;
@@ -201,19 +200,6 @@ select throws_ok(
 select results_eq(
   $$update public.decks set visibility = 'public', published_at = now() where id = 'd0000000-0000-4000-8000-0000000000c2' returning visibility$$,
   $$values ('public')$$, 'control: the owner publishes another deck');
-reset role;
-
--- The user search.
-
-select pg_temp.sign_in('a');
-select results_eq(
-  $$select email, total from public.admin_search_users('CAROL')$$,
-  $$values ('carol@example.com', 2::bigint), ('acarol@example.com', 2::bigint)$$,
-  'users whose email holds the search, ignoring case, those it starts first, with the total');
-select results_eq(
-  $$select email from public.admin_search_users('example', 2, 2)$$,
-  $$values ('carol@example.com'), ('user@example.com')$$, 'a page of the matches');
-select is_empty($$select * from public.admin_search_users('  ')$$, 'a blank search finds no one');
 reset role;
 
 -- The audit log, and what no admin function may write.

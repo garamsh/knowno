@@ -91,7 +91,7 @@ export function Sheet({
       onClick={(event) => {
         if (event.target === event.currentTarget) close();
       }}
-      className="fixed inset-x-0 top-[calc(var(--visible-top,0px)+var(--visible-height,100dvh))] bottom-auto m-0 max-h-[var(--visible-height,100dvh)] w-full max-w-none -translate-y-full overflow-hidden rounded-t-sheet bg-ground break-keep p-0 text-ink backdrop:bg-hero/40 lg:inset-0 lg:m-auto lg:max-h-[90dvh] lg:max-w-list lg:translate-y-0 lg:rounded-sheet"
+      className="fixed inset-x-0 top-[calc(var(--visible-top,0px)+var(--visible-height,100dvh))] bottom-auto m-0 max-h-[var(--visible-height,100dvh)] w-full max-w-none -translate-y-full overflow-hidden rounded-t-sheet bg-ground break-keep p-0 text-ink backdrop:bg-scrim lg:inset-0 lg:m-auto lg:max-h-[90dvh] lg:max-w-list lg:translate-y-0 lg:rounded-sheet"
     >
       <div className="flex max-h-[calc(var(--visible-height,100dvh)*0.9)] min-h-0 flex-col pb-[env(safe-area-inset-bottom)]">
         <header className="flex shrink-0 items-center justify-between gap-3 px-gutter py-3">
