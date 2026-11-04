@@ -4,7 +4,7 @@
 -- output including reasoning, when it ends, under the user's assistant lock.
 --
 -- Changes no row of an existing table. It creates `private.assistant_token_budgets`, seeded with
--- the budgets proposed for the owner's approval: 200,000 tokens a day for Free, 2,000,000 for Pro,
+-- the budgets the owner approved on 2026-11-05: 200,000 tokens a day for Free, 2,000,000 for Pro,
 -- 6,000,000 for Max and none for 스페셜. It replaces `begin_assistant_message`,
 -- `finish_assistant_message` and `assistant_allowance`, and replaces the admin functions of the
 -- message limit, `admin_assistant_limits` and `admin_set_assistant_limit`, with those of the

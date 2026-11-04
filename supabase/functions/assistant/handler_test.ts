@@ -2,11 +2,14 @@
 // replaced by an in-memory fake that applies row-level security's owner rule. No network.
 import assert from "node:assert/strict";
 import {
+  BYTES_PER_TOKEN,
   createHandler,
   type LogEntry,
   MAX_BODY_BYTES,
   MAX_DESCRIBED_TURN,
   MAX_MODEL_CALLS,
+  MAX_REPLY_TEXT,
+  MAX_REQUEST_BYTES,
   MAX_TURN_TEXT,
   MAX_TURNS,
   TURN_LIMIT_MS,
@@ -1053,7 +1056,7 @@ async function until(condition: () => boolean) {
   throw new Error("the condition never held");
 }
 
-Deno.test("a client that goes away ends the turn as cancelled and records what it used, against one that stays", async () => {
+Deno.test("a client that goes away ends the turn as cancelled and is charged the usage its stream reports after it went, against one that stays", async () => {
   const gone = seed();
   let open = () => {};
   gone.replies.push(held(new Promise((resolve) => open = resolve)));
@@ -1075,6 +1078,10 @@ Deno.test("a client that goes away ends the turn as cancelled and records what i
   assert.equal(gone.finished.length, 1);
   assert.equal(gone.finished[0]!.outcome, "cancelled");
   assert.equal(gone.finished[0]!.model_calls, 1);
+  // The OpenRouter stream reports its usage only at its end, after the client went: it is read
+  // there and charged.
+  assert.equal(gone.finished[0]!.input_tokens, 100);
+  assert.equal(gone.finished[0]!.output_tokens, 20);
   assert.equal(logs[0]!.outcome, "cancelled");
   assert.equal(logs[0]!.outcome_recorded, true);
 
@@ -1655,4 +1662,79 @@ Deno.test("a draft of a model that cannot run at its effort is refused as effort
   });
   assert.equal(control.status, 200);
   assert.equal(fake.saved.length, 1);
+});
+
+Deno.test("a call that breaks off before its provider reported usage is charged its request's input as an estimate", async () => {
+  const fake = seed();
+  // An OpenRouter stream that breaks off after its first text, before `response.completed`.
+  fake.replies.push(() =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        pull(controller) {
+          controller.enqueue(new TextEncoder().encode(
+            `event: response.output_text.delta\ndata: ${
+              JSON.stringify({
+                type: "response.output_text.delta",
+                delta: "잠시",
+              })
+            }\n\n`,
+          ));
+          controller.error(new TypeError("connection reset"));
+        },
+      }),
+      { headers: { "Content-Type": "text/event-stream" } },
+    )
+  );
+  const run = await send(fake);
+  assert.equal(run.events.at(-1)!.data.outcome, "model_error");
+  const sent = new TextEncoder().encode(JSON.stringify(fake.requests[0]!))
+    .length;
+  assert.ok(sent > 0);
+  assert.equal(
+    fake.finished[0]!.input_tokens,
+    Math.ceil(sent / BYTES_PER_TOKEN),
+  );
+  assert.equal(fake.finished[0]!.output_tokens, 0);
+
+  // A call whose provider refused it outright is charged nothing.
+  const refused = seed();
+  refused.replies.push(() => Response.json({}, { status: 500 }));
+  await send(refused);
+  assert.equal(refused.finished[0]!.input_tokens, 0);
+});
+
+Deno.test("a history of the longest replies at every turn is never refused for its size, against a body over what it may hold", async () => {
+  // Every turn but the last a longest reply of three-byte characters, as the server streams it.
+  const reply = "가".repeat(MAX_REPLY_TEXT);
+  const messages = [
+    ...Array.from({ length: MAX_TURNS - 1 }, () => ({
+      role: "assistant",
+      text: reply,
+    })),
+    { role: "user", text: "고마워요" },
+  ];
+  const fake = seed();
+  fake.replies.push(says("네"));
+  const run = await send(fake, { body: { messages } });
+  assert.ok(
+    new TextEncoder().encode(JSON.stringify({ messages })).length >
+      MAX_BODY_BYTES,
+    "setup: the history is over what a request may hold before it is shortened",
+  );
+  assert.equal(run.status, 200);
+  const turns = input(fake.requests[0]!);
+  assert.equal(turns.length, MAX_TURNS);
+  assert.ok(
+    turns.every((turn) => [...String(turn.content)].length <= MAX_TURN_TEXT),
+  );
+
+  const over = seed();
+  const refused = await send(over, {
+    body: {
+      messages: [{ role: "user", text: "네" }],
+      pad: "x".repeat(MAX_REQUEST_BYTES),
+    },
+  });
+  assert.equal(refused.status, 413);
+  assert.equal(over.begun, 0);
 });
