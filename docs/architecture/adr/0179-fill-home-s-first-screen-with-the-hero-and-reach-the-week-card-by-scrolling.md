@@ -1,4 +1,4 @@
-# ADR 0178: Fill 홈's first screen with the hero, and reach the week card by scrolling
+# ADR 0179: Fill 홈's first screen with the hero, and reach the week card by scrolling
 
 > Status: accepted
 > Date: 2026-11-04

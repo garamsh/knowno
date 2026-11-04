@@ -1,5 +1,5 @@
 /**
- * 홈's hero, shared by the page and its skeleton (ADR 0178). Below 1024 px it fills the first
+ * 홈's hero, shared by the page and its skeleton (ADR 0179). Below 1024 px it fills the first
  * screen from main's top: with nothing under it, `100dvh` less main's room for the tab bar; with
  * something under it, down to 16 px over that thing's top edge, which shows 16 px above the tab
  * bar (the tab bar's height and its 16 px off the foot), so that the rest reads as a scroll away.

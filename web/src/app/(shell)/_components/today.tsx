@@ -176,7 +176,7 @@ function StartLink({ href, label = "시작" }: { href: string; label?: string })
  * it is on the first screen. From 1024 px the profile button is the side menu's.
  *
  * Below 1024 px the hero fills the screen above the tab bar but for [below]'s top edge, which
- * shows at the foot of the first screen; the rest of [below] follows by scrolling (ADR 0178). The
+ * shows at the foot of the first screen; the rest of [below] follows by scrolling (ADR 0179). The
  * hero's first item, the mascot, is at `mascot-hero`, the group centred.
  */
 function Home({
