@@ -278,11 +278,11 @@ void main() {
     /// pump.
     // Shows the 노트 tab: the bar's 노트, the last, below the tab's title.
     Future<void> showNotes(WidgetTester tester) =>
-        tap(tester, find.text(ko.tabNotes).last);
+        tap(tester, shownText(ko.tabNotes).last);
 
     // Shows 홈.
     Future<void> showHome(WidgetTester tester) =>
-        tap(tester, find.text(ko.tabHome));
+        tap(tester, shownText(ko.tabHome));
 
     /// Lets the answers a closed study screen is still writing land: a read
     /// of the study store waits for them, each engine call finishing in real
@@ -362,7 +362,7 @@ void main() {
       await shot(tester, '01-sign-in');
       await largest(tester, '01-sign-in');
 
-      await tap(tester, find.text(ko.signInWithGoogle));
+      await tap(tester, shownText(ko.signInWithGoogle));
       await shot(tester, '02-deck-list-empty');
       await largest(tester, '02-deck-list-empty');
       // Its second action, reached by scrolling at the largest text size.
@@ -456,18 +456,18 @@ void main() {
       await tester.pumpAndSettle();
 
       await tap(tester, find.byTooltip(ko.deckActions));
-      await tap(tester, find.text(ko.rename));
+      await tap(tester, shownText(ko.rename));
       await shot(tester, '08-rename-sheet');
       await dismissSheet(tester);
       await tap(tester, find.byTooltip(ko.deckActions));
       await shot(tester, '08b-deck-menu');
       await largest(tester, '08b-deck-menu');
-      await tap(tester, find.text(ko.deckAppearance));
+      await tap(tester, shownText(ko.deckAppearance));
       await tap(tester, find.bySemanticsLabel(ko.deckIconName('languages')));
       await shot(tester, '03c-deck-appearance');
       await tap(tester, shownText(ko.save));
       await tap(tester, find.byTooltip(ko.deckActions));
-      await tap(tester, find.text(ko.deleteDeck));
+      await tap(tester, shownText(ko.deleteDeck));
       await shot(tester, '09-delete-deck-confirm');
       await tap(tester, shownText(ko.cancel));
 
@@ -564,7 +564,7 @@ void main() {
       await tester.pumpAndSettle();
       for (
         var tries = 0;
-        tries < 10 && find.text(ko.studyComplete).evaluate().isEmpty;
+        tries < 10 && shownText(ko.studyComplete).evaluate().isEmpty;
         tries++
       ) {
         await answer(ko.know);
@@ -605,12 +605,12 @@ void main() {
       // 설정, from 홈's profile button.
       await tap(tester, find.byTooltip(ko.accountTitle));
       await shot(tester, '18-account');
-      await tap(tester, find.text(ko.themeTitle));
+      await tap(tester, shownText(ko.themeTitle));
       await shot(tester, '18e-theme-sheet');
       await dismissSheet(tester);
       // Its 하루 학습 시간 row opens the minutes picker as a screen; + moves
       // the number and the tiles follow.
-      await tap(tester, find.text(ko.dailyMinutesTitle));
+      await tap(tester, shownText(ko.dailyMinutesTitle));
       await waitForPicker(tester, more: ko.dailyMinutesMore);
       await tap(tester, find.byTooltip(ko.dailyMinutesMore));
       await shot(tester, '18c-daily-minutes-screen');
@@ -632,20 +632,20 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-        find.text(ko.termsOfService),
+        shownText(ko.termsOfService),
         100,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
       await shot(tester, '18b-account-footer');
       server.failure = const SyncOffline('no route to host');
-      await tester.tap(find.text(ko.signOut));
+      await tester.tap(shownText(ko.signOut));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await shot(tester, '19-sign-out-warning');
       await tester.tap(shownText(ko.cancel));
       await tester.pump(const Duration(seconds: 1));
-      await tester.tap(find.text(ko.deleteAccount));
+      await tester.tap(shownText(ko.deleteAccount));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await shot(tester, '19b-delete-account-confirm');
@@ -773,7 +773,7 @@ void main() {
                 .state<ScrollableState>(
                   find
                       .ancestor(
-                        of: find.text(ko.appTitle),
+                        of: shownText(ko.appTitle),
                         matching: find.byType(Scrollable),
                       )
                       .first,
@@ -1205,7 +1205,7 @@ void main() {
       await tap(tester, shownText(ko.deleteBlock).last);
       await reveal(find.bySemanticsLabel(ko.addBlock));
       await tap(tester, find.bySemanticsLabel(ko.addBlock));
-      await tap(tester, find.text(ko.blockSenses).last);
+      await tap(tester, shownText(ko.blockSenses).last);
 
       await reveal(find.byType(TextField).first);
       await tester.enterText(find.byType(TextField).first, 'present');
@@ -1231,7 +1231,7 @@ void main() {
       await reveal(label(1));
       await tester.enterText(label(1), '동');
       await fill(ko.senseHeading(2), '주다, 제시하다');
-      await reveal(find.text('영단어 기본'));
+      await reveal(shownText('영단어 기본'));
       await shot(tester, '05d-card-editor-senses');
       // The second sense's menu: up, down and delete.
       await reveal(find.byTooltip(ko.senseMenu(2)));
@@ -1257,7 +1257,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tap(tester, find.text(ko.labelPresetsTitle));
+      await tap(tester, shownText(ko.labelPresetsTitle));
       await shot(tester, '05o-label-presets');
       await tap(tester, find.bySemanticsLabel(ko.addLabelPreset));
       await tester.enterText(find.byType(TextField).first, '명');
@@ -1420,7 +1420,7 @@ void main() {
       await tester.pumpAndSettle();
       await tap(tester, find.bySemanticsLabel(ko.addBlock));
       await shot(tester, '05s-card-editor-add-sheet');
-      await tap(tester, find.text(ko.blockSenses).last);
+      await tap(tester, shownText(ko.blockSenses).last);
       await tester.ensureVisible(find.bySemanticsLabel(ko.addBlock));
       await tester.pumpAndSettle();
       await shot(tester, '05t-card-editor-free-senses');
@@ -1583,7 +1583,7 @@ void main() {
       await tester.ensureVisible(find.bySemanticsLabel(ko.addBlock));
       await tester.pumpAndSettle();
       await tap(tester, find.bySemanticsLabel(ko.addBlock));
-      await tap(tester, find.text(ko.blockCloze).last);
+      await tap(tester, shownText(ko.blockCloze).last);
       final line = find.byType(TextField).first;
       await tester.enterText(line, 'She gave me a present for my birthday');
       await tester.pumpAndSettle();
@@ -1599,9 +1599,9 @@ void main() {
           extentOffset: end,
         );
         await tester.pump();
-        await tap(tester, find.text(ko.clozeInsertBlank));
+        await tap(tester, shownText(ko.clozeInsertBlank));
       }
-      await tester.ensureVisible(find.text('영단어 기본'));
+      await tester.ensureVisible(shownText('영단어 기본'));
       await tester.pumpAndSettle();
       await shot(tester, '05g-card-editor-cloze');
       // The caret in "present": the one action turns it back into text.
@@ -1611,7 +1611,7 @@ void main() {
       // An empty blank at the cursor, over a phone keyboard 336 points high.
       controller.selection = const TextSelection.collapsed(offset: 4);
       await tester.pump();
-      await tap(tester, find.text(ko.clozeInsertBlank));
+      await tap(tester, shownText(ko.clozeInsertBlank));
       tester.view.viewInsets = const FakeViewPadding(bottom: 336 * _density);
       addTearDown(tester.view.resetViewInsets);
       await tester.pumpAndSettle();
@@ -1667,7 +1667,7 @@ void main() {
         await tester.ensureVisible(find.bySemanticsLabel(ko.addBlock));
         await tester.pumpAndSettle();
         await tap(tester, find.bySemanticsLabel(ko.addBlock));
-        await tap(tester, find.text(type).last);
+        await tap(tester, shownText(type).last);
       }
       final line = find.byType(TextField).first;
       await tester.enterText(line, 'She gave me a present for my birthday');
@@ -1728,7 +1728,7 @@ void main() {
       await tester.ensureVisible(find.bySemanticsLabel(ko.addBlock));
       await tester.pumpAndSettle();
       await tap(tester, find.bySemanticsLabel(ko.addBlock));
-      await tap(tester, find.text(ko.blockTable).last);
+      await tap(tester, shownText(ko.blockTable).last);
       await tester.enterText(find.byType(TextField).first, '불규칙 동사');
       // The table's fields follow the Text's two: its headers, then its cells.
       Finder cell(int index) => find.byType(TextField).at(index + 2);
@@ -1744,7 +1744,7 @@ void main() {
         await tester.enterText(cell(index), text);
       }
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text(ko.addRow));
+      await tester.ensureVisible(shownText(ko.addRow));
       await tester.pumpAndSettle();
       await shot(tester, '05h-card-editor-table');
       // "went" and "saw", each selected and made a blank by the toolbar.
@@ -1752,9 +1752,9 @@ void main() {
         await tester.ensureVisible(cell(index));
         await tester.pumpAndSettle();
         await tap(tester, cell(index));
-        await tap(tester, find.widgetWithText(AppChip, ko.tableBlankToggle));
+        await tap(tester, widgetWithShownText(AppChip, ko.tableBlankToggle));
       }
-      await tester.ensureVisible(find.text('영단어 기본'));
+      await tester.ensureVisible(shownText('영단어 기본'));
       await tester.pumpAndSettle();
       await shot(tester, '05i-card-editor-table-blanks');
       await unmount(tester);
@@ -2002,7 +2002,7 @@ void main() {
       await tap(tester, find.bySemanticsLabel(RegExp('^최빈출 단어 카드 모양')));
       await shot(tester, '22b-photo-list-menu');
       await largest(tester, '22b-photo-list-menu');
-      await tap(tester, find.widgetWithText(MenuItemButton, ko.importBoth));
+      await tap(tester, widgetWithShownText(MenuItemButton, ko.importBoth));
       await tap(tester, shownText('face'));
       await shot(tester, '22c-photo-edit');
       await tap(tester, shownText(ko.editDone));
@@ -2127,11 +2127,11 @@ void main() {
       await tap(tester, shownText(ko.spreadsheetChoose));
       await shot(tester, '35-spreadsheet-columns');
 
-      await tap(tester, find.text(ko.spreadsheetLabelColumn));
+      await tap(tester, shownText(ko.spreadsheetLabelColumn));
       await shot(tester, '35a-spreadsheet-column-sheet');
-      await tap(tester, find.text('C · 품사').last);
-      await tap(tester, find.text(ko.spreadsheetExampleColumn));
-      await tap(tester, find.text('D · 예문').last);
+      await tap(tester, shownText('C · 품사').last);
+      await tap(tester, shownText(ko.spreadsheetExampleColumn));
+      await tap(tester, shownText('D · 예문').last);
 
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -420));
       await tester.pumpAndSettle();
@@ -2352,7 +2352,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tap(tester, find.text(ko.signInWithGoogle));
+      await tap(tester, shownText(ko.signInWithGoogle));
       final container = ProviderScope.containerOf(
         tester.element(find.byType(Navigator).first),
       );
@@ -2504,7 +2504,7 @@ void main() {
           ),
         );
         client.calls.clear();
-        await tester.tap(find.text(origin.name));
+        await tester.tap(shownText(origin.name));
         await frames();
         // Each photo read in its turn fails as the function answers 503.
         while (client.open.isNotEmpty) {
@@ -2599,7 +2599,7 @@ void main() {
       await tester.pumpAndSettle();
       await shot(tester, '27a-photo-bar-paused');
 
-      await tap(tester, find.text(ko.importBarPaused(2)));
+      await tap(tester, shownText(ko.importBarPaused(2)));
       await tap(tester, shownText(ko.resumeImport));
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
@@ -2727,7 +2727,7 @@ void main() {
       await largest(tester, '28b-notes-menu');
       await tap(tester, shownText(ko.browsePublicDecks));
       await shot(tester, '29-browse');
-      await tap(tester, find.text('스페인어 동물'));
+      await tap(tester, shownText('스페인어 동물'));
       await shot(tester, '30-public-deck');
       await largest(tester, '30-public-deck');
       // Its cards, reached by scrolling at the largest text size.
@@ -2742,24 +2742,24 @@ void main() {
       tester.platformDispatcher.clearTextScaleFactorTestValue();
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-        find.text('스페인어 동물'),
+        shownText('스페인어 동물'),
         -100,
         scrollable: find.byType(Scrollable).first,
       );
       await tap(tester, shownText(ko.copyToMyDecks));
-      await tap(tester, find.text(ko.copyIntoExistingDeck));
+      await tap(tester, shownText(ko.copyIntoExistingDeck));
       await shot(tester, '31-import-sheet');
       // Above a tall sheet, where the barrier's centre is not.
       await tester.tapAt(const Offset(20, 100));
       await tester.pumpAndSettle();
       await tap(tester, find.byTooltip(ko.deckActions));
-      await tap(tester, find.text(ko.reportDeck));
+      await tap(tester, shownText(ko.reportDeck));
       await shot(tester, '32-report-sheet');
       // Above a tall sheet, where the barrier's centre is not.
       await tester.tapAt(const Offset(20, 100));
       await tester.pumpAndSettle();
       await tap(tester, find.byTooltip(ko.deckActions));
-      await tap(tester, find.text(ko.blockUser));
+      await tap(tester, shownText(ko.blockUser));
       await shot(tester, '33-block-confirm');
       // Above a tall sheet, where the barrier's centre is not.
       await tester.tapAt(const Offset(20, 100));

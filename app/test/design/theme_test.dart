@@ -222,6 +222,127 @@ void main() {
     ], isEmpty);
   });
 
+  test('a chip is drawn by AppChip alone: no box outside the components '
+      'takes the chip radius or a stadium but the shapes named here', () {
+    // Controls: the expression finds a hand-drawn chip and AppChip's own
+    // shape, and not a chip drawn through AppChip or a doc comment.
+    expect(
+      chipShapes({
+        'lib/study/src/planted.dart': '''
+          DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.chip),
+            ),
+            child: Text(label),
+          )
+          ShapeDecoration(shape: const StadiumBorder())
+        ''',
+      }),
+      {'lib/study/src/planted.dart': 2},
+    );
+    expect(
+      chipShapes({'lib/x.dart': _appSources()['lib/design/app_chip.dart']!}),
+      {'lib/x.dart': 1},
+    );
+    expect(
+      chipShapes({
+        'lib/study/src/planted.dart': '''
+          /// Rounded on [AppRadius.chip].
+          AppChip(label: label, tone: AppChipTone.knowTint)
+        ''',
+      }),
+      isEmpty,
+    );
+
+    final shapes = {
+      for (final MapEntry(key: path, value: count) in chipShapes(
+        _appSources(),
+      ).entries)
+        if (!path.startsWith('lib/design/')) path: count,
+    };
+    expect(shapes, {
+      // RaisedIconButton, a round icon button (home.md).
+      'lib/home/src/above_menu.dart': 1,
+      // 기록's period choice, the PM's call in #645.
+      'lib/study/src/stats_view.dart': 2,
+      // Study's notice in the bar's place, a pill on the hero.
+      'lib/study/src/study_screen.dart': 1,
+      // Photo import's skeleton line while a photo is read.
+      'lib/photo_import/src/extracting_view.dart': 1,
+      // A meaning's label field, a text field drawn as its chip.
+      'lib/deck/src/editor_group.dart': 1,
+      // What study hides, in a card list's row.
+      'lib/deck/src/hatched_box.dart': 1,
+      // The 라벨 screen's labels, which become AppChips after #706.
+      'lib/deck/src/label_presets_screen.dart': 1,
+    });
+  });
+
+  test('no screen draws a button with Material\'s TextButton, so every '
+      'button is AppButton, but the two photo import names', () {
+    final textButton = RegExp(r'(?<![\w.])TextButton\(');
+    // Controls: the expression finds a TextButton, AppButton's own among
+    // them, and not its style or theme.
+    expect(textButton.hasMatch('child: TextButton(onPressed: f)'), isTrue);
+    expect(
+      textButton.hasMatch(_appSources()['lib/design/app_button.dart']!),
+      isTrue,
+    );
+    expect(
+      textButton.hasMatch(
+        'TextButton.styleFrom(); TextButtonThemeData(); AppButton(label: a)',
+      ),
+      isFalse,
+    );
+
+    expect(
+      {
+        for (final MapEntry(key: path, value: source) in _appSources().entries)
+          if (!path.startsWith('lib/design/') && textButton.hasMatch(source))
+            path: textButton.allMatches(source).length,
+      },
+      {
+        // The note's name inside its sentence, and a section's form menu
+        // anchor (components.md).
+        'lib/photo_import/src/import_list_view.dart': 2,
+      },
+    );
+  });
+
+  test('no screen builds a search field of its own, so every search is '
+      'AppSearchField', () {
+    final search = RegExp(r'\bLucideIcons\.search\b');
+    final sources = _appSources();
+    // Control: the expression finds AppSearchField's own magnifier.
+    expect(
+      search.hasMatch(sources['lib/design/app_search_field.dart'] ?? ''),
+      isTrue,
+    );
+
+    expect([
+      for (final MapEntry(key: path, value: source) in sources.entries)
+        if (path != 'lib/design/app_search_field.dart' &&
+            search.hasMatch(source))
+          path,
+    ], isEmpty);
+  });
+
+  test('no screen dashes an outline of its own, so every one is '
+      'DashedOutline', () {
+    final dash = RegExp(r'\.extractPath\(');
+    final sources = _appSources();
+    // Control: the expression finds DashedOutline's own dashes.
+    expect(
+      dash.hasMatch(sources['lib/design/dashed_outline.dart'] ?? ''),
+      isTrue,
+    );
+
+    expect([
+      for (final MapEntry(key: path, value: source) in sources.entries)
+        if (!path.startsWith('lib/design/') && dash.hasMatch(source)) path,
+    ], isEmpty);
+  });
+
   test('no screen gives a text field a floating label, so every label is '
       "AppTextField's, above its field", () {
     final floating = RegExp(r'\blabelText:');
@@ -437,6 +558,25 @@ List<String> _sizeLiterals(Map<String, String> sources) => [
 
 /// Every Dart source under `lib/` keyed by its path under `app/`, leaving out
 /// generated code.
+/// How many boxes each of [sources] rounds on the chip radius or draws as a
+/// stadium, the two shapes of a chip, outside its comments.
+Map<String, int> chipShapes(Map<String, String> sources) {
+  final shape = RegExp(r'\bAppRadius\.chip\b|\bStadiumBorder\(');
+  return {
+    for (final MapEntry(key: path, value: source) in sources.entries)
+      if (shape
+              .allMatches(
+                source
+                    .split('\n')
+                    .where((line) => !line.trimLeft().startsWith('//'))
+                    .join('\n'),
+              )
+              .length
+          case final count when count > 0)
+        path: count,
+  };
+}
+
 Map<String, String> _appSources() => {
   for (final entity in Directory('lib').listSync(recursive: true))
     if (entity is File &&

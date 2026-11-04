@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../design/theme.dart';
+import 'theme.dart';
 
 /// A round check, filled in ink with a tick when on, outlined when off: the
-/// one selection control of photo import, in the list's rows and the edit
-/// sheet's meanings alike.
+/// one control that marks a row as chosen, in photo import's list and edit
+/// sheet and in the spreadsheet import's rows alike.
 class RoundCheck extends StatelessWidget {
   const RoundCheck({super.key, required this.on});
 

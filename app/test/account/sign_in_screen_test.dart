@@ -47,7 +47,7 @@ void main() {
   }
 
   Future<void> tapAndSettle(WidgetTester tester, String text) async {
-    await tester.tap(find.text(text));
+    await tester.tap(shownText(text));
     await tester.pumpAndSettle();
   }
 
@@ -136,15 +136,15 @@ void main() {
         ..pendingSignIn = pending;
       await pumpScreen(tester, service);
 
-      await tester.tap(find.text('Continue with Google'));
+      await tester.tap(shownText('Continue with Google'));
       await tester.pump();
       expect(find.bySemanticsLabel('Signing in'), findsOneWidget);
-      expect(find.text('Continue with Google'), findsNothing);
+      expect(shownText('Continue with Google'), findsNothing);
       pending.complete();
       await tester.pumpAndSettle();
 
       expect(find.bySemanticsLabel('Signing in'), findsNothing);
-      expect(find.text('Continue with Google'), findsOneWidget);
+      expect(shownText('Continue with Google'), findsOneWidget);
       expect(find.byType(SnackBar), findsNothing);
     },
   );
@@ -166,8 +166,8 @@ void main() {
 
       await tapAndSettle(tester, 'Continue with Google');
 
-      expect(find.text(message), findsOneWidget);
-      expect(find.text('Continue with Google'), findsOneWidget);
+      expect(shownText(message), findsOneWidget);
+      expect(shownText('Continue with Google'), findsOneWidget);
     });
   }
 
@@ -331,14 +331,14 @@ void main() {
         expect(
           find.descendant(
             of: button,
-            matching: find.text('Continue with Google'),
+            matching: shownText('Continue with Google'),
           ),
           findsOneWidget,
         );
         // The mark sits before the label.
         expect(
           tester.getRect(mark).right,
-          lessThan(tester.getRect(find.text('Continue with Google')).left),
+          lessThan(tester.getRect(shownText('Continue with Google')).left),
         );
         final surface = tester.widget<Material>(
           find.descendant(of: button, matching: find.byType(Material)).first,
@@ -396,7 +396,7 @@ void main() {
       );
 
       expect(
-        find.text(
+        shownText(
           'By continuing, you agree to the Terms of Service and the Privacy Policy.',
         ),
         findsOneWidget,
@@ -428,7 +428,7 @@ void main() {
     await tapAndSettle(tester, 'Privacy Policy');
     expect(opened, [Uri.parse('https://knowno.app/privacy')]);
     expect(
-      find.text("Couldn't open the link. Please try again."),
+      shownText("Couldn't open the link. Please try again."),
       findsOneWidget,
     );
   });

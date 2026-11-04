@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_chip.dart';
+import '../../design/app_list_row.dart';
 import '../../design/app_sheet.dart';
 import '../../design/app_text_field.dart';
 import '../../design/theme.dart';
@@ -516,8 +517,8 @@ class BlockList extends StatelessWidget {
   }
 }
 
-/// The add sheet's one grouped list of block types, each row its icon, its
-/// name and one line under it; a tap picks it.
+/// The add sheet's one group of block types, each row its icon, its name and
+/// one line under it; a tap picks it.
 class _TypeList extends StatelessWidget {
   const _TypeList();
 
@@ -525,55 +526,16 @@ class _TypeList extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
-    return Material(
-      color: colors.ground,
-      borderRadius: BorderRadius.circular(AppRadius.group),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (index, type) in BlockType.values.indexed) ...[
-            if (index > 0) const Divider(height: 1, thickness: 1),
-            MergeSemantics(
-              child: InkWell(
-                onTap: () => Navigator.of(context).pop(type),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minHeight: AppSize.tapTarget,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpace.s16,
-                      vertical: AppSpace.s12,
-                    ),
-                    child: Row(
-                      spacing: AppSpace.s16,
-                      children: [
-                        Icon(type.icon, color: colors.ink2),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(type.title(l10n), style: AppType.bodyStrong),
-                              Text(
-                                keepWords(type.description(l10n)),
-                                semanticsLabel: type.description(l10n),
-                                style: AppType.caption.copyWith(
-                                  color: colors.muted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return AppGroup(
+      children: [
+        for (final type in BlockType.values)
+          AppListRow(
+            leading: Icon(type.icon, color: colors.ink2),
+            title: type.title(l10n),
+            subtitle: type.description(l10n),
+            onTap: () => Navigator.of(context).pop(type),
+          ),
+      ],
     );
   }
 }
@@ -845,7 +807,8 @@ class _NamedField extends StatelessWidget {
 }
 
 /// A row of a group offering a choice of chips, after its [name] when it has
-/// one.
+/// one, the chips at the row's end; where the name and the chips do not fit
+/// one line, as at a large text size, the chips go under the name.
 class _ChoiceRow extends StatelessWidget {
   const _ChoiceRow({this.name, required this.choices});
 
@@ -855,28 +818,35 @@ class _ChoiceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = this.name;
+    final chips = Wrap(
+      spacing: AppSpace.s8,
+      children: [
+        for (final choice in choices)
+          AppChip.action(
+            label: choice.label,
+            selected: choice.selected,
+            onPressed: choice.onPressed,
+          ),
+      ],
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.s20),
-      child: Row(
-        spacing: AppSpace.s8,
-        children: [
-          if (name != null)
-            Expanded(
-              child: Text(
-                name,
-                style: AppType.body.copyWith(
-                  color: AppColors.of(context).muted,
+      child: name == null
+          ? chips
+          : OverflowBar(
+              spacing: AppSpace.s8,
+              alignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  keepWords(name),
+                  semanticsLabel: name,
+                  style: AppType.body.copyWith(
+                    color: AppColors.of(context).muted,
+                  ),
                 ),
-              ),
+                chips,
+              ],
             ),
-          for (final choice in choices)
-            AppChip.action(
-              label: choice.label,
-              selected: choice.selected,
-              onPressed: choice.onPressed,
-            ),
-        ],
-      ),
     );
   }
 }

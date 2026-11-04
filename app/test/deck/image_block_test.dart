@@ -436,7 +436,7 @@ void main() {
         );
         Finder side(String name) => find.descendant(
           of: group,
-          matching: find.widgetWithText(AppChip, name),
+          matching: widgetWithShownText(AppChip, name),
         );
         expect(side('Front'), findsOneWidget);
         expect(tester.widget<AppChip>(side('Front')).selected, isTrue);
@@ -696,7 +696,7 @@ void main() {
               of: shownText('Photo').first,
               matching: find.byType(EditorGroup),
             ),
-            matching: find.widgetWithText(AppChip, 'Back'),
+            matching: widgetWithShownText(AppChip, 'Back'),
           ),
         );
         await tester.pumpAndSettle();

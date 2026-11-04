@@ -9,6 +9,7 @@ import 'card_list.dart';
 import 'card_text.dart';
 import 'content.dart';
 import 'content_view.dart';
+import 'hatched_box.dart';
 import 'image_block.dart';
 import 'model.dart';
 
@@ -242,9 +243,8 @@ class WholeCardView extends StatelessWidget {
     InlineSpan span, {
     required bool added,
   }) => added
-      ? _hatchedBox(
-          context,
-          Text.rich(
+      ? HatchedBox(
+          child: Text.rich(
             span,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
@@ -257,21 +257,6 @@ class WholeCardView extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: _titleStyle,
         );
-
-  /// [child] in a box on [AppHatch], as a card list marks a revealed part.
-  Widget _hatchedBox(BuildContext context, Widget child) => DecoratedBox(
-    decoration: HatchDecoration(
-      AppColors.of(context),
-      borderRadius: BorderRadius.circular(AppRadius.chip),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpace.s12,
-        vertical: AppSpace.s8,
-      ),
-      child: child,
-    ),
-  );
 
   /// A photo in a card list's row: the photo [AppSize.listedPhoto] high, or
   /// less where the row is narrower than that at its aspect ratio, each box
@@ -320,9 +305,8 @@ class WholeCardView extends StatelessWidget {
           },
         ),
         if (answers.isNotEmpty)
-          _hatchedBox(
-            context,
-            Text(
+          HatchedBox(
+            child: Text(
               answers.join(' · '),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,

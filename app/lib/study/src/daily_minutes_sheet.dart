@@ -8,7 +8,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../deck/deck.dart' show DeckFailure, describeFailure;
 import '../../design/app_button.dart';
-import '../../design/app_list_row.dart';
+import '../../design/app_choice.dart';
 import '../../design/bottom_actions.dart';
 import '../../design/app_sheet.dart';
 import '../../design/theme.dart';
@@ -101,22 +101,11 @@ class _DailyMinutesRowState extends ConsumerState<DailyMinutesRow> {
     final l10n = AppLocalizations.of(context);
     return FutureBuilder(
       future: _minutes,
-      builder: (context, read) => AppListRow(
+      builder: (context, read) => AppChoiceRow(
         title: l10n.dailyMinutesTitle,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          spacing: AppSpace.s4,
-          children: [
-            if (read.connectionState == ConnectionState.done && !read.hasError)
-              Text(
-                l10n.dailyMinutesChoice(read.data ?? defaultDailyMinutes),
-                style: AppType.secondary.copyWith(
-                  color: AppColors.of(context).ink2,
-                ),
-              ),
-            const Icon(LucideIcons.chevronRight),
-          ],
-        ),
+        value: read.connectionState == ConnectionState.done && !read.hasError
+            ? l10n.dailyMinutesChoice(read.data ?? defaultDailyMinutes)
+            : null,
         onTap: () async {
           final saved = await openDailyMinutesScreen(context);
           if (saved != null && mounted) {

@@ -4,11 +4,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../design/app_button.dart';
 import '../../design/app_sheet.dart';
 import '../../design/app_text_field.dart';
+import '../../design/round_check.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'extraction_client.dart';
 import 'import_list.dart';
-import 'round_check.dart';
 
 /// Opens the sheet that edits [row]: its front, and a vocabulary row's senses,
 /// each kept or dropped by its round check, edited, and moved up or down

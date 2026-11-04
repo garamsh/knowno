@@ -82,17 +82,17 @@ void main() {
 
   /// The toolbar's "빈칸" chip.
   AppChip blankChip(WidgetTester tester) =>
-      tester.widget<AppChip>(find.widgetWithText(AppChip, 'Blank'));
+      tester.widget<AppChip>(widgetWithShownText(AppChip, 'Blank'));
 
   /// Toggles the selected cell as a blank.
   Future<void> toggleBlank(DeckScreens screens) =>
-      tap(screens, find.widgetWithText(AppChip, 'Blank'));
+      tap(screens, widgetWithShownText(AppChip, 'Blank'));
 
   /// Removes the selected cell's row or column through "삭제", read as
   /// [item] in its menu.
   Future<void> remove(DeckScreens screens, String item) async {
-    await tap(screens, find.widgetWithText(AppChip, 'Delete'));
-    await screens.tap(find.text(item));
+    await tap(screens, widgetWithShownText(AppChip, 'Delete'));
+    await screens.tap(shownText(item));
   }
 
   /// The blanks the preview screen draws once a tap turns its card to show
@@ -119,7 +119,7 @@ void main() {
       final tools = ['Add row', 'Add column', 'Blank', 'Delete'];
       for (final tool in tools) {
         expect(
-          find.widgetWithText(AppChip, tool),
+          widgetWithShownText(AppChip, tool),
           findsOneWidget,
           reason: tool,
         );
@@ -129,8 +129,8 @@ void main() {
           tester
               .widget<Text>(
                 find.descendant(
-                  of: find.widgetWithText(AppChip, tool),
-                  matching: find.text(tool),
+                  of: widgetWithShownText(AppChip, tool),
+                  matching: shownText(tool),
                 ),
               )
               .style,
@@ -224,8 +224,8 @@ void main() {
     (tester) async {
       final screens = await openTable(tester);
       await typeCapitals(screens);
-      await tap(screens, find.text('Add row'));
-      await tap(screens, find.text('Add column'));
+      await tap(screens, shownText('Add row'));
+      await tap(screens, shownText('Add column'));
       // The headers, then three rows of three cells.
       expect(_cell(3 + 3 * 3 - 1), findsOneWidget);
       await enter(tester, _cell(2), 'Continent');
@@ -244,7 +244,7 @@ void main() {
       expect(shownText('Delete row 1?'), findsNothing, reason: 'no question');
       expect(shownText('Row 1 deleted'), findsOneWidget);
       expect(tester.widget<TextField>(_cell(3)).controller!.text, 'Japan');
-      await screens.tap(find.text('Undo'));
+      await screens.tap(shownText('Undo'));
       expect(tester.widget<TextField>(_cell(3)).controller!.text, 'France');
       expect(tester.widget<TextField>(_cell(7)).controller!.text, 'Tokyo');
       await select(screens, 3);
@@ -274,15 +274,15 @@ void main() {
       await remove(screens, 'Delete column 2');
       // One heading and one cell are left.
       await select(screens, 1);
-      await tap(screens, find.widgetWithText(AppChip, 'Delete'));
+      await tap(screens, widgetWithShownText(AppChip, 'Delete'));
       MenuItemButton item(String text) =>
-          tester.widget(find.widgetWithText(MenuItemButton, text));
+          tester.widget(widgetWithShownText(MenuItemButton, text));
       expect(item('Delete row 1').enabled, isFalse, reason: 'one row');
       expect(item('Delete column 1').enabled, isFalse, reason: 'one column');
       await tester.tapAt(Offset.zero);
       await tester.pumpAndSettle();
-      await tap(screens, find.text('Add row'));
-      await tap(screens, find.widgetWithText(AppChip, 'Delete'));
+      await tap(screens, shownText('Add row'));
+      await tap(screens, widgetWithShownText(AppChip, 'Delete'));
       expect(
         item('Delete row 2').enabled,
         isTrue,
@@ -303,7 +303,7 @@ void main() {
     await enter(tester, _cell(3), 'Korea');
     await tester.pumpAndSettle();
     expect(shownText('Row 1 deleted'), findsNothing);
-    expect(find.text('Undo'), findsNothing);
+    expect(shownText('Undo'), findsNothing);
   });
 
   testWidgets(
@@ -381,7 +381,7 @@ void main() {
       expect(find.byType(SegmentedButton), findsNothing);
       expect(find.byType(ChoiceChip), findsNothing);
       for (final mode in ['Type cells', 'Choose blanks', 'Table editing']) {
-        expect(find.text(mode), findsNothing, reason: mode);
+        expect(shownText(mode), findsNothing, reason: mode);
       }
       await screens.close();
     },
@@ -682,7 +682,7 @@ void main() {
       await select(screens, 3);
       await toggleBlank(screens);
       await save(screens);
-      expect(find.text('Write something'), findsNothing);
+      expect(shownText('Write something'), findsNothing);
       final card = await _stored(screens);
       expect(card.front, [
         TableContent(
@@ -710,7 +710,7 @@ void main() {
               .state<ScrollableState>(
                 find
                     .ancestor(
-                      of: find.text('Front'),
+                      of: shownText('Front'),
                       matching: find.byType(Scrollable),
                     )
                     .first,
@@ -745,11 +745,11 @@ void main() {
     'Add row and Add column put the focus in what they add, a new column scrolled sideways into view (#622)',
     (tester) async {
       final screens = await openTable(tester);
-      await tap(screens, find.text('Add row'));
+      await tap(screens, shownText('Add row'));
       // Two headings, then three rows of two cells: the new row starts at 6.
       expect(hasFocus(tester, _cell(6)), isTrue, reason: 'its first cell');
       for (var columns = 3; columns <= 5; columns++) {
-        await tap(screens, find.text('Add column'));
+        await tap(screens, shownText('Add column'));
         expect(
           hasFocus(tester, _cell(columns - 1)),
           isTrue,

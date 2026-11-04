@@ -7,6 +7,7 @@ import 'package:shared_preferences_platform_interface/shared_preferences_async_p
 import 'package:knowno/account/account.dart';
 import 'package:knowno/account/src/legal.dart';
 import 'package:knowno/design/app_button.dart';
+import 'package:knowno/design/app_choice.dart';
 import 'package:knowno/design/app_list_row.dart';
 import 'package:knowno/design/app_sheet.dart';
 import 'package:knowno/design/theme.dart';
@@ -92,7 +93,7 @@ void main() {
       ),
     );
 
-    expect(find.text('grace@example.com'), findsOneWidget);
+    expect(shownText('grace@example.com'), findsOneWidget);
   });
 
   testWidgets(
@@ -107,23 +108,23 @@ void main() {
       );
 
       expect(
-        find.descendant(of: find.byType(AppBar), matching: find.text('설정')),
+        find.descendant(of: find.byType(AppBar), matching: shownText('설정')),
         findsOneWidget,
       );
       double top(Finder finder) => tester.getRect(finder).top;
-      final account = find.text('계정');
-      final email = find.text('grace@example.com');
-      final signOut = find.text('로그아웃');
+      final account = shownText('계정');
+      final email = shownText('grace@example.com');
+      final signOut = shownText('로그아웃');
       final order = [
         account,
         email,
-        find.text('sync status'),
+        shownText('sync status'),
         signOut,
-        find.text('학습'),
-        find.text('study setting'),
-        find.text('화면'),
-        find.text('테마'),
-        find.text('계정 삭제'),
+        shownText('학습'),
+        shownText('study setting'),
+        shownText('화면'),
+        shownText('테마'),
+        shownText('계정 삭제'),
       ];
       for (final (index, finder) in order.indexed.skip(1)) {
         expect(
@@ -134,7 +135,7 @@ void main() {
       }
       for (final label in ['계정', '학습', '화면']) {
         expect(
-          tester.getSemantics(find.text(label)).flagsCollection.isHeader,
+          tester.getSemantics(shownText(label)).flagsCollection.isHeader,
           isTrue,
           reason: label,
         );
@@ -147,15 +148,15 @@ void main() {
         same(tester.widget(groupOf(signOut))),
       );
       expect(
-        tester.widget(groupOf(find.text('계정 삭제'))),
+        tester.widget(groupOf(shownText('계정 삭제'))),
         isNot(same(tester.widget(groupOf(signOut)))),
       );
       // Sign-out and deletion are their words alone.
       for (final row in ['로그아웃', '계정 삭제']) {
-        expect(find.widgetWithText(AppListRow, row), findsOneWidget);
+        expect(widgetWithShownText(AppListRow, row), findsOneWidget);
         expect(
           find.descendant(
-            of: find.widgetWithText(AppListRow, row),
+            of: widgetWithShownText(AppListRow, row),
             matching: find.byType(Icon),
           ),
           findsNothing,
@@ -175,7 +176,7 @@ void main() {
 
     await tapAndSettle(tester, 'Sign out');
 
-    expect(find.text('ada@example.com'), findsNothing);
+    expect(shownText('ada@example.com'), findsNothing);
   });
 
   testWidgets('signing out pushes, then clears the device\'s data', (
@@ -194,7 +195,7 @@ void main() {
 
     expect([data.pushes, data.clears], [1, 1]);
     expect(shownText('Sign out without syncing?'), findsNothing);
-    expect(find.text('ada@example.com'), findsNothing);
+    expect(shownText('ada@example.com'), findsNothing);
   });
 
   testWidgets(
@@ -212,7 +213,7 @@ void main() {
       await tapAndSettle(tester, '취소');
       expect(service.state, isA<SignedIn>());
       expect(data.clears, 0);
-      expect(find.text('ada@example.com'), findsOneWidget);
+      expect(shownText('ada@example.com'), findsOneWidget);
     },
   );
 
@@ -252,7 +253,7 @@ void main() {
           themeMode: mode,
         );
         expect(
-          Theme.of(tester.element(find.text('Display'))).brightness.name,
+          Theme.of(tester.element(shownText('Display'))).brightness.name,
           mode,
         );
         await meetsGuidelines();
@@ -280,12 +281,12 @@ void main() {
     await tapAndSettle(tester, 'Sign out');
 
     expect(
-      find.text(
+      shownText(
         "Couldn't delete this device's data. It's deleted when another account signs in.",
       ),
       findsOneWidget,
     );
-    expect(find.text('ada@example.com'), findsNothing);
+    expect(shownText('ada@example.com'), findsNothing);
   });
 
   group('deleting the account', () {
@@ -299,9 +300,9 @@ void main() {
         final semantics = tester.ensureSemantics();
         await pumpScreen(tester, signedIn(), locale: const Locale('ko'));
 
-        final row = find.text('계정 삭제');
+        final row = shownText('계정 삭제');
         expect(
-          tester.getRect(find.text('테마')).top,
+          tester.getRect(shownText('테마')).top,
           lessThan(tester.getRect(row).top),
         );
         expect(
@@ -314,7 +315,7 @@ void main() {
         );
         // The control: sign-out is drawn in ink, not red.
         expect(
-          tester.widget<Text>(find.text('로그아웃')).style?.color,
+          tester.widget<Text>(shownText('로그아웃')).style?.color,
           isNot(AppColors.light.dontKnowText),
         );
         semantics.dispose();
@@ -359,7 +360,7 @@ void main() {
       expect(service.deletions, 0);
       expect(service.state, isA<SignedIn>());
       expect([data.pushes, data.clears], [0, 0]);
-      expect(find.text('ada@example.com'), findsOneWidget);
+      expect(shownText('ada@example.com'), findsOneWidget);
     });
 
     testWidgets(
@@ -399,10 +400,10 @@ void main() {
           await tapAndSettle(tester, 'Delete account');
           await tapAndSettle(tester, 'Delete');
 
-          expect(find.text(message), findsOneWidget);
+          expect(shownText(message), findsOneWidget);
           expect(service.state, isA<SignedIn>());
           expect(data.clears, 0);
-          expect(find.text('ada@example.com'), findsOneWidget);
+          expect(shownText('ada@example.com'), findsOneWidget);
         },
       );
     }
@@ -420,7 +421,7 @@ void main() {
 
       expect(service.deletions, 1);
       expect(
-        find.text(
+        shownText(
           "Couldn't delete this device's data. It's deleted when another account signs in.",
         ),
         findsOneWidget,
@@ -453,11 +454,11 @@ void main() {
         const SignedIn(userId: _ada, email: 'ada@example.com'),
       ),
     );
-    expect(find.text('sync status'), findsOneWidget);
+    expect(shownText('sync status'), findsOneWidget);
 
     await tapAndSettle(tester, 'Sign out');
 
-    expect(find.text('sync status'), findsNothing);
+    expect(shownText('sync status'), findsNothing);
   });
 
   testWidgets(
@@ -473,10 +474,10 @@ void main() {
       await tapAndSettle(tester, 'Sign out');
 
       expect(
-        find.text("Couldn't reach the server. Check your internet connection."),
+        shownText("Couldn't reach the server. Check your internet connection."),
         findsOneWidget,
       );
-      expect(find.text('ada@example.com'), findsNothing);
+      expect(shownText('ada@example.com'), findsNothing);
     },
   );
 
@@ -504,11 +505,16 @@ void main() {
         locale: const Locale('ko'),
       );
       Brightness brightness() =>
-          Theme.of(tester.element(find.text('화면'))).brightness;
-      Finder row(String choice) => find.widgetWithText(AppListRow, choice);
+          Theme.of(tester.element(shownText('화면'))).brightness;
+      Finder row(String choice) => find.ancestor(
+        of: shownText(choice),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is AppListRow || widget is AppChoiceRow,
+        ),
+      );
       expect(find.byType(SegmentedButton<ThemeMode>), findsNothing);
       expect(
-        find.descendant(of: row('테마'), matching: find.text('시스템')),
+        find.descendant(of: row('테마'), matching: shownText('시스템')),
         findsOneWidget,
       );
       expect(brightness(), Brightness.light);
@@ -521,7 +527,7 @@ void main() {
       );
       for (final choice in ['시스템', '라이트', '다크']) {
         expect(
-          find.descendant(of: sheet, matching: find.text(choice)),
+          find.descendant(of: sheet, matching: shownText(choice)),
           findsOneWidget,
           reason: choice,
         );
@@ -530,13 +536,13 @@ void main() {
         tester.getSemantics(row('시스템').last),
         isSemantics(label: '시스템', isSelected: true, hasSelectedState: true),
       );
-      await tester.tap(find.descendant(of: sheet, matching: find.text('다크')));
+      await tester.tap(find.descendant(of: sheet, matching: shownText('다크')));
       await tester.pumpAndSettle();
 
       expect(find.byType(AppSheet), findsNothing);
       expect(brightness(), Brightness.dark);
       expect(
-        find.descendant(of: row('테마'), matching: find.text('다크')),
+        find.descendant(of: row('테마'), matching: shownText('다크')),
         findsOneWidget,
       );
 
@@ -562,15 +568,15 @@ void main() {
 
       // The foot is below the rows the screen builds first.
       await tester.scrollUntilVisible(
-        find.text('Version 1.0.0'),
+        shownText('Version 1.0.0'),
         100,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
-      final version = tester.getRect(find.text('Version 1.0.0'));
+      final version = tester.getRect(shownText('Version 1.0.0'));
       for (final link in ['Terms of Service', 'Privacy Policy']) {
         expect(
-          tester.getCenter(find.text(link)).dy,
+          tester.getCenter(shownText(link)).dy,
           moreOrLessEquals(version.center.dy, epsilon: 1),
           reason: '$link on the version\'s line',
         );
@@ -580,7 +586,7 @@ void main() {
           .getRect(
             find
                 .ancestor(
-                  of: find.text('Version 1.0.0'),
+                  of: shownText('Version 1.0.0'),
                   matching: find.byType(Padding),
                 )
                 .first,
@@ -588,7 +594,7 @@ void main() {
           .expandToInclude(
             tester.getRect(
               find.ancestor(
-                of: find.text('Privacy Policy'),
+                of: shownText('Privacy Policy'),
                 matching: find.byType(TextButton),
               ),
             ),
@@ -602,7 +608,7 @@ void main() {
       );
       expect(
         version.top,
-        greaterThan(tester.getBottomLeft(find.text('Delete account')).dy),
+        greaterThan(tester.getBottomLeft(shownText('Delete account')).dy),
       );
       // The mascot was the screen's one image.
       expect(find.byType(Image), findsNothing);
@@ -626,14 +632,14 @@ void main() {
 
       // The foot is below the rows the screen builds first.
       await tester.scrollUntilVisible(
-        find.text('Terms of Service'),
+        shownText('Terms of Service'),
         100,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Terms of Service'));
+      await tester.tap(shownText('Terms of Service'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Privacy Policy'));
+      await tester.tap(shownText('Privacy Policy'));
       await tester.pumpAndSettle();
 
       expect(opened, [

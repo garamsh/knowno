@@ -253,7 +253,7 @@ void main() {
         );
         Finder side(String name) => find.descendant(
           of: group,
-          matching: find.widgetWithText(AppChip, name),
+          matching: widgetWithShownText(AppChip, name),
         );
         expect(tester.widget<AppChip>(side('Front')).selected, isTrue);
         await tapVisible(tester, side('Back'));
@@ -403,7 +403,7 @@ void main() {
             of: find.text('Sound').first,
             matching: find.byType(EditorGroup),
           ),
-          matching: find.widgetWithText(AppChip, 'Back'),
+          matching: widgetWithShownText(AppChip, 'Back'),
         ),
       );
       await tester.pumpAndSettle();

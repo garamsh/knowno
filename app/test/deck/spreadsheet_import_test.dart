@@ -126,7 +126,7 @@ void main() {
     pick.next.add(file);
     final result = await open(tester, into: into);
     await tap(tester, shownText(ko.spreadsheetChoose));
-    expect(find.text(ko.spreadsheetReviewTitle), findsOneWidget);
+    expect(shownText(ko.spreadsheetReviewTitle), findsOneWidget);
     return result;
   }
 
@@ -152,8 +152,8 @@ void main() {
         expect(switchValue(tester), isTrue);
         expect(find.bySemanticsLabel(ko.spreadsheetSkipped(1)), findsOneWidget);
 
-        await tap(tester, find.text(ko.spreadsheetLabelColumn));
-        await tap(tester, find.text('C · 품사').last);
+        await tap(tester, shownText(ko.spreadsheetLabelColumn));
+        await tap(tester, shownText('C · 품사').last);
         await tap(
           tester,
           find.bySemanticsLabel(ko.spreadsheetRowCard(4, 'plum')),
@@ -192,7 +192,7 @@ void main() {
         );
         expect(await fronts(tester), ['apple']);
 
-        await tap(tester, find.text(ko.spreadsheetLeaveOut(2)));
+        await tap(tester, shownText(ko.spreadsheetLeaveOut(2)));
         await save(tester, ko.importAdd(1));
         expect(await fronts(tester), ['apple', 'banana']);
       },
@@ -225,15 +225,15 @@ void main() {
       expect(find.bySemanticsLabel(ko.spreadsheetStartBody), findsOneWidget);
       await tap(tester, shownText(ko.spreadsheetChoose));
       expect(find.bySemanticsLabel(ko.spreadsheetWrongType), findsOneWidget);
-      expect(find.text(ko.spreadsheetReviewTitle), findsNothing);
+      expect(shownText(ko.spreadsheetReviewTitle), findsNothing);
 
       await tap(tester, shownText(ko.spreadsheetChoose));
-      expect(find.text(ko.spreadsheetReviewTitle), findsOneWidget);
+      expect(shownText(ko.spreadsheetReviewTitle), findsOneWidget);
 
       await tap(tester, find.byTooltip(ko.close));
       expect(find.bySemanticsLabel(ko.spreadsheetDiscardTitle), findsOneWidget);
       await tap(tester, shownText(ko.discardImport));
-      expect(find.text(ko.spreadsheetReviewTitle), findsNothing);
+      expect(shownText(ko.spreadsheetReviewTitle), findsNothing);
       expect(result, [null]);
       expect(await fronts(tester), ['apple']);
     });
@@ -245,19 +245,19 @@ void main() {
       await open(tester, into: deck.id);
       await tap(tester, shownText(ko.spreadsheetChoose));
       expect(find.bySemanticsLabel(ko.spreadsheetStartBody), findsOneWidget);
-      expect(find.text(ko.spreadsheetReviewTitle), findsNothing);
+      expect(shownText(ko.spreadsheetReviewTitle), findsNothing);
     });
 
     testWidgets(
       'closes with no question once every card is left out, against one card kept',
       (tester) async {
         await review(tester, _csv('pear,배\nplum,자두'), into: deck.id);
-        await tap(tester, find.text(ko.spreadsheetExcludeAll));
-        expect(find.text(ko.spreadsheetSelectAll), findsOneWidget);
-        await tap(tester, find.text(ko.spreadsheetSelectAll));
-        await tap(tester, find.text(ko.spreadsheetExcludeAll));
+        await tap(tester, shownText(ko.spreadsheetExcludeAll));
+        expect(shownText(ko.spreadsheetSelectAll), findsOneWidget);
+        await tap(tester, shownText(ko.spreadsheetSelectAll));
+        await tap(tester, shownText(ko.spreadsheetExcludeAll));
         await tap(tester, find.byTooltip(ko.close));
-        expect(find.text(ko.spreadsheetReviewTitle), findsNothing);
+        expect(shownText(ko.spreadsheetReviewTitle), findsNothing);
       },
     );
 
@@ -268,13 +268,13 @@ void main() {
         expect(switchValue(tester), isFalse);
         expect(shownText(ko.importAdd(2)), findsOneWidget);
 
-        await tap(tester, find.text(ko.cardBack));
-        await tap(tester, find.text('A · pear').last);
+        await tap(tester, shownText(ko.cardBack));
+        await tap(tester, shownText('A · pear').last);
         expect(find.bySemanticsLabel(ko.spreadsheetDistinct), findsOneWidget);
         expect(shownText(ko.importAdd(2)), findsNothing);
 
-        await tap(tester, find.text(ko.cardBack));
-        await tap(tester, find.text('B · 배').last);
+        await tap(tester, shownText(ko.cardBack));
+        await tap(tester, shownText('B · 배').last);
         expect(find.bySemanticsLabel(ko.spreadsheetDistinct), findsNothing);
         await tap(tester, find.byType(Switch));
         expect(shownText(ko.importAdd(1)), findsOneWidget);
@@ -312,8 +312,8 @@ void main() {
         );
         expect(switchValue(tester), isFalse);
 
-        await tap(tester, find.text(ko.spreadsheetSheet));
-        await tap(tester, find.text('머리글').last);
+        await tap(tester, shownText(ko.spreadsheetSheet));
+        await tap(tester, shownText('머리글').last);
         expect(switchValue(tester), isTrue);
         expect(shownText(ko.importAdd(1)), findsOneWidget);
       },
@@ -328,18 +328,18 @@ void main() {
           find.bySemanticsLabel(ko.spreadsheetTooManyRows),
           findsOneWidget,
         );
-        expect(find.text(ko.cardCount(0)), findsNothing);
+        expect(shownText(ko.cardCount(0)), findsNothing);
 
         pick.next.addAll([
           const RefusedFile(SpreadsheetRefusal.tooLarge),
           _csv('pear,배', name: 'other.csv'),
         ]);
-        await tap(tester, find.text(ko.spreadsheetAnother));
+        await tap(tester, shownText(ko.spreadsheetAnother));
         expect(find.bySemanticsLabel(ko.spreadsheetTooLarge), findsOneWidget);
-        expect(find.text('words.csv'), findsOneWidget);
+        expect(shownText('words.csv'), findsOneWidget);
 
-        await tap(tester, find.text(ko.spreadsheetAnother));
-        expect(find.text('other.csv'), findsOneWidget);
+        await tap(tester, shownText(ko.spreadsheetAnother));
+        expect(shownText('other.csv'), findsOneWidget);
         expect(shownText(ko.importAdd(1)), findsOneWidget);
       },
     );
@@ -348,7 +348,7 @@ void main() {
       'with no deck, offers the decks and a new one, and asks a new deck its name on saving',
       (tester) async {
         final result = await review(tester, _csv('pear,배'));
-        expect(find.text(ko.photoTargetTitle), findsOneWidget);
+        expect(shownText(ko.photoTargetTitle), findsOneWidget);
         expect(shownText(ko.newDeck), findsOneWidget);
 
         await tap(tester, shownText(ko.importAdd(1)));
@@ -381,14 +381,14 @@ void main() {
       tester,
     ) async {
       final result = await review(tester, _csv('apple,사과\npear,배'));
-      await tap(tester, find.text(ko.photoTargetTitle));
-      await tap(tester, find.text('단어장'));
+      await tap(tester, shownText(ko.photoTargetTitle));
+      await tap(tester, shownText('단어장'));
       await save(tester, ko.importAdd(2));
       expect(
         find.bySemanticsLabel(ko.spreadsheetDuplicateStored(1)),
         findsOneWidget,
       );
-      await tap(tester, find.text(ko.spreadsheetLeaveOut(1)));
+      await tap(tester, shownText(ko.spreadsheetLeaveOut(1)));
       await save(tester, ko.importAdd(1));
       expect(result.single?.id, deck.id);
       expect(await fronts(tester), ['apple', 'pear']);

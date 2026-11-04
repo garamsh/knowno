@@ -170,7 +170,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.bySemanticsLabel('Tabs'),
-        matching: find.text(label),
+        matching: shownText(label),
       ),
     );
     semantics.dispose();
@@ -227,7 +227,7 @@ void main() {
     await tester.tap(shownText('Add card'));
     await tester.pumpAndSettle();
     expect(shownText('Enter by hand'), findsOneWidget);
-    expect(find.text('Take photo'), findsNothing);
+    expect(shownText('Take photo'), findsNothing);
     expect(shownText('Choose from album'), findsNothing);
     await unmountApp(tester);
 
@@ -235,7 +235,7 @@ void main() {
     await createDeckAndOpen(tester, 'French');
     await tester.tap(shownText('Add card'));
     await tester.pumpAndSettle();
-    expect(find.text('Take photo'), findsOneWidget);
+    expect(shownText('Take photo'), findsOneWidget);
     expect(shownText('Choose from album'), findsOneWidget);
     await unmountApp(tester);
   });
@@ -268,7 +268,7 @@ void main() {
       await tester.tap(shownText('Resume'));
       await tester.pumpAndSettle();
       expect(client.calls, hasLength(1), reason: 'the unread photo alone');
-      expect(find.text('Reading photos 1/2'), findsOneWidget);
+      expect(shownText('Reading photos 1/2'), findsOneWidget);
       await unmountApp(tester);
     },
   );
@@ -346,7 +346,7 @@ void main() {
         );
 
         // Study goes on: a card answered.
-        expect(find.text('0/2'), findsOneWidget);
+        expect(shownText('0/2'), findsOneWidget);
         final study = tester.getRect(find.byType(StudyScreen));
         await tester.timedDragFrom(
           Offset(study.center.dx, study.top + study.height * 0.6),
@@ -354,7 +354,7 @@ void main() {
           const Duration(seconds: 1),
         );
         await tester.pumpAndSettle();
-        expect(find.text('1/2'), findsOneWidget);
+        expect(shownText('1/2'), findsOneWidget);
 
         expect(client.calls, hasLength(3));
         client.calls[0].answer.complete([word(front: 'face', meaning: '얼굴')]);
@@ -369,7 +369,7 @@ void main() {
         expect(barText(tester), 'Review 3 cards');
         expect(find.byType(StudyScreen), findsOneWidget);
         expect(find.byType(Dialog), findsNothing);
-        expect(find.text('1/2'), findsOneWidget);
+        expect(shownText('1/2'), findsOneWidget);
 
         await tester.tap(find.byType(PhotoImportBar));
         await tester.pumpAndSettle();
@@ -444,7 +444,7 @@ void main() {
     await createDeckAndOpen(tester, 'French');
     await tester.tap(find.byTooltip('Note settings'));
     await tester.pumpAndSettle();
-    expect(find.text('Rename'), findsOneWidget);
+    expect(shownText('Rename'), findsOneWidget);
     expect(shownText('Publish'), findsNothing);
     await tester.tapAt(const Offset(20, 300));
     await tester.pumpAndSettle();
@@ -555,8 +555,8 @@ void main() {
     await addCard(tester, 'Chat', '');
 
     expect(find.bySemanticsLabel('Add a back or a blank'), findsOneWidget);
-    expect(find.text('Edit card'), findsNothing);
-    expect(find.widgetWithText(AppBar, 'New card'), findsOneWidget);
+    expect(shownText('Edit card'), findsNothing);
+    expect(widgetWithShownText(AppBar, 'New card'), findsOneWidget);
     await unmountApp(tester);
   });
 
@@ -581,9 +581,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('Add block'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Word').last);
+      await tester.tap(shownText('Word').last);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.widgetWithText(TextField, 'Label'));
+      await tester.ensureVisible(widgetWithShownText(TextField, 'Label'));
       await tester.pumpAndSettle();
     }
 
@@ -620,15 +620,15 @@ void main() {
 
         await tester.tap(find.bySemanticsLabel('Add block'));
         await tester.pumpAndSettle();
-        expect(find.text('Word'), findsOneWidget, reason: 'its sheet');
-        await tester.tap(find.text('Word'));
+        expect(shownText('Word'), findsOneWidget, reason: 'its sheet');
+        await tester.tap(shownText('Word'));
         await tester.pumpAndSettle();
 
         await tester.tap(back);
         await tester.pumpAndSettle();
         expect(tester.testTextInput.isVisible, isTrue);
         // The deck's name over the form handles no tap.
-        await tester.tap(find.text('French'));
+        await tester.tap(shownText('French'));
         await tester.pumpAndSettle();
         expect(tester.testTextInput.isVisible, isFalse);
         expect(FocusManager.instance.primaryFocus, isA<FocusScopeNode>());
@@ -641,11 +641,11 @@ void main() {
       (tester) async {
         await openEditor(tester);
         await addMeanings(tester);
-        await tester.tap(find.widgetWithText(TextField, 'Label'));
+        await tester.tap(widgetWithShownText(TextField, 'Label'));
         await tester.pumpAndSettle();
         expect(tester.testTextInput.isVisible, isTrue);
         final strip = find.ancestor(
-          of: find.widgetWithText(AppChip, '명'),
+          of: widgetWithShownText(AppChip, '명'),
           matching: find.byType(Scrollable),
         );
 
@@ -661,13 +661,13 @@ void main() {
         final form = tester.state<ScrollableState>(
           find
               .ancestor(
-                of: find.text('Word').first,
+                of: shownText('Word').first,
                 matching: find.byType(Scrollable),
               )
               .first,
         );
         expect(form.position.maxScrollExtent, greaterThan(0), reason: 'setup');
-        await tester.drag(find.text('Word').first, const Offset(0, 200));
+        await tester.drag(shownText('Word').first, const Offset(0, 200));
         await tester.pumpAndSettle();
         expect(tester.testTextInput.isVisible, isFalse);
         await unmountApp(tester);
@@ -683,7 +683,7 @@ void main() {
         expect(actionKey(tester), 'TextInputAction.newline');
 
         await addMeanings(tester);
-        await tester.tap(find.widgetWithText(TextField, 'Label'));
+        await tester.tap(widgetWithShownText(TextField, 'Label'));
         await tester.pumpAndSettle();
         expect(actionKey(tester), 'TextInputAction.done');
         await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -703,7 +703,7 @@ void main() {
     await addCard(tester, 'Chat', 'cat');
 
     expect(
-      find.text(
+      shownText(
         "Couldn't read or write the device's storage. Please try again.",
       ),
       findsOneWidget,
@@ -723,7 +723,7 @@ void main() {
 
     expect(shownText('Chat'), findsOneWidget);
     expect(find.byTooltip('Close'), findsOneWidget);
-    expect(find.text('0/1'), findsOneWidget);
+    expect(shownText('0/1'), findsOneWidget);
     await unmountApp(tester);
   });
 
@@ -746,7 +746,7 @@ void main() {
       await tester.tap(shownText('Start'));
       await tester.pumpAndSettle();
 
-      expect(find.text('0/3'), findsOneWidget);
+      expect(shownText('0/3'), findsOneWidget);
       await unmountApp(tester);
     },
   );
@@ -760,7 +760,7 @@ void main() {
       expect(studyThisDeck, findsNothing);
       await showTab(tester, 'Home');
       expect(shownText('Make your first card?'), findsOneWidget);
-      expect(find.text("You've done today's cards"), findsNothing);
+      expect(shownText("You've done today's cards"), findsNothing);
 
       // Its one primary opens the deck with its add sheet up; with a card
       // added, 홈 shows the day.
@@ -844,7 +844,7 @@ void main() {
 
       await tester.tap(studyThisDeck);
       await tester.pumpAndSettle();
-      expect(find.text('Done for today'), findsOneWidget);
+      expect(shownText('Done for today'), findsOneWidget);
       await tester.ensureVisible(shownText('Stop'));
       await tester.tap(shownText('Stop'));
       await tester.pumpAndSettle();
@@ -856,7 +856,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(shownText('Study'));
       await tester.pumpAndSettle();
-      expect(find.text('Done for today'), findsOneWidget);
+      expect(shownText('Done for today'), findsOneWidget);
       await unmountApp(tester);
     },
   );
@@ -869,7 +869,7 @@ void main() {
       await showSettings(tester);
 
       expect(find.byType(AccountScreen), findsOneWidget);
-      expect(find.text('ada@example.com'), findsOneWidget);
+      expect(shownText('ada@example.com'), findsOneWidget);
       expect(find.bySemanticsLabel('Tabs'), findsNothing);
       expect(await tester.binding.handlePopRoute(), isTrue);
       await tester.pumpAndSettle();
@@ -886,7 +886,7 @@ void main() {
 
       await showSettings(tester);
       expect(shownText('Study'), findsOneWidget);
-      await tester.tap(find.text('Daily study time'));
+      await tester.tap(shownText('Daily study time'));
       await waitForPicker(tester);
       expect(find.byType(BottomSheet), findsNothing);
       await tester.tap(find.byTooltip('5 minutes less'));
@@ -895,7 +895,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AccountScreen), findsOneWidget);
-      expect(find.text('15 min'), findsOneWidget);
+      expect(shownText('15 min'), findsOneWidget);
       await unmountApp(tester);
     },
   );
@@ -907,10 +907,10 @@ void main() {
 
       await showSettings(tester);
       expect(
-        tester.getRect(find.text('Labels')).top,
-        greaterThan(tester.getRect(find.text('Daily study time')).bottom),
+        tester.getRect(shownText('Labels')).top,
+        greaterThan(tester.getRect(shownText('Daily study time')).bottom),
       );
-      await tester.tap(find.text('Labels'));
+      await tester.tap(shownText('Labels'));
       await tester.pumpAndSettle();
       expect(find.byType(AccountScreen), findsNothing);
       expect(find.bySemanticsLabel('Edit 명 noun'), findsOneWidget);
@@ -931,20 +931,20 @@ void main() {
     expect(brightness(tester), Brightness.light);
 
     await showSettings(tester);
-    await tester.ensureVisible(find.text('Theme'));
+    await tester.ensureVisible(shownText('Theme'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Theme'));
+    await tester.tap(shownText('Theme'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Dark'));
+    await tester.tap(shownText('Dark'));
     await tester.pumpAndSettle();
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(brightness(tester), Brightness.dark);
 
     await showSettings(tester);
-    await tester.tap(find.text('Theme'));
+    await tester.tap(shownText('Theme'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Light'));
+    await tester.tap(shownText('Light'));
     await tester.pumpAndSettle();
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
     await tester.pageBack();
@@ -976,12 +976,12 @@ void main() {
 
         await pumpApp(tester, themeMode: mode, account: FakeAccountService());
         expect(
-          Theme.of(tester.element(find.text('Continue with Google')))
+          Theme.of(tester.element(shownText('Continue with Google')))
               .brightness,
           Brightness.values.byName(mode),
         );
         await meetsGuidelines();
-        await tester.tap(find.text('Continue with Google'));
+        await tester.tap(shownText('Continue with Google'));
         await tester.pumpAndSettle();
         expect(brightness(tester).name, mode);
         await meetsGuidelines();
@@ -1013,7 +1013,7 @@ void main() {
         // 노트 꾸미기, from the menu.
         await tester.tap(find.byTooltip('Note settings'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Customize note'));
+        await tester.tap(shownText('Customize note'));
         await tester.pumpAndSettle();
         expect(shownText('Customize note'), findsOneWidget);
         await meetsGuidelines();
@@ -1022,7 +1022,7 @@ void main() {
 
         await tester.tap(find.byTooltip('Note settings'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Rename'));
+        await tester.tap(shownText('Rename'));
         await tester.pumpAndSettle();
         expect(shownText('Rename note'), findsOneWidget);
         await meetsGuidelines();
@@ -1032,7 +1032,7 @@ void main() {
         await tester.pumpAndSettle();
         // The menu, its "Delete note" in the destructive text colour.
         await meetsGuidelines();
-        await tester.tap(find.text('Delete note'));
+        await tester.tap(shownText('Delete note'));
         await tester.pumpAndSettle();
         expect(shownText('Delete "French"?'), findsOneWidget);
         await meetsGuidelines();
@@ -1101,7 +1101,7 @@ void main() {
         await meetsGuidelines();
         // The foot is below the rows the screen builds first.
         await tester.scrollUntilVisible(
-          find.text('Terms of Service'),
+          shownText('Terms of Service'),
           100,
           scrollable: find.byType(Scrollable).first,
         );

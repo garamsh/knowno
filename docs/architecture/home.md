@@ -14,8 +14,7 @@ The app's `home/` shell: the signed-in screens that show more than one domain or
   - `record_tab.dart` — the 기록 tab: its title over `study`'s record;
   - `deck_screen.dart` — `DeckScreen`, a deck's page;
   - `new_deck.dart` — `openNewDeck`, which opens `deck`'s 새 노트 and then the deck it made on the 노트 tab;
-  - `option_sheet.dart` — the sheet of options "카드 추가" opens;
-  - `list_header.dart` — the header form the 노트 tab and the deck screen share: `ListHeaderActions`, the screen's tonal "+" action and its ⋯, and the height of a top bar holding them, and `ListSearchField`, the always-shown search under it;
+  - `list_header.dart` — the header form the 노트 tab and the deck screen share: `ListHeaderActions`, the screen's tonal "+" action and its ⋯, and the height of a top bar holding them; the always-shown search under it is `app/lib/design/`'s `AppSearchField`, and "카드 추가"'s sheet of options its `showAppChoice`;
   - `above_menu.dart` — `aboveMenu`, the context whose navigator shows a screen or sheet over the menu, and `RaisedIconButton`, the top bars' icon buttons;
   - `progress_bar.dart` — a deck's progress bar;
 - The composition site passes `HomeScreen` to `account`'s `AccountGate` as the screen it opens while an account is signed in ([`account.md`](account.md)). Nothing else imports `home/`.

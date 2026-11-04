@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:ui' show PathMetric;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../account/account.dart';
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
+import '../../design/dashed_outline.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
@@ -567,44 +567,24 @@ class _Bar extends StatelessWidget {
     bottom: Radius.circular(AppSpace.s4),
   );
 
+  /// The width of a dashed bar's outline.
+  static const _line = 2.0;
+
   @override
   Widget build(BuildContext context) => SizedBox(
     height: height,
     width: double.infinity,
     child: dashed
-        ? CustomPaint(painter: _DashedOutline(color))
+        ? DashedOutline(
+            color: color,
+            borderRadius: _shape,
+            width: _line,
+            dash: AppSpace.s4,
+          )
         : DecoratedBox(
             decoration: BoxDecoration(color: color, borderRadius: _shape),
           ),
   );
-}
-
-/// The bar's outline in [color], dashed.
-class _DashedOutline extends CustomPainter {
-  const _DashedOutline(this.color);
-
-  final Color color;
-
-  static const _line = 2.0;
-  static const _dash = AppSpace.s4;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final outline = Path()
-      ..addRRect(_Bar._shape.toRRect((Offset.zero & size).deflate(_line / 2)));
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _line;
-    for (final PathMetric metric in outline.computeMetrics()) {
-      for (var at = 0.0; at < metric.length; at += _dash * 2) {
-        canvas.drawPath(metric.extractPath(at, at + _dash), paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedOutline old) => old.color != color;
 }
 
 /// Why today's count cannot be read, in the week card's place.

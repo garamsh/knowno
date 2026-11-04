@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../deck/deck.dart';
 import 'study_coach.dart';
+import '../../design/app_button.dart';
 import '../../design/app_chip.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -314,18 +315,10 @@ class _GuideButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Center(
-      child: TextButton(
-        style: TextButton.styleFrom(
-          foregroundColor: AppColors.of(context).muted,
-          minimumSize: const Size(AppSize.tapTarget, AppSize.tapTarget),
-          textStyle: AppType.micro,
-        ),
+      child: AppButton(
+        label: l10n.studyCoachReplay,
+        variant: AppButtonVariant.faint,
         onPressed: onGuide,
-        child: Text(
-          l10n.studyCoachReplay,
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-        ),
       ),
     );
   }
