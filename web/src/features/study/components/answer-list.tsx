@@ -26,7 +26,7 @@ export function AnswerList({
   return (
     <aside
       aria-label="이번 학습"
-      className="sticky top-6 hidden max-h-[calc(100dvh-3rem)] w-full max-w-85 shrink-0 flex-col gap-2 self-start rounded-card bg-surface p-4 lg:flex"
+      className="sticky top-[calc(1.5rem+var(--photo-import-bar,0px))] hidden max-h-[calc(100dvh-3rem-var(--photo-import-bar,0px))] w-full max-w-85 shrink-0 flex-col gap-2 self-start rounded-card bg-surface p-4 lg:flex"
     >
       <div className="mb-1 flex items-baseline justify-between">
         <h2 className="text-label">이번 학습</h2>

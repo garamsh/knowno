@@ -86,7 +86,7 @@ export function CardGrid({
       />
       {study}
       <section aria-label="카드" className="flex flex-col gap-3">
-        <div className="sticky top-0 z-[1] flex min-h-tap-target flex-wrap items-center justify-between gap-x-3 bg-ground">
+        <div className="sticky top-(--photo-import-bar,0px) z-[1] flex min-h-tap-target flex-wrap items-center justify-between gap-x-3 bg-ground">
           <span className="flex items-baseline gap-2 px-1">
             <h2 className="text-label">카드 {cards.length}</h2>
             <span className="text-secondary text-muted">

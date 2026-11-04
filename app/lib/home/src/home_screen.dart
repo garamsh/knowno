@@ -51,15 +51,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   });
 
+  /// The app's photo import, whose bar opens it this screen's way.
+  late final _imports = ref.read(photoImportsProvider);
+
   @override
   void initState() {
     super.initState();
+    if (_imports case final imports?) {
+      imports.opener = () => _openImport(imports);
+    }
     unawaited(_offerResume());
+  }
+
+  @override
+  void dispose() {
+    _imports?.opener = null;
+    super.dispose();
   }
 
   /// Offers to resume a photo import a closed app left with photos to read.
   Future<void> _offerResume() async {
-    final imports = ref.read(photoImportsProvider);
+    final imports = _imports;
     if (imports == null) return;
     await imports.restored;
     if (!mounted) return;
@@ -148,10 +160,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
-    final imports = ref.watch(photoImportsProvider);
-    final importBar = imports == null
-        ? null
-        : PhotoImportBar(imports: imports, onOpen: () => _openImport(imports));
     return switch (ref.watch(decksProvider)) {
       AsyncData(value: final decks) => PopScope(
         canPop: _tab == _Tab.home,
@@ -188,13 +196,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
-          bottomNavigationBar: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ?importBar,
-              _TabBar(selected: _tab, onSelect: _select),
-            ],
-          ),
+          bottomNavigationBar: _TabBar(selected: _tab, onSelect: _select),
         ),
       ),
       AsyncError(:final error, :final stackTrace) => Scaffold(
@@ -287,7 +289,10 @@ class _TabBar extends StatelessWidget {
                           constraints: const BoxConstraints(
                             minHeight: AppSize.tabBar,
                           ),
+                          // As tall as its label, so the bar keeps to its
+                          // height at the foot of the scaffold.
                           child: Center(
+                            heightFactor: 1,
                             // One line, shrunk to the tab only where a large
                             // text size is wider than it.
                             child: FittedBox(

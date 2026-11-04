@@ -930,7 +930,10 @@ describe("the study page", () => {
       await user.keyboard("{ArrowRight}");
       const aside = screen.getByRole("complementary", { name: "이번 학습" });
       const list = within(aside).getByRole("list");
-      expect(aside.className.split(" ")).toContain("max-h-[calc(100dvh-3rem)]");
+      // The screen less its margins and a photo import's bar, while one heads the page.
+      expect(aside.className.split(" ")).toContain(
+        "max-h-[calc(100dvh-3rem-var(--photo-import-bar,0px))]",
+      );
       expect(list.className.split(" ")).toEqual(
         expect.arrayContaining(["min-h-0", "overflow-y-auto"]),
       );
