@@ -5,6 +5,7 @@ import {
   createHandler,
   type LogEntry,
   MAX_BODY_BYTES,
+  MAX_DESCRIBED_TURN,
   MAX_MODEL_CALLS,
   MAX_TURN_TEXT,
   MAX_TURNS,
@@ -1170,39 +1171,107 @@ Deno.test("more than 40 turns, or a turn over 4,000 characters, is refused, agai
   );
 });
 
-Deno.test("a turn whose proposals describe it past the cap is refused, against one inside it", async () => {
+Deno.test("a turn of the largest proposals the server shows is described shorter to fit the cap, never refused", async () => {
   const id = (kind: string, n: number) =>
     `00000000-0000-7000-8000-${kind}${String(n).padStart(11, "0")}`;
-  // The largest proposal the tools make: 20 groups of long titles, 100 cards of long fronts.
-  const big = (n: number): Proposal => ({
+  // The largest proposal the tools make: a long note name, 20 groups of long titles, 100 cards of
+  // long fronts.
+  const big = (n: number, groups = 20, cards = 5): Proposal => ({
     id: id("f", n),
     kind: "cards",
-    deck: { id: ADA_DECK, name: "영단어" },
-    groups: Array.from({ length: 20 }, (_, g) => ({
+    deck: { id: null, name: "노".repeat(500) },
+    groups: Array.from({ length: groups }, (_, g) => ({
       id: id("a", n * 100 + g),
       title: "가".repeat(60),
       format: "text",
-      cards: Array.from({ length: 5 }, (_, c) => ({
+      cards: Array.from({ length: cards }, (_, c) => ({
         id: id("c", n * 1000 + g * 10 + c),
         card: card("f".repeat(200), "b"),
       })),
     })),
   });
-  const turn = (proposals: Proposal[]) => ({
-    messages: [
-      { role: "user", text: "카드 만들어 줘" },
-      { role: "assistant", text: "가".repeat(MAX_TURN_TEXT), proposals },
-      { role: "user", text: "좋아요" },
-    ],
-  });
-  const fake = seed();
-  const over = await send(fake, { body: turn([big(1), big(2)]) });
-  assert.equal(over.status, 400);
-  assert.equal(fake.used, 0);
+  // The largest question ask_choice sends.
+  const choice = {
+    prompt: "어".repeat(200),
+    options: Array.from({ length: 6 }, () => "옵".repeat(40)),
+  };
+  const told = async (proposals: Proposal[], asked: unknown = choice) => {
+    const fake = seed();
+    fake.replies.push(says("네"));
+    const run = await send(fake, {
+      body: {
+        messages: [
+          { role: "user", text: "카드 만들어 줘" },
+          {
+            role: "assistant",
+            text: "가".repeat(MAX_TURN_TEXT),
+            proposals,
+            choice: asked,
+          },
+          { role: "user", text: "좋아요" },
+        ],
+      },
+    });
+    return {
+      status: run.status,
+      turn: fake.requests.length === 0
+        ? ""
+        : String(input(fake.requests[0]!)[1]!.content),
+    };
+  };
+  const fronts = (turn: string) => turn.split("f".repeat(80)).length - 1;
 
-  const control = seed();
-  control.replies.push(says("네"));
-  assert.equal((await send(control, { body: turn([big(1)]) })).status, 200);
+  const one = await told([big(1)]);
+  assert.equal(one.status, 200);
+  assert.equal(
+    fronts(one.turn),
+    100,
+    "one proposal is described with five fronts a group",
+  );
+
+  const two = await told([big(1), big(2)]);
+  assert.equal(two.status, 200);
+  assert.ok([...two.turn].length <= MAX_DESCRIBED_TURN);
+  assert.equal(
+    fronts(two.turn),
+    40,
+    "two are described with one front a group",
+  );
+  for (const proposal of [big(1), big(2)]) {
+    assert.ok(two.turn.includes(proposal.id));
+    for (const group of proposal.groups) assert.ok(two.turn.includes(group.id));
+  }
+  assert.ok(two.turn.includes(`(text, 5 cards: ${"f".repeat(80)})`));
+
+  // Proposals too many to name each are named while they fit and the rest counted.
+  const many = Array.from({ length: 30 }, (_, n) => big(n, 1, 1));
+  const counted = await told(many);
+  assert.equal(counted.status, 200);
+  assert.ok([...counted.turn].length <= MAX_DESCRIBED_TURN);
+  assert.ok(counted.turn.includes(`[proposal ${many[0]!.id} `));
+  assert.match(counted.turn, /\[and \d+ more proposals\]/);
+  assert.ok(counted.turn.includes(choice.prompt));
+
+  // A question no tool sends, over the cap with the text alone, is refused uncounted.
+  const forged = seed();
+  const refused = await send(forged, {
+    body: {
+      messages: [
+        { role: "user", text: "카드 만들어 줘" },
+        {
+          role: "assistant",
+          text: "가".repeat(MAX_TURN_TEXT),
+          choice: {
+            prompt: "어".repeat(MAX_DESCRIBED_TURN),
+            options: ["네", "아니요"],
+          },
+        },
+        { role: "user", text: "좋아요" },
+      ],
+    },
+  });
+  assert.equal(refused.status, 400);
+  assert.equal(forged.used, 0);
 });
 
 Deno.test("Anthropic's web fetches share the turn's searches with its web searches", async () => {

@@ -334,22 +334,70 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** An earlier proposal as the model reads it: its ids, and each group's first fronts. */
-function describe(proposal: Proposal, ids: IdSource): string {
+/**
+ * An earlier proposal as the model reads it: its ids and sizes, and each group's first [fronts]
+ * fronts, or with [fronts] null, its groups counted and not named.
+ */
+function describe(
+  proposal: Proposal,
+  ids: IdSource,
+  fronts: number | null,
+): string {
+  const header = `[proposal ${proposal.id} of ${
+    proposal.kind === "cards" ? "new cards" : "changes"
+  } for the note "${proposal.deck.name}"`;
+  if (fronts === null) {
+    const cards = proposal.groups.reduce((n, g) => n + g.cards.length, 0);
+    return `${header}: ${proposal.groups.length} groups of ${cards} cards]`;
+  }
   const groups = proposal.groups.map((group) => {
-    const fronts = group.cards.slice(0, 5).map(({ card }) => {
+    const shown = group.cards.slice(0, fronts).map(({ card }) => {
       const read = readCard(card, ids);
       return typeof read === "string"
         ? "?"
         : [...read.front].slice(0, FRONT_SHOWN).join("");
     });
-    return `group ${group.id} "${group.title}" (${group.format}, ${group.cards.length} cards: ${
-      fronts.join(" / ")
+    return `group ${group.id} "${group.title}" (${group.format}, ${group.cards.length} cards${
+      shown.length === 0 ? "" : `: ${shown.join(" / ")}`
     })`;
   });
-  return `[proposal ${proposal.id} of ${
-    proposal.kind === "cards" ? "new cards" : "changes"
-  } for the note "${proposal.deck.name}": ${groups.join("; ")}]`;
+  return `${header}: ${groups.join("; ")}]`;
+}
+
+/** How many fronts of each group a turn's proposals show, most first. */
+const FRONTS_SHOWN = [5, 1, 0] as const;
+
+/**
+ * A turn as the model reads it: [text], its proposals and [asked], each proposal described in as
+ * much detail as fits `MAX_DESCRIBED_TURN` and those that still do not fit counted. Null when
+ * nothing is said, or when the text and the question alone are over the cap.
+ */
+function describeTurn(
+  text: string,
+  proposals: readonly Proposal[],
+  asked: string | null,
+  ids: IdSource,
+): string | null {
+  const join = (described: readonly string[]) =>
+    [text, ...described, ...(asked === null ? [] : [asked])]
+      .filter((part) => part.trim() !== "").join("\n\n");
+  const fits = (joined: string) => [...joined].length <= MAX_DESCRIBED_TURN;
+  for (const fronts of FRONTS_SHOWN) {
+    const joined = join(
+      proposals.map((proposal) => describe(proposal, ids, fronts)),
+    );
+    if (fits(joined)) return joined === "" ? null : joined;
+  }
+  const counted = proposals.map((proposal) => describe(proposal, ids, null));
+  for (let shown = counted.length; shown >= 0; shown--) {
+    const rest = counted.length - shown;
+    const joined = join([
+      ...counted.slice(0, shown),
+      ...(rest === 0 ? [] : [`[and ${rest} more proposals]`]),
+    ]);
+    if (fits(joined)) return joined;
+  }
+  return null;
 }
 
 /** The turns, their proposals and the open note, or null when the body is not such a request. */
@@ -368,15 +416,15 @@ function readMessage(body: unknown, ids: IdSource): Incoming | null {
     }
     const text = typeof message.text === "string" ? message.text : null;
     if (text === null || [...text].length > MAX_TURN_TEXT) return null;
-    const parts = [text];
+    const shown: Proposal[] = [];
+    let asked: string | null = null;
     if (message.role === "assistant") {
       for (
         const value of Array.isArray(message.proposals) ? message.proposals : []
       ) {
         const proposal = parseProposal(value);
         if (proposal === null) return null;
-        proposals.push(proposal);
-        parts.push(describe(proposal, ids));
+        shown.push(proposal);
       }
       if (message.choice !== undefined) {
         const choice = message.choice;
@@ -386,16 +434,17 @@ function readMessage(body: unknown, ids: IdSource): Incoming | null {
             typeof o === "string"
           )
         ) return null;
-        parts.push(`[asked: ${choice.prompt} (${choice.options.join(" / ")})]`);
+        asked = `[asked: ${choice.prompt} (${choice.options.join(" / ")})]`;
       }
     } else if (
       message.proposals !== undefined || message.choice !== undefined
     ) {
       return null;
     }
-    const joined = parts.filter((part) => part.trim() !== "").join("\n\n");
-    if (joined === "" || [...joined].length > MAX_DESCRIBED_TURN) return null;
-    turns.push({ role: message.role, text: joined });
+    const described = describeTurn(text, shown, asked, ids);
+    if (described === null) return null;
+    proposals.push(...shown);
+    turns.push({ role: message.role, text: described });
   }
   if (turns.at(-1)?.role !== "user") return null;
   const context = body.context;
