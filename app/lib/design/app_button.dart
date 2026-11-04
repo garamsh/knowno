@@ -43,10 +43,6 @@ enum AppButtonVariant {
   /// underlined [AppType.caption] at w600 in [AppColors.ink2], inset
   /// [AppSpace.s4] at its sides so it sits in a line of text.
   link,
-
-  /// A quiet action on the hero surface: text in the colour drawn on the
-  /// hero.
-  onHeroText,
 }
 
 /// How tall a button is.
@@ -114,7 +110,6 @@ class AppButton extends StatelessWidget {
         AppButtonVariant.text ||
             AppButtonVariant.faint ||
             AppButtonVariant.link ||
-            AppButtonVariant.onHeroText ||
             AppButtonVariant.destructive,
         _,
       ) =>
@@ -151,13 +146,11 @@ class AppButton extends StatelessWidget {
       AppButtonVariant.destructive => (colors.surface, colors.dontKnowText),
       AppButtonVariant.faint => (colors.surface, colors.muted),
       AppButtonVariant.link => (colors.surface, colors.ink2),
-      AppButtonVariant.onHeroText => (colors.hero, colors.onHero),
     };
     final quiet = switch (variant) {
       AppButtonVariant.text ||
       AppButtonVariant.faint ||
       AppButtonVariant.link ||
-      AppButtonVariant.onHeroText ||
       AppButtonVariant.destructive => true,
       _ => false,
     };
@@ -247,8 +240,7 @@ class AppButton extends StatelessWidget {
         AppButtonVariant.destructive ||
         AppButtonVariant.text ||
         AppButtonVariant.faint ||
-        AppButtonVariant.link ||
-        AppButtonVariant.onHeroText => TextButton(
+        AppButtonVariant.link => TextButton(
           style: TextButton.styleFrom(
             minimumSize: minimumSize,
             textStyle: textStyle,

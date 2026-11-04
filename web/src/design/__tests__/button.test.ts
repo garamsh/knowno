@@ -13,7 +13,6 @@ describe("the one button", () => {
     ["destructive", ["text-dont-know-text"]],
     ["destructiveFinal", ["bg-dont-know-text", "text-on-dont-know-text"]],
     ["text", ["text-ink"]],
-    ["onHeroText", ["text-on-hero"]],
   ] as const)(
     "draws %s in the phone's colours on the button radius, pressable",
     (variant, colours) => {

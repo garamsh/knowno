@@ -381,7 +381,7 @@ void main() {
       singleUnitFoundations({
         'design/mascot.dart': '',
         'deck/src/first_run.dart': "import '../../design/mascot.dart';",
-        'study/src/completion_card.dart': "import '../../design/mascot.dart';",
+        'study/src/current_card.dart': "import '../../design/mascot.dart';",
         // Imported by its own folder and main.dart alone: no domain to move to.
         'design/theme_choice.dart': '',
         'design/theme.dart': "import 'theme_choice.dart';",

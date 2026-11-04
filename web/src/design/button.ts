@@ -2,7 +2,7 @@
  * A button's role, as the phone's `AppButtonVariant` ranks the actions on a screen
  * (`design/components.md` §When each is used): the one primary fill, the primary on the hero, the
  * surface beside it, the tonal action beside a list's title, red text, the red fill as the last
- * step of a destructive action, and a quiet action in text, on the ground or on the hero.
+ * step of a destructive action, and a quiet action in text.
  */
 export type ButtonVariant =
   | "primary"
@@ -11,8 +11,7 @@ export type ButtonVariant =
   | "tonal"
   | "destructive"
   | "destructiveFinal"
-  | "text"
-  | "onHeroText";
+  | "text";
 
 /**
  * A button's size, as the phone's `AppButtonSize`: `cta` for the actions at the foot of a screen
@@ -29,11 +28,10 @@ const fills: Record<ButtonVariant, string> = {
   destructive: "text-dont-know-text outline-ink",
   destructiveFinal: "bg-dont-know-text text-on-dont-know-text outline-ink",
   text: "text-ink outline-ink",
-  onHeroText: "text-on-hero outline-on-hero",
 };
 
 /** A filled button's padding across; a text button keeps its words close to its tap target. */
-const unfilled = new Set<ButtonVariant>(["destructive", "text", "onHeroText"]);
+const unfilled = new Set<ButtonVariant>(["destructive", "text"]);
 
 const sizes: Record<ButtonSize, string> = {
   regular: "min-h-button text-button",
