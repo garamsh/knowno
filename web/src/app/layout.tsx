@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 
 import { themeScript } from "@/design/theme";
+import { PhotoImports } from "@/features/decks";
 import { timeZoneScript } from "@/features/study";
 
 import "@/styles/globals.css";
@@ -60,7 +61,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: timeZoneScript }} />
       </head>
-      <body className="bg-ground font-sans text-ink">{children}</body>
+      <body className="bg-ground font-sans text-ink">
+        {/* A photo import reads on across every page of the tab (ADR 0183). */}
+        <PhotoImports>{children}</PhotoImports>
+      </body>
     </html>
   );
 }

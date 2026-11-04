@@ -31,23 +31,18 @@ final _decksProvider = StreamProvider.autoDispose<List<Deck>>(
 /// the library, as [origin] names, over [context], and opens the screen that
 /// reads candidate cards from them as [imports]'s job and saves the ones the
 /// user keeps into [deck], or into a new deck when it is null. While a job is
-/// under way, a snack bar says so and nothing starts. A cancel opens nothing.
-/// Nothing is written before the user confirms; resolves to how the import
-/// ended, or to null, also when the user leaves the screen with the job still
-/// reading.
+/// under way, it opens that job instead, as [openPhotoImport] does, and takes
+/// no photo. A cancel opens nothing. Nothing is written before the user
+/// confirms; resolves to how the import ended, or to null, also when the user
+/// leaves the screen with the job still reading.
 Future<PhotoImportOutcome?> importFromPhoto(
   BuildContext context, {
   required PhotoImports imports,
   required DeckId? deck,
   required PhotoOrigin origin,
 }) async {
+  if (imports.job != null) return openPhotoImport(context, imports);
   final navigator = Navigator.of(context);
-  if (imports.job != null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context).photoImportBusy)),
-    );
-    return null;
-  }
   final PhotoImportScreen screen;
   switch (await _takePhotos(imports.photos, origin, maxPhotosPerImport)) {
     case null:
@@ -81,7 +76,8 @@ Future<PhotoImportOutcome?> importFromPhoto(
         );
       }
   }
-  return navigator.push(
+  return imports.showScreen(
+    navigator,
     MaterialPageRoute<PhotoImportOutcome>(builder: (_) => screen),
   );
 }
@@ -98,7 +94,8 @@ Future<PhotoImportOutcome?> openPhotoImport(
   if (job.paused && !await offerPhotoImportResume(context, imports, job)) {
     return null;
   }
-  return navigator.push(
+  return imports.showScreen(
+    navigator,
     MaterialPageRoute<PhotoImportOutcome>(
       builder: (_) => PhotoImportScreen(
         imports: imports,
@@ -153,8 +150,8 @@ Future<_Take?> _takePhotos(
 }
 
 /// A photo import's screen over [job]: its one photo being read, a failure,
-/// the photos being read, or the list. Leaving it leaves [job] reading;
-/// "취소" ends it.
+/// the photos being read, or the list. Leaving it leaves [job] reading, or
+/// ends it once every photo failed; "취소" ends it.
 class PhotoImportScreen extends ConsumerStatefulWidget {
   const PhotoImportScreen({
     super.key,
@@ -225,8 +222,29 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
     job?.addListener(_jobChanged);
   }
 
+  /// Whether [job] holds only photos that failed, with no list: leaving it
+  /// then dismisses it, as nothing is left to read (#690).
+  static bool _failed(ImportJob job) =>
+      job.list == null &&
+      job.batch.isNotEmpty &&
+      job.batch.every((photo) => photo.state is PhotoFailed);
+
+  /// Ends the job once the screen is left with it failed, by the close, the
+  /// system back or the edge swipe; a job still reading goes on.
+  void _popped(bool didPop) {
+    final job = _job;
+    if (!didPop || job == null || !_failed(job)) return;
+    _watch(null);
+    unawaited(widget.imports.end(job));
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => PopScope(
+    onPopInvokedWithResult: (didPop, _) => _popped(didPop),
+    child: _view(context),
+  );
+
+  Widget _view(BuildContext context) {
     final decks = ref.watch(_decksProvider);
     final job = _job;
     final target = switch (decks) {
