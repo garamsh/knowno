@@ -497,6 +497,5 @@
   "previousCardLabel": "Card just seen, {answer}. Front: {front}. Back: {back}{changed, select, yes{. Changed} other{}}",
   "coachPrevious": "Back",
   "tabNotes": "Notes",
-  "lastWeekCards": "Last 7 days: {count}",
   "weekDayCards": "{day}: {count, plural, =1{1 card} other{{count} cards}}"
 }

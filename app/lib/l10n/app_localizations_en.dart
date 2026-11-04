@@ -1942,11 +1942,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabNotes => 'Notes';
 
   @override
-  String lastWeekCards(int count) {
-    return 'Last 7 days: $count';
-  }
-
-  @override
   String weekDayCards(String day, int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

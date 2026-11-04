@@ -3090,12 +3090,6 @@ abstract class AppLocalizations {
   /// **'노트'**
   String get tabNotes;
 
-  /// On 홈's week card, beside the streak: the cards studied over the last seven study days.
-  ///
-  /// In ko, this message translates to:
-  /// **'지난 7일 {count}장'**
-  String lastWeekCards(int count);
-
   /// What a screen reader reads for one of the week card's bars: the day and its cards.
   ///
   /// In ko, this message translates to:

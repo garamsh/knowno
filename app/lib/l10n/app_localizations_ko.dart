@@ -1791,11 +1791,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get tabNotes => '노트';
 
   @override
-  String lastWeekCards(int count) {
-    return '지난 7일 $count장';
-  }
-
-  @override
   String weekDayCards(String day, int count) {
     return '$day $count장';
   }

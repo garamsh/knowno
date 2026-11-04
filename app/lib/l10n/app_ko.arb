@@ -1095,8 +1095,6 @@
   "@coachPrevious": {"description": "Button that moves the study coach back to its step before; disabled on the first step."},
   "tabNotes": "노트",
   "@tabNotes": {"description": "The notes tab, and its title over every note."},
-  "lastWeekCards": "지난 7일 {count}장",
-  "@lastWeekCards": {"description": "On 홈's week card, beside the streak: the cards studied over the last seven study days.", "placeholders": {"count": {"type": "int"}}},
   "weekDayCards": "{day} {count}장",
   "@weekDayCards": {"description": "What a screen reader reads for one of the week card's bars: the day and its cards.", "placeholders": {"day": {"type": "String"}, "count": {"type": "int"}}}
 }
