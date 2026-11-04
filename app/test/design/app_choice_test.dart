@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:knowno/design/app_choice.dart';
 import 'package:knowno/design/app_list_row.dart';
 import 'package:knowno/design/theme.dart';
@@ -229,7 +230,14 @@ void main() {
     );
     expect(
       [
-        for (final title in ['None', 'A', 'B']) row(title).trailing != null,
+        for (final title in ['None', 'A', 'B'])
+          find
+              .descendant(
+                of: find.widgetWithText(AppListRow, title),
+                matching: find.byIcon(LucideIcons.check),
+              )
+              .evaluate()
+              .isNotEmpty,
       ],
       [false, true, false],
       reason: 'the current one alone is checked',

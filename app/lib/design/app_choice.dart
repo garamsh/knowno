@@ -32,9 +32,11 @@ Future<({T value})?> showAppChoice<T>(
           AppListRow(
             title: option.title,
             selected: current == null ? null : option.value == current.value,
-            trailing: current != null && option.value == current.value
+            trailing: current == null
+                ? null
+                : option.value == current.value
                 ? Icon(LucideIcons.check, color: AppColors.of(context).ink)
-                : null,
+                : const SizedBox.shrink(),
             onTap: () => Navigator.of(context).pop((value: option.value)),
           ),
       ],
