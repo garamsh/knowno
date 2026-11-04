@@ -10,6 +10,7 @@ import { button, Email, Empty } from "./admin-section";
 import { AdminTable, CellLabel, cellClass, rowClass } from "./admin-table";
 import { DismissAction, HideAction, RemoveAction } from "./moderation-actions";
 import { SheetButton } from "./sheet-button";
+import { SheetLink } from "./sheet-link";
 
 const head = [
   { label: "노트" },
@@ -84,9 +85,9 @@ function NoteItem({ note, timeZone }: { note: NoteRow; timeZone: string }) {
             title={note.name}
           >
             <div className="flex flex-col items-start gap-3 pt-2">
-              <Link href={`/users/${note.owner.id}`} className={button.row}>
+              <SheetLink href={`/users/${note.owner.id}`} className={button.row}>
                 만든 사람 보기
-              </Link>
+              </SheetLink>
               <RemoveAction compact note={note} />
             </div>
           </SheetButton>

@@ -373,7 +373,7 @@ test.describe("signed in", () => {
     const context = await browser.newContext();
     const { userId } = await signUp(context, [admin], "sections");
     makeAdmin(userId);
-    const { tag } = seedUsers(5);
+    const { tag, email } = seedUsers(5);
     const page = await context.newPage();
     await page.setViewportSize({ width: 1280, height: 900 });
 
@@ -405,6 +405,22 @@ test.describe("signed in", () => {
     );
     await expect(plan.getByRole("button", { name: "만들기", exact: true })).toBeVisible();
     await capture(page, "admin-plan-sheet");
+
+    // A note's ⋯ sheet opens its owner's page, which the entry the sheet held does not undo.
+    const notes = `${admin}/decks?q=${tag}`;
+    await page.goto(notes);
+    const more = page.getByRole("dialog", { name: `w651 ${tag}`, exact: true });
+    await untilReacted(
+      () => page.getByRole("button", { name: `'w651 ${tag}' 더 보기`, exact: true }).click(),
+      () => more.isVisible(),
+    );
+    await more.getByRole("link", { name: "만든 사람 보기", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: email(4), exact: true })).toBeVisible();
+    expect(page.url()).toMatch(new RegExp(`^${admin}/users/[0-9a-f-]{36}$`));
+    // The sheet left no entry of its own behind: the back returns to the notes.
+    await page.goBack();
+    await expect(page).toHaveURL(notes);
+    await expect(more).toBeHidden();
     await context.close();
   });
 
