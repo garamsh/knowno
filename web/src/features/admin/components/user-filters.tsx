@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { SearchField } from "@/design/search-field";
 
@@ -31,40 +31,60 @@ const statusOptions = [
   ["suspended", "정지됨"],
 ] as const;
 
-/** The address of the list's first page under [address] with [next] changed, and no user shown. */
-function firstPage(address: UserListAddress, next: Partial<UserListAddress>): string {
-  return usersHref({ ...address, ...next, page: 1, user: null });
-}
-
 /**
  * The users' search and filters over the list (ADR 0181): the email search, applied
  * [searchDelayMs] after the last keystroke, the plan, the status, and how many users a page holds.
- * Each replaces the address on the first page, and the server reads the list again.
+ * Each replaces the address on the first page, and the server reads the list again. A change made
+ * while the last one is still read builds on it, not on the list the server drew before it.
  */
 export function UserFilters({ address }: { address: UserListAddress }) {
   const router = useRouter();
   const [query, setQuery] = useState(address.query);
+  const [shown, setShown] = useState(address);
   const [, startTransition] = useTransition();
-  const applied = useRef(address.query);
+  // The addresses the filters asked for and the server has not drawn yet.
+  const asked = useRef(new Set<string>());
+  const drawn = useRef(usersHref(address));
+
+  // An address drawn that the filters did not ask for, as a page link or the browser's back
+  // opens, is taken as it is.
+  const href = usersHref(address);
+  useEffect(() => {
+    if (href === drawn.current) return;
+    drawn.current = href;
+    const ours = asked.current.has(href);
+    asked.current.delete(href);
+    if (ours) return;
+    asked.current.clear();
+    setShown(address);
+    setQuery(address.query);
+  }, [href, address]);
+
+  const replace = useCallback(
+    (changed: UserListAddress) => {
+      setShown(changed);
+      const next = usersHref(changed);
+      asked.current.add(next);
+      startTransition(() => {
+        router.replace(next);
+      });
+    },
+    [router],
+  );
 
   const go = (next: Partial<UserListAddress>) => {
-    startTransition(() => {
-      router.replace(firstPage({ ...address, query: applied.current }, next));
-    });
+    replace({ ...shown, ...next, page: 1, user: null });
   };
 
   useEffect(() => {
-    if (query === applied.current) return;
+    if (query === shown.query) return;
     const timer = setTimeout(() => {
-      applied.current = query;
-      startTransition(() => {
-        router.replace(firstPage(address, { query }));
-      });
+      replace({ ...shown, query, page: 1, user: null });
     }, searchDelayMs);
     return () => {
       clearTimeout(timer);
     };
-  }, [query, address, router]);
+  }, [query, shown, replace]);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -79,7 +99,7 @@ export function UserFilters({ address }: { address: UserListAddress }) {
       </div>
       <select
         aria-label="요금제"
-        value={address.plan ?? ""}
+        value={shown.plan ?? ""}
         onChange={(event) => {
           go({ plan: parsePlanFilter(event.target.value) });
         }}
@@ -93,7 +113,7 @@ export function UserFilters({ address }: { address: UserListAddress }) {
       </select>
       <select
         aria-label="상태"
-        value={address.status ?? ""}
+        value={shown.status ?? ""}
         onChange={(event) => {
           go({ status: parseStatusFilter(event.target.value) });
         }}
@@ -107,7 +127,7 @@ export function UserFilters({ address }: { address: UserListAddress }) {
       </select>
       <select
         aria-label="몇 명씩 보기"
-        value={address.size}
+        value={shown.size}
         onChange={(event) => {
           const size = userPageSizes.find((known) => String(known) === event.target.value);
           if (size !== undefined) go({ size });

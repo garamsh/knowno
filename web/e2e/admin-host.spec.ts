@@ -20,7 +20,8 @@ function hostsOf(baseURL: string | undefined) {
 /**
  * Each element that draws a hard edge under it (`--edge`) whose edge does not show whole: cut by
  * an ancestor that clips its overflow and ends inside the edge, or covered by an element that is
- * neither its ancestor nor its descendant (#637). Each is named by its tag, classes and text.
+ * neither its ancestor nor its descendant (#637). An element itself under another, as the page is
+ * under the full-screen menu, is not looked at. Each is named by its tag, text and classes.
  */
 async function cutEdges(page: Page): Promise<string[]> {
   return await page.evaluate(() => {
@@ -33,6 +34,8 @@ async function cutEdges(page: Page): Promise<string[]> {
       element.scrollIntoView({ block: "center", inline: "nearest" });
       const box = element.getBoundingClientRect();
       if (box.width === 0 || box.height === 0) continue;
+      const own = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      if (own === null || !(element.contains(own) || own.contains(element))) continue;
       for (let parent = element.parentElement; parent; parent = parent.parentElement) {
         const style = getComputedStyle(parent);
         if (style.overflowX === "visible" && style.overflowY === "visible") continue;
@@ -287,6 +290,13 @@ test.describe("signed in", () => {
       select u.id, 'pro', (select v.id from private.plan_versions as v
         where v.plan = 'pro' and v.starts_at <= now() order by v.starts_at desc, v.id desc limit 1)
       from auth.users as u where u.email = 'w651-${tag}-02@example.com'`);
+    // A public note of -04's that -05 reported, so 노트's table has a row with its actions.
+    runSql(`insert into public.decks (id, user_id, name, visibility, published_at, created_at, updated_at)
+      select gen_random_uuid(), id, 'w651 ${tag}', 'public', now(), now(), now()
+      from auth.users where email = 'w651-${tag}-04@example.com'`);
+    runSql(`insert into public.deck_reports (deck_id, reporter_id, reason)
+      select d.id, u.id, 'spam' from public.decks as d, auth.users as u
+      where d.name = 'w651 ${tag}' and u.email = 'w651-${tag}-05@example.com'`);
     const page = await context.newPage();
     await page.setViewportSize({ width: 1280, height: 900 });
     const table = page.getByRole("table", { name: "사용자 목록", exact: true });
@@ -332,7 +342,9 @@ test.describe("signed in", () => {
     await expect(page).toHaveURL(new RegExp(`/users\\?q=${tag}-0&size=50&user=`));
     await expect(table).toBeVisible();
     const [listBox, panelBox] = [await table.boundingBox(), await panel.boundingBox()];
-    expect((panelBox?.x ?? 0) > (listBox?.x ?? 0) + (listBox?.width ?? 0) - 1).toBe(true);
+    // Beside the list: to its right, and starting above its end rather than below it.
+    expect((panelBox?.x ?? 0) > (listBox?.x ?? 0) + 200).toBe(true);
+    expect((panelBox?.y ?? 0) < (listBox?.y ?? 0) + (listBox?.height ?? 0)).toBe(true);
     await panel.getByText("요금제 바꾸기", { exact: true }).click();
     await expect(panel.getByRole("button", { name: "무료로 되돌리기", exact: true })).toBeVisible();
     await capture(page, "admin-user-panel");
@@ -349,12 +361,13 @@ test.describe("signed in", () => {
     await emails.first().click();
     await panel.getByRole("link", { name: "전체 화면으로", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: chosen, exact: true })).toBeVisible();
-    await page.getByText("요금제 바꾸기", { exact: true }).click();
+    // The page before stays in the document, hidden, so the shown summary is the one pressed.
+    await page.getByText("요금제 바꾸기", { exact: true }).filter({ visible: true }).click();
     await capture(page, "admin-user");
 
     for (const [path, heading, name] of [
       ["/", "처리할 일", "admin-todo"],
-      ["/decks", "노트", "admin-notes"],
+      [`/decks?q=${tag}`, "노트", "admin-notes"],
       ["/decks?view=public", "노트", "admin-notes-public"],
       ["/ai", "AI", "admin-ai"],
       ["/settings/ai", "AI", "admin-ai-settings"],

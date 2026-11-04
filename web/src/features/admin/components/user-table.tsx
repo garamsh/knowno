@@ -12,9 +12,9 @@ import { AdminTable, CellLabel, cellClass, Pager, rowClass } from "./admin-table
 const head = [
   { label: "이메일" },
   { label: "가입" },
-  { label: "마지막 학습" },
-  { label: "노트", numeric: true },
-  { label: "카드", numeric: true },
+  { label: "마지막 학습", detail: true },
+  { label: "노트", numeric: true, detail: true },
+  { label: "카드", numeric: true, detail: true },
   { label: "요금제" },
   { label: "상태" },
 ] as const;
@@ -22,7 +22,8 @@ const head = [
 /**
  * A page of the users' list as a table (ADR 0181), newest sign-up first: each user's email, which
  * opens its details beside the list, its sign-up, last study, notes, cards, plan and state, then
- * the pager.
+ * the pager. While a user is shown beside it, the table leaves out the last study, notes and
+ * cards, which the user's details hold, so the email keeps its room.
  */
 export function UserTable({
   page,
@@ -33,6 +34,7 @@ export function UserTable({
   address: UserListAddress;
   timeZone: string;
 }) {
+  const brief = address.user !== null;
   if (page.users.length === 0) {
     const filtered = address.query !== "" || address.plan !== null || address.status !== null;
     return (
@@ -45,7 +47,10 @@ export function UserTable({
   }
   return (
     <div className="flex flex-col gap-3">
-      <AdminTable label="사용자 목록" head={head}>
+      <AdminTable
+        label="사용자 목록"
+        head={brief ? head.filter((column) => !("detail" in column)) : head}
+      >
         {page.users.map((user) => {
           const current = user.id === address.user;
           return (
@@ -63,18 +68,22 @@ export function UserTable({
                 <CellLabel>가입</CellLabel>
                 {formatDate(user.createdAt, timeZone)}
               </td>
-              <td className={`${cellClass()} whitespace-nowrap`}>
-                <CellLabel>마지막 학습</CellLabel>
-                {user.lastAnswerAt === null ? "없음" : formatDate(user.lastAnswerAt, timeZone)}
-              </td>
-              <td className={cellClass({ numeric: true })}>
-                <CellLabel>노트</CellLabel>
-                {user.decks.toLocaleString("ko-KR")}
-              </td>
-              <td className={cellClass({ numeric: true })}>
-                <CellLabel>카드</CellLabel>
-                {user.cards.toLocaleString("ko-KR")}
-              </td>
+              {!brief && (
+                <>
+                  <td className={`${cellClass()} whitespace-nowrap`}>
+                    <CellLabel>마지막 학습</CellLabel>
+                    {user.lastAnswerAt === null ? "없음" : formatDate(user.lastAnswerAt, timeZone)}
+                  </td>
+                  <td className={cellClass({ numeric: true })}>
+                    <CellLabel>노트</CellLabel>
+                    {user.decks.toLocaleString("ko-KR")}
+                  </td>
+                  <td className={cellClass({ numeric: true })}>
+                    <CellLabel>카드</CellLabel>
+                    {user.cards.toLocaleString("ko-KR")}
+                  </td>
+                </>
+              )}
               <td className={cellClass()}>
                 {user.plan === null ? (
                   "없음"

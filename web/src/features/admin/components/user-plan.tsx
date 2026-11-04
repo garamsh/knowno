@@ -72,7 +72,7 @@ export function UserPlan({
           요금제 바꾸기
         </summary>
         {/* A details element does not lay its content out as flex items, so one block holds the gap. */}
-        <div className="flex flex-col gap-3">
+        <div className="mt-3 flex flex-col gap-3">
           <GrantPlanForm userId={userId} />
           {grant !== null && (
             <ConfirmAction

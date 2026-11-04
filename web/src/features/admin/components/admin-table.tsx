@@ -6,9 +6,9 @@ import { switchLink } from "./admin-section";
 
 /**
  * A table of the admin area, as `design/frames.md` §Table lays one out: one surface on its edge,
- * its header row in the `section` type, its rows split by hairlines. Below 1024 px the header is
- * read but not shown, and each row is a row of the group, its cells wrapping in one block, each
- * cell naming what it holds through [CellLabel].
+ * its header row in the `section` type, its rows split by hairlines. Below 1024 px the header row
+ * goes, and each row is a row of the group, its cells wrapping in one block, each cell naming what
+ * it holds through [CellLabel].
  */
 export function AdminTable({
   label,
@@ -23,7 +23,7 @@ export function AdminTable({
   return (
     <div className="rounded-group bg-surface lg:overflow-x-auto">
       <table aria-label={label} className="w-full border-collapse text-body max-lg:block">
-        <thead className="max-lg:sr-only">
+        <thead className="max-lg:hidden">
           <tr className="border-b border-hairline">
             {head.map((column) => (
               <th
@@ -45,7 +45,8 @@ export function AdminTable({
 }
 
 /**
- * A row of an [AdminTable]; [current] marks the one a side panel shows, and [linked] lets a link
+ * A row of an [AdminTable]; [current] marks the one a side panel shows on the ground, where a
+ * brand chip still shows, and [linked] lets a link
  * in it stretch over the whole row.
  */
 export function rowClass({
@@ -54,7 +55,7 @@ export function rowClass({
 }: { current?: boolean; linked?: boolean } = {}): string {
   return `max-lg:flex max-lg:flex-wrap max-lg:items-center max-lg:gap-x-3 max-lg:gap-y-1 max-lg:px-4 max-lg:py-3 ${
     linked ? "relative pressable" : ""
-  } ${current ? "bg-brand-tint" : ""}`;
+  } ${current ? "bg-ground" : ""}`;
 }
 
 /** A cell of an [AdminTable]; a [numeric] one aligned to the end, a [lead] one alone on its line below 1024 px. */
@@ -64,7 +65,7 @@ export function cellClass({
 }: { numeric?: boolean; lead?: boolean } = {}): string {
   return `lg:px-3 lg:py-3 lg:first:pl-4 lg:last:pr-4 align-middle ${
     numeric ? "tabular-nums lg:text-right" : ""
-  } ${lead ? "max-lg:basis-full" : "max-lg:text-caption max-lg:text-ink-2"}`;
+  } ${lead ? "max-lg:min-w-0 max-lg:basis-full" : "max-lg:text-caption max-lg:text-ink-2"}`;
 }
 
 /** What a cell holds, said before its value below 1024 px, where the header row is not shown. */

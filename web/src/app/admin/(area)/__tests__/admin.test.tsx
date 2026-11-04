@@ -883,8 +883,9 @@ describe("the users pages", () => {
     });
     await user.selectOptions(screen.getByRole("combobox", { name: "요금제" }), "pro");
     expect(testRouter.replace).toHaveBeenLastCalledWith("/users?q=example&plan=pro&status=active");
+    // A second change before the server draws the first builds on the first.
     await user.selectOptions(screen.getByRole("combobox", { name: "상태" }), "");
-    expect(testRouter.replace).toHaveBeenLastCalledWith("/users?q=example");
+    expect(testRouter.replace).toHaveBeenLastCalledWith("/users?q=example&plan=pro");
   });
 
   it("says when nothing matches the search and the filters", async () => {
@@ -911,6 +912,12 @@ describe("the users pages", () => {
       "aria-current",
       "true",
     );
+    // Beside the details, the table leaves out what they hold.
+    expect(
+      within(screen.getByRole("table", { name: "사용자 목록" }))
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent),
+    ).toEqual(["이메일", "가입", "요금제", "상태"]);
     const panel = within(screen.getByRole("complementary", { name: otherUser.email }));
     expect(panel.getByRole("heading", { level: 2, name: otherUser.email })).toBeInTheDocument();
     expect(panel.getByText("노트 · 카드").nextSibling).toHaveTextContent("2개 · 3장");
