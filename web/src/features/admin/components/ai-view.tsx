@@ -213,7 +213,7 @@ export function AiView({
           })}
         </AdminTable>
       </Section>
-      <div className="grid items-start gap-section-gap lg:grid-cols-[minmax(0,1fr)_--spacing(90)] lg:gap-4">
+      <div className="grid grid-cols-1 items-start gap-section-gap lg:grid-cols-[minmax(0,1fr)_--spacing(90)] lg:gap-4">
         <div className="flex min-w-0 flex-col gap-section-gap">
           {write !== null && <PromptForm initialText={write.text} basis={write.basis} />}
           <Panel
