@@ -1218,7 +1218,9 @@ void main() {
       tester.view.viewInsets = const FakeViewPadding(bottom: 336 * _density);
       addTearDown(tester.view.resetViewInsets);
       await tester.pumpAndSettle();
-      await tap(tester, find.widgetWithText(AppChip, '명'));
+      // No label is stored, so no strip shows above the keyboard.
+      await tester.enterText(label(), '명');
+      await tester.pumpAndSettle();
       await shot(tester, '05c-card-editor-label-presets');
       await largest(tester, '05c-card-editor-label-presets');
       tester.view.resetViewInsets();
@@ -1257,7 +1259,10 @@ void main() {
       await tester.pumpAndSettle();
       await tap(tester, find.text(ko.labelPresetsTitle));
       await shot(tester, '05o-label-presets');
-      await tap(tester, find.bySemanticsLabel(ko.editLabelPreset('명', '명사')));
+      await tap(tester, find.bySemanticsLabel(ko.addLabelPreset));
+      await tester.enterText(find.byType(TextField).first, '명');
+      await tester.enterText(find.byType(TextField).last, '명사');
+      await tester.pumpAndSettle();
       await shot(tester, '05p-label-presets-edit');
       await largest(tester, '05p-label-presets-edit');
       await unmount(tester);

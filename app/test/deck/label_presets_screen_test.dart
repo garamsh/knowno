@@ -14,13 +14,20 @@ import '../contrast.dart';
 import '../study/study_storage.dart';
 import '../word_breaks.dart';
 
+/// Presets a device stored, in the user's order.
+const _seed = [LabelPreset('명', 'noun'), LabelPreset('동', 'verb')];
+
 /// The 라벨 row on a settings screen of its own, over device storage in
-/// memory.
+/// memory holding [presets], which a device otherwise has none of.
 Future<SharedPreferencesWithCache> _open(
   WidgetTester tester, {
+  List<LabelPreset> presets = const [],
   ThemeMode themeMode = ThemeMode.light,
 }) async {
   final storage = await openStudyStorage(tester);
+  if (presets.isNotEmpty) {
+    await tester.runAsync(() => saveLabelPresets(storage, presets));
+  }
   await tester.pumpWidget(
     ProviderScope(
       overrides: [deckStorageProvider.overrideWithValue(storage)],
@@ -76,22 +83,34 @@ Future<void> _act(WidgetTester tester, String label, String action) async {
 }
 
 List<String> _stored(SharedPreferencesWithCache storage) => [
-  for (final preset in labelPresets(storage, const []))
-    '${preset.label}:${preset.name}',
+  for (final preset in labelPresets(storage)) '${preset.label}:${preset.name}',
 ];
 
 void main() {
   testWidgets(
-    'the row opens the screen, which starts from the fourteen short forms with their names',
+    'the row opens the screen, which with no stored presets lists none and offers only "Add label"',
     (tester) async {
-      await _open(tester);
+      final storage = await _open(tester);
       expect(find.byType(PartOfSpeechPresetsScreen), findsOneWidget);
-      expect(_count(tester), 14);
-      final shown = _shown(tester);
-      expect(shown.first, 'Edit 명 noun');
-      expect(shown[1], 'Edit 동 verb');
+      expect(_count(tester), 0);
+      expect(_shown(tester), isEmpty);
+      expect(
+        find.text(
+          'They appear above the keyboard in this order as you write a card.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel('Add label'), findsOneWidget);
+      expect(_stored(storage), isEmpty, reason: 'opening stores nothing');
     },
   );
+
+  testWidgets('stored presets are listed as they were stored', (tester) async {
+    final storage = await _open(tester, presets: _seed);
+    expect(_count(tester), 2);
+    expect(_shown(tester), ['Edit 명 noun', 'Edit 동 verb']);
+    expect(_stored(storage), ['명:noun', '동:verb']);
+  });
 
   testWidgets(
     'a preset is added, renamed and removed, each change stored on the device at once',
@@ -109,8 +128,7 @@ void main() {
       );
       await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
-      expect(_stored(storage).length, 15);
-      expect(_stored(storage).last, '숙어:idiom');
+      expect(_stored(storage), ['숙어:idiom']);
 
       await tester.scrollUntilVisible(
         find.bySemanticsLabel('Edit 숙어 idiom'),
@@ -124,8 +142,7 @@ void main() {
       expect(_stored(storage).last, '관용:idiom');
 
       await _act(tester, '관용', 'Delete');
-      expect(_stored(storage).length, 14);
-      expect(_stored(storage), isNot(contains('관용:idiom')));
+      expect(_stored(storage), isEmpty);
     },
   );
 
@@ -153,14 +170,14 @@ void main() {
   testWidgets(
     'an empty label is refused with a message, and an added row left empty goes',
     (tester) async {
-      final storage = await _open(tester);
+      final storage = await _open(tester, presets: _seed);
       await tester.tap(find.bySemanticsLabel('Edit 명 noun'));
       await tester.pumpAndSettle();
       await tester.enterText(widgetWithShownText(AppTextField, 'Label'), ' ');
       await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(find.text('Write a label'), findsOneWidget);
-      expect(_stored(storage), isEmpty, reason: 'nothing stored');
+      expect(_stored(storage), ['명:noun', '동:verb'], reason: 'nothing stored');
 
       await tester.enterText(widgetWithShownText(AppTextField, 'Label'), '명');
       await tester.tap(shownText('Done'));
@@ -173,14 +190,14 @@ void main() {
       await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(find.text('Write a label'), findsNothing);
-      expect(_count(tester), 14, reason: 'the empty row went');
+      expect(_count(tester), 2, reason: 'the empty row went');
     },
   );
 
   testWidgets(
     'a preset moves up or down through its menu, without a drag, and the order is stored',
     (tester) async {
-      final storage = await _open(tester);
+      final storage = await _open(tester, presets: _seed);
       await _act(tester, '동', 'Move up');
       expect(_shown(tester).take(2), ['Edit 동 verb', 'Edit 명 noun']);
       expect(_stored(storage).take(2), ['동:verb', '명:noun']);
@@ -209,7 +226,7 @@ void main() {
   testWidgets(
     'a preset moves by a drag on its handle, and the order is stored',
     (tester) async {
-      final storage = await _open(tester);
+      final storage = await _open(tester, presets: _seed);
       final handle = _handle(1);
       final gesture = await tester.startGesture(tester.getCenter(handle));
       for (var step = 0; step < 6; step++) {
@@ -225,7 +242,7 @@ void main() {
   testWidgets(
     'while a preset is added or edited, no other preset moves or goes, so nothing half-typed is stored',
     (tester) async {
-      final storage = await _open(tester);
+      final storage = await _open(tester, presets: _seed);
       PopupMenuButton<Object?> menu(String label) => tester.widget(
         find.ancestor(
           of: find.byTooltip('$label menu'),
@@ -257,7 +274,10 @@ void main() {
       }
       await gesture.up();
       await tester.pumpAndSettle();
-      expect(_stored(storage), isEmpty, reason: 'nothing stored meanwhile');
+      expect(_stored(storage), [
+        '명:noun',
+        '동:verb',
+      ], reason: 'nothing stored meanwhile');
 
       await tester.scrollUntilVisible(
         shownText('Done'),
@@ -297,7 +317,7 @@ void main() {
         addTearDown(tester.view.reset);
         tester.platformDispatcher.textScaleFactorTestValue = scale;
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-        await _open(tester);
+        await _open(tester, presets: _seed);
         await tester.tap(find.bySemanticsLabel('Edit 명 noun'));
         await tester.pumpAndSettle();
 
@@ -325,7 +345,7 @@ void main() {
     testWidgets(
       'in the ${mode.name} theme the screen meets the tap target, label and contrast guidelines, a preset being edited included',
       (tester) async {
-        await _open(tester, themeMode: mode);
+        await _open(tester, presets: _seed, themeMode: mode);
         await tester.tap(find.bySemanticsLabel('Edit 명 noun'));
         await tester.pumpAndSettle();
         final handle = tester.ensureSemantics();

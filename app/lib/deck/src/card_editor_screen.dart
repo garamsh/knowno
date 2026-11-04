@@ -322,6 +322,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final presets = labelPresets(ref.read(deckStorageProvider));
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
     final card = widget.card;
@@ -444,14 +445,11 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                       ),
               ),
             ),
-            if (_focusedSense() case final sense?)
+            if (_focusedSense() case final sense? when presets.isNotEmpty)
               LayoutId(
                 id: _Part.strip,
                 child: LabelPresetStrip(
-                  presets: labelPresets(
-                    ref.read(deckStorageProvider),
-                    defaultLabelPresets(l10n),
-                  ),
+                  presets: presets,
                   current: sense.label.text,
                   onPick: (label) => _change(() {
                     sense.label.value = TextEditingValue(
