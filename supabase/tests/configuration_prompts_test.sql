@@ -4,7 +4,7 @@
 -- the results read per configuration; the extract-cards bundle from before the change still works;
 -- and the revert puts the global labels back.
 begin;
-select plan(45);
+select plan(52);
 
 delete from private.admin_audit;
 
@@ -228,6 +228,22 @@ select results_eq(
 select is((select count(*) from pg_temp.start('b', (select id from pg_temp.labelled('free', 'active')))),
   0::bigint, 'a user who is not an admin naming a configuration is served nothing');
 
+-- A configuration with no prompt version, as one saved before the change, serves nothing.
+
+insert into private.ai_configurations (plan, provider, model)
+  values ('max', 'openrouter', 'vendor/no-prompt');
+update private.ai_configuration_labels as l set configuration_id = (
+    select c.id from private.ai_configurations as c where c.model = 'vendor/no-prompt')
+  where l.plan = 'max' and l.label = 'test';
+select results_eq($$select model, prompt_version_id is null from pg_temp.labelled('max', 'test')$$,
+  $$values ('vendor/no-prompt', true)$$,
+  'setup: Max''s draft names a configuration with no prompt version');
+select results_eq(
+  $$select (select count(*) from pg_temp.start('a', (select id from pg_temp.labelled('max', 'test')))),
+      (select count(*) from pg_temp.start('a', (select id from pg_temp.labelled('max', 'active'))))$$,
+  $$values (0::bigint, 1::bigint)$$,
+  'a configuration with no prompt version answers no row, where the plan''s active one with a version answers one');
+
 -- Applying and ending a draft.
 
 select pg_temp.sign_in('a');
@@ -286,6 +302,22 @@ select ok(public.admin_set_prompt_label('test', pg_temp.prompt('test')), 'an adm
 reset role;
 select results_eq($$select prompt_version_id from pg_temp.start('a')$$,
   $$values (pg_temp.prompt('test'))$$, 'and an admin is served the test label''s version');
+select pg_temp.sign_in('a');
+select results_eq($$select label, version_id from public.admin_prompt_labels()$$,
+  $$values ('active', pg_temp.prompt('active')), ('test', pg_temp.prompt('test'))$$,
+  'the restored admin_prompt_labels reads both labels');
+select results_eq(
+  $$select labels from public.admin_prompt_versions() where id in (pg_temp.prompt('active'), pg_temp.prompt('test')) order by id$$,
+  $$values (array['active']), (array['test'])$$,
+  'the restored admin_prompt_versions reads each version''s label from them');
+select results_eq(
+  $$select labels, active_id, active_text from public.admin_prompt_version(pg_temp.prompt('test'))$$,
+  $$values (array['test'], pg_temp.prompt('active'), 'Active prompt.')$$,
+  'the restored admin_prompt_version reads its labels and the active version''s text');
+select is(public.admin_clear_test_prompt(), true, 'the restored admin_clear_test_prompt ends the test label');
+reset role;
+select results_eq($$select prompt_version_id from pg_temp.start('a')$$,
+  $$values (pg_temp.prompt('active'))$$, 'so an admin is served the active label''s version again');
 
 select * from finish();
 rollback;
