@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, startTransition, useActionState, useId, useState } from "react";
@@ -261,9 +261,10 @@ function Foot({
           href={serviceUrl}
           target="_blank"
           rel="noopener"
-          className={`${buttonClass("text", "header")} justify-start self-start`}
+          className={`${buttonClass("text", "header")} justify-start gap-1.5 self-start`}
         >
-          서비스 열기<span aria-hidden> ↗</span>
+          서비스 열기
+          <ExternalLink aria-hidden className="size-4" strokeWidth={2.2} />
           <span className="sr-only">, 새 탭</span>
         </a>
       )}
