@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:knowno/design/theme.dart';
 
-/// Loads the bundled fonts, Lucide's icons and Material's, which tests
+/// Loads the bundled fonts, Google Sans among them, Lucide's icons and Material's, which tests
 /// otherwise draw in the test font and as boxes.
 Future<void> loadAppFonts() async {
   Future<ByteData> bytes(String path) async =>
@@ -19,6 +19,9 @@ Future<void> loadAppFonts() async {
   await (FontLoader(
     appDisplayFontFamily,
   )..addFont(bytes('assets/fonts/Jua-Regular.ttf'))).load();
+  await (FontLoader(
+    'GoogleSans',
+  )..addFont(bytes('assets/fonts/GoogleSans-Medium.ttf'))).load();
   await (FontLoader('packages/lucide_icons_flutter/Lucide')..addFont(
         rootBundle.load('packages/lucide_icons_flutter/assets/lucide.ttf'),
       ))

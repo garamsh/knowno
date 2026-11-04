@@ -1,9 +1,17 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { AuthError } from "@supabase/supabase-js";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SignInButton } from "../components/sign-in-button";
+
+const globalsCss = readFileSync(
+  path.join(import.meta.dirname, "../../../styles/globals.css"),
+  "utf8",
+);
 
 const signInWithOAuth = vi.fn();
 
@@ -45,6 +53,15 @@ describe("SignInButton", () => {
       { src: "/google/g-mark-dark.png", alt: "" },
     ]);
     expect(button.lastChild).toHaveTextContent("Google로 로그인");
+  });
+
+  it("sets its label in Google Sans, as the guidelines do, with Pretendard for the Hangul", () => {
+    render(<SignInButton />);
+
+    // jsdom computes no font, so the button is checked for the family token and the token for
+    // Google Sans first.
+    expect(screen.getByRole("button", { name: "Google로 로그인" })).toHaveClass("font-google");
+    expect(globalsCss).toMatch(/--font-google: var\(--font-google-sans\), var\(--font-sans\);/);
   });
 
   it("shows progress in the button, which cannot be pressed twice, while sign-in starts", async () => {

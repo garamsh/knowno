@@ -57,7 +57,7 @@ export function SignInButton() {
         onClick={start}
         disabled={state === "pending"}
         aria-busy={state === "pending"}
-        className="pressable flex min-h-cta items-center justify-center gap-google-gap rounded-button border border-google-stroke bg-google-fill ps-google-start pe-google-end text-google text-google-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+        className="pressable flex min-h-cta items-center justify-center gap-google-gap rounded-button border border-google-stroke bg-google-fill ps-google-start pe-google-end text-google text-google-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50 font-google"
       >
         {state === "pending" ? (
           // Progress takes the mark's place while the browser leaves for Google.

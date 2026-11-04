@@ -335,6 +335,19 @@ void main() {
           ),
           findsOneWidget,
         );
+        // The label is Google Sans Medium, 14 on 20, as the guidelines set
+        // it, with the app's font for the Hangul Google Sans lacks.
+        final label = tester
+            .widget<RichText>(
+              find.descendant(of: button, matching: find.byType(RichText)),
+            )
+            .text
+            .style!;
+        expect(label.fontFamily, 'GoogleSans');
+        expect(label.fontFamilyFallback, [appFontFamily]);
+        expect(label.fontWeight, FontWeight.w500);
+        expect(label.fontSize, 14);
+        expect(label.height, 20 / 14);
         // The mark sits before the label.
         expect(
           tester.getRect(mark).right,

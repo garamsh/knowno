@@ -29,6 +29,16 @@ const jua = localFont({
   display: "swap",
 });
 
+// Google Sans Medium, the label font of Google's sign-in button by its guidelines, as WOFF2. Not
+// preloaded, so only a page drawing the button fetches it.
+const googleSans = localFont({
+  src: "../styles/fonts/GoogleSans-Medium.woff2",
+  weight: "500",
+  variable: "--font-google-sans",
+  display: "swap",
+  preload: false,
+});
+
 export const metadata: Metadata = {
   title: "알아몰라",
   description: "카드로 외우는 암기 앱",
@@ -54,7 +64,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // The script sets data-theme on <html> before React hydrates it.
     <html
       lang="ko"
-      className={`${pretendard.variable} ${jua.variable} antialiased`}
+      className={`${pretendard.variable} ${jua.variable} ${googleSans.variable} antialiased`}
       suppressHydrationWarning
     >
       <head>

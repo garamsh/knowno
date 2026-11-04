@@ -68,8 +68,8 @@ class GoogleSignInButton extends StatelessWidget {
 
 /// Google's "Sign in with Google" button as its branding guidelines specify
 /// (developers.google.com/identity/branding-guidelines): each theme's fill,
-/// one-pixel stroke, label colour and "G" mark, the label's size, and the
-/// space around the mark per platform.
+/// one-pixel stroke, label colour and "G" mark, the label's font and size,
+/// and the space around the mark per platform.
 final class GoogleButtonStyle {
   const GoogleButtonStyle._({
     required this.fill,
@@ -108,9 +108,11 @@ final class GoogleButtonStyle {
   /// The mark's width and height.
   static const markSize = 20.0;
 
-  /// The label: medium weight, 14 on 20.
+  /// The label: Google Sans Medium, 14 on 20. Google Sans has no Hangul, so
+  /// a Korean label's other characters are the app's font.
   static const labelStyle = TextStyle(
-    fontFamily: appFontFamily,
+    fontFamily: 'GoogleSans',
+    fontFamilyFallback: [appFontFamily],
     fontSize: 14,
     height: 20 / 14,
     fontWeight: FontWeight.w500,
