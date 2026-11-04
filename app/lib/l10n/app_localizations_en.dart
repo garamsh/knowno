@@ -674,7 +674,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signInWithGoogle => 'Continue with Google';
 
   @override
-  String get signInWithAppleSoon => 'Continue with Apple · Coming soon';
+  String get signInWithApple => 'Continue with Apple';
 
   @override
   String get signingIn => 'Signing in';
@@ -697,7 +697,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Sign-in isn\'t set up correctly in this app, so you can\'t sign in.';
 
   @override
-  String get accountRejected => 'Google sign-in was refused. Please try again.';
+  String get accountRejected => 'Sign-in was refused. Please try again.';
 
   @override
   String get accountSection => 'Account';

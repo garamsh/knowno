@@ -61,6 +61,7 @@ dependencies:
   file_picker: 13.3.0
   archive: ^4.6.0
   xml: ^7.1.0
+  sign_in_with_apple: ^8.2.0
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +79,7 @@ dev_dependencies:
   google_sign_in_platform_interface: ^3.1.0
   plugin_platform_interface: ^2.1.8
   shared_preferences_platform_interface: ^2.4.2
+  sign_in_with_apple_platform_interface: ^2.0.0
   # The launcher icons and the native splash are generated from assets/brand/
   # by these, pinned exactly since their output is committed; scripts/check-generated.ts
   # reruns both.

@@ -11,8 +11,10 @@ import 'package:knowno/account/account.dart';
 import 'package:knowno/account/src/account_service.dart';
 import 'package:knowno/account/src/failure_message.dart';
 import 'package:knowno/l10n/app_localizations.dart';
+import 'package:sign_in_with_apple_platform_interface/sign_in_with_apple_platform_interface.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'fake_apple_sign_in.dart';
 import 'fake_google_sign_in.dart';
 
 const _url = 'https://example.test/auth/v1';
@@ -34,11 +36,17 @@ Map<String, Object?> _session({String email = 'ada@example.com'}) => {
 
 void main() {
   late FakeGoogleSignIn google;
+  late FakeAppleSignIn apple;
   late List<http.Request> requests;
 
   setUpAll(() {
     google = FakeGoogleSignIn();
     GoogleSignInPlatform.instance = google;
+  });
+
+  setUp(() {
+    apple = FakeAppleSignIn();
+    SignInWithApplePlatform.instance = apple;
   });
 
   setUp(() {
@@ -50,7 +58,7 @@ void main() {
     requests = [];
   });
 
-  Future<GoogleAccountService> start(
+  Future<NativeAccountService> start(
     GoTrueClient auth, {
     http.Client? functionsHttp,
   }) {
@@ -60,7 +68,7 @@ void main() {
       httpClient: functionsHttp,
     );
     addTearDown(functions.dispose);
-    return GoogleAccountService.start(
+    return NativeAccountService.start(
       auth,
       GoogleSignIn.instance,
       functions: functions,
@@ -71,7 +79,7 @@ void main() {
 
   /// A service over a Supabase Auth client and an Edge Functions client
   /// whose server answers with [respond].
-  Future<GoogleAccountService> serviceAnswering(
+  Future<NativeAccountService> serviceAnswering(
     Future<http.Response> Function(http.Request) respond,
   ) {
     final server = MockClient((request) {
@@ -100,7 +108,7 @@ void main() {
     final service = await serviceAnswering(grant);
     expect(service.state, isA<SignedOut>());
 
-    await service.signIn();
+    await service.signInWithGoogle();
 
     final request = requests.single;
     expect(request.url.path, '/auth/v1/token');
@@ -130,7 +138,7 @@ void main() {
     () async {
       final service = await serviceAnswering(grant);
 
-      await service.signIn();
+      await service.signInWithGoogle();
 
       final raw = (jsonDecode(requests.single.body) as Map)['nonce'];
       expect(raw, isA<String>().having((r) => r.length, 'length', 44));
@@ -170,7 +178,7 @@ void main() {
       );
       final service = await serviceAnswering(grant);
 
-      expect(await failureOf(service.signIn), isNull);
+      expect(await failureOf(service.signInWithGoogle), isNull);
       expect(requests, isEmpty);
       expect(service.state, isA<SignedOut>());
     },
@@ -182,7 +190,7 @@ void main() {
     );
 
     expect(
-      await failureOf((await serviceAnswering(grant)).signIn),
+      await failureOf((await serviceAnswering(grant)).signInWithGoogle),
       isA<AccountMisconfigured>(),
     );
   });
@@ -193,7 +201,7 @@ void main() {
     );
 
     expect(
-      await failureOf((await serviceAnswering(grant)).signIn),
+      await failureOf((await serviceAnswering(grant)).signInWithGoogle),
       isA<AccountRejected>(),
     );
   });
@@ -202,7 +210,7 @@ void main() {
     google.result = FakeGoogleSignIn.signedIn(idToken: null);
     final service = await serviceAnswering(grant);
 
-    expect(await failureOf(service.signIn), isA<AccountRejected>());
+    expect(await failureOf(service.signInWithGoogle), isA<AccountRejected>());
     expect(requests, isEmpty);
   });
 
@@ -211,7 +219,7 @@ void main() {
       (_) async => throw http.ClientException('no route to host'),
     );
 
-    expect(await failureOf(service.signIn), isA<AccountOffline>());
+    expect(await failureOf(service.signInWithGoogle), isA<AccountOffline>());
     expect(service.state, isA<SignedOut>());
   });
 
@@ -227,7 +235,7 @@ void main() {
       ),
     );
 
-    expect(await failureOf(service.signIn), isA<AccountRejected>());
+    expect(await failureOf(service.signInWithGoogle), isA<AccountRejected>());
     expect(service.state, isA<SignedOut>());
   });
 
@@ -245,7 +253,10 @@ void main() {
         ),
       );
 
-      expect(await failureOf(service.signIn), isA<AccountMisconfigured>());
+      expect(
+        await failureOf(service.signInWithGoogle),
+        isA<AccountMisconfigured>(),
+      );
     },
   );
 
@@ -261,7 +272,7 @@ void main() {
       ),
     );
 
-    expect(await failureOf(service.signIn), isA<AccountSuspended>());
+    expect(await failureOf(service.signInWithGoogle), isA<AccountSuspended>());
     expect(service.state, isA<SignedOut>());
     final l10n = await AppLocalizations.delegate.load(const Locale('ko'));
     expect(
@@ -276,7 +287,7 @@ void main() {
           ? http.Response('', 204)
           : grant(request),
     );
-    await service.signIn();
+    await service.signInWithGoogle();
     expect(service.state, isA<SignedIn>());
     final changes = expectLater(
       service.stateChanges,
@@ -296,7 +307,7 @@ void main() {
       if (!online) throw http.ClientException('no route to host');
       return grant(request);
     });
-    await service.signIn();
+    await service.signInWithGoogle();
     online = false;
 
     expect(await failureOf(service.signOut), isA<AccountOffline>());
@@ -307,14 +318,14 @@ void main() {
     const deletePath = '/functions/v1/delete-account';
 
     /// A signed-in service whose `delete-account` answers with [respond].
-    Future<GoogleAccountService> signedInDeleting(
+    Future<NativeAccountService> signedInDeleting(
       Future<http.Response> Function(http.Request) respond,
     ) async {
       final service = await serviceAnswering(
         (request) =>
             request.url.path == deletePath ? respond(request) : grant(request),
       );
-      await service.signIn();
+      await service.signInWithGoogle();
       // The setup signed in.
       expect(service.state, isA<SignedIn>());
       requests.clear();
@@ -370,6 +381,173 @@ void main() {
     }
   });
 
+  group('signing in with Apple', () {
+    /// A server that grants the ID token and answers the name's update with
+    /// the user.
+    Future<http.Response> grantAndUpdate(http.Request request) async =>
+        request.url.path.endsWith('/user')
+        ? http.Response(jsonEncode(_session()['user']), 200)
+        : grant(request);
+
+    test('exchanges the Apple ID token for a session', () async {
+      final service = await serviceAnswering(grantAndUpdate);
+
+      await service.signInWithApple();
+
+      expect(apple.scopes, [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ]);
+      final request = requests.single;
+      expect(request.url.path, '/auth/v1/token');
+      expect(request.url.queryParameters['grant_type'], 'id_token');
+      expect(
+        jsonDecode(request.body),
+        allOf(
+          containsPair('provider', 'apple'),
+          containsPair('id_token', 'apple-id-token'),
+        ),
+      );
+      expect(
+        service.state,
+        isA<SignedIn>().having((s) => s.email, 'email', 'ada@example.com'),
+      );
+    });
+
+    test(
+      'sends Supabase the raw nonce whose SHA-256 hex Apple got, new each time',
+      () async {
+        final service = await serviceAnswering(grantAndUpdate);
+
+        await service.signInWithApple();
+        await service.signInWithApple();
+
+        final raws = [
+          for (final request in requests)
+            (jsonDecode(request.body) as Map)['nonce'] as String,
+        ];
+        expect(apple.nonces, [
+          for (final raw in raws) sha256.convert(utf8.encode(raw)).toString(),
+        ]);
+        expect(raws.toSet(), hasLength(2));
+      },
+    );
+
+    test(
+      'stores the name Apple shares on the first sign-in as Supabase guides',
+      () async {
+        apple.credential = FakeAppleSignIn.signedIn(
+          givenName: 'Ada',
+          familyName: 'Lovelace',
+        );
+        final service = await serviceAnswering(grantAndUpdate);
+
+        await service.signInWithApple();
+
+        final update = requests.last;
+        expect(update.method, 'PUT');
+        expect(update.url.path, '/auth/v1/user');
+        expect((jsonDecode(update.body) as Map)['data'], {
+          'full_name': 'Ada Lovelace',
+          'given_name': 'Ada',
+          'family_name': 'Lovelace',
+        });
+        expect(service.state, isA<SignedIn>());
+      },
+    );
+
+    test('asks nothing more when Apple shares no name', () async {
+      final service = await serviceAnswering(grantAndUpdate);
+
+      await service.signInWithApple();
+
+      expect(requests.map((r) => r.url.path), ['/auth/v1/token']);
+    });
+
+    test(
+      'a name that cannot be stored is reported and leaves the user signed in',
+      () async {
+        apple.credential = FakeAppleSignIn.signedIn(givenName: 'Ada');
+        final reported = <FlutterErrorDetails>[];
+        final previous = FlutterError.onError;
+        FlutterError.onError = reported.add;
+        addTearDown(() => FlutterError.onError = previous);
+        final service = await serviceAnswering(
+          (request) async => request.url.path.endsWith('/user')
+              ? http.Response('{"msg":"unavailable"}', 503)
+              : grant(request),
+        );
+
+        expect(await failureOf(service.signInWithApple), isNull);
+
+        expect(service.state, isA<SignedIn>());
+        expect(reported, hasLength(1));
+      },
+    );
+
+    test(
+      'a cancelled sheet returns quietly and asks Supabase nothing',
+      () async {
+        apple.error = const SignInWithAppleAuthorizationException(
+          code: AuthorizationErrorCode.canceled,
+          message: 'The user canceled the authorization attempt.',
+        );
+        final service = await serviceAnswering(grantAndUpdate);
+
+        expect(await failureOf(service.signInWithApple), isNull);
+        expect(requests, isEmpty);
+        expect(service.state, isA<SignedOut>());
+      },
+    );
+
+    test('Apple failing the sign-in is a rejection', () async {
+      apple.error = const SignInWithAppleAuthorizationException(
+        code: AuthorizationErrorCode.failed,
+        message: 'The authorization attempt failed.',
+      );
+      final service = await serviceAnswering(grantAndUpdate);
+
+      expect(await failureOf(service.signInWithApple), isA<AccountRejected>());
+      expect(requests, isEmpty);
+      expect(service.state, isA<SignedOut>());
+    });
+
+    test('a device without the sheet is a misconfiguration', () async {
+      apple.error = const SignInWithAppleNotSupportedException(
+        message: 'Unsupported platform',
+      );
+
+      expect(
+        await failureOf((await serviceAnswering(grant)).signInWithApple),
+        isA<AccountMisconfigured>(),
+      );
+    });
+
+    test('a credential without an ID token is a rejection', () async {
+      apple.credential = FakeAppleSignIn.signedIn(identityToken: null);
+      final service = await serviceAnswering(grantAndUpdate);
+
+      expect(await failureOf(service.signInWithApple), isA<AccountRejected>());
+      expect(requests, isEmpty);
+    });
+
+    test('Supabase refusing the Apple ID token is a rejection', () async {
+      final service = await serviceAnswering(
+        (_) async => http.Response(
+          jsonEncode({
+            'code': 400,
+            'error_code': 'bad_jwt',
+            'msg': 'Unacceptable audience in id_token',
+          }),
+          400,
+        ),
+      );
+
+      expect(await failureOf(service.signInWithApple), isA<AccountRejected>());
+      expect(service.state, isA<SignedOut>());
+    });
+  });
+
   test('a build without configuration is unavailable, not a crash', () async {
     final (:service, :client) = await connectAccount(const {});
 
@@ -382,7 +560,14 @@ void main() {
         contains('SUPABASE_URL is missing'),
       ),
     );
-    expect(await failureOf(service.signIn), isA<AccountMisconfigured>());
+    expect(
+      await failureOf(service.signInWithGoogle),
+      isA<AccountMisconfigured>(),
+    );
+    expect(
+      await failureOf(service.signInWithApple),
+      isA<AccountMisconfigured>(),
+    );
     expect(await failureOf(service.deleteAccount), isA<AccountMisconfigured>());
   });
 }
