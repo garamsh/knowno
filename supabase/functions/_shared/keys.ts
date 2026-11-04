@@ -1,10 +1,13 @@
 /** The providers' keys, read from Vault through `public.provider_key` and kept briefly in memory. */
 
-import { type SupabaseDeps, SupabaseError } from "../_shared/auth.ts";
-import type { Provider } from "./providers.ts";
+import { type SupabaseDeps, SupabaseError } from "./auth.ts";
 
 /** How long a key read from Vault is reused before it is read again. */
 export const KEY_CACHE_MS = 60_000;
+
+/** The providers Vault may hold a key for, as `public.provider_key` names them. */
+export const PROVIDERS = ["openrouter", "openai", "anthropic"] as const;
+export type Provider = (typeof PROVIDERS)[number];
 
 /** A provider's key, or null when none can serve it; and forgetting one that was just replaced. */
 export type Keys = {

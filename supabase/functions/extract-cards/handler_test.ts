@@ -18,7 +18,7 @@ import {
   RETRY_START_LIMIT_MS,
   type SettingsLogEntry,
 } from "./handler.ts";
-import { vaultKeys } from "./keys.ts";
+import { vaultKeys } from "../_shared/keys.ts";
 import { ANTHROPIC_URL, OPENAI_URL, OPENROUTER_URL } from "./providers.ts";
 import { SYSTEM_PROMPT } from "./prompt_v8.ts";
 import { MAX_IMAGE_BYTES } from "./request.ts";

@@ -10,7 +10,7 @@ import {
   OUTPUT_CONTRACT,
   parseReply,
 } from "./cards.ts";
-import type { Keys } from "./keys.ts";
+import type { Keys } from "../_shared/keys.ts";
 import { callModel, type ExtractDeps, type ModelId, modelId } from "./model.ts";
 import { parseProvider, type Provider } from "./providers.ts";
 import type { Image } from "./request.ts";
