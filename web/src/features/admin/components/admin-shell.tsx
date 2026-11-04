@@ -16,18 +16,13 @@ import { Email, switchLink } from "./admin-section";
 
 /**
  * The admin area's six sections on the admin host, one per job (ADR 0178, ADR 0181), each with the
- * paths it is current on. Until AI is drawn as one section (#650), AI 제공자 (`/settings/ai`) is
- * AI's.
+ * paths it is current on.
  */
 const sections = [
   { href: "/", label: "처리할 일", current: (path: string) => path === "/" },
   { href: "/users", label: "사용자", current: (path: string) => path.startsWith("/users") },
   { href: "/decks", label: "노트", current: (path: string) => path.startsWith("/decks") },
-  {
-    href: "/ai",
-    label: "AI",
-    current: (path: string) => path.startsWith("/ai") || path === "/settings/ai",
-  },
+  { href: "/ai", label: "AI", current: (path: string) => path === "/ai" },
   { href: "/plans", label: "요금제", current: (path: string) => path === "/plans" },
   { href: "/admins", label: "관리자", current: (path: string) => path === "/admins" },
 ] as const;

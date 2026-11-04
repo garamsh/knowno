@@ -101,10 +101,10 @@ export class FakeAdmin {
   /** The rows `admin_extraction_breakdown` answers: each UTC day's photos by plan, model and version. */
   breakdown: Row[] = [];
   /**
-   * The recorded calls, newest first, as the server orders them, each with the version that served
-   * it; `admin_version_calls` pages through one version's.
+   * The rows `admin_configuration_results` answers for each number of days: each provider, model
+   * and prompt version's counts.
    */
-  extractionCalls: Row[] = [];
+  readonly configurationResults = new Map<number, Row[]>();
   /** The rows `admin_extraction_failures` answers: each UTC day's counts by prompt version. */
   extractionFailures: Row[] = [];
   /**
@@ -122,8 +122,9 @@ export class FakeAdmin {
     version(7, "special", "none", null, "2026-11-03T00:00:00Z"),
   ];
   /**
-   * The saved AI configurations (ADR 0162), each plan's active one first as the migration seeds
-   * them, and any draft an admin saved through extract-cards, labelled `test`.
+   * The saved AI configurations (ADR 0162), each a provider, model and prompt version: each plan's
+   * active one first as the migration seeds them, on the seed prompt, and any draft an admin saved
+   * through extract-cards, labelled `test`.
    */
   readonly aiConfigurations: {
     id: number;
@@ -131,6 +132,7 @@ export class FakeAdmin {
     label: "active" | "test";
     provider: string;
     model: string;
+    prompt_version_id: number;
     created_by: string | null;
   }[] = ["free", "pro", "max", "special"].map((plan, index) => ({
     id: index + 1,
@@ -138,6 +140,7 @@ export class FakeAdmin {
     label: "active",
     provider: "openrouter",
     model: "anthropic/claude-haiku-5.5",
+    prompt_version_id: 1,
     created_by: null,
   }));
   /** The providers whose key Vault holds, with its last four characters; never the key. */
@@ -148,12 +151,6 @@ export class FakeAdmin {
   readonly prompts: { id: number; text: string; note: string; by: string | null }[] = [
     { id: 1, text: "Prompt v8.\nKeep each fact.", note: "prompt v8", by: null },
   ];
-  /** The version each label names; no `test` while none is set. */
-  readonly promptLabels = new Map<"active" | "test", number>([["active", 1]]);
-  /** When each label was last set. */
-  readonly promptLabelsSetAt = new Map<"active" | "test", string>([
-    ["active", "2026-10-19T04:00:00Z"],
-  ]);
   /** Each suspended user's suspension. */
   readonly suspensions = new Map<string, { reason: string; by: string }>();
   /** Each deck removed from sharing, and why. */
@@ -194,8 +191,11 @@ export class FakeAdmin {
       length: prompt.text.length,
       created_by_email: this.users.find((user) => user.id === prompt.by)?.email ?? null,
       created_at: "2026-10-19T04:00:00Z",
-      labels: (["active", "test"] as const).filter(
-        (label) => this.promptLabels.get(label) === prompt.id,
+      // The labels of the configurations sending it, as the server names them.
+      labels: (["active", "test"] as const).filter((label) =>
+        this.aiConfigurations.some(
+          (entry) => entry.label === label && entry.prompt_version_id === prompt.id,
+        ),
       ),
     };
   }
@@ -240,17 +240,10 @@ export class FakeAdmin {
         return [this.weekActivity];
       case "admin_extraction_breakdown":
         return this.breakdown;
-      case "admin_version_calls": {
-        const before = typeof args.before === "number" ? args.before : null;
-        const size = Math.min(Math.max(Number(args.page_size ?? 50), 1), 500);
-        return this.extractionCalls
-          .filter((call) => call.prompt_version_id === args.version_id)
-          .filter((call) => before === null || Number(call.usage_id) < before)
-          .slice(0, size)
-          .map(({ prompt_version_id: _version, ...call }) => call);
-      }
       case "admin_extraction_failures":
         return this.extractionFailures;
+      case "admin_configuration_results":
+        return this.configurationResults.get(Number(args.days ?? 30)) ?? [];
       case "admin_note_list": {
         const view = args.view;
         if (view !== "reported" && view !== "public" && view !== "hidden") {
@@ -442,27 +435,12 @@ export class FakeAdmin {
         this.record(admin, "remove_deck", "deck", deck.id, { name: deck.name, reason });
         return true;
       }
-      case "admin_prompt_labels":
-        return (["active", "test"] as const).flatMap((label) => {
-          const version = this.promptLabels.get(label);
-          return version === undefined
-            ? []
-            : [{ label, version_id: version, set_at: this.promptLabelsSetAt.get(label) }];
-        });
       case "admin_prompt_versions":
         return this.prompts.toReversed().map((prompt) => this.promptRow(prompt));
       case "admin_prompt_version": {
         const prompt = this.prompts.find((candidate) => candidate.id === args.version_id);
         if (!prompt) return [];
-        const active = this.prompts.find((p) => p.id === this.promptLabels.get("active"));
-        return [
-          {
-            ...this.promptRow(prompt),
-            text: prompt.text,
-            active_id: active?.id ?? null,
-            active_text: active?.text ?? null,
-          },
-        ];
+        return [{ ...this.promptRow(prompt), text: prompt.text }];
       }
       case "admin_save_prompt": {
         const text = String(args.text);
@@ -471,34 +449,6 @@ export class FakeAdmin {
         this.prompts.push({ id, text, note, by: admin });
         this.record(admin, "save_prompt", "prompt", String(id), { note, length: text.length });
         return id;
-      }
-      case "admin_set_prompt_label": {
-        const label = args.label === "test" ? "test" : "active";
-        const id = Number(args.version_id);
-        const previous = this.promptLabels.get(label) ?? null;
-        if (previous === id) return false;
-        this.promptLabels.set(label, id);
-        this.promptLabelsSetAt.set(label, new Date().toISOString());
-        const cleared = label === "active" && this.promptLabels.get("test") === id;
-        if (cleared) this.promptLabels.delete("test");
-        this.record(
-          admin,
-          label === "active" ? "activate_prompt" : "test_prompt",
-          "prompt",
-          String(id),
-          {
-            previous,
-            test_cleared: cleared,
-          },
-        );
-        return true;
-      }
-      case "admin_clear_test_prompt": {
-        const test = this.promptLabels.get("test");
-        if (test === undefined) return false;
-        this.promptLabels.delete("test");
-        this.record(admin, "clear_test_prompt", "prompt", String(test), {});
-        return true;
       }
       case "admin_ai_session":
         return this.recentSignIn;
@@ -515,17 +465,24 @@ export class FakeAdmin {
             ),
           };
         });
-      case "admin_ai_configurations":
-        return this.aiConfigurations.map((entry) => ({
+      case "admin_ai_configurations": {
+        // In the plans' order, each plan's active configuration before its draft, as the server orders them.
+        const rank = (plan: string) => ["free", "pro", "max", "special"].indexOf(plan);
+        const ordered = this.aiConfigurations.toSorted(
+          (a, b) => rank(a.plan) - rank(b.plan) || a.label.localeCompare(b.label),
+        );
+        return ordered.map((entry) => ({
           plan: entry.plan,
           label: entry.label,
           configuration_id: entry.id,
           provider: entry.provider,
           model: entry.model,
+          prompt_version_id: entry.prompt_version_id,
           created_at: "2026-11-03T01:00:00Z",
           created_by_email: this.users.find((user) => user.id === entry.created_by)?.email ?? null,
           set_at: "2026-11-03T01:00:00Z",
         }));
+      }
       case "admin_activate_ai_configuration": {
         const draft = this.aiConfigurations.find(
           (entry) => entry.plan === args.plan && entry.label === "test",
@@ -543,6 +500,7 @@ export class FakeAdmin {
           configuration_id: draft.id,
           provider: draft.provider,
           model: draft.model,
+          prompt_version_id: draft.prompt_version_id,
         });
         return "activated";
       }

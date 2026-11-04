@@ -1,15 +1,6 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { AdminSkeleton } from "../../_components/admin-skeleton";
-import { PromptContent } from "../../_components/content";
-
-/** One prompt version: its actions, results, difference from the active one, calls and text. */
-export default function Page({ params, searchParams }: PageProps<"/admin/ai/[id]">) {
-  return (
-    <>
-      <Suspense fallback={<AdminSkeleton />}>
-        <PromptContent params={params} searchParams={searchParams} />
-      </Suspense>
-    </>
-  );
+/** A prompt version is listed in AI now, which has no page per version (#650). The admin gate checks the role before this runs. */
+export default function Page() {
+  redirect("/ai");
 }

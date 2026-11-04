@@ -1,6 +1,6 @@
 # ADR 0162: Choose each plan's AI provider in admin, keep provider keys in Vault, and apply a configuration only after a check call and an admin's trial
 
-> Status: accepted
+> Status: accepted; its configuration as a provider and model alone, with the prompt served apart, and its settings page under 설정 superseded by ADR-0182
 > Date: 2026-11-03
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

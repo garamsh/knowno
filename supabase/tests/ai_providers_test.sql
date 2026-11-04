@@ -89,7 +89,7 @@ select results_eq(
   $$values (0::bigint)$$, 'no role reads or writes the tables directly');
 select results_eq(
   $$select count(*) from unnest(array['public.provider_key(text)',
-      'public.save_provider_key(uuid, text, text)', 'public.save_ai_configuration(uuid, text, text, text)',
+      'public.save_provider_key(uuid, text, text)', 'public.save_ai_configuration(uuid, text, text, text, bigint)',
       'public.begin_extraction(uuid, bigint)']) as f
     cross join unnest(array['anon', 'authenticated']) as r
     where has_function_privilege(r, f, 'execute')$$,

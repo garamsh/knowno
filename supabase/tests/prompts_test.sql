@@ -1,8 +1,9 @@
--- The prompt store (ADR 0073): append-only versions only an admin saves and labels, each write
--- recorded; extract-cards serves admins the test version when one is set and everyone else the
--- active one, and records the plan, model and version of each photo it lets through.
+-- The prompt store (ADR 0073, ADR 0182): append-only versions only an admin saves, each save
+-- recorded; extract-cards serves the version of the configuration serving the photo, an admin's
+-- draft's while one is set, and records the plan, model and version of each photo it lets through.
+-- Drafts, applying and the move from the global labels are configuration_prompts_test.sql's.
 begin;
-select plan(48);
+select plan(35);
 
 -- An OpenRouter key in Vault, so the plans' OpenRouter configurations can be served (ADR 0162).
 insert into private.provider_keys (provider, secret_id, last_four)
@@ -36,15 +37,12 @@ create function pg_temp.calls() returns setof text language sql as $$
   values
     ($q$select * from public.admin_prompt_versions()$q$),
     ($q$select * from public.admin_prompt_version(0)$q$),
-    ($q$select public.admin_save_prompt('', '')$q$),
-    ($q$select public.admin_set_prompt_label('none', 1)$q$),
-    ($q$select public.admin_clear_test_prompt()$q$)
+    ($q$select public.admin_save_prompt('', '')$q$)
 $$;
 grant execute on function pg_temp.calls() to public;
 
 -- The calls [who] is refused with insufficient_privilege. A call that fails otherwise, as some of
--- these do for an admin past the role, is the role check passing. Each call is undone, its locks
--- with it, so a later check of the labels lock sees only what came after.
+-- these do for an admin past the role, is the role check passing. Each call is undone.
 create function pg_temp.refused_as(who text) returns setof text language plpgsql as $$
 declare
   call text;
@@ -77,18 +75,6 @@ begin
 end;
 $$;
 
--- Whether this transaction holds the advisory lock label changes take.
-create function pg_temp.holds_labels_lock() returns boolean language sql as $$
-  select exists (
-    select from pg_locks
-    where locktype = 'advisory' and pid = pg_backend_pid() and granted
-      and classid::bigint = (hashtextextended('private.prompt_labels', 4) >> 32) & 4294967295
-      and objid::bigint = hashtextextended('private.prompt_labels', 4) & 4294967295
-      and objsubid = 1
-  )
-$$;
-grant execute on function pg_temp.holds_labels_lock() to public;
-
 -- The ids versions are saved under; a refused insert takes an id too, so tests name them.
 create temp table saved (name text primary key, id bigint not null);
 grant all on saved to public;
@@ -103,18 +89,14 @@ select results_eq($$select id, note, created_by from private.prompt_versions whe
   $$values (1::bigint, 'prompt v8', null::uuid)$$,
   'the migration seeds version 1, prompt v8, saved by no one');
 
--- The store as the seed left it: version 1 active, no test version and an empty log. A later
--- migration activated prompt v9 (20261019230003_activate_prompt_v9.sql), which
--- prompt_v9_activation_test.sql covers.
-update private.prompt_labels set version_id = 1, set_by = null where label = 'active';
+-- An empty log. A later migration activated prompt v9 (20261019230003_activate_prompt_v9.sql),
+-- which prompt_v9_activation_test.sql covers.
 delete from private.admin_audit;
-select results_eq($$select label, version_id from private.prompt_labels$$,
-  $$values ('active', 1::bigint)$$, 'version 1 is active again, with no test version');
 
-select results_eq($$select count(*) from pg_temp.refused_as('b')$$, $$values (5::bigint)$$,
+select results_eq($$select count(*) from pg_temp.refused_as('b')$$, $$values (3::bigint)$$,
   'a signed-in user who is not an admin is refused by every admin prompt function');
 reset role;
-select results_eq($$select count(*) from pg_temp.refused_as(null)$$, $$values (5::bigint)$$,
+select results_eq($$select count(*) from pg_temp.refused_as(null)$$, $$values (3::bigint)$$,
   'anon is refused by every admin prompt function');
 reset role;
 select is_empty($$select * from pg_temp.refused_as('a')$$, 'control: an admin is refused by none');
@@ -125,7 +107,7 @@ select throws_ok($$select * from public.begin_extraction('00000000-0000-4000-800
   '42501', null, 'a signed-in user cannot begin an extraction itself');
 select throws_ok($$select * from public.prompt_version(1)$$, '42501', null, 'nor read a version for the eval');
 select throws_ok($$select * from private.prompt_versions$$, '42501', null, 'nor read the versions');
-select throws_ok($$select * from private.prompt_labels$$, '42501', null, 'nor the labels');
+select throws_ok($$select * from private.ai_configurations$$, '42501', null, 'nor the configurations');
 select throws_ok($$select * from private.extraction_calls$$, '42501', null, 'nor the calls');
 reset role;
 
@@ -138,8 +120,8 @@ select cmp_ok(pg_temp.id('second'), '>', 1::bigint, 'an admin saves a new versio
 select results_eq($$select text, note, created_by from private.prompt_versions where id = pg_temp.id('second')$$,
   $$values ('Second prompt.', 'shorter', '00000000-0000-4000-8000-00000000000a'::uuid)$$,
   'with its text as given, its note trimmed, and its author');
-select results_eq($$select label, version_id from private.prompt_labels$$,
-  $$values ('active', 1::bigint)$$, 'saving labels nothing');
+select results_eq($$select count(*) from private.ai_configurations where prompt_version_id = pg_temp.id('second')$$,
+  $$values (0::bigint)$$, 'saving puts the version in no configuration');
 select results_eq(
   $$select action, target_kind, target_id, detail from private.admin_audit$$,
   $$values ('save_prompt', 'prompt', pg_temp.id('second')::text, '{"note": "shorter", "length": 14}'::jsonb)$$,
@@ -180,8 +162,8 @@ insert into private.plan_versions (plan, quota, amount, starts_at, applies_to_al
   ('free', 'daily', 3, now(), true);
 -- The admin is on 스페셜 (ADR 0177), so it is served 스페셜's configuration.
 with c as (
-  insert into private.ai_configurations (plan, provider, model) values ('free', 'openrouter', 'vendor/free-model'),
-    ('special', 'openrouter', 'vendor/special-model')
+  insert into private.ai_configurations (plan, provider, model, prompt_version_id) values ('free', 'openrouter', 'vendor/free-model', 1),
+    ('special', 'openrouter', 'vendor/special-model', 1)
   returning id, plan
 )
 insert into private.ai_configuration_labels (plan, label, configuration_id)
@@ -197,13 +179,12 @@ select results_eq($$select prompt from pg_temp.begin('b')$$,
   $$select text from private.prompt_versions where id = 1$$, 'with the version''s text');
 reset role;
 
-select ok(not pg_temp.holds_labels_lock(), 'control: nothing has held the labels lock before');
-select pg_temp.sign_in('a');
-select ok(public.admin_set_prompt_label('test', pg_temp.id('second')), 'an admin makes version 2 the test version');
-select ok(pg_temp.holds_labels_lock(), 'under the labels lock');
+select set_config('role', 'service_role', true);
+select ok(public.save_ai_configuration('00000000-0000-4000-8000-00000000000a', 'special', 'openrouter',
+  'vendor/special-model', pg_temp.id('second')) is not null, 'an admin saves the second version in 스페셜''s draft');
 reset role;
 select results_eq($$select prompt_version_id, prompt from pg_temp.begin('a')$$,
-  $$values (pg_temp.id('second'), 'Second prompt.')$$, 'an admin is then served the test version');
+  $$values (pg_temp.id('second'), 'Second prompt.')$$, 'an admin is then served the draft''s version');
 reset role;
 select results_eq($$select prompt_version_id, allowed from pg_temp.begin('b')$$,
   $$values (1::bigint, true)$$, 'control: a user who is not an admin is still served the active one');
@@ -225,48 +206,20 @@ select results_eq(
   $$select count(*) from public.extraction_usage$$,
   $$select count(*) from private.extraction_calls$$, 'one call record per counted photo');
 
--- Labels.
-
-select pg_temp.sign_in('a');
-select is(public.admin_set_prompt_label('test', pg_temp.id('second')), false, 'labelling the version a label names changes nothing');
-select ok(public.admin_set_prompt_label('active', pg_temp.id('second')), 'activating the test version makes it active');
-reset role;
-select results_eq($$select label, version_id from private.prompt_labels$$,
-  $$values ('active', pg_temp.id('second'))$$, 'and clears the test label, so admins follow the active one');
-select pg_temp.sign_in('a');
-select ok(public.admin_set_prompt_label('active', 1), 'activating an earlier version rolls back to it');
-select is(public.admin_clear_test_prompt(), false, 'clearing no test version changes nothing');
-select ok(public.admin_set_prompt_label('test', pg_temp.id('longest')), 'version 3 becomes the test version');
-select ok(public.admin_clear_test_prompt(), 'and the test label is cleared');
-select throws_ok($$select public.admin_set_prompt_label('canary', 1)$$, '22023', null,
-  'a label other than active or test is refused');
-select throws_ok($$select public.admin_set_prompt_label('active', -1)$$, '23503', null,
-  'and a version that does not exist');
-reset role;
-select results_eq(
-  $$select action, target_id, detail from private.admin_audit where action <> 'save_prompt' order by id$$,
-  $$values ('test_prompt', pg_temp.id('second')::text, '{"previous": null, "test_cleared": false}'::jsonb),
-           ('activate_prompt', pg_temp.id('second')::text, '{"previous": 1, "test_cleared": true}'::jsonb),
-           ('activate_prompt', '1', jsonb_build_object('previous', pg_temp.id('second'), 'test_cleared', false)),
-           ('test_prompt', pg_temp.id('longest')::text, '{"previous": null, "test_cleared": false}'::jsonb),
-           ('clear_test_prompt', pg_temp.id('longest')::text, '{}'::jsonb)$$,
-  'each label change is recorded once with the version before, and a no-op not at all');
-
 -- Reads.
 
 select pg_temp.sign_in('a');
 select results_eq(
   $$select id, note, labels from public.admin_prompt_versions()$$,
   $$values (pg_temp.id('by_c'), '', '{}'::text[]), (pg_temp.id('longest'), 'longest', '{}'::text[]),
-           (pg_temp.id('second'), 'shorter', '{}'::text[]),
-           (2::bigint, 'prompt v9 (#261, #266), PM eval 2026-10-19: dense 89.3/90.5', '{}'::text[]),
+           (pg_temp.id('second'), 'shorter', '{test}'::text[]),
+           (2::bigint, 'prompt v9 (#261, #266), PM eval 2026-10-19: dense 89.3/90.5', '{active}'::text[]),
            (1::bigint, 'prompt v8', '{active}'::text[])$$,
-  'the versions list newest first, each with the labels naming it');
+  'the versions list newest first, each with the labels of the configurations sending it');
 select results_eq(
-  $$select id, text, created_by_email, active_id, active_text = (select v.text from public.admin_prompt_version(1) as v)
-    from public.admin_prompt_version(pg_temp.id('second'))$$,
-  $$values (pg_temp.id('second'), 'Second prompt.', 'admin@example.com', 1::bigint, true)$$,
-  'a version reads with its text and author, and the active version''s text for the diff');
+  $$select id, text, created_by_email, labels from public.admin_prompt_version(pg_temp.id('second'))$$,
+  $$values (pg_temp.id('second'), 'Second prompt.', 'admin@example.com', '{test}'::text[])$$,
+  'a version reads with its text, author and labels');
 reset role;
 select set_config('role', 'service_role', true);
 select results_eq($$select text, note from public.prompt_version(pg_temp.id('second'))$$,

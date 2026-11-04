@@ -1,6 +1,7 @@
 /**
- * The admin area's AI settings (ADR 0162): saving a provider's key, or a plan's provider and model
- * as its draft, each only after one real call with them parsed under the output contract.
+ * The admin area's AI settings (ADR 0162, ADR 0182): saving a provider's key, or a plan's provider,
+ * model and prompt version as its one draft, each only after one real call with the provider and
+ * model parsed under the output contract.
  */
 
 import {
@@ -179,9 +180,17 @@ export async function saveKey(
   return { kind: "saved" };
 }
 
+/** A prompt version's id as a request names it: a whole number from 1, as the database numbers them. */
+function versionId(value: unknown): number | null {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+    ? value
+    : null;
+}
+
 /**
- * `POST settings/configuration` with `{plan, provider, model}`: an admin saves them as the plan's
- * draft, served to admins, after the check call with the provider's key in use parsed.
+ * `POST settings/configuration` with `{plan, provider, model, prompt_version_id?}`: an admin saves
+ * them as the plan's one draft, served to admins, after the check call with the provider's key in
+ * use parsed. Without a prompt version the draft keeps the one it had, or else the active one's.
  */
 export async function saveDraft(
   request: Request,
@@ -192,7 +201,9 @@ export async function saveDraft(
   const value = await body(request);
   const chosen = value === null ? null : target(value);
   const plan = parsePlan(value?.plan);
-  if (chosen === null || plan === null) {
+  const named = value?.prompt_version_id;
+  const prompt = named === undefined ? undefined : versionId(named);
+  if (chosen === null || plan === null || prompt === null) {
     return { kind: "bad_request" };
   }
   const key = await deps.keys.get(chosen.provider);
@@ -207,8 +218,10 @@ export async function saveDraft(
     plan,
     chosen.provider,
     chosen.model,
+    prompt,
     deps.supabase,
   );
+  if (configurationId === null) return { kind: "bad_request" };
   return { kind: "saved", configurationId };
 }
 

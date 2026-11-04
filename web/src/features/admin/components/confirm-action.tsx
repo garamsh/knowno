@@ -16,17 +16,27 @@ export function ConfirmAction({
   confirmLabel,
   action,
   compact = false,
+  primary,
   disabled = false,
 }: {
   label: string;
   question: string;
   confirmLabel: string;
   action: () => Promise<ActionResult>;
-  /** Whether it sits in a row or a card, drawn as [button.row]. */
-  compact?: boolean;
   /** Whether there is nothing for it to do, so it cannot be pressed. */
   disabled?: boolean;
-}) {
+} & (
+  | {
+      /** Whether it sits in a row or a card, drawn as [button.row]. */
+      compact?: boolean;
+      primary?: never;
+    }
+  | {
+      /** Whether it is the page's one primary, drawn as [button.primary]. */
+      primary: true;
+      compact?: never;
+    }
+)) {
   const [confirming, setConfirming] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -80,7 +90,7 @@ export function ConfirmAction({
             setMessage(null);
             setConfirming(true);
           }}
-          className={compact ? button.row : button.secondary}
+          className={primary ? button.primary : compact ? button.row : button.secondary}
         >
           {label}
         </button>

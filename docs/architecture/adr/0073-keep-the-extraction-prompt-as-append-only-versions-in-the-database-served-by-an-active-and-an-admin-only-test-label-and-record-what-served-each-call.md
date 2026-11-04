@@ -1,6 +1,6 @@
 # ADR 0073: Keep the extraction prompt as append-only versions in the database, served by an active and an admin-only test label, and record what served each call
 
-> Status: accepted; its `start_extraction` and `consume_extraction` kept beside `begin_extraction` superseded by ADR-0078; its invalid output saving no card, for a reply some of whose cards keep every rule, superseded by ADR-0124; its 프롬프트 page as a section of its own superseded by ADR-0155; its trial counted against the admin's daily limit superseded by ADR-0157
+> Status: accepted; its `start_extraction` and `consume_extraction` kept beside `begin_extraction` superseded by ADR-0078; its invalid output saving no card, for a reply some of whose cards keep every rule, superseded by ADR-0124; its 프롬프트 page as a section of its own superseded by ADR-0155; its trial counted against the admin's daily limit superseded by ADR-0157; its global active and test labels, the functions that set them, `admin_prompt_version`'s active text and its trial served the test version superseded by ADR-0182
 > Date: 2026-10-19
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

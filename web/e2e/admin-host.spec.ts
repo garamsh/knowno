@@ -429,8 +429,6 @@ test.describe("signed in", () => {
       ["/", "처리할 일", "admin-todo"],
       [`/decks?q=${tag}`, "노트", "admin-notes"],
       ["/decks?view=public", "노트", "admin-notes-public"],
-      ["/ai", "AI", "admin-ai"],
-      ["/settings/ai", "AI", "admin-ai-settings"],
       ["/plans", "요금제", "admin-plans"],
       ["/admins", "관리자", "admin-admins"],
     ] as const) {
@@ -478,6 +476,51 @@ test.describe("signed in", () => {
     await page.goBack();
     await expect(page).toHaveURL(notes);
     await expect(more).toBeHidden();
+    await context.close();
+  });
+
+  test("an admin opens AI on the plan with a draft, its prompt's lines against the active one's, and every edge whole", async ({
+    browser,
+    baseURL,
+  }) => {
+    const { admin } = hostsOf(baseURL);
+    const context = await browser.newContext();
+    const { userId } = await signUp(context, [admin], "ai");
+    makeAdmin(userId);
+    // Pro's draft: its active provider and model with a new prompt version, one line longer.
+    runSql(`with version as (
+        insert into private.prompt_versions (text, note)
+        select text || E'\\nName each rule once.', 'w650 e2e' from private.prompt_versions
+        order by id desc limit 1
+        returning id
+      ), draft as (
+        insert into private.ai_configurations (plan, provider, model, prompt_version_id)
+        select 'pro', c.provider, c.model, version.id
+        from version, private.ai_configuration_labels as l
+        join private.ai_configurations as c on c.id = l.configuration_id
+        where l.plan = 'pro' and l.label = 'active'
+        returning id
+      )
+      insert into private.ai_configuration_labels (plan, label, configuration_id)
+      select 'pro', 'test', id from draft
+      on conflict (plan, label) do update set configuration_id = excluded.configuration_id`);
+    const page = await context.newPage();
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    await page.goto(`${admin}/ai`);
+    await expect(page.getByRole("heading", { level: 1, name: "AI", exact: true })).toBeVisible();
+    const panel = page.getByRole("region", {
+      name: "프로 · 초안 (관리자만 테스트 중)",
+      exact: true,
+    });
+    await expect(panel.getByRole("button", { name: "모두에게 적용", exact: true })).toBeVisible();
+    await panel.getByText(/^프롬프트 v\d+ → v\d+ 다른 점$/).click();
+    await expect(
+      panel.getByRole("listitem").filter({ hasText: "더함: Name each rule once." }),
+    ).toBeVisible();
+    await capture(page, "admin-ai");
+    // From 1024 px the rate and draft chips are centred, the cost at the end, under their headers.
+    await expectAligned(page, "요금제별 사용 중인 구성", { centre: [5, 6], end: [4] });
     await context.close();
   });
 

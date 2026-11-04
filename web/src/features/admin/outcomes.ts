@@ -1,24 +1,3 @@
-/** How an extraction ended, as `extract-cards` records it (ADR 0130). */
-export type Outcome = "ok" | "no_cards" | "invalid_output" | "model_error";
-
-/** How one model call of an extraction failed. */
-export type CallFailure = "invalid_output" | "model_error" | "timeout";
-
-/** One recorded extraction, its result null when none was recorded. */
-export type ExtractionCall = {
-  usageId: number;
-  at: number;
-  plan: string;
-  result: {
-    outcome: Outcome;
-    attempts: 1 | 2;
-    latencyMs: number;
-    cardsReturned: number;
-    cardsDropped: number;
-    failures: CallFailure[];
-  } | null;
-};
-
 /** The counts of one UTC day's calls served by one prompt version, as the server groups them. */
 export type OutcomeCounts = {
   /** The calls with an outcome. */
@@ -47,26 +26,6 @@ export type OutcomeSummary = {
 
 /** How many days a version's results cover. */
 export const outcomeDays = 30;
-
-/** The words for each outcome. */
-export const outcomeWords: Record<Outcome, string> = {
-  ok: "성공",
-  no_cards: "카드 없음",
-  invalid_output: "형식 오류",
-  model_error: "모델 오류",
-};
-
-/** The words for each way a call fails. */
-export const failureWords: Record<CallFailure, string> = {
-  invalid_output: "형식 오류",
-  model_error: "모델 오류",
-  timeout: "시간 초과",
-};
-
-/** Whether [outcome] is a failure: the photo was answered with no cards for a reason of the model's. */
-export function failed(outcome: Outcome): boolean {
-  return outcome === "invalid_output" || outcome === "model_error";
-}
 
 const none: OutcomeCounts = {
   calls: 0,
@@ -98,16 +57,6 @@ export const failureAlarm = 0.05;
 /** [rate] as a percent with one decimal, as "3.2%". */
 export function percent(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;
-}
-
-/** The counts under a version's rate: its calls and each way they ended without cards. */
-export function countsLine(counts: OutcomeCounts): string {
-  return [
-    `추출 ${counts.calls.toLocaleString("ko-KR")}건`,
-    `카드 없음 ${String(counts.noCards)}`,
-    `형식 오류 ${String(counts.invalidOutput)}`,
-    `모델 오류 ${String(counts.modelError)}`,
-  ].join(" · ");
 }
 
 /** The share of [counts]' recorded calls that failed, or null when none was recorded. */

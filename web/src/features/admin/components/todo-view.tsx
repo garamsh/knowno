@@ -3,8 +3,9 @@ import Link from "next/link";
 import { Chip } from "@/design/chip";
 
 import { usd } from "../format";
+import { planLabels } from "../labels";
 import { failureAlarm, failureRate, type OutcomeCounts, percent } from "../outcomes";
-import type { OpenReports, PromptLabelSet, WeekActivity, WeekPair } from "../read-admin";
+import type { OpenReports, PlanId, WeekActivity, WeekPair } from "../read-admin";
 import type { WeekUsage } from "../usage";
 import { Section } from "@/design/section";
 import { button, card, group } from "./admin-section";
@@ -87,15 +88,15 @@ function WeekRow({
 export function TodoView({
   reports,
   failures,
-  test,
+  drafts,
   week,
   usage,
 }: {
   reports: OpenReports;
   /** The last 7 UTC days' recorded extractions. */
   failures: OutcomeCounts;
-  /** The version under test, or null while none is. */
-  test: PromptLabelSet | null;
+  /** The plans with a draft under test, in the plans' order. */
+  drafts: PlanId[];
   week: WeekActivity;
   usage: WeekUsage;
 }) {
@@ -126,19 +127,19 @@ export function TodoView({
           }
           action={{ href: "/ai", label: "자세히" }}
         />
-        {test === null ? (
+        {drafts[0] === undefined ? (
           <TodoCard
-            label="테스트 중인 프롬프트"
+            label="테스트 중인 초안"
             figure="없음"
-            line="관리자만 쓰는 버전이 없어요."
-            action={{ href: "/ai", label: "사진 AI 보기" }}
+            line="관리자만 쓰는 초안이 없어요."
+            action={{ href: "/ai", label: "AI 보기" }}
           />
         ) : (
           <TodoCard
-            label="테스트 중인 프롬프트"
-            figure={`버전 ${String(test.versionId)}`}
-            line={`관리자만 쓰는 중 · ${String(test.daysSince + 1)}일째`}
-            action={{ href: `/ai/${String(test.versionId)}`, label: "적용 또는 끝내기" }}
+            label="테스트 중인 초안"
+            figure={drafts.map((plan) => planLabels[plan] ?? plan).join(" · ")}
+            line="관리자만 쓰는 중이에요. 시험한 뒤 적용하거나 끝내요."
+            action={{ href: `/ai?plan=${drafts[0]}`, label: "적용 또는 끝내기" }}
           />
         )}
       </div>

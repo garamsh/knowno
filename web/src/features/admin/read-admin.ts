@@ -9,7 +9,7 @@ import { field, parseTime } from "@/supabase/row";
 import { createClient } from "@/supabase/server";
 import { readUserId } from "@/supabase/session";
 
-import { type CallFailure, type ExtractionCall, type Outcome, type OutcomeDay } from "./outcomes";
+import { type OutcomeDay } from "./outcomes";
 import type { BreakdownRow } from "./usage";
 
 /** Why an admin read failed: the server's failure, `rejected` for a caller who is not an admin, or a row this version cannot read. */
@@ -50,9 +50,6 @@ export type WeekPair = { current: number; previous: number };
 
 /** The last 7 study days against the 7 before: new users, and the daily average who studied. */
 export type WeekActivity = { newUsers: WeekPair; studiedDaily: WeekPair };
-
-/** A prompt label that is set, its version, and the whole days since it was set. */
-export type PromptLabelSet = { label: PromptLabel; versionId: number; daysSince: number };
 
 export type PublicDeck = {
   id: string;
@@ -477,13 +474,17 @@ export type ProviderKey = {
   inUse: boolean;
 };
 
-/** A plan's labelled configuration: its active one, or its draft served to admins ('test'). */
+/**
+ * A plan's labelled configuration, its provider, model and prompt version: its active one, or its
+ * draft served to admins ('test').
+ */
 export type AiConfiguration = {
   plan: PlanId;
   label: "active" | "test";
   id: number;
   provider: Provider;
   model: string;
+  promptVersionId: number;
   createdAt: number;
   createdByEmail: string | null;
 };
@@ -513,12 +514,89 @@ export async function readAiConfigurations(): Promise<AdminRead<AiConfiguration[
     const id = count(field(row, "configuration_id"));
     const provider = parseProvider(field(row, "provider"));
     const model = text(field(row, "model"));
+    const promptVersionId = count(field(row, "prompt_version_id"));
     const createdAt = parseTime(field(row, "created_at"));
     const createdBy = field(row, "created_by_email");
     if (plan === null || id === null || provider === null || model === null) return null;
     if ((label !== "active" && label !== "test") || createdAt === null) return null;
+    if (promptVersionId === null) return null;
     if (createdBy !== null && typeof createdBy !== "string") return null;
-    return { plan, label, id, provider, model, createdAt, createdByEmail: createdBy };
+    return {
+      plan,
+      label,
+      id,
+      provider,
+      model,
+      promptVersionId,
+      createdAt,
+      createdByEmail: createdBy,
+    };
+  });
+}
+
+/**
+ * The recorded photos one provider, model and prompt version served over some UTC days, whichever
+ * plan: the calls with an outcome, each way they ended, the share that failed, null with none, and
+ * the calls without an outcome.
+ */
+export type ConfigurationResult = {
+  provider: Provider;
+  model: string;
+  promptVersionId: number;
+  calls: number;
+  ok: number;
+  noCards: number;
+  invalidOutput: number;
+  modelError: number;
+  failureRate: number | null;
+  unrecorded: number;
+};
+
+/** Each provider, model and prompt version's results over the last [days] UTC days. */
+export async function readConfigurationResults(
+  days: number,
+): Promise<AdminRead<ConfigurationResult[]>> {
+  return parsed(await call("admin_configuration_results", { days }), (row) => {
+    const provider = parseProvider(field(row, "provider"));
+    const model = text(field(row, "model"));
+    const promptVersionId = count(field(row, "prompt_version_id"));
+    const [calls, ok, noCards, invalidOutput, modelError, unrecorded] = [
+      "calls",
+      "ok",
+      "no_cards",
+      "invalid_output",
+      "model_error",
+      "unrecorded",
+    ].map((key) => count(field(row, key)));
+    const value = field(row, "failure_rate");
+    const rate = value === null || typeof value === "number" ? value : undefined;
+    if (provider === null || model === null || promptVersionId === null) return null;
+    if (
+      calls == null ||
+      ok == null ||
+      noCards == null ||
+      invalidOutput == null ||
+      modelError == null ||
+      unrecorded == null
+    ) {
+      return null;
+    }
+    // The rate is null exactly when no call has an outcome.
+    if (rate === undefined || (rate === null ? calls !== 0 : calls === 0 || rate < 0 || rate > 1)) {
+      return null;
+    }
+    return {
+      provider,
+      model,
+      promptVersionId,
+      calls,
+      ok,
+      noCards,
+      invalidOutput,
+      modelError,
+      failureRate: rate,
+      unrecorded,
+    };
   });
 }
 
@@ -682,53 +760,6 @@ export async function readExtractionBreakdown(days: number): Promise<AdminRead<B
   });
 }
 
-/** How many recorded extractions a page of a version's calls lists. */
-export const extractionPageSize = 50;
-
-/**
- * The extractions prompt version [versionId] served, newest first, a page of them before the usage
- * id [before], or the newest page when it is null. The user each served is not read.
- */
-export async function readVersionCalls(
-  versionId: number,
-  before: number | null,
-): Promise<AdminRead<ExtractionCall[]>> {
-  return parsed(
-    await call("admin_version_calls", {
-      version_id: versionId,
-      before,
-      page_size: extractionPageSize,
-    }),
-    (row) => {
-      const usageId = count(field(row, "usage_id"));
-      const at = parseTime(field(row, "created_at"));
-      const plan = text(field(row, "plan"));
-      if (usageId === null || at === null || plan === null) return null;
-      const outcome = field(row, "outcome");
-      const attempts = field(row, "attempts");
-      const latencyMs = count(field(row, "latency_ms"));
-      const cardsReturned = count(field(row, "cards_returned"));
-      const cardsDropped = count(field(row, "cards_dropped"));
-      const failures = callFailures(field(row, "failures"));
-      // The outcome's columns are null together, for a call without an outcome.
-      if (outcome === null) {
-        const rest = [attempts, latencyMs, cardsReturned, cardsDropped, failures];
-        return rest.every((value) => value === null) ? { usageId, at, plan, result: null } : null;
-      }
-      if (!isOutcome(outcome) || (attempts !== 1 && attempts !== 2)) return null;
-      if (latencyMs === null || cardsReturned === null || cardsDropped === null || !failures) {
-        return null;
-      }
-      return {
-        usageId,
-        at,
-        plan,
-        result: { outcome, attempts, latencyMs, cardsReturned, cardsDropped, failures },
-      };
-    },
-  );
-}
-
 /** Each UTC day's recorded extractions over the last [days] days, by prompt version. */
 export async function readExtractionOutcomes(days: number): Promise<AdminRead<OutcomeDay[]>> {
   return parsed(await call("admin_extraction_failures", { days }), (row) => {
@@ -774,24 +805,10 @@ export async function readExtractionOutcomes(days: number): Promise<AdminRead<Ou
   });
 }
 
-function isOutcome(value: unknown): value is Outcome {
-  return (
-    value === "ok" || value === "no_cards" || value === "invalid_output" || value === "model_error"
-  );
-}
-
-function callFailures(value: unknown): CallFailure[] | null {
-  const list = strings(value);
-  if (list === null) return null;
-  const kinds: CallFailure[] = [];
-  for (const kind of list) {
-    if (kind !== "invalid_output" && kind !== "model_error" && kind !== "timeout") return null;
-    kinds.push(kind);
-  }
-  return kinds;
-}
-
-/** A prompt label: `active` serves every user, `test` the admins (ADR 0073). */
+/**
+ * A version's label: `active` while some plan's active configuration sends it, `test` while some
+ * plan's draft does.
+ */
 export type PromptLabel = "active" | "test";
 
 /** A saved prompt version, as the prompts page lists it. */
@@ -804,11 +821,8 @@ export type PromptVersion = {
   labels: PromptLabel[];
 };
 
-/** One version with its text, and the active version's beside it for the diff. */
-export type PromptDetail = PromptVersion & {
-  text: string;
-  active: { id: number; text: string } | null;
-};
+/** One version with its text. */
+export type PromptDetail = PromptVersion & { text: string };
 
 /** Every saved prompt version, newest first. */
 export async function readPromptVersions(): Promise<AdminRead<PromptVersion[]>> {
@@ -817,36 +831,16 @@ export async function readPromptVersions(): Promise<AdminRead<PromptVersion[]>> 
   );
 }
 
-/** Version [id] with its text and the active version's, or null when there is no such version. */
+/** Version [id] with its text, or null when there is no such version. */
 export async function readPromptVersion(id: number): Promise<AdminRead<PromptDetail | null>> {
   const read = parsed(await call("admin_prompt_version", { version_id: id }), (row) => {
     const text = field(row, "text");
     if (typeof text !== "string") return null;
     const version = parsePromptVersion(row, text.length);
-    const activeId = field(row, "active_id");
-    const activeText = field(row, "active_text");
-    if (version === null) return null;
-    // Both are null together while no version is active.
-    if (activeId === null && activeText === null) return { ...version, text, active: null };
-    const active = count(activeId);
-    if (active === null || typeof activeText !== "string") return null;
-    return { ...version, text, active: { id: active, text: activeText } };
+    return version === null ? null : { ...version, text };
   });
   if ("failure" in read) return read;
   return { data: read.data[0] ?? null };
-}
-
-/** Each prompt label that is set, with its version and when it was set. */
-export async function readPromptLabels(): Promise<AdminRead<PromptLabelSet[]>> {
-  return parsed(await call("admin_prompt_labels"), (row) => {
-    const label = field(row, "label");
-    const versionId = count(field(row, "version_id"));
-    const setAt = parseTime(field(row, "set_at"));
-    if ((label !== "active" && label !== "test") || versionId === null || setAt === null) {
-      return null;
-    }
-    return { label, versionId, daysSince: wholeDaysSince(setAt) };
-  });
 }
 
 function parsePromptVersion(row: unknown, length: number | null): PromptVersion | null {

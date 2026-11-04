@@ -9,25 +9,23 @@ import {
   type AdminFailure,
   AdminList,
   adminTimeZone,
-  AiSettingsView,
   AiView,
   AuditLog,
   DeckView,
-  extractionPageSize,
   GrantAdminForm,
   NoteList,
   type NoteView,
-  outcomeDays,
   listUsers,
   parsePlanFilter,
+  parsePlanId,
+  parseProvider,
   parseStatusFilter,
   parseUserId,
   type PlanId,
   PlansView,
-  PromptForm,
-  PromptView,
   readAdmins,
   readAuditLog,
+  readConfigurationResults,
   readDeck,
   readExtractionBreakdown,
   readExtractionOutcomes,
@@ -36,11 +34,9 @@ import {
   readOpenReports,
   readPlanVersions,
   readProviderKeys,
-  readPromptLabels,
   readPromptVersion,
   readPromptVersions,
   readUser,
-  readVersionCalls,
   readWeekActivity,
   summarizeOutcomes,
   summarizeWeeks,
@@ -81,7 +77,7 @@ function userListAddress(params: Record<string, string | string[] | undefined>):
   };
 }
 
-/** A version's or an extraction's id in an address: digits only, as the server numbers them. */
+/** A prompt version's id in an address: digits only, as the server numbers them. */
 function versionId(value: string | string[] | undefined): number | null {
   return typeof value === "string" && /^[1-9]\d{0,15}$/.test(value) ? Number(value) : null;
 }
@@ -92,17 +88,15 @@ function utcToday(): string {
 }
 
 export async function TodoContent() {
-  const [reports, failures, labels, week, breakdown, configurations] = await Promise.all([
+  const [reports, failures, week, breakdown, configurations] = await Promise.all([
     readOpenReports(),
     readExtractionOutcomes(7),
-    readPromptLabels(),
     readWeekActivity(),
     readExtractionBreakdown(weekUsageDays),
     readAiConfigurations(),
   ]);
   if ("failure" in reports) return <AdminFailureMessage failure={reports.failure} />;
   if ("failure" in failures) return <AdminFailureMessage failure={failures.failure} />;
-  if ("failure" in labels) return <AdminFailureMessage failure={labels.failure} />;
   if ("failure" in week) return <AdminFailureMessage failure={week.failure} />;
   if ("failure" in breakdown) return <AdminFailureMessage failure={breakdown.failure} />;
   if ("failure" in configurations) {
@@ -116,7 +110,7 @@ export async function TodoContent() {
     <TodoView
       reports={reports.data}
       failures={summarizeOutcomes(failures.data, today, 7).total}
-      test={labels.data.find((label) => label.label === "test") ?? null}
+      drafts={configurations.data.filter((c) => c.label === "test").map((c) => c.plan)}
       week={week.data}
       usage={summarizeWeeks(breakdown.data, today, free)}
     />
@@ -266,74 +260,65 @@ export async function UserContent({ params }: { params: Promise<{ id: string }> 
   return <UserView user={read.data} timeZone={timeZone} />;
 }
 
-export async function AiContent() {
-  const [versions, outcomes] = await Promise.all([
+/**
+ * AI: each plan's configuration, the panel of the plan the address names, or else of the first plan
+ * with a draft, or else Free's, the keys, the prompt versions and the results; with `write` in the
+ * address, the new version's form, from the version it names or else the plan's active one.
+ */
+export async function AiContent({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const [configurations, versions, week, month, keys, timeZone] = await Promise.all([
+    readAiConfigurations(),
     readPromptVersions(),
-    readExtractionOutcomes(outcomeDays),
-  ]);
-  if ("failure" in versions) return <AdminFailureMessage failure={versions.failure} />;
-  if ("failure" in outcomes) return <AdminFailureMessage failure={outcomes.failure} />;
-  const today = utcToday();
-  const byVersion = (span: number) =>
-    new Map(
-      summarizeOutcomes(outcomes.data, today, span).versions.map(({ version, counts }) => [
-        version,
-        counts,
-      ]),
-    );
-  return <AiView versions={versions.data} week={byVersion(7)} month={byVersion(outcomeDays)} />;
-}
-
-export async function NewPromptContent({ searchParams }: { searchParams: SearchParams }) {
-  const [read, from] = await Promise.all([
-    readPromptVersions(),
-    searchParams.then((params) => versionId(params.from)),
-  ]);
-  if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
-  const active = read.data.find((version) => version.labels.includes("active"));
-  // The form starts from the version the address names, or else the active one.
-  const basis = from ?? active?.id ?? null;
-  const start = basis === null ? null : await readPromptVersion(basis);
-  if (start !== null && "failure" in start) return <AdminFailureMessage failure={start.failure} />;
-  return (
-    <PromptForm
-      key={basis}
-      initialText={start?.data?.text ?? ""}
-      basis={start?.data ? `버전 ${String(start.data.id)}` : "빈 프롬프트"}
-    />
-  );
-}
-
-export async function PromptContent({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: SearchParams;
-}) {
-  const id = versionId((await params).id);
-  if (id === null) notFound();
-  const before = versionId((await searchParams).before);
-  const [read, outcomes, calls, timeZone] = await Promise.all([
-    readPromptVersion(id),
-    readExtractionOutcomes(outcomeDays),
-    readVersionCalls(id, before),
+    readConfigurationResults(7),
+    readConfigurationResults(30),
+    readProviderKeys(),
     adminTimeZone(),
   ]);
-  if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
-  if (read.data === null) notFound();
-  if ("failure" in outcomes) return <AdminFailureMessage failure={outcomes.failure} />;
-  if ("failure" in calls) return <AdminFailureMessage failure={calls.failure} />;
+  const failed = (failure: AdminFailure) => <AdminFailureMessage failure={failure} />;
+  if ("failure" in configurations) return failed(configurations.failure);
+  if ("failure" in versions) return failed(versions.failure);
+  if ("failure" in week) return failed(week.failure);
+  if ("failure" in month) return failed(month.failure);
+  if ("failure" in keys) return failed(keys.failure);
+  // The server lists the configurations in the plans' order, so the first draft is the first plan's.
+  const plan =
+    parsePlanId(params.plan) ?? configurations.data.find((c) => c.label === "test")?.plan ?? "free";
+  const active = configurations.data.find((c) => c.plan === plan && c.label === "active");
+  const draft = configurations.data.find((c) => c.plan === plan && c.label === "test");
+  const compared =
+    active !== undefined && draft !== undefined && active.promptVersionId !== draft.promptVersionId;
+  // The form starts from the version the address names, or else the plan's active one.
+  const basis =
+    typeof params.write === "string" ? (versionId(params.write) ?? active?.promptVersionId) : null;
+  const [before, after, start] = await Promise.all([
+    compared ? readPromptVersion(active.promptVersionId) : null,
+    compared ? readPromptVersion(draft.promptVersionId) : null,
+    basis == null ? null : readPromptVersion(basis),
+  ]);
+  for (const read of [before, after, start]) {
+    if (read !== null && "failure" in read) return failed(read.failure);
+  }
+  const text = (read: typeof before) => (read === null || "failure" in read ? null : read.data);
+  const [from, to, written] = [text(before), text(after), text(start)];
   return (
-    <PromptView
-      version={read.data}
-      results={summarizeOutcomes(
-        outcomes.data.filter((row) => row.promptVersion === id),
-        utcToday(),
-      )}
-      calls={calls.data}
-      before={before}
-      more={calls.data.length === extractionPageSize}
+    <AiView
+      configurations={configurations.data}
+      versions={versions.data}
+      week={week.data}
+      month={month.data}
+      keys={keys.data}
+      plan={plan}
+      diff={from !== null && to !== null ? { before: from.text, after: to.text } : null}
+      editing={parseProvider(params.key)}
+      write={
+        typeof params.write === "string"
+          ? {
+              text: written?.text ?? "",
+              basis: written === null ? "빈 프롬프트" : `버전 ${String(written.id)}`,
+            }
+          : null
+      }
       timeZone={timeZone}
     />
   );
@@ -374,34 +359,6 @@ export async function PlansContent() {
       versions={read.data}
       configurations={configurations.data}
       members={members}
-      timeZone={timeZone}
-    />
-  );
-}
-
-export async function AiSettingsContent() {
-  const [keys, configurations, labels, timeZone] = await Promise.all([
-    readProviderKeys(),
-    readAiConfigurations(),
-    readPromptLabels(),
-    adminTimeZone(),
-  ]);
-  const failed = (failure: AdminFailure) => <AdminFailureMessage failure={failure} />;
-  if ("failure" in keys) return failed(keys.failure);
-  if ("failure" in configurations) return failed(configurations.failure);
-  if ("failure" in labels) return failed(labels.failure);
-  // An admin's trial is served the test prompt while one is set (ADR 0073).
-  const test = labels.data.find((label) => label.label === "test");
-  const served = test ?? labels.data.find((label) => label.label === "active");
-  return (
-    <AiSettingsView
-      keys={keys.data}
-      configurations={configurations.data}
-      prompt={
-        served === undefined
-          ? "사용 중인 버전"
-          : `${test === undefined ? "사용 중" : "테스트"} 버전 ${String(served.versionId)}`
-      }
       timeZone={timeZone}
     />
   );

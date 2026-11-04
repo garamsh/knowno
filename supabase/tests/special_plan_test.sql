@@ -17,9 +17,9 @@ insert into private.plan_versions (plan, quota, amount, starts_at) values
   ('free', 'monthly', 1, date_trunc('month', now(), 'Asia/Seoul') - interval '40 days'),
   ('pro', 'daily', 1, date_trunc('month', now(), 'Asia/Seoul') - interval '40 days');
 with c as (
-  insert into private.ai_configurations (plan, provider, model) values
-    ('free', 'openrouter', 'vendor/free-model'), ('pro', 'openrouter', 'vendor/pro-model'),
-    ('special', 'openrouter', 'vendor/special-model')
+  insert into private.ai_configurations (plan, provider, model, prompt_version_id) values
+    ('free', 'openrouter', 'vendor/free-model', 1), ('pro', 'openrouter', 'vendor/pro-model', 1),
+    ('special', 'openrouter', 'vendor/special-model', 1)
   returning id, plan
 )
 insert into private.ai_configuration_labels (plan, label, configuration_id)

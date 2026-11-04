@@ -12,7 +12,7 @@ delete from private.plan_versions;
 insert into private.plan_versions (plan, quota, amount, starts_at) values
   ('free', 'daily', 30, now() - interval '60 days');
 with c as (
-  insert into private.ai_configurations (plan, provider, model) values ('free', 'openrouter', 'anthropic/claude-haiku-5.5')
+  insert into private.ai_configurations (plan, provider, model, prompt_version_id) values ('free', 'openrouter', 'anthropic/claude-haiku-5.5', 1)
   returning id, plan
 )
 insert into private.ai_configuration_labels (plan, label, configuration_id)
@@ -117,7 +117,7 @@ reset role;
 insert into private.plan_versions (plan, quota, amount, starts_at, applies_to_all) values
   ('free', 'daily', 31, now(), true);
 with c as (
-  insert into private.ai_configurations (plan, provider, model) values ('free', 'openrouter', 'anthropic/claude-haiku-5.5')
+  insert into private.ai_configurations (plan, provider, model, prompt_version_id) values ('free', 'openrouter', 'anthropic/claude-haiku-5.5', 1)
   returning id, plan
 )
 insert into private.ai_configuration_labels (plan, label, configuration_id)

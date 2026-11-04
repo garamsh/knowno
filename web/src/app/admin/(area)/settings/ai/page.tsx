@@ -1,16 +1,6 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { AdminSkeleton } from "../../_components/admin-skeleton";
-import { AiSettingsContent } from "../../_components/content";
-
-/** 설정, AI 제공자: the providers' keys and each plan's provider and model (ADR 0162). */
+/** AI 제공자 is part of AI now (#650). The admin gate checks the role before this runs. */
 export default function Page() {
-  return (
-    <>
-      <h1 className="text-display">AI</h1>
-      <Suspense fallback={<AdminSkeleton />}>
-        <AiSettingsContent />
-      </Suspense>
-    </>
-  );
+  redirect("/ai");
 }

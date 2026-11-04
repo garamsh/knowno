@@ -41,9 +41,9 @@ with added as (
 ) insert into pg_temp.ids select plan || amount, id from added;
 -- Each plan's one model, its active configuration (ADR 0162), whichever version a user is on.
 with c as (
-  insert into private.ai_configurations (plan, provider, model) values
-    ('free', 'openrouter', 'vendor/free-model'), ('pro', 'openrouter', 'vendor/pro-model'),
-    ('max', 'openrouter', 'vendor/max-model')
+  insert into private.ai_configurations (plan, provider, model, prompt_version_id) values
+    ('free', 'openrouter', 'vendor/free-model', 1), ('pro', 'openrouter', 'vendor/pro-model', 1),
+    ('max', 'openrouter', 'vendor/max-model', 1)
   returning id, plan
 )
 insert into private.ai_configuration_labels (plan, label, configuration_id)

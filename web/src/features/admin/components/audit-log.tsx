@@ -28,10 +28,10 @@ function Target({ entry }: { entry: AuditEntry }) {
         ? `/users/${entry.targetId}`
         : entry.targetKind === "plan" && entry.action.endsWith("_plan_version")
           ? "/plans"
-          : entry.targetKind === "plan" || entry.targetKind === "provider"
-            ? "/settings/ai"
-            : entry.targetKind === "prompt"
-              ? `/ai/${entry.targetId}`
+          : entry.targetKind === "plan"
+            ? `/ai?${new URLSearchParams({ plan: entry.targetId }).toString()}`
+            : entry.targetKind === "provider" || entry.targetKind === "prompt"
+              ? "/ai"
               : null;
   return href === null ? (
     <span>{words}</span>

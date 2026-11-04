@@ -63,7 +63,7 @@ export function PlansView({
                 ? "구성 없음"
                 : `${labelOf(providerLabels, active.provider)} · ${active.model}`}{" "}
               <Link
-                href="/settings/ai"
+                href={`/ai?plan=${plan}`}
                 className="text-label whitespace-nowrap text-accent underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ink"
               >
                 AI에서 보기

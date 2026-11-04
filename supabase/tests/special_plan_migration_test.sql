@@ -19,8 +19,8 @@ select results_eq(
   'on the migrated state special is served the provider and model Max is');
 
 with c as (
-  insert into private.ai_configurations (plan, provider, model) values
-    ('free', 'openrouter', 'vendor/free-model'), ('max', 'anthropic', 'max-model')
+  insert into private.ai_configurations (plan, provider, model, prompt_version_id) values
+    ('free', 'openrouter', 'vendor/free-model', 1), ('max', 'anthropic', 'max-model', 1)
   returning id, plan
 )
 insert into private.ai_configuration_labels (plan, label, configuration_id)
