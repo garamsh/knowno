@@ -2,22 +2,12 @@ import { Mascot, type MascotExpression } from "@/design/brand";
 
 /**
  * The first run's layout: the one sentence [title] as a heading, under the mascot in its [mascot]
- * expression, as large as [size] says.
+ * expression at `mascot-medium`.
  */
-function FirstRun({
-  id,
-  title,
-  mascot,
-  size,
-}: {
-  id: string;
-  title: string;
-  mascot: MascotExpression;
-  size: "size-mascot-medium";
-}) {
+function FirstRun({ id, title, mascot }: { id: string; title: string; mascot: MascotExpression }) {
   return (
     <section aria-labelledby={id} className="flex flex-col items-center gap-2 pt-10 text-center">
-      <Mascot expression={mascot} className={`mb-4 ${size}`} />
+      <Mascot expression={mascot} className="mb-4 size-mascot-medium" />
       <h2 id={id} className="text-body-strong break-keep">
         {title}
       </h2>
@@ -31,12 +21,5 @@ function FirstRun({
  * action.
  */
 export function EmptyDeck() {
-  return (
-    <FirstRun
-      id="empty-deck-title"
-      title="아직 카드가 없어요"
-      mascot="sleepy"
-      size="size-mascot-medium"
-    />
-  );
+  return <FirstRun id="empty-deck-title" title="아직 카드가 없어요" mascot="sleepy" />;
 }
