@@ -175,6 +175,8 @@
   --container-list: 560px;
   --container-study: 720px;
   --container-content: 1040px;
+  /* Both sign-in buttons: the widest Apple's script draws its button (appleid.auth.js 1.5.7). */
+  --container-sign-in: 375px;
 
   /* A skeleton's pulse, as the phone's skeleton rows fade: to 40% and back over 1.2 s. */
   --animate-skeleton: skeleton 1.2s ease-in-out infinite alternate;

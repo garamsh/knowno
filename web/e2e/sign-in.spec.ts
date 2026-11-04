@@ -167,6 +167,49 @@ test.describe("signed out", () => {
     }
   });
 
+  test("Google's and Apple's buttons are one width, centred, on both hosts' /login at 390 and 1280", async ({
+    page,
+    baseURL,
+  }) => {
+    // Apple's script is substituted, so the run needs no Apple CDN: like the real one, it draws a
+    // button filling the wrapper up to 375 px (appleid.auth.js 1.5.7's cap).
+    await page.route("https://appleid.cdn-apple.com/**", (route) =>
+      route.fulfill({
+        contentType: "application/javascript",
+        body: `window.AppleID = { auth: {
+          init() { window.AppleID.auth.renderButton(); },
+          renderButton() {
+            const wrapper = document.getElementById("appleid-signin");
+            if (wrapper) wrapper.innerHTML =
+              '<div role="button" aria-label="Apple로 로그인" style="width:100%;max-width:375px;height:100%"></div>';
+          },
+        } };`,
+      }),
+    );
+    const { port } = new URL(baseURL ?? "");
+    for (const origin of [`http://localhost:${port}`, `http://admin.localhost:${port}`]) {
+      for (const width of [390, 1280]) {
+        await page.setViewportSize({ width, height: 844 });
+        await page.goto(`${origin}/login`);
+        const apple = page.getByRole("button", { name: "Apple로 로그인", exact: true });
+        await expect(apple).toBeVisible();
+
+        const google = await page
+          .getByRole("button", { name: "Google로 로그인", exact: true })
+          .boundingBox();
+        const drawn = await apple.boundingBox();
+        expect({ origin, width, google: google?.width, x: google?.x }).toEqual({
+          origin,
+          width,
+          google: drawn?.width,
+          x: drawn?.x,
+        });
+        // Below 375 px plus the gutters both fill the column; above it both stop at 375.
+        expect(drawn?.width).toBe(Math.min(375, width - 40));
+      }
+    }
+  });
+
   test("/api/health answers 200 without a session", async ({ request }) => {
     const response = await request.get("/api/health");
 

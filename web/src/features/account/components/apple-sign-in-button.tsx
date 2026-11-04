@@ -151,11 +151,11 @@ export function AppleSignInButton() {
           setState("unavailable");
         }}
       />
-      {/* Apple's script caps the button it draws inside at 375 px wide; it is centred there. */}
+      {/* As wide as Google's button: the column, up to the widest Apple's script draws, centred. */}
       <div
         hidden={state === "unavailable"}
         aria-busy={state === "pending"}
-        className="aria-busy:pointer-events-none aria-busy:opacity-50"
+        className="w-full max-w-sign-in self-center aria-busy:pointer-events-none aria-busy:opacity-50"
       >
         <div
           id="appleid-signin"

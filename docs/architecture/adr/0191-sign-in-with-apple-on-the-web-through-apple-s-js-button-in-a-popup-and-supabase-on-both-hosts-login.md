@@ -22,7 +22,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 ## Decision
 
 - **Both hosts' `/login` offer Apple under Google.** knowno.app's and admin.knowno.app's sign-in draw Apple's button under Google's, in the same column.
-- **Apple's script draws the button.** The account feature loads Sign in with Apple JS from Apple's CDN through `next/script` on the two sign-in pages alone, in `ko_KR`, so the button reads "Apple로 로그인" as Google's reads "Google로 로그인". The button is `data-type="sign-in"` in `center-align`, black in the light theme and white in the dark with no border, drawn again when the theme changes; as tall as Google's 64 px, with Apple's percentage radius set to 24 px of it, the app's button radius; full width up to Apple's 375 px, centred under Google's where Google's is wider. Nothing of Apple's artwork is in the repository.
+- **Apple's script draws the button.** The account feature loads Sign in with Apple JS from Apple's CDN through `next/script` on the two sign-in pages alone, in `ko_KR`, so the button reads "Apple로 로그인" as Google's reads "Google로 로그인". The button is `data-type="sign-in"` in `center-align`, black in the light theme and white in the dark with no border, drawn again when the theme changes; as tall as Google's 64 px, with Apple's percentage radius set to 24 px of it, the app's button radius; and both buttons one width: the column's, up to the 375 px Apple's script draws its widest at (`--container-sign-in`), centred. Apple's Human Interface Guidelines, "Sign in with Apple", §Displaying buttons, make Apple's button "no smaller than other sign-in buttons", the rule ADR 0187 applied to height on the phone, so Google's button, which its branding guidelines let scale, stops at Apple's widest; the PM's review of PR #740 on 2026-11-04 decided it. Nothing of Apple's artwork is in the repository.
 - **A popup, a nonce per sign-in.** `AppleID.auth.init` gets the Services ID `app.knowno.web`, the scope `name email`, the return URL `<host>/login`, `usePopup: true`, and the SHA-256 as hex of a new raw nonce of 32 random bytes; a closed or cancelled popup draws a new one. On `AppleIDSignInOnSuccess` the identity token and the raw nonce go to `signInWithIdToken` with the Apple provider.
 - **The name Apple shares is stored once,** as the phone does: `full_name`, the given and family names joined by a space, with `given_name` and `family_name` through `updateUser`. A failure there is logged to the console and the user stays signed in.
 - **Outcomes reuse Google's.** A signed-in user opens `/` of the host signed in on. A popup closed, cancelled or replaced by another is quiet. Any other failure of Apple's, an answer without a token, or Supabase's refusal opens `/login?error=failed`, and `user_banned` `/login?error=suspended`, which `CallbackError` names as for Google. While Supabase signs in, the button cannot be pressed again. A script that cannot load hides the button.
@@ -35,10 +35,10 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - A preview deployment's origin, and `localhost`, are not registered, so Apple's popup refuses there; Apple's docs refuse `localhost` as a return URL's host.
 - The sign-in pages load a script from `appleid.cdn-apple.com`; a Content-Security-Policy added later must allow it and `appleid.apple.com`.
 - No Apple secret is configured for the web, so nothing expires every six months.
-- Apple's button keeps Apple's own label metrics and font, so its title is not Google Sans and its width stops at 375 px.
+- Apple's button keeps Apple's own label metrics and font, so its title is not Google Sans; Google's button stops at 375 px with it, narrower than the 560 px column it stood in alone.
 
 ## Signs the decision was wrong
 
 - Apple's popup is blocked by browsers often enough that users report the button doing nothing.
 - Apple changes the script's rendering so the button no longer matches Google's height or radius.
-- The owner finds the narrower Apple button under a wider Google button on a wide screen out of place.
+- Apple raises its script's 375 px cap, and the two buttons part again or Google's stays narrower than it needs to.
