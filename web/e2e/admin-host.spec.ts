@@ -390,15 +390,25 @@ test.describe("signed in", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(table).toBeHidden();
     await expect(panel).toBeVisible();
-    await panel.getByRole("link", { name: "목록으로", exact: true }).click();
+    await panel.getByRole("link", { name: "닫기", exact: true }).click();
     await expect(page).toHaveURL(`${admin}/users?q=${tag}-00&size=50`);
     await expect(table).toBeVisible();
     await page.setViewportSize({ width: 1280, height: 900 });
 
-    // The user's own page, its actions in one row (#637).
+    // A suspended user's panel ends on its suspension and 정지 해제.
+    const suspended = email(3);
+    await page.goto(`${admin}/users?q=${suspended}`);
+    await emails.first().click();
+    const suspendedPanel = page.getByRole("complementary", { name: suspended, exact: true });
+    await expect(
+      suspendedPanel.getByRole("button", { name: "정지 해제", exact: true }),
+    ).toBeVisible();
+    await capture(page, "admin-user-panel-suspended");
+
+    // The user's own page.
     await page.goto(`${admin}/users?q=${chosen}`);
     await emails.first().click();
-    await panel.getByRole("link", { name: "전체 화면으로", exact: true }).click();
+    await panel.getByRole("link", { name: "크게 보기", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: chosen, exact: true })).toBeVisible();
     await capture(page, "admin-user");
     await context.close();

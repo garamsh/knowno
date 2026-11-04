@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { buttonClass } from "@/design/button";
 
@@ -59,29 +59,44 @@ export const field =
 export const filter =
   "h-search min-w-0 rounded-field border border-outline bg-surface px-3 text-label text-ink focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ink";
 
+/** A fact: its term, its value, and a [detail] on a smaller muted line under the value. */
+export type Fact = readonly [term: string, value: string, detail?: string];
+
 /**
- * A set of facts, each a term and its value on one row of a [group]; a value's parts between " · "
- * are each kept whole, so a model's id or a date wraps as one.
+ * A set of facts, each a term in `ink-2` and its value in `ink`, one weight for each, on one row of
+ * a [group]; a value's parts between " · " are each kept whole, so a model's id or a date wraps as
+ * one. [children], rows that act on the facts, end the group.
  */
-export function Facts({ facts }: { facts: readonly (readonly [string, string])[] }) {
+export function Facts({ facts, children }: { facts: readonly Fact[]; children?: ReactNode }) {
   return (
-    <dl className={group}>
-      {facts.map(([term, value]) => (
-        <div key={term} className="flex items-baseline justify-between gap-3 px-4 py-3">
-          <dt className="shrink-0 text-body text-ink-2">{term}</dt>
-          <dd className="min-w-0 text-right text-body-strong tabular-nums">
-            {value.split(" · ").map((part, index) => (
-              <Fragment key={index}>
-                {index > 0 && " · "}
-                <span className={whole}>{part}</span>
-              </Fragment>
-            ))}
-          </dd>
-        </div>
-      ))}
-    </dl>
+    <div className={group}>
+      <dl className="flex flex-col divide-y divide-hairline">
+        {facts.map(([term, value, detail]) => (
+          <div key={term} className="flex items-baseline justify-between gap-3 px-4 py-3">
+            <dt className="shrink-0 text-body text-ink-2">{term}</dt>
+            <dd className="flex min-w-0 flex-col items-end text-right text-body text-ink tabular-nums">
+              <span>
+                {value.split(" · ").map((part, index) => (
+                  <Fragment key={index}>
+                    {index > 0 && " · "}
+                    <span className={whole}>{part}</span>
+                  </Fragment>
+                ))}
+              </span>
+              {detail !== undefined && (
+                <span className={`${whole} text-caption text-muted`}>{detail}</span>
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {children}
+    </div>
   );
 }
+
+/** A row ending a [group] that opens a sheet: its label in `ink` and a chevron, pressed as one. */
+export const actionRow = `${linkRow} w-full text-left text-body text-ink`;
 
 /**
  * A part of a line kept whole, as a word is: it moves to the next line rather than break at a

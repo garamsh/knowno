@@ -1,24 +1,28 @@
 "use client";
 
+import { ChevronRight } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import { Sheet } from "@/design/sheet";
 
-import { button } from "./admin-section";
+import { actionRow, button } from "./admin-section";
 
 /**
  * A row's button, [label], or [icon] named by it, that opens [children] in the shared sheet under
- * [title], so a form or a menu shows only when asked for and the page under it does not move.
+ * [title], so a form or a menu shows only when asked for and the page under it does not move. As
+ * a [row] it is a row ending a group, with a chevron.
  */
 export function SheetButton({
   label,
   icon,
+  row = false,
   title,
   description,
   children,
 }: {
   label: string;
   icon?: ReactNode;
+  row?: boolean;
   title: string;
   description?: string;
   children: ReactNode;
@@ -32,9 +36,16 @@ export function SheetButton({
         onClick={() => {
           setOpen(true);
         }}
-        className={button.row}
+        className={row ? actionRow : button.row}
       >
-        {icon ?? label}
+        {row ? (
+          <>
+            {label}
+            <ChevronRight aria-hidden className="size-5 shrink-0 text-muted" />
+          </>
+        ) : (
+          (icon ?? label)
+        )}
       </button>
       {open && (
         <Sheet

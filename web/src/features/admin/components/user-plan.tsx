@@ -1,28 +1,32 @@
+import type { ReactNode } from "react";
+
 import { studyDayStart } from "@/features/study";
 
 import { formatDate, formatTime } from "../format";
 import { labelOf, planLabels, providerLabels, termsLabel } from "../labels";
 import type { UserPlan as Plan } from "../read-admin";
 import { Section } from "@/design/section";
-import { Facts } from "./admin-section";
+import { type Fact, Facts } from "./admin-section";
 
 /**
- * A user's plan now, the model serving it, the grant behind it and the next renewal. The way to
- * change it is among the user's actions (`user-view.tsx`).
+ * A user's plan now, the provider serving it with its model under it, the grant behind it and the
+ * next renewal, ended by [children], the rows that change it (`user-view.tsx`).
  */
 export function UserPlan({
   plan,
   timeZone,
   renewal,
+  children,
 }: {
   plan: Plan;
   timeZone: string;
   /** The next renewal, as "2026-12-01". */
   renewal: string;
+  children?: ReactNode;
 }) {
   const grant = plan.grant;
   const entitlement = plan.entitlement;
-  const facts: (readonly [string, string])[] = [
+  const facts: Fact[] = [
     [
       "지금",
       entitlement === null
@@ -34,7 +38,8 @@ export function UserPlan({
       : [
           [
             "모델",
-            `${labelOf(providerLabels, entitlement.serving.provider)} · ${entitlement.serving.model}`,
+            labelOf(providerLabels, entitlement.serving.provider),
+            entitlement.serving.model,
           ] as const,
         ]),
     ...(grant === null
@@ -57,7 +62,7 @@ export function UserPlan({
   ];
   return (
     <Section label="요금제">
-      <Facts facts={facts} />
+      <Facts facts={facts}>{children}</Facts>
     </Section>
   );
 }

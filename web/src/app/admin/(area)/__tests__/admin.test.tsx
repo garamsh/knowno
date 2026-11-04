@@ -915,7 +915,7 @@ describe("the users pages", () => {
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
-  it("opens a user's details beside the list from its row, with the way back to the list and to its page", async () => {
+  it("opens a user's details beside the list from its row, with quiet icons back to the list and to its page", async () => {
     await render(UsersContent, { searchParams: Promise.resolve({ status: "active" }) });
     expect(screen.getByRole("link", { name: otherUser.email })).toHaveAttribute(
       "href",
@@ -940,21 +940,36 @@ describe("the users pages", () => {
     const panel = within(screen.getByRole("complementary", { name: otherUser.email }));
     expect(panel.getByRole("heading", { level: 2, name: otherUser.email })).toBeInTheDocument();
     expect(panel.getByText("노트 · 카드").nextSibling).toHaveTextContent("2개 · 3장");
-    expect(panel.getByRole("link", { name: "목록으로" })).toHaveAttribute(
+    expect(panel.getByRole("link", { name: "닫기" })).toHaveAttribute(
       "href",
       "/users?status=active",
     );
-    expect(panel.getByRole("link", { name: "전체 화면으로" })).toHaveAttribute(
+    expect(panel.getByRole("link", { name: "크게 보기" })).toHaveAttribute(
       "href",
       `/users/${otherUser.id}`,
     );
-    // The panel holds no primary: 지정 is the sheet's that 요금제 바꾸기 opens.
+    // Under the email, one line: the plan and the sign-up day.
+    expect(panel.getByText(/^가입 \d{4}-\d{2}-\d{2}$/)).toBeInTheDocument();
+    // 요금제 바꾸기 is a row at the end of the plan's group; there is no row of buttons.
     expect(
-      within(panel.getByRole("region", { name: "작업" }))
+      within(panel.getByRole("region", { name: "요금제" }))
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["요금제 바꾸기", "이용 정지"]);
-    expect(panel.queryByRole("button", { name: "지정" })).not.toBeInTheDocument();
+    ).toEqual(["요금제 바꾸기"]);
+    expect(panel.queryByRole("region", { name: "작업" })).not.toBeInTheDocument();
+    // Suspension is the last section, its explanation under its action.
+    const last = panel.getAllByRole("region").at(-1) as HTMLElement;
+    expect(last).toHaveAccessibleName("계정 정지");
+    const stop = within(last).getByRole("button", { name: "이용 정지" });
+    expect(stop).toHaveClass("text-dont-know-text");
+    const why = within(last).getByText(
+      "이용 정지하면 로그인, 사진으로 카드 만들기, 동기화가 막혀요. 데이터는 그대로 남아요.",
+    );
+    expect(stop.compareDocumentPosition(why) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // No raised button: no control on the surface or the primary fill.
+    for (const control of [...panel.getAllByRole("button"), ...panel.getAllByRole("link")]) {
+      expect(control.className, control.textContent).not.toMatch(/\bbg-(surface|primary)\b/);
+    }
     // Below 1024 px the details take the list's place, as a page would.
     expect(
       screen.getByRole("table", { name: "사용자 목록" }).closest(".max-lg\\:hidden"),
@@ -1030,10 +1045,15 @@ describe("a user's suspension", () => {
   it("suspends a user with a reason once confirmed, shows it, and lifts it", async () => {
     const user = userEvent.setup();
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
-    const section = within(screen.getByRole("region", { name: "작업" }));
+    const section = within(screen.getByRole("region", { name: "계정 정지" }));
     await user.click(section.getByRole("button", { name: "이용 정지" }));
-    await user.type(section.getByLabelText("정지하는 이유"), "spam decks");
-    await user.click(section.getByRole("button", { name: "정지" }));
+    // It asks in the shared sheet, for a reason first.
+    const confirm = within(
+      screen.getByRole("dialog", { name: "other@example.com의 이용을 정지할까요?" }),
+    );
+    expect(confirm.getByRole("button", { name: "정지" })).toBeDisabled();
+    await user.type(confirm.getByLabelText("정지하는 이유"), "spam decks");
+    await user.click(confirm.getByRole("button", { name: "정지" }));
     expect(await section.findByRole("status")).toHaveTextContent("이용을 정지했어요.");
     expect(admin.suspensions.get(otherUser.id)).toEqual({ reason: "spam decks", by: testUser.id });
 
@@ -1503,11 +1523,7 @@ describe("a user's plan", () => {
     const plan = within(screen.getByRole("region", { name: "요금제" }));
     expect(plan.getByText("지금").nextSibling).toHaveTextContent("무료 · 한 달 10장");
     expect(plan.getByText("모델").nextSibling).toHaveTextContent("anthropic/claude-haiku-5.5");
-    expect(
-      within(screen.getByRole("region", { name: "작업" })).queryByRole("button", {
-        name: "무료로 되돌리기",
-      }),
-    ).not.toBeInTheDocument();
+    expect(plan.queryByRole("button", { name: "무료로 되돌리기" })).not.toBeInTheDocument();
 
     const ends = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
     expect(
@@ -1528,12 +1544,11 @@ describe("a user's plan", () => {
       "맥스 · 무제한 (하루 1000장까지)",
     );
     expect(granted.getByText("마지막 날", { selector: "dt" }).nextSibling).toHaveTextContent(ends);
-    expect(
-      within(screen.getAllByRole("region", { name: "작업" }).at(-1) as HTMLElement).getByRole(
-        "button",
-        { name: "무료로 되돌리기" },
-      ),
-    ).toBeInTheDocument();
+    // A row at the end of the plan's group while the grant stands.
+    expect(granted.getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "요금제 바꾸기",
+      "무료로 되돌리기",
+    ]);
 
     expect(await revokePlan(otherUser.id)).toEqual({
       changed: true,
