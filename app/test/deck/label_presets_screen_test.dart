@@ -102,9 +102,9 @@ void main() {
       await tester.scrollUntilVisible(find.bySemanticsLabel('Add label'), 200);
       await tester.tap(find.bySemanticsLabel('Add label'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(AppTextField, 'Label'), '숙어');
+      await tester.enterText(widgetWithShownText(AppTextField, 'Label'), '숙어');
       await tester.enterText(
-        find.widgetWithText(AppTextField, 'Name (optional)'),
+        widgetWithShownText(AppTextField, 'Name (optional)'),
         'idiom',
       );
       await tester.tap(shownText('Done'));
@@ -118,7 +118,7 @@ void main() {
       );
       await tester.tap(find.bySemanticsLabel('Edit 숙어 idiom'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(AppTextField, 'Label'), '관용');
+      await tester.enterText(widgetWithShownText(AppTextField, 'Label'), '관용');
       await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(_stored(storage).last, '관용:idiom');
@@ -142,7 +142,7 @@ void main() {
         final row = tester.getRect(
           find.ancestor(of: field, matching: find.byType(Row)).first,
         );
-        final text = tester.getRect(find.text(label));
+        final text = tester.getRect(shownText(label));
         final border = tester.getRect(field);
         expect(text.top, greaterThanOrEqualTo(row.top), reason: label);
         expect(text.bottom, lessThanOrEqualTo(border.top), reason: label);
@@ -156,13 +156,13 @@ void main() {
       final storage = await _open(tester);
       await tester.tap(find.bySemanticsLabel('Edit 명 noun'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(AppTextField, 'Label'), ' ');
+      await tester.enterText(widgetWithShownText(AppTextField, 'Label'), ' ');
       await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(find.text('Write a label'), findsOneWidget);
       expect(_stored(storage), isEmpty, reason: 'nothing stored');
 
-      await tester.enterText(find.widgetWithText(AppTextField, 'Label'), '명');
+      await tester.enterText(widgetWithShownText(AppTextField, 'Label'), '명');
       await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(find.text('Write a label'), findsNothing, reason: 'control');
@@ -264,7 +264,7 @@ void main() {
         200,
         scrollable: _list,
       );
-      await tester.enterText(find.widgetWithText(AppTextField, 'Label'), '숙어');
+      await tester.enterText(widgetWithShownText(AppTextField, 'Label'), '숙어');
       await tester.tap(shownText('Done'));
       await tester.pumpAndSettle();
       expect(_stored(storage).last, '숙어:');
@@ -302,7 +302,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull);
-        final field = find.widgetWithText(AppTextField, 'Label');
+        final field = widgetWithShownText(AppTextField, 'Label');
         final editable = tester
             .state<EditableTextState>(
               find.descendant(of: field, matching: find.byType(EditableText)),

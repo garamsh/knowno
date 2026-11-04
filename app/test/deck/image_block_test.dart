@@ -486,13 +486,13 @@ void main() {
         await tapVisible(tester, find.byTooltip('Shorter'));
         await tester.ensureVisible(
           find.descendant(
-            of: find.widgetWithText(AppTextField, 'Answer (optional)'),
+            of: widgetWithShownText(AppTextField, 'Answer (optional)'),
             matching: find.byType(TextField),
           ),
         );
         await tester.enterText(
           find.descendant(
-            of: find.widgetWithText(AppTextField, 'Answer (optional)'),
+            of: widgetWithShownText(AppTextField, 'Answer (optional)'),
             matching: find.byType(TextField),
           ),
           '  Seoul  ',
@@ -630,7 +630,7 @@ void main() {
         final answer = find.descendant(
           of: find
               .ancestor(
-                of: find.text('Answer (optional)'),
+                of: shownText('Answer (optional)'),
                 matching: find.byType(Column),
               )
               .first,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'theme.dart';
+import 'word_break.dart';
 
 /// The app's text field: its [label] above it, a [hint] inside, an
 /// [errorText] below, and a counter below when [maxLength] limits it. The
@@ -93,7 +94,8 @@ class AppTextField extends StatelessWidget {
         spacing: AppSpace.s8,
         children: [
           Text(
-            label,
+            keepWords(label),
+            semanticsLabel: label,
             style: AppType.section.copyWith(color: AppColors.of(context).ink2),
           ),
           field,

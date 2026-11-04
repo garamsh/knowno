@@ -110,8 +110,8 @@ void main() {
     (tester) async {
       final app = await _openSpanish(tester);
 
-      expect(find.text('Dee · 3 cards · copied 2 times'), findsOneWidget);
-      expect(find.text('Animals'), findsOneWidget);
+      expect(shownText('Dee · 3 cards · copied 2 times'), findsOneWidget);
+      expect(shownText('Animals'), findsOneWidget);
       for (final text in ['perro', 'dog', 'gato', 'cat', 'pez', 'fish']) {
         expect(shownText(text), findsOneWidget, reason: text);
       }

@@ -72,7 +72,7 @@ void main() {
       var screens = await DeckScreens.open(tester, cards: {'Chat': 'cat'});
       await screens.push((deck) => DeckScreen(deck: deck));
       expect(_studyButton, findsOneWidget);
-      expect(find.widgetWithText(AppTextField, 'Search'), findsOneWidget);
+      expect(widgetWithShownText(AppTextField, 'Search'), findsOneWidget);
       expect(button('Add card').variant, AppButtonVariant.tonal);
       await screens.close();
 
@@ -188,7 +188,7 @@ void main() {
       expect(find.byTooltip('Search cards'), findsNothing);
 
       // The search is always shown, under the bar and not in it.
-      final search = find.widgetWithText(AppTextField, 'Search');
+      final search = widgetWithShownText(AppTextField, 'Search');
       expect(search, findsOneWidget);
       expect(inTopBar(find.byType(AppTextField)), findsNothing);
       expect(
@@ -761,7 +761,7 @@ void main() {
 
       final first = tester.getRect(find.byType(CardBackRow).first);
       final search = tester.getRect(
-        find.widgetWithText(AppTextField, 'Search'),
+        widgetWithShownText(AppTextField, 'Search'),
       );
       expect(first.bottom, lessThanOrEqualTo(844 - 336));
       expect(first.top - search.bottom, lessThan(AppSize.tapTarget * 2));
@@ -1042,7 +1042,7 @@ void main() {
         tester
             .widget<EditableText>(
               find.descendant(
-                of: find.widgetWithText(AppTextField, 'Note name'),
+                of: widgetWithShownText(AppTextField, 'Note name'),
                 matching: find.byType(EditableText),
               ),
             )
@@ -1075,7 +1075,7 @@ void main() {
       await screens.tap(find.text('Rename'));
       EditableText field() => tester.widget<EditableText>(
         find.descendant(
-          of: find.widgetWithText(AppTextField, 'Note name'),
+          of: widgetWithShownText(AppTextField, 'Note name'),
           matching: find.byType(EditableText),
         ),
       );
