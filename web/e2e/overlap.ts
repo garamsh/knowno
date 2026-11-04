@@ -3,7 +3,8 @@ import type { Page } from "@playwright/test";
 /**
  * Each interactive element that overlaps another or is clipped, as the page lies at its top: a
  * link, a button, a summary, a field, a select or a `.pressable` (a pager's arrow, a pressed row
- * included), its whole box taken with the hard edge it draws under it (`--edge`). Two overlap when
+ * included), its whole box taken with the hard edge its computed box-shadow draws under it, at
+ * every width and from whichever rule set it. Two overlap when
  * their boxes intersect and neither holds the other. One is clipped when an ancestor that clips
  * its overflow does not hold its box: inside the ancestor's box where it hides what overflows, and
  * inside what the ancestor scrolls through where it scrolls, so a row scrolled away is not clipped
@@ -26,7 +27,17 @@ export async function overlaps(page: Page): Promise<string[]> {
       const style = getComputedStyle(element);
       // A visually hidden element, as a skip link at rest, is one pixel wide.
       if (rect.width <= 1 || rect.height <= 1 || style.visibility !== "visible") return [];
-      const edge = parseFloat(style.getPropertyValue("--edge")) || 0;
+      // The furthest a visible shadow with no blur reaches below the box, whichever rule drew it.
+      const edge = Math.max(
+        0,
+        ...style.boxShadow.split(/,(?![^(]*\))/).map((shadow) => {
+          const colour = /[a-z-]+\([^)]*\)|transparent/.exec(shadow)?.[0] ?? "";
+          const [, down = 0, blur = 0, spread = 0] =
+            shadow.replace(colour, "").match(/-?[\d.]+px/g)?.map(parseFloat) ?? [];
+          const clear = colour === "transparent" || /[,/]\s*0\)$/.test(colour);
+          return shadow.includes("inset") || blur > 0 || clear ? 0 : down + spread;
+        }),
+      );
       return [
         {
           element,

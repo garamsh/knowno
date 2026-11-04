@@ -23,6 +23,12 @@
         --edge: 6px;
         box-shadow: 0 6px 0 #ccc;
       }
+      /* Edged below 1024 px by its box-shadow alone, as an admin table's row is drawn as a card. */
+      @media (max-width: 1023px) {
+        .card {
+          box-shadow: 0 4px 0 #ccc;
+        }
+      }
       .stack {
         display: flex;
         flex-direction: column;
@@ -41,6 +47,11 @@
     <div class="stack" style="gap: 8px">
       <button class="edged">저장</button>
       <button class="edged">취소</button>
+    </div>
+    <!-- A card's edge, set below 1024 px with no --edge, under the next card 2 px below it. -->
+    <div class="stack" style="gap: 2px">
+      <a href="#card" class="card">카드</a>
+      <a href="#next" class="card">다음 카드</a>
     </div>
     <!-- A pager's disabled arrow, a pressable with no edge, drawn over the page beside it. -->
     <nav style="display: flex; margin-bottom: 24px">
