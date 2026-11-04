@@ -3,15 +3,19 @@ name: release
 # A pushed tag v<major>.<minor>.<patch>, or one named by hand, builds the iOS app as that version
 # and uploads it to TestFlight (release.md, ADR 0192). make release-check refuses a tag unless it
 # is on main, landed by a pull request whose ci (ubuntu) and ci (macos) passed on the same tree.
-# make release-ios archives and exports the app signed through the App Store Connect API key alone,
-# and make release-upload uploads it. Submitting a build for App Review stays the owner's, by hand.
+# make release-ios signs and builds the app through Codemagic CLI tools, as Flutter's "Build and
+# release an iOS app" shows: the App Store Connect key fetches the App Store profile and the
+# distribution certificate made from IOS_DISTRIBUTION_CERT_PRIVATE_KEY into a temporary keychain.
+# make release-upload publishes the ipa, and make release-cleanup restores the login keychain.
+# Submitting a build for App Review stays the owner's, by hand.
 #
-# A pull request that changes this file or scripts/release-ios.ts runs a dry run: it builds and
-# signs the app as 0.0.0 and uploads nothing. A pull request from a fork or from Dependabot gets no
-# repository secret, so it skips the job; the next release runs Dependabot's moved pins.
+# A pull request that changes this file, scripts/release-ios.ts or the tools' pins runs a dry run:
+# it builds and signs the app as 0.0.0 and uploads nothing. A pull request from a fork or from
+# Dependabot gets no repository secret, so it skips the job; the next release runs its moved pins.
 #
-# Dependabot moves the `uses:` pins, which are ci.yml's ios job's. The runner label and the Xcode
-# in DEVELOPER_DIR, one of the image's versioned paths, are moved by the PM with ci.yml's labels;
+# Dependabot moves the `uses:` pins, ci.yml's ios job's and setup-python's, and the pins with
+# hashes in tools/release/requirements.txt. The Python release, the runner label and the Xcode in
+# DEVELOPER_DIR, one of the image's versioned paths, are moved by the PM with ci.yml's labels;
 # "Set up job" logs the image each run resolved to.
 on:
   push:
@@ -26,6 +30,7 @@ on:
     paths:
       - '.github/workflows/release.yml'
       - 'scripts/release-ios.ts'
+      - 'tools/release/requirements.txt'
 
 permissions: read-all
 
@@ -58,6 +63,11 @@ jobs:
         run: make release-check
         env:
           GH_TOKEN: ${{ github.token }}
+      # Codemagic CLI tools at the release and hashes tools/release/requirements.txt pins.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14.10'
+      - run: python -m pip install --require-hashes --no-deps -r tools/release/requirements.txt
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
@@ -77,7 +87,7 @@ jobs:
           APP_STORE_CONNECT_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_DISTRIBUTION_CERT_PRIVATE_KEY: ${{ secrets.IOS_DISTRIBUTION_CERT_PRIVATE_KEY }}
       - if: env.TAG != ''
         run: make release-upload
         env:
@@ -85,6 +95,9 @@ jobs:
           APP_STORE_CONNECT_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-      # The program removes the key at the end of each step; this removes it when a step was killed.
+      # The program removes the keys at the end of each step; this restores the login keychain, as
+      # the doc requires after keychain initialize, and removes what a killed step left.
       - if: always()
-        run: rm -rf "$RUNNER_TEMP/release-ios"
+        run: make release-cleanup
+        env:
+          TMPDIR: ${{ runner.temp }}

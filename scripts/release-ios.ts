@@ -1,12 +1,15 @@
-// The release workflow's steps for the iOS app (docs/architecture/release.md, ADR 0192):
+// The release workflow's steps for the iOS app (docs/architecture/release.md, ADR 0192), through
+// Codemagic CLI tools as Flutter's "Build and release an iOS app" shows them:
 //   check <tag>               refuses unless the tag is v<major>.<minor>.<patch> on a commit of main
 //                             that a pull request landed with ci (ubuntu) and ci (macos) passed on
 //                             its tree
-//   build <run> <config> [tag]  archives the app signed through the App Store Connect API key and
-//                             exports it for App Store Connect; with no tag, a dry run as 0.0.0
-//   upload                    uploads the exported ipa to App Store Connect
-// The key, from APP_STORE_CONNECT_KEY_P8, is written under TMPDIR readable by its owner alone,
-// dropped from the environment before any tool starts, and removed when the step ends.
+//   build <run> <config> [tag]  fetches the App Store signing files, creating the certificate from
+//                             IOS_DISTRIBUTION_CERT_PRIVATE_KEY where none matches it, and builds the
+//                             ipa; with no tag, a dry run as 0.0.0
+//   upload                    publishes the ipa to App Store Connect
+//   cleanup                   restores the login keychain and removes what the steps wrote
+// Each key is written under TMPDIR readable by its owner alone, dropped from the environment before
+// any tool starts, and removed when the step ends.
 import { attached, entry, fail, read, status } from "./process.ts";
 
 /** The checks a pull request must have passed on the tree a release builds. */
@@ -15,8 +18,14 @@ export const REQUIRED_CHECKS = ["ci (ubuntu)", "ci (macos)"];
 /** Added to the workflow's run number, so the first build number is 2: TestFlight holds 1.0.0 (1). */
 export const BUILD_NUMBER_OFFSET = 1;
 
+/** The app's bundle identifier, whose App Store profile the build fetches. */
+const BUNDLE_ID = "app.knowno";
+
 /** The entitlements the app is signed with, which the exported app must carry. */
 const ENTITLEMENTS = "app/ios/Runner/Runner.entitlements";
+
+/** Where flutter build ipa writes the ipa, relative to the repository. */
+const IPA_DIR = "app/build/ios/ipa";
 
 /** The version a release tag names, or nothing where the tag is not v<major>.<minor>.<patch>. */
 export function versionOf(tag: string): string | undefined {
@@ -47,25 +56,6 @@ export function unpassed(runs: CheckRun[]): string[] {
   });
 }
 
-/** The export options for App Store Connect, signed automatically for the team. */
-export function exportOptions(team: string): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>method</key>
-	<string>app-store-connect</string>
-	<key>destination</key>
-	<string>export</string>
-	<key>signingStyle</key>
-	<string>automatic</string>
-	<key>teamID</key>
-	<string>${team}</string>
-</dict>
-</plist>
-`;
-}
-
 function required(name: string): string {
   const value = Deno.env.get(name);
   if (value === undefined || value === "") fail(`${name} is not set`);
@@ -73,7 +63,6 @@ function required(name: string): string {
 }
 
 const work = () => `${required("TMPDIR")}/release-ios`;
-const exported = () => `${work()}/export`;
 
 async function gh(path: string): Promise<unknown> {
   return JSON.parse(await read("gh", ["api", path]));
@@ -150,39 +139,56 @@ async function check(tag: string): Promise<void> {
   );
 }
 
-/** Writes the key readable by its owner alone and drops it from the environment the tools inherit. */
-async function writeKey(): Promise<
-  { path: string; id: string; issuer: string }
-> {
-  const key = required("APP_STORE_CONNECT_KEY_P8");
-  Deno.env.delete("APP_STORE_CONNECT_KEY_P8");
-  const id = required("APP_STORE_CONNECT_KEY_ID");
-  const issuer = required("APP_STORE_CONNECT_ISSUER_ID");
+/** Writes a secret readable by its owner alone and drops it from the environment the tools inherit. */
+async function writeSecret(variable: string, file: string): Promise<string> {
+  const value = required(variable);
+  Deno.env.delete(variable);
   await Deno.mkdir(work(), { recursive: true, mode: 0o700 });
-  const path = `${work()}/AuthKey_${id}.p8`;
+  const path = `${work()}/${file}`;
   await Deno.remove(path).catch(() => {});
-  await Deno.writeTextFile(path, key, { mode: 0o600, createNew: true });
-  return { path, id, issuer };
+  await Deno.writeTextFile(path, value, { mode: 0o600, createNew: true });
+  return path;
 }
 
-async function withKey(
-  step: (key: { path: string; id: string; issuer: string }) => Promise<void>,
+/** Runs the step with the files named by `secrets` (variable to file name), removing them after. */
+async function withSecrets(
+  secrets: Record<string, string>,
+  step: (paths: Record<string, string>) => Promise<void>,
 ): Promise<void> {
-  const key = await writeKey();
+  const paths: Record<string, string> = {};
   try {
-    await step(key);
+    for (const [variable, file] of Object.entries(secrets)) {
+      paths[variable] = await writeSecret(variable, file);
+    }
+    await step(paths);
   } finally {
-    await Deno.remove(key.path);
+    for (const path of Object.values(paths)) await Deno.remove(path);
   }
 }
+
+/** The App Store Connect key's arguments: the IDs read from the environment, the key from its file. */
+function apiKey(path: string): string[] {
+  return [
+    "--issuer-id",
+    "@env:APP_STORE_CONNECT_ISSUER_ID",
+    "--key-id",
+    "@env:APP_STORE_CONNECT_KEY_ID",
+    "--private-key",
+    `@file:${path}`,
+    "--disable-jwt-cache",
+  ];
+}
+
+const API_KEY = "APP_STORE_CONNECT_KEY_P8";
+const CERTIFICATE_KEY = "IOS_DISTRIBUTION_CERT_PRIVATE_KEY";
 
 async function theIpa(): Promise<string> {
   const ipas: string[] = [];
-  for await (const { name } of Deno.readDir(exported())) {
-    if (name.endsWith(".ipa")) ipas.push(`${exported()}/${name}`);
+  for await (const { name } of Deno.readDir(IPA_DIR)) {
+    if (name.endsWith(".ipa")) ipas.push(`${IPA_DIR}/${name}`);
   }
   if (ipas.length !== 1) {
-    fail(`${exported()} holds ${ipas.length} .ipa files, not one`);
+    fail(`${IPA_DIR} holds ${ipas.length} .ipa files, not one`);
   }
   return ipas[0];
 }
@@ -196,59 +202,54 @@ async function build(run: string, config: string, tag?: string): Promise<void> {
   if (version === undefined) {
     fail(`the tag "${tag}" is not v<major>.<minor>.<patch>`);
   }
-  const team = required("APPLE_TEAM_ID");
-  await withKey(async (key) => {
-    const auth = [
-      "-allowProvisioningUpdates",
-      "-authenticationKeyPath",
-      key.path,
-      "-authenticationKeyID",
-      key.id,
-      "-authenticationKeyIssuerID",
-      key.issuer,
-    ];
-    const archive = `${work()}/Runner.xcarchive`;
-    const options = `${work()}/ExportOptions.plist`;
-    await Deno.writeTextFile(options, exportOptions(team));
-    await Deno.remove(exported(), { recursive: true }).catch(() => {});
-
-    await attached("flutter", [
-      "build",
-      "ios",
-      "--release",
-      "--no-codesign",
-      "--config-only",
-      config,
-      `--build-name=${version}`,
-      `--build-number=${number}`,
-    ], { cwd: "app" });
-    await attached("xcodebuild", [
-      "archive",
-      "-workspace",
-      "Runner.xcworkspace",
-      "-scheme",
-      "Runner",
-      "-configuration",
-      "Release",
-      "-destination",
-      "generic/platform=iOS",
-      "-archivePath",
-      archive,
-      ...auth,
-      `DEVELOPMENT_TEAM=${team}`,
-      "CODE_SIGN_STYLE=Automatic",
-    ], { cwd: "app/ios" });
-    await attached("xcodebuild", [
-      "-exportArchive",
-      "-archivePath",
-      archive,
-      "-exportPath",
-      exported(),
-      "-exportOptionsPlist",
-      options,
-      ...auth,
-    ]);
-  });
+  required("APP_STORE_CONNECT_KEY_ID");
+  required("APP_STORE_CONNECT_ISSUER_ID");
+  const certificates = `${work()}/certificates`;
+  const options = `${work()}/export_options.plist`;
+  await withSecrets(
+    { [API_KEY]: "api_key.p8", [CERTIFICATE_KEY]: "certificate_key.pem" },
+    async (paths) => {
+      await attached("keychain", ["initialize"]);
+      await attached("app-store-connect", [
+        "fetch-signing-files",
+        BUNDLE_ID,
+        "--platform",
+        "IOS",
+        "--type",
+        "IOS_APP_STORE",
+        "--certificate-key",
+        `@file:${paths[CERTIFICATE_KEY]}`,
+        "--create",
+        "--strict-match-identifier",
+        "--certificates-dir",
+        certificates,
+        ...apiKey(paths[API_KEY]),
+      ]);
+      await attached("keychain", [
+        "add-certificates",
+        "--certificate",
+        `${certificates}/*.p12`,
+      ]);
+    },
+  );
+  await Deno.remove(certificates, { recursive: true });
+  await attached("xcode-project", [
+    "use-profiles",
+    "--project",
+    "ios/Runner.xcodeproj",
+    "--export-options-plist",
+    options,
+  ], { cwd: "app" });
+  await Deno.remove(IPA_DIR, { recursive: true }).catch(() => {});
+  await attached("flutter", [
+    "build",
+    "ipa",
+    "--release",
+    config,
+    `--build-name=${version}`,
+    `--build-number=${number}`,
+    `--export-options-plist=${options}`,
+  ], { cwd: "app" });
   await verify(await theIpa(), version, String(number));
   if (tag === undefined) {
     console.log("no tag was given, so this was a dry run as 0.0.0");
@@ -307,21 +308,35 @@ async function verify(
 
 async function upload(): Promise<void> {
   const ipa = await theIpa();
-  await withKey((key) =>
-    attached("xcrun", [
-      "altool",
-      "--upload-package",
-      ipa,
-      "--api-key",
-      key.id,
-      "--api-issuer",
-      key.issuer,
-      "--p8-file-path",
-      key.path,
-      "--wait",
-    ])
+  required("APP_STORE_CONNECT_KEY_ID");
+  required("APP_STORE_CONNECT_ISSUER_ID");
+  await withSecrets(
+    { [API_KEY]: "api_key.p8" },
+    (paths) =>
+      attached("app-store-connect", [
+        "publish",
+        "--path",
+        ipa,
+        ...apiKey(paths[API_KEY]),
+      ]),
   );
   console.log(`uploaded ${ipa} to App Store Connect`);
+}
+
+/** Makes the login keychain the default again, as the doc requires after keychain initialize. */
+async function cleanup(): Promise<void> {
+  let restored: number | undefined;
+  try {
+    restored = await status("keychain", ["use-login"]);
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+    console.log("keychain is not installed, so no keychain was initialized");
+  }
+  await Deno.remove(work(), { recursive: true }).catch(() => {});
+  console.log(`removed ${work()}`);
+  if (restored !== undefined && restored !== 0) {
+    fail(`keychain use-login exited ${restored}`, restored);
+  }
 }
 
 async function main(args: string[]): Promise<void> {
@@ -331,8 +346,9 @@ async function main(args: string[]): Promise<void> {
     return await build(rest[0], rest[1], rest[2] || undefined);
   }
   if (command === "upload" && rest.length === 0) return await upload();
+  if (command === "cleanup" && rest.length === 0) return await cleanup();
   fail(
-    "usage: release-ios check <tag> | build <run> <config> [tag] | upload",
+    "usage: release-ios check <tag> | build <run> <config> [tag] | upload | cleanup",
     2,
   );
 }
