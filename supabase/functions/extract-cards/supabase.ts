@@ -24,11 +24,11 @@ export type Period = "month" | "day";
 export type Prompt = { readonly versionId: number; readonly text: string };
 
 /**
- * What one photo of the user may do: be extracted by the provider and model of the configuration
- * serving it, with the prompt the user is served, recorded against the photo limit of the plan's
- * version for its period; be refused at that limit; be refused uncounted because that provider has
- * no key (ADR 0162); or nothing, when the plan has no version or configuration, the active prompt
- * is missing, or the configuration names no model the function would call.
+ * What one photo of the user may do: be extracted by the provider, model and prompt of the
+ * configuration serving it, recorded against the photo limit of the plan's version for its period;
+ * be refused at that limit; be refused uncounted because that provider has no key (ADR 0162); or
+ * nothing, when the plan has no version or configuration, the configuration has no prompt, or it
+ * names no model the function would call.
  */
 export type Start =
   | {
@@ -77,9 +77,9 @@ export async function userSuspended(
 }
 
 /**
- * Resolves the user's plan, prompt and configuration (ADR 0073, ADR 0162: an admin is served the
- * test version and configuration while one is set, or the [configurationId] a trial names) and,
- * when its provider has a key in Vault and under
+ * Resolves the user's plan and the configuration serving the photo, its provider, model and prompt
+ * (ADR 0162, ADR 0182: an admin is served the plan's draft while one is set, or the
+ * [configurationId] a trial names) and, when its provider has a key in Vault and under
  * the photo limit of the plan's version, records the photo with what serves it.
  */
 export async function beginExtraction(
@@ -424,22 +424,29 @@ export async function saveProviderKey(
 }
 
 /**
- * Saves [provider] and [model] as [plan]'s draft for [adminId], through
- * `public.save_ai_configuration`, after its check call parsed, answering the configuration's id.
+ * Saves [provider], [model] and [promptVersionId] as [plan]'s one draft for [adminId], through
+ * `public.save_ai_configuration`, after its check call parsed, answering the configuration's id
+ * (ADR 0182). Without a prompt version the draft keeps the plan's draft's, or else its active
+ * one's. Null when the database holds no such version.
  */
 export async function saveConfiguration(
   adminId: UserId,
   plan: Plan,
   provider: Provider,
   model: ModelId,
+  promptVersionId: number | undefined,
   deps: SupabaseDeps,
-): Promise<number> {
+): Promise<number | null> {
   const id = await serviceCall("save_ai_configuration", {
     admin_id: adminId,
     plan,
     provider,
     model,
+    ...(promptVersionId === undefined
+      ? {}
+      : { prompt_version_id: promptVersionId }),
   }, deps);
+  if (id === null) return null;
   if (!isCount(id)) {
     throw new SupabaseError("save_ai_configuration answered no id");
   }

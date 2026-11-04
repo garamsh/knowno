@@ -54,7 +54,9 @@ function fakeFetch(fake: Fake): typeof fetch {
       return reply("saved");
     }
     if (url === `${SUPABASE_URL}/rest/v1/rpc/save_ai_configuration`) {
-      return reply(7);
+      const { prompt_version_id } = JSON.parse(String(init?.body));
+      // The database holds no version 404.
+      return reply(prompt_version_id === 404 ? null : 7);
     }
     if (url === OPENAI_URL || url === ANTHROPIC_URL || url === OPENROUTER_URL) {
       return reply(fake.provider.body, fake.provider.status);
@@ -330,4 +332,45 @@ Deno.test("a plan's provider and model are saved as its draft only after a call 
   });
   assert.equal(unknown.status, 400, "a plan that does not exist");
   assert.equal(unknown.modelCalls.length + unknown.saves.length, 0);
+});
+
+Deno.test("a draft is saved with the prompt version it names, and one the database lacks is refused", async () => {
+  const body = {
+    plan: "free",
+    provider: "anthropic",
+    model: "claude-haiku-5-5",
+    prompt_version_id: 9,
+  };
+  const reply: Answer = {
+    status: 200,
+    body: {
+      content: [{ type: "text", text: '{"cards":[]}' }],
+      stop_reason: "end_turn",
+      usage: { input_tokens: 3, output_tokens: 2 },
+    },
+  };
+  const options = { vault: { anthropic: VAULT_KEY }, provider: reply };
+  const named = await post("configuration", body, options);
+  assert.equal(named.status, 200);
+  assert.deepEqual(named.saves, [{ admin_id: ADMIN_ID, ...body }]);
+
+  const missing = await post("configuration", {
+    ...body,
+    prompt_version_id: 404,
+  }, options);
+  assert.equal(missing.status, 400, "a version the database does not hold");
+  assert.deepEqual(missing.body, { error: "bad_request" });
+
+  for (const malformed of [0, 1.5, "9", null]) {
+    const r = await post("configuration", {
+      ...body,
+      prompt_version_id: malformed,
+    }, options);
+    assert.equal(
+      r.status,
+      400,
+      `prompt_version_id ${JSON.stringify(malformed)}`,
+    );
+    assert.equal(r.modelCalls.length + r.saves.length, 0);
+  }
 });
