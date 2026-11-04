@@ -4,7 +4,7 @@ import { type ReactNode, useState } from "react";
 
 import { describeContent, holdsBlank, spokenCells, spokenContent } from "../card-content";
 import type { Card, Deck } from "../library";
-import { CardEditor } from "./authoring-button";
+import { CardEditor } from "./card-editor";
 import { SideText } from "./side-text";
 import { EmptyDeck } from "./empty-home";
 import { SearchField } from "@/design/search-field";
