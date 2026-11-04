@@ -417,6 +417,40 @@ void main() {
     );
 
     testWidgets(
+      'once only failed photos are left to read, the bar says how many failed, against one still reading',
+      (tester) async {
+        final import = await _Import.open(tester);
+        await import.pickSeveral(3);
+        await import.back();
+        await import.answerCall(0, {'chat': 'cat'});
+        import.calls(1).answer.completeError(const ModelFailed());
+        await import.frames();
+        // Control: a photo still reading keeps the count.
+        expect(import.bar, 'Reading photos 1/3');
+        import.calls(2).answer.completeError(const ModelFailed());
+        await import.frames();
+        expect(import.bar, "Couldn't read 2 photos");
+        await import.close();
+      },
+    );
+
+    testWidgets(
+      'starting an import while one reads opens the one reading and takes no photo',
+      (tester) async {
+        final import = await _Import.open(tester);
+        await import.pickSeveral(2);
+        await import.back();
+        expect(import.photos.libraryCalls, 1);
+
+        await import.pickSeveral(4);
+        expect(find.bySemanticsLabel('Read 0 of 2 photos'), findsOneWidget);
+        expect(import.photos.libraryCalls, 1);
+        expect(import.client.calls, hasLength(2));
+        await import.close();
+      },
+    );
+
+    testWidgets(
       'a job a closed app left keeps its read cards, offers to resume its unread photos, and sends none read before again',
       (tester) async {
         final first = await _Import.open(tester);

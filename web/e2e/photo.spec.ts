@@ -397,3 +397,137 @@ test("leaves a failed photo import by the browser's back in one step, and the ne
   ).toBeVisible();
   expect(calls).toBe(2);
 });
+
+test("reads on while the user studies, its bar heading each page and covering none of it, and opens the read cards from the bar", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!url || !key || !baseURL) throw new Error("skipped without local stack");
+  // Two imports, the pages between them and sixteen captures take longer than 30 s.
+  test.setTimeout(120_000);
+  const jar = new Map<string, string>();
+  const auth = createServerClient(url, key, {
+    cookies: {
+      getAll: () => [...jar].map(([name, value]) => ({ name, value })),
+      setAll: (cookies) => {
+        for (const { name, value } of cookies) jar.set(name, value);
+      },
+    },
+  });
+  const signup = await auth.auth.signUp({
+    email: `web-photo-background-${randomUUID()}@example.com`,
+    password: "web-photo-test-password",
+  });
+  expect(signup.error).toBeNull();
+  await context.addCookies([...jar].map(([name, value]) => ({ name, value, url: baseURL })));
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const jpeg = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 600;
+    canvas.height = 400;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("no canvas");
+    context.fillStyle = "#00c";
+    context.fillRect(0, 0, 600, 400);
+    const data = canvas.toDataURL("image/jpeg", 0.9);
+    return data.slice(data.indexOf(",") + 1);
+  });
+  // The first import reads the note's one card; the second's two photos wait until released.
+  const answers = [
+    { cards: [candidate("서울", "한국의 수도")] },
+    { cards: [candidate("도쿄", "일본의 수도")] },
+    { cards: [candidate("파리", "프랑스의 수도")] },
+  ];
+  let calls = 0;
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  // A Server Action posts to the page it is called from, and reading goes on from 홈 and study.
+  await page.route("**/*", async (route) => {
+    if (route.request().method() !== "POST" || !uploadOf(route.request())) {
+      await route.fallback();
+      return;
+    }
+    const call = calls;
+    calls += 1;
+    if (call > 0) await held;
+    const response = await route.fetch();
+    const body = (await response.text()).replace(
+      /^(\d+:)\{"(?:failure|cards)".*$/mu,
+      (_, row: string) => `${row}${JSON.stringify(answers[call])}`,
+    );
+    await route.fulfill({ response, body });
+  });
+
+  await untilReacted(
+    () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
+    () => page.getByRole("dialog").isVisible(),
+  );
+  await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("수도");
+  await page.getByRole("button", { name: "저장하고 카드 추가", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "카드 추가", exact: true });
+  await expect(sheet).toBeVisible();
+  const photo = (name: string) => ({
+    name,
+    mimeType: "image/jpeg",
+    buffer: Buffer.from(jpeg, "base64"),
+  });
+  await page.getByLabel("앨범에서 고르기", { exact: true }).setInputFiles([photo("one.jpg")]);
+  await page.getByRole("button", { name: "카드 1장 추가", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // The second import, closed while it reads.
+  await page.getByRole("button", { name: "카드 추가", exact: true }).click();
+  await expect(sheet).toBeVisible();
+  await page
+    .getByLabel("앨범에서 고르기", { exact: true })
+    .setInputFiles([photo("two.jpg"), photo("three.jpg")]);
+  await expect(
+    page.getByRole("heading", { name: "사진 2장 중 0장 읽음", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("이 탭을 닫거나 새로 고치면 읽기를 멈춰요", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "닫기", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const bar = page.getByRole("button", { name: "사진 읽는 중 0/2", exact: true });
+  await expect(bar).toBeVisible();
+  await capture(page, "background-note");
+
+  // Away by the app's own links: the job goes with the tab.
+  await page.getByRole("link", { name: "홈", exact: true }).click();
+  const start = page.getByRole("link", { name: "시작", exact: true });
+  await expect(start).toBeVisible();
+  await expect(bar).toBeVisible();
+  await capture(page, "background-home");
+  await start.click();
+  const stop = page.getByRole("link", { name: "그만하기", exact: true });
+  await expect(stop).toBeVisible();
+  await expect(bar).toBeVisible();
+  // The bar heads the page above study's own controls, at a phone's width and a desktop's.
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: width < 1024 ? 844 : 900 });
+    const barBox = await bar.boundingBox();
+    const stopBox = await stop.boundingBox();
+    if (!barBox || !stopBox) throw new Error("the bar or 그만하기 is not laid out");
+    expect(stopBox.y).toBeGreaterThanOrEqual(barBox.y + barBox.height);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await capture(page, "background-study");
+
+  release();
+  const ready = page.getByRole("button", { name: "카드 2장 확인하기", exact: true });
+  await expect(ready).toBeVisible();
+  // Reading ends with nothing opened over study.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(stop).toBeVisible();
+  await ready.click();
+  await expect(
+    page.getByRole("heading", { name: "카드 2장을 만들었어요", exact: true }),
+  ).toBeVisible();
+  await capture(page, "background-import");
+});

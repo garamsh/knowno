@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, CircleAlert, Clock, ImagePlus, LoaderCircle } from "lucide-react";
+import { Check, ChevronRight, CircleAlert, Clock, ImagePlus, LoaderCircle } from "lucide-react";
 import { v7 } from "uuid";
 import { createDeck, readAllowance, readCardKeys, savePhotoCards } from "../actions";
 import { frameKey } from "../authoring";
@@ -51,23 +51,33 @@ type Photo = {
 /** The most photos one import holds, as the phone's `maxPhotosPerImport`. */
 const maxPhotos = 50;
 const privacyNote = "사진은 카드를 만드는 데만 쓰고 서버에 남기지 않아요";
+/** The web's job lives in the tab, so the reading screens say what ends it. */
+const tabNote = "이 탭을 닫거나 새로 고치면 읽기를 멈춰요";
 
 /**
  * A browser-bound photo job drawn as the phone's photo import: one photo at 카드를 찾고 있어요 or
  * its failure, several at 사진 n장 중 k장 읽음 with a row per photo, then the list to review, whose
  * cards go into [deck] or a new deck. While photo import is unavailable, [addInstead] leaves it for
- * adding [deck]'s cards by hand or from a spreadsheet.
+ * adding [deck]'s cards by hand or from a spreadsheet. It reads on while not [shown], drawn then as
+ * the bar at the top of the page, which [open] shows it from; its close and the browser's back
+ * [hide] it while photos are left to read, and [close] ends it (ADR 0183).
  */
 export function PhotoImport({
   deck,
   camera,
   files,
+  shown,
+  open,
+  hide,
   close,
   addInstead,
 }: {
   deck: Deck;
   camera: boolean;
   files: File[];
+  shown: boolean;
+  open: () => void;
+  hide: () => void;
   close: () => void;
   addInstead: (way: "manual" | "file") => void;
 }) {
@@ -425,6 +435,11 @@ export function PhotoImport({
   const waiting = photos.some(
     (photo) => photo.state.kind === "waiting" || photo.state.kind === "reading",
   );
+  // A job with only failed photos, and no list, is dismissed on leaving, as nothing is left to
+  // read (#690); any other with photos left to read is left reading.
+  const dismissed =
+    jobFailure !== null ||
+    (!listOpen && photos.length > 0 && photos.every((photo) => photo.state.kind === "failed"));
   const readingTitle =
     waiting || failed === 0
       ? `사진 ${String(photos.length)}장 중 ${String(read.length)}장 읽음`
@@ -490,6 +505,23 @@ export function PhotoImport({
     </button>
   );
 
+  if (!shown) {
+    const label = waiting
+      ? `사진 읽는 중 ${String(read.length)}/${String(photos.length)}`
+      : jobFailure
+        ? "사진을 읽지 못했어요"
+        : unfinished
+          ? `사진 ${String(failed)}장을 읽지 못했어요`
+          : `카드 ${String(cardCount)}장 확인하기`;
+    return (
+      <ImportBar
+        label={label}
+        progress={waiting && photos.length ? read.length / photos.length : null}
+        open={open}
+      />
+    );
+  }
+
   return (
     <AuthoringScreen
       title={title}
@@ -499,7 +531,7 @@ export function PhotoImport({
       heading={failure || single ? "none" : "body"}
       menu={retakeMenu}
       actions={actions}
-      close={unfinished && !failure ? cancel : leave}
+      close={unfinished && !dismissed ? hide : leave}
     >
       <input
         ref={retakeInput}
@@ -559,6 +591,7 @@ export function PhotoImport({
             ))}
           </div>
           <p className="text-center text-caption break-keep text-muted">{privacyNote}</p>
+          <p className="text-center text-caption break-keep text-muted">{tabNote}</p>
         </div>
       ) : unfinished ? (
         <div className="flex min-w-0 flex-col gap-5 pt-4">
@@ -597,6 +630,7 @@ export function PhotoImport({
             ))}
           </ul>
           <p className="text-center text-caption break-keep text-muted">{privacyNote}</p>
+          <p className="text-center text-caption break-keep text-muted">{tabNote}</p>
         </div>
       ) : (
         <div className="flex min-w-0 flex-col">
@@ -748,6 +782,67 @@ export function PhotoImport({
         />
       )}
     </AuthoringScreen>
+  );
+}
+
+/**
+ * The phone's bar for an import whose screen is closed, heading every page in the flow above it,
+ * so it covers nothing: [label] in words, announced as it changes, over a bar of [progress] while
+ * photos are read. A tap [open]s the import. It sets `--photo-import-bar` to its height while
+ * shown, which what sticks to the top of the page sits below.
+ */
+function ImportBar({
+  label,
+  progress,
+  open,
+}: {
+  label: string;
+  progress: number | null;
+  open: () => void;
+}) {
+  const bar = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = bar.current;
+    if (!element) return;
+    const root = document.documentElement;
+    const measure = () => {
+      root.style.setProperty("--photo-import-bar", `${String(element.offsetHeight)}px`);
+    };
+    measure();
+    // A larger text size or a narrower window changes its height.
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(element);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty("--photo-import-bar");
+    };
+  }, []);
+  return (
+    <div
+      ref={bar}
+      className="sticky top-0 z-30 bg-ground px-gutter pt-[env(safe-area-inset-top)] lg:px-8"
+    >
+      <button
+        type="button"
+        onClick={open}
+        className="pressable mx-auto my-2 flex min-h-tap-target w-full max-w-content flex-col justify-center gap-1 rounded-field bg-surface px-4 py-2 text-left focus-visible:outline-2 focus-visible:outline-ink"
+      >
+        <span className="flex w-full items-center gap-2">
+          <span aria-live="polite" className="min-w-0 flex-1 text-body-strong break-keep text-ink">
+            {label}
+          </span>
+          <ChevronRight aria-hidden className="size-small-icon shrink-0 text-ink-2" />
+        </span>
+        {progress !== null && (
+          <span aria-hidden className="block h-1 w-full overflow-hidden rounded-full bg-edge">
+            <span
+              className="block h-full rounded-full bg-accent"
+              style={{ width: `${String(100 * progress)}%` }}
+            />
+          </span>
+        )}
+      </button>
+    </div>
   );
 }
 

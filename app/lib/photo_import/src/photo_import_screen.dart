@@ -31,23 +31,18 @@ final _decksProvider = StreamProvider.autoDispose<List<Deck>>(
 /// the library, as [origin] names, over [context], and opens the screen that
 /// reads candidate cards from them as [imports]'s job and saves the ones the
 /// user keeps into [deck], or into a new deck when it is null. While a job is
-/// under way, a snack bar says so and nothing starts. A cancel opens nothing.
-/// Nothing is written before the user confirms; resolves to how the import
-/// ended, or to null, also when the user leaves the screen with the job still
-/// reading.
+/// under way, it opens that job instead, as [openPhotoImport] does, and takes
+/// no photo. A cancel opens nothing. Nothing is written before the user
+/// confirms; resolves to how the import ended, or to null, also when the user
+/// leaves the screen with the job still reading.
 Future<PhotoImportOutcome?> importFromPhoto(
   BuildContext context, {
   required PhotoImports imports,
   required DeckId? deck,
   required PhotoOrigin origin,
 }) async {
+  if (imports.job != null) return openPhotoImport(context, imports);
   final navigator = Navigator.of(context);
-  if (imports.job != null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context).photoImportBusy)),
-    );
-    return null;
-  }
   final PhotoImportScreen screen;
   switch (await _takePhotos(imports.photos, origin, maxPhotosPerImport)) {
     case null:
@@ -81,7 +76,8 @@ Future<PhotoImportOutcome?> importFromPhoto(
         );
       }
   }
-  return navigator.push(
+  return imports.showScreen(
+    navigator,
     MaterialPageRoute<PhotoImportOutcome>(builder: (_) => screen),
   );
 }
@@ -98,7 +94,8 @@ Future<PhotoImportOutcome?> openPhotoImport(
   if (job.paused && !await offerPhotoImportResume(context, imports, job)) {
     return null;
   }
-  return navigator.push(
+  return imports.showScreen(
+    navigator,
     MaterialPageRoute<PhotoImportOutcome>(
       builder: (_) => PhotoImportScreen(
         imports: imports,

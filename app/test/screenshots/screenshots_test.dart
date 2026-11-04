@@ -2311,6 +2311,135 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('photo import in the background in $mode', skip: !_capture, (
+      tester,
+    ) async {
+      phone(tester);
+      SharedPreferencesAsyncPlatform.instance =
+          InMemorySharedPreferencesAsync.withData({'themeMode': mode});
+      final storage = (await tester.runAsync(
+        () => SharedPreferencesWithCache.create(
+          cacheOptions: const SharedPreferencesWithCacheOptions(
+            allowList: {
+              ...themeStorageKeys,
+              ...photoImportStorageKeys,
+              ...studyStorageKeys,
+              ...deckStorageKeys,
+            },
+          ),
+        ),
+      ))!;
+      final client = FakeExtractionClient();
+      await tester.pumpWidget(
+        composeApp(
+          NativeDatabase.memory(),
+          scheduler,
+          FakeAccountService(),
+          FakeSyncServer(_ada),
+          storage,
+          client,
+          MemoryImportJobStore(),
+          FakeSharingServer(),
+          FakeReachability(),
+          const UnavailableMediaServer(),
+          unusedMediaDirectory,
+          '1.0.0',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tap(tester, find.text(ko.signInWithGoogle));
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(Navigator).first),
+      );
+      // A deck of three cards, made as the user makes one.
+      await tap(tester, shownText(ko.newDeckTitle));
+      await tester.enterText(find.byType(EditableText), '영단어 기본');
+      await tester.pumpAndSettle();
+      await tap(tester, shownText(ko.save));
+      for (final (front, back) in [
+        ('ephemeral', '덧없는, 순간적인'),
+        ('meticulous', '꼼꼼한, 세심한'),
+        ('ubiquitous', '어디에나 있는'),
+      ]) {
+        await tap(tester, shownText(ko.newCard));
+        await tap(tester, shownText(ko.createManually));
+        for (final (index, text) in [front, back].indexed) {
+          await tester.enterText(find.byType(EditableText).at(index), text);
+          await tester.pumpAndSettle();
+        }
+        await tap(tester, shownText(ko.save));
+      }
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await showHome(tester);
+      await waitForPicker(tester, more: ko.dailyMinutesMore);
+      await tap(tester, shownText(ko.dailyMinutesSkip));
+
+      // Pumps frames past what a read changes, as the reading screen never
+      // settles.
+      Future<void> frames() async {
+        for (var frame = 0; frame < 5; frame++) {
+          await tester.pump(const Duration(milliseconds: 200));
+        }
+      }
+
+      /// Shoots [name], then the same at the largest text size.
+      Future<void> both(String name) async {
+        await frames();
+        await shot(tester, name);
+        tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+        await frames();
+        await shot(tester, '$name-largest-text');
+        tester.platformDispatcher.clearTextScaleFactorTestValue();
+        await frames();
+      }
+
+      // Three photos reading in the app's job, the first read.
+      final imports = container.read(photoImportsProvider)!;
+      final decks = (await tester.runAsync(
+        () => container.read(deckRepositoryProvider).watchDecks().first,
+      ))!;
+      final job = imports.create(decks.single.id, PhotoOrigin.album);
+      imports.attach(job);
+      await job.add([for (var i = 0; i < 3; i++) () async => testPhoto]);
+      await frames();
+      client.calls[0].answer.complete([
+        word(front: 'face', meaning: '직면하다', partOfSpeech: '[동]'),
+      ]);
+      await frames();
+      await both('27-import-bar-home');
+
+      await showNotes(tester);
+      await tap(tester, shownText('영단어 기본'));
+      await both('27a-import-bar-note');
+
+      await tester.tap(shownTextContaining(ko.studyThisDeckPlain));
+      for (
+        var tries = 0;
+        tries < 20 && shownText(ko.coachNext).evaluate().isEmpty;
+        tries++
+      ) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.tap(shownText(ko.coachNext));
+      await tester.pump(const Duration(milliseconds: 2800));
+      await tester.tap(shownText(ko.coachNext));
+      await tester.pump(const Duration(milliseconds: 2800));
+      await tester.tap(shownText(ko.coachStart));
+      await both('27b-import-bar-study');
+
+      // The import, opened by the bar where it shows over study, else from
+      // the note once study is closed.
+      if (find.byType(PhotoImportBar).hitTestable().evaluate().isEmpty) {
+        await tester.tap(find.byTooltip(ko.close));
+        await frames();
+      }
+      await tester.tap(find.byType(PhotoImportBar).hitTestable());
+      await both('27c-import-bar-import');
+
+      await unmount(tester);
+    });
+
     testWidgets('photo import unavailable in $mode', skip: !_capture, (
       tester,
     ) async {
