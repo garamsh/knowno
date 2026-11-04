@@ -861,7 +861,9 @@ describe("the users pages", () => {
     // Control: with no user matching, there is no last page, and the list says so.
     await render(UsersContent, { searchParams: Promise.resolve({ q: "nobody", page: "99" }) });
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.getByText("찾는 사용자가 없어요. 다른 단어나 조건으로 찾아보세요.")).toBeInTheDocument();
+    expect(
+      screen.getByText("찾는 사용자가 없어요. 다른 단어나 조건으로 찾아보세요."),
+    ).toBeInTheDocument();
   });
 
   it("searches by email as the admin types, once the typing pauses, on the list's first page", async () => {

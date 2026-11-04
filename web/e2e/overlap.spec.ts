@@ -25,7 +25,10 @@ test("the overlap check names each control drawn over another or clipped, and on
   expect(await overlaps(page)).toEqual([]);
   await page.evaluate(() => {
     const dialog = document.querySelector("dialog");
-    dialog?.insertAdjacentHTML("beforeend", '<button style="display: flex; margin-top: -30px">지정</button>');
+    dialog?.insertAdjacentHTML(
+      "beforeend",
+      '<button style="display: flex; margin-top: -30px">지정</button>',
+    );
   });
   expect(await overlaps(page)).toEqual(['BUTTON "닫기" overlaps BUTTON "지정"']);
 });
