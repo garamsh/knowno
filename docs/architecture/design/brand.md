@@ -32,10 +32,10 @@ The brand on the phone and the web: the name, the marks and how they are generat
   |---|---|---|
   | thinking, the mark itself | a photo being read, beside its words, while no row shows a failure | 64 |
   | thinking | the first-run home | 128 |
-  | thinking | 홈's hero in a backlog | 210 down to 64 as the screen leaves room |
+  | thinking | 홈's hero in a backlog | 210 |
   | thinking | study's coach, at the left of its speech bubble while the coach shows ([ADR 0166](../adr/0166-draw-no-mascot-during-a-study-session-let-it-present-the-coach-with-a-back-and-a-next-and-a-tilted-hand-and-fill-an-empty-day-s-bar.md)) | 56 |
   | happy | the completion panel, beside its heading | 64 |
-  | happy | 홈's hero with cards today, once they are done, and while no deck holds a card | 210 down to 64 |
+  | happy | 홈's hero with cards today, once they are done, and while no deck holds a card | 210 |
   | sad | a failed photo's screen, "no cards found" among its failures | 96 |
   | sleepy | study with nothing today, and an empty deck | 96 |
 

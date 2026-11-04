@@ -685,7 +685,7 @@ void main() {
     );
 
     testWidgets(
-      'a count that cannot be read says why under the hero, in the week card\'s place',
+      'a count that cannot be read says why in the hero under Start, on the first screen',
       (tester) async {
         final list = await _open(
           tester,
@@ -696,10 +696,34 @@ void main() {
             "Couldn't read or write the device's storage. Please try again.";
         final problem = find.text(why);
         expect(problem, findsOneWidget);
+        final start = shownText('Start');
         expect(
           tester.getRect(problem).top,
-          greaterThan(tester.getRect(shownText('Start')).bottom),
+          greaterThan(tester.getRect(start).bottom),
         );
+        // Inside the hero, and whole on the first screen with nothing
+        // scrolled.
+        final colors = AppColors.of(tester.element(find.byType(HomeTab)));
+        final hero = tester.getRect(
+          find
+              .ancestor(
+                of: start,
+                matching: find.byWidgetPredicate(
+                  (widget) =>
+                      widget is DecoratedBox &&
+                      widget.decoration is BoxDecoration &&
+                      (widget.decoration as BoxDecoration).color == colors.hero,
+                ),
+              )
+              .first,
+        );
+        final row = tester.getRect(problem);
+        expect(row.top, greaterThanOrEqualTo(hero.top));
+        expect(row.bottom, lessThanOrEqualTo(hero.bottom));
+        final page = tester.getRect(
+          find.ancestor(of: start, matching: find.byType(Scrollable)).first,
+        );
+        expect(row.bottom, lessThanOrEqualTo(page.bottom));
         expect(find.textContaining('cards today'), findsNothing);
         expect(find.textContaining('streak', findRichText: true), findsNothing);
         await list.close();
