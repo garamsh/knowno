@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+
 import { buttonClass } from "@/design/button";
 
 /** One group of rows, as `design/frames.md` §Group and section draws a list: the surface, split by hairlines. */
@@ -57,17 +59,50 @@ export const field =
 export const filter =
   "h-search min-w-0 rounded-field border border-outline bg-surface px-3 text-label text-ink focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ink";
 
-/** A set of facts, each a term and its value on one row of a [group]. */
+/**
+ * A set of facts, each a term and its value on one row of a [group]; a value's parts between " · "
+ * are each kept whole, so a model's id or a date wraps as one.
+ */
 export function Facts({ facts }: { facts: readonly (readonly [string, string])[] }) {
   return (
     <dl className={group}>
       {facts.map(([term, value]) => (
         <div key={term} className="flex items-baseline justify-between gap-3 px-4 py-3">
           <dt className="shrink-0 text-body text-ink-2">{term}</dt>
-          <dd className="text-right text-body-strong break-all tabular-nums">{value}</dd>
+          <dd className="min-w-0 text-right text-body-strong tabular-nums">
+            {value.split(" · ").map((part, index) => (
+              <Fragment key={index}>
+                {index > 0 && " · "}
+                <span className={whole}>{part}</span>
+              </Fragment>
+            ))}
+          </dd>
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * A part of a line kept whole, as a word is: it moves to the next line rather than break at a
+ * hyphen or a slash, and breaks inside only where it is longer than a whole line
+ * (`design/principles.md` §Nothing clipped).
+ */
+const whole = "inline-block max-w-full break-words";
+
+/**
+ * An email that may break before its `@`, where `break-words` would otherwise break it at any
+ * letter. Its text stays one run, so a screen reader and an accessible name read it whole.
+ */
+export function Email({ email }: { email: string }) {
+  const at = email.lastIndexOf("@");
+  if (at <= 0) return email;
+  return (
+    <>
+      {email.slice(0, at)}
+      <wbr />
+      {email.slice(at)}
+    </>
   );
 }
 

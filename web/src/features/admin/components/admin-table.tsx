@@ -5,10 +5,10 @@ import type { ReactNode } from "react";
 import { switchLink } from "./admin-section";
 
 /**
- * A table of the admin area, as `design/frames.md` §Table lays one out: one surface on its edge,
- * its header row in the `section` type, its rows split by hairlines. Below 1024 px the header row
- * goes, and each row is a row of the group, its cells wrapping in one block, each cell naming what
- * it holds through [CellLabel].
+ * A table of the admin area, as `design/frames.md` §Table lays one out: from 1024 px one surface on
+ * its edge, its header row in the `section` type, its rows split by hairlines; below it the header
+ * row goes and each row is a card of its own, its cells wrapping, each naming what it holds through
+ * [CellLabel].
  */
 export function AdminTable({
   label,
@@ -21,7 +21,7 @@ export function AdminTable({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-group bg-surface lg:overflow-x-auto">
+    <div className="lg:overflow-x-auto lg:rounded-group lg:bg-surface lg:shadow-card">
       <table aria-label={label} className="w-full border-collapse text-body max-lg:block">
         <thead className="max-lg:hidden">
           <tr className="border-b border-hairline">
@@ -38,24 +38,25 @@ export function AdminTable({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-hairline max-lg:block">{children}</tbody>
+        <tbody className="max-lg:flex max-lg:flex-col max-lg:gap-row-gap max-lg:pb-2 lg:divide-y lg:divide-hairline">
+          {children}
+        </tbody>
       </table>
     </div>
   );
 }
 
 /**
- * A row of an [AdminTable]; [current] marks the one a side panel shows on the ground, where a
- * brand chip still shows, and [linked] lets a link
- * in it stretch over the whole row.
+ * A row of an [AdminTable], a card of its own below 1024 px; [current] marks the one a side panel
+ * shows on the ground, and [linked] lets a link in it stretch over the whole row.
  */
 export function rowClass({
   current = false,
   linked = false,
 }: { current?: boolean; linked?: boolean } = {}): string {
-  return `max-lg:flex max-lg:flex-wrap max-lg:items-center max-lg:gap-x-3 max-lg:gap-y-1 max-lg:px-4 max-lg:py-3 ${
+  return `max-lg:flex max-lg:flex-wrap max-lg:items-center max-lg:gap-x-3 max-lg:gap-y-1 max-lg:rounded-row max-lg:bg-surface max-lg:px-4 max-lg:py-3 max-lg:shadow-row ${
     linked ? "relative pressable" : ""
-  } ${current ? "bg-ground" : ""}`;
+  } ${current ? "lg:bg-ground" : ""}`;
 }
 
 /** A cell of an [AdminTable]; a [numeric] one aligned to the end, a [lead] one alone on its line below 1024 px. */
@@ -63,7 +64,7 @@ export function cellClass({
   numeric = false,
   lead = false,
 }: { numeric?: boolean; lead?: boolean } = {}): string {
-  return `lg:px-3 lg:py-3 lg:first:pl-4 lg:last:pr-4 align-middle ${
+  return `lg:px-3 lg:py-3 lg:first:pl-4 lg:last:pr-4 align-middle max-lg:empty:hidden ${
     numeric ? "tabular-nums lg:text-right" : ""
   } ${lead ? "max-lg:min-w-0 max-lg:basis-full" : "max-lg:text-caption max-lg:text-ink-2"}`;
 }
@@ -90,8 +91,10 @@ export function pagesAround(current: number, count: number): (number | "gap")[] 
 }
 
 /**
- * The pager under a table: which rows of how many it shows, as "1–20 / 1,284", and the pages
- * around the current one, each a link [href] makes, with the one before and the one after.
+ * The pager under a table: from 1024 px which rows of how many it shows, as "1–20 / 1,284", and the
+ * pages around the current one, each a link [href] makes; below it the page of how many, as
+ * "1 / 65", which fits a phone however many pages there are. The one before and the one after
+ * stand at both widths.
  */
 export function Pager({
   label,
@@ -110,15 +113,18 @@ export function Pager({
   const count = Math.max(1, Math.ceil(total / size));
   const first = total === 0 ? 0 : (page - 1) * size + 1;
   const last = Math.min(page * size, total);
-  const step = "pressable flex min-h-tap-target min-w-tap-target items-center justify-center";
+  const still = "flex min-h-tap-target min-w-tap-target items-center justify-center text-muted";
   return (
     <nav
       aria-label={label}
       className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-1"
     >
-      <p className="text-caption text-ink-2 tabular-nums">
+      <p className="text-caption text-ink-2 tabular-nums max-lg:hidden">
         {first.toLocaleString("ko-KR")}–{last.toLocaleString("ko-KR")} /{" "}
         {total.toLocaleString("ko-KR")}
+      </p>
+      <p className="text-caption text-ink-2 tabular-nums lg:hidden">
+        {page.toLocaleString("ko-KR")} / {count.toLocaleString("ko-KR")}
       </p>
       <ul className="flex items-center gap-1 pb-2">
         <li>
@@ -127,18 +133,18 @@ export function Pager({
               <ChevronLeft aria-hidden className="size-5" strokeWidth={2.4} />
             </Link>
           ) : (
-            <span aria-hidden className={`${step} text-muted`}>
+            <span aria-hidden className={still}>
               <ChevronLeft className="size-5" strokeWidth={2.4} />
             </span>
           )}
         </li>
         {pagesAround(page, count).map((shown, index) =>
           shown === "gap" ? (
-            <li key={`gap-${String(index)}`} aria-hidden className={`${step} text-muted`}>
+            <li key={`gap-${String(index)}`} aria-hidden className={`${still} max-lg:hidden`}>
               …
             </li>
           ) : (
-            <li key={shown}>
+            <li key={shown} className="max-lg:hidden">
               <Link
                 href={href(shown)}
                 aria-current={shown === page ? "page" : undefined}
@@ -156,7 +162,7 @@ export function Pager({
               <ChevronRight aria-hidden className="size-5" strokeWidth={2.4} />
             </Link>
           ) : (
-            <span aria-hidden className={`${step} text-muted`}>
+            <span aria-hidden className={still}>
               <ChevronRight className="size-5" strokeWidth={2.4} />
             </span>
           )}

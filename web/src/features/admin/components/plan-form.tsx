@@ -4,13 +4,15 @@ import { useActionState, useId } from "react";
 
 import { createPlanVersion, type PlanFormState } from "../create-plan-version";
 import type { Quota } from "../read-admin";
-import { button, field, formInput, formLine, group } from "./admin-section";
+import { buttonClass } from "@/design/button";
+
+import { field, formInput, formLine, group } from "./admin-section";
 
 const input = `${field} ${formInput}`;
 
 /**
- * A new version of one plan's terms, starting from the current version's. The plans page draws one
- * per plan, so its button is outlined: none of the three is the page's one primary.
+ * A new version of one plan's terms, starting from the current version's, at the foot of the plan's
+ * sheet, whose one primary, 만들기, it ends on.
  */
 export function PlanForm({
   plan,
@@ -28,7 +30,7 @@ export function PlanForm({
   });
   const id = useId();
   return (
-    <form action={action} aria-label={`${name} 새 버전`} className="mt-3 flex flex-col gap-2">
+    <form action={action} aria-label={`${name} 새 버전`} className="flex flex-col gap-2">
       <h3 className="px-1 text-section text-muted">새 버전</h3>
       <input type="hidden" name="plan" value={plan} />
       <div className={group}>
@@ -81,12 +83,12 @@ export function PlanForm({
           </span>
         </div>
       </div>
-      <button type="submit" disabled={pending} className={button.secondary}>
-        만들기
-      </button>
-      <p role="status" className="text-caption text-muted empty:hidden">
+      <p role="status" className="px-1 text-caption text-muted empty:hidden">
         {state.message}
       </p>
+      <button type="submit" disabled={pending} className={`${buttonClass("primary", "cta")} mt-2`}>
+        만들기
+      </button>
     </form>
   );
 }

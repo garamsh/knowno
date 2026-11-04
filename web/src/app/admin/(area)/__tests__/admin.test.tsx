@@ -357,7 +357,7 @@ describe("노트", () => {
     });
   });
 
-  it("opens on the reported notes others still see, with the count in the switch and three fixed actions and ⋯ on each", async () => {
+  it("opens on the reported notes others still see, with the count in the switch, each name opening its cards, and two fixed actions and ⋯ on each", async () => {
     await notes();
     const views = within(screen.getByRole("navigation", { name: "노트 보기" }));
     expect(views.getAllByRole("link").map((link) => link.textContent)).toEqual([
@@ -374,50 +374,48 @@ describe("노트", () => {
       within(screen.getByRole("table", { name: "노트 목록" }))
         .getAllByRole("columnheader")
         .map((cell) => cell.textContent),
-    ).toEqual(["노트", "만든 사람", "카드", "가져오기", "첫 신고", "작업"]);
+    ).toEqual(["노트", "만든 사람", "카드", "가져오기", "첫 신고", "신고", "작업"]);
     const [row] = noteRows();
     expect(
       within(row as HTMLElement)
         .getAllByRole("cell")
-        .slice(0, 5)
+        .slice(0, 6)
         .map((cell) => cell.textContent),
     ).toEqual([
-      "French신고 2사유: 저작권 침해, 스팸",
-      "other@example.com",
+      "French사유: 저작권 침해, 스팸",
+      "만든 사람 other@example.com",
       "카드 2장",
       "가져오기 3회",
       "첫 신고 2026-10-18",
+      "신고 2",
     ]);
     // Latin is reported but hidden, German has no report, Diary is private.
     for (const name of ["Latin", "German", "Diary"]) {
       expect(screen.queryByText(name)).not.toBeInTheDocument();
     }
-    expect(within(row as HTMLElement).getByRole("link", { name: "카드 보기" })).toHaveAttribute(
+    expect(within(row as HTMLElement).getByRole("link", { name: "French" })).toHaveAttribute(
       "href",
       `/decks/${french}`,
     );
     expect(
       within(row as HTMLElement)
         .getAllByRole("button")
-        .map((button) => button.textContent),
-    ).toEqual(["문제없음", "숨기기", "공유에서 영구 삭제"]);
+        .map((button) => button.getAttribute("aria-label") ?? button.textContent),
+    ).toEqual(["문제없음", "숨기기", "'French' 더 보기"]);
     expect(admin.calls).toContain('admin_note_list {"view":"reported","search":""}');
   });
 
-  it("opens 만든 사람 보기 and 공유에서 영구 삭제 under ⋯", async () => {
+  it("opens 만든 사람 보기 and 공유에서 영구 삭제 in a sheet from ⋯", async () => {
     const user = userEvent.setup();
     await notes();
-    const more = screen.getByLabelText("'French' 더 보기");
-    const menu = more.closest("details");
-    expect(menu).not.toHaveAttribute("open");
-    await user.click(more);
-    expect(menu).toHaveAttribute("open");
-    expect(
-      within(menu as HTMLElement).getByRole("link", { name: "만든 사람 보기" }),
-    ).toHaveAttribute("href", `/users/${otherUser.id}`);
-    await user.click(
-      within(menu as HTMLElement).getByRole("button", { name: "공유에서 영구 삭제" }),
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "'French' 더 보기" }));
+    const menu = within(screen.getByRole("dialog", { name: "French" }));
+    expect(menu.getByRole("link", { name: "만든 사람 보기" })).toHaveAttribute(
+      "href",
+      `/users/${otherUser.id}`,
     );
+    await user.click(menu.getByRole("button", { name: "공유에서 영구 삭제" }));
     // The removal keeps its red final step.
     expect(screen.getByRole("button", { name: "영구 삭제" }).className).toContain(
       "bg-dont-know-text",
@@ -497,7 +495,8 @@ describe("노트", () => {
     cleanup();
     await notes({ view: "hidden" });
     const [row] = noteRows();
-    expect(row).toHaveTextContent(/^Latin신고 1숨김/);
+    expect(row).toHaveTextContent(/^Latin숨김/);
+    expect(row).toHaveTextContent(/신고 1/);
     expect(
       within(row as HTMLElement).getByRole("button", { name: "숨김 해제" }),
     ).toBeInTheDocument();
@@ -776,8 +775,8 @@ describe("the users pages", () => {
       "마지막 학습 2026-10-18",
       "노트 2",
       "카드 3",
-      "무료",
-      "정지됨",
+      "요금제 무료",
+      "상태 정지됨",
     ]);
     // The admin is on 스페셜, shown like any plan, with no hidden badge (ADR 0177).
     const self = within(userRow(testUser.email));
@@ -787,8 +786,8 @@ describe("the users pages", () => {
       "마지막 학습 없음",
       "노트 0",
       "카드 0",
-      "스페셜",
-      "관리자",
+      "요금제 스페셜",
+      "상태 관리자",
     ]);
     expect(screen.getByRole("navigation", { name: "사용자 페이지" })).toHaveTextContent("1–2 / 2");
   });
@@ -801,6 +800,8 @@ describe("the users pages", () => {
     expect(listedEmails()[0]).toBe("user01@example.com");
     const pager = within(screen.getByRole("navigation", { name: "사용자 페이지" }));
     expect(pager.getByText("1–20 / 47")).toBeInTheDocument();
+    // Below 1024 px, the page of how many in place of the rows and the page numbers.
+    expect(pager.getByText("1 / 3")).toBeInTheDocument();
     expect(pager.getByRole("link", { name: "1페이지" })).toHaveAttribute("aria-current", "page");
     expect(pager.getByRole("link", { name: "3페이지" })).toHaveAttribute("href", "/users?page=3");
     expect(pager.getByRole("link", { name: "다음 페이지" })).toHaveAttribute(
@@ -845,6 +846,22 @@ describe("the users pages", () => {
     // Control: a page it offers reads that page.
     await render(UsersContent, { searchParams: Promise.resolve({ page: "2" }) });
     expect(listedEmails()).toEqual(["user21@example.com", otherUser.email, testUser.email]);
+  });
+
+  it("shows the last page, with its pager, for an address past the end", async () => {
+    seedUsers(21);
+    await render(UsersContent, { searchParams: Promise.resolve({ page: "99" }) });
+    expect(listedEmails()).toEqual(["user21@example.com", otherUser.email, testUser.email]);
+    const pager = within(screen.getByRole("navigation", { name: "사용자 페이지" }));
+    expect(pager.getByText("21–23 / 23")).toBeInTheDocument();
+    expect(pager.getByRole("link", { name: "2페이지" })).toHaveAttribute("aria-current", "page");
+    expect(pager.getByRole("link", { name: "이전 페이지" })).toHaveAttribute("href", "/users");
+
+    cleanup();
+    // Control: with no user matching, there is no last page, and the list says so.
+    await render(UsersContent, { searchParams: Promise.resolve({ q: "nobody", page: "99" }) });
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByText("찾는 사용자가 없어요. 다른 단어나 조건으로 찾아보세요.")).toBeInTheDocument();
   });
 
   it("searches by email as the admin types, once the typing pauses, on the list's first page", async () => {
@@ -929,7 +946,13 @@ describe("the users pages", () => {
       "href",
       `/users/${otherUser.id}`,
     );
-    expect(panel.getByRole("region", { name: "이용 정지" })).toBeInTheDocument();
+    // The panel holds no primary: 지정 is the sheet's that 요금제 바꾸기 opens.
+    expect(
+      within(panel.getByRole("region", { name: "작업" }))
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["요금제 바꾸기", "이용 정지"]);
+    expect(panel.queryByRole("button", { name: "지정" })).not.toBeInTheDocument();
     // Below 1024 px the details take the list's place, as a page would.
     expect(
       screen.getByRole("table", { name: "사용자 목록" }).closest(".max-lg\\:hidden"),
@@ -971,7 +994,7 @@ describe("the users pages", () => {
     );
   });
 
-  it("shows the plan's next renewal, the 1st in Seoul, and opens the grant form under 요금제 바꾸기", async () => {
+  it("shows the plan's next renewal, the 1st in Seoul, and opens the grant form in a sheet from 요금제 바꾸기", async () => {
     const user = userEvent.setup();
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
     const plan = within(screen.getByRole("region", { name: "요금제" }));
@@ -984,11 +1007,13 @@ describe("the users pages", () => {
         ? `${String(year + 1)}-01-01`
         : `${String(year)}-${String(month + 1).padStart(2, "0")}-01`;
     expect(plan.getByText("다음 갱신").nextSibling).toHaveTextContent(renewal);
-    const change = plan.getByText("요금제 바꾸기");
-    expect(change.closest("details")).not.toHaveAttribute("open");
-    await user.click(change);
-    expect(change.closest("details")).toHaveAttribute("open");
-    expect(plan.getByRole("form", { name: "요금제 지정" })).toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "요금제 지정" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "요금제 바꾸기" }));
+    const sheet = within(screen.getByRole("dialog", { name: "요금제 바꾸기" }));
+    expect(sheet.getByRole("form", { name: "요금제 지정" })).toBeInTheDocument();
+    // The sheet's one primary, last.
+    expect(sheet.getAllByRole("button").at(-1)).toHaveTextContent("지정");
+    expect(sheet.getByRole("button", { name: "지정" }).className).toContain("bg-primary");
   });
 
   it("lists every live deck of a user, private ones too, each opening the deck", async () => {
@@ -1003,7 +1028,7 @@ describe("a user's suspension", () => {
   it("suspends a user with a reason once confirmed, shows it, and lifts it", async () => {
     const user = userEvent.setup();
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
-    const section = within(screen.getByRole("region", { name: "이용 정지" }));
+    const section = within(screen.getByRole("region", { name: "작업" }));
     await user.click(section.getByRole("button", { name: "이용 정지" }));
     await user.type(section.getByLabelText("정지하는 이유"), "spam decks");
     await user.click(section.getByRole("button", { name: "정지" }));
@@ -1169,7 +1194,8 @@ function form(fields: Record<string, string>): FormData {
 }
 
 describe("the plans page", () => {
-  it("shows the terms each plan's new subscribers take, a form for a new version, and every version, the model left to AI 제공자", async () => {
+  it("shows the terms each plan's new subscribers take, and opens a plan's versions and its form for a new one in a sheet, the model left to AI 제공자", async () => {
+    const user = userEvent.setup();
     admin.planVersions.push({
       id: 7,
       plan: "pro",
@@ -1206,28 +1232,28 @@ describe("the plans page", () => {
       [
         "무료",
         "사진 한도 한 달 10장",
-        "OpenRouter · anthropic/claude-haiku-5.5AI에서 보기",
+        "AI 구성 OpenRouter · anthropic/claude-haiku-5.5 AI에서 보기",
         "가입자 1명",
         "한도 바꾸기",
       ],
       [
         "프로",
         "사진 한도 하루 100장",
-        "Anthropic · claude-sonnet-5AI에서 보기",
+        "AI 구성 Anthropic · claude-sonnet-5 AI에서 보기",
         "가입자 0명",
         "한도 바꾸기",
       ],
       [
         "맥스",
         "사진 한도 무제한 (하루 1000장까지)",
-        "OpenRouter · anthropic/claude-haiku-5.5AI에서 보기",
+        "AI 구성 OpenRouter · anthropic/claude-haiku-5.5 AI에서 보기",
         "가입자 0명",
         "한도 바꾸기",
       ],
       [
         "스페셜",
         "사진 한도 제한 없음",
-        "OpenRouter · anthropic/claude-haiku-5.5AI에서 보기",
+        "AI 구성 OpenRouter · anthropic/claude-haiku-5.5 AI에서 보기",
         "가입자 1명",
         "",
       ],
@@ -1236,11 +1262,19 @@ describe("the plans page", () => {
     for (const link of table.getAllByRole("link", { name: "AI에서 보기" })) {
       expect(link).toHaveAttribute("href", "/settings/ai");
     }
-    expect(table.getAllByRole("link", { name: "한도 바꾸기" })[0]).toHaveAttribute(
-      "href",
-      "#plan-free",
-    );
-    const free = within(screen.getByRole("region", { name: "무료" }));
+    // Nothing but the table is open until a plan's 한도 바꾸기 is pressed.
+    expect(screen.queryByRole("form")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const open = async (name: string) => {
+      await user.click(
+        within(screen.getByRole("row", { name: new RegExp(`^${name}`) })).getByRole("button", {
+          name: "한도 바꾸기",
+        }),
+      );
+      return within(screen.getByRole("dialog", { name: `${name} 한도 바꾸기` }));
+    };
+    const free = await open("무료");
+    expect(free.getAllByRole("button").at(-1)).toHaveTextContent("만들기");
     expect(free.getByRole("combobox", { name: "한도" })).toHaveValue("monthly");
     expect(free.getByRole("spinbutton", { name: "사진 장 수" })).toHaveValue(10);
     expect(free.queryByRole("textbox", { name: "모델" })).not.toBeInTheDocument();
@@ -1252,10 +1286,12 @@ describe("the plans page", () => {
       "한 달 10장 · 지금 가입 시 적용2026-10-26 00:00부터 · 기존 사용자는 갱신일부터",
       "하루 30장2026-10-19 00:00부터 · 기존 사용자는 갱신일부터",
     ]);
-    const pro = within(screen.getByRole("region", { name: "프로" }));
+    await user.click(free.getByRole("button", { name: "닫기" }));
+    const pro = await open("프로");
     // The row carries its start and author after its terms, so a substring is right.
     expect(pro.getByText(/learner@example.com/)).toBeInTheDocument();
-    const max = within(screen.getByRole("region", { name: "맥스" }));
+    await user.click(pro.getByRole("button", { name: "닫기" }));
+    const max = await open("맥스");
     expect(max.getByText(/기존 사용자도 적용/)).toBeInTheDocument();
   });
 
@@ -1383,8 +1419,14 @@ describe("스페셜", () => {
   });
 
   it("is offered in 요금제 바꾸기, given until a day's end, logged, and taken back to Free", async () => {
+    const user = userEvent.setup();
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
-    const choices = within(screen.getByRole("combobox", { name: "바꿀 요금제" }));
+    await user.click(screen.getByRole("button", { name: "요금제 바꾸기" }));
+    const choices = within(
+      within(screen.getByRole("dialog", { name: "요금제 바꾸기" })).getByRole("combobox", {
+        name: "바꿀 요금제",
+      }),
+    );
     expect(choices.getAllByRole("option").map((option) => option.textContent)).toEqual([
       "프로",
       "맥스",
@@ -1440,14 +1482,16 @@ describe("스페셜", () => {
 
   it("lists 스페셜 on the plans page with no limit and no form for a new version", async () => {
     await render(PlansContent, {});
-    const special = within(screen.getByRole("region", { name: "스페셜" }));
+    const special = screen.getByRole("row", { name: /^스페셜/ });
     // The row carries every cell, so a substring is right.
-    expect(screen.getByRole("row", { name: /^스페셜/ })).toHaveTextContent("사진 한도 제한 없음");
-    expect(screen.getByRole("row", { name: /^스페셜/ })).not.toHaveTextContent("숨김");
-    expect(special.queryByRole("form")).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "스페셜" })).not.toHaveTextContent("숨김");
-    const max = within(screen.getByRole("region", { name: "맥스" }));
-    expect(max.getByRole("form"), "control: Max has its form").toBeInTheDocument();
+    expect(special).toHaveTextContent("사진 한도 제한 없음");
+    expect(special).not.toHaveTextContent("숨김");
+    expect(within(special).queryByRole("button")).not.toBeInTheDocument();
+    const max = within(screen.getByRole("row", { name: /^맥스/ }));
+    expect(
+      max.getByRole("button", { name: "한도 바꾸기" }),
+      "control: Max has its form",
+    ).toBeInTheDocument();
   });
 });
 
@@ -1457,7 +1501,11 @@ describe("a user's plan", () => {
     const plan = within(screen.getByRole("region", { name: "요금제" }));
     expect(plan.getByText("지금").nextSibling).toHaveTextContent("무료 · 한 달 10장");
     expect(plan.getByText("모델").nextSibling).toHaveTextContent("anthropic/claude-haiku-5.5");
-    expect(plan.queryByRole("button", { name: "무료로 되돌리기" })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "작업" })).queryByRole("button", {
+        name: "무료로 되돌리기",
+      }),
+    ).not.toBeInTheDocument();
 
     const ends = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
     expect(
@@ -1478,7 +1526,12 @@ describe("a user's plan", () => {
       "맥스 · 무제한 (하루 1000장까지)",
     );
     expect(granted.getByText("마지막 날", { selector: "dt" }).nextSibling).toHaveTextContent(ends);
-    expect(granted.getByRole("button", { name: "무료로 되돌리기" })).toBeInTheDocument();
+    expect(
+      within(screen.getAllByRole("region", { name: "작업" }).at(-1) as HTMLElement).getByRole(
+        "button",
+        { name: "무료로 되돌리기" },
+      ),
+    ).toBeInTheDocument();
 
     expect(await revokePlan(otherUser.id)).toEqual({
       changed: true,

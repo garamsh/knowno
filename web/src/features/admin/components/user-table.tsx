@@ -85,17 +85,22 @@ export function UserTable({
                 </>
               )}
               <td className={cellClass()}>
+                <CellLabel>요금제</CellLabel>
                 {user.plan === null ? (
                   "없음"
                 ) : (
                   <Chip tone="brand">{labelOf(planLabels, user.plan)}</Chip>
                 )}
               </td>
+              {/* Empty, and so not drawn below 1024 px, for a user who is neither. */}
               <td className={cellClass()}>
-                <span className="flex gap-1">
-                  {user.admin && <Chip tone="brand">관리자</Chip>}
-                  {user.suspended && <Chip tone="amber">정지됨</Chip>}
-                </span>
+                {(user.admin || user.suspended) && (
+                  <span className="inline-flex items-center gap-1">
+                    <CellLabel>상태</CellLabel>
+                    {user.admin && <Chip tone="brand">관리자</Chip>}
+                    {user.suspended && <Chip tone="amber">정지됨</Chip>}
+                  </span>
+                )}
               </td>
             </tr>
           );

@@ -196,12 +196,27 @@ export async function DeckContent({ params }: { params: Promise<{ id: string }> 
   return <DeckView deck={read.data} timeZone={timeZone} />;
 }
 
+/**
+ * The page of the users' list [named] asks for, or the last page, with the address naming it,
+ * where the one asked for is past the end: a page past the end holds no row to carry the total.
+ */
+async function readUserPage(named: UserListAddress) {
+  const filter = { query: named.query, plan: named.plan, status: named.status };
+  const list = await listUsers(filter, named.page - 1, named.size);
+  if (named.page === 1 || "failure" in list || list.data.users.length > 0) {
+    return { list, address: named };
+  }
+  const total = await listUsers(filter, 0, 1);
+  if ("failure" in total || total.data.total === 0) return { list: total, address: named };
+  const page = Math.ceil(total.data.total / named.size);
+  return { list: await listUsers(filter, page - 1, named.size), address: { ...named, page } };
+}
+
 export async function UsersContent({ searchParams }: { searchParams: SearchParams }) {
-  const address = userListAddress(await searchParams);
-  const filter = { query: address.query, plan: address.plan, status: address.status };
-  const [list, selected, timeZone] = await Promise.all([
-    listUsers(filter, address.page - 1, address.size),
-    address.user === null ? null : readUser(address.user),
+  const named = userListAddress(await searchParams);
+  const [{ list, address }, selected, timeZone] = await Promise.all([
+    readUserPage(named),
+    named.user === null ? null : readUser(named.user),
     adminTimeZone(),
   ]);
   const user = selected !== null && !("failure" in selected) ? selected.data : null;
@@ -228,7 +243,11 @@ export async function UsersContent({ searchParams }: { searchParams: SearchParam
           <AdminFailureMessage failure={selected.failure} />
         )}
         {user !== null && (
-          <aside aria-label={user.email} className="min-w-0 lg:sticky lg:top-8">
+          // Pinned beside a long list, it scrolls on its own, so its foot is never out of reach.
+          <aside
+            aria-label={user.email}
+            className="min-w-0 lg:sticky lg:top-8 lg:-mx-1 lg:max-h-[calc(100dvh_-_--spacing(16))] lg:overflow-y-auto lg:px-1 lg:pb-2"
+          >
             <UserView user={user} timeZone={timeZone} panel={{ close: usersHref(close) }} />
           </aside>
         )}

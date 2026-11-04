@@ -1,27 +1,20 @@
 import { studyDayStart } from "@/features/study";
 
-import { revokePlan } from "../revoke-plan";
 import { formatDate, formatTime } from "../format";
 import { labelOf, planLabels, providerLabels, termsLabel } from "../labels";
 import type { UserPlan as Plan } from "../read-admin";
 import { Section } from "@/design/section";
-import { button, Facts } from "./admin-section";
-import { ConfirmAction } from "./confirm-action";
-import { GrantPlanForm } from "./grant-plan-form";
+import { Facts } from "./admin-section";
 
 /**
- * A user's plan now, the grant behind it and the next renewal, with 요금제 바꾸기 opening the form
- * to grant another and the way back to Free.
+ * A user's plan now, the model serving it, the grant behind it and the next renewal. The way to
+ * change it is among the user's actions (`user-view.tsx`).
  */
 export function UserPlan({
-  userId,
-  email,
   plan,
   timeZone,
   renewal,
 }: {
-  userId: string;
-  email: string;
   plan: Plan;
   timeZone: string;
   /** The next renewal, as "2026-12-01". */
@@ -65,26 +58,6 @@ export function UserPlan({
   return (
     <Section label="요금제">
       <Facts facts={facts} />
-      <details>
-        <summary
-          className={`${button.row} mt-2 w-fit list-none [&::-webkit-details-marker]:hidden`}
-        >
-          요금제 바꾸기
-        </summary>
-        {/* A details element does not lay its content out as flex items, so one block holds the gap. */}
-        <div className="mt-3 flex flex-col gap-3">
-          <GrantPlanForm userId={userId} />
-          {grant !== null && (
-            <ConfirmAction
-              compact
-              label="무료로 되돌리기"
-              question={`${email}의 요금제를 무료로 되돌릴까요?`}
-              confirmLabel="무료로 되돌리기"
-              action={revokePlan.bind(null, userId)}
-            />
-          )}
-        </div>
-      </details>
     </Section>
   );
 }
