@@ -16,6 +16,7 @@ import 'package:knowno/study/study.dart';
 
 import 'home_data.dart';
 import '../study/study_storage.dart';
+import '../word_breaks.dart';
 
 /// A deck named "French" in an in-memory database, shown by the deck screens
 /// with study over the same database and a stand-in for photo import.
@@ -53,7 +54,7 @@ class DeckScreens {
 
   /// Types [text] into the field labelled [label].
   Future<void> enter(String label, String text) async {
-    await tester.enterText(find.widgetWithText(AppTextField, label), text);
+    await tester.enterText(widgetWithShownText(AppTextField, label), text);
     await tester.pump();
   }
 
