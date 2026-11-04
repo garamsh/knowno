@@ -125,7 +125,7 @@ jobs:
       # Caches Gradle's home for flutter build apk, through actions/cache (cache-provider basic). As
       # the action defaults, only a run on main saves it; a pull request restores main's.
       - if: matrix.java
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-provider: basic
       # cache: true caches the Flutter SDK and the pub packages. Every target but build runs
