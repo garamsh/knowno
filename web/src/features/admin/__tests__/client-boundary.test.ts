@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
  */
 
 const src = path.join(import.meta.dirname, "../../..");
-const roots = ["features/admin", "app/(shell)/admin"].map((dir) => path.join(src, dir));
+const roots = ["features/admin", "app/admin"].map((dir) => path.join(src, dir));
 
 /** A module's named value imports from a relative or `@/` path; `import type` is erased. */
 const namedImports = /^\s*import\s+(?!type\b)\{([^}]*)\}\s*from\s+["']([^"']+)["']/gm;

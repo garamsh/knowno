@@ -37,7 +37,7 @@ function NoteItem({ note }: { note: NoteRow }) {
       </div>
       <div className="flex flex-col items-start gap-2 lg:items-end">
         <div className="flex flex-wrap items-start gap-2 lg:justify-end">
-          <Link href={`/admin/decks/${note.id}`} className={button.row}>
+          <Link href={`/decks/${note.id}`} className={button.row}>
             카드 보기
           </Link>
           <ConfirmAction
@@ -84,7 +84,7 @@ function NoteItem({ note }: { note: NoteRow }) {
 function NoteMenu({ note }: { note: NoteRow }) {
   return (
     <div className="mt-2 flex flex-col items-start gap-2 lg:items-end">
-      <Link href={`/admin/users/${note.owner.id}`} className={button.row}>
+      <Link href={`/users/${note.owner.id}`} className={button.row}>
         만든 사람 보기
       </Link>
       <ReasonAction

@@ -22,7 +22,7 @@ export function DeckView({ deck, timeZone }: { deck: AdminDeck; timeZone: string
         <DeckStateChips state={deck.state} />
         <p className="text-caption text-muted">
           <Link
-            href={`/admin/users/${deck.owner.id}`}
+            href={`/users/${deck.owner.id}`}
             className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ink"
           >
             {deck.owner.email}

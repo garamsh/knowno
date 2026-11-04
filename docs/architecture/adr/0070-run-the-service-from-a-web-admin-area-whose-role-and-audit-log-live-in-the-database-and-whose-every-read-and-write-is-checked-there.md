@@ -1,6 +1,6 @@
 # ADR 0070: Run the service from a web admin area whose role and audit log live in the database, and whose every read and write is checked there
 
-> Status: accepted; its per-photo cost and daily limit as web constants superseded by ADR-0071; its private decks kept out of the area superseded by ADR-0072; its section menu superseded by ADR-0155
+> Status: accepted; its per-photo cost and daily limit as web constants superseded by ADR-0071; its private decks kept out of the area superseded by ADR-0072; its section menu superseded by ADR-0155; its place inside the shell and its not-found page for a user who is not an admin superseded by ADR-0178
 > Date: 2026-10-19
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

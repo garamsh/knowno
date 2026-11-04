@@ -19,6 +19,7 @@ export default defineConfig({
     env: {
       NEXT_PUBLIC_SUPABASE_URL: "http://supabase.test",
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test",
+      KNOWNO_SERVICE_ORIGIN: "http://localhost:3000",
     },
   },
 });

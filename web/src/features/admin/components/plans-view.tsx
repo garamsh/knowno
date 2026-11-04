@@ -68,7 +68,7 @@ export function PlansView({ versions, timeZone }: { versions: PlanVersion[]; tim
       <p className="px-1 text-caption text-muted">
         요금제마다 사진을 읽는 AI 제공자와 모델은{" "}
         <Link
-          href="/admin/settings/ai"
+          href="/settings/ai"
           className="underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ink"
         >
           AI 제공자

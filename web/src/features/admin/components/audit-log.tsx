@@ -23,15 +23,15 @@ function Target({ entry }: { entry: AuditEntry }) {
               : entry.targetId;
   const href =
     entry.targetKind === "deck"
-      ? `/admin/decks/${entry.targetId}`
+      ? `/decks/${entry.targetId}`
       : entry.targetKind === "user"
-        ? `/admin/users/${entry.targetId}`
+        ? `/users/${entry.targetId}`
         : entry.targetKind === "plan" && entry.action.endsWith("_plan_version")
-          ? "/admin/settings"
+          ? "/settings"
           : entry.targetKind === "plan" || entry.targetKind === "provider"
-            ? "/admin/settings/ai"
+            ? "/settings/ai"
             : entry.targetKind === "prompt"
-              ? `/admin/ai/${entry.targetId}`
+              ? `/ai/${entry.targetId}`
               : null;
   return href === null ? (
     <span>{words}</span>

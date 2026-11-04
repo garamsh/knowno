@@ -295,6 +295,11 @@ Deno.test("test runs the specs against the image, as non-root, and stops it", as
     ),
     calls,
   );
+  // The service's origin names the port the image is published on, at localhost.
+  assert.match(
+    calls,
+    /^docker run --detach --rm --publish 127\.0\.0\.1:(\d+):3000 --env KNOWNO_SERVICE_ORIGIN=http:\/\/localhost:\1 knowno-web:local$/m,
+  );
   assert.ok(calls.includes("docker stop the-container\n"), calls);
 });
 

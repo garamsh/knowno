@@ -3,9 +3,7 @@ import { Suspense } from "react";
 
 import { BrandMark } from "@/design/brand";
 import { LegalLinks } from "@/features/legal";
-import { SignInButton } from "@/features/account";
-
-import { CallbackError } from "./_components/callback-error";
+import { CallbackError, SignInButton } from "@/features/account";
 
 export const metadata: Metadata = { title: "로그인 · 알아몰라" };
 

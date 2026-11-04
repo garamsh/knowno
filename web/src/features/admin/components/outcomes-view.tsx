@@ -123,7 +123,7 @@ export function VersionCalls({
   more: boolean;
   timeZone: string;
 }) {
-  const page = `/admin/ai/${String(versionId)}`;
+  const page = `/ai/${String(versionId)}`;
   return (
     <Section label="최근 추출">
       {before !== null && (

@@ -34,7 +34,7 @@ export async function savePrompt(
     return { message: failureMessages.unreadable };
   }
   revalidatePath("/admin", "layout");
-  redirect(`/admin/ai/${String(result.data)}`);
+  redirect(`/ai/${String(result.data)}`);
 }
 
 /** [value]'s length in code points, as Postgres' `char_length` counts it. */

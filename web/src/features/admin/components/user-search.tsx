@@ -19,7 +19,7 @@ export function userSearchHref(query: string, page: number): string {
   if (query.trim() !== "") params.set("q", query.trim());
   if (query.trim() !== "" && page > 0) params.set("page", String(page));
   const search = params.toString();
-  return search === "" ? "/admin/users" : `/admin/users?${search}`;
+  return search === "" ? "/users" : `/users?${search}`;
 }
 
 /**
@@ -112,7 +112,7 @@ export function UserSearch({
         {users.map((user) => (
           <li key={user.id}>
             <Link
-              href={`/admin/users/${user.id}`}
+              href={`/users/${user.id}`}
               className="pressable flex min-h-13 items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
             >
               <span className="truncate text-body-strong">{user.email}</span>
