@@ -31,11 +31,9 @@ void main() {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: AppSpace.s8,
             children: [
-              // onHeroText is drawn on the hero surface, and faint and link
-              // in a line of text, tested below.
+              // faint and link are drawn in a line of text, tested below.
               for (final variant in AppButtonVariant.values.where(
                 (variant) => ![
-                  AppButtonVariant.onHeroText,
                   AppButtonVariant.faint,
                   AppButtonVariant.link,
                 ].contains(variant),
@@ -154,56 +152,6 @@ void main() {
           ),
         );
         expect(size('terms').height, AppSize.tapTarget);
-        await meetsGuidelines(tester);
-        expectScreenTextReadable(tester);
-      },
-    );
-  }
-
-  for (final MapEntry(key: mode, value: colors) in themeModes.entries) {
-    testWidgets(
-      'in ${mode.name} the quiet action on the hero draws its colour there and meets the guidelines',
-      (tester) async {
-        await pumpComponent(
-          tester,
-          ColoredBox(
-            color: colors.hero,
-            child: AppButton(
-              label: 'skip',
-              variant: AppButtonVariant.onHeroText,
-              onPressed: () {},
-            ),
-          ),
-          themeMode: mode,
-        );
-
-        expect(
-          tester
-              .widget<DefaultTextStyle>(
-                find
-                    .ancestor(
-                      of: shownText('skip'),
-                      matching: find.byType(DefaultTextStyle),
-                    )
-                    .first,
-              )
-              .style
-              .color,
-          colors.onHero,
-        );
-        expect(
-          tester
-              .getSize(
-                find
-                    .ancestor(
-                      of: shownText('skip'),
-                      matching: find.byType(Material),
-                    )
-                    .first,
-              )
-              .height,
-          AppSize.tapTarget,
-        );
         await meetsGuidelines(tester);
         expectScreenTextReadable(tester);
       },

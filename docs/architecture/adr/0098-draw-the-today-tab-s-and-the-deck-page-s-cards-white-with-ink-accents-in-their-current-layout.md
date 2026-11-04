@@ -1,6 +1,6 @@
 # ADR 0098: Draw the 오늘 tab's and the deck page's cards white with ink accents, in their current layout
 
-> Status: accepted
+> Status: accepted; its `onHeroText` variant superseded by ADR 0189, which removed the completion panel that drew it (#737)
 > Date: 2026-10-26
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
