@@ -459,6 +459,7 @@ async function converse(
     }
     const left = TURN_LIMIT_MS - (deps.now() - started);
     if (left <= 0) return { outcome: "time_limit", usage };
+    const searchesLeft = configuration.maxSearches - usage.webSearchRequests;
     let result;
     try {
       const response = await deps.fetch(adapter.url, {
@@ -466,7 +467,12 @@ async function converse(
         signal: deps.timeout(left),
         headers: adapter.headers(apiKey),
         body: JSON.stringify(adapter.body({
-          configuration,
+          // The searches a turn may make are shared by its calls: each call is offered those left.
+          configuration: {
+            ...configuration,
+            webSearch: configuration.webSearch && searchesLeft > 0,
+            maxSearches: searchesLeft,
+          },
           system,
           messages,
           tools: ASSISTANT_TOOLS,

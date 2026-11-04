@@ -869,3 +869,46 @@ Deno.test("a call the provider paused is sent again to go on, within the call li
   assert.equal(run.events.at(-1)!.data.outcome, "ok");
   assert.equal(run.events.at(-1)!.data.web_search_requests, 1);
 });
+
+Deno.test("a turn's searches are shared by its calls, the search tool dropped once they are spent", async () => {
+  const fake = seed();
+  fake.configuration = {
+    ...fake.configuration,
+    web_search: true,
+    max_searches: 3,
+  };
+  const searched = (requests: number) => () =>
+    chatStream([
+      {
+        choices: [{
+          delta: {
+            tool_calls: [{
+              index: 0,
+              id: `s${requests}`,
+              function: { name: "list_decks", arguments: "{}" },
+            }],
+          },
+          finish_reason: "tool_calls",
+        }],
+      },
+      {
+        choices: [],
+        usage: { ...usage, server_tool_use: { web_search_requests: requests } },
+      },
+    ]);
+  fake.replies.push(searched(2), searched(1), says("끝"));
+  await send(fake);
+  const search = (request: Row) =>
+    (request.tools as Row[]).find((tool) =>
+      tool.type === "openrouter:web_search"
+    );
+  assert.deepEqual(search(fake.requests[0]!)?.parameters, {
+    engine: "exa",
+    max_uses: 3,
+  });
+  assert.deepEqual(search(fake.requests[1]!)?.parameters, {
+    engine: "exa",
+    max_uses: 1,
+  });
+  assert.equal(search(fake.requests[2]!), undefined);
+});
