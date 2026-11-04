@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { readConfig } from "./config.ts";
 import { createHandler, type SettingsLogEntry } from "./handler.ts";
-import { vaultKeys } from "./keys.ts";
+import { vaultKeys } from "../_shared/keys.ts";
 import { ANTHROPIC_URL, OPENAI_URL, OPENROUTER_URL } from "./providers.ts";
 import { CHECK_IMAGE } from "./settings.ts";
 
