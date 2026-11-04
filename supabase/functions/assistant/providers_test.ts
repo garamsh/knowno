@@ -481,6 +481,43 @@ Deno.test("a responses stream cut short is read as cut, and a failed or unfinish
   );
 });
 
+Deno.test("a stream that fails carries the usage its provider reported by then, against one that reported none", async () => {
+  const usageOf = async (read: Promise<unknown>) => {
+    const error = await read.then(
+      () => assert.fail("the read did not fail"),
+      (error: unknown) => error,
+    );
+    assert.ok(error instanceof StreamError);
+    return error.usage;
+  };
+  const anthropic = await usageOf(ADAPTERS.anthropic.read(
+    events(
+      data({
+        type: "message_start",
+        message: { usage: { input_tokens: 700, output_tokens: 2 } },
+      }),
+      data({ type: "message_delta", delta: {}, usage: { output_tokens: 40 } }),
+    ),
+    () => {},
+  ));
+  assert.deepEqual([anthropic.inputTokens, anthropic.outputTokens], [700, 40]);
+
+  const responses = await usageOf(ADAPTERS.openrouter.read(
+    events(data({
+      type: "response.failed",
+      response: { output: [], usage: { input_tokens: 300, output_tokens: 9 } },
+    })),
+    () => {},
+  ));
+  assert.deepEqual([responses.inputTokens, responses.outputTokens], [300, 9]);
+
+  const chat = await usageOf(ADAPTERS.openai.read(
+    events(data({ choices: [{ delta: { content: "네" } }] })),
+    () => {},
+  ));
+  assert.deepEqual([chat.inputTokens, chat.outputTokens], [0, 0]);
+});
+
 Deno.test("a body that breaks off is a stream error, after the events it sent", async () => {
   let pulls = 0;
   const stream = new ReadableStream<Uint8Array>({

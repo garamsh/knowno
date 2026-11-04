@@ -47,6 +47,8 @@ type Fake = {
   keyed: boolean;
   configuration: Row;
   finished: Row[];
+  /** How long `finish_assistant_message` takes to answer, in milliseconds. */
+  finishMs: number;
   /** The users `admin_ai_session` answers as admins, and the drafts saved. */
   admins: Set<string>;
   saved: Row[];
@@ -108,6 +110,7 @@ function seed(): Fake {
       reasoning_effort: "none",
     },
     finished: [],
+    finishMs: 0,
     admins: new Set([ADA]),
     saved: [],
     replies: [],
@@ -246,6 +249,9 @@ function fakeFetch(fake: Fake): typeof fetch {
           }]);
         }
         case "finish_assistant_message":
+          if (fake.finishMs > 0) {
+            await new Promise((resolve) => setTimeout(resolve, fake.finishMs));
+          }
           fake.finished.push(body);
           fake.charged += body.input_tokens + body.output_tokens;
           fake.running = false;
@@ -779,6 +785,8 @@ Deno.test("a message while another of the user's runs is refused as busy, agains
 
 Deno.test("a message is charged before the client sees its end, so the next one may start at once", async () => {
   const fake = seed();
+  // A record that takes a while, as one over the network does.
+  fake.finishMs = 20;
   fake.replies.push(says("네"), says("또"));
   const handler = handlerOf(fake, []);
   const request = () =>
