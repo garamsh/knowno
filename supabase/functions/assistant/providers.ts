@@ -72,12 +72,48 @@ export type CallResult = {
   readonly usage: CallUsage;
 };
 
+/** What a call that reported nothing used. */
+export const NO_USAGE: CallUsage = {
+  inputTokens: 0,
+  outputTokens: 0,
+  reasoningTokens: 0,
+  webSearchRequests: 0,
+  webFetchRequests: 0,
+};
+
 /**
  * Raised when a provider's stream breaks off, says it failed, or ends in a form the adapter does not
- * read.
+ * read; `usage` is what the provider had reported by then, which the message is charged.
  */
 export class StreamError extends Error {
   override name = "StreamError";
+  constructor(
+    message: string,
+    readonly usage: CallUsage = NO_USAGE,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+  }
+}
+
+/** A stream read that tells [seen] each usage the provider reports, as it arrives. */
+type Reader = (
+  events: AsyncIterable<SseEvent>,
+  emit: (event: CallEvent) => void,
+  seen: (usage: CallUsage) => void,
+) => Promise<CallResult>;
+
+/** [read] as an adapter's read, a StreamError it raises carrying the last usage it saw. */
+function reported(read: Reader): Adapter["read"] {
+  return async (events, emit) => {
+    let usage = NO_USAGE;
+    try {
+      return await read(events, emit, (reported) => usage = reported);
+    } catch (error) {
+      if (!(error instanceof StreamError)) throw error;
+      throw new StreamError(error.message, usage, { cause: error });
+    }
+  };
 }
 
 /** One server-sent event of a provider's stream. */
@@ -118,7 +154,7 @@ export async function* sseEvents(
       } catch (cause) {
         // The connection failed, or the call was aborted.
         open = false;
-        throw new StreamError("the stream broke off", { cause });
+        throw new StreamError("the stream broke off", NO_USAGE, { cause });
       }
       if (next.done) return;
       buffer += next.value.replace(/\r\n?/g, "\n");
@@ -187,17 +223,12 @@ function chatTools(tools: readonly ToolSpec[]): unknown[] {
 async function readChat(
   events: AsyncIterable<SseEvent>,
   emit: (event: CallEvent) => void,
+  seen: (usage: CallUsage) => void,
 ): Promise<CallResult> {
   let text = "";
   const calls: { id: string; name: string; args: string }[] = [];
   let finish: unknown = null;
-  let usage: CallUsage = {
-    inputTokens: 0,
-    outputTokens: 0,
-    reasoningTokens: 0,
-    webSearchRequests: 0,
-    webFetchRequests: 0,
-  };
+  let usage = NO_USAGE;
   for await (const { data } of events) {
     if (data.trim() === "[DONE]") break;
     const chunk = parsed(data);
@@ -216,6 +247,7 @@ async function readChat(
         webSearchRequests: 0,
         webFetchRequests: 0,
       };
+      seen(usage);
     }
     const choice = Array.isArray(chunk.choices) ? chunk.choices[0] : undefined;
     if (!isRecord(choice)) continue;
@@ -276,9 +308,28 @@ async function readChat(
 // OpenRouter's responses, whose reference documents the web search server tool's output item as a
 // type of its own, apart from function calls (ADR 0190).
 
+/** What a response reports it used, from its `usage`. */
+function responsesUsage(response: Record<string, unknown>): CallUsage {
+  const u = isRecord(response.usage) ? response.usage : {};
+  const details = isRecord(u.output_tokens_details)
+    ? u.output_tokens_details
+    : {};
+  const tools = isRecord(u.server_tool_use_details)
+    ? u.server_tool_use_details
+    : {};
+  return {
+    inputTokens: count(u.input_tokens),
+    outputTokens: count(u.output_tokens),
+    reasoningTokens: count(details.reasoning_tokens),
+    webSearchRequests: count(tools.web_search_requests),
+    webFetchRequests: 0,
+  };
+}
+
 async function readResponses(
   events: AsyncIterable<SseEvent>,
   emit: (event: CallEvent) => void,
+  seen: (usage: CallUsage) => void,
 ): Promise<CallResult> {
   let ended: { response: Record<string, unknown>; cut: boolean } | null = null;
   for await (const { data } of events) {
@@ -287,6 +338,7 @@ async function readResponses(
     switch (event.type) {
       case "error":
       case "response.failed":
+        if (isRecord(event.response)) seen(responsesUsage(event.response));
         throw new StreamError("the provider reported an error");
       case "response.output_text.delta":
         if (typeof event.delta === "string" && event.delta !== "") {
@@ -307,6 +359,7 @@ async function readResponses(
       case "response.completed":
       case "response.incomplete":
         if (isRecord(event.response)) {
+          seen(responsesUsage(event.response));
           ended = {
             response: event.response,
             cut: event.type === "response.incomplete",
@@ -333,24 +386,11 @@ async function readResponses(
       }]
       : []
   );
-  const u = isRecord(ended.response.usage) ? ended.response.usage : {};
-  const details = isRecord(u.output_tokens_details)
-    ? u.output_tokens_details
-    : {};
-  const tools = isRecord(u.server_tool_use_details)
-    ? u.server_tool_use_details
-    : {};
   return {
     messages: output,
     toolCalls,
     stop: ended.cut ? "cut" : toolCalls.length > 0 ? "tool_use" : "end",
-    usage: {
-      inputTokens: count(u.input_tokens),
-      outputTokens: count(u.output_tokens),
-      reasoningTokens: count(details.reasoning_tokens),
-      webSearchRequests: count(tools.web_search_requests),
-      webFetchRequests: 0,
-    },
+    usage: responsesUsage(ended.response),
   };
 }
 
@@ -393,7 +433,7 @@ const openrouter: Adapter = {
       call_id: result.call.id,
       output: result.content,
     })),
-  read: readResponses,
+  read: reported(readResponses),
 };
 
 // OpenAI's chat completions have no native web search, so a configuration on it searches nothing.
@@ -419,7 +459,7 @@ const openai: Adapter = {
       tool_call_id: result.call.id,
       content: result.content,
     })),
-  read: readChat,
+  read: reported(readChat),
 };
 
 // Anthropic's messages.
@@ -427,6 +467,7 @@ const openai: Adapter = {
 async function readAnthropic(
   events: AsyncIterable<SseEvent>,
   emit: (event: CallEvent) => void,
+  seen: (usage: CallUsage) => void,
 ): Promise<CallResult> {
   const blocks: Record<string, unknown>[] = [];
   const partial = new Map<number, string>();
@@ -437,6 +478,13 @@ async function readAnthropic(
   let searches = 0;
   let fetches = 0;
   let ended = false;
+  const used = (): CallUsage => ({
+    inputTokens,
+    outputTokens,
+    reasoningTokens: thinkingTokens,
+    webSearchRequests: searches,
+    webFetchRequests: fetches,
+  });
   for await (const { data } of events) {
     const event = parsed(data);
     switch (event.type) {
@@ -450,6 +498,7 @@ async function readAnthropic(
           count(usage.cache_read_input_tokens) +
           count(usage.cache_creation_input_tokens);
         outputTokens = count(usage.output_tokens);
+        seen(used());
         break;
       }
       case "content_block_start": {
@@ -536,6 +585,7 @@ async function readAnthropic(
           searches = count(usage.server_tool_use.web_search_requests);
           fetches = count(usage.server_tool_use.web_fetch_requests);
         }
+        seen(used());
         break;
       }
       case "message_stop":
@@ -574,13 +624,7 @@ async function readAnthropic(
       : stop === "max_tokens"
       ? "cut"
       : "end",
-    usage: {
-      inputTokens,
-      outputTokens,
-      reasoningTokens: thinkingTokens,
-      webSearchRequests: searches,
-      webFetchRequests: fetches,
-    },
+    usage: used(),
   };
 }
 
@@ -651,7 +695,7 @@ const anthropic: Adapter = {
       is_error: result.isError,
     })),
   }],
-  read: readAnthropic,
+  read: reported(readAnthropic),
 };
 
 export const ADAPTERS: Readonly<Record<Provider, Adapter>> = {
