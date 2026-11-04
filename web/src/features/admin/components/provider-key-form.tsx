@@ -6,10 +6,9 @@ import { signOut, type SignOutState } from "@/features/account/actions";
 
 import type { AiFormState } from "../ai-settings";
 import { saveProviderKey } from "../save-provider-key";
-import { button, field, group } from "./admin-section";
+import { button, field, formInput, formLine, group } from "./admin-section";
 
-const line = "flex min-h-button items-center justify-between gap-3 px-4";
-const input = `${field} h-tap-target min-w-0 flex-1 px-2 text-right`;
+const input = `${field} ${formInput} flex-1`;
 
 /**
  * Saves or replaces one provider's key (ADR 0162). The key is write-only: the field starts empty,
@@ -40,7 +39,7 @@ export function ProviderKeyForm({
     <form action={action} aria-label={`${name} 키`} className="flex flex-col gap-2">
       <input type="hidden" name="provider" value={provider} />
       <div className={group}>
-        <label className={line}>
+        <label className={formLine}>
           <span className="shrink-0 text-body">{replacing ? "새 키" : "키"}</span>
           <input
             name="key"

@@ -8,7 +8,6 @@ export { revokePlan } from "./revoke-plan";
 export { createPlanVersion, type PlanFormState } from "./create-plan-version";
 export { unhideDeck } from "./unhide-deck";
 export { unpublishDeck } from "./unpublish-deck";
-export { findUsers } from "./find-users";
 export { removeDeck } from "./remove-deck";
 export { suspendUser } from "./suspend-user";
 export { unsuspendUser } from "./unsuspend-user";

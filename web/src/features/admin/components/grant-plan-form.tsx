@@ -2,21 +2,26 @@
 
 import { useActionState } from "react";
 
-import { grantPlan, type GrantPlanState } from "../grant-plan";
-import { button, field, group } from "./admin-section";
+import { buttonClass } from "@/design/button";
 
-/** Puts a user on Pro, or on Max or 스페셜 with an optional last day. */
+import { grantPlan, type GrantPlanState } from "../grant-plan";
+import { field, formInput, formLine, group } from "./admin-section";
+
+/**
+ * Puts a user on Pro, or on Max or 스페셜 with an optional last day: the content of the sheet
+ * 요금제 바꾸기 opens, ending on its one primary, 지정.
+ */
 export function GrantPlanForm({ userId }: { userId: string }) {
   const [state, action, pending] = useActionState<GrantPlanState, FormData>(grantPlan, {
     message: null,
   });
   return (
-    <form action={action} aria-label="요금제 지정" className="mt-2 flex flex-col gap-3">
+    <form action={action} aria-label="요금제 지정" className="flex flex-col gap-3 pt-2">
       <input type="hidden" name="user" value={userId} />
       <div className={group}>
-        <label className="flex min-h-button items-center justify-between gap-3 px-4">
+        <label className={formLine}>
           <span className="text-body">바꿀 요금제</span>
-          <select name="plan" defaultValue="pro" className={`${field} h-tap-target px-2`}>
+          <select name="plan" defaultValue="pro" className={`${field} ${formInput}`}>
             <option value="pro">프로</option>
             <option value="max">맥스</option>
             <option value="special">스페셜</option>
@@ -29,7 +34,7 @@ export function GrantPlanForm({ userId }: { userId: string }) {
               type="date"
               name="ends_on"
               aria-describedby={`${userId}-ends`}
-              className={`${field} h-tap-target px-2`}
+              className={`${field} ${formInput}`}
             />
           </label>
           <span id={`${userId}-ends`} className="text-caption text-muted">
@@ -37,12 +42,12 @@ export function GrantPlanForm({ userId }: { userId: string }) {
           </span>
         </div>
       </div>
-      <button type="submit" disabled={pending} className={button.primary}>
-        지정
-      </button>
-      <p role="status" className="text-caption text-muted empty:hidden">
+      <p role="status" className="px-1 text-caption text-muted empty:hidden">
         {state.message}
       </p>
+      <button type="submit" disabled={pending} className={`${buttonClass("primary", "cta")} mt-2`}>
+        지정
+      </button>
     </form>
   );
 }

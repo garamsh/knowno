@@ -1,16 +1,6 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { AdminSkeleton } from "../../_components/admin-skeleton";
-import { AuditContent } from "../../_components/content";
-
-/** 설정, 작업 기록: the latest admin writes. */
+/** 작업 기록 is on 관리자's page now (ADR 0181). The admin gate checks the role before this runs. */
 export default function Page() {
-  return (
-    <>
-      <h1 className="text-display">관리자</h1>
-      <Suspense fallback={<AdminSkeleton />}>
-        <AuditContent />
-      </Suspense>
-    </>
-  );
+  redirect("/admins");
 }
