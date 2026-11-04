@@ -74,3 +74,8 @@ updates:
       # Coupled to web/.nvmrc and setup-node's node-version; the PM moves all three in one PR (docs/architecture/web.md). Same-tag digest refreshes still arrive (dependabot-core d98dcb40).
       - dependency-name: "node"
         update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  # Codemagic CLI tools, which the release workflow runs at the releases uv.lock pins (docs/architecture/release.md).
+  - package-ecosystem: "uv"
+    directory: "/tools/release"
+    schedule:
+      interval: "weekly"

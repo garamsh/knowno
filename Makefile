@@ -1,4 +1,4 @@
-.PHONY: lint format test build ci lint-repo lint-code bridge test-app test-db test-sync test-web build-ios build-apk build-engine-web preview-migrations brand
+.PHONY: lint format test build ci lint-repo lint-code bridge test-app test-db test-sync test-web build-ios build-apk build-engine-web preview-migrations brand release-check release-ios release-upload release-cleanup
 
 # lint and test are each the sum of their parts, run in this order. CI runs the parts as parallel
 # jobs; lint-repo reads only the repository's files and needs no toolchain, so CI runs it on every
@@ -101,6 +101,23 @@ brand:
 PREVIEW := $(shell cd "$${TMPDIR:-/tmp}" && pwd -P)/migration-preview
 preview-migrations:
 	scripts/run.sh migration-preview $(PREVIEW)
+
+# The release workflow's steps (release.md), each reading the environment: TAG, the tag to release;
+# RUN, the workflow's run number; GITHUB_REPOSITORY; the App Store Connect key; and the distribution
+# certificate's private key. Not part of make ci: they sign and upload. release-ios with TAG unset
+# is a dry run that builds unsigned and reads no key; release-cleanup restores the login keychain
+# and deletes the signing keychain.
+release-check:
+	scripts/run.sh release-ios check "$$TAG"
+
+release-ios:
+	scripts/run.sh release-ios build "$$RUN" $(APP_CONFIG) "$${TAG:-}"
+
+release-upload:
+	scripts/run.sh release-ios upload
+
+release-cleanup:
+	scripts/run.sh release-ios cleanup
 
 test-sync: bridge
 	scripts/run.sh test-sync
