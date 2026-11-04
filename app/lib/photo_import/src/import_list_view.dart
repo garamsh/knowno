@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
 import '../../design/app_list_row.dart';
+import '../../design/app_menu.dart';
 import '../../design/app_sheet.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
@@ -421,9 +422,8 @@ class _SectionHeader extends StatelessWidget {
             ),
           ),
         ),
-        MenuAnchor(
-          alignmentOffset: const Offset(0, AppSpace.s4),
-          menuChildren: [
+        AppMenu(
+          items: [
             if (form case final VocabularyForm vocabulary) ...[
               for (final (direction, label) in [
                 (Direction.forward, l10n.importForward),

@@ -7,73 +7,22 @@ import '../../l10n/app_localizations.dart';
 import 'card_frame.dart';
 import 'content.dart';
 import 'content_view.dart';
-import 'split_card.dart';
 import 'whole_card_view.dart';
-
-/// A card as two columns, front and back, split by a thin divider, or a
-/// whole card's 칸 in place, revealed; read-only without [onTap]. On
-/// its own it is a row on its rounded surface; [grouped] it is one row of a
-/// group that draws the surface.
-class CardSplitRow extends StatelessWidget {
-  const CardSplitRow({
-    super.key,
-    required this.front,
-    required this.back,
-    this.cells,
-    this.onTap,
-    this.grouped = false,
-  });
-
-  final List<Content> front;
-  final List<Content> back;
-
-  /// The 칸 a framed card stores; null on a card converted from its sides.
-  final List<Cell>? cells;
-  final VoidCallback? onTap;
-  final bool grouped;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final colors = AppColors.of(context);
-    final cells = this.cells ?? cellsToDraw(front, back);
-    final content = isDrawnWhole(cells)
-        ? Padding(
-            padding: const EdgeInsets.all(AppSpace.s16),
-            child: WholeCardView.cells(
-              cells,
-              revealed: true,
-              style: AppType.bodyStrong,
-            ),
-          )
-        : SplitCard(
-            centred: false,
-            front: (context, _) =>
-                Text.rich(contentSpan(l10n, front), style: AppType.bodyStrong),
-            back: (context, _) => Text.rich(
-              contentSpan(l10n, back),
-              style: AppType.secondary.copyWith(color: colors.ink2),
-            ),
-          );
-    final onTap = this.onTap;
-    if (!grouped) return AppRowSurface(onTap: onTap, child: content);
-    return onTap == null ? content : InkWell(onTap: onTap, child: content);
-  }
-}
 
 /// A card's row in a note's card list: the whole card, what study hides
 /// until the reveal on [AppHatch] (#629). A split card shows its front cut at
 /// two lines and its back after it in a hatched box cut at three; a whole
 /// card its 칸 as [WholeCardView.listed] draws them. A tap opens the card
-/// with [onOpen], and a screen reader hears the row as one button. Inside an
-/// [AppGroup] it is one of the group's rows.
+/// with [onOpen], and a screen reader hears the row as one button; without
+/// [onOpen] the row opens nothing and is no button. Inside an [AppGroup] it
+/// is one of the group's rows.
 class CardBackRow extends StatelessWidget {
   const CardBackRow({
     super.key,
     required this.front,
     required this.back,
     this.cells,
-    required this.onOpen,
+    this.onOpen,
   });
 
   final List<Content> front;
@@ -81,7 +30,7 @@ class CardBackRow extends StatelessWidget {
 
   /// The 칸 a framed card stores; null on a card converted from its sides.
   final List<Cell>? cells;
-  final VoidCallback onOpen;
+  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -97,9 +46,9 @@ class CardBackRow extends StatelessWidget {
         : describeContent(l10n, back);
     return Semantics(
       container: true,
-      button: true,
+      button: onOpen != null,
       label: l10n.cardBackShown(spokenFront, spokenBack),
-      onTapHint: l10n.editCard,
+      onTapHint: onOpen == null ? null : l10n.editCard,
       onTap: onOpen,
       excludeSemantics: true,
       child: AppRowSurface(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_button.dart';
+import '../../design/app_menu.dart';
 import '../../design/app_text_field.dart';
 import '../../design/theme.dart';
 import 'above_menu.dart';
@@ -39,9 +40,8 @@ class ListHeaderActions extends StatelessWidget {
           onPressed: onPressed,
         ),
         if (menu != null)
-          MenuAnchor(
-            alignmentOffset: const Offset(0, AppSpace.s4),
-            menuChildren: menu.items,
+          AppMenu(
+            items: menu.items,
             builder: (context, controller, _) => RaisedIconButton(
               tooltip: menu.tooltip,
               icon: LucideIcons.ellipsis,

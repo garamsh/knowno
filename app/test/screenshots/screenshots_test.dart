@@ -461,6 +461,7 @@ void main() {
       await dismissSheet(tester);
       await tap(tester, find.byTooltip(ko.deckActions));
       await shot(tester, '08b-deck-menu');
+      await largest(tester, '08b-deck-menu');
       await tap(tester, find.text(ko.deckAppearance));
       await tap(tester, find.bySemanticsLabel(ko.deckIconName('languages')));
       await shot(tester, '03c-deck-appearance');
@@ -1963,6 +1964,7 @@ void main() {
       await shot(tester, '22a-photo-list');
       await tap(tester, find.bySemanticsLabel(RegExp('^최빈출 단어 카드 모양')));
       await shot(tester, '22b-photo-list-menu');
+      await largest(tester, '22b-photo-list-menu');
       await tap(tester, find.widgetWithText(MenuItemButton, ko.importBoth));
       await tap(tester, shownText('face'));
       await shot(tester, '22c-photo-edit');
@@ -2556,10 +2558,28 @@ void main() {
 
       await tap(tester, find.byTooltip(ko.notesActions));
       await shot(tester, '28b-notes-menu');
+      await largest(tester, '28b-notes-menu');
       await tap(tester, shownText(ko.browsePublicDecks));
       await shot(tester, '29-browse');
       await tap(tester, find.text('스페인어 동물'));
       await shot(tester, '30-public-deck');
+      await largest(tester, '30-public-deck');
+      // Its cards, reached by scrolling at the largest text size.
+      tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        shownText('물고기'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await shot(tester, '30-public-deck-largest-text-below');
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('스페인어 동물'),
+        -100,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tap(tester, shownText(ko.copyToMyDecks));
       await tap(tester, find.text(ko.copyIntoExistingDeck));
       await shot(tester, '31-import-sheet');

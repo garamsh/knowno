@@ -406,7 +406,9 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-6 px-gutter py-6">
-      <header className="flex items-center gap-4">
+      {/* The phone's top bar (study_screen.dart's _TopBar): the close 8 from the screen's edge,
+          a 48 tap target as its IconButton's, 12 before the bar; the gutter less 12 is the 8. */}
+      <header className="-ml-3 flex items-center gap-3">
         <Link
           ref={closeLink}
           href={back}
@@ -416,7 +418,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
           aria-label="그만하기"
           aria-keyshortcuts="Escape"
           title="그만하기 (Esc)"
-          className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-full text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="pressable flex size-12 shrink-0 items-center justify-center rounded-full text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <X aria-hidden className="size-5" strokeWidth={2.2} />
         </Link>
@@ -525,8 +527,10 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                   last, or the day's last card from an earlier session, or while studying an
                   outline. */}
               <div className="grid w-full max-w-study auto-rows-fr gap-4">
+                {/* One row the place's height, so a long card fits its face to it, stepping and
+                    scrolling inside its border, rather than growing an auto row the place cuts. */}
                 <div
-                  className={`grid overflow-hidden ${cardHeight} motion-safe:transition-opacity ${demo ? "opacity-45" : ""}`}
+                  className={`grid grid-rows-1 overflow-hidden ${cardHeight} motion-safe:transition-opacity ${demo ? "opacity-45" : ""}`}
                 >
                   {view.kind === "studying" && coach === "redecide" ? (
                     <CoachSample touch={touch} />
@@ -587,29 +591,29 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
                   )}
                 </div>
               )}
+              {/* Under the cards it acts on, in their column. By touch the previous card's swipe
+                  changes it, as on the phone, so the button is left to screen readers; with a
+                  pointer the coach's last step shows it before any answer. */}
+              {(view.previous.length > 0 || (coach === "redecide" && !touch)) && (
+                <button
+                  type="button"
+                  onClick={toggleLast}
+                  aria-keyshortcuts="Z"
+                  className={
+                    touch
+                      ? "sr-only"
+                      : `${buttonClass("secondary")} ${coach === "redecide" ? coachHighlight : ""}`
+                  }
+                >
+                  마지막 응답 바꾸기 <Hint>Z</Hint>
+                </button>
+              )}
             </>
           )}
         </section>
 
         {view.previous.length > 0 && <AnswerList answers={view.previous} onToggle={toggle} />}
       </div>
-
-      {/* By touch the previous card's swipe changes it, as on the phone, so the button is left to
-          screen readers; with a pointer the coach's last step shows it before any answer. */}
-      {(view.previous.length > 0 || (coach === "redecide" && !touch)) && (
-        <button
-          type="button"
-          onClick={toggleLast}
-          aria-keyshortcuts="Z"
-          className={
-            touch
-              ? "sr-only"
-              : `${buttonClass("secondary")} self-center ${coach === "redecide" ? coachHighlight : ""}`
-          }
-        >
-          마지막 응답 바꾸기 <Hint>Z</Hint>
-        </button>
-      )}
 
       {helpOpen && <ShortcutHelp onClose={closeHelp} />}
       {leaving !== null && (
