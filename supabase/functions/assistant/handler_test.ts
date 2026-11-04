@@ -703,9 +703,13 @@ Deno.test("the system prompt is the configuration's prompt, then the card forms 
   for (const form of FORMS) {
     assert.ok(system.includes(`- **${form}** — ${SEED[form].summary}\n`), form);
   }
-  assert.match(system, /read its guide with read_card_form/);
-  // The guides themselves are not in it: the model loads one when the material calls for it.
+  assert.match(
+    system,
+    /Every card of a proposal group takes the group's form\.\n$/,
+  );
+  // Neither the guides nor an instruction to read one: that is prompt v2's, an admin's to apply.
   assert.ok(!system.includes(SEED.table.text));
+  assert.ok(!system.includes("read_card_form"));
 });
 
 Deno.test("read_card_form answers the form's served guide, the text MCP serves, and refuses a form that is none", async () => {

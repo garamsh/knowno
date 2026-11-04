@@ -23,7 +23,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **A skill** is a form's one-line summary of when it fits and its guide: rules, a good and a bad example, and edge cases.
 - **Versions in the database.** Each save is an append-only version of a form's skill. Each form has an `active` version, served to everyone, and while one is set a `test` version, served to admins. An admin saves a version, which becomes the form's test, applies the test to everyone, or ends it; each is recorded. The first version of each is seeded active.
 - **One reader.** `card_form_skills()`, called with the caller's token, answers each form's version served to that caller. The assistant and MCP read it through `_shared/card_forms.ts`, which keeps a caller's answer 60 s and fails, rather than serving a gap, when a form has no version.
-- **The assistant** adds the index after its prompt, each form with its summary, and offers `read_card_form(form)`, which answers the guide. It reads the skills before a message starts, so a message whose skills cannot be read is refused `unavailable`, unrecorded.
+- **The assistant** adds the index after its prompt, each form with its summary, and offers `read_card_form(form)`, which answers the guide. The instruction to read a form's guide before proposing it is prompt v2's alone, so the extra call it costs, about one full-context model call a proposal turn, starts only when an admin applies v2; the index, about 270 tokens, is on every call from the deploy. It reads the skills before a message starts, so a message whose skills cannot be read is refused `unavailable`, unrecorded.
 - **MCP** serves the index at `knowno://guide/card-forms`, each form linked to its guide at `knowno://guide/card-forms/<form>`, and each guide there: the same rows as the assistant reads.
 - **One form a group.** Every card of a proposal group takes the group's form; a call holding a card of another form is refused whole, showing nothing, with a sentence naming each such card, its group and both forms. `propose_changes` takes groups as the other proposal tools do.
 - **The working order** is the assistant's prompt v2: understand the material and build what the user asks from it, not a copy of it; restate the requests and the plan; ask only what is unclear; build, reading each form's guide; revise one group on request. It is each plan's draft, beside its unchanged active configuration, until an admin applies it.
@@ -31,7 +31,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 ## Consequences
 
 - The owner tunes a form's guide in the database, tried by admins before it serves everyone, with no deploy; the admin pages that do it are a later pull request, the functions being here.
-- Every message pays for the index, a few hundred tokens, and a guide's tokens only when the model reads one.
+- Every call pays for the index, about 270 tokens, from the deploy. Under prompt v2 a proposal turn adds about one full-context model call to read a guide, out of its 8; the owner takes that cost when applying v2.
 - A message and an MCP resource read now depend on one more database read, kept 60 s a caller; a version saved reaches a caller within that minute.
 - A proposal mixing forms costs the model a second call to fix it, which ADR 0190's per-card refusal did not.
 - A `mixed` group no longer takes any card, and a card of one form with a text block beside it is that form; ADR 0190's group format is superseded.

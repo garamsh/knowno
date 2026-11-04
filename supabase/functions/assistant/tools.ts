@@ -134,7 +134,7 @@ export const ASSISTANT_TOOLS: readonly ToolSpec[] = [
   {
     name: "read_card_form",
     description:
-      "Reads one card form's guide: its rules, a good and a bad example, and its edge cases. Read the guide of each form you will use before proposing cards of it.",
+      "Reads one card form's guide: its rules, a good and a bad example, and its edge cases.",
     inputSchema: {
       type: "object",
       properties: { form: { type: "string", enum: FORMS } },

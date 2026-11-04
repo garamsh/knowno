@@ -5,7 +5,7 @@
 -- budget set; every write recorded; configurations append-only; no client reaching the tables or
 -- the service functions; and both reverts.
 begin;
-select plan(97);
+select plan(96);
 
 delete from private.admin_audit;
 -- The card-form skills' migration gives each plan a draft sending prompt v2, which
@@ -98,8 +98,6 @@ select results_eq(
     order by array_position(array['free', 'pro', 'max', 'special'], plan)$$,
   $$values ('free', 10), ('pro', 100), ('max', 300), ('special', null::integer)$$,
   'the message limits stay as they were, for the revert');
-select is((select count(*) from private.assistant_configuration_labels where label = 'test'),
-  0::bigint, 'no plan has an assistant draft');
 select is((select count(*) from private.assistant_prompts), 2::bigint,
   'the first prompt and v2 are the assistant prompts');
 

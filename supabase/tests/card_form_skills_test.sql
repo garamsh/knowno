@@ -2,9 +2,10 @@
 -- serving a signed-in user the active versions and an admin a form's test version while one is
 -- set; a version saved as the form's test, applied and ended by an admin alone, each write
 -- recorded; versions append-only; no client reaching the tables; the assistant's prompt v2 as each
--- plan's draft beside its unchanged active configuration; and the revert.
+-- plan's draft beside its unchanged active configuration; and the revert, which runs before the
+-- assistant's and fails after it.
 begin;
-select plan(30);
+select plan(32);
 
 delete from private.admin_audit;
 
@@ -176,7 +177,13 @@ select ok((select text ~ 'Understand the material' and text ~ 'Restate'
 
 -- The revert.
 
-select lives_ok($$select private.revert_card_form_skills()$$, 'the revert runs');
+select throws_ok($q$do $do$ begin
+    perform private.revert_assistant_tokens();
+    perform private.revert_assistant();
+    perform private.revert_card_form_skills();
+  end $do$$q$, '42P01', null,
+  'the revert fails after the assistant''s, whose table it deletes from');
+select lives_ok($$select private.revert_card_form_skills()$$, 'the revert runs before it');
 select results_eq(
   $$select (select count(*) from pg_class as c join pg_namespace as n on n.oid = c.relnamespace
       where n.nspname = 'private' and c.relname like 'card_form_skill%' and c.relkind = 'r'),
@@ -186,6 +193,10 @@ select results_eq(
     (select count(*) from private.assistant_configuration_labels where label = 'test')$$,
   $$values (0::bigint, 0::bigint, 0::bigint)$$,
   'the tables, the functions and the drafts on prompt v2 are gone, the revert alone left');
+select lives_ok($q$do $do$ begin
+    perform private.revert_assistant_tokens();
+    perform private.revert_assistant();
+  end $do$$q$, 'and the assistant''s reverts run after it');
 
 select * from finish();
 rollback;

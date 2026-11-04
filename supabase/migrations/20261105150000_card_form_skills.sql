@@ -21,6 +21,11 @@
 -- `drop function private.revert_card_form_skills();`. It drops the two tables, their versions with
 -- them, and the functions, and ends each plan's draft that sends prompt v2. A plan whose active
 -- configuration sends prompt v2 by then keeps it; an admin points it back with a draft.
+--   - It runs before `private.revert_assistant()` and `private.revert_assistant_tokens()`: it
+--     deletes from `private.assistant_configuration_labels`, which the assistant's revert drops.
+--   - The assistant and mcp bundles go back with it, to those of the commit before this change:
+--     the bundles of this change read `card_form_skills`, and without it answer every message 503
+--     and every resource read -32603.
 
 -- Every saved skill version: its form, when the form fits in one line, the guide, a note, who saved
 -- it and when. Rows are never changed or removed but for their author's removal.

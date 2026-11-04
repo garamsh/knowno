@@ -1,10 +1,12 @@
 /**
  * Each form's first skill version, which 20261105150000_card_form_skills.sql seeds as active
  * (ADR 0197). What is served is the database's: an admin edits it there. card_forms_seed_test.ts
- * holds the migration to these texts.
+ * holds the migration to these texts, the photo limits among them as the tools enforce them.
  */
 
 import type { Form } from "./card_forms.ts";
+import { MAX_PHOTO_BYTES } from "./photo.ts";
+import { MAX_PHOTOS } from "./tools.ts";
 
 export const SEED: Readonly<
   Record<Form, { readonly summary: string; readonly text: string }>
@@ -116,7 +118,9 @@ Edge cases
 Use it when the picture is what is learned: a labelled diagram, a map, a structure, a painting to name.
 
 Rules
-- {"type":"image","url":"https://…"}: url is a public https address of a JPEG, PNG or WebP file of at most 10 MiB, stored as it is; at most 10 photos are fetched a call.
+- {"type":"image","url":"https://…"}: url is a public https address of a JPEG, PNG or WebP file of at most ${
+      MAX_PHOTO_BYTES / 1024 / 1024
+    } MiB, stored as it is; at most ${MAX_PHOTOS} photos are fetched a call.
 - With boxes, the picture is the whole card: {"type":"image","url":"…","boxes":[{"x":0.1,"y":0.2,"w":0.3,"h":0.1,"answer":"aorta"}]}. A box hides a label; x, y, w and h are fractions from 0 to 1 of the picture.
 - Without boxes, give side, front or back, and a text block for the other side: the picture on the front and what it shows on the back, or a question on the front and the picture as its answer.
 - side is given exactly when there are no boxes.

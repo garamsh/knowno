@@ -641,7 +641,7 @@ async function converse(
     cardFormIndex(
       skills,
       () => "",
-      "Before proposing cards of a form, read its guide with read_card_form.",
+      "Every card of a proposal group takes the group's form.",
     )
   }`;
   if (incoming.deckId !== null) {
