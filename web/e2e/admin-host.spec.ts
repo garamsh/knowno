@@ -141,6 +141,32 @@ function runSql(sql: string) {
   );
 }
 
+/**
+ * [count] users of this run alone, newest first from -001, -003 suspended and -002 on Pro, and a
+ * public note of -004's that -005 reported, so 노트's table has a row with its actions.
+ */
+function seedUsers(count: number) {
+  const tag = randomUUID().slice(0, 8);
+  const email = (n: number) => `w651-${tag}-${String(n).padStart(3, "0")}@example.com`;
+  runSql(`insert into auth.users (id, email, created_at, is_anonymous, aud, role)
+    select gen_random_uuid(), format('w651-${tag}-%s@example.com', lpad(n::text, 3, '0')),
+      now() - n * interval '1 minute', false, 'authenticated', 'authenticated'
+    from generate_series(1, ${String(count)}) as n`);
+  runSql(`insert into private.suspensions (user_id, reason)
+    select id, 'e2e' from auth.users where email = '${email(3)}'`);
+  runSql(`insert into private.user_plans (user_id, plan, version_id)
+    select u.id, 'pro', (select v.id from private.plan_versions as v
+      where v.plan = 'pro' and v.starts_at <= now() order by v.starts_at desc, v.id desc limit 1)
+    from auth.users as u where u.email = '${email(2)}'`);
+  runSql(`insert into public.decks (id, user_id, name, visibility, published_at, created_at, updated_at)
+    select gen_random_uuid(), id, 'w651 ${tag}', 'public', now(), now(), now()
+    from auth.users where email = '${email(4)}'`);
+  runSql(`insert into public.deck_reports (deck_id, reporter_id, reason)
+    select d.id, u.id, 'spam' from public.decks as d, auth.users as u
+    where d.name = 'w651 ${tag}' and u.email = '${email(5)}'`);
+  return { tag, email };
+}
+
 test.describe("signed in", () => {
   test.skip(
     !url || !key || !database,
@@ -232,35 +258,16 @@ test.describe("signed in", () => {
     await context.close();
   });
 
-  test("an admin pages through every user, sized and filtered above the table, opens one beside it, and no control on any section overlaps another", async ({
+  test("an admin pages through every user, sized and filtered above the table, and opens one beside it, no control overlapping another", async ({
     browser,
     baseURL,
   }) => {
     const { admin } = hostsOf(baseURL);
     const context = await browser.newContext();
-    const { userId } = await signUp(context, [admin], "sections");
+    const { userId } = await signUp(context, [admin], "users");
     makeAdmin(userId);
-    // 425 users of this run alone, newest first from -001, -003 suspended and -002 on Pro: 22 pages
-    // of 20, enough for the pager to skip pages on both sides of the 10th.
-    const tag = randomUUID().slice(0, 8);
-    const email = (n: number) => `w651-${tag}-${String(n).padStart(3, "0")}@example.com`;
-    runSql(`insert into auth.users (id, email, created_at, is_anonymous, aud, role)
-      select gen_random_uuid(), format('w651-${tag}-%s@example.com', lpad(n::text, 3, '0')),
-        now() - n * interval '1 minute', false, 'authenticated', 'authenticated'
-      from generate_series(1, 425) as n`);
-    runSql(`insert into private.suspensions (user_id, reason)
-      select id, 'e2e' from auth.users where email = '${email(3)}'`);
-    runSql(`insert into private.user_plans (user_id, plan, version_id)
-      select u.id, 'pro', (select v.id from private.plan_versions as v
-        where v.plan = 'pro' and v.starts_at <= now() order by v.starts_at desc, v.id desc limit 1)
-      from auth.users as u where u.email = '${email(2)}'`);
-    // A public note of -004's that -005 reported, so 노트's table has a row with its actions.
-    runSql(`insert into public.decks (id, user_id, name, visibility, published_at, created_at, updated_at)
-      select gen_random_uuid(), id, 'w651 ${tag}', 'public', now(), now(), now()
-      from auth.users where email = '${email(4)}'`);
-    runSql(`insert into public.deck_reports (deck_id, reporter_id, reason)
-      select d.id, u.id, 'spam' from public.decks as d, auth.users as u
-      where d.name = 'w651 ${tag}' and u.email = '${email(5)}'`);
+    // 22 pages of 20, enough for the pager to skip pages on both sides of the 10th.
+    const { tag, email } = seedUsers(425);
     const page = await context.newPage();
     await page.setViewportSize({ width: 1280, height: 900 });
     const table = page.getByRole("table", { name: "사용자 목록", exact: true });
@@ -355,6 +362,20 @@ test.describe("signed in", () => {
     await panel.getByRole("link", { name: "전체 화면으로", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: chosen, exact: true })).toBeVisible();
     await capture(page, "admin-user");
+    await context.close();
+  });
+
+  test("every section's page, and a plan's sheet, holds no control that overlaps another", async ({
+    browser,
+    baseURL,
+  }) => {
+    const { admin } = hostsOf(baseURL);
+    const context = await browser.newContext();
+    const { userId } = await signUp(context, [admin], "sections");
+    makeAdmin(userId);
+    const { tag } = seedUsers(5);
+    const page = await context.newPage();
+    await page.setViewportSize({ width: 1280, height: 900 });
 
     for (const [path, heading, name] of [
       ["/", "처리할 일", "admin-todo"],
