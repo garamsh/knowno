@@ -39,6 +39,10 @@ export const tokenRules: Restriction[] = [
     "A colour is a token of globals.css, never written out.",
   ),
   ...inClasses(
+    `${start}backdrop[:](?!bg-scrim(\\s|$))`,
+    "What a modal dims the screen behind it with is the scrim token of globals.css under the backdrop variant, bg-scrim alone, never another colour or an opacity.",
+  ),
+  ...inClasses(
     `${start}text-(xs|sm|base|lg|[2-9]?xl)${end}`,
     "A type size is an AppType token of globals.css (text-body, text-caption …), never Tailwind's scale.",
   ),
