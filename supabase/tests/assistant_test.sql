@@ -1,10 +1,11 @@
--- The 말랑이 assistant's server side (#713, ADR 0190): the seed of each plan's configuration and
--- daily limit; a message counted under the user's lock up to the limit, and not without a key;
--- what a turn used recorded once; the allowance; a draft saved, served to admins, applied and ended;
--- a limit set; every write recorded; configurations append-only; no client reaching the tables or
--- the service functions; and the revert.
+-- The 말랑이 assistant's server side (#713, ADR 0190, ADR 0195): the seed of each plan's
+-- configuration and token budget; a message started under the user's lock while the budget is not
+-- spent and no other message runs, and not without a key; what a turn used recorded once under the
+-- lock, which charges it; the allowance; a draft saved, served to admins, applied and ended; a
+-- budget set; every write recorded; configurations append-only; no client reaching the tables or
+-- the service functions; and both reverts.
 begin;
-select plan(74);
+select plan(97);
 
 delete from private.admin_audit;
 
@@ -32,12 +33,12 @@ grant execute on function pg_temp.sign_in(text) to public;
 -- What the assistant gets for one message of the user whose id ends in [who].
 create function pg_temp.start(who text)
 returns table (configuration_id bigint, provider text, model text, available boolean,
-  daily_limit integer, used integer, allowed boolean, message_id bigint)
+  token_budget bigint, tokens_used bigint, busy boolean, allowed boolean, message_id bigint)
 language plpgsql as $$
 begin
   perform set_config('role', 'service_role', true);
-  return query select b.configuration_id, b.provider, b.model, b.available, b.daily_limit,
-    b.used, b.allowed, b.message_id
+  return query select b.configuration_id, b.provider, b.model, b.available, b.token_budget,
+    b.tokens_used, b.busy, b.allowed, b.message_id
     from public.begin_assistant_message(('00000000-0000-4000-8000-00000000000' || who)::uuid) as b;
   perform set_config('role', 'none', true);
 end;
@@ -85,10 +86,15 @@ select results_eq(
     ('special', true, true, 3, 'none', '말랑이 assistant prompt v1 (#713)')$$,
   'each plan''s assistant is served its photo provider and model with the first prompt, search off for Free alone');
 select results_eq(
+  $$select plan, daily_tokens from private.assistant_token_budgets
+    order by array_position(array['free', 'pro', 'max', 'special'], plan)$$,
+  $$values ('free', 200000::bigint), ('pro', 2000000), ('max', 6000000), ('special', null)$$,
+  'the daily budgets are 200,000, 2,000,000 and 6,000,000 tokens, and none for 스페셜');
+select results_eq(
   $$select plan, daily_messages from private.assistant_limits
     order by array_position(array['free', 'pro', 'max', 'special'], plan)$$,
   $$values ('free', 10), ('pro', 100), ('max', 300), ('special', null::integer)$$,
-  'the daily limits are 10, 100 and 300 messages, and none for 스페셜');
+  'the message limits stay as they were, for the revert');
 select is((select count(*) from private.assistant_configuration_labels where label = 'test'),
   0::bigint, 'no plan has an assistant draft');
 select is((select count(*) from private.assistant_prompts), 1::bigint,
@@ -102,7 +108,19 @@ select throws_ok($$select * from private.assistant_messages$$, '42501', null,
 select throws_ok($$select * from private.assistant_configurations$$, '42501', null,
   'a signed-in user reads no configuration');
 select throws_ok($$select * from public.begin_assistant_message('00000000-0000-4000-8000-00000000000b')$$,
-  '42501', null, 'a signed-in user counts no message');
+  '42501', null, 'a signed-in user starts no message');
+select throws_ok($$select private.assistant_tokens_today('00000000-0000-4000-8000-00000000000b')$$,
+  '42501', null, 'a signed-in user reads no charge');
+select throws_ok($$select public.assistant_effort_fits('anthropic', 'claude-opus-5-5', 'none')$$,
+  '42501', null, 'a signed-in user asks no effort check');
+set local role service_role;
+select results_eq(
+  $$select public.assistant_effort_fits('anthropic', 'claude-opus-5-5', e)
+    from (values ('none'), ('low')) as t (e)$$,
+  $$values (false), (true)$$,
+  'service_role asks whether a model runs at an effort, as the configurations are held to it');
+reset role;
+select pg_temp.sign_in('b');
 select throws_ok($$select public.finish_assistant_message(1, 'ok', 1, 1, 1, 0, 0, 1)$$,
   '42501', null, 'a signed-in user records no turn');
 select throws_ok($$select public.save_assistant_configuration('00000000-0000-4000-8000-00000000000a',
@@ -113,33 +131,35 @@ select results_eq(
     from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname ~ 'assistant' order by p.proname$$,
   $$values ('admin_activate_assistant_configuration', true), ('admin_assistant_configurations', true),
-    ('admin_assistant_limits', true), ('admin_assistant_prompts', true),
+    ('admin_assistant_prompts', true), ('admin_assistant_token_budgets', true),
     ('admin_clear_assistant_test', true), ('admin_save_assistant_prompt', true),
-    ('admin_set_assistant_limit', true), ('assistant_allowance', true),
+    ('admin_set_assistant_token_budget', true), ('assistant_allowance', true), ('assistant_effort_fits', true),
     ('begin_assistant_message', true), ('finish_assistant_message', true),
     ('save_assistant_configuration', true)$$,
   'every assistant function runs as its owner with an empty search_path');
 
--- Counting messages.
+-- Starting and charging messages.
 
 select results_eq($$select available, allowed, message_id from pg_temp.start('b')$$,
   $$values (false, false, null::bigint)$$,
   'without OpenRouter''s key in Vault a message is unavailable');
-select is(pg_temp.messages('b'), 0::bigint, 'and it is not counted');
+select is(pg_temp.messages('b'), 0::bigint, 'and it is not recorded');
 
 insert into private.provider_keys (provider, secret_id, last_four)
   values ('openrouter', gen_random_uuid(), '0000');
--- A message of B's from yesterday in Seoul, which today's count leaves out.
-insert into private.assistant_messages (user_id, plan, configuration_id, created_at)
+-- A message of B's from yesterday in Seoul, past Free's whole budget, which today leaves out.
+insert into private.assistant_messages (user_id, plan, configuration_id, created_at, outcome,
+    model_calls, input_tokens, output_tokens, reasoning_tokens, web_search_requests, latency_ms)
   values ('00000000-0000-4000-8000-00000000000b', 'free', pg_temp.config('free', 'active'),
-    date_trunc('day', now(), 'Asia/Seoul') - interval '1 minute');
+    date_trunc('day', now(), 'Asia/Seoul') - interval '1 minute', 'ok', 1, 900000, 100000, 0, 0,
+    1000);
 
 select results_eq(
-  $$select configuration_id = pg_temp.config('free', 'active'), provider, available, daily_limit,
-      used, allowed, message_id is not null
+  $$select configuration_id = pg_temp.config('free', 'active'), provider, available,
+      token_budget, tokens_used, busy, allowed, message_id is not null
     from pg_temp.start('b')$$,
-  $$values (true, 'openrouter', true, 10, 1, true, true)$$,
-  'B''s first message today is allowed on Free''s configuration, yesterday''s not counted');
+  $$values (true, 'openrouter', true, 200000::bigint, 0::bigint, false, true, true)$$,
+  'B''s first message today is allowed on Free''s configuration, yesterday''s tokens not charged');
 select ok(
   exists (
     select from pg_locks
@@ -154,26 +174,59 @@ select ok(
       and classid::bigint = (hashtextextended('00000000-0000-4000-8000-00000000000a', 7) >> 32) & 4294967295
       and objid::bigint = hashtextextended('00000000-0000-4000-8000-00000000000a', 7) & 4294967295),
   'and not A''s');
-do $$ begin for i in 1..9 loop perform pg_temp.start('b'); end loop; end $$;
-select is(pg_temp.messages('b'), 11::bigint, 'ten messages today are counted, beside yesterday''s');
-select results_eq($$select used, allowed, message_id from pg_temp.start('b')$$,
-  $$values (10, false, null::bigint)$$, 'the eleventh is refused at the limit');
-select is(pg_temp.messages('b'), 11::bigint, 'and nothing is recorded for it');
 
-select results_eq(
-  $$select daily_limit, allowed from pg_temp.start('a') limit 1$$,
-  $$values (null::integer, true)$$, 'an admin, on 스페셜, has no limit');
-do $$ begin for i in 1..300 loop perform pg_temp.start('a'); end loop; end $$;
-select results_eq($$select used, allowed from pg_temp.start('a')$$, $$values (302, true)$$,
-  'and is let through past Max''s limit, each message counted');
+select results_eq($$select busy, allowed, message_id from pg_temp.start('b')$$,
+  $$values (true, false, null::bigint)$$,
+  'a second message while the first is running is refused as busy');
+select is(pg_temp.messages('b'), 2::bigint, 'and nothing is recorded for it');
 
--- What a turn used.
+select lives_ok(format($$select pg_temp.finish(%s, 'cancelled')$$, pg_temp.last_message('b')),
+  'service_role records a turn the client left, with what it used');
+select results_eq($$select tokens_used, busy, allowed from pg_temp.start('b')$$,
+  $$values (3400::bigint, false, true)$$,
+  'control: once it is recorded the next starts, charged its input and output tokens');
+select lives_ok(format($$select pg_temp.finish(%s, 'cut')$$, pg_temp.last_message('b')),
+  'a reply cut at the output limit is recorded');
 
+-- A message begun 151 s ago and never recorded, as when the function stopped before its record.
+insert into private.assistant_messages (user_id, plan, configuration_id, created_at)
+  values ('00000000-0000-4000-8000-00000000000b', 'free', pg_temp.config('free', 'active'),
+    now() - interval '151 seconds');
+select results_eq($$select tokens_used, busy, allowed from pg_temp.start('b')$$,
+  $$values (6800::bigint, false, true)$$,
+  'a message unrecorded past 150 s holds no one back and is charged nothing');
 select lives_ok(format($$select pg_temp.finish(%s, 'ok')$$, pg_temp.last_message('b')),
   'service_role records a turn''s outcome and usage');
-select lives_ok(format($$select pg_temp.finish(%s, 'cut'), pg_temp.finish(%s, 'cancelled')$$,
-    pg_temp.last_message('a') - 1, pg_temp.last_message('a') - 2),
-  'a reply cut at the output limit and a turn the client left are recorded');
+
+-- Today's tokens one short of Free's budget of 200,000.
+insert into private.assistant_messages (user_id, plan, configuration_id, created_at, outcome,
+    model_calls, input_tokens, output_tokens, reasoning_tokens, web_search_requests, latency_ms)
+  values ('00000000-0000-4000-8000-00000000000b', 'free', pg_temp.config('free', 'active'),
+    now() - interval '1 hour', 'ok', 1, 179799, 10000, 900, 0, 1000);
+select results_eq($$select tokens_used, allowed from pg_temp.start('b')$$,
+  $$values (199999::bigint, true)$$, 'a message starts while one token of the budget is left');
+select lives_ok(format($$select pg_temp.finish(%s, 'model_error')$$, pg_temp.last_message('b')),
+  'a failed turn is recorded');
+select results_eq($$select tokens_used, busy, allowed, message_id from pg_temp.start('b')$$,
+  $$values (203399::bigint, false, false, null::bigint)$$,
+  'the last message is charged whole past the budget, and the next is refused');
+select is(pg_temp.messages('b'), 7::bigint, 'and nothing is recorded for it');
+
+select results_eq(
+  $$select token_budget, allowed from pg_temp.start('a') limit 1$$,
+  $$values (null::bigint, true)$$, 'an admin, on 스페셜, has no budget');
+select lives_ok(format($$select pg_temp.finish(%s, 'ok')$$, pg_temp.last_message('a')),
+  'the admin''s message is recorded');
+insert into private.assistant_messages (user_id, plan, configuration_id, created_at, outcome,
+    model_calls, input_tokens, output_tokens, reasoning_tokens, web_search_requests, latency_ms)
+  values ('00000000-0000-4000-8000-00000000000a', 'special', pg_temp.config('special', 'active'),
+    now() - interval '1 hour', 'ok', 1, 2000000000, 2000000000, 0, 0, 1000);
+select results_eq($$select tokens_used, allowed from pg_temp.start('a')$$,
+  $$values (4000003400::bigint, true)$$,
+  'and is let through past every budget, each message charged');
+
+-- The record.
+
 select throws_ok(format($$select pg_temp.finish(%s, 'ok')$$, pg_temp.last_message('b')),
   'P0002', null, 'a second record of the same message is refused');
 select throws_ok($$select pg_temp.finish(-1, 'ok')$$, 'P0002', null,
@@ -184,19 +237,40 @@ reset role;
 select results_eq(
   $$select outcome, model_calls, input_tokens, output_tokens, reasoning_tokens,
       web_search_requests, latency_ms
-    from private.assistant_messages where outcome is not null order by outcome$$,
+    from private.assistant_messages where latency_ms = 4200 order by outcome$$,
   $$values ('cancelled', 2, 3000, 400, 50, 1, 4200), ('cut', 2, 3000, 400, 50, 1, 4200),
+    ('model_error', 2, 3000, 400, 50, 1, 4200), ('ok', 2, 3000, 400, 50, 1, 4200),
     ('ok', 2, 3000, 400, 50, 1, 4200)$$,
   'the record holds what the turn used, the refused records nothing');
+
+-- C's message, begun in no transaction of this test's: its record takes C's lock.
+insert into auth.users (id, email, created_at) values
+  ('00000000-0000-4000-8000-00000000000c', 'other@example.com', now() - interval '90 days');
+insert into private.assistant_messages (user_id, plan, configuration_id)
+  values ('00000000-0000-4000-8000-00000000000c', 'free', pg_temp.config('free', 'active'));
+create function pg_temp.holds_c() returns boolean language sql stable as $$
+  select exists (
+    select from pg_locks
+    where locktype = 'advisory' and pid = pg_backend_pid() and granted
+      and classid::bigint = (hashtextextended('00000000-0000-4000-8000-00000000000c', 7) >> 32) & 4294967295
+      and objid::bigint = hashtextextended('00000000-0000-4000-8000-00000000000c', 7) & 4294967295);
+$$;
+select ok(not pg_temp.holds_c(), 'setup: C''s assistant lock is not held');
+select pg_temp.finish(pg_temp.last_message('c'), 'ok');
+select ok(pg_temp.holds_c(), 'finish_assistant_message charges C''s message under C''s lock');
 
 -- The allowance.
 
 select pg_temp.sign_in('b');
-select results_eq($$select daily_limit, used from public.assistant_allowance()$$,
-  $$values (10, 10)$$, 'B reads its limit and today''s messages');
+select results_eq($$select token_budget, tokens_used, tokens_left from public.assistant_allowance()$$,
+  $$values (200000::bigint, 203399::bigint, 0::bigint)$$,
+  'B reads its budget, today''s tokens and none left');
+select pg_temp.sign_in('c');
+select results_eq($$select token_budget, tokens_used, tokens_left from public.assistant_allowance()$$,
+  $$values (200000::bigint, 3400::bigint, 196600::bigint)$$, 'C reads what is left');
 select pg_temp.sign_in('a');
-select results_eq($$select daily_limit, used from public.assistant_allowance()$$,
-  $$values (null::integer, 302)$$, 'an admin reads no limit');
+select results_eq($$select token_budget, tokens_left from public.assistant_allowance()$$,
+  $$values (null::bigint, null::bigint)$$, 'an admin reads no budget');
 select pg_temp.sign_in(null);
 select throws_ok($$select * from public.assistant_allowance()$$, '42501', null,
   'anon reads no allowance');
@@ -207,10 +281,10 @@ reset role;
 select pg_temp.sign_in('b');
 select throws_ok($$select * from public.admin_assistant_configurations()$$, '42501', null,
   'a user reads no assistant configuration');
-select throws_ok($$select * from public.admin_assistant_limits()$$, '42501', null,
-  'a user reads no limit');
-select throws_ok($$select public.admin_set_assistant_limit('free', 1000)$$, '42501', null,
-  'a user sets no limit');
+select throws_ok($$select * from public.admin_assistant_token_budgets()$$, '42501', null,
+  'a user reads no budget');
+select throws_ok($$select public.admin_set_assistant_token_budget('free', 1000)$$, '42501', null,
+  'a user sets no budget');
 select throws_ok($$select public.admin_activate_assistant_configuration('free')$$, '42501', null,
   'a user applies no draft');
 select throws_ok($$select public.admin_clear_assistant_test('free')$$, '42501', null,
@@ -218,8 +292,8 @@ select throws_ok($$select public.admin_clear_assistant_test('free')$$, '42501', 
 select throws_ok($$select public.admin_save_assistant_prompt('Be kind.', 'mine')$$, '42501', null,
   'a user saves no prompt');
 select pg_temp.sign_in(null);
-select throws_ok($$select * from public.admin_assistant_limits()$$, '42501', null,
-  'anon reads no limit');
+select throws_ok($$select * from public.admin_assistant_token_budgets()$$, '42501', null,
+  'anon reads no budget');
 select pg_temp.sign_in('a');
 select is((select count(*) from public.admin_assistant_configurations()), 4::bigint,
   'control: an admin reads each plan''s active configuration');
@@ -292,24 +366,38 @@ select ok(public.admin_clear_assistant_test('pro'), 'a draft is ended');
 select ok(not public.admin_clear_assistant_test('pro'), 'and ending none changes nothing');
 reset role;
 
--- A limit.
+-- A budget.
 
 select pg_temp.sign_in('a');
-select is(public.admin_set_assistant_limit('free', -1), 'bad_limit', 'a negative limit is refused');
-select is(public.admin_set_assistant_limit('gold', 5), 'bad_plan', 'a plan without one is refused');
-select is(public.admin_set_assistant_limit('free', 10), 'unchanged', 'the same limit changes nothing');
-select is(public.admin_set_assistant_limit('free', 12), 'set', 'control: a new limit is set');
+select is(public.admin_set_assistant_token_budget('free', -1), 'bad_budget',
+  'a negative budget is refused');
+select is(public.admin_set_assistant_token_budget('free', 1000000001), 'bad_budget',
+  'a budget over 1,000,000,000 is refused');
+select is(public.admin_set_assistant_token_budget('gold', 5), 'bad_plan',
+  'a plan without one is refused');
+select is(public.admin_set_assistant_token_budget('free', 200000), 'unchanged',
+  'the same budget changes nothing');
+select is(public.admin_set_assistant_token_budget('free', 300000), 'set',
+  'control: a new budget is set');
+select results_eq(
+  $$select plan, daily_tokens, set_by_email from public.admin_assistant_token_budgets()$$,
+  $$values ('free', 300000::bigint, 'admin@example.com'), ('pro', 2000000, null),
+    ('max', 6000000, null), ('special', null, null)$$,
+  'an admin reads each plan''s budget and who set it');
 reset role;
-select results_eq($$select allowed, used from pg_temp.start('b')$$, $$values (true, 11)$$,
-  'B is let through again under the new limit');
+select results_eq($$select tokens_used, allowed from pg_temp.start('b')$$,
+  $$values (203399::bigint, true)$$, 'B is let through again under the new budget');
 
 select results_eq(
   $$select action, target_id from private.admin_audit order by id$$,
   $$values ('save_assistant_prompt', (select max(id)::text from private.assistant_prompts)),
     ('save_assistant_configuration', 'special'), ('activate_assistant_configuration', 'special'),
     ('save_assistant_configuration', 'pro'), ('clear_assistant_test', 'pro'),
-    ('set_assistant_limit', 'free')$$,
+    ('set_assistant_token_budget', 'free')$$,
   'each write is recorded once, and no refused or unchanged one');
+select is((select detail from private.admin_audit where action = 'set_assistant_token_budget'),
+  '{"daily_tokens": 300000, "daily_tokens_before": 200000}'::jsonb,
+  'a budget is recorded with the one before');
 
 -- Append-only.
 
@@ -372,7 +460,8 @@ select results_eq(
     ('pro', 'anthropic', 'claude-haiku-5-5', 'none', true)$$,
   'the always-on model is seeded at low and the other at none, once over two runs, no other plan');
 
--- The revert: every table and function the migration made is gone, its own revert aside.
+-- The reverts: the token budget's puts the message limit back, and then the assistant's leaves
+-- nothing the two migrations made but the reverts.
 
 create function pg_temp.made_tables() returns text[] language sql stable as $$
   select coalesce(array_agg(c.relname::text order by c.relname), '{}')
@@ -386,22 +475,52 @@ create function pg_temp.made_functions() returns text[] language sql stable as $
 $$;
 
 select is(pg_temp.made_tables(), array['assistant_configuration_labels',
+    'assistant_configurations', 'assistant_limits', 'assistant_messages', 'assistant_prompts',
+    'assistant_token_budgets'],
+  'control: the six tables are found before the reverts');
+select is(pg_temp.made_functions(), array['private.assistant_effort_fits',
+    'private.assistant_tokens_today', 'private.keep_assistant_configuration',
+    'private.revert_assistant', 'private.revert_assistant_tokens',
+    'private.seed_assistant_configurations',
+    'public.admin_activate_assistant_configuration', 'public.admin_assistant_configurations',
+    'public.admin_assistant_prompts', 'public.admin_assistant_token_budgets',
+    'public.admin_clear_assistant_test', 'public.admin_save_assistant_prompt',
+    'public.admin_set_assistant_token_budget', 'public.assistant_allowance', 'public.assistant_effort_fits',
+    'public.begin_assistant_message', 'public.finish_assistant_message',
+    'public.save_assistant_configuration'],
+  'control: the eighteen functions are found before the reverts');
+select lives_ok($$select private.revert_assistant_tokens()$$, 'the token budget''s revert runs');
+select is(pg_temp.made_tables(), array['assistant_configuration_labels',
     'assistant_configurations', 'assistant_limits', 'assistant_messages', 'assistant_prompts'],
-  'control: the migration''s five tables are found before the revert');
+  'the budgets are gone and the limits and messages kept');
 select is(pg_temp.made_functions(), array['private.assistant_effort_fits',
     'private.keep_assistant_configuration', 'private.revert_assistant',
-    'private.seed_assistant_configurations',
+    'private.revert_assistant_tokens', 'private.seed_assistant_configurations',
     'public.admin_activate_assistant_configuration', 'public.admin_assistant_configurations',
     'public.admin_assistant_limits', 'public.admin_assistant_prompts',
     'public.admin_clear_assistant_test', 'public.admin_save_assistant_prompt',
     'public.admin_set_assistant_limit', 'public.assistant_allowance',
     'public.begin_assistant_message', 'public.finish_assistant_message',
     'public.save_assistant_configuration'],
-  'control: its fifteen functions are found before the revert');
-select lives_ok($$select private.revert_assistant()$$, 'the revert runs');
+  'the message limit''s functions are back');
+set local role service_role;
+select results_eq(
+  $$select daily_limit, used, allowed
+    from public.begin_assistant_message('00000000-0000-4000-8000-00000000000b')$$,
+  $$values (10, 8, true)$$, 'a message is counted against the day''s limit again');
+reset role;
+select pg_temp.sign_in('b');
+select results_eq($$select daily_limit, used from public.assistant_allowance()$$,
+  $$values (10, 8)$$, 'and the allowance reads the limit');
+select pg_temp.sign_in('a');
+select is(public.admin_set_assistant_limit('free', 10), 'unchanged',
+  'and an admin sets the limit again');
+reset role;
+select lives_ok($$select private.revert_assistant()$$, 'the assistant''s revert runs after it');
 select is(pg_temp.made_tables(), '{}'::text[], 'every table is gone');
-select is(pg_temp.made_functions(), array['private.revert_assistant'],
-  'every function is gone but the revert, which the PM drops next');
+select is(pg_temp.made_functions(),
+  array['private.revert_assistant', 'private.revert_assistant_tokens'],
+  'every function is gone but the reverts, which the PM drops next');
 
 select * from finish();
 rollback;

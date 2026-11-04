@@ -1,6 +1,7 @@
 /**
- * The assistant's two requests (ADR 0190): a message, answered as server-sent events from a tool
- * loop over the caller's plan's model, and a commit of the cards the user checked in a proposal.
+ * The assistant's requests (ADR 0190, ADR 0195): a message, answered as server-sent events from a
+ * tool loop over the caller's plan's model, a commit of the cards the user checked in a proposal,
+ * and an admin's draft configuration (`settings.ts`).
  */
 
 import { authenticate, SupabaseError, type UserId } from "../_shared/auth.ts";
@@ -14,13 +15,17 @@ import type { Config } from "./config.ts";
 import {
   ADAPTERS,
   type CallUsage,
+  MAX_OUTPUT_TOKENS,
+  NO_USAGE,
   sseEvents,
   StreamError,
   type ToolResult,
   type Turn,
 } from "./providers.ts";
+import { saveDraft, type SettingsOutcome, settingsStatus } from "./settings.ts";
 import {
   beginMessage,
+  charged,
   finishMessage,
   type Outcome,
   type Start,
@@ -41,14 +46,25 @@ export const MAX_MODEL_CALLS = 8;
 export const TURN_LIMIT_MS = 120_000;
 /** The most turns a request carries; the client keeps the rest of the chat. */
 export const MAX_TURNS = 40;
-/** The longest one turn's text may be. */
+/** The longest a user turn's text may be, and the length an assistant turn's is shortened to. */
 export const MAX_TURN_TEXT = 4000;
 /** The longest one turn may be once the proposals and the choice it showed are described in it. */
 export const MAX_DESCRIBED_TURN = 16_000;
 /** The most characters of a card's front an earlier proposal's description shows. */
 const FRONT_SHOWN = 80;
-/** The largest body a request may send, proposals included. */
+/** The largest body a request may hold, proposals included, once its replies are shortened. */
 export const MAX_BODY_BYTES = 512 * 1024;
+/**
+ * The longest reply the server streams in characters, at four characters a token over every call's
+ * output cap, the bound a resent reply is sent at.
+ */
+export const MAX_REPLY_TEXT = MAX_MODEL_CALLS * MAX_OUTPUT_TOKENS * 4;
+/**
+ * The largest message body read: every turn a longest reply of three-byte characters, beside what
+ * `MAX_BODY_BYTES` holds, so the server's own history is never refused for its size.
+ */
+export const MAX_REQUEST_BYTES = MAX_BODY_BYTES +
+  MAX_TURNS * MAX_REPLY_TEXT * 3;
 
 /** How a request ended: a refusal's code, or the turn's outcome. */
 export type LogOutcome =
@@ -61,14 +77,16 @@ export type LogOutcome =
   | "not_found"
   | "too_large"
   | "rate_limited"
+  | "busy"
   | "refused"
   | "not_configured"
   | "unavailable"
-  | "internal";
+  | "internal"
+  | SettingsOutcome["kind"];
 
 /** The one line logged per request: never the token, a key, a message or a card. */
 export type LogEntry = {
-  readonly route: "message" | "commit" | null;
+  readonly route: "message" | "commit" | "settings" | null;
   readonly user_id: UserId | null;
   readonly plan: string | null;
   readonly provider: string | null;
@@ -148,6 +166,8 @@ async function handle(
   const path = new URL(request.url).pathname.replace(/\/$/, "");
   const route = path.endsWith("/assistant/commit")
     ? "commit"
+    : path.endsWith("/assistant/settings/configuration")
+    ? "settings"
     : path.endsWith("/assistant")
     ? "message"
     : null;
@@ -167,6 +187,31 @@ async function handle(
     serviceRoleKey: config.serviceRoleKey,
     fetch: deps.fetch,
   };
+  if (route === "settings") {
+    let outcome;
+    try {
+      outcome = await saveDraft(request, {
+        supabase: service,
+        keys: deps.keys,
+        fetch: deps.fetch,
+        timeout: deps.timeout,
+      });
+    } catch (error) {
+      if (error instanceof SupabaseError) {
+        return refusal(503, "unavailable", { ...blank, route });
+      }
+      throw error;
+    }
+    return {
+      response: Response.json(
+        outcome.kind === "saved"
+          ? { saved: true, configuration_id: outcome.configurationId }
+          : { error: outcome.kind },
+        { status: settingsStatus(outcome) },
+      ),
+      entry: { ...blank, route, outcome: outcome.kind },
+    };
+  }
   const authorization = request.headers.get("Authorization");
   const token = authorization?.match(/^Bearer (\S+)$/)?.[1];
   if (token === undefined) {
@@ -185,10 +230,11 @@ async function handle(
     return refusal(401, "unauthenticated", { ...blank, route });
   }
   const entry: Entry = { ...blank, route, user_id: userId };
+  const cap = route === "message" ? MAX_REQUEST_BYTES : MAX_BODY_BYTES;
   const declared = Number(request.headers.get("Content-Length") ?? 0);
-  if (declared > MAX_BODY_BYTES) return refusal(413, "too_large", entry);
+  if (declared > cap) return refusal(413, "too_large", entry);
   const raw = await request.text();
-  if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) {
+  if (new TextEncoder().encode(raw).length > cap) {
     return refusal(413, "too_large", entry);
   }
   let body: unknown;
@@ -196,6 +242,12 @@ async function handle(
     body = JSON.parse(raw);
   } catch {
     return refusal(400, "bad_request", entry);
+  }
+  if (route === "message") {
+    // The server's own replies, resent, are shortened before what the request holds is measured.
+    body = shortenReplies(body);
+    const kept = new TextEncoder().encode(JSON.stringify(body)).length;
+    if (kept > MAX_BODY_BYTES) return refusal(413, "too_large", entry);
   }
   try {
     if (await userSuspended(userId, service)) {
@@ -234,9 +286,11 @@ async function handle(
       return refusal(503, "unavailable", { ...entry, plan: start.plan });
     case "rate_limited":
       return refusal(429, "rate_limited", { ...entry, plan: start.plan }, {
-        daily_limit: start.dailyLimit,
-        used: start.used,
+        token_budget: start.tokenBudget,
+        tokens_used: start.tokensUsed,
       });
+    case "busy":
+      return refusal(429, "busy", { ...entry, plan: start.plan });
   }
   const configuration = start.configuration;
   const counted = {
@@ -272,18 +326,8 @@ async function handle(
         if (!client.signal.aborted) controller.error(error);
         throw error;
       }
-      send("usage", {
-        outcome: ended.outcome,
-        model_calls: ended.usage.modelCalls,
-        input_tokens: ended.usage.inputTokens,
-        output_tokens: ended.usage.outputTokens,
-        reasoning_tokens: ended.usage.reasoningTokens,
-        web_search_requests: ended.usage.webSearchRequests,
-        daily_limit: start.dailyLimit,
-        used: start.used,
-      });
-      if (!client.signal.aborted) controller.close();
-      // The record is telemetry: when it fails, the answer stands and the log says so.
+      // The record charges the message, before the client sees the end and may send the next.
+      // When it fails, the answer stands and the log says so.
       let recorded = true;
       try {
         await finishMessage(
@@ -297,6 +341,17 @@ async function handle(
         if (!(error instanceof SupabaseError)) throw error;
         recorded = false;
       }
+      send("usage", {
+        outcome: ended.outcome,
+        model_calls: ended.usage.modelCalls,
+        input_tokens: ended.usage.inputTokens,
+        output_tokens: ended.usage.outputTokens,
+        reasoning_tokens: ended.usage.reasoningTokens,
+        web_search_requests: ended.usage.webSearchRequests,
+        token_budget: start.tokenBudget,
+        tokens_used: start.tokensUsed + charged(ended.usage),
+      });
+      if (!client.signal.aborted) controller.close();
       log({
         ...counted,
         model_calls: ended.usage.modelCalls,
@@ -400,6 +455,36 @@ function describeTurn(
   return null;
 }
 
+/**
+ * [text] within `MAX_TURN_TEXT` characters: whole when it fits, and otherwise its head and tail
+ * around a marker counting the characters left out.
+ */
+function shorten(text: string): string {
+  const chars = [...text];
+  if (chars.length <= MAX_TURN_TEXT) return text;
+  const marker = (left: number) => `\n\n[… ${left} characters left out …]\n\n`;
+  // The marker for the whole text is the longest any omission needs.
+  const kept = MAX_TURN_TEXT - [...marker(chars.length)].length;
+  const head = Math.ceil(kept / 2);
+  const tail = kept - head;
+  return chars.slice(0, head).join("") + marker(chars.length - kept) +
+    chars.slice(chars.length - tail).join("");
+}
+
+/** [body] with each assistant turn's text shortened, its other parts as they were. */
+function shortenReplies(body: unknown): unknown {
+  if (!isRecord(body) || !Array.isArray(body.messages)) return body;
+  return {
+    ...body,
+    messages: body.messages.map((message: unknown) =>
+      isRecord(message) && message.role === "assistant" &&
+        typeof message.text === "string"
+        ? { ...message, text: shorten(message.text) }
+        : message
+    ),
+  };
+}
+
 /** The turns, their proposals and the open note, or null when the body is not such a request. */
 function readMessage(body: unknown, ids: IdSource): Incoming | null {
   if (!isRecord(body) || !Array.isArray(body.messages)) return null;
@@ -415,6 +500,7 @@ function readMessage(body: unknown, ids: IdSource): Incoming | null {
       return null;
     }
     const text = typeof message.text === "string" ? message.text : null;
+    // An assistant turn's text is already shortened (`shortenReplies`); a user's longer is refused.
     if (text === null || [...text].length > MAX_TURN_TEXT) return null;
     const shown: Proposal[] = [];
     let asked: string | null = null;
@@ -467,20 +553,24 @@ const ZERO: Usage = {
   webSearchRequests: 0,
 };
 
-/** A call that answered nothing: refused, failed or broken off. */
-const NOTHING: CallUsage = {
-  inputTokens: 0,
-  outputTokens: 0,
-  reasoningTokens: 0,
-  webSearchRequests: 0,
-  webFetchRequests: 0,
-};
-
 /** Whether [error] is how `fetch` fails: a network error, or the call's signal aborting it. */
 function fetchFailed(error: unknown): boolean {
   return error instanceof TypeError ||
     (error instanceof DOMException &&
       (error.name === "AbortError" || error.name === "TimeoutError"));
+}
+
+/** The UTF-8 bytes of a request taken as one token, for an estimate of its input. */
+export const BYTES_PER_TOKEN = 4;
+
+/**
+ * [reported], with its input tokens estimated from [request]'s size when the provider reported
+ * none before the call broke off: the provider read the request, and bills it.
+ */
+function withInputAtLeast(reported: CallUsage, request: string): CallUsage {
+  if (reported.inputTokens > 0) return reported;
+  const bytes = new TextEncoder().encode(request).length;
+  return { ...reported, inputTokens: Math.ceil(bytes / BYTES_PER_TOKEN) };
 }
 
 function plus(usage: Usage, call: CallUsage): Usage {
@@ -519,9 +609,10 @@ async function converse(
     send("error", { error: "model_error" });
     return { outcome: "model_error" as const, usage };
   };
-  // A call that broke off: the client went away, the turn's time ran out, or the call failed.
-  const interrupted = () => {
-    usage = plus(usage, NOTHING);
+  // A call that broke off: the client went away, the turn's time ran out, or the call failed. It
+  // is charged what the provider had reported of it.
+  const interrupted = (reported: CallUsage, request: string) => {
+    usage = plus(usage, withInputAtLeast(reported, request));
     if (client.aborted) return { outcome: "cancelled" as const, usage };
     if (deps.now() - started >= TURN_LIMIT_MS) {
       return { outcome: "time_limit" as const, usage };
@@ -561,7 +652,9 @@ async function converse(
       fetches;
     const request = {
       method: "POST",
-      signal: AbortSignal.any([deps.timeout(left), client]),
+      // Not the client's: a call goes on to its end after the client goes, so that the usage the
+      // provider reports only there is charged.
+      signal: deps.timeout(left),
       headers: adapter.headers(apiKey),
       body: JSON.stringify(adapter.body({
         // The searches a turn may make are shared by its calls: each call is offered those left.
@@ -580,11 +673,11 @@ async function converse(
       response = await deps.fetch(adapter.url, request);
     } catch (error) {
       if (!fetchFailed(error)) throw error;
-      return interrupted();
+      return interrupted(NO_USAGE, request.body);
     }
     if (!response.ok || response.body === null) {
       await response.body?.cancel();
-      usage = plus(usage, NOTHING);
+      usage = plus(usage, NO_USAGE);
       return failed();
     }
     let result;
@@ -598,11 +691,12 @@ async function converse(
       });
     } catch (error) {
       if (!(error instanceof StreamError)) throw error;
-      return interrupted();
+      return interrupted(error.usage, request.body);
     }
     usage = plus(usage, result.usage);
     fetches += result.usage.webFetchRequests;
     messages.push(...result.messages);
+    if (client.aborted) return { outcome: "cancelled", usage };
     if (result.stop === "pause") continue;
     if (result.stop === "cut") {
       send("error", { error: "cut" });

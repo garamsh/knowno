@@ -24,9 +24,10 @@ export type Configuration = {
 };
 
 /**
- * What one message of the user may do: be answered by its plan's configuration, counted against
- * the day's limit; be refused at that limit; be refused uncounted because the provider has no key
- * (ADR 0162); or nothing, when the plan has no configuration or limit.
+ * What one message of the user may do (ADR 0195): be answered by its plan's configuration, its
+ * tokens charged when it ends; be refused with the day's token budget spent, or while another of
+ * the user's messages is still running; be refused because the provider has no key (ADR 0162); or
+ * nothing, when the plan has no configuration or budget.
  */
 export type Start =
   | {
@@ -34,17 +35,18 @@ export type Start =
     readonly messageId: number;
     readonly plan: string;
     readonly configuration: Configuration;
-    /** The day's limit, null for none, and the messages counted today with this one. */
-    readonly dailyLimit: number | null;
-    readonly used: number;
+    /** The day's token budget, null for none, and the tokens charged today before this message. */
+    readonly tokenBudget: number | null;
+    readonly tokensUsed: number;
   }
   | { readonly kind: "unavailable"; readonly plan: string }
   | {
     readonly kind: "rate_limited";
     readonly plan: string;
-    readonly dailyLimit: number;
-    readonly used: number;
+    readonly tokenBudget: number;
+    readonly tokensUsed: number;
   }
+  | { readonly kind: "busy"; readonly plan: string }
   | { readonly kind: "not_configured" };
 
 /** How a turn ended, as `finish_assistant_message` records it. */
@@ -65,6 +67,14 @@ export type Usage = {
   readonly reasoningTokens: number;
   readonly webSearchRequests: number;
 };
+
+/**
+ * The tokens a message is charged against its plan's budget: its input and output tokens, the
+ * output including the reasoning tokens (ADR 0195), as `begin_assistant_message` sums them.
+ */
+export function charged(usage: Usage): number {
+  return usage.inputTokens + usage.outputTokens;
+}
 
 async function rpc(
   name: string,
@@ -106,8 +116,9 @@ const isCount = (value: unknown): value is number =>
 
 /**
  * Resolves the user's plan and the assistant configuration serving it (an admin's plan's draft
- * while one is set) and, when its provider has a key in Vault and under the day's limit, records
- * the message (`public.begin_assistant_message`).
+ * while one is set) and, when its provider has a key in Vault, the day's token budget is not
+ * spent and no other message of the user is running, records the message
+ * (`public.begin_assistant_message`).
  */
 export async function beginMessage(
   userId: UserId,
@@ -131,8 +142,9 @@ export async function beginMessage(
     typeof r.model !== "string" || !isCount(r.prompt_version_id) ||
     typeof r.prompt !== "string" || typeof r.web_search !== "boolean" ||
     !isCount(r.max_searches) || typeof r.available !== "boolean" ||
-    (r.daily_limit !== null && !isCount(r.daily_limit)) ||
-    !isCount(r.used) || typeof r.allowed !== "boolean"
+    (r.token_budget !== null && !isCount(r.token_budget)) ||
+    !isCount(r.tokens_used) || typeof r.busy !== "boolean" ||
+    typeof r.allowed !== "boolean"
   ) {
     throw new SupabaseError(
       "begin_assistant_message answered a row it should not",
@@ -140,15 +152,18 @@ export async function beginMessage(
   }
   if (!r.available) return { kind: "unavailable", plan: r.plan };
   if (!r.allowed) {
-    if (r.daily_limit === null) {
-      throw new SupabaseError("begin_assistant_message refused under no limit");
+    if (isCount(r.token_budget) && r.tokens_used >= r.token_budget) {
+      return {
+        kind: "rate_limited",
+        plan: r.plan,
+        tokenBudget: r.token_budget,
+        tokensUsed: r.tokens_used,
+      };
     }
-    return {
-      kind: "rate_limited",
-      plan: r.plan,
-      dailyLimit: r.daily_limit as number,
-      used: r.used,
-    };
+    if (r.busy) return { kind: "busy", plan: r.plan };
+    throw new SupabaseError(
+      "begin_assistant_message refused a message for no reason it names",
+    );
   }
   if (!isCount(r.message_id)) {
     throw new SupabaseError(
@@ -159,8 +174,8 @@ export async function beginMessage(
     kind: "allowed",
     messageId: r.message_id,
     plan: r.plan,
-    dailyLimit: r.daily_limit as number | null,
-    used: r.used,
+    tokenBudget: r.token_budget as number | null,
+    tokensUsed: r.tokens_used,
     configuration: {
       id: r.configuration_id,
       provider,
@@ -172,6 +187,104 @@ export async function beginMessage(
       effort,
     },
   };
+}
+
+/**
+ * Whether the bearer of [token] is an admin, through `public.admin_ai_session` called as that
+ * user, as extract-cards asks it: a caller who is not one is refused there.
+ */
+export async function isAdmin(
+  token: string,
+  deps: SupabaseDeps,
+): Promise<boolean> {
+  const response = await deps.fetch(
+    `${deps.url}/rest/v1/rpc/admin_ai_session`,
+    {
+      method: "POST",
+      headers: {
+        apikey: deps.serviceRoleKey,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    },
+  ).catch((cause: unknown) => {
+    throw new SupabaseError("admin_ai_session could not be reached", {
+      cause,
+    });
+  });
+  if (response.status === 401 || response.status === 403) {
+    await response.body?.cancel();
+    return false;
+  }
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new SupabaseError(`admin_ai_session answered ${response.status}`);
+  }
+  if (typeof await response.json() !== "boolean") {
+    throw new SupabaseError("admin_ai_session answered no boolean");
+  }
+  return true;
+}
+
+/** An assistant configuration an admin saves as a plan's draft. */
+export type Draft = {
+  readonly plan: string;
+  readonly provider: Provider;
+  readonly model: string;
+  /** Undefined keeps the draft's prompt, or else the active configuration's. */
+  readonly promptVersionId: number | undefined;
+  readonly webSearch: boolean;
+  readonly maxSearches: number;
+  readonly effort: Effort;
+};
+
+/**
+ * Whether [draft]'s model can run at its effort, by Anthropic's per-model thinking table
+ * (`public.assistant_effort_fits`), as the database holds every configuration to it.
+ */
+export async function effortFits(
+  draft: Draft,
+  deps: SupabaseDeps,
+): Promise<boolean> {
+  const fits = await rpc("assistant_effort_fits", {
+    provider: draft.provider,
+    model: draft.model,
+    effort: draft.effort,
+  }, deps);
+  if (typeof fits !== "boolean") {
+    throw new SupabaseError("assistant_effort_fits answered no boolean");
+  }
+  return fits;
+}
+
+/**
+ * Saves [draft] as its plan's one draft for [adminId], through
+ * `public.save_assistant_configuration`, answering the configuration's id; null when the database
+ * holds no such prompt or the model cannot run at the effort.
+ */
+export async function saveConfiguration(
+  adminId: UserId,
+  draft: Draft,
+  deps: SupabaseDeps,
+): Promise<number | null> {
+  const id = await rpc("save_assistant_configuration", {
+    admin_id: adminId,
+    plan: draft.plan,
+    provider: draft.provider,
+    model: draft.model,
+    ...(draft.promptVersionId === undefined
+      ? {}
+      : { prompt_version_id: draft.promptVersionId }),
+    web_search: draft.webSearch,
+    max_searches: draft.maxSearches,
+    reasoning_effort: draft.effort,
+  }, deps);
+  if (id === null) return null;
+  if (!isCount(id)) {
+    throw new SupabaseError("save_assistant_configuration answered no id");
+  }
+  return id;
 }
 
 /** Records how [messageId]'s turn ended and what it used (`public.finish_assistant_message`). */

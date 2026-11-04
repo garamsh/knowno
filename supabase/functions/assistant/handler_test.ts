@@ -2,17 +2,25 @@
 // replaced by an in-memory fake that applies row-level security's owner rule. No network.
 import assert from "node:assert/strict";
 import {
+  BYTES_PER_TOKEN,
   createHandler,
   type LogEntry,
   MAX_BODY_BYTES,
   MAX_DESCRIBED_TURN,
   MAX_MODEL_CALLS,
+  MAX_REPLY_TEXT,
+  MAX_REQUEST_BYTES,
   MAX_TURN_TEXT,
   MAX_TURNS,
   TURN_LIMIT_MS,
 } from "./handler.ts";
 import { readConfig } from "./config.ts";
-import { ADAPTERS, ANTHROPIC_URL, OPENROUTER_URL } from "./providers.ts";
+import {
+  ADAPTERS,
+  ANTHROPIC_URL,
+  MAX_OUTPUT_TOKENS,
+  OPENROUTER_URL,
+} from "./providers.ts";
 import type { Proposal } from "./tools.ts";
 
 const SUPABASE_URL = "http://kong:8000";
@@ -31,12 +39,22 @@ type Fake = {
   decks: Row[];
   cards: Row[];
   suspended: Set<string>;
-  /** What `begin_assistant_message` answers beyond the configuration, and the day's count. */
-  limit: number | null;
-  used: number;
+  /**
+   * What `begin_assistant_message` answers beyond the configuration: the day's budget, the tokens
+   * charged, whether a message is running, and the messages it recorded.
+   */
+  budget: number | null;
+  charged: number;
+  running: boolean;
+  begun: number;
   keyed: boolean;
   configuration: Row;
   finished: Row[];
+  /** How long `finish_assistant_message` takes to answer, in milliseconds. */
+  finishMs: number;
+  /** The users `admin_ai_session` answers as admins, and the drafts saved. */
+  admins: Set<string>;
+  saved: Row[];
   /** The provider's replies in order, each given the request's body. */
   replies: ((body: Row, signal: AbortSignal) => Response)[];
   requests: Row[];
@@ -79,8 +97,10 @@ function seed(): Fake {
       created_at: "2026-10-01",
     }],
     suspended: new Set(),
-    limit: 10,
-    used: 0,
+    budget: 200_000,
+    charged: 0,
+    running: false,
+    begun: 0,
     keyed: true,
     configuration: {
       configuration_id: 7,
@@ -93,6 +113,9 @@ function seed(): Fake {
       reasoning_effort: "none",
     },
     finished: [],
+    finishMs: 0,
+    admins: new Set([ADA]),
+    saved: [],
     replies: [],
     requests: [],
     writes: [],
@@ -192,29 +215,54 @@ function fakeFetch(fake: Fake): typeof fetch {
         : Response.json({ id: user });
     }
     const rpc = url.pathname.match(/^\/rest\/v1\/rpc\/(.+)$/)?.[1];
+    if (rpc === "admin_ai_session") {
+      // Called as the user, refused to one who is not an admin.
+      const user = TOKENS[bearer];
+      return user !== undefined && fake.admins.has(user)
+        ? Response.json(true)
+        : Response.json({ code: "42501" }, { status: 403 });
+    }
     if (rpc !== undefined) {
       assert.equal(bearer, "service-role-key");
       switch (rpc) {
+        case "save_assistant_configuration":
+          fake.saved.push(body);
+          return Response.json(99);
+        case "assistant_effort_fits":
+          // As the table has it for Claude Opus 5.5, whose thinking is always on.
+          return Response.json(
+            !(body.model === "claude-opus-5-5" && body.effort === "none"),
+          );
         case "user_suspended":
           return Response.json(fake.suspended.has(body.user_id));
         case "provider_key":
           return Response.json(fake.keyed ? "sk-test" : null);
         case "begin_assistant_message": {
-          const allowed = fake.keyed &&
-            (fake.limit === null || fake.used < fake.limit);
-          if (allowed) fake.used++;
+          const busy = fake.running;
+          const allowed = fake.keyed && !busy &&
+            (fake.budget === null || fake.charged < fake.budget);
+          if (allowed) {
+            fake.running = true;
+            fake.begun++;
+          }
           return Response.json([{
             plan: "free",
             ...fake.configuration,
             available: fake.keyed,
-            daily_limit: fake.limit,
-            used: fake.used,
+            token_budget: fake.budget,
+            tokens_used: fake.charged,
+            busy,
             allowed,
             message_id: allowed ? 41 : null,
           }]);
         }
         case "finish_assistant_message":
+          if (fake.finishMs > 0) {
+            await new Promise((resolve) => setTimeout(resolve, fake.finishMs));
+          }
           fake.finished.push(body);
+          fake.charged += body.input_tokens + body.output_tokens;
+          fake.running = false;
           return new Response(null, { status: 204 });
       }
     }
@@ -401,8 +449,8 @@ Deno.test("a message streams its text, then one usage event last, and is recorde
     output_tokens: 20,
     reasoning_tokens: 0,
     web_search_requests: 0,
-    daily_limit: 10,
-    used: 1,
+    token_budget: 200_000,
+    tokens_used: 120,
   });
   assert.equal(fake.finished.length, 1);
   assert.equal(fake.finished[0]!.outcome, "ok");
@@ -706,25 +754,68 @@ Deno.test("a commit refuses a card its group lacks and another user's note, agai
   assert.equal(own.status, 200);
 });
 
-Deno.test("a message past the day's limit is refused before any model call, against one under it", async () => {
+Deno.test("a message with the day's token budget spent is refused before any model call, against one token left", async () => {
   const spent = seed();
-  spent.used = 10;
+  spent.charged = 200_000;
   const run = await send(spent);
   assert.equal(run.status, 429);
   assert.deepEqual(run.json, {
     error: "rate_limited",
-    daily_limit: 10,
-    used: 10,
+    token_budget: 200_000,
+    tokens_used: 200_000,
   });
   assert.equal(spent.requests.length, 0);
   assert.equal(run.logs[0]!.outcome, "rate_limited");
 
+  // One token left lets a message start, and it is charged whole past the budget.
   const left = seed();
-  left.used = 9;
+  left.charged = 199_999;
   left.replies.push(says("네"));
   const control = await send(left);
   assert.equal(control.status, 200);
-  assert.equal(control.events.at(-1)!.data.used, 10);
+  assert.equal(control.events.at(-1)!.data.tokens_used, 200_119);
+  assert.equal(left.charged, 200_119);
+});
+
+Deno.test("a message while another of the user's runs is refused as busy, against one after it ended", async () => {
+  const fake = seed();
+  fake.running = true;
+  const run = await send(fake);
+  assert.equal(run.status, 429);
+  assert.deepEqual(run.json, { error: "busy" });
+  assert.equal(fake.requests.length, 0);
+  assert.equal(run.logs[0]!.outcome, "busy");
+
+  fake.running = false;
+  fake.replies.push(says("네"));
+  assert.equal((await send(fake)).status, 200);
+});
+
+Deno.test("a message is charged before the client sees its end, so the next one may start at once", async () => {
+  const fake = seed();
+  // A record that takes a while, as one over the network does.
+  fake.finishMs = 20;
+  fake.replies.push(says("네"), says("또"));
+  const handler = handlerOf(fake, []);
+  const request = () =>
+    new Request("http://localhost/assistant", {
+      method: "POST",
+      headers: { Authorization: "Bearer ada-token" },
+      body: JSON.stringify(ask("안녕")),
+    });
+  const first = await handler(request());
+  const reader = first.body!.pipeThrough(new TextDecoderStream()).getReader();
+  let read = "";
+  while (!read.includes("event: usage")) {
+    const next = await reader.read();
+    assert.ok(!next.done, "the stream ended before its usage event");
+    read += next.value;
+  }
+  // The usage event has arrived and the stream is not yet read to its end.
+  const second = await handler(request());
+  assert.equal(second.status, 200);
+  await second.body?.cancel();
+  await reader.cancel();
 });
 
 Deno.test("a provider without a key is refused uncounted", async () => {
@@ -733,7 +824,7 @@ Deno.test("a provider without a key is refused uncounted", async () => {
   const run = await send(fake);
   assert.equal(run.status, 503);
   assert.deepEqual(run.json, { error: "unavailable" });
-  assert.equal(fake.used, 0);
+  assert.equal(fake.begun, 0);
 });
 
 Deno.test("citations are streamed once each", async () => {
@@ -805,7 +896,7 @@ Deno.test("requests are refused before any count: no token, a suspended user, a 
   const suspended = seed();
   suspended.suspended.add(ADA);
   assert.equal((await send(suspended)).status, 403);
-  assert.equal(fake.used + suspended.used, 0);
+  assert.equal(fake.begun + suspended.begun, 0);
   assert.equal(fake.requests.length + suspended.requests.length, 0);
 });
 
@@ -965,7 +1056,7 @@ async function until(condition: () => boolean) {
   throw new Error("the condition never held");
 }
 
-Deno.test("a client that goes away ends the turn as cancelled and records what it used, against one that stays", async () => {
+Deno.test("a client that goes away ends the turn as cancelled and is charged the usage its stream reports after it went, against one that stays", async () => {
   const gone = seed();
   let open = () => {};
   gone.replies.push(held(new Promise((resolve) => open = resolve)));
@@ -987,6 +1078,10 @@ Deno.test("a client that goes away ends the turn as cancelled and records what i
   assert.equal(gone.finished.length, 1);
   assert.equal(gone.finished[0]!.outcome, "cancelled");
   assert.equal(gone.finished[0]!.model_calls, 1);
+  // The OpenRouter stream reports its usage only at its end, after the client went: it is read
+  // there and charged.
+  assert.equal(gone.finished[0]!.input_tokens, 100);
+  assert.equal(gone.finished[0]!.output_tokens, 20);
   assert.equal(logs[0]!.outcome, "cancelled");
   assert.equal(logs[0]!.outcome_recorded, true);
 
@@ -1135,7 +1230,7 @@ Deno.test("a body over 512 KiB is refused uncounted, against one at the cap", as
   const run = await send(over, { body: padded(MAX_BODY_BYTES + 1) });
   assert.equal(run.status, 413);
   assert.deepEqual(run.json, { error: "too_large" });
-  assert.equal(over.used, 0);
+  assert.equal(over.begun, 0);
 
   const at = seed();
   at.replies.push(says("네"));
@@ -1155,7 +1250,7 @@ Deno.test("more than 40 turns, or a turn over 4,000 characters, is refused, agai
     body: { messages: turns(1, "가".repeat(MAX_TURN_TEXT + 1)) },
   });
   assert.equal(long.status, 400);
-  assert.equal(fake.used, 0);
+  assert.equal(fake.begun, 0);
 
   const control = seed();
   control.replies.push(says("네"), says("네"));
@@ -1271,7 +1366,7 @@ Deno.test("a turn of the largest proposals the server shows is described shorter
     },
   });
   assert.equal(refused.status, 400);
-  assert.equal(forged.used, 0);
+  assert.equal(forged.begun, 0);
 });
 
 Deno.test("Anthropic's web fetches share the turn's searches with its web searches", async () => {
@@ -1337,4 +1432,309 @@ Deno.test("Anthropic's web fetches share the turn's searches with its web search
     ).map((tool) => tool.max_uses);
   assert.deepEqual(uses(fake.requests[0]!), [3, 3]);
   assert.deepEqual(uses(fake.requests[1]!), [1, 1]);
+});
+
+Deno.test("the longest reply resent as history is shortened to its head and tail, never refused, against a user turn over the cap", async () => {
+  // A whole turn's output at the call limit, four characters a token.
+  const longest = "H" +
+    "x".repeat(MAX_MODEL_CALLS * MAX_OUTPUT_TOKENS * 4 - 2) +
+    "T";
+  const fake = seed();
+  fake.replies.push(says("네"));
+  const run = await send(fake, {
+    body: {
+      messages: [
+        { role: "user", text: "길게 설명해 줘" },
+        { role: "assistant", text: longest },
+        { role: "user", text: "고마워요" },
+      ],
+    },
+  });
+  assert.equal(run.status, 200);
+  const turn = String(input(fake.requests[0]!)[1]!.content);
+  assert.ok([...turn].length <= MAX_TURN_TEXT);
+  assert.ok(turn.startsWith("Hxxx"), "the head is kept");
+  assert.ok(turn.endsWith("xxxT"), "the tail is kept");
+  assert.match(turn, /\[… \d+ characters left out …\]/);
+
+  const user = seed();
+  const refused = await send(user, {
+    body: { messages: [{ role: "user", text: "x".repeat(MAX_TURN_TEXT + 1) }] },
+  });
+  assert.equal(refused.status, 400);
+  assert.equal(user.begun, 0);
+});
+
+Deno.test("a call that fails is charged the tokens its provider reported before it failed", async () => {
+  const fake = seed();
+  fake.configuration = {
+    ...fake.configuration,
+    provider: "anthropic",
+    model: "claude-haiku-5-5",
+  };
+  fake.replies.push(() =>
+    messagesStream([
+      {
+        type: "message_start",
+        message: { usage: { input_tokens: 500, output_tokens: 1 } },
+      },
+      { type: "error", error: { type: "overloaded_error" } },
+    ])
+  );
+  const run = await send(fake);
+  assert.equal(run.events.at(-1)!.data.outcome, "model_error");
+  assert.equal(fake.finished[0]!.input_tokens, 500);
+  assert.equal(fake.finished[0]!.output_tokens, 1);
+  assert.equal(run.events.at(-1)!.data.tokens_used, 501);
+});
+
+/** An admin's draft request to the settings route, as the user of [token]. */
+function draftRequest(fake: Fake, body: unknown, token = "ada-token") {
+  return send(fake, {
+    path: "/assistant/settings/configuration",
+    token,
+    body,
+  });
+}
+
+const DRAFT = {
+  plan: "pro",
+  provider: "openrouter",
+  model: "anthropic/claude-sonnet-5.5",
+  prompt_version_id: 9,
+  web_search: true,
+  max_searches: 2,
+  reasoning_effort: "low",
+};
+
+Deno.test("an admin's draft is saved after its check call answers, with every setting", async () => {
+  const fake = seed();
+  fake.replies.push(says("네"));
+  const run = await draftRequest(fake, DRAFT);
+  assert.equal(run.status, 200);
+  assert.deepEqual(run.json, { saved: true, configuration_id: 99 });
+  assert.deepEqual(fake.saved, [{
+    admin_id: ADA,
+    plan: "pro",
+    provider: "openrouter",
+    model: "anthropic/claude-sonnet-5.5",
+    prompt_version_id: 9,
+    web_search: true,
+    max_searches: 2,
+    reasoning_effort: "low",
+  }]);
+  // The check call is the draft's own: its model, effort and web search.
+  const check = fake.requests[0]!;
+  assert.equal(check.model, "anthropic/claude-sonnet-5.5");
+  assert.deepEqual(check.reasoning, { effort: "low" });
+  assert.ok(
+    (check.tools as Row[]).some((tool) =>
+      tool.type === "openrouter:web_search"
+    ),
+  );
+  assert.equal(run.logs[0]!.route, "settings");
+  assert.equal(run.logs[0]!.outcome, "saved");
+});
+
+Deno.test("a draft from a user who is not an admin is refused before any call, against an admin's", async () => {
+  const fake = seed();
+  const run = await draftRequest(fake, DRAFT, "grace-token");
+  assert.equal(run.status, 403);
+  assert.deepEqual(run.json, { error: "forbidden" });
+  assert.equal(fake.requests.length, 0);
+  assert.deepEqual(fake.saved, []);
+
+  const unsigned = await draftRequest(fake, DRAFT, null as unknown as string);
+  assert.equal(unsigned.status, 401);
+
+  fake.replies.push(says("네"));
+  assert.equal((await draftRequest(fake, DRAFT)).status, 200);
+});
+
+Deno.test("a draft of an invalid body is refused before any call, against a valid one", async () => {
+  const fake = seed();
+  for (
+    const body of [
+      { ...DRAFT, plan: "gold" },
+      { ...DRAFT, provider: "acme" },
+      { ...DRAFT, model: "no-vendor" },
+      { ...DRAFT, web_search: "yes" },
+      { ...DRAFT, max_searches: 11 },
+      { ...DRAFT, max_searches: 0 },
+      { ...DRAFT, reasoning_effort: "max" },
+      { ...DRAFT, prompt_version_id: 0 },
+      { ...DRAFT, reasoning_effort: undefined },
+      [],
+    ]
+  ) {
+    const run = await draftRequest(fake, body);
+    assert.equal(run.status, 400, JSON.stringify(body));
+    assert.deepEqual(run.json, { error: "bad_request" });
+  }
+  assert.equal(fake.requests.length, 0);
+  assert.deepEqual(fake.saved, []);
+
+  // Without a prompt version the draft keeps the one it had.
+  fake.replies.push(says("네"));
+  const kept = await draftRequest(fake, {
+    ...DRAFT,
+    prompt_version_id: undefined,
+  });
+  assert.equal(kept.status, 200);
+  assert.ok(!("prompt_version_id" in fake.saved[0]!));
+});
+
+Deno.test("a draft whose check call fails saves nothing and names why, against one that answers", async () => {
+  const failing = async (reply: () => Response) => {
+    const fake = seed();
+    fake.replies.push(reply);
+    const run = await draftRequest(fake, DRAFT);
+    assert.deepEqual(fake.saved, []);
+    return { status: run.status, json: run.json };
+  };
+  assert.deepEqual(
+    await failing(() => Response.json({}, { status: 401 })),
+    { status: 422, json: { error: "key_refused" } },
+  );
+  assert.deepEqual(
+    await failing(() =>
+      Response.json({ error: { message: "No such model" } }, { status: 400 })
+    ),
+    { status: 422, json: { error: "model_not_found" } },
+  );
+  assert.deepEqual(
+    await failing(() => Response.json({}, { status: 500 })),
+    { status: 422, json: { error: "call_failed" } },
+  );
+  assert.deepEqual(
+    await failing(() =>
+      responsesStream([{ type: "response.failed", response: {} }])
+    ),
+    { status: 422, json: { error: "call_failed" } },
+  );
+  assert.deepEqual(
+    await failing(() => {
+      throw new TypeError("error sending request");
+    }),
+    { status: 422, json: { error: "call_failed" } },
+  );
+
+  const keyless = seed();
+  keyless.keyed = false;
+  const run = await draftRequest(keyless, DRAFT);
+  assert.equal(run.status, 409);
+  assert.deepEqual(run.json, { error: "no_key" });
+  assert.equal(keyless.requests.length, 0);
+
+  const answers = seed();
+  answers.replies.push(says("네"));
+  assert.equal((await draftRequest(answers, DRAFT)).status, 200);
+  assert.equal(answers.saved.length, 1);
+});
+
+Deno.test("a draft of a model that cannot run at its effort is refused as effort_unsupported before any call, against one that can", async () => {
+  const opus = {
+    ...DRAFT,
+    provider: "anthropic",
+    model: "claude-opus-5-5",
+    web_search: false,
+  };
+  const fake = seed();
+  const run = await draftRequest(fake, { ...opus, reasoning_effort: "none" });
+  assert.equal(run.status, 400);
+  assert.deepEqual(run.json, { error: "effort_unsupported" });
+  assert.equal(fake.requests.length, 0);
+  assert.deepEqual(fake.saved, []);
+
+  fake.replies.push(() =>
+    messagesStream([
+      {
+        type: "message_start",
+        message: { usage: { input_tokens: 10, output_tokens: 1 } },
+      },
+      { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: {} },
+      { type: "message_stop" },
+    ])
+  );
+  const control = await draftRequest(fake, {
+    ...opus,
+    reasoning_effort: "low",
+  });
+  assert.equal(control.status, 200);
+  assert.equal(fake.saved.length, 1);
+});
+
+Deno.test("a call that breaks off before its provider reported usage is charged its request's input as an estimate", async () => {
+  const fake = seed();
+  // An OpenRouter stream that breaks off after its first text, before `response.completed`.
+  fake.replies.push(() =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        pull(controller) {
+          controller.enqueue(new TextEncoder().encode(
+            `event: response.output_text.delta\ndata: ${
+              JSON.stringify({
+                type: "response.output_text.delta",
+                delta: "잠시",
+              })
+            }\n\n`,
+          ));
+          controller.error(new TypeError("connection reset"));
+        },
+      }),
+      { headers: { "Content-Type": "text/event-stream" } },
+    )
+  );
+  const run = await send(fake);
+  assert.equal(run.events.at(-1)!.data.outcome, "model_error");
+  const sent = new TextEncoder().encode(JSON.stringify(fake.requests[0]!))
+    .length;
+  assert.ok(sent > 0);
+  assert.equal(
+    fake.finished[0]!.input_tokens,
+    Math.ceil(sent / BYTES_PER_TOKEN),
+  );
+  assert.equal(fake.finished[0]!.output_tokens, 0);
+
+  // A call whose provider refused it outright is charged nothing.
+  const refused = seed();
+  refused.replies.push(() => Response.json({}, { status: 500 }));
+  await send(refused);
+  assert.equal(refused.finished[0]!.input_tokens, 0);
+});
+
+Deno.test("a history of the longest replies at every turn is never refused for its size, against a body over what it may hold", async () => {
+  // Every turn but the last a longest reply of three-byte characters, as the server streams it.
+  const reply = "가".repeat(MAX_REPLY_TEXT);
+  const messages = [
+    ...Array.from({ length: MAX_TURNS - 1 }, () => ({
+      role: "assistant",
+      text: reply,
+    })),
+    { role: "user", text: "고마워요" },
+  ];
+  const fake = seed();
+  fake.replies.push(says("네"));
+  const run = await send(fake, { body: { messages } });
+  assert.ok(
+    new TextEncoder().encode(JSON.stringify({ messages })).length >
+      MAX_BODY_BYTES,
+    "setup: the history is over what a request may hold before it is shortened",
+  );
+  assert.equal(run.status, 200);
+  const turns = input(fake.requests[0]!);
+  assert.equal(turns.length, MAX_TURNS);
+  assert.ok(
+    turns.every((turn) => [...String(turn.content)].length <= MAX_TURN_TEXT),
+  );
+
+  const over = seed();
+  const refused = await send(over, {
+    body: {
+      messages: [{ role: "user", text: "네" }],
+      pad: "x".repeat(MAX_REQUEST_BYTES),
+    },
+  });
+  assert.equal(refused.status, 413);
+  assert.equal(over.begun, 0);
 });
