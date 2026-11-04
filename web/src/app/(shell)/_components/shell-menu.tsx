@@ -39,7 +39,7 @@ const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visi
 function Pill({ selected, children }: { selected: boolean; children: ReactNode }) {
   return (
     <span
-      className={`flex h-8 w-14 shrink-0 items-center justify-center rounded-chip ${selected ? "bg-brand-tint" : ""}`}
+      className={`flex h-8 w-tap-target shrink-0 items-center justify-center rounded-chip ${selected ? "bg-brand-tint" : ""}`}
     >
       {children}
     </span>
@@ -58,19 +58,20 @@ export function SideMenu({ profile }: { profile?: ReactNode }) {
 /**
  * [SideMenu] at [path], or with no page current while the path is not yet known. Its column takes
  * the surface and the border down the page's whole height, and the menu inside it stays pinned in
- * view as the page scrolls (ADR 0038).
+ * view as the page scrolls (ADR 0038). The lockup, each item's pill and the profile's circle start
+ * on the gutter, and the pill is the circle's width, so the labels start on one line too.
  */
 export function SideMenuAt({ path, profile }: { path: string | null; profile?: ReactNode }) {
   return (
     <div className="hidden w-60 shrink-0 border-r border-hairline bg-surface lg:block">
       <nav
         aria-label="주 메뉴"
-        className="sticky top-(--photo-import-bar,0px) flex h-[calc(100dvh-var(--photo-import-bar,0px))] flex-col gap-1.5 px-4 py-7"
+        className="sticky top-(--photo-import-bar,0px) flex h-[calc(100dvh-var(--photo-import-bar,0px))] flex-col gap-1.5 px-gutter py-7"
       >
         <Link
           href="/"
           aria-label="알아몰라, 홈"
-          className={`mx-2.5 mb-5 self-start rounded-field ${focus}`}
+          className={`mb-5 self-start rounded-field ${focus}`}
         >
           <BrandMark mark="lockup" alt="" className="h-7 w-auto" />
         </Link>
@@ -81,7 +82,7 @@ export function SideMenuAt({ path, profile }: { path: string | null; profile?: R
               key={href}
               href={href}
               aria-current={selected ? "page" : undefined}
-              className={`pressable flex min-h-tap-target items-center gap-3 rounded-field px-1 text-label ${selected ? "text-accent" : "text-ink-2"} ${focus}`}
+              className={`pressable flex min-h-tap-target items-center gap-3 rounded-field text-label ${selected ? "text-accent" : "text-ink-2"} ${focus}`}
             >
               <Pill selected={selected}>
                 <Icon aria-hidden className="size-5" strokeWidth={selected ? 2.2 : 2} />

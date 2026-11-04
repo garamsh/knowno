@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import validity from "../../fixtures/card-frame/validity.json" with {
   type: "json",
 };
-import type { IdSource } from "./cards.ts";
+import type { IdSource } from "../_shared/cards.ts";
 import { readConfig } from "./config.ts";
 import { createHandler, type LogEntry } from "./handler.ts";
 

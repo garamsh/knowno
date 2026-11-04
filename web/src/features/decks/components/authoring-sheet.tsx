@@ -4,6 +4,9 @@ import { ChevronLeft, X } from "lucide-react";
 import { type ReactNode, useId } from "react";
 import { useModalDialog } from "@/design/sheet";
 
+/** A pair of buttons on one line at a phone's width: the first sized to its label. */
+export const pairClass = "grid grid-cols-[auto_minmax(0,1fr)] gap-3";
+
 /**
  * An authoring flow's screen, as the phone pushes one (ADR 0158): below 1024 px the whole page,
  * its title bar led by "닫기", or "뒤로" with [back], over the scrolling [children] and the

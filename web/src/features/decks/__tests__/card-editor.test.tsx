@@ -10,7 +10,8 @@ import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 
 import { parseCardContent } from "../card-content";
-import { AuthoringButton, CardEditor } from "../components/authoring-button";
+import { AuthoringButton } from "../components/authoring-button";
+import { CardEditor } from "../components/card-editor";
 import { parseDeckId, parseCardId, type Card } from "../library";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
@@ -253,6 +254,25 @@ describe("a new card", () => {
     expect(db.rows.cards[0]?.front).toMatchObject([
       { type: "cloze", v: 1, payload: { text: "Rose is ___", answers: ["red"] } },
     ]);
+  });
+
+  it("tints a blank's words in the line, and draws an empty blank as an underline where the caret stands", async () => {
+    await newCard();
+    await removeFirst();
+    await add("빈칸 문장");
+    const line = screen.getByRole("textbox", { name: "문장" });
+    // The copy under the line that draws its marks; the line's own text is transparent over it.
+    const copy = line.previousElementSibling;
+    if (!(copy instanceof HTMLElement)) throw new Error("the line's marks are not drawn");
+    await userEvent.type(line, "Rose is red");
+    expect(within(copy).queryByText("Rose"), "control: no mark before a blank").toBeNull();
+    select(line, 0, 4);
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 넣기" }));
+    expect(within(copy).getByText("Rose")).toHaveClass("bg-brand-tint");
+    expect(copy.querySelector(".bg-muted"), "control: no empty blank yet").toBeNull();
+    select(line, 11, 11);
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 넣기" }));
+    expect(copy.querySelector(".bg-muted")).toHaveClass("absolute", "bottom-0", "h-px", "w-8");
   });
 
   it("types an opened blank's answer, and drops one left empty", async () => {

@@ -12,7 +12,7 @@ export function TodaySkeleton() {
       <div
         className={`${heroFold(true)} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 lg:mx-0 lg:rounded-card lg:p-8`}
       >
-        <div className="mb-4 flex min-h-tap-target items-center">
+        <div className="mb-4 flex min-h-tap-target items-center lg:hidden">
           <SkeletonLine text="text-title" width="w-28" />
         </div>
         <div className={heroGroup}>
