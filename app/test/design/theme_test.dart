@@ -280,10 +280,11 @@ void main() {
 
   test('no screen draws a button with Material\'s TextButton, so every '
       'button is AppButton, but the two photo import names', () {
-    final textButton = RegExp(r'(?<![\w.])TextButton\(');
-    // Controls: the expression finds a TextButton, AppButton's own among
-    // them, and not its style or theme.
+    final textButton = RegExp(r'(?<![\w.])TextButton(?:\.icon)?\(');
+    // Controls: the expression finds a TextButton, with an icon or not,
+    // AppButton's own among them, and not its style or theme.
     expect(textButton.hasMatch('child: TextButton(onPressed: f)'), isTrue);
+    expect(textButton.hasMatch('child: TextButton.icon(icon: i)'), isTrue);
     expect(
       textButton.hasMatch(_appSources()['lib/design/app_button.dart']!),
       isTrue,
@@ -311,9 +312,13 @@ void main() {
 
   test('no screen builds a search field of its own, so every search is '
       'AppSearchField', () {
-    final search = RegExp(r'\bLucideIcons\.search\b');
+    final search = RegExp(r'\b(?:LucideIcons|Icons)\.search\w*');
     final sources = _appSources();
-    // Control: the expression finds AppSearchField's own magnifier.
+    // Controls: the expression finds Material's magnifiers and
+    // AppSearchField's own, and not the search's height.
+    expect(search.hasMatch('Icon(Icons.search)'), isTrue);
+    expect(search.hasMatch('Icon(Icons.search_rounded)'), isTrue);
+    expect(search.hasMatch('height: AppSize.search'), isFalse);
     expect(
       search.hasMatch(sources['lib/design/app_search_field.dart'] ?? ''),
       isTrue,
