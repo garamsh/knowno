@@ -151,6 +151,39 @@ export class FakeAdmin {
   readonly prompts: { id: number; text: string; note: string; by: string | null }[] = [
     { id: 1, text: "Prompt v8.\nKeep each fact.", note: "prompt v8", by: null },
   ];
+  /**
+   * The saved assistant configurations (ADR 0190): each plan's active one as the migration seeds
+   * it, on the photo's provider and model with the first assistant prompt, web search off for Free
+   * alone, 3 searches a message and no reasoning; and any draft an admin saved through the
+   * assistant, labelled `test`.
+   */
+  readonly assistantConfigurations: (FakeAdmin["aiConfigurations"][number] & {
+    web_search: boolean;
+    max_searches: number;
+    reasoning_effort: string;
+  })[] = ["free", "pro", "max", "special"].map((plan, index) => ({
+    id: index + 1,
+    plan,
+    label: "active",
+    provider: "openrouter",
+    model: "anthropic/claude-haiku-5.5",
+    prompt_version_id: 1,
+    created_by: null,
+    web_search: plan !== "free",
+    max_searches: 3,
+    reasoning_effort: "none",
+  }));
+  /** The saved assistant prompts, oldest first. */
+  readonly assistantPrompts: { id: number; text: string; note: string; by: string | null }[] = [
+    { id: 1, text: "You are 말랑이.\nAnswer briefly.", note: "first", by: null },
+  ];
+  /** Each plan's daily assistant message limit; null for none. */
+  readonly assistantLimits = new Map<string, number | null>([
+    ["free", 10],
+    ["pro", 100],
+    ["max", 300],
+    ["special", null],
+  ]);
   /** Each suspended user's suspension. */
   readonly suspensions = new Map<string, { reason: string; by: string }>();
   /** Each deck removed from sharing, and why. */
@@ -184,7 +217,10 @@ export class FakeAdmin {
     return { owner_id: deck.ownerId, owner_email: user?.email ?? "", owner_name: null };
   }
 
-  private promptRow(prompt: FakeAdmin["prompts"][number]): Row {
+  private promptRow(
+    prompt: FakeAdmin["prompts"][number],
+    configurations: { label: string; prompt_version_id: number }[] = this.aiConfigurations,
+  ): Row {
     return {
       id: prompt.id,
       note: prompt.note,
@@ -193,7 +229,7 @@ export class FakeAdmin {
       created_at: "2026-10-19T04:00:00Z",
       // The labels of the configurations sending it, as the server names them.
       labels: (["active", "test"] as const).filter((label) =>
-        this.aiConfigurations.some(
+        configurations.some(
           (entry) => entry.label === label && entry.prompt_version_id === prompt.id,
         ),
       ),
@@ -513,6 +549,81 @@ export class FakeAdmin {
         this.record(admin, "clear_ai_test", "plan", String(args.plan), {});
         return true;
       }
+      case "admin_assistant_configurations": {
+        const rank = (plan: string) => ["free", "pro", "max", "special"].indexOf(plan);
+        return this.assistantConfigurations
+          .toSorted((a, b) => rank(a.plan) - rank(b.plan) || a.label.localeCompare(b.label))
+          .map((entry) => ({
+            plan: entry.plan,
+            label: entry.label,
+            configuration_id: entry.id,
+            provider: entry.provider,
+            model: entry.model,
+            prompt_version_id: entry.prompt_version_id,
+            web_search: entry.web_search,
+            max_searches: entry.max_searches,
+            reasoning_effort: entry.reasoning_effort,
+            created_at: "2026-11-04T01:00:00Z",
+            created_by_email:
+              this.users.find((user) => user.id === entry.created_by)?.email ?? null,
+            set_at: "2026-11-04T01:00:00Z",
+          }));
+      }
+      case "admin_assistant_prompts":
+        return this.assistantPrompts.toReversed().map((prompt) => ({
+          ...this.promptRow(prompt, this.assistantConfigurations),
+          text: prompt.text,
+        }));
+      case "admin_save_assistant_prompt": {
+        const text = String(args.text);
+        const id = (this.assistantPrompts.at(-1)?.id ?? 0) + 1;
+        const note = String(args.note).trim();
+        this.assistantPrompts.push({ id, text, note, by: admin });
+        this.record(admin, "save_assistant_prompt", "assistant_prompt", String(id), {
+          note,
+          length: text.length,
+        });
+        return id;
+      }
+      case "admin_activate_assistant_configuration": {
+        const draft = this.assistantConfigurations.find(
+          (entry) => entry.plan === args.plan && entry.label === "test",
+        );
+        if (draft === undefined) return "no_test";
+        if (draft.provider !== "openrouter" && !this.providerKeys.has(draft.provider)) {
+          return "no_key";
+        }
+        const before = this.assistantConfigurations.findIndex(
+          (entry) => entry.plan === args.plan && entry.label === "active",
+        );
+        const replaced = this.assistantConfigurations[before]?.id ?? null;
+        if (before >= 0) this.assistantConfigurations.splice(before, 1);
+        draft.label = "active";
+        this.record(admin, "activate_assistant_configuration", "plan", draft.plan, {
+          configuration_id: draft.id,
+          configuration_before: replaced,
+        });
+        return "activated";
+      }
+      case "admin_clear_assistant_test": {
+        const draft = this.assistantConfigurations.findIndex(
+          (entry) => entry.plan === args.plan && entry.label === "test",
+        );
+        if (draft < 0) return false;
+        const cleared = this.assistantConfigurations[draft]?.id;
+        this.assistantConfigurations.splice(draft, 1);
+        this.record(admin, "clear_assistant_test", "plan", String(args.plan), {
+          configuration_id: cleared,
+        });
+        return true;
+      }
+      case "admin_assistant_limits":
+        return [...this.assistantLimits].map(([plan, daily]) => ({
+          plan,
+          daily_messages: daily,
+          set_by_email: null,
+          set_at: "2026-11-04T01:00:00Z",
+        }));
       case "admin_remove_provider_key": {
         const provider = String(args.provider);
         if (!this.recentSignIn) return "reauth";

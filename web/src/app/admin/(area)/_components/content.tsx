@@ -10,6 +10,7 @@ import {
   AdminList,
   adminTimeZone,
   AiView,
+  AssistantView,
   AuditLog,
   DeckView,
   GrantAdminForm,
@@ -24,6 +25,9 @@ import {
   type PlanId,
   PlansView,
   readAdmins,
+  readAssistantConfigurations,
+  readAssistantLimits,
+  readAssistantPrompts,
   readAuditLog,
   readConfigurationResults,
   readDeck,
@@ -317,6 +321,46 @@ export async function AiContent({ searchParams }: { searchParams: SearchParams }
               text: written?.text ?? "",
               basis: written === null ? "빈 프롬프트" : `버전 ${String(written.id)}`,
             }
+          : null
+      }
+      timeZone={timeZone}
+    />
+  );
+}
+
+/**
+ * 말랑이: each plan's assistant configuration and daily message limit, the panel of the plan the
+ * address names, or else of the first plan with a draft, or else Free's, and the assistant's prompt
+ * versions; with `write` in the address, the new version's form, from the version it names or else
+ * the plan's active one.
+ */
+export async function AssistantContent({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const [configurations, prompts, limits, timeZone] = await Promise.all([
+    readAssistantConfigurations(),
+    readAssistantPrompts(),
+    readAssistantLimits(),
+    adminTimeZone(),
+  ]);
+  const failed = (failure: AdminFailure) => <AdminFailureMessage failure={failure} />;
+  if ("failure" in configurations) return failed(configurations.failure);
+  if ("failure" in prompts) return failed(prompts.failure);
+  if ("failure" in limits) return failed(limits.failure);
+  // The server lists the configurations in the plans' order, so the first draft is the first plan's.
+  const plan =
+    parsePlanId(params.plan) ?? configurations.data.find((c) => c.label === "test")?.plan ?? "free";
+  const active = configurations.data.find((c) => c.plan === plan && c.label === "active");
+  const from =
+    typeof params.write === "string" ? (versionId(params.write) ?? active?.promptVersionId) : null;
+  return (
+    <AssistantView
+      configurations={configurations.data}
+      prompts={prompts.data}
+      limits={limits.data}
+      plan={plan}
+      write={
+        typeof params.write === "string"
+          ? { from: prompts.data.find((prompt) => prompt.id === from) ?? null }
           : null
       }
       timeZone={timeZone}

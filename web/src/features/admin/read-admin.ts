@@ -508,29 +508,85 @@ export async function readProviderKeys(): Promise<AdminRead<ProviderKey[]>> {
 
 /** Each plan's active configuration and draft. */
 export async function readAiConfigurations(): Promise<AdminRead<AiConfiguration[]>> {
-  return parsed(await call("admin_ai_configurations"), (row) => {
+  return parsed(await call("admin_ai_configurations"), parseConfiguration);
+}
+
+/** A labelled configuration's provider, model and prompt version, the photo's or the assistant's. */
+function parseConfiguration(row: unknown): AiConfiguration | null {
+  const plan = parsePlanId(field(row, "plan"));
+  const label = field(row, "label");
+  const id = count(field(row, "configuration_id"));
+  const provider = parseProvider(field(row, "provider"));
+  const model = text(field(row, "model"));
+  const promptVersionId = count(field(row, "prompt_version_id"));
+  const createdAt = parseTime(field(row, "created_at"));
+  const createdBy = field(row, "created_by_email");
+  if (plan === null || id === null || provider === null || model === null) return null;
+  if ((label !== "active" && label !== "test") || createdAt === null) return null;
+  if (promptVersionId === null) return null;
+  if (createdBy !== null && typeof createdBy !== "string") return null;
+  return {
+    plan,
+    label,
+    id,
+    provider,
+    model,
+    promptVersionId,
+    createdAt,
+    createdByEmail: createdBy,
+  };
+}
+
+/** How hard the assistant's model reasons before it answers (ADR 0190). */
+export type ReasoningEffort = "none" | "low" | "medium" | "high";
+
+export const reasoningEfforts: readonly ReasoningEffort[] = ["none", "low", "medium", "high"];
+
+/** [value], which crossed the network, as a reasoning effort; null for any other. */
+export function parseReasoningEffort(value: unknown): ReasoningEffort | null {
+  return reasoningEfforts.find((known) => known === value) ?? null;
+}
+
+/**
+ * A plan's labelled assistant configuration (ADR 0190): its provider, model and prompt version of
+ * the assistant's prompts, whether it searches the web, the searches one message may make, and its
+ * reasoning effort.
+ */
+export type AssistantConfiguration = AiConfiguration & {
+  webSearch: boolean;
+  maxSearches: number;
+  reasoningEffort: ReasoningEffort;
+};
+
+/** Each plan's active assistant configuration and draft. */
+export async function readAssistantConfigurations(): Promise<AdminRead<AssistantConfiguration[]>> {
+  return parsed(await call("admin_assistant_configurations"), (row) => {
+    const configuration = parseConfiguration(row);
+    const webSearch = field(row, "web_search");
+    const maxSearches = count(field(row, "max_searches"));
+    const reasoningEffort = parseReasoningEffort(field(row, "reasoning_effort"));
+    if (configuration === null || typeof webSearch !== "boolean") return null;
+    if (maxSearches === null || reasoningEffort === null) return null;
+    return { ...configuration, webSearch, maxSearches, reasoningEffort };
+  });
+}
+
+/** Every saved assistant prompt with its text, newest first. */
+export async function readAssistantPrompts(): Promise<AdminRead<PromptDetail[]>> {
+  return parsed(await call("admin_assistant_prompts"), parsePromptDetail);
+}
+
+/** A plan's daily assistant message limit in Asia/Seoul; null for none. */
+export type AssistantLimit = { plan: PlanId; dailyMessages: number | null };
+
+/** Each plan's daily assistant message limit. */
+export async function readAssistantLimits(): Promise<AdminRead<AssistantLimit[]>> {
+  return parsed(await call("admin_assistant_limits"), (row) => {
     const plan = parsePlanId(field(row, "plan"));
-    const label = field(row, "label");
-    const id = count(field(row, "configuration_id"));
-    const provider = parseProvider(field(row, "provider"));
-    const model = text(field(row, "model"));
-    const promptVersionId = count(field(row, "prompt_version_id"));
-    const createdAt = parseTime(field(row, "created_at"));
-    const createdBy = field(row, "created_by_email");
-    if (plan === null || id === null || provider === null || model === null) return null;
-    if ((label !== "active" && label !== "test") || createdAt === null) return null;
-    if (promptVersionId === null) return null;
-    if (createdBy !== null && typeof createdBy !== "string") return null;
-    return {
-      plan,
-      label,
-      id,
-      provider,
-      model,
-      promptVersionId,
-      createdAt,
-      createdByEmail: createdBy,
-    };
+    const limit = field(row, "daily_messages");
+    const dailyMessages = limit === null ? null : count(limit);
+    if (plan === null || (limit !== null && dailyMessages === null)) return null;
+    return { plan, dailyMessages };
   });
 }
 
@@ -833,14 +889,16 @@ export async function readPromptVersions(): Promise<AdminRead<PromptVersion[]>> 
 
 /** Version [id] with its text, or null when there is no such version. */
 export async function readPromptVersion(id: number): Promise<AdminRead<PromptDetail | null>> {
-  const read = parsed(await call("admin_prompt_version", { version_id: id }), (row) => {
-    const text = field(row, "text");
-    if (typeof text !== "string") return null;
-    const version = parsePromptVersion(row, text.length);
-    return version === null ? null : { ...version, text };
-  });
+  const read = parsed(await call("admin_prompt_version", { version_id: id }), parsePromptDetail);
   if ("failure" in read) return read;
   return { data: read.data[0] ?? null };
+}
+
+function parsePromptDetail(row: unknown): PromptDetail | null {
+  const text = field(row, "text");
+  if (typeof text !== "string") return null;
+  const version = parsePromptVersion(row, text.length);
+  return version === null ? null : { ...version, text };
 }
 
 function parsePromptVersion(row: unknown, length: number | null): PromptVersion | null {

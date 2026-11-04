@@ -9,10 +9,10 @@ import { adminToken } from "./trial";
 /** What an AI settings form shows after an attempt; `reauth` asks the admin to sign in again. */
 export type AiFormState = { message: string | null; reauth: boolean };
 
-/** How long a save waits for extract-cards, which first makes one call to the provider. */
+/** How long a save waits for its function, which first makes one call to the provider. */
 const settingsTimeoutMs = 90_000;
 
-/** The sentence each refusal of extract-cards' settings routes shows (ADR 0162). */
+/** The sentence each refusal of the settings routes of extract-cards and the assistant shows (ADR 0162). */
 const settingsMessages: Record<string, string> = {
   key_refused: "제공자가 이 키를 받지 않았어요. 키를 확인해 주세요.",
   model_not_found: "이 제공자에 없는 모델이에요. 모델 ID를 확인해 주세요.",
@@ -27,12 +27,15 @@ const settingsMessages: Record<string, string> = {
 };
 
 /**
- * Posts [body] to extract-cards' settings route [route] as the signed-in admin, which saves only
- * after one call with it parsed: whether it was saved, and otherwise the form's state saying why.
- * The body may hold a key: nothing of it is logged or returned.
+ * Posts [body] to the settings route [route] as the signed-in admin, which saves only after one
+ * call with it parsed: whether it was saved, and otherwise the form's state saying why. The body
+ * may hold a key: nothing of it is logged or returned.
  */
 export async function postSettings(
-  route: "key" | "configuration",
+  route:
+    | "extract-cards/settings/key"
+    | "extract-cards/settings/configuration"
+    | "assistant/settings/configuration",
   body: Record<string, unknown>,
 ): Promise<{ saved: true } | { saved: false; state: AiFormState }> {
   const refusal = (message: string, reauth = false) => ({
@@ -43,7 +46,7 @@ export async function postSettings(
   if ("message" in admin) return refusal(admin.message);
   let response: Response;
   try {
-    response = await fetch(`${env.supabaseUrl}/functions/v1/extract-cards/settings/${route}`, {
+    response = await fetch(`${env.supabaseUrl}/functions/v1/${route}`, {
       method: "POST",
       headers: {
         apikey: env.supabasePublishableKey,

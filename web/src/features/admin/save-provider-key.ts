@@ -26,7 +26,11 @@ export async function saveProviderKey(
   if (typeof model !== "string" || model.trim() === "") {
     return { message: "확인할 모델 ID를 적어 주세요.", reauth: false };
   }
-  const result = await postSettings("key", { provider, key: key.trim(), model: model.trim() });
+  const result = await postSettings("extract-cards/settings/key", {
+    provider,
+    key: key.trim(),
+    model: model.trim(),
+  });
   if (!result.saved) return result.state;
   revalidatePath("/admin", "layout");
   return { message: "키를 확인하고 저장했어요.", reauth: false };

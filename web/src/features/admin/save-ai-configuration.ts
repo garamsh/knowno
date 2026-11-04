@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { failureMessages } from "./action-call";
 import { type AiFormState, postSettings } from "./ai-settings";
+import { checkModelId } from "./model-id";
 import { parsePlanId, parseProvider } from "./read-admin";
 
 /**
@@ -26,21 +27,12 @@ export async function saveAiConfiguration(
   if (prompt !== "" && !/^[1-9]\d{0,15}$/.test(prompt)) {
     return { message: failureMessages.malformed, reauth: false };
   }
-  const id = typeof model === "string" ? model.trim() : "";
-  const shape = provider === "openrouter" ? /^[\w.-]+\/[\w.:-]+$/ : /^[\w.:-]+$/;
-  if (!shape.test(id) || id.length > 200) {
-    return {
-      message:
-        provider === "openrouter"
-          ? "모델 ID는 vendor/model 꼴로 적어 주세요."
-          : "모델 ID를 빈칸이나 / 없이 적어 주세요.",
-      reauth: false,
-    };
-  }
-  const result = await postSettings("configuration", {
+  const checked = checkModelId(provider, model);
+  if ("message" in checked) return { message: checked.message, reauth: false };
+  const result = await postSettings("extract-cards/settings/configuration", {
     plan,
     provider,
-    model: id,
+    model: checked.id,
     ...(prompt === "" ? {} : { prompt_version_id: Number(prompt) }),
   });
   if (!result.saved) return result.state;

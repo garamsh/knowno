@@ -32,6 +32,11 @@ export const actionLabels: Record<string, string> = {
   save_ai_configuration: "AI 설정 테스트로 저장",
   activate_ai_configuration: "AI 설정 적용",
   clear_ai_test: "AI 설정 테스트 끝",
+  save_assistant_configuration: "말랑이 설정 테스트로 저장",
+  activate_assistant_configuration: "말랑이 설정 적용",
+  clear_assistant_test: "말랑이 설정 테스트 끝",
+  save_assistant_prompt: "말랑이 프롬프트 저장",
+  set_assistant_limit: "말랑이 하루 메시지 한도",
 };
 
 /** Each AI provider's name (ADR 0162). */
@@ -39,6 +44,14 @@ export const providerLabels: Record<string, string> = {
   openrouter: "OpenRouter",
   openai: "OpenAI",
   anthropic: "Anthropic",
+};
+
+/** Each reasoning effort of the assistant's model (ADR 0190). */
+export const effortLabels: Record<string, string> = {
+  none: "없음",
+  low: "낮음",
+  medium: "보통",
+  high: "높음",
 };
 
 /**

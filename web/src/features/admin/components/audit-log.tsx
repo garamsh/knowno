@@ -16,7 +16,7 @@ function Target({ entry }: { entry: AuditEntry }) {
         ? email
         : entry.targetKind === "plan"
           ? labelOf(planLabels, entry.targetId)
-          : entry.targetKind === "prompt"
+          : entry.targetKind === "prompt" || entry.targetKind === "assistant_prompt"
             ? `버전 ${entry.targetId}`
             : entry.targetKind === "provider"
               ? labelOf(providerLabels, entry.targetId)
@@ -29,10 +29,12 @@ function Target({ entry }: { entry: AuditEntry }) {
         : entry.targetKind === "plan" && entry.action.endsWith("_plan_version")
           ? "/plans"
           : entry.targetKind === "plan"
-            ? `/ai?${new URLSearchParams({ plan: entry.targetId }).toString()}`
+            ? `${entry.action.includes("assistant") ? "/assistant" : "/ai"}?${new URLSearchParams({ plan: entry.targetId }).toString()}`
             : entry.targetKind === "provider" || entry.targetKind === "prompt"
               ? "/ai"
-              : null;
+              : entry.targetKind === "assistant_prompt"
+                ? "/assistant"
+                : null;
   return href === null ? (
     <span>{words}</span>
   ) : (

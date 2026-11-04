@@ -19,3 +19,7 @@ export { removeProviderKey } from "./remove-provider-key";
 export { saveAiConfiguration } from "./save-ai-configuration";
 export { saveProviderKey } from "./save-provider-key";
 export { tryAiConfiguration } from "./try-ai-configuration";
+export { activateAssistantConfiguration } from "./activate-assistant-configuration";
+export { clearAssistantTest } from "./clear-assistant-test";
+export { saveAssistantConfiguration } from "./save-assistant-configuration";
+export { saveAssistantPrompt } from "./save-assistant-prompt";

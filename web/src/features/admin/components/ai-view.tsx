@@ -5,11 +5,10 @@ import { Section } from "@/design/section";
 
 import { activateAiConfiguration } from "../activate-ai-configuration";
 import { clearAiTest } from "../clear-ai-test";
-import { formatDate, formatTime } from "../format";
+import { formatTime } from "../format";
 import { labelOf, planLabels, providerLabels } from "../labels";
 import { estimatedCost, usdPerPhoto } from "../model-costs";
 import { failureAlarm, percent } from "../outcomes";
-import { lineDiff } from "../prompt-diff";
 import type {
   AiConfiguration,
   ConfigurationResult,
@@ -19,12 +18,15 @@ import type {
   ProviderKey,
 } from "../read-admin";
 import { removeProviderKey } from "../remove-provider-key";
-import { button, Empty, group, linkRow, Parts, row } from "./admin-section";
+import { savePrompt } from "../save-prompt";
+import { button, Empty, group, Parts, row } from "./admin-section";
 import { AdminTable, CellLabel, cellClass, rowClass } from "./admin-table";
 import { AiConfigurationForm } from "./ai-configuration-form";
 import { AiTrial } from "./ai-trial";
 import { ConfirmAction } from "./confirm-action";
+import { PromptChanges } from "./prompt-changes";
 import { PromptForm } from "./prompt-form";
+import { PromptVersions } from "./prompt-versions";
 import { ProviderKeyForm } from "./provider-key-form";
 
 const aiPlans: readonly PlanId[] = ["free", "pro", "max", "special"];
@@ -110,14 +112,6 @@ function changes(active: AiConfiguration | null, draft: AiConfiguration): string
     .map((part) => `${part.name} ${part.before} → ${part.after}`);
   if (changed.length === 0) return "지금 구성과 같아요";
   return [...(kept.length === 0 ? [] : [`${kept.join("·")} 그대로`]), ...changed].join(" · ");
-}
-
-/** The words for a version's labels: 사용 중 for an active configuration's, 초안에서 사용 for a draft's. */
-function labelWords(version: PromptVersion): string[] {
-  return [
-    ...(version.labels.includes("active") ? ["사용 중"] : []),
-    ...(version.labels.includes("test") ? ["초안에서 사용"] : []),
-  ];
 }
 
 /**
@@ -215,7 +209,13 @@ export function AiView({
       </Section>
       <div className="grid grid-cols-1 items-start gap-section-gap lg:grid-cols-[minmax(0,1fr)_--spacing(90)] lg:gap-4">
         <div className="flex min-w-0 flex-col gap-section-gap">
-          {write !== null && <PromptForm initialText={write.text} basis={write.basis} />}
+          {write !== null && (
+            <PromptForm
+              initialText={write.text}
+              note={`${write.basis}에서 시작해요. 저장해도 바로 쓰이지 않아요: 초안의 프롬프트로 골라 시험하고 적용해요. 모든 버전 뒤에는 함수에 고정된 출력 계약(카드의 필드와 규칙)이 함께 보내져서, 카드의 형식과 검사는 여기서 바뀌지 않아요.`}
+              save={savePrompt}
+            />
+          )}
           <Panel
             plan={plan}
             active={find(plan, "active")}
@@ -233,7 +233,11 @@ export function AiView({
             editing={editing}
             timeZone={timeZone}
           />
-          <PromptVersions versions={versions} plan={plan} timeZone={timeZone} />
+          <PromptVersions
+            versions={versions}
+            writeHref={(from) => aiHref(plan, from)}
+            timeZone={timeZone}
+          />
         </div>
       </div>
       <Section
@@ -319,8 +323,6 @@ function Panel({
   timeZone: string;
 }) {
   const name = planLabels[plan] ?? plan;
-  const lines = diff === null ? null : lineDiff(diff.before, diff.after);
-  const changed = lines?.filter((line) => line.kind !== "same").length ?? 0;
   const basis = draft ?? active;
   const usd = active === null ? null : usdPerPhoto(active.model);
   return (
@@ -356,44 +358,13 @@ function Panel({
             </p>
           )}
         </div>
-        {lines !== null && draft !== null && active !== null && (
-          <details className="px-4 py-3">
-            <summary className="min-h-tap-target cursor-pointer content-center text-label text-ink-2 focus-visible:outline-2 focus-visible:outline-ink">
-              프롬프트 v{active.promptVersionId} → v{draft.promptVersionId} 다른 점
-            </summary>
-            {/* A details element does not lay its content out as flex items, so one block holds the gap. */}
-            <div className="mt-3 flex flex-col gap-2">
-              <p className="text-caption text-muted">
-                {changed === 0
-                  ? "내용이 같아요."
-                  : `바뀐 줄 ${String(changed)}개: 빼는 줄은 −, 더하는 줄은 +로 표시해요.`}
-              </p>
-              <ol className="flex flex-col rounded-group bg-ground p-3 font-mono text-caption">
-                {lines.map((line, index) => (
-                  <li
-                    key={index}
-                    className={`grid grid-cols-[1.5rem_1fr] whitespace-pre-wrap ${
-                      line.kind === "removed"
-                        ? "bg-tint-amber text-ink"
-                        : line.kind === "added"
-                          ? "bg-brand-tint text-ink"
-                          : "text-ink-2"
-                    }`}
-                  >
-                    <span aria-hidden>
-                      {line.kind === "removed" ? "−" : line.kind === "added" ? "+" : ""}
-                    </span>
-                    <span>
-                      <span className="sr-only">
-                        {line.kind === "removed" ? "뺌: " : line.kind === "added" ? "더함: " : ""}
-                      </span>
-                      {line.text}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </details>
+        {diff !== null && draft !== null && active !== null && (
+          <PromptChanges
+            from={active.promptVersionId}
+            to={draft.promptVersionId}
+            before={diff.before}
+            after={diff.after}
+          />
         )}
         {draft !== null && active !== null && (
           <AiTrial name={name} draftId={draft.id} activeId={active.id} />
@@ -502,49 +473,6 @@ function ProviderKeys({
           );
         })}
       </ul>
-    </Section>
-  );
-}
-
-/** 프롬프트 버전: every version, newest first, each opening the form from it, and 새 버전 쓰기. */
-function PromptVersions({
-  versions,
-  plan,
-  timeZone,
-}: {
-  versions: PromptVersion[];
-  plan: PlanId;
-  timeZone: string;
-}) {
-  return (
-    <Section label="프롬프트 버전" note="버전을 누르면 그 버전에서 새 버전을 써요.">
-      {versions.length === 0 ? (
-        <Empty>저장된 버전이 없어요. 새 버전을 써 보세요.</Empty>
-      ) : (
-        <ul aria-label="프롬프트 버전" className={`${group} overflow-hidden`}>
-          {versions.map((version) => (
-            <li key={version.id}>
-              <Link href={aiHref(plan, version.id)} className={linkRow}>
-                <span className="flex min-w-0 flex-col gap-1">
-                  <span className="text-body-strong">
-                    {[
-                      `v${String(version.id)}`,
-                      ...labelWords(version),
-                      formatDate(version.createdAt, timeZone),
-                    ].join(" · ")}
-                  </span>
-                  {version.note !== "" && (
-                    <span className="text-caption text-ink-2 break-words">{version.note}</span>
-                  )}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      <Link href={aiHref(plan, "active")} className={`${button.row} mt-1`}>
-        새 버전 쓰기
-      </Link>
     </Section>
   );
 }

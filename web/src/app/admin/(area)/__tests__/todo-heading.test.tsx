@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import AdminsPage from "../admins/page";
 import AiPage from "../ai/page";
+import AssistantPage from "../assistant/page";
 import DecksPage from "../decks/page";
 import Page from "../page";
 import PlansPage from "../plans/page";
@@ -15,6 +16,7 @@ vi.mock("../_components/content", () => ({
   UsersContent: () => null,
   NotesContent: () => null,
   AiContent: () => null,
+  AssistantContent: () => null,
   PlansContent: () => null,
   AdminsContent: () => null,
 }));
@@ -39,6 +41,7 @@ describe("the admin area's pages", () => {
     expect(headingOf(<UsersPage {...props} />)).toBe("사용자");
     expect(headingOf(<DecksPage {...props} />)).toBe("노트");
     expect(headingOf(<AiPage {...props} />)).toBe("AI");
+    expect(headingOf(<AssistantPage {...props} />)).toBe("말랑이");
     expect(headingOf(<PlansPage />)).toBe("요금제");
     expect(headingOf(<AdminsPage />)).toBe("관리자");
   });
