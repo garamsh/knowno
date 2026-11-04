@@ -1,6 +1,6 @@
 # ADR 0179: Fill 홈's first screen with the hero, and reach the week card by scrolling
 
-> Status: accepted
+> Status: accepted; its one plain page scroll with no snap superseded by ADR 0188
 > Date: 2026-11-04
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

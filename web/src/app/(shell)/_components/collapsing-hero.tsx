@@ -50,7 +50,7 @@ export function CollapsingHero({
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
     const scrollEnds = "onscrollend" in window;
     // The hero's height at rest, the first screen's share of it, the bar's height, and where the
-    // page's top is in the document.
+    // hero's top is in the document.
     let rest = 0;
     let fill = 0;
     let min = 0;
@@ -86,7 +86,9 @@ export function CollapsingHero({
       rest = section.offsetHeight;
       fill = Math.min(parseFloat(getComputedStyle(section).minHeight) || rest, rest);
       min = pinned.offsetHeight;
-      top = page.getBoundingClientRect().top + window.scrollY;
+      // Where the hero's top lies in the page, read with its pin let go.
+      section.style.removeProperty("top");
+      top = section.getBoundingClientRect().top + window.scrollY;
       section.style.top = `${String(min - rest)}px`;
       page.style.setProperty("--hero-bar", `${String(min)}px`);
       draw();
@@ -157,7 +159,7 @@ export function CollapsingHero({
         aria-labelledby={labelledBy}
         className={`${className} relative overflow-clip max-lg:sticky max-lg:z-10`}
       >
-        <div className="contents" inert={collapsed}>
+        <div className="flex flex-1 flex-col" inert={collapsed} aria-hidden={collapsed}>
           {children}
         </div>
         {/* Hidden, and out of reach, until the bar is the hero's. */}

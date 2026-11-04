@@ -173,6 +173,18 @@ async function untilMascotSettled(mascot: Locator): Promise<void> {
     .toBe(true);
 }
 
+/** Resolves once [page] has drawn two more frames: a scroll's, and what follows it in the next. */
+async function nextFrames(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise((done) =>
+        requestAnimationFrame(() => {
+          requestAnimationFrame(done);
+        }),
+      ),
+  );
+}
+
 /** How many lines [button]'s label takes. */
 function labelLines(button: Locator): Promise<number> {
   return button.evaluate((element) => {
@@ -530,6 +542,8 @@ test("fills 홈's first screen with the hero with the owner's 481 cards over fou
       await page.evaluate(() => {
         window.scrollTo(0, 0);
       });
+      // The hero follows the scroll in the frame after it (ADR 0188).
+      await nextFrames(page);
       const at = `at ${String(width)} × ${String(height)} in ${colorScheme}`;
       if (directory)
         await page.screenshot({
@@ -560,6 +574,7 @@ test("fills 홈's first screen with the hero with the owner's 481 cards over fou
       await page.evaluate(() => {
         window.scrollTo(0, document.documentElement.scrollHeight);
       });
+      await nextFrames(page);
       const scrolled = await week.boundingBox();
       if (directory)
         await page.screenshot({
