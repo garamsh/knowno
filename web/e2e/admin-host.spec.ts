@@ -8,7 +8,8 @@ import { untilReacted } from "./until-reacted";
 
 /**
  * The service and its admin host on the port the app answers (ADR 0178). `*.localhost` is the
- * loopback in the browser, so the admin host needs no DNS: the app routes by the name alone.
+ * loopback in the browser, so the admin host needs no DNS. The server is given the service's as
+ * `KNOWNO_SERVICE_ORIGIN`, so it names these two hosts.
  */
 function hostsOf(baseURL: string | undefined) {
   if (!baseURL) throw new Error("E2E_BASE_URL names the server the e2e specs run against");

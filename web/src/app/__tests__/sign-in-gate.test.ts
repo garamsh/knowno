@@ -44,10 +44,16 @@ async function visit(pathname: string, cookies: Cookie[] = [], origin = service)
 
 /**
  * The proxy's whole response to a request for [pathname] on [origin], or null where it does not
- * run. As `next start` and the standalone server hand it over, the request's URL names the
- * server's own address, and only the Host header names the host the visitor asked for.
+ * run, with any other [headers] the client sent. As `next start` and the standalone server hand
+ * it over, the request's URL names the server's own address, and only the Host header names the
+ * host the visitor asked for.
  */
-async function respond(pathname: string, cookies: Cookie[] = [], origin = service) {
+async function respond(
+  pathname: string,
+  cookies: Cookie[] = [],
+  origin = service,
+  headers: Record<string, string> = {},
+) {
   const url = `${origin}${pathname}`;
   const matched = unstable_doesMiddlewareMatch({
     config,
@@ -59,6 +65,7 @@ async function respond(pathname: string, cookies: Cookie[] = [], origin = servic
     headers: {
       host: new URL(origin).host,
       cookie: cookies.map(({ name, value }) => `${name}=${value}`).join("; "),
+      ...headers,
     },
   });
   return { matched, response: await proxy(request) };
@@ -230,7 +237,7 @@ describe("the admin host", () => {
     expect(await target("/auth/callback")).toBeNull();
   });
 
-  it("takes the forwarded host first, so a Server Action's redirect, fetched on the server's own address, stays on the admin host", async () => {
+  it("takes the forwarded host where the Host header names none of the deployment's, so a Server Action's redirect, fetched on the server's own address, stays on the admin host", async () => {
     // The fetch Next.js makes to render an action's redirect: its Host is the server's address,
     // and the action's X-Forwarded-Host rides along.
     const internal = (headers: Record<string, string>) =>
@@ -246,6 +253,76 @@ describe("the admin host", () => {
     // Control: without it the same fetch is the service's own `/login`.
     const plain = await internal({});
     expect(plain.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
+  it("serves no admin page on the service's host to a client that names the admin host in X-Forwarded-Host", async () => {
+    const spoofed = await respond("/users", signedIn, service, {
+      "x-forwarded-host": new URL(adminHost).host,
+    });
+    expect(spoofed.response?.status).toBe(421);
+    expect(spoofed.response?.headers.get("x-middleware-rewrite")).toBeNull();
+    // Control: the same request on the admin host is served from the area.
+    const { response } = await respond("/users", signedIn, adminHost, {
+      "x-forwarded-host": new URL(adminHost).host,
+    });
+    expect(new URL(response?.headers.get("x-middleware-rewrite") ?? "", served).pathname).toBe(
+      "/admin/users",
+    );
+  });
+
+  it("serves a host the deployment does not name as the service, and moves its /admin to the configured admin host", async () => {
+    const unnamed = "http://admin.evil.example";
+    const { response } = await respond("/users", signedIn, unnamed);
+    expect(response?.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(response?.headers.get("location")).toBeNull();
+    for (const origin of [unnamed, "http://evil.example", "http://127.0.0.1:3000"]) {
+      const { response: moved } = await respond("/admin/users?q=kim", signedIn, origin);
+      expect(moved?.status, origin).toBe(308);
+      expect(moved?.headers.get("location"), origin).toBe(`${adminHost}/users?q=kim`);
+    }
+    // Control: the configured admin host's same path is served from the area.
+    const { response: named } = await respond("/users", signedIn, adminHost);
+    expect(new URL(named?.headers.get("x-middleware-rewrite") ?? "", served).pathname).toBe(
+      "/admin/users",
+    );
+  });
+
+  it("replaces a service origin the client sent with the configured one, and drops it on the service's host", async () => {
+    const sent = { "x-knowno-service-origin": "https://evil.example", "x-other": "kept" };
+    const { response: admin } = await respond("/users", signedIn, adminHost, sent);
+    expect(admin?.headers.get("x-middleware-request-x-knowno-service-origin")).toBe(service);
+    const { response: home } = await respond("/", signedIn, service, sent);
+    expect(home?.headers.get("x-middleware-request-x-knowno-service-origin")).toBeNull();
+    expect(home?.headers.get("x-middleware-override-headers")?.split(",")).not.toContain(
+      "x-knowno-service-origin",
+    );
+    // Control: the client's other headers still reach the page, so the override is in force.
+    expect(home?.headers.get("x-middleware-request-x-other")).toBe("kept");
+  });
+
+  it("runs on every admin path of the service's host and every path of the admin host, whatever its extension", async () => {
+    for (const route of ["/admin/x.png", "/admin/decks/a.svg", "/admin/a.webmanifest"]) {
+      const { matched, response } = await respond(route, signedIn);
+      expect(matched, route).toBe(true);
+      expect(response?.status, route).toBe(308);
+      expect(response?.headers.get("location"), route).toBe(
+        `${adminHost}${route.slice("/admin".length)}`,
+      );
+    }
+    const { response } = await respond("/decks/a.svg", signedIn, adminHost);
+    expect(new URL(response?.headers.get("x-middleware-rewrite") ?? "", served).pathname).toBe(
+      "/admin/decks/a.svg",
+    );
+    // Control: the files of public/ are still served without it.
+    for (const file of [
+      "/icon-192.png",
+      "/favicon.svg",
+      "/brand/knowno-happy.svg",
+      "/google/g-mark-dark.png",
+      "/manifest.webmanifest",
+    ]) {
+      expect((await respond(file)).matched, file).toBe(false);
+    }
   });
 
   it("hands every admin page the service's origin, which 서비스 열기 opens", async () => {

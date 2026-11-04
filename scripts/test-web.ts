@@ -93,7 +93,13 @@ async function serve(
     // for another origin's and fetched again. A server given `localhost` listens on one of its two
     // addresses, which its own fetch after a Server Action's redirect may not reach
     // (`server/app-render/action-handler.js`).
-    env: { PORT: `${port}`, HOSTNAME: "0.0.0.0", NODE_ENV: "production" },
+    // The service's origin is the one the specs reach it at; its admin host is admin.localhost.
+    env: {
+      PORT: `${port}`,
+      HOSTNAME: "0.0.0.0",
+      NODE_ENV: "production",
+      KNOWNO_SERVICE_ORIGIN: url,
+    },
     stdout: "piped",
     stderr: "piped",
   }).spawn();

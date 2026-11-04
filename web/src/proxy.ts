@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { env } from "@/env";
+import { env, type Hosts, hosts } from "@/env";
 import { readSession } from "@/supabase/session";
 
 /** The paths a signed-out visitor may open on the service's host; `/api` is outside the matcher. */
@@ -9,9 +9,6 @@ const publicPaths = new Set(["/login", "/auth/callback", "/terms", "/privacy"]);
 
 /** The paths a signed-out visitor may open on the admin host: its sign-in and the code exchange. */
 const adminPublicPaths = new Set(["/login", "/auth/callback"]);
-
-/** How the admin host's name starts: `admin.knowno.app`, and `admin.localhost` on a machine. */
-const adminLabel = "admin.";
 
 /** Where the admin area's routes live under `src/app/`, which the admin host's paths are rewritten into. */
 const adminRoot = "/admin";
@@ -32,12 +29,16 @@ export const serviceOriginHeader = "x-knowno-service-origin";
  * session themselves (stack-nextjs §5).
  */
 export async function proxy(request: NextRequest) {
-  const { pathname, searchParams, search, protocol } = request.nextUrl;
-  const host = requestedHost(request);
-  const onAdminHost = host.startsWith(adminLabel);
+  const { pathname, searchParams, search } = request.nextUrl;
+  const deployment = hosts();
+  const host = requestedHost(request, deployment);
+  if (host === "misdirected") return new NextResponse(null, { status: 421 });
+  // Only the proxy names the service's origin to a page: a value the client sent never reaches one.
+  request.headers.delete(serviceOriginHeader);
+  const onAdminHost = host === "admin";
   if (!onAdminHost && (pathname === adminRoot || pathname.startsWith(`${adminRoot}/`))) {
     const path = pathname.slice(adminRoot.length) || "/";
-    return NextResponse.redirect(`${protocol}//${adminLabel}${host}${path}${search}`, 308);
+    return NextResponse.redirect(`${deployment.admin.origin}${path}${search}`, 308);
   }
 
   let response = NextResponse.next({ request });
@@ -64,12 +65,7 @@ export async function proxy(request: NextRequest) {
       return toLogin(request, response);
     }
     if (pathname === "/auth/callback") return response;
-    return intoAdminArea(
-      request,
-      response,
-      sessionHeaders,
-      `${protocol}//${host.slice(adminLabel.length)}`,
-    );
+    return intoAdminArea(request, response, sessionHeaders, deployment.service.origin);
   }
 
   if (session.kind === "signed-out" && !publicPaths.has(pathname)) {
@@ -105,17 +101,34 @@ export async function proxy(request: NextRequest) {
 }
 
 /**
- * The host the visitor asked for: `X-Forwarded-Host` where a proxy in front, or Next.js itself,
- * set it, and otherwise the Host header. Behind `next start` and the standalone server the
- * request's URL names the server's own address instead (Next.js 16.4.1,
- * `server/lib/router-utils/resolve-routes.js`). A Server Action's redirect is rendered by a fetch
- * to that address, which carries the action's `X-Forwarded-Host` but not its Host
- * (`server/app-render/action-handler.js`, `server/base-server.js`), so the forwarded host comes
- * first.
+ * Which of the [deployment]'s hosts a request is for, by its headers alone: behind `next start`
+ * and the standalone server the request's URL names the server's own address (Next.js 16.4.1,
+ * `server/lib/router-utils/resolve-routes.js`).
+ *
+ * - The Host header, where it names one of the two.
+ * - Otherwise `X-Forwarded-Host`, where it names one. A Server Action's redirect is rendered by a
+ *   fetch to the server's own address, which carries the action's `X-Forwarded-Host` and not its
+ *   Host (`server/app-render/action-handler.js`, `server/base-server.js`).
+ * - `misdirected` where the two name different hosts of the deployment. A client sends that to
+ *   reach the admin area on the service's host. So does that fetch under `next dev`, whose own
+ *   address is the service's, and refused, it leaves the redirect to the browser.
+ * - `unknown` where neither names one: an IP address or a preview's address, served as the
+ *   service.
  */
-function requestedHost(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  return forwarded || (request.headers.get("host") ?? request.nextUrl.host);
+function requestedHost(
+  request: NextRequest,
+  deployment: Hosts,
+): "service" | "admin" | "misdirected" | "unknown" {
+  const named = (value: string | undefined) => {
+    const host = value?.trim().toLowerCase();
+    if (host === deployment.admin.host) return "admin";
+    if (host === deployment.service.host) return "service";
+    return null;
+  };
+  const byHost = named(request.headers.get("host") ?? undefined);
+  const byForwarded = named(request.headers.get("x-forwarded-host")?.split(",")[0]);
+  if (byHost === null) return byForwarded ?? "unknown";
+  return byForwarded === null || byForwarded === byHost ? byHost : "misdirected";
 }
 
 /**
@@ -157,8 +170,10 @@ const consentCookieSeconds = 600;
 const AUTHORIZATION_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 export const config = {
-  // The files under public/, the icons, the manifest and brand/, are served to everyone.
+  // The files under public/, the icons and the manifest at its root, brand/ and google/, are served
+  // to everyone. Only a root file is left out by its extension, so every deeper path, `/admin/x.png`
+  // and the admin host's `/decks/a.svg` among them, still meets the proxy.
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|brand/|.*\\.(?:svg|png|webmanifest)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|brand/|google/|[^/]+\\.(?:svg|png|webmanifest)$).*)",
   ],
 };

@@ -245,12 +245,20 @@ async function test(env: Env): Promise<void> {
     return;
   }
   await buildImage(env);
+  // The app reads the service's origin as it runs, and the specs reach it at localhost on the
+  // published port, so the port is chosen before the container starts: one the system hands out
+  // free, released just before.
+  const listener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
+  const { port } = listener.addr;
+  listener.close();
   const container = (await read("docker", [
     "run",
     "--detach",
     "--rm",
     "--publish",
-    "127.0.0.1::3000",
+    `127.0.0.1:${port}:3000`,
+    "--env",
+    `KNOWNO_SERVICE_ORIGIN=http://localhost:${port}`,
     IMAGE,
   ])).trim();
   try {
