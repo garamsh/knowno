@@ -36,7 +36,7 @@ function NoteItem({ note, timeZone }: { note: NoteRow; timeZone: string }) {
           <span className="flex flex-wrap items-center gap-2">
             <Link
               href={`/decks/${note.id}`}
-              className="text-body-strong break-words underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex min-h-tap-target items-center text-body-strong break-words underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {note.name}
             </Link>

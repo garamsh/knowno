@@ -393,10 +393,10 @@ describe("노트", () => {
     for (const name of ["Latin", "German", "Diary"]) {
       expect(screen.queryByText(name)).not.toBeInTheDocument();
     }
-    expect(within(row as HTMLElement).getByRole("link", { name: "French" })).toHaveAttribute(
-      "href",
-      `/decks/${french}`,
-    );
+    const name = within(row as HTMLElement).getByRole("link", { name: "French" });
+    expect(name).toHaveAttribute("href", `/decks/${french}`);
+    // A tap target high, its text centred in it.
+    expect(name).toHaveClass("min-h-tap-target", "items-center");
     expect(
       within(row as HTMLElement)
         .getAllByRole("button")
