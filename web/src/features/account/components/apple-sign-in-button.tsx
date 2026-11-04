@@ -151,11 +151,11 @@ export function AppleSignInButton() {
           setState("unavailable");
         }}
       />
-      {/* Apple's script caps its button at 375 px wide, so it is centred under a wider Google's. */}
+      {/* Apple's script caps the button it draws inside at 375 px wide; it is centred there. */}
       <div
         hidden={state === "unavailable"}
         aria-busy={state === "pending"}
-        className="flex justify-center aria-busy:pointer-events-none aria-busy:opacity-50"
+        className="aria-busy:pointer-events-none aria-busy:opacity-50"
       >
         <div
           id="appleid-signin"
@@ -165,7 +165,7 @@ export function AppleSignInButton() {
           data-border="false"
           // A percentage of the height to Apple's script: 38% of h-cta's 64 px is rounded-button's 24.
           data-border-radius="38"
-          className="h-cta w-full"
+          className="flex h-cta w-full justify-center"
         />
       </div>
     </>
