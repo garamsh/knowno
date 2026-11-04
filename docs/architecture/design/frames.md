@@ -11,7 +11,7 @@ Values are [`theme.md`](theme.md)'s tokens and components [`components.md`](comp
 The frame of a screen the user lands on: the 노트 tab, the deck screen, 설정.
 
 1. Header: the title (`deckTitle` for a tab, `deckName` for a name the user wrote), and at its end the screen's own action, `AppButton` tonal at size `header`, then ⋯ holding the other actions (`ListHeaderActions`). The bar grows to the action's line at a large text size.
-2. Search, where the screen lists what a user made: always shown under the header, `AppSize.search` high (`ListSearchField`).
+2. Search, where the screen lists what a user made: always shown under the header, `AppSize.search` high (`AppSearchField`).
 3. Body: groups and rows (§Group and section), `AppSpace.sectionGap` between groups.
 4. The primary, where the screen has one: in `BottomActions` at the foot, or inside the card it acts on.
 

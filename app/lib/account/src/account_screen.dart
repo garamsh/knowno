@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../design/app_button.dart';
+import '../../design/app_choice.dart';
 import '../../design/app_list_row.dart';
 import '../../design/app_section_label.dart';
 import '../../design/app_sheet.dart';
@@ -237,17 +238,10 @@ class _Footer extends ConsumerWidget {
     final colors = AppColors.of(context);
     final quiet = AppType.caption.copyWith(color: colors.muted);
     final dot = ExcludeSemantics(child: Text('·', style: quiet));
-    Widget link(String title, Uri uri) => TextButton(
-      style: TextButton.styleFrom(
-        foregroundColor: colors.muted,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpace.s4),
-        minimumSize: const Size(0, AppSize.tapTarget),
-        textStyle: AppType.caption.copyWith(
-          decoration: TextDecoration.underline,
-        ),
-      ),
+    Widget link(String title, Uri uri) => AppButton(
+      label: title,
+      variant: AppButtonVariant.link,
       onPressed: () => openLegalLink(context, ref, uri),
-      child: Text(title),
     );
     return Wrap(
       alignment: WrapAlignment.center,
@@ -279,57 +273,29 @@ class _ThemeRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final colors = AppColors.of(context);
     final current = ref.watch(themeModeProvider);
-    return AppListRow(
+    return AppChoiceRow(
       title: l10n.themeTitle,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: AppSpace.s4,
-        children: [
-          Text(
-            _themeName(l10n, current),
-            style: AppType.secondary.copyWith(color: colors.ink2),
-          ),
-          const Icon(LucideIcons.chevronRight),
-        ],
-      ),
-      onTap: () => _choose(context, ref, current),
-    );
-  }
-
-  Future<void> _choose(
-    BuildContext context,
-    WidgetRef ref,
-    ThemeMode current,
-  ) async {
-    final l10n = AppLocalizations.of(context);
-    final colors = AppColors.of(context);
-    final chosen = await showAppSheet<ThemeMode>(
-      context,
-      builder: (context) => AppSheet(
-        title: l10n.themeTitle,
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      value: _themeName(l10n, current),
+      onTap: () async {
+        final chosen = await showAppChoice(
+          context,
+          title: l10n.themeTitle,
+          options: [
             for (final mode in [
               ThemeMode.system,
               ThemeMode.light,
               ThemeMode.dark,
             ])
-              AppListRow(
-                title: _themeName(l10n, mode),
-                selected: mode == current,
-                trailing: mode == current
-                    ? Icon(LucideIcons.check, color: colors.ink)
-                    : null,
-                onTap: () => Navigator.of(context).pop(mode),
-              ),
+              (title: _themeName(l10n, mode), value: mode),
           ],
-        ),
-      ),
+          current: (value: current),
+        );
+        if (chosen != null) {
+          ref.read(themeModeProvider.notifier).choose(chosen.value);
+        }
+      },
     );
-    if (chosen != null) ref.read(themeModeProvider.notifier).choose(chosen);
   }
 }
 

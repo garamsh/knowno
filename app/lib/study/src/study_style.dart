@@ -142,9 +142,6 @@ abstract final class StudyStyle {
   /// How far below its place the coach's mascot and bubble rise in from.
   static const coachRise = 16.0;
 
-  /// The opacity of the coach's "이전" on its first step, where it is off.
-  static const coachPreviousDisabled = 0.35;
-
   /// Where in its cycle the coach holds under reduce motion: the card out.
   static const coachStill = 0.54;
 

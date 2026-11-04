@@ -33,6 +33,17 @@ enum AppButtonVariant {
   /// A quiet action, such as one in a top bar: ink text.
   text,
 
+  /// An action the screen offers in passing, quieter than the content around
+  /// it, such as "안내 다시 보기" under study's card: [AppColors.muted] text
+  /// in [AppType.micro], on one line, ellipsized, so its row keeps its
+  /// height.
+  faint,
+
+  /// A link to a document outside the app, such as the terms of service:
+  /// underlined [AppType.caption] at w600 in [AppColors.ink2], inset
+  /// [AppSpace.s4] at its sides so it sits in a line of text.
+  link,
+
   /// A quiet action on the hero surface, such as the completion panel's
   /// "그만하기" under "학습하기": text in the colour drawn on the hero.
   onHeroText,
@@ -101,6 +112,8 @@ class AppButton extends StatelessWidget {
       (_, AppButtonSize.header) => AppSize.tapTarget,
       (
         AppButtonVariant.text ||
+            AppButtonVariant.faint ||
+            AppButtonVariant.link ||
             AppButtonVariant.onHeroText ||
             AppButtonVariant.destructive,
         _,
@@ -109,9 +122,21 @@ class AppButton extends StatelessWidget {
       (_, AppButtonSize.regular) => AppSize.button,
     };
     final minimumSize = Size(AppSize.tapTarget, height);
-    final (textStyle, padding) = size == AppButtonSize.header
-        ? (AppType.label, const EdgeInsets.symmetric(horizontal: AppSpace.s16))
-        : (null, null);
+    final (textStyle, padding) = switch ((variant, size)) {
+      (_, AppButtonSize.header) => (
+        AppType.label,
+        const EdgeInsets.symmetric(horizontal: AppSpace.s16),
+      ),
+      (AppButtonVariant.faint, _) => (AppType.micro, null),
+      (AppButtonVariant.link, _) => (
+        AppType.caption.copyWith(
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.underline,
+        ),
+        const EdgeInsets.symmetric(horizontal: AppSpace.s4),
+      ),
+      _ => (null, null),
+    };
     final pressed = loading ? null : onPressed;
     final (fill, onFill) = switch (variant) {
       AppButtonVariant.primary => (colors.primary, colors.onPrimary),
@@ -124,10 +149,14 @@ class AppButton extends StatelessWidget {
       AppButtonVariant.secondary ||
       AppButtonVariant.text => (colors.surface, colors.ink),
       AppButtonVariant.destructive => (colors.surface, colors.dontKnowText),
+      AppButtonVariant.faint => (colors.surface, colors.muted),
+      AppButtonVariant.link => (colors.surface, colors.ink2),
       AppButtonVariant.onHeroText => (colors.hero, colors.onHero),
     };
     final quiet = switch (variant) {
       AppButtonVariant.text ||
+      AppButtonVariant.faint ||
+      AppButtonVariant.link ||
       AppButtonVariant.onHeroText ||
       AppButtonVariant.destructive => true,
       _ => false,
@@ -165,6 +194,11 @@ class AppButton extends StatelessWidget {
                 keepWords(label),
                 semanticsLabel: label,
                 textAlign: TextAlign.center,
+                // A faint button's row keeps one tap target's height.
+                maxLines: variant == AppButtonVariant.faint ? 1 : null,
+                overflow: variant == AppButtonVariant.faint
+                    ? TextOverflow.ellipsis
+                    : null,
               ),
             },
           );
@@ -212,6 +246,8 @@ class AppButton extends StatelessWidget {
         ),
         AppButtonVariant.destructive ||
         AppButtonVariant.text ||
+        AppButtonVariant.faint ||
+        AppButtonVariant.link ||
         AppButtonVariant.onHeroText => TextButton(
           style: TextButton.styleFrom(
             minimumSize: minimumSize,

@@ -3,16 +3,15 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
-import '../../design/app_list_row.dart';
+import '../../design/app_choice.dart';
 import '../../design/app_menu.dart';
-import '../../design/app_sheet.dart';
+import '../../design/round_check.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'card_edit_sheet.dart';
 import 'import_list.dart';
 import 'photo_viewer.dart';
-import 'round_check.dart';
 
 /// The cards made from the photo, as one list in sections by topic: each row
 /// included or left out by its check or a swipe left, and edited in a sheet
@@ -258,44 +257,17 @@ class _ImportListViewState extends State<ImportListView> {
 
   Future<void> _chooseTarget(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
-    final colors = AppColors.of(context);
-    Widget check(bool chosen) => chosen
-        ? Icon(LucideIcons.check, color: colors.ink)
-        : const SizedBox.shrink();
-    final target = widget.target;
-    final chosen = await showAppSheet<_TargetChoice>(
+    final chosen = await showAppChoice<DeckId?>(
       context,
-      builder: (context) => AppSheet(
-        title: l10n.photoTargetTitle,
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final deck in widget.decks)
-              AppListRow(
-                title: deck.name,
-                selected: deck.id == target?.id,
-                trailing: check(deck.id == target?.id),
-                onTap: () => Navigator.of(context).pop(_TargetChoice(deck.id)),
-              ),
-            AppListRow(
-              title: l10n.newDeck,
-              selected: target == null,
-              trailing: check(target == null),
-              onTap: () => Navigator.of(context).pop(const _TargetChoice(null)),
-            ),
-          ],
-        ),
-      ),
+      title: l10n.photoTargetTitle,
+      options: [
+        for (final deck in widget.decks) (title: deck.name, value: deck.id),
+        (title: l10n.newDeck, value: null),
+      ],
+      current: (value: widget.target?.id),
     );
-    if (chosen != null) widget.onTarget(chosen.deck);
+    if (chosen != null) widget.onTarget(chosen.value);
   }
-}
-
-/// A choice in the target sheet; null [deck] is a new deck.
-final class _TargetChoice {
-  const _TargetChoice(this.deck);
-
-  final DeckId? deck;
 }
 
 /// "노트 '`name`'에 추가돼요", or "새 노트에 추가돼요" while no deck is chosen, the

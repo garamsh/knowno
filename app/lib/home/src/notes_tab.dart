@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../deck/deck.dart';
 import '../../design/app_chip.dart';
+import '../../design/app_search_field.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
@@ -97,7 +98,7 @@ class _NotesTabState extends ConsumerState<NotesTab> {
             ),
             if (decks.isNotEmpty) ...[
               const SizedBox(height: AppSpace.s16),
-              ListSearchField(
+              AppSearchField(
                 hint: l10n.searchDecks,
                 onChanged: (query) => setState(() => _query = query),
               ),

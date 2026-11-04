@@ -3,17 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../design/app_button.dart';
 import '../../design/app_list_row.dart';
-import '../../design/app_text_field.dart';
+import '../../design/app_search_field.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'failure.dart';
 import 'failure_message.dart';
+import 'list_message.dart';
 import 'model.dart';
 import 'public_deck_screen.dart';
 import 'sharing_service.dart';
-import '../../design/word_break.dart';
 
 /// Other users' public decks, searchable by name and description and sorted
 /// by newest or most copied; opens one for a preview.
@@ -96,10 +95,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
             child: Text(l10n.browse, style: AppType.title),
           ),
           const SizedBox(height: AppSpace.s16),
-          AppTextField(
+          AppSearchField(
             hint: l10n.searchPublicDecks,
-            prefixIcon: const Icon(LucideIcons.search),
-            textInputAction: TextInputAction.search,
             onChanged: _onSearch,
             onSubmitted: (search) {
               _typing?.cancel();
@@ -135,7 +132,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   List<Widget> _results(AppLocalizations l10n) {
     if (_isOnline == false) {
-      return [_Message(l10n.browseOffline, icon: LucideIcons.cloudOff)];
+      return [ListMessage(l10n.browseOffline, icon: LucideIcons.cloudOff)];
     }
     final decks = _decks;
     if (decks == null) return [const _Progress()];
@@ -144,7 +141,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         future: decks,
         builder: (context, snapshot) => switch (snapshot) {
           AsyncSnapshot(hasData: true, :final data?) when data.isEmpty =>
-            _Message(
+            ListMessage(
               _search.trim().isEmpty
                   ? l10n.noPublicDecks
                   : l10n.noPublicMatches,
@@ -167,7 +164,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                 ),
             ],
           ),
-          AsyncSnapshot(:final error?, :final stackTrace) => _Message(
+          AsyncSnapshot(:final error?, :final stackTrace) => ListMessage(
             switch (error) {
               SharingFailure() => describeSharingFailure(l10n, error),
               _ => Error.throwWithStackTrace(
@@ -198,43 +195,4 @@ class _Progress extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// A state in place of the list: what happened, and a retry when [onRetry]
-/// is given.
-class _Message extends StatelessWidget {
-  const _Message(this.text, {this.icon, this.onRetry});
-
-  final String text;
-  final IconData? icon;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    final icon = this.icon;
-    final onRetry = this.onRetry;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpace.s40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: AppSpace.s12,
-        children: [
-          if (icon != null) Icon(icon, color: colors.muted),
-          Text(
-            keepWords(text),
-            semanticsLabel: text,
-            textAlign: TextAlign.center,
-            style: AppType.body.copyWith(color: colors.muted),
-          ),
-          if (onRetry != null)
-            AppButton(
-              label: AppLocalizations.of(context).retry,
-              variant: AppButtonVariant.secondary,
-              onPressed: onRetry,
-            ),
-        ],
-      ),
-    );
-  }
 }

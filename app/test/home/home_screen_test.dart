@@ -44,7 +44,7 @@ Future<void> _openMinutes(WidgetTester tester) async {
     ),
   );
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Daily study time'));
+  await tester.tap(shownText('Daily study time'));
   await waitForPicker(tester);
 }
 
@@ -80,7 +80,7 @@ class _List {
   /// The tab named [name] in the bar.
   Finder tab(String name) => find.descendant(
     of: find.bySemanticsLabel(RegExp(r'^(Tabs|탭)$')),
-    matching: find.text(name),
+    matching: shownText(name),
   );
 
   /// Shows the 노트 tab, named [name] in the bar.
@@ -374,7 +374,7 @@ void main() {
         expect(find.byType(AccountScreen, skipOffstage: false), findsNothing);
         final profile = find.byTooltip('Settings');
         expect(
-          find.descendant(of: profile, matching: find.text('A')),
+          find.descendant(of: profile, matching: shownText('A')),
           findsOneWidget,
         );
         expect(tester.getSize(profile).width, greaterThanOrEqualTo(44));
@@ -559,7 +559,7 @@ void main() {
           isNot(colors.accent),
         );
         expect(
-          find.descendant(of: card, matching: find.text('Last 7 days: 5')),
+          find.descendant(of: card, matching: shownText('Last 7 days: 5')),
           findsOneWidget,
         );
         // Each day is read with its cards, today's last.
@@ -600,7 +600,7 @@ void main() {
             )
             .first;
         expect(
-          find.descendant(of: empty, matching: find.text('Last 7 days: 0')),
+          find.descendant(of: empty, matching: shownText('Last 7 days: 0')),
           findsOneWidget,
         );
         expect(
@@ -646,7 +646,7 @@ void main() {
           shownText('Next review Tomorrow · 2, about 1 min'),
           findsOneWidget,
         );
-        expect(find.text('Last 7 days: 2'), findsOneWidget);
+        expect(shownText('Last 7 days: 2'), findsOneWidget);
         await list.tap('Study');
         expect(list.session, list.ids.values.toSet());
         await tester.binding.handlePopRoute();
@@ -700,7 +700,7 @@ void main() {
         );
         const why =
             "Couldn't read or write the device's storage. Please try again.";
-        final problem = find.text(why);
+        final problem = shownText(why);
         expect(problem, findsOneWidget);
         final start = shownText('Start');
         expect(
@@ -794,7 +794,7 @@ void main() {
         Finder inRow(String deck, Finder finder) =>
             find.descendant(of: row(deck), matching: finder);
 
-        final line = inRow('Alpha', find.text('1 of 4 mastered'));
+        final line = inRow('Alpha', shownText('1 of 4 mastered'));
         final bar = inRow('Alpha', find.byType(ProgressBar));
         expect(line, findsOneWidget);
         expect(tester.getTopLeft(line).dy, lessThan(tester.getTopLeft(bar).dy));
@@ -803,8 +803,8 @@ void main() {
           contains('1 mastered, 1 learning, 2 new'),
         );
         // Each row carries its count for today.
-        expect(inRow('Alpha', find.text('Today 3')), findsOneWidget);
-        expect(inRow('Beta', find.text('0 cards')), findsOneWidget);
+        expect(inRow('Alpha', shownText('Today 3')), findsOneWidget);
+        expect(inRow('Beta', shownText('0 cards')), findsOneWidget);
         expect(inRow('Beta', find.byType(ProgressBar)), findsNothing);
         await list.close();
       },
@@ -846,7 +846,7 @@ void main() {
         }
 
         await list.tap('Save');
-        expect(find.text('Enter a name'), findsOneWidget);
+        expect(shownText('Enter a name'), findsOneWidget);
         await tester.enterText(find.byType(EditableText), 'Delta');
         await tester.tap(find.bySemanticsLabel('Sand'));
         await tester.pumpAndSettle();
@@ -1047,8 +1047,8 @@ void main() {
         );
 
         // No choices to pick from: the number, its steps and two tiles.
-        expect(find.text('10 min'), findsNothing);
-        expect(find.text('Custom'), findsNothing);
+        expect(shownText('10 min'), findsNothing);
+        expect(shownText('Custom'), findsNothing);
         final number = find.bySemanticsLabel('20 minutes a day, tap to type');
         expect(number, findsOneWidget);
         expect(tile('New cards a day'), findsOneWidget);
@@ -1072,7 +1072,7 @@ void main() {
         await tester.enterText(find.byType(TextField), '200');
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await tester.pumpAndSettle();
-        expect(find.text('Enter 5 to 180 minutes'), findsOneWidget);
+        expect(shownText('Enter 5 to 180 minutes'), findsOneWidget);
         expect(find.byType(TextField), findsOneWidget);
         expect(save().onPressed, isNull);
 
@@ -1112,7 +1112,7 @@ void main() {
         // Back on the row's screen, it shows the minutes saved.
         expect(find.byType(DailyMinutesRow), findsOneWidget);
         expect(await list.storedMinutes(), 5);
-        expect(find.text('5 min'), findsOneWidget);
+        expect(shownText('5 min'), findsOneWidget);
         await tester.pageBack();
         await tester.pumpAndSettle();
         expect(shownText('30 cards today'), findsOneWidget);

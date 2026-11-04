@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'theme.dart';
+import 'word_break.dart';
 
 /// How a chip is coloured.
 enum AppChipTone {
@@ -16,13 +17,16 @@ enum AppChipTone {
   /// "Know" green, with its text on it.
   know,
 
+  /// The green tint, for a gain, with "Know" as text on it.
+  knowTint,
+
   /// "Don't know" red, with its text on it.
   dontKnow,
 }
 
 /// The app's one chip (#454): a small label of radius [AppRadius.chip] in
-/// its [tone], in the section style. It wraps inside itself where the line
-/// has no room.
+/// its [tone], in the section style. It wraps inside itself, between words,
+/// where the line has no room.
 ///
 /// [AppChip.action] is the same chip pressed to act or to toggle: a status
 /// chip, a filter chip and an editor tool chip differ in what they do, not
@@ -70,6 +74,11 @@ class AppChip extends StatelessWidget {
       AppChipTone.brand => (colors.brandTint, colors.brandTint, colors.ink),
       AppChipTone.amber => (colors.tintAmber, colors.tintAmber, colors.ink),
       AppChipTone.know => (colors.know, colors.know, colors.onKnow),
+      AppChipTone.knowTint => (
+        colors.tintGreen,
+        colors.tintGreen,
+        colors.onKnowTint,
+      ),
       AppChipTone.dontKnow => (
         colors.dontKnowText,
         colors.dontKnowText,
@@ -87,7 +96,8 @@ class AppChip extends StatelessWidget {
         vertical: AppSpace.s4,
       ),
       child: Text(
-        label,
+        keepWords(label),
+        semanticsLabel: label,
         style: AppType.section.copyWith(color: enabled ? ink : colors.muted),
       ),
     );

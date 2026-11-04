@@ -177,6 +177,14 @@ class AppListRow extends StatelessWidget {
   /// Whether the row starts an action that deletes something.
   final bool destructive;
 
+  /// The space between a row's edges and what it holds.
+  static const inset = EdgeInsets.fromLTRB(
+    AppSpace.s16,
+    AppSpace.s12,
+    AppSpace.s12,
+    AppSpace.s12,
+  );
+
   @override
   Widget build(BuildContext context) {
     final subtitle = this.subtitle;
@@ -189,12 +197,7 @@ class AppListRow extends StatelessWidget {
           onTap: onTap,
           onLongPress: onLongPress,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpace.s16,
-              AppSpace.s12,
-              AppSpace.s12,
-              AppSpace.s12,
-            ),
+            padding: inset,
             child: Row(
               spacing: AppSpace.s12,
               children: [

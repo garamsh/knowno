@@ -196,7 +196,7 @@ void main() {
   /// The tab named [name] in the tab bar.
   Finder tab(String name) => find.descendant(
     of: find.bySemanticsLabel('Tabs'),
-    matching: find.text(name),
+    matching: shownText(name),
   );
 
   /// Opens 설정, the account screen, from 홈's profile button.
@@ -227,7 +227,16 @@ void main() {
     for (final button in tester.widgetList<ButtonStyleButton>(
       find.byWidgetPredicate((w) => w is ButtonStyleButton),
     ))
-      if (button.onPressed != null) (button.child! as Text).data!,
+      if (button.onPressed != null)
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byWidget(button),
+                matching: find.byType(Text),
+              ),
+            )
+            .data!
+            .replaceAll('\u2060', ''),
   ];
 
   testWidgets(
@@ -258,7 +267,7 @@ void main() {
     final account = FakeAccountService();
     await pumpApp(tester, account);
 
-    await tapAndSettle(tester, find.text('Continue with Google'));
+    await tapAndSettle(tester, shownText('Continue with Google'));
 
     expect(account.state, isA<SignedIn>());
     expect(find.byType(HomeScreen), findsOneWidget);
@@ -272,15 +281,15 @@ void main() {
       final account = FakeAccountService()..cancelSignIn = true;
       await pumpApp(tester, account);
 
-      await tapAndSettle(tester, find.text('Continue with Google'));
+      await tapAndSettle(tester, shownText('Continue with Google'));
 
       expect(find.byType(SignInScreen), findsOneWidget);
       expect(find.byType(SnackBar), findsNothing);
       // The control: the same tap with a failure does show a snack bar.
       account.failure = const AccountOffline(FormatException('offline'));
-      await tapAndSettle(tester, find.text('Continue with Google'));
+      await tapAndSettle(tester, shownText('Continue with Google'));
       expect(
-        find.text("Couldn't reach the server. Check your internet connection."),
+        shownText("Couldn't reach the server. Check your internet connection."),
         findsOneWidget,
       );
       expect(find.byType(SignInScreen), findsOneWidget);
@@ -297,7 +306,7 @@ void main() {
     await pumpApp(tester, account);
 
     await showSettings(tester);
-    await tapAndSettle(tester, find.text('Sign out'));
+    await tapAndSettle(tester, shownText('Sign out'));
 
     expect(account.state, isA<SignedOut>());
     expect(find.byType(SignInScreen), findsOneWidget);
@@ -320,7 +329,7 @@ void main() {
       expect(await deviceRows(tester), greaterThan(0));
 
       await showSettings(tester);
-      await tapAndSettle(tester, find.text('Sign out'));
+      await tapAndSettle(tester, shownText('Sign out'));
 
       expect(find.byType(SignInScreen), findsOneWidget);
       expect(find.byType(AccountScreen), findsNothing);
@@ -340,7 +349,7 @@ void main() {
       expect(await deviceRows(tester), greaterThan(0));
 
       await showSettings(tester);
-      await tapAndSettle(tester, find.text('Delete account'));
+      await tapAndSettle(tester, shownText('Delete account'));
       await tapAndSettle(tester, shownText('Delete'));
 
       expect(account.deletions, 1);
@@ -437,7 +446,7 @@ void main() {
         expect(find.byType(AccountScreen), findsNothing);
         expect(shownText('Choose from album'), findsNothing);
         expect(shownText('French'), findsNothing);
-        expect(find.text('Chat'), findsNothing);
+        expect(shownText('Chat'), findsNothing);
         await unmountApp(tester);
       });
     }
@@ -513,9 +522,9 @@ void main() {
         ),
       );
 
-      expect(find.text('이 앱의 로그인 설정에 문제가 있어 로그인할 수 없어요.'), findsOneWidget);
+      expect(shownText('이 앱의 로그인 설정에 문제가 있어 로그인할 수 없어요.'), findsOneWidget);
       expect(enabledButtons(tester), ['이용약관', '개인정보 처리방침']);
-      expect(find.text('Google로 계속하기'), findsNothing);
+      expect(shownText('Google로 계속하기'), findsNothing);
       expect(find.byType(HomeScreen), findsNothing);
       await unmountApp(tester);
     },

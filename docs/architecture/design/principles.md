@@ -99,7 +99,7 @@ Applied today:
 
 - A job that recurs is drawn through its one component and never rebuilt: a button, a text field or search, a confirmation, a chip, a list row, a group with its section label, an empty state, a read failure with "다시 시도", a pager. [`components.md`](components.md) names each job's component on both clients.
 - A piece two features or domains use lives where [`structure.md`](../structure.md) allows sharing: `app/lib/design/` or `web/src/design/`. A piece one feature or domain uses stays in it, as `CardText` stays in `deck`.
-- A job with no component yet gets one in the change that draws it a second time; the change does not add a second copy. For example a second screen needing a search field reuses the 노트 tab's `ListSearchField`, moving it to `app/lib/design/` once a second domain needs it.
+- A job with no component yet gets one in the change that draws it a second time; the change does not add a second copy. For example browse, the second domain to need a list's search, moved the 노트 tab's search to `app/lib/design/` as `AppSearchField` (#645).
 
 ### No over-splitting
 

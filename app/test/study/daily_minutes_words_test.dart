@@ -56,7 +56,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.text(ko.dailyMinutesTitle));
+        await tester.tap(shownText(ko.dailyMinutesTitle));
         await tester.pumpAndSettle();
         await waitForPicker(tester, more: ko.dailyMinutesMore);
 
@@ -69,7 +69,7 @@ void main() {
           findsOneWidget,
         );
         // At the default size the tiles still sit side by side.
-        double top(String title) => tester.getTopLeft(find.text(title)).dy;
+        double top(String title) => tester.getTopLeft(shownText(title)).dy;
         expect(
           top(ko.dailyMinutesFreshTitle) == top(ko.dailyMinutesAllTitle),
           scale == 1.0,

@@ -31,9 +31,14 @@ void main() {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: AppSpace.s8,
             children: [
-              // onHeroText is drawn on the hero surface, tested below.
+              // onHeroText is drawn on the hero surface, and faint and link
+              // in a line of text, tested below.
               for (final variant in AppButtonVariant.values.where(
-                (variant) => variant != AppButtonVariant.onHeroText,
+                (variant) => ![
+                  AppButtonVariant.onHeroText,
+                  AppButtonVariant.faint,
+                  AppButtonVariant.link,
+                ].contains(variant),
               ))
                 AppButton(
                   label: variant.name,
@@ -78,6 +83,77 @@ void main() {
               .color,
           colors.dontKnowText,
         );
+        await meetsGuidelines(tester);
+        expectScreenTextReadable(tester);
+      },
+    );
+  }
+
+  for (final MapEntry(key: mode, value: colors) in themeModes.entries) {
+    testWidgets(
+      'in ${mode.name} a faint action is muted micro text on one line and a '
+      'link underlined caption at w600 in ink2, each a tap target high with no '
+      'fill, and both meet the guidelines',
+      (tester) async {
+        await pumpComponent(
+          tester,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: AppSize.tapTarget * 2,
+                child: AppButton(
+                  label: 'show the guide again, please',
+                  variant: AppButtonVariant.faint,
+                  onPressed: () {},
+                ),
+              ),
+              AppButton(
+                label: 'terms',
+                variant: AppButtonVariant.link,
+                onPressed: () {},
+              ),
+            ],
+          ),
+          themeMode: mode,
+        );
+
+        TextStyle style(String label) => tester
+            .widget<DefaultTextStyle>(
+              find
+                  .ancestor(
+                    of: shownText(label),
+                    matching: find.byType(DefaultTextStyle),
+                  )
+                  .first,
+            )
+            .style;
+        Size size(String label) => tester.getSize(
+          find
+              .ancestor(of: shownText(label), matching: find.byType(Material))
+              .first,
+        );
+        final faint = style('show the guide again, please');
+        expect(
+          (faint.color, faint.fontSize),
+          (colors.muted, AppType.micro.fontSize),
+        );
+        expect(
+          size('show the guide again, please').height,
+          AppSize.tapTarget,
+          reason: 'one line, though it would wrap',
+        );
+        final link = style('terms');
+        expect(
+          (link.color, link.fontSize, link.fontWeight, link.decoration),
+          (
+            colors.ink2,
+            AppType.caption.fontSize,
+            FontWeight.w600,
+            TextDecoration.underline,
+          ),
+        );
+        expect(size('terms').height, AppSize.tapTarget);
         await meetsGuidelines(tester);
         expectScreenTextReadable(tester);
       },

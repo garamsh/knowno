@@ -8,10 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_button.dart';
+import '../../design/app_choice.dart';
 import '../../design/app_list_row.dart';
 import '../../design/app_section_label.dart';
 import '../../design/app_sheet.dart';
 import '../../design/bottom_actions.dart';
+import '../../design/round_check.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
@@ -296,14 +298,14 @@ class _SpreadsheetImportScreenState
   Future<void> _chooseTarget(List<Deck> decks) async {
     final l10n = AppLocalizations.of(context);
     final target = _target;
-    final chosen = await _showChoice<Deck?>(
+    final chosen = await showAppChoice<Deck?>(
       context,
       title: l10n.photoTargetTitle,
       options: [
-        for (final deck in decks) (deck.name, deck),
-        (l10n.newDeck, null),
+        for (final deck in decks) (title: deck.name, value: deck),
+        (title: l10n.newDeck, value: null),
       ],
-      current: target,
+      current: (value: target),
     );
     if (chosen != null) setState(() => _target = chosen.value);
   }
@@ -391,15 +393,15 @@ class _SpreadsheetImportScreenState
     required bool optional,
   }) async {
     final l10n = AppLocalizations.of(context);
-    final chosen = await _showChoice<int?>(
+    final chosen = await showAppChoice<int?>(
       context,
       title: title,
       options: [
-        if (optional) (l10n.spreadsheetNoColumn, null),
+        if (optional) (title: l10n.spreadsheetNoColumn, value: null),
         for (var column = 0; column < _width; column++)
-          (_columnName(column), column),
+          (title: _columnName(column), value: column),
       ],
-      current: current,
+      current: (value: current),
     );
     if (chosen == null) return;
     setState(() {
@@ -410,13 +412,14 @@ class _SpreadsheetImportScreenState
 
   Future<void> _chooseSheet() async {
     final l10n = AppLocalizations.of(context);
-    final chosen = await _showChoice<int>(
+    final chosen = await showAppChoice<int>(
       context,
       title: l10n.spreadsheetSheet,
       options: [
-        for (final (index, sheet) in _file.sheets.indexed) (sheet.name, index),
+        for (final (index, sheet) in _file.sheets.indexed)
+          (title: sheet.name, value: index),
       ],
-      current: _sheet,
+      current: (value: _sheet),
     );
     if (chosen != null) setState(() => _show(chosen.value));
   }
@@ -439,7 +442,7 @@ class _SpreadsheetImportScreenState
       int? current,
       SheetColumns Function(int? chosen) next, {
       bool optional = false,
-    }) => _ChoiceRow(
+    }) => AppChoiceRow(
       title: title,
       value: current == null ? l10n.spreadsheetNoColumn : _columnName(current),
       onTap: _saving || _width == 0
@@ -485,9 +488,10 @@ class _SpreadsheetImportScreenState
                           ),
                         ),
                       ),
-                      TextButton(
+                      AppButton(
+                        label: l10n.spreadsheetAnother,
+                        variant: AppButtonVariant.text,
                         onPressed: _picking || _saving ? null : _anotherFile,
-                        child: Text(l10n.spreadsheetAnother),
                       ),
                     ],
                   ),
@@ -496,7 +500,7 @@ class _SpreadsheetImportScreenState
                   AppGroup(
                     children: [
                       if (_file.sheets.length > 1)
-                        _ChoiceRow(
+                        AppChoiceRow(
                           title: l10n.spreadsheetSheet,
                           value: _file.sheets[_sheet].name,
                           onTap: _saving ? null : _chooseSheet,
@@ -546,7 +550,7 @@ class _SpreadsheetImportScreenState
                     const SizedBox(height: AppSpace.s20),
                     AppGroup(
                       children: [
-                        _ChoiceRow(
+                        AppChoiceRow(
                           title: l10n.photoTargetTitle,
                           value: _target?.name ?? l10n.newDeck,
                           onTap: _saving ? null : () => _chooseTarget(decks),
@@ -560,13 +564,12 @@ class _SpreadsheetImportScreenState
                       l10n.cardCount(cards.length),
                       trailing: cards.isEmpty
                           ? null
-                          : TextButton(
+                          : AppButton(
+                              label: chosen.isEmpty
+                                  ? l10n.spreadsheetSelectAll
+                                  : l10n.spreadsheetExcludeAll,
+                              variant: AppButtonVariant.text,
                               onPressed: _saving ? null : _toggleAll,
-                              child: Text(
-                                chosen.isEmpty
-                                    ? l10n.spreadsheetSelectAll
-                                    : l10n.spreadsheetExcludeAll,
-                              ),
                             ),
                     ),
                     if (_result.skipped.isNotEmpty)
@@ -643,89 +646,6 @@ class _SpreadsheetImportScreenState
                   ],
                 ),
               ),
-      ),
-    );
-  }
-}
-
-/// Opens a sheet titled [title] with a row for each of [options], its
-/// [current] one checked. Resolves to the option tapped, in a record so that
-/// a null option differs from a dismissal.
-Future<({T value})?> _showChoice<T>(
-  BuildContext context, {
-  required String title,
-  required List<(String, T)> options,
-  required T current,
-}) => showAppSheet<({T value})>(
-  context,
-  builder: (context) => AppSheet(
-    title: title,
-    content: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final (name, value) in options)
-          AppListRow(
-            title: name,
-            selected: value == current,
-            trailing: value == current
-                ? Icon(LucideIcons.check, color: AppColors.of(context).ink)
-                : const SizedBox.shrink(),
-            onTap: () => Navigator.of(context).pop((value: value)),
-          ),
-      ],
-    ),
-  ),
-);
-
-/// A group's row choosing one option: its [title], the [value] chosen, and a
-/// chevron that leads to the choices.
-class _ChoiceRow extends StatelessWidget {
-  const _ChoiceRow({
-    required this.title,
-    required this.value,
-    required this.onTap,
-  });
-
-  final String title;
-  final String value;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return MergeSemantics(
-      child: Semantics(
-        button: true,
-        child: AppRowSurface(
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: AppSize.button),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpace.s16,
-                AppSpace.s8,
-                AppSpace.s12,
-                AppSpace.s8,
-              ),
-              child: Row(
-                spacing: AppSpace.s12,
-                children: [
-                  Text(title, style: AppType.bodyStrong),
-                  Expanded(
-                    child: Text(
-                      value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.end,
-                      style: AppType.secondary.copyWith(color: colors.ink2),
-                    ),
-                  ),
-                  Icon(LucideIcons.chevronRight, color: colors.muted),
-                ],
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -810,7 +730,7 @@ class _CardRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: AppSpace.s12,
             children: [
-              _RoundCheck(on: selected),
+              RoundCheck(on: selected),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -836,34 +756,6 @@ class _CardRow extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// The round check photo import draws, filled in ink with a tick when on.
-class _RoundCheck extends StatelessWidget {
-  const _RoundCheck({required this.on});
-
-  final bool on;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return Container(
-      width: AppSpace.s20 + AppSpace.s4,
-      height: AppSpace.s20 + AppSpace.s4,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: on ? colors.ink : null,
-        border: on ? null : Border.all(color: colors.muted, width: 1.5),
-      ),
-      child: on
-          ? Icon(
-              LucideIcons.check,
-              size: AppSize.checkIcon,
-              color: colors.onInk,
-            )
-          : null,
     );
   }
 }
@@ -895,13 +787,15 @@ class _DuplicateNotice extends StatelessWidget {
         Wrap(
           spacing: AppSpace.s8,
           children: [
-            TextButton(
+            AppButton(
+              label: l10n.spreadsheetLeaveOut(duplicate.row),
+              variant: AppButtonVariant.text,
               onPressed: onLeaveOut,
-              child: Text(l10n.spreadsheetLeaveOut(duplicate.row)),
             ),
-            TextButton(
+            AppButton(
+              label: l10n.spreadsheetAddAnyway,
+              variant: AppButtonVariant.text,
               onPressed: onAddAnyway,
-              child: Text(l10n.spreadsheetAddAnyway),
             ),
           ],
         ),

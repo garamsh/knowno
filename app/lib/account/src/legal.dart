@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../design/app_button.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -46,17 +47,10 @@ class LegalLinksRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final colors = AppColors.of(context);
-    Widget link(String title, Uri uri) => TextButton(
-      style: TextButton.styleFrom(
-        foregroundColor: colors.ink2,
-        textStyle: AppType.caption.copyWith(
-          fontWeight: FontWeight.w600,
-          decoration: TextDecoration.underline,
-        ),
-      ),
+    Widget link(String title, Uri uri) => AppButton(
+      label: title,
+      variant: AppButtonVariant.link,
       onPressed: () => openLegalLink(context, ref, uri),
-      child: Text(title),
     );
     return Wrap(
       alignment: WrapAlignment.center,

@@ -1,8 +1,7 @@
-import 'dart:ui' show PathMetric;
-
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../design/dashed_outline.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
@@ -22,8 +21,11 @@ class PreviousPlaceholder extends StatelessWidget {
       container: true,
       label: l10n.previousPlaceholder,
       child: ExcludeSemantics(
-        child: CustomPaint(
-          painter: _DashedOutline(colors.outline),
+        child: DashedOutline(
+          color: colors.outline,
+          borderRadius: BorderRadius.circular(StudyStyle.previousRadius),
+          width: StudyStyle.placeholderOutline,
+          dash: StudyStyle.placeholderDash,
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(AppSpace.s20),
@@ -45,47 +47,4 @@ class PreviousPlaceholder extends StatelessWidget {
       ),
     );
   }
-}
-
-/// A dashed outline around its child's box, rounded as the previous card is.
-class _DashedOutline extends CustomPainter {
-  const _DashedOutline(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = StudyStyle.placeholderOutline;
-    final inset = StudyStyle.placeholderOutline / 2;
-    final outline = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(
-            inset,
-            inset,
-            size.width - 2 * inset,
-            size.height - 2 * inset,
-          ),
-          const Radius.circular(StudyStyle.previousRadius),
-        ),
-      );
-    for (final PathMetric metric in outline.computeMetrics()) {
-      for (
-        var at = 0.0;
-        at < metric.length;
-        at += 2 * StudyStyle.placeholderDash
-      ) {
-        canvas.drawPath(
-          metric.extractPath(at, at + StudyStyle.placeholderDash),
-          paint,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedOutline oldDelegate) => oldDelegate.color != color;
 }

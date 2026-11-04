@@ -35,10 +35,10 @@ void main() {
           themeMode: mode,
         );
 
-        expect(_fill(tester, find.text('French')), colors.surface);
-        expect(_fill(tester, find.text('German')), colors.surface);
+        expect(_fill(tester, shownText('French')), colors.surface);
+        expect(_fill(tester, shownText('German')), colors.surface);
         expect(
-          tester.getSemantics(find.text('My decks 2')),
+          tester.getSemantics(shownText('My decks 2')),
           isSemantics(isHeader: true, label: 'My decks 2'),
         );
         await meetsGuidelines(tester);
@@ -112,6 +112,7 @@ void main() {
             const AppChip(label: 'Today 3', tone: AppChipTone.brand),
             const AppChip(label: 'Public'),
             const AppChip(label: 'Below', tone: AppChipTone.amber),
+            const AppChip(label: 'Gain', tone: AppChipTone.knowTint),
             const AppChip(label: 'Know', tone: AppChipTone.know),
             const AppChip(label: "Don't know", tone: AppChipTone.dontKnow),
             AppChip.action(label: 'Add row', onPressed: () {}),
@@ -125,7 +126,7 @@ void main() {
       /// The fill and shape [label]'s chip is drawn with.
       (Color?, ShapeBorder?) drawn(String label) {
         final box = find.ancestor(
-          of: find.text(label),
+          of: shownText(label),
           matching: find.byType(DecoratedBox),
         );
         if (box.evaluate().isNotEmpty) {
@@ -136,7 +137,7 @@ void main() {
         }
         final material = tester.widget<Material>(
           find
-              .ancestor(of: find.text(label), matching: find.byType(Material))
+              .ancestor(of: shownText(label), matching: find.byType(Material))
               .first,
         );
         return (material.color, material.shape);
@@ -150,6 +151,7 @@ void main() {
         ('Today 3', colors.brandTint),
         ('Public', colors.raised),
         ('Below', colors.tintAmber),
+        ('Gain', colors.tintGreen),
         ('Know', colors.know),
         ("Don't know", colors.dontKnowText),
         ('Add row', colors.raised),
@@ -159,13 +161,18 @@ void main() {
         final outline = fill;
         expect(drawn(label), (fill, shape(outline)), reason: label);
         expect(
-          tester.widget<Text>(find.text(label)).style?.fontSize,
+          tester.widget<Text>(shownText(label)).style?.fontSize,
           AppType.section.fontSize,
           reason: label,
         );
       }
       expect(
-        tester.getSemantics(find.text('Blank')),
+        tester.widget<Text>(shownText('Gain')).style?.color,
+        colors.onKnowTint,
+        reason: "a gain's text is Know's on its tint",
+      );
+      expect(
+        tester.getSemantics(shownText('Blank')),
         matchesSemantics(
           label: 'Blank',
           isButton: true,
@@ -201,20 +208,20 @@ void main() {
     final target = tester.getRect(find.byType(AppChip).first);
     final face = tester.getRect(
       find
-          .ancestor(of: find.text('Add row'), matching: find.byType(Material))
+          .ancestor(of: shownText('Add row'), matching: find.byType(Material))
           .first,
     );
     expect(target.height, greaterThanOrEqualTo(kMinInteractiveDimension));
     expect(face.height, lessThan(target.height), reason: 'a small chip');
 
-    await tester.tap(find.text('Add row'));
+    await tester.tap(shownText('Add row'));
     await tester.tapAt(Offset(face.center.dx, (target.top + face.top) / 2));
     expect(presses, 2);
 
-    await tester.tap(find.text('Blank'));
+    await tester.tap(shownText('Blank'));
     expect(presses, 2);
     expect(
-      tester.widget<Text>(find.text('Blank')).style?.color,
+      tester.widget<Text>(shownText('Blank')).style?.color,
       AppColors.light.muted,
     );
   });
@@ -232,7 +239,7 @@ void main() {
       final ink = tester.renderObject(
         find
             .ancestor(
-              of: find.text('Theme'),
+              of: shownText('Theme'),
               matching: find.byWidgetPredicate(
                 (widget) => widget.runtimeType.toString() == '_InkFeatures',
               ),
@@ -240,7 +247,7 @@ void main() {
             .first,
       );
       final gesture = await tester.startGesture(
-        tester.getCenter(find.text('Theme')),
+        tester.getCenter(shownText('Theme')),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -275,7 +282,7 @@ void main() {
         await pumpComponent(tester, AppListRow(title: 'Alone', onTap: () {}));
         final alone = tester.widget<Material>(
           find
-              .ancestor(of: find.text('Alone'), matching: find.byType(Material))
+              .ancestor(of: shownText('Alone'), matching: find.byType(Material))
               .first,
         );
         expect(alone.color, colors.surface);
@@ -293,7 +300,7 @@ void main() {
           final materials = tester
               .widgetList<Material>(
                 find.ancestor(
-                  of: find.text(row),
+                  of: shownText(row),
                   matching: find.byType(Material),
                 ),
               )
@@ -321,8 +328,8 @@ void main() {
           for (final element in find.byType(Divider).evaluate())
             tester.getRect(find.byWidget(element.widget)).center.dy,
         ];
-        double top(String row) => tester.getRect(find.text(row)).top;
-        double bottom(String row) => tester.getRect(find.text(row)).bottom;
+        double top(String row) => tester.getRect(shownText(row)).top;
+        double bottom(String row) => tester.getRect(shownText(row)).bottom;
         expect(lines[0], inExclusiveRange(bottom('First'), top('Second')));
         expect(lines[1], inExclusiveRange(bottom('Second'), top('Third')));
       },
@@ -345,12 +352,12 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('French'));
+      await tester.tap(shownText('French'));
       await tester.longPress(shownText('3 cards'));
 
       expect(events, ['tap', 'long']);
       expect(
-        tester.getSemantics(find.text('French')),
+        tester.getSemantics(shownText('French')),
         isSemantics(
           label: 'French\n3 cards',
           hasSelectedState: true,
@@ -391,7 +398,7 @@ void main() {
         expectWrapsInsideWord(tester, word);
         // A screen reader reads the row's title and subtitle as written.
         expect(
-          tester.getSemantics(find.text('계정 삭제')),
+          tester.getSemantics(shownText('계정 삭제')),
           isSemantics(label: '계정 삭제\n$subtitle', hasTapAction: true),
         );
         semantics.dispose();
