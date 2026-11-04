@@ -6,13 +6,25 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EnterLink } from "@/app/(shell)/_components/enter-link";
 import { SideMenuAt, TabBarAt } from "@/app/(shell)/_components/shell-menu";
-import { AuthoringButton, CardGrid, DeckList, parseCardId, parseDeckId } from "@/features/decks";
+import {
+  AuthoringButton,
+  CardGrid,
+  DeckList,
+  parseCardId,
+  parseDeckId,
+  PhotoImports,
+} from "@/features/decks";
 import { uuidOf } from "@/testing/library";
 
-vi.mock("next/navigation", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("next/navigation")>()),
-  usePathname: () => "/",
-}));
+// The router as `@/testing/setup` gives it, which the note's 카드 추가 reads, and a path.
+vi.mock("next/navigation", async (importOriginal) => {
+  const { testRouter } = await import("@/testing/router");
+  return {
+    ...(await importOriginal<typeof import("next/navigation")>()),
+    useRouter: () => testRouter,
+    usePathname: () => "/",
+  };
+});
 
 const globalsCss = readFileSync(path.join(import.meta.dirname, "../globals.css"), "utf8");
 
@@ -132,8 +144,9 @@ describe("the controls' pointer, hover and pressed states", () => {
   });
 
   it("is on the menus' items, 모두 학습, a deck row and a deck page's cards", () => {
+    // Inside the root layout's photo import, which the note's 카드 추가 reads.
     render(
-      <>
+      <PhotoImports>
         <SideMenuAt path="/" />
         <TabBarAt path="/" />
         <EnterLink href="/study" label="모두 학습" />
@@ -166,7 +179,7 @@ describe("the controls' pointer, hover and pressed states", () => {
             },
           ]}
         />
-      </>,
+      </PhotoImports>,
     );
 
     const [side, bar] = screen.getAllByRole("navigation", { name: "주 메뉴" });
