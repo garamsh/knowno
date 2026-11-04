@@ -76,12 +76,7 @@ export function Facts({ facts, children }: { facts: readonly Fact[]; children?: 
             <dt className="shrink-0 text-body text-ink-2">{term}</dt>
             <dd className="flex min-w-0 flex-col items-end text-right text-body text-ink tabular-nums">
               <span>
-                {value.split(" · ").map((part, index) => (
-                  <Fragment key={index}>
-                    {index > 0 && " · "}
-                    <span className={whole}>{part}</span>
-                  </Fragment>
-                ))}
+                <Parts text={value} />
               </span>
               {detail !== undefined && (
                 <span className={`${whole} text-caption text-muted`}>{detail}</span>
@@ -104,6 +99,16 @@ export const actionRow = `${linkRow} w-full text-left text-body text-ink`;
  * (`design/principles.md` §Nothing clipped).
  */
 const whole = "inline-block max-w-full break-words";
+
+/** [text]'s parts between " · ", each kept whole, so a model's id or a date wraps as one. */
+export function Parts({ text }: { text: string }) {
+  return text.split(" · ").map((part, index) => (
+    <Fragment key={index}>
+      {index > 0 && " · "}
+      <span className={whole}>{part}</span>
+    </Fragment>
+  ));
+}
 
 /**
  * An email that may break before its `@`, where `break-words` would otherwise break it at any

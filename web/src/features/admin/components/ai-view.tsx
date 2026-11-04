@@ -19,7 +19,7 @@ import type {
   ProviderKey,
 } from "../read-admin";
 import { removeProviderKey } from "../remove-provider-key";
-import { button, Empty, group, linkRow, row } from "./admin-section";
+import { button, Empty, group, linkRow, Parts, row } from "./admin-section";
 import { AdminTable, CellLabel, cellClass, rowClass } from "./admin-table";
 import { AiConfigurationForm } from "./ai-configuration-form";
 import { AiTrial } from "./ai-trial";
@@ -177,9 +177,9 @@ export function AiView({
                   <CellLabel>제공자</CellLabel>
                   {active === null ? "구성 없음" : labelOf(providerLabels, active.provider)}
                 </td>
-                <td className={`${cellClass()} break-all`}>
+                <td className={`${cellClass()} break-words`}>
                   <CellLabel>모델</CellLabel>
-                  {active?.model ?? "—"}
+                  <Parts text={active?.model ?? "—"} />
                 </td>
                 <td className={cellClass()}>
                   <CellLabel>프롬프트</CellLabel>
@@ -258,12 +258,14 @@ export function AiView({
                   key={`${result.provider} ${result.model} ${String(result.promptVersionId)}`}
                   className={rowClass()}
                 >
-                  <td className={`${cellClass({ lead: true })} break-all`}>
-                    {[
-                      labelOf(providerLabels, result.provider),
-                      result.model,
-                      `v${String(result.promptVersionId)}`,
-                    ].join(" · ")}
+                  <td className={`${cellClass({ lead: true })} break-words`}>
+                    <Parts
+                      text={[
+                        labelOf(providerLabels, result.provider),
+                        result.model,
+                        `v${String(result.promptVersionId)}`,
+                      ].join(" · ")}
+                    />
                     {marks.length === 0 ? "" : ` ${marks.join(" ")}`}
                   </td>
                   <td className={cellClass({ numeric: true })}>
@@ -327,15 +329,21 @@ function Panel({
     >
       <div className={group}>
         <div className={row}>
-          <h3 className="text-headline break-all">
-            {draft === null
-              ? active === null
-                ? "사용 중인 구성이 없어요"
-                : describe(active)
-              : changes(active, draft)}
+          <h3 className="text-headline break-words">
+            <Parts
+              text={
+                draft === null
+                  ? active === null
+                    ? "사용 중인 구성이 없어요"
+                    : describe(active)
+                  : changes(active, draft)
+              }
+            />
           </h3>
           {draft !== null && active !== null && (
-            <p className="text-caption text-muted break-all">지금 구성: {describe(active)}</p>
+            <p className="text-caption text-muted break-words">
+              지금 구성: <Parts text={describe(active)} />
+            </p>
           )}
           {draft === null ? (
             <p className="text-caption text-muted">
@@ -522,7 +530,7 @@ function PromptVersions({
                     ].join(" · ")}
                   </span>
                   {version.note !== "" && (
-                    <span className="text-caption text-ink-2 break-all">{version.note}</span>
+                    <span className="text-caption text-ink-2 break-words">{version.note}</span>
                   )}
                 </span>
               </Link>

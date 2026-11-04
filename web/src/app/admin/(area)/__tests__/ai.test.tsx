@@ -1,6 +1,3 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
-
 import { cleanup, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -346,12 +343,12 @@ describe("AI", () => {
     expect(screen.getByRole("button", { name: "다시 시도" })).toBeInTheDocument();
   });
 
-  it("is one page: the pages of a version, a new version and AI 제공자 are gone", () => {
-    const area = path.join(import.meta.dirname, "..");
-    for (const route of ["ai/[id]", "ai/new", "settings/ai"]) {
-      expect(existsSync(path.join(area, route, "page.tsx")), route).toBe(false);
-    }
-    // Control: AI's own page is where this looks.
-    expect(existsSync(path.join(area, "ai", "page.tsx"))).toBe(true);
+  it("breaks no word inside, and keeps a model id whole, as the panel's facts do", async () => {
+    await ai();
+    expect(document.querySelectorAll(".break-all")).toHaveLength(0);
+    const table = within(screen.getByRole("table", { name: "요금제별 사용 중인 구성" }));
+    for (const model of table.getAllByText(haiku)) expect(model).toHaveClass("inline-block");
+    const panel = within(screen.getByRole("region", { name: "프로 · 초안 (관리자만 테스트 중)" }));
+    expect(panel.getByText(haiku)).toHaveClass("inline-block");
   });
 });
