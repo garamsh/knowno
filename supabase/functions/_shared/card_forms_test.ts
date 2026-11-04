@@ -2,13 +2,7 @@
 // and the per-caller cache of what `card_form_skills` serves.
 import assert from "node:assert/strict";
 import { SupabaseError, type UserId } from "./auth.ts";
-import {
-  cardFormIndex,
-  cardFormSkills,
-  formOf,
-  FORMS,
-  SKILL_CACHE_MS,
-} from "./card_forms.ts";
+import { cardFormIndex, cardFormSkills, formOf, FORMS } from "./card_forms.ts";
 import { SEED } from "./card_forms_seed.ts";
 import { BLOCK_TYPES, readCard } from "./input.ts";
 import type { Store } from "./store.ts";
@@ -118,7 +112,7 @@ Deno.test("a caller's skills are read once and kept for a minute, then read agai
   const ada = storeOf("ada", () => Response.json(rows(served)));
   assert.equal((await forms.read(ada.store)).cloze.text, "first");
   served = "second";
-  clock = SKILL_CACHE_MS - 1;
+  clock = 59_999;
   assert.equal((await forms.read(ada.store)).cloze.text, "first");
   assert.equal(ada.calls.length, 1);
   assert.deepEqual(ada.calls, [
@@ -127,7 +121,7 @@ Deno.test("a caller's skills are read once and kept for a minute, then read agai
   // Another caller, an admin served another version, is read on its own.
   const grace = storeOf("grace", () => Response.json(rows(served)));
   assert.equal((await forms.read(grace.store)).cloze.text, "second");
-  clock = SKILL_CACHE_MS;
+  clock = 60_000;
   assert.equal((await forms.read(ada.store)).cloze.text, "second");
   assert.equal(ada.calls.length, 2);
 });
