@@ -57,7 +57,7 @@ One sentence form per role.
 | An undo bar's message | what went, in -했어요, no period; its action "되돌리기" ([ADR 0174](../adr/0174-undo-every-delete-in-the-card-editor-focus-what-an-add-makes-and-show-what-a-refused-save-refuses.md)) | 칸을 삭제했어요 |
 | A section label | a noun | 계정 · 학습 · 화면 · 카드 |
 
-The study buttons are "시작" on 홈's hero, "학습하기" once the day is done, "이어서 하기" on the completion sheet, and "이 노트 학습 · n장" on the deck screen ([ADR 0150](../adr/0150-open-on-a-home-of-today-on-the-hero-with-the-notes-in-a-drawer-keep-the-menu-on-a-note-and-make-a-note-on-a-full-screen.md), [ADR 0120](../adr/0120-state-today-s-progress-once-put-every-study-button-in-its-card-name-the-record-plainly-and-draw-photo-import-s-bar-checks-and-moves-as-the-other-screens-do.md)).
+The study buttons are "시작" on 홈, "학습하기" once the day is done, "이어서 하기" on the completion sheet, and "이 노트 학습 · n장" on the deck screen ([ADR 0150](../adr/0150-open-on-a-home-of-today-on-the-hero-with-the-notes-in-a-drawer-keep-the-menu-on-a-note-and-make-a-note-on-a-full-screen.md), [ADR 0120](../adr/0120-state-today-s-progress-once-put-every-study-button-in-its-card-name-the-record-plainly-and-draw-photo-import-s-bar-checks-and-moves-as-the-other-screens-do.md)).
 
 ## Rationale
 

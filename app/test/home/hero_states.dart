@@ -9,8 +9,7 @@ import 'home_data.dart';
 /// insets.
 typedef HeroPhone = ({String name, Size size, double top, double bottom});
 
-/// The phones 홈's hero is laid out on: the smallest, the owner's and the
-/// tallest.
+/// The phones 홈 is laid out on: the smallest, the owner's and the tallest.
 const List<HeroPhone> heroPhones = [
   (name: 'SE', size: Size(375, 667), top: 20, bottom: 0),
   (name: '13 Pro', size: Size(390, 844), top: 47, bottom: 34),
@@ -24,6 +23,11 @@ const heroWeek = [38, 52, 23, 41, 66, 47];
 
 /// The notes every state's cards are in.
 const heroNotes = ['영단어 기본', '토익 빈출', '일본어 N3', '회화 표현'];
+
+/// The notes [state] starts with: none on the first run, [heroNotes]
+/// otherwise.
+List<String> heroNotesOf(String state) =>
+    state == 'first run' ? const [] : heroNotes;
 
 /// The cards each state stores in [db] through [repository], and the daily
 /// study minutes it sets, if any.
@@ -46,12 +50,12 @@ Future<CardId> _add(
   DuplicateFront() => throw StateError('the deck held no duplicate'),
 };
 
-/// Each hero state, its title, and how it is stored.
+/// Each state of 홈, its title, and how it is stored.
 final Map<String, (String Function(AppLocalizations), HeroSetup)> heroStates = {
   // The owner's case on #610 and #611: 481 cards today over four notes, on a
   // 19-day streak.
   'today': (
-    (l10n) => l10n.homeToday(481),
+    (l10n) => l10n.homeCards(481),
     // Due after a day's interval and three hours' study a day, so not a
     // backlog; answered on each of the [heroStreak] days before, the last six
     // as [heroWeek] counts them.
@@ -105,6 +109,10 @@ final Map<String, (String Function(AppLocalizations), HeroSetup)> heroStates = {
   ),
   'no cards': (
     (l10n) => l10n.noCardsTitle,
+    (db, repository, decks) async => null,
+  ),
+  'first run': (
+    (l10n) => l10n.emptyHomeTitle,
     (db, repository, decks) async => null,
   ),
 };

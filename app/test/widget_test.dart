@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show QueryExecutor;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -740,7 +741,7 @@ void main() {
       await addCard(tester, 'Hund', 'dog');
       await showTab(tester, 'Home');
 
-      expect(shownText('3 cards today'), findsOneWidget);
+      expect(shownText('3 cards'), findsOneWidget);
       await tester.ensureVisible(shownText('Start'));
       await tester.pumpAndSettle();
       await tester.tap(shownText('Start'));
@@ -760,7 +761,7 @@ void main() {
       expect(studyThisDeck, findsNothing);
       await showTab(tester, 'Home');
       expect(shownText('Make your first card?'), findsOneWidget);
-      expect(shownText("You've done today's cards"), findsNothing);
+      expect(shownText('All done'), findsNothing);
 
       // Its one primary opens the deck with its add sheet up; with a card
       // added, 홈 shows the day.
@@ -776,7 +777,7 @@ void main() {
       await tester.pumpAndSettle();
       await showTab(tester, 'Home');
       expect(shownText('Make your first card?'), findsNothing);
-      expect(shownText('1 card today'), findsOneWidget);
+      expect(shownText('1 card'), findsOneWidget);
       expect(shownText('Start'), findsOneWidget);
       await unmountApp(tester);
     },
@@ -847,8 +848,8 @@ void main() {
       await tester.pumpAndSettle();
       await showTab(tester, 'Home');
 
-      expect(shownText("You've done today's cards"), findsOneWidget);
-      // The hero scrolls where the test font makes it taller than its space.
+      expect(shownText('All done'), findsOneWidget);
+      // 홈 scrolls where the test font makes it taller than its screen.
       await tester.ensureVisible(shownText('Study'));
       await tester.pumpAndSettle();
       await tester.tap(shownText('Study'));
@@ -959,6 +960,31 @@ void main() {
     expect(brightness(tester), Brightness.dark);
     await unmountApp(tester);
   });
+
+  for (final (mode, onGround) in [
+    ('light', Brightness.dark),
+    ('dark', Brightness.light),
+  ]) {
+    testWidgets(
+      "in the $mode theme the status bar's glyphs are light over 홈's sky and ${onGround.name} over the 기록 tab's ground",
+      (tester) async {
+        Brightness? glyphs() =>
+            SystemChrome.latestStyle?.statusBarIconBrightness;
+
+        await pumpApp(tester, themeMode: mode);
+        await createDeckAndOpen(tester, 'French');
+        await addCard(tester, 'Chat', 'cat');
+        await showTab(tester, 'Home');
+        expect(shownText('Start'), findsOneWidget);
+        expect(glyphs(), Brightness.light);
+        await showTab(tester, 'Record');
+        expect(glyphs(), onGround);
+        await showTab(tester, 'Home');
+        expect(glyphs(), Brightness.light);
+        await unmountApp(tester);
+      },
+    );
+  }
 
   for (final mode in ['light', 'dark']) {
     testWidgets(

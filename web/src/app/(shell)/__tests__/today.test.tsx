@@ -88,14 +88,15 @@ describe("홈 and the 노트 page", () => {
 
     await renderBoth();
 
-    // The hero, on its own surface under the app's name, holds the day alone.
+    // The sky, on the hero's colour under the app's name, holds the day alone; 시작, the one
+    // primary, is on the ground under it.
     const hero = screen.getByRole("region", { name: "오늘 2장" });
     expect(hero).toHaveClass("bg-hero", "text-on-hero");
     expect(within(hero).getByRole("heading", { level: 1, name: "알아몰라" })).toBeInTheDocument();
-    expect(within(hero).getByRole("link", { name: "시작" })).toHaveClass(
-      "bg-hero-button",
-      "text-on-hero-button",
-    );
+    const start = screen.getByRole("link", { name: "시작" });
+    expect(start).toHaveClass("bg-primary", "text-on-primary");
+    expect(hero).not.toContainElement(start);
+    expect(hero.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(todayLine()).toBe("오늘 2장 · 약 1분이면 끝나요");
     expect(screen.getByRole("link", { name: "시작" })).toHaveAttribute(
       "href",
@@ -162,7 +163,7 @@ describe("홈 and the 노트 page", () => {
     postgrest.seed("card_states", stateRow("fr-a", overdue), stateRow("fr-b", overdue));
     await renderBoth();
 
-    // The hero states the backlog in place of the day's count, with 시작 over every note.
+    // The sky states the backlog in place of the day's count, with 시작 over every note.
     const backlog = screen.getByRole("region", { name: title });
     const hero = within(backlog);
     expect(backlog).toHaveClass("bg-hero", "text-on-hero");
@@ -170,7 +171,7 @@ describe("홈 and the 노트 page", () => {
     expect(
       hero.getByText("밀린 복습 3장을 급한 것부터 해요. 새 카드는 잠시 쉬어요."),
     ).toBeInTheDocument();
-    expect(hero.getByRole("link", { name: "시작" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "시작" })).toHaveAttribute(
       "href",
       `/study?decks=${uuidOf("d-fr")}`,
     );
@@ -332,15 +333,14 @@ describe("홈 and the 노트 page", () => {
     );
     await render(Today, {});
 
-    expect(screen.getByText(unreadable)).toBeInTheDocument();
-    // In the hero, under 시작, so it is on the first screen and not a scroll away (#652).
+    const reason = screen.getByText(unreadable);
+    // On the ground under the sky, in the streak's place over 시작, so it is on the one screen.
     const hero = screen.getByRole("region", { name: "오늘 할 카드" });
-    expect(within(hero).getByText(unreadable)).toBeInTheDocument();
+    expect(hero.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(
-      within(hero)
-        .getByRole("link", { name: "시작" })
-        .compareDocumentPosition(within(hero).getByText(unreadable)),
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      reason.compareDocumentPosition(screen.getByRole("link", { name: "시작" })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("marks a deck its owner published with 공개, and no other", async () => {
@@ -558,10 +558,7 @@ describe("홈 and the 노트 page", () => {
       }
       await render(Today, {});
 
-      expect(
-        screen.getByRole("heading", { name: "오늘 할 카드를 다 했어요" }),
-        answered,
-      ).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "오늘 다 했어요" }), answered).toBeInTheDocument();
       expect(screen.queryByRole("link", { name: "시작" }), answered).not.toBeInTheDocument();
       const href = screen.getByRole("link", { name: "학습하기" }).getAttribute("href");
       expect(href, answered).toBe(`/study?decks=${uuidOf("d-fr")},${uuidOf("d-es")}`);
@@ -583,9 +580,9 @@ describe("홈 and the 노트 page", () => {
     }
   });
 
-  it("with nothing left says the day is done on the hero, the next review in its three forms, with 학습하기, over the week card", async () => {
-    const hero = () => screen.getByRole("region", { name: "오늘 할 카드를 다 했어요" });
-    // Thursday 15 January 2026 in Seoul. Each card is answered today, so the goal is reached.
+  it("with nothing left and nothing answered today says the day is done in the sky with the next review in its three forms, and once a card is answered today the cards done, with 학습하기 secondary on the ground under the sleepy mascot", async () => {
+    const hero = () => screen.getByRole("region", { name: "오늘 다 했어요" });
+    // Thursday 15 January 2026 in Seoul. Each card was last answered yesterday and is due later.
     for (const [dueIn, line] of [
       [1, "다음 복습은 내일 · 1장, 약 1분"],
       [3, "다음 복습은 일요일 · 1장, 약 1분"],
@@ -600,30 +597,37 @@ describe("홈 and the 노트 page", () => {
         stateRow("fr", {
           stability: 3,
           difficulty: 5,
-          lastReview: start - 3_600_000,
+          lastReview: start - day,
           due: start + dueIn * day,
         }),
       );
-      postgrest.seed("reviews", reviewRow("r-fr", "fr", start - 3_600_000, 6_000));
+      postgrest.seed("reviews", reviewRow("r-fr", "fr", start - day, 6_000));
       await render(Today, {});
 
       expect(within(hero()).getByText(line), line).toBeInTheDocument();
       cleanup();
     }
+    // Answered an hour ago: today's one card done, in place of the next review.
+    postgrest.seed("reviews", reviewRow("r-today", "fr", start - 3_600_000, 6_000));
     await render(Today, {});
 
     expect(hero()).toHaveClass("bg-hero");
-    expect(hero().querySelector('img[src*="knowno-happy"]')).not.toBeNull();
-    const study = within(hero()).getByRole("link", { name: "학습하기" });
-    expect(study).toHaveClass("bg-hero-button");
+    expect(within(hero()).getByText("1장")).toBeInTheDocument();
+    expect(within(hero()).queryByText(/다음 복습|복습할 카드가 없어요/)).not.toBeInTheDocument();
+    expect(hero().querySelector('img[src*="knowno-sleepy"]')).not.toBeNull();
+    const study = screen.getByRole("link", { name: "학습하기" });
+    expect(study).toHaveClass("bg-surface");
     expect(study).toHaveAttribute("aria-keyshortcuts", "Enter");
-    // The card answered an hour ago is today's one studied card.
-    const week = screen.getByRole("region", { name: "1일 연속" });
-    expect(within(week).getByText("지난 7일 1장")).toBeInTheDocument();
+    expect(hero()).not.toContainElement(study);
+    // The streak on the ground, yesterday and today, today's dot filled once the day is done.
+    const week = screen.getByRole("region", { name: "2일 연속" });
     expect(hero().compareDocumentPosition(week) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const today = week.querySelectorAll("[data-day]")[6];
+    expect(today).toHaveAttribute("data-day", "today-done");
+    expect(today).toHaveClass("bg-today-mark");
   });
 
-  it("draws under the hero the week card: the streak, its count in the accent, the last seven days' cards and a bar a day, today's last in the accent and a day with no study dashed; and the streak leaves the hero", async () => {
+  it("draws on the ground the streak: its count in the accent over a dot a day for the last seven days, a studied day filled in the accent, a day without one outlined, and today outlined in the today mark over its label; and the streak leaves the sky", async () => {
     postgrest.seed("decks", deckRow("d-fr", "French"));
     postgrest.seed(
       "cards",
@@ -632,7 +636,7 @@ describe("홈 and the 노트 page", () => {
       cardRow("done-f", "d-fr", "f"),
     );
     postgrest.seed("card_states", stateRow("done-e", notDue), stateRow("done-f", notDue));
-    // Yesterday two cards, and today one: a streak of two days.
+    // Yesterday two cards, and today one: a streak of two days, with two cards left today.
     postgrest.seed(
       "reviews",
       reviewRow("r-e1", "done-e", start - day, 6_000),
@@ -644,36 +648,37 @@ describe("홈 and the 노트 page", () => {
     const hero = screen.getByRole("region", { name: "오늘 2장" });
     expect(within(hero).queryByText(/일 연속/)).not.toBeInTheDocument();
     const week = screen.getByRole("region", { name: "2일 연속" });
-    expect(week).toHaveClass("rounded-card", "bg-surface");
     expect(hero.compareDocumentPosition(week) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(
       within(within(week).getByRole("heading", { name: "2일 연속" })).getByText("2"),
     ).toHaveClass("text-accent");
-    expect(within(week).getByText("지난 7일 3장")).toBeInTheDocument();
-    const bars = within(week).getByRole("img");
-    expect(bars).toHaveAccessibleName(
+    // The bar chart and its total have left 홈.
+    expect(within(week).queryByText(/지난 7일/)).not.toBeInTheDocument();
+    const dots = within(week).getByRole("img");
+    expect(dots).toHaveAccessibleName(
       /^\S+ 0장, \S+ 0장, \S+ 0장, \S+ 0장, \S+ 0장, \S+ 2장, 오늘 1장$/,
     );
-    const drawn = [...bars.querySelectorAll("[data-bar]")];
-    expect(drawn.map((bar) => bar.getAttribute("data-bar"))).toEqual([
-      ...Array<string>(5).fill("dashed"),
-      "drawn",
-      "drawn",
+    const days = [...dots.querySelectorAll("[data-day]")];
+    expect(days.map((dot) => dot.getAttribute("data-day"))).toEqual([
+      ...Array<string>(5).fill("none"),
+      "studied",
+      "today",
     ]);
-    expect(drawn.at(-1)).toHaveClass("bg-accent");
-    expect(drawn.at(-2)).toHaveClass("bg-heat-1");
-    expect(drawn.at(0)).toHaveClass("border-dashed", "border-edge");
+    expect(days.at(0)).toHaveClass("border-outline");
+    expect(days.at(-2)).toHaveClass("bg-accent");
+    expect(days.at(-1)).toHaveClass("border-today-mark");
+    expect(days.at(-1)).not.toHaveClass("bg-today-mark");
+    expect(within(week).getByText("오늘").closest(".text-today-text")).not.toBeNull();
     expect(todayLine()).toBe("오늘 2장 · 약 1분이면 끝나요");
     cleanup();
 
-    // Control: with no study day, the week is all dashed on no streak.
+    // Control: with no study day, no day is filled, on no streak.
     postgrest.rows.reviews = [];
     await render(Today, {});
     const empty = screen.getByRole("region", { name: "0일 연속" });
-    expect(within(empty).getByText("지난 7일 0장")).toBeInTheDocument();
     expect(
-      [...empty.querySelectorAll("[data-bar]")].map((bar) => bar.getAttribute("data-bar")),
-    ).toEqual(Array<string>(7).fill("dashed"));
+      [...empty.querySelectorAll("[data-day]")].map((dot) => dot.getAttribute("data-day")),
+    ).toEqual([...Array<string>(6).fill("none"), "today"]);
   });
 
   it("agrees with the study page on the day's cards: a card answered 모른다 today is left, one answered 안다 done", async () => {
@@ -722,7 +727,7 @@ describe("홈 and the 노트 page", () => {
     expect(clicked).toHaveBeenCalledOnce();
   });
 
-  it("shows the first-run invitation in place of the hero and the week card when there is no note, under the profile button", async () => {
+  it("shows the first-run invitation in the sky, with no streak, when there is no note, under the profile button", async () => {
     const title = "첫 노트를 만들어 볼까요?";
     // Control: a user with one note sees the hero and the notes, and no invitation.
     postgrest.seed("decks", deckRow("d-fr", "French"));
@@ -739,7 +744,9 @@ describe("홈 and the 노트 page", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "알아몰라" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: title })).toHaveClass("text-title");
-    expect(document.querySelector('img[src*="knowno-thinking"]')).not.toBeNull();
+    const sky = screen.getByRole("region", { name: title });
+    expect(sky).toHaveClass("bg-hero");
+    expect(sky.querySelector('img[src*="knowno-thinking"]')).not.toBeNull();
     expect(screen.queryByRole("region", { name: /일 연속$/ })).not.toBeInTheDocument();
     // The one link is the profile button, which opens 설정.
     expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
@@ -749,22 +756,21 @@ describe("홈 and the 노트 page", () => {
     expect(screen.getByRole("button", { name: "새 노트 만들기" })).toHaveClass("bg-primary");
   });
 
-  it("shows how to start on the hero when the notes hold no card, leading to the one note's 카드 추가 or to the notes", async () => {
+  it("shows how to start in the sky when the notes hold no card, leading to the one note's 카드 추가 or to the notes", async () => {
     const title = "첫 카드를 만들어 볼까요?";
     postgrest.seed("decks", deckRow("d-fr", "French"));
     await render(Today, {});
 
     const hero = screen.getByRole("region", { name: title });
     expect(hero).toHaveClass("bg-hero");
-    // No week card: the hero's one way on is the page's.
+    // No streak: the one way on is the page's.
     expect(screen.queryByRole("region", { name: /일 연속$/ })).not.toBeInTheDocument();
-    // The happy mascot, glad of the note just made (ADR 0141).
-    expect(hero.querySelector('img[src*="knowno-happy"]')).not.toBeNull();
-    // Its one action opens the one note with its 카드 추가 sheet up.
-    expect(within(hero).getByRole("link", { name: "카드 추가" })).toHaveAttribute(
-      "href",
-      `/decks/${uuidOf("d-fr")}?adding=1`,
-    );
+    // The thinking mascot, the mark itself, while nothing is done yet (ADR 0193).
+    expect(hero.querySelector('img[src*="knowno-thinking"]')).not.toBeNull();
+    // Its one action, the primary on the ground, opens the one note with its 카드 추가 sheet up.
+    const add = screen.getByRole("link", { name: "카드 추가" });
+    expect(add).toHaveClass("bg-primary");
+    expect(add).toHaveAttribute("href", `/decks/${uuidOf("d-fr")}?adding=1`);
     cleanup();
 
     // With several notes, it leads to the 노트 page instead.
@@ -805,7 +811,7 @@ describe("홈 and the 노트 page", () => {
         },
       ],
       [
-        "오늘 할 카드를 다 했어요",
+        "오늘 다 했어요",
         () => {
           postgrest.seed("decks", deckRow("d-fr", "French"));
           postgrest.seed("cards", cardRow("c-chat", "d-fr", "chat"));
@@ -891,7 +897,7 @@ describe("홈 and the 노트 page", () => {
       await render(Today, {});
 
       // The cards past the plan never reopen the day: the hero holds no count left.
-      expect(screen.getByRole("heading", { name: "오늘 할 카드를 다 했어요" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "오늘 다 했어요" })).toBeInTheDocument();
       expect(document.getElementById("hero-time")).toBeNull();
     });
 

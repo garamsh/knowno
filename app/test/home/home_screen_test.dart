@@ -70,7 +70,7 @@ class _List {
       tester.widget<StudyScreen>(find.byType(StudyScreen)).decks.ids;
 
   Future<void> tap(String text) async {
-    // The hero scrolls where the test font makes it taller than its space.
+    // 홈 scrolls where the test font makes it taller than its screen.
     await tester.ensureVisible(shownText(text));
     await tester.pumpAndSettle();
     await tester.tap(shownText(text));
@@ -338,7 +338,7 @@ void main() {
       'opens on 홈 between 기록 and 노트, the bar switches tabs, back from another tab returns to 홈, and 홈\'s profile button at the top right holds the account\'s initial',
       (tester) async {
         final list = await _open(tester, fresh: {'Alpha': 1});
-        expect(shownText('1 card today'), findsOneWidget);
+        expect(shownText('1 card'), findsOneWidget);
         final record = list.tab('Record');
         final home = list.tab('Home');
         final notes = list.tab('Notes');
@@ -360,13 +360,13 @@ void main() {
         expect(shownText('Correct in reviews'), findsOneWidget);
         expect(await tester.binding.handlePopRoute(), isTrue);
         await tester.pumpAndSettle();
-        expect(shownText('1 card today'), findsOneWidget);
+        expect(shownText('1 card'), findsOneWidget);
         await tester.tap(notes);
         await tester.pumpAndSettle();
         expect(find.byType(DeckRow), findsNWidgets(3));
         expect(await tester.binding.handlePopRoute(), isTrue);
         await tester.pumpAndSettle();
-        expect(shownText('1 card today'), findsOneWidget);
+        expect(shownText('1 card'), findsOneWidget);
 
         // The profile button, the account's initial at the top right of the
         // hero, named 설정, which `widget_test.dart` opens; 설정 is built only
@@ -413,7 +413,7 @@ void main() {
         await list.tap('Alpha');
         await tester.tap(list.tab('Home'));
         await tester.pumpAndSettle();
-        expect(shownText('1 card today'), findsOneWidget);
+        expect(shownText('1 card'), findsOneWidget);
         await list.decks();
         expect(find.byType(DeckScreen), findsOneWidget);
 
@@ -468,47 +468,53 @@ void main() {
 
   group('홈', () {
     testWidgets(
-      'today\'s cards fill the hero with the mascot, the count, the minutes and Start, which studies every deck',
+      'today\'s cards fill the sky with Today, the count and the minutes over the thinking mascot, and Start on the ground studies every deck',
       (tester) async {
         final list = await _open(
           tester,
           fresh: {'Alpha': 2, 'Gamma': 1},
           due: {'Alpha': 1, 'Beta': 3},
           pace: const Duration(seconds: 25),
-          // Tall enough that the test font's words leave the mascot its
-          // full size.
-          screen: const Size(390, 1400),
         );
         final colors = AppColors.of(tester.element(find.byType(HomeTab)));
-        final hero = tester.widget<DecoratedBox>(
+        final sky = tester.widget<DecoratedBox>(
           find
               .ancestor(
-                of: shownText('7 cards today'),
+                of: shownText('7 cards'),
                 matching: find.byWidgetPredicate(
                   (widget) =>
                       widget is DecoratedBox &&
-                      widget.decoration is BoxDecoration &&
-                      (widget.decoration as BoxDecoration).color != null,
+                      widget.decoration is ShapeDecoration,
                 ),
               )
               .first,
         );
-        expect((hero.decoration as BoxDecoration).color, colors.hero);
-        final count = tester.widget<Text>(shownText('7 cards today'));
+        expect((sky.decoration as ShapeDecoration).color, colors.hero);
+        expect(shownText('Today'), findsWidgets);
+        expect(
+          tester.getRect(shownText('Today').first).bottom,
+          lessThanOrEqualTo(tester.getRect(shownText('7 cards')).top),
+        );
+        final count = tester.widget<Text>(shownText('7 cards'));
         expect(count.style?.fontSize, AppType.heroFigure.fontSize);
         expect(count.style?.color, colors.onHero);
         // Seven cards at 25 s each take 175 s, about 3 minutes.
         expect(shownText('About 3 min'), findsOneWidget);
-        expect(
-          tester.widget<Mascot>(find.byType(Mascot).first).size,
-          AppSize.mascotHero,
-        );
+        final mascot = tester.widget<Mascot>(find.byType(Mascot).first);
+        expect(mascot.size, AppSize.mascotHero);
+        expect(mascot.expression, MascotExpression.thinking);
+        // Start, the one primary, on the ground under the mascot.
         final start = tester.widget<AppButton>(
           widgetWithShownText(AppButton, 'Start'),
         );
-        expect(start.variant, AppButtonVariant.onHero);
-        // Under it the week card; the day's other charts are 기록's.
-        expect(find.textContaining('Last 7 days'), findsOneWidget);
+        expect(start.variant, AppButtonVariant.primary);
+        expect(start.size, AppButtonSize.cta);
+        expect(
+          tester.getRect(shownText('Start')).top,
+          greaterThan(tester.getRect(find.byType(Mascot).first).bottom),
+        );
+        // No week chart and no other chart: they are 기록's.
+        expect(find.textContaining('Last 7 days'), findsNothing);
         expect(find.textContaining('Retention'), findsNothing);
 
         await list.tap('Start');
@@ -518,9 +524,10 @@ void main() {
     );
 
     testWidgets(
-      'under the hero, the week card shows the streak, its count in the accent, the last seven days\' cards, and a bar a day, today\'s last in the accent and a day with no study dashed',
+      'on the ground, the streak in the accent over a dot a day for the last seven days, a studied day filled in the accent and today outlined in the today mark over its label',
       (tester) async {
-        // Studied today and four days before: a streak of one day.
+        // Studied today and four days before: a streak of one day, with
+        // cards still left today.
         final list = await _open(
           tester,
           fresh: {'Alpha': 3},
@@ -530,88 +537,63 @@ void main() {
         final colors = AppColors.of(tester.element(find.byType(HomeTab)));
         final heading = find.text('1-day streak', findRichText: true);
         expect(heading, findsOneWidget);
-        final card = find
-            .ancestor(of: heading, matching: find.byType(DecoratedBox))
-            .first;
-        final surface = tester.widget<DecoratedBox>(card).decoration;
-        expect((surface as BoxDecoration).color, colors.surface);
-        // Under the hero, not in its top bar beside the app's name.
+        // On the ground, under the mascot and over Start.
         expect(
-          tester.getTopLeft(card).dy,
-          greaterThan(tester.getBottomLeft(shownText('Start')).dy),
+          tester.getRect(heading).top,
+          greaterThan(tester.getRect(find.byType(Mascot).first).bottom),
+        );
+        expect(
+          tester.getRect(heading).bottom,
+          lessThan(tester.getRect(shownText('Start')).top),
         );
         final spans = <(String, Color?)>[];
-        tester
-            .widgetList<RichText>(
-              find.descendant(of: card, matching: find.byType(RichText)),
-            )
-            .firstWhere((text) => text.text.toPlainText() == '1-day streak')
-            .text
-            .visitChildren((span) {
-              if (span case TextSpan(:final text?)) {
-                spans.add((text, span.style?.color));
-              }
-              return true;
-            });
+        tester.widget<RichText>(heading).text.visitChildren((span) {
+          if (span case TextSpan(:final text?)) {
+            spans.add((text, span.style?.color));
+          }
+          return true;
+        });
         expect(spans.firstWhere((span) => span.$1 == '1').$2, colors.accent);
         expect(
           spans.firstWhere((span) => span.$1 != '1').$2,
           isNot(colors.accent),
         );
-        expect(
-          find.descendant(of: card, matching: shownText('Last 7 days: 5')),
-          findsOneWidget,
-        );
         // Each day is read with its cards, today's last.
-        expect(
-          find.bySemanticsLabel(
-            RegExp(
-              r'^\w+: 0 cards, \w+: 0 cards, \w+: 3 cards, \w+: 0 cards, \w+: 0 cards, \w+: 0 cards, Today: 2 cards$',
-            ),
+        final week = find.bySemanticsLabel(
+          RegExp(
+            r'^\w+: 0 cards, \w+: 0 cards, \w+: 3 cards, \w+: 0 cards, \w+: 0 cards, \w+: 0 cards, Today: 2 cards$',
           ),
-          findsOneWidget,
         );
-        // Two drawn bars, today's in the accent and the other's in the chart
-        // tint; five dashed days.
-        final fills = [
+        expect(week, findsOneWidget);
+        List<BoxDecoration> dots(Finder week) => [
           for (final box in tester.widgetList<DecoratedBox>(
-            find.descendant(of: card, matching: find.byType(DecoratedBox)),
+            find.descendant(of: week, matching: find.byType(DecoratedBox)),
           ))
-            if (box.decoration case BoxDecoration(:final color?)
-                when color != colors.surface)
-              color,
+            box.decoration as BoxDecoration,
         ];
-        expect(fills, [colors.heat1, colors.accent]);
-        final dashed = find.descendant(
-          of: card,
-          matching: find.byWidgetPredicate(
-            (widget) => widget is CustomPaint && widget.painter != null,
-          ),
+        final days = dots(week);
+        expect(days, hasLength(7));
+        // The day studied four days ago filled in the accent; the days with
+        // no study outlined; today, not yet done, outlined in the today mark.
+        expect(
+          [for (final day in days) day.color],
+          [null, null, colors.accent, null, null, null, null],
         );
-        expect(dashed, findsNWidgets(5));
+        expect(days.first.border?.top.color, colors.outline);
+        expect(days.last.border?.top.color, colors.todayMark);
+        final today = tester.widget<Text>(
+          find.descendant(of: week, matching: shownText('Today')),
+        );
+        expect(today.style?.color, colors.todayText);
         await list.close();
 
-        // Control: a week with no study is all dashed, on no streak.
+        // Control: a week with no study fills no day, on no streak.
         final fresh = await _open(tester, fresh: {'Alpha': 1});
-        final empty = find
-            .ancestor(
-              of: find.text('0-day streak', findRichText: true),
-              matching: find.byType(DecoratedBox),
-            )
-            .first;
-        expect(
-          find.descendant(of: empty, matching: shownText('Last 7 days: 0')),
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(
-            of: empty,
-            matching: find.byWidgetPredicate(
-              (widget) => widget is CustomPaint && widget.painter != null,
-            ),
-          ),
-          findsNWidgets(7),
-        );
+        expect(find.text('0-day streak', findRichText: true), findsOneWidget);
+        final none = find.bySemanticsLabel(RegExp(r'Today: 0 cards$'));
+        expect([
+          for (final day in dots(none)) day.color,
+        ], List<Color?>.filled(7, null));
         await fresh.close();
       },
     );
@@ -632,25 +614,61 @@ void main() {
         ),
         findsOneWidget,
       );
+      expect(
+        tester.widget<Mascot>(find.byType(Mascot).first).expression,
+        MascotExpression.thinking,
+      );
       await list.tap('Start');
       expect(list.session, list.ids.values.toSet());
       await list.close();
     });
 
     testWidgets(
-      'once today\'s cards are done the hero says so with the next review and Study, over the week card',
+      'once today\'s cards are done the sky says so with the cards done over the sleepy mascot, today\'s dot is filled and Study is secondary',
       (tester) async {
         final list = await _open(tester, answeredToday: {'Alpha': 2});
-        expect(shownText("You've done today's cards"), findsOneWidget);
+        final colors = AppColors.of(tester.element(find.byType(HomeTab)));
+        expect(shownText('All done'), findsOneWidget);
+        expect(shownText('2 cards'), findsOneWidget);
+        expect(find.textContaining('Next review'), findsNothing);
         expect(
-          shownText('Next review Tomorrow · 2, about 1 min'),
-          findsOneWidget,
+          tester.widget<Mascot>(find.byType(Mascot).first).expression,
+          MascotExpression.sleepy,
         );
-        expect(shownText('Last 7 days: 2'), findsOneWidget);
+        final week = find.bySemanticsLabel(RegExp(r'Today: 2 cards$'));
+        final today = tester
+            .widgetList<DecoratedBox>(
+              find.descendant(of: week, matching: find.byType(DecoratedBox)),
+            )
+            .last;
+        expect((today.decoration as BoxDecoration).color, colors.todayMark);
+        final study = tester.widget<AppButton>(
+          widgetWithShownText(AppButton, 'Study'),
+        );
+        expect(study.variant, AppButtonVariant.secondary);
         await list.tap('Study');
         expect(list.session, list.ids.values.toSet());
         await tester.binding.handlePopRoute();
         await tester.pumpAndSettle();
+        await list.close();
+      },
+    );
+
+    testWidgets(
+      'with nothing due today and nothing studied, the sky says the day is done with the next review in place of the cards done',
+      (tester) async {
+        final list = await _open(tester, later: {'Alpha': 2});
+        expect(shownText('All done'), findsOneWidget);
+        expect(
+          shownText('Next review Tomorrow · 2, about 1 min'),
+          findsOneWidget,
+        );
+        // Control: no count of cards done stands in its place.
+        expect(shownText('0 cards'), findsNothing);
+        expect(
+          tester.widget<Mascot>(find.byType(Mascot).first).expression,
+          MascotExpression.sleepy,
+        );
         await list.close();
       },
     );
@@ -661,7 +679,6 @@ void main() {
         final list = await _open(tester, decks: ['Alpha']);
         expect(shownText('Make your first card?'), findsOneWidget);
         expect(find.textContaining('streak', findRichText: true), findsNothing);
-        expect(find.textContaining('Last 7 days'), findsNothing);
         await list.tap('Add card');
         expect(find.byType(DeckScreen), findsOneWidget);
         expect(
@@ -691,7 +708,7 @@ void main() {
     );
 
     testWidgets(
-      'a count that cannot be read says why in the hero under Start, on the first screen',
+      'a count that cannot be read says why on the ground in the streak\'s place over Start, on the first screen',
       (tester) async {
         final list = await _open(
           tester,
@@ -703,34 +720,18 @@ void main() {
         final problem = shownText(why);
         expect(problem, findsOneWidget);
         final start = shownText('Start');
-        expect(
-          tester.getRect(problem).top,
-          greaterThan(tester.getRect(start).bottom),
-        );
-        // Inside the hero, and whole on the first screen with nothing
-        // scrolled.
-        final colors = AppColors.of(tester.element(find.byType(HomeTab)));
-        final hero = tester.getRect(
-          find
-              .ancestor(
-                of: start,
-                matching: find.byWidgetPredicate(
-                  (widget) =>
-                      widget is DecoratedBox &&
-                      widget.decoration is BoxDecoration &&
-                      (widget.decoration as BoxDecoration).color == colors.hero,
-                ),
-              )
-              .first,
-        );
         final row = tester.getRect(problem);
-        expect(row.top, greaterThanOrEqualTo(hero.top));
-        expect(row.bottom, lessThanOrEqualTo(hero.bottom));
+        expect(row.bottom, lessThan(tester.getRect(start).top));
+        expect(
+          row.top,
+          greaterThan(tester.getRect(find.byType(Mascot).first).bottom),
+        );
+        // Whole on the first screen with nothing scrolled.
         final page = tester.getRect(
           find.ancestor(of: start, matching: find.byType(Scrollable)).first,
         );
         expect(row.bottom, lessThanOrEqualTo(page.bottom));
-        expect(find.textContaining('cards today'), findsNothing);
+        expect(find.textContaining('About'), findsNothing);
         expect(find.textContaining('streak', findRichText: true), findsNothing);
         await list.close();
       },
@@ -1034,7 +1035,7 @@ void main() {
           screen: const Size(800, 844),
         );
         // 20 minutes at the unknown pace of 10 s: 120 new cards.
-        expect(shownText('120 cards today'), findsOneWidget);
+        expect(shownText('120 cards'), findsOneWidget);
         await _openMinutes(tester);
         AppButton save() =>
             tester.widget<AppButton>(widgetWithShownText(AppButton, 'Save'));
@@ -1115,7 +1116,7 @@ void main() {
         expect(shownText('5 min'), findsOneWidget);
         await tester.pageBack();
         await tester.pumpAndSettle();
-        expect(shownText('30 cards today'), findsOneWidget);
+        expect(shownText('30 cards'), findsOneWidget);
         await list.close();
       },
     );
@@ -1160,7 +1161,7 @@ void main() {
         expect(find.byType(BottomSheet), findsNothing);
         expect(await list.storedMinutes(), isNull);
         // 20 minutes at 10 s take all three new cards.
-        expect(shownText('3 cards today'), findsOneWidget);
+        expect(shownText('3 cards'), findsOneWidget);
 
         // Shown once: back on the tab, it does not show again.
         await list.tap('Record');

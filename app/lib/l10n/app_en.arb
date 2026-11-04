@@ -333,7 +333,7 @@
   "privacyPolicy": "Privacy Policy",
   "linkNotOpened": "Couldn't open the link. Please try again.",
   "appVersion": "Version {version}",
-  "todayDone": "You've done today's cards",
+  "todayDone": "All done",
   "todayStudy": "Study",
   "tabRecord": "Record",
   "tabsLabel": "Tabs",
@@ -484,7 +484,7 @@
   "spreadsheetTooManyRows": "The file has over 1,000 rows. Split it and choose it again.",
   "spreadsheetNotRead": "The file could not be read. Choose it again.",
   "tabHome": "Home",
-  "homeToday": "{count, plural, =1{1 card today} other{{count} cards today}}",
+  "homeCards": "{count, plural, =1{1 card} other{{count} cards}}",
   "homeMinutes": "About {minutes} min",
   "homeStart": "Start",
   "studyThisDeck": "Study this note · {count}",
@@ -497,6 +497,5 @@
   "previousCardLabel": "Card just seen, {answer}. Front: {front}. Back: {back}{changed, select, yes{. Changed} other{}}",
   "coachPrevious": "Back",
   "tabNotes": "Notes",
-  "lastWeekCards": "Last 7 days: {count}",
   "weekDayCards": "{day}: {count, plural, =1{1 card} other{{count} cards}}"
 }

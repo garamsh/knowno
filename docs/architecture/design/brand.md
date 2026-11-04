@@ -11,7 +11,7 @@ The brand on the phone and the web: the name, the marks and how they are generat
   - the mark alone, and the expressions;
   - the mark close up on cobalt: the launcher icon and the favicon ([ADR 0152](../adr/0152-let-the-mascot-blink-and-breathe-from-its-own-drawing-and-put-the-launcher-icon-on-cobalt.md));
   - the horizontal and stacked lockups: the mark on its circle beside or over one name, 알아몰라 for Korean and on the web and knowno for any other language on the phone, never both; on a white circle with its word cobalt `#2547D0` for a light ground, on a dark card `#232F4E` circle with its word `#8AB4FF` for a dark one ([ADR 0153](../adr/0153-draw-the-lockups-in-cobalt-on-a-white-or-dark-card-circle.md), [ADR 0154](../adr/0154-draw-the-logo-with-one-name-in-the-reader-s-language-korean-or-english.md)). Both names are drawn 446 across, so a stacked lockup is 446 by 421 with 알아몰라 and 446 by 390 with knowno, the horizontal one 674 by 200.
-- Where they appear: the app's name in `title` heads 홈 and the first-run home; the stacked lockup, `AppSize.stackedLockupWidth` wide, on the sign-in screen, in the phone's language; on the web the stacked lockup on `/login`, in 알아몰라, and the horizontal lockup atop the side menu, which the phone does not bundle.
+- Where they appear: the app's name in `title` heads 홈, the first run's included; the stacked lockup, `AppSize.stackedLockupWidth` wide, on the sign-in screen, in the phone's language; on the web the stacked lockup on `/login`, in 알아몰라, and the horizontal lockup atop the side menu, which the phone does not bundle.
 
 ### Generated files
 
@@ -31,17 +31,16 @@ The brand on the phone and the web: the name, the marks and how they are generat
   | Expression | Moment | Size |
   |---|---|---|
   | thinking, the mark itself | a photo being read, beside its words, while no row shows a failure | 64 |
-  | thinking | the first-run home | 128 |
-  | thinking | 홈's hero in a backlog | 210 |
+  | thinking | 홈 on the hill, while cards are left, in a backlog, while no deck holds a card, before the first deck and while the count cannot be read ([ADR 0193](../adr/0193-make-home-one-screen-of-sky-over-ground-with-the-mascot-on-a-hill-the-streak-s-days-and-one-action.md)) | 140 |
   | thinking | study's coach, at the left of its speech bubble while the coach shows ([ADR 0166](../adr/0166-draw-no-mascot-during-a-study-session-let-it-present-the-coach-with-a-back-and-a-next-and-a-tilted-hand-and-fill-an-empty-day-s-bar.md)) | 56 |
-  | happy | 홈's hero with cards today, once they are done, and while no deck holds a card | 210 |
   | sad | a failed photo's screen, "no cards found" among its failures | 96 |
   | sleepy | study with nothing today, and an empty deck | 96 |
+  | sleepy | 홈 on the hill once the day's cards are done ([ADR 0193](../adr/0193-make-home-one-screen-of-sky-over-ground-with-the-mascot-on-a-hill-the-streak-s-days-and-one-action.md)) | 140 |
 
   No other mascot is drawn while a card is studied.
 - It moves the same on both clients, within its own widget or component ([ADR 0152](../adr/0152-let-the-mascot-blink-and-breathe-from-its-own-drawing-and-put-the-launcher-icon-on-cobalt.md)):
   - from 41 px, an expression with open eyes, thinking or sad, blinks every 3 to 7 s, one blink in five double: the eyes shut in 70 ms behind an ink lid, hold 110 ms, 160 ms when sad, and open in 60 ms; a thinking one sometimes glances, its pupils moving up to 22 units across and 14 up or down for 1.4 s;
-  - from 200 px, thinking and sad also breathe, 1.2% wider and 1.8% shorter about the feet on 3 s; the happy one wobbles on 1.8 s, 1.1 s of squash, stretch and settle about its feet, which stay on the ground, its arms swinging about their shoulders, while its ground ticks stay still ([ADR 0185](../adr/0185-wobble-the-happy-mascot-in-place-with-its-ground-still-instead-of-the-hop.md)); the sleepy one breathes deeper on 4.2 s, its Z's drifting up and fading;
+  - from 128 px, 홈's 140 among them ([ADR 0193](../adr/0193-make-home-one-screen-of-sky-over-ground-with-the-mascot-on-a-hill-the-streak-s-days-and-one-action.md)), thinking and sad also breathe, 1.2% wider and 1.8% shorter about the feet on 3 s; the happy one wobbles on 1.8 s, 1.1 s of squash, stretch and settle about its feet, which stay on the ground, its arms swinging about their shoulders, while its ground ticks stay still ([ADR 0185](../adr/0185-wobble-the-happy-mascot-in-place-with-its-ground-still-instead-of-the-hop.md)); the sleepy one breathes deeper on 4.2 s, its Z's drifting up and fading;
   - at 40 px or less, under reduce motion and off screen, it is the still image: the phone keeps the PNG and draws a moving mascot with a `CustomPainter` in its own layer, on one ticker that stops where a `TickerMode` is off or the app is in the background; the web keeps the `<img>` and draws a moving one inline, its one `IntersectionObserver` telling it when it is on screen and how wide.
 
 ### Icons
@@ -61,6 +60,7 @@ The brand on the phone and the web: the name, the marks and how they are generat
 - [ADR 0153](../adr/0153-draw-the-lockups-in-cobalt-on-a-white-or-dark-card-circle.md) records why the lockups take the icon's cobalt on a white or dark card circle, and the dark splash's circle with them.
 - [ADR 0152](../adr/0152-let-the-mascot-blink-and-breathe-from-its-own-drawing-and-put-the-launcher-icon-on-cobalt.md) records why the mascot moves from its own drawing rather than Rive, Lottie or a video, why a closed eye is a lid, the motion by expression and size, and the cobalt launcher icon with the splash on the screens' grounds.
 - [ADR 0185](../adr/0185-wobble-the-happy-mascot-in-place-with-its-ground-still-instead-of-the-hop.md) records why the happy mascot wobbles in place instead of hopping, and why its ground stays still.
+- [ADR 0193](../adr/0193-make-home-one-screen-of-sky-over-ground-with-the-mascot-on-a-hill-the-streak-s-days-and-one-action.md) records why the mascot breathes from 128 px rather than 200, so that 홈's 140 does.
 - [ADR 0141](../adr/0141-polish-the-coral-mascot-make-coral-the-primary-action-and-place-its-expressions-on-both-clients.md) records the wider redraw, why 모른다 stays, where each expression appears, and the exception to ADR 0116 and the rule against decoration.
 - [ADR 0139](../adr/0139-draw-both-clients-around-the-coral-mascot-with-warm-colour-tokens-and-rounder-taller-buttons.md) records how the marks are generated.
 - [ADR 0134](../adr/0134-name-the-app-knowno-serve-it-at-knowno-app-identify-it-as-app-knowno-and-reach-the-backend-at-api-knowno-app.md) records the name.

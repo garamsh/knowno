@@ -1168,7 +1168,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get todayDone => '오늘 할 카드를 다 했어요';
+  String get todayDone => '다 했어요';
 
   @override
   String get todayStudy => '학습하기';
@@ -1731,8 +1731,8 @@ class AppLocalizationsKo extends AppLocalizations {
   String get tabHome => '홈';
 
   @override
-  String homeToday(int count) {
-    return '오늘 $count장';
+  String homeCards(int count) {
+    return '$count장';
   }
 
   @override
@@ -1789,11 +1789,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get tabNotes => '노트';
-
-  @override
-  String lastWeekCards(int count) {
-    return '지난 7일 $count장';
-  }
 
   @override
   String weekDayCards(String day, int count) {

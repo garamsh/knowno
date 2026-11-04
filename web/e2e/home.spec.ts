@@ -159,15 +159,15 @@ function undrawn(boxes: Record<string, unknown>): string {
 }
 
 /**
- * Waits until the happy [mascot] is the drawing it keeps at its size. The server draws it still;
- * on screen from 200 px across, the client puts its moving drawing in the still one's place
- * (ADR 0152), and a box read across that swap finds no element.
+ * Waits until the [mascot] is the drawing it keeps at its size. The server draws it still; on
+ * screen from 128 px across, the client puts its moving drawing in the still one's place (ADR 0152,
+ * ADR 0193), and a box read across that swap finds no element.
  */
 async function untilMascotSettled(mascot: Locator): Promise<void> {
   await expect
     .poll(() =>
       mascot.evaluate(
-        (element) => element.tagName === "svg" || element.getBoundingClientRect().width < 200,
+        (element) => element.tagName === "svg" || element.getBoundingClientRect().width < 128,
       ),
     )
     .toBe(true);
@@ -182,7 +182,7 @@ function labelLines(button: Locator): Promise<number> {
   });
 }
 
-test("draws the first-run home, 홈 over its week card, the 노트 page, a note, its 카드 추가 sheet and 새 노트, a pair of buttons on one line", async ({
+test("draws the first-run home, 홈 with its streak, the 노트 page, a note, its 카드 추가 sheet and 새 노트, a pair of buttons on one line", async ({
   page,
   context,
   baseURL,
@@ -198,7 +198,7 @@ test("draws the first-run home, 홈 over its week card, the 노트 page, a note,
   await first.goto("/");
   await expect(first.getByRole("heading", { name: "첫 노트를 만들어 볼까요?" })).toBeVisible();
   await capture(first, "first-run");
-  // With a note and no card, 홈's hero leads to adding one on the hero button's own edge.
+  // With a note and no card, 홈 leads to adding one, its primary on the primary's edge.
   const empty = await firstUser.db.from("decks").insert({
     id: randomUUID(),
     user_id: firstUser.userId,
@@ -214,7 +214,7 @@ test("draws the first-run home, 홈 over its week card, the 노트 page, a note,
   await expectEdge(
     first,
     first.getByRole("link", { name: "카드 추가", exact: true }),
-    "--color-on-hero-edge",
+    "--color-primary-edge",
   );
   await capture(first, "no-cards");
   await fresh.close();
@@ -257,21 +257,19 @@ test("draws the first-run home, 홈 over its week card, the 노트 page, a note,
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "오늘 5장", exact: true })).toBeVisible();
-  // At a phone's width 홈 holds no note: the week card under the hero, its top edge above the
-  // tab bar and the rest of it below the first screen.
+  // At a phone's width 홈 holds no note: the streak above the tab bar, on the one screen.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("region", { name: "노트 목록" })).toHaveCount(0);
   const [tabBar, week] = await Promise.all([
     page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox(),
     page.getByRole("region", { name: "0일 연속" }).boundingBox(),
   ]);
-  if (!tabBar || !week) throw new Error("the tab bar and the week card are drawn");
-  expect(week.y).toBeLessThan(tabBar.y);
-  expect(week.y + week.height).toBeGreaterThan(844);
+  if (!tabBar || !week) throw new Error("the tab bar and the streak are drawn");
+  expect(week.y + week.height).toBeLessThan(tabBar.y);
   await expectEdge(
     page,
     page.getByRole("link", { name: "시작", exact: true }),
-    "--color-on-hero-edge",
+    "--color-primary-edge",
   );
   await capture(page, "home");
   // 노트 from the tab bar: every note under the 노트 검색 field, open from the first.
@@ -445,7 +443,14 @@ test("answers the browser's back on an authoring screen as the phone's back, and
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
-test("fills 홈's first screen with the hero with the owner's 481 cards over four notes on a 19-day streak: the mascot at 210, 시작 whole, the week card's top edge 16 px above the tab bar and the rest of it a scroll away", async ({
+/** The `theme-color` the browser's bar takes on [page]: the first one in its head. */
+function themeColor(page: Page): Promise<string | null> {
+  return page.evaluate(
+    () => document.head.querySelector('meta[name="theme-color"]')?.getAttribute("content") ?? null,
+  );
+}
+
+test("draws 홈 as one screen with the owner's 481 cards over four notes on a 19-day streak: the sky from the top over the ground, the mascot at 140 on the hill, the streak and 시작 whole on its edge above the tab bar, with nothing to scroll", async ({
   page,
   context,
   baseURL,
@@ -511,13 +516,21 @@ test("fills 홈's first screen with the hero with the owner's 481 cards over fou
   expect((await db.from("reviews").insert(reviews)).error).toBeNull();
 
   await page.goto("/");
-  const hero = page.getByRole("region", { name: "오늘 481장" });
-  await expect(hero.getByRole("heading", { name: "오늘 481장", exact: true })).toBeVisible();
+  const sky = page.getByRole("region", { name: "오늘 481장" });
+  await expect(sky.getByRole("heading", { name: "오늘 481장", exact: true })).toBeVisible();
   const week = page.getByRole("region", { name: "19일 연속" });
-  await expect(week.getByText("지난 7일 267장", { exact: true })).toBeVisible();
-  const start = hero.getByRole("link", { name: "시작", exact: true });
-  const mascot = hero.locator("img, svg").first();
+  await expect(week.getByRole("img")).toBeVisible();
+  const start = page.getByRole("link", { name: "시작", exact: true });
+  const mascot = sky.locator('img[src*="/brand/knowno-"], svg.mascot').first();
   await untilMascotSettled(mascot);
+  // At 140 the thinking mascot breathes as well as blinks.
+  await expect.soft(mascot).toHaveAttribute("data-motion", "full");
+  // The page covers the screen, so the sky runs up behind the status bar.
+  expect(
+    await page.evaluate(
+      () => document.querySelector('meta[name="viewport"]')?.getAttribute("content") ?? "",
+    ),
+  ).toContain("viewport-fit=cover");
   const directory = process.env.E2E_SCREENSHOTS;
   for (const [width, height] of [
     [390, 844],
@@ -527,85 +540,322 @@ test("fills 홈's first screen with the hero with the owner's 481 cards over fou
     await page.setViewportSize({ width, height });
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
-      await page.evaluate(() => {
-        window.scrollTo(0, 0);
-      });
       const at = `at ${String(width)} × ${String(height)} in ${colorScheme}`;
       if (directory)
         await page.screenshot({
-          path: `${directory}/${colorScheme}/web-home-fold-${String(height)}.png`,
+          path: `${directory}/${colorScheme}/web-home-owner-${String(height)}.png`,
         });
-      const [panel, button, drawn, card, tabBar] = await Promise.all([
-        hero.boundingBox(),
+      const [panel, button, drawn, streak, tabBar] = await Promise.all([
+        sky.boundingBox(),
         start.boundingBox(),
         mascot.boundingBox(),
         week.boundingBox(),
         page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox(),
       ]);
-      if (!panel || !button || !drawn || !card || !tabBar)
+      if (!panel || !button || !drawn || !streak || !tabBar)
         throw new Error(
-          `홈 is drawn ${at}, but not: ${undrawn({ hero: panel, 시작: button, mascot: drawn, "the week card": card, "the tab bar": tabBar })}`,
+          `홈 is drawn ${at}, but not: ${undrawn({ sky: panel, 시작: button, mascot: drawn, "the streak": streak, "the tab bar": tabBar })}`,
         );
-      // The hero fills the first screen from its top, 시작 whole, and the week card shows its
-      // top edge, 16 px, above the tab bar; each size is checked, and shot, whatever an earlier
-      // one found.
+      // One screen: nothing to scroll; the sky from the top, about 58% of the screen; the
+      // mascot at 140 under the sky's words and over the streak, which is over 시작, whose edge
+      // is whole above the tab bar. Each size is checked, and shot, whatever an earlier one found.
+      expect
+        .soft(
+          await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
+          at,
+        )
+        .toBeLessThanOrEqual(0);
       expect.soft(panel.y, at).toBe(0);
-      expect.soft(button.y, at).toBeGreaterThanOrEqual(0);
-      expect.soft(button.y + button.height, at).toBeLessThanOrEqual(panel.y + panel.height);
-      expect.soft(card.y, at).toBeCloseTo(tabBar.y - 16, 0);
-      // The mascot at its full 210, square, at every height.
-      expect.soft(drawn.height, at).toBe(210);
-      expect.soft(drawn.width, at).toBe(210);
-      // Scrolled, the whole week card above the tab bar.
-      await page.evaluate(() => {
-        window.scrollTo(0, document.documentElement.scrollHeight);
-      });
-      const scrolled = await week.boundingBox();
-      if (directory)
-        await page.screenshot({
-          path: `${directory}/${colorScheme}/web-home-fold-${String(height)}-scrolled.png`,
-        });
-      expect.soft(scrolled && scrolled.y + scrolled.height, at).toBeLessThanOrEqual(tabBar.y);
-      expect.soft(scrolled?.y, at).toBeGreaterThanOrEqual(0);
-    }
-    // The owner's four notes on the 노트 page.
-    if (directory) {
-      await page.goto("/decks");
-      await expect(page.getByRole("region", { name: "노트 목록" }).getByRole("link")).toHaveCount(
-        4,
-      );
-      for (const colorScheme of ["light", "dark"] as const) {
-        await page.emulateMedia({ colorScheme });
-        await page.screenshot({
-          path: `${directory}/${colorScheme}/web-notes-${String(height)}.png`,
-        });
-      }
-      await page.goto("/");
-      // 홈 itself, not its skeleton, is what the next size measures and shoots.
-      await expect(week.getByText("지난 7일 267장", { exact: true })).toBeVisible();
-      await untilMascotSettled(mascot);
+      expect.soft(Math.abs(panel.height - 0.58 * height), at).toBeLessThanOrEqual(80);
+      expect.soft(drawn.height, at).toBe(140);
+      expect.soft(drawn.width, at).toBe(140);
+      expect.soft(drawn.y + drawn.height, at).toBeLessThanOrEqual(streak.y);
+      expect.soft(streak.y + streak.height, at).toBeLessThanOrEqual(button.y);
+      expect.soft(button.y + button.height + 7, at).toBeLessThanOrEqual(tabBar.y);
+      expect.soft(await clipped(page), at).toEqual([]);
     }
   }
-  // From 1024 px the hero takes its own height and the week card is under it, in the column.
+  // From 1024 px the same screen in the content column, beside the side menu, with nothing to
+  // scroll.
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.evaluate(() => {
-    window.scrollTo(0, 0);
-  });
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
     if (directory)
-      await page.screenshot({
-        path: `${directory}/${colorScheme}/web-home-fold-1280.png`,
-        fullPage: true,
-      });
+      await page.screenshot({ path: `${directory}/${colorScheme}/web-home-owner-1280.png` });
   }
-  const [panel, card] = await Promise.all([hero.boundingBox(), week.boundingBox()]);
-  if (!panel || !card)
+  const [panel, button, column, dots] = await Promise.all([
+    sky.boundingBox(),
+    start.boundingBox(),
+    page.locator("main").boundingBox(),
+    week.getByRole("img").boundingBox(),
+  ]);
+  if (!panel || !button || !column || !dots)
     throw new Error(
-      `홈 is drawn at 1280, but not: ${undrawn({ hero: panel, "the week card": card })}`,
+      `홈 is drawn at 1280, but not: ${undrawn({ sky: panel, 시작: button, column, "the day dots": dots })}`,
     );
-  expect(card.y).toBeGreaterThan(panel.y + panel.height);
-  expect(card.x).toBe(panel.x);
+  expect(panel.x).toBeGreaterThanOrEqual(column.x);
+  expect(button.y + button.height).toBeLessThanOrEqual(800);
+  // The ground's dots and 시작 as wide as on a phone, centred under the sky.
+  for (const [what, box] of [
+    ["시작", button],
+    ["the day dots", dots],
+  ] as const) {
+    expect(box.width, what).toBeLessThanOrEqual(400);
+    expect(Math.abs(box.x + box.width / 2 - (panel.x + panel.width / 2)), what).toBeLessThanOrEqual(
+      1,
+    );
+  }
+  expect(
+    await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
+  ).toBeLessThanOrEqual(0);
+  // Shown at 200% on a phone (a 195 px viewport at twice the pixels), the words cannot fit:
+  // the page scrolls, nothing is cut, and 시작 is reached whole.
+  await page.setViewportSize({ width: 195, height: 422 });
+  await page.emulateMedia({ colorScheme: "light" });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
+  ).toBeGreaterThan(0);
+  expect(await clipped(page)).toEqual([]);
+  await start.scrollIntoViewIfNeeded();
+  const reached = await start.boundingBox();
+  expect(reached && reached.y + reached.height).toBeLessThanOrEqual(422);
+  if (directory) await page.screenshot({ path: `${directory}/200/light/web-home-owner-390.png` });
+});
+
+test("keeps 홈 one screen at 375 × 667 with its tallest ground, a day that cannot be counted, the sky giving way so nothing scrolls", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  const { userId, db } = await signUp(context, baseURL, "uncounted");
+  const time = new Date().toISOString();
+  const deck = { id: randomUUID(), user_id: userId, name: "영단어 기본", visibility: "private" };
+  expect(
+    (await db.from("decks").insert({ ...deck, created_at: time, updated_at: time })).error,
+  ).toBeNull();
+  const card = {
+    id: randomUUID(),
+    deck_id: deck.id,
+    user_id: userId,
+    front: [text("f", "candid")],
+    back: [text("b", "솔직한")],
+    card_key: "candid",
+    source: "manual",
+    template: "free",
+    template_version: 2,
+    created_at: time,
+    updated_at: time,
+  };
+  expect((await db.from("cards").insert(card)).error).toBeNull();
+  // A stability this version cannot read: Postgres stores NaN and returns it as the string "NaN".
+  expect(
+    (
+      await db.from("card_states").insert({
+        user_id: userId,
+        card_id: card.id,
+        stability: "NaN",
+        difficulty: 5,
+        last_review: time,
+        due: time,
+        updated_at: time,
+      })
+    ).error,
+  ).toBeNull();
+
+  await page.setViewportSize({ width: 375, height: 667 });
+  await page.goto("/");
+  // The reason the day cannot be counted, not Next.js' route announcer, the other alert.
+  const reason = page
+    .getByRole("alert")
+    .filter({ hasText: "이 앱이 읽을 수 없는 카드가 있어 불러오지 못했어요." });
+  await expect(reason).toBeVisible();
+  const sky = page.getByRole("region", { name: "오늘 할 카드" });
+  const mascot = sky.locator('img[src*="/brand/knowno-"], svg.mascot').first();
+  await untilMascotSettled(mascot);
+  const start = page.getByRole("link", { name: "시작", exact: true });
+  const [panel, drawn, why, button, tabBar] = await Promise.all([
+    sky.boundingBox(),
+    mascot.boundingBox(),
+    reason.boundingBox(),
+    start.boundingBox(),
+    page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox(),
+  ]);
+  if (!panel || !drawn || !why || !button || !tabBar)
+    throw new Error(
+      `홈 is drawn, but not: ${undrawn({ sky: panel, mascot: drawn, why, 시작: button, "the tab bar": tabBar })}`,
+    );
+  const directory = process.env.E2E_SCREENSHOTS;
+  if (directory) await page.screenshot({ path: `${directory}/light/web-home-uncounted-667.png` });
+  // The ground needs more than the 42% the sky leaves it, so the sky gives way: nothing to
+  // scroll, the mascot whole at 140 over why, which is over 시작, its edge whole above the tab bar.
+  expect
+    .soft(await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight))
+    .toBeLessThanOrEqual(0);
+  expect.soft(panel.y).toBe(0);
+  expect.soft(panel.height).toBeLessThan(0.58 * 667 - 1);
+  expect.soft(drawn.height).toBe(140);
+  expect.soft(drawn.y + drawn.height).toBeLessThanOrEqual(why.y);
+  expect.soft(why.y + why.height).toBeLessThanOrEqual(button.y);
+  expect.soft(button.y + button.height + 7).toBeLessThanOrEqual(tabBar.y);
+  expect.soft(await clipped(page)).toEqual([]);
+});
+
+test("draws 홈 with the day done and in a backlog at 390 and 1280 px and at 200%, in both themes, with nothing cut", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  test.setTimeout(120_000);
+  const { userId, db } = await signUp(context, baseURL, "states");
+  const day = 86_400_000;
+  const time = new Date(Date.now() - 40 * day).toISOString();
+  const deck = { id: randomUUID(), user_id: userId, name: "영단어 기본", visibility: "private" };
+  expect(
+    (await db.from("decks").insert({ ...deck, created_at: time, updated_at: time })).error,
+  ).toBeNull();
+  const card = (word: string) => ({
+    id: randomUUID(),
+    deck_id: deck.id,
+    user_id: userId,
+    front: [text("f", word)],
+    back: [text("b", `${word}의 뜻`)],
+    card_key: word,
+    source: "manual",
+    template: "free",
+    template_version: 2,
+    created_at: time,
+    updated_at: time,
+  });
+  const state = (id: string, lastReview: number, due: number, stability: number) => ({
+    user_id: userId,
+    card_id: id,
+    stability,
+    difficulty: 5,
+    last_review: new Date(lastReview).toISOString(),
+    due: new Date(due).toISOString(),
+    updated_at: time,
+  });
+
+  // The day done: one card answered an hour ago, due again tomorrow.
+  const done = card("ephemeral");
+  expect((await db.from("cards").insert(done)).error).toBeNull();
+  expect(
+    (
+      await db
+        .from("card_states")
+        .insert(state(done.id, Date.now() - 3_600_000, Date.now() + day, 1))
+    ).error,
+  ).toBeNull();
+  expect(
+    (
+      await db.from("reviews").insert({
+        id: randomUUID(),
+        card_id: done.id,
+        user_id: userId,
+        rating: "good",
+        reviewed_at: new Date(Date.now() - 3_600_000).toISOString(),
+        duration_ms: 6000,
+        updated_at: time,
+      })
+    ).error,
+  ).toBeNull();
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "학습하기", exact: true })).toBeVisible();
+  // At 140 the sleepy mascot breathes.
+  await expect
+    .soft(page.locator('svg.mascot[data-expression="sleepy"]'))
+    .toHaveAttribute("data-motion", "full");
+  await capture(page, "home-done");
+
+  // A backlog, another account's: three cards a month overdue and nothing else, against a
+  // load of well under one a day.
+  const backlog = await signUp(context, baseURL, "backlog");
+  const notes = { ...deck, id: randomUUID(), user_id: backlog.userId };
+  expect(
+    (await backlog.db.from("decks").insert({ ...notes, created_at: time, updated_at: time })).error,
+  ).toBeNull();
+  const overdue = ["meticulous", "ubiquitous", "candid"].map((word) => ({
+    ...card(word),
+    deck_id: notes.id,
+    user_id: backlog.userId,
+  }));
+  expect((await backlog.db.from("cards").insert(overdue)).error).toBeNull();
+  expect(
+    (
+      await backlog.db.from("card_states").insert(
+        overdue.map((row) => ({
+          ...state(row.id, Date.now() - 31 * day, Date.now() - day, 30),
+          user_id: backlog.userId,
+        })),
+      )
+    ).error,
+  ).toBeNull();
+  await page.goto("/");
+  await expect(page.getByText("다시 시작하면 돼요", { exact: true })).toBeVisible();
+  await capture(page, "home-backlog");
+});
+
+test("gives the browser's bar the sky's colour in the theme the user chose, the ground's from 1024 px, and the root layout's again off 홈", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  await signUp(context, baseURL, "bar");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "첫 노트를 만들어 볼까요?" })).toBeVisible();
+  // The sky's colour, `hero`, in the system's light theme.
+  await expect.poll(() => themeColor(page)).toBe("#2547d0");
+  // 다크 chosen on a light system: the dark sky's, not the system's light one.
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = "dark";
+  });
+  await expect.poll(() => themeColor(page)).toBe("#1a2f78");
+  // 라이트 chosen on a dark system: the light sky's.
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = "light";
+  });
+  await expect.poll(() => themeColor(page)).toBe("#2547d0");
+  // Control: back to the system's, dark, the dark sky's.
+  await page.evaluate(() => {
+    delete document.documentElement.dataset.theme;
+  });
+  await expect.poll(() => themeColor(page)).toBe("#1a2f78");
+  // From 1024 px the sky is in the column: the ground's.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect.poll(() => themeColor(page)).toBe("#111a2e");
+  // Off 홈, by the tab bar, the root layout's colours and no cover come back.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await untilReacted(
+    () =>
+      page
+        .getByRole("navigation", { name: "주 메뉴" })
+        .last()
+        .getByRole("link", { name: "노트" })
+        .click(),
+    async () => (await page.getByRole("heading", { level: 1, name: "노트" }).count()) > 0,
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        [...document.head.querySelectorAll('meta[name="theme-color"]')].map(
+          (meta) => meta.getAttribute("media") ?? "",
+        ),
+      ),
+    )
+    .toEqual(["(prefers-color-scheme: light)", "(prefers-color-scheme: dark)"]);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.querySelector('meta[name="viewport"]')?.getAttribute("content") ?? "",
+      ),
+    )
+    .not.toContain("viewport-fit=cover");
 });
 
 /**

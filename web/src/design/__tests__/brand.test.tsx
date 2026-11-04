@@ -161,16 +161,18 @@ describe("Mascot", () => {
     expect(moving()?.getAttribute("data-eyes")).toBeNull();
   });
 
-  it("moves by its size: still at 40 px, a blink alone from 41 px, everything from 200 px", () => {
+  it("moves by its size: still at 40 px, a blink alone from 41 px, everything from 128 px, 홈's 140 included", () => {
     const sizes: [MascotExpression, number, string | null][] = [
       ["thinking", 40, null],
       ["thinking", 41, "blink"],
-      ["sad", 199, "blink"],
-      ["happy", 199, null],
-      ["sleepy", 199, null],
-      ["thinking", 200, "full"],
-      ["happy", 200, "full"],
-      ["sleepy", 200, "full"],
+      ["sad", 127, "blink"],
+      ["happy", 127, null],
+      ["sleepy", 127, null],
+      ["thinking", 128, "full"],
+      ["happy", 128, "full"],
+      ["sleepy", 128, "full"],
+      ["thinking", 140, "full"],
+      ["sleepy", 140, "full"],
     ];
     for (const [expression, width, motion] of sizes) {
       observers.length = 0;

@@ -2101,10 +2101,10 @@ abstract class AppLocalizations {
   /// **'버전 {version}'**
   String appVersion(String version);
 
-  /// Today card when no card is due or new now; todayStudy is its button.
+  /// Large in 홈's sky under 오늘 once no card is due or new now; todayStudy is its button.
   ///
   /// In ko, this message translates to:
-  /// **'오늘 할 카드를 다 했어요'**
+  /// **'다 했어요'**
   String get todayDone;
 
   /// The today card's button when no card is left today: opens the study screen over every deck, on the new cards past today's or on nothing to study.
@@ -3007,11 +3007,11 @@ abstract class AppLocalizations {
   /// **'홈'**
   String get tabHome;
 
-  /// Today's cards, large on the home's hero.
+  /// A count of cards in 홈's sky under 오늘: large while they are left, the line under 다 했어요 once done.
   ///
   /// In ko, this message translates to:
-  /// **'오늘 {count}장'**
-  String homeToday(int count);
+  /// **'{count}장'**
+  String homeCards(int count);
 
   /// How long today's cards take, under the count.
   ///
@@ -3089,12 +3089,6 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'노트'**
   String get tabNotes;
-
-  /// On 홈's week card, beside the streak: the cards studied over the last seven study days.
-  ///
-  /// In ko, this message translates to:
-  /// **'지난 7일 {count}장'**
-  String lastWeekCards(int count);
 
   /// What a screen reader reads for one of the week card's bars: the day and its cards.
   ///

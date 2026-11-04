@@ -107,7 +107,7 @@ export function TabBarAt({ path }: { path: string | null }) {
   return (
     <nav
       aria-label="주 메뉴"
-      className="fixed inset-x-4 bottom-4 z-10 grid min-h-tab-bar grid-cols-3 rounded-button bg-bar shadow-row lg:hidden"
+      className="fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[max(1rem,env(safe-area-inset-bottom))] left-[max(1rem,env(safe-area-inset-left))] z-10 grid min-h-tab-bar grid-cols-3 rounded-button bg-bar shadow-row lg:hidden"
     >
       {items.map(({ href, label, current }) => {
         const selected = path !== null && current(path);

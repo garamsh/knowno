@@ -6,7 +6,7 @@ import { describeContent, holdsBlank, spokenCells, spokenContent } from "../card
 import type { Card, Deck } from "../library";
 import { CardEditor } from "./card-editor";
 import { SideText } from "./side-text";
-import { EmptyDeck } from "./empty-home";
+import { EmptyDeck } from "./empty-deck";
 import { SearchField } from "@/design/search-field";
 import { HatchedBox, ListedCells } from "./whole-card";
 

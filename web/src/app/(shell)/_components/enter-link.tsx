@@ -7,18 +7,17 @@ import { buttonClass } from "@/design/button";
 
 /**
  * The page's one study button, [label], which opens [href], showing its Enter key from 1024 px
- * wide: in the primary fill across the page's column, or with [onHero] in the hero button's
- * colours, sized to its label, on its edge. Enter opens it from anywhere on the page but a
- * control or a field, which keep their own Enter.
+ * wide: across the page's column in the primary fill, or in [variant]'s, on its edge. Enter opens
+ * it from anywhere on the page but a control or a field, which keep their own Enter.
  */
 export function EnterLink({
   href,
   label,
-  onHero = false,
+  variant = "primary",
 }: {
   href: string;
   label: string;
-  onHero?: boolean;
+  variant?: "primary" | "secondary";
 }) {
   const link = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
@@ -45,7 +44,7 @@ export function EnterLink({
       ref={link}
       href={href}
       aria-keyshortcuts="Enter"
-      className={`${buttonClass(onHero ? "onHero" : "primary", "cta")} w-full ${onHero ? "max-w-56" : ""}`}
+      className={`${buttonClass(variant, "cta")} w-full`}
     >
       {label}
       <kbd

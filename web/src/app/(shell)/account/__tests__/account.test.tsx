@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { EmptyHome } from "@/features/decks";
+import { Mascot } from "@/design/brand";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { supabaseUnreachable, testUser } from "@/testing/mocks/handlers";
 import { server } from "@/testing/mocks/server";
@@ -114,8 +114,8 @@ describe("the account page", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "설정" })).toBeInTheDocument();
     expect(container.querySelector(mascot)).toBeNull();
-    // Control: the selector finds the mascot where the first-run home draws it.
-    const firstRun = await render(EmptyHome, {});
+    // Control: the selector finds the thinking mascot where one is drawn.
+    const firstRun = await render(() => <Mascot expression="thinking" className="" />, {});
     expect(firstRun.container.querySelector(mascot)).not.toBeNull();
     firstRun.unmount();
 
