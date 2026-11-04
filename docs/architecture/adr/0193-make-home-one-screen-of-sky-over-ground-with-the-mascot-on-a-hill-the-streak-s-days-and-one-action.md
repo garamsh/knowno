@@ -32,6 +32,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - The happy mascot has no moment on 홈; the sleepy one gains 홈's done day.
 - Two colour tokens join both themes: `todayMark`, the mascot's coral, and `todayText`, 4.5:1 on the ground. Coral, the mascot's alone until now, also marks today on 홈.
 - The phone's 홈 and the web's draw every state in one composition, so a later state is drawn in it too.
+- With the week card's dashed day gone, `DashedOutline` serves study alone, so it moves from `app/lib/design/` into `app/lib/study/src/`, as [`structure.md`](../structure.md) keeps a piece one domain uses in it.
 
 ## Signs the decision was wrong
 

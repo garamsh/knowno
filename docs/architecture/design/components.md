@@ -31,7 +31,7 @@ A screen draws each job through the component named here, not from Material widg
 | A section label over a group | `AppSectionLabel` | `Section` |
 | A chip, status or action | `AppChip`, `AppChip.action`; tones `AppChipTone`, `knowTint` the green tint 기록's gain draws | `Chip`, in `AppChipTone`'s tones and `knowTint` |
 | What study hides, in a card list's row | `HatchedBox` (`deck`), on `AppHatch` | the `hatch` utility |
-| An outline that is not an object, a place to come | `DashedOutline`: study's place for the previous card | per site |
+| An outline that is not an object, a place to come | `DashedOutline` (`study`, which alone draws one since 홈's week card went, ADR 0193): its place for the previous card | per site |
 | A read failure with "다시 시도" | `ListMessage` (`sharing`), in place of browse's decks and a public deck's cards | `ReadFailureMessage`, a sentence over "다시 시도" (`RetryButton`), a way to sign in, or nothing more |
 | A skeleton while content loads | `AppRowSurface` rows (photo import) | `Skeleton`, `SkeletonLine` |
 | A figure or label fitted to a narrow column | `FittedBox` with `BoxFit.scaleDown` | `FittedLine` |

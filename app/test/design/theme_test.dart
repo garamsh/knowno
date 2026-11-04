@@ -338,13 +338,15 @@ void main() {
     final sources = _appSources();
     // Control: the expression finds DashedOutline's own dashes.
     expect(
-      dash.hasMatch(sources['lib/design/dashed_outline.dart'] ?? ''),
+      dash.hasMatch(sources['lib/study/src/dashed_outline.dart'] ?? ''),
       isTrue,
     );
 
     expect([
       for (final MapEntry(key: path, value: source) in sources.entries)
-        if (!path.startsWith('lib/design/') && dash.hasMatch(source)) path,
+        if (path != 'lib/study/src/dashed_outline.dart' &&
+            dash.hasMatch(source))
+          path,
     ], isEmpty);
   });
 
