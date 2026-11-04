@@ -37,7 +37,7 @@ enum _Motion {
   /// Blinks, and a thinking one glances about: from 41 to 199 across.
   blink,
 
-  /// Blinks and breathes, or hops, or dozes: 200 across and more.
+  /// Blinks and breathes, or wobbles, or dozes: 200 across and more.
   full;
 
   /// What a mascot of [expression] [size] across does, or null if it holds
@@ -53,10 +53,10 @@ enum _Motion {
 /// from screen readers.
 ///
 /// It moves inside its own layer, drawn from the parts `make brand` writes
-/// (ADR 0152): at 200 and more it blinks and breathes, the happy one hops and
-/// the sleepy one dozes; from 41 to 199 it only blinks. At 40 or less, under
-/// reduce motion, and where its expression has nothing to move at its size,
-/// it is the still image.
+/// (ADR 0152): at 200 and more it blinks and breathes, the happy one wobbles
+/// (ADR 0185) and the sleepy one dozes; from 41 to 199 it only blinks. At 40
+/// or less, under reduce motion, and where its expression has nothing to move
+/// at its size, it is the still image.
 class Mascot extends StatelessWidget {
   const Mascot({super.key, required this.expression, required this.size});
 
@@ -157,9 +157,8 @@ final class MascotPose {
   const MascotPose({
     this.width = 1,
     this.height = 1,
-    this.rise = 0,
+    this.feet = _feet,
     this.armsTurn = 0,
-    this.armsRise = 0,
     this.zz = Offset.zero,
     this.zzOpacity = 1,
     this.eyeHeight = 1,
@@ -171,12 +170,15 @@ final class MascotPose {
   /// The drawing as it stands still.
   static const still = MascotPose();
 
-  /// The whole drawing's scale about its feet, and how far it is lifted.
-  final double width, height, rise;
+  /// The drawing's scale about [feet], all but its ground.
+  final double width, height;
 
-  /// The happy mascot's arms: their turn in radians about their root, and how
-  /// far they are lifted.
-  final double armsTurn, armsRise;
+  /// The point, in units of the 1024 drawing, the drawing scales about.
+  final Offset feet;
+
+  /// The happy mascot's left arm's turn in radians about its shoulder; the
+  /// right arm turns the other way.
+  final double armsTurn;
 
   /// The sleepy mascot's Z's: how far they have drifted, and how opaque they
   /// are.
@@ -203,9 +205,9 @@ final class MascotPose {
     Duration since = Duration.zero,
   }) {
     final seconds = time.inMicroseconds / Duration.microsecondsPerSecond;
-    final (width, height, rise, armsTurn, armsRise, zz, zzOpacity) = full
+    final (width, height, feet, armsTurn, zz, zzOpacity) = full
         ? _loop(expression, seconds)
-        : (1.0, 1.0, 0.0, 0.0, 0.0, Offset.zero, 1.0);
+        : (1.0, 1.0, _feet, 0.0, Offset.zero, 1.0);
     final ms = since.inMicroseconds / Duration.microsecondsPerMillisecond;
     final (eyeHeight, eyesOpen, lid) = switch (gesture) {
       MascotBlink(:final hold, :final twice) => _blink(
@@ -223,9 +225,8 @@ final class MascotPose {
     return MascotPose(
       width: width,
       height: height,
-      rise: rise,
+      feet: feet,
       armsTurn: armsTurn,
-      armsRise: armsRise,
       zz: zz,
       zzOpacity: zzOpacity,
       eyeHeight: eyeHeight,
@@ -286,6 +287,20 @@ double _keyed(double at, List<(double, double)> keys, Curve curve) {
   return keys.last.$2;
 }
 
+/// The value at [at], a share of a loop, between [keys] of (share, value,
+/// curve), each eased by its own curve to the next, as CSS eases between
+/// keyframes.
+double _keyedEach(double at, List<(double, double, Curve)> keys) {
+  for (var i = 1; i < keys.length; i++) {
+    final (end, to, _) = keys[i];
+    if (at <= end) {
+      final (start, from, curve) = keys[i - 1];
+      return from + (to - from) * curve.transform((at - start) / (end - start));
+    }
+  }
+  return keys.last.$2;
+}
+
 /// A breath to [width] by [height] and back over [period] seconds.
 (double, double) _breath(
   double seconds,
@@ -300,18 +315,30 @@ double _keyed(double at, List<(double, double)> keys, Curve curve) {
   );
 }
 
-const _hopCurve = Cubic(0.3, 0.6, 0.4, 1);
+/// Where a breath scales the drawing about: under its feet.
+const _feet = Offset(512, 960);
 
-/// Each expression's loop [seconds] in: a breath, the happy one's hop with
-/// its arms up, and the sleepy one's deeper breath with its Z's drifting up.
-(double, double, double, double, double, Offset, double) _loop(
+/// Where the happy drawing's wobble scales it about: under its feet, the foot
+/// of its tilted body's box in the 1024 drawing.
+const _happyFeet = Offset(502.8, 860.8);
+
+/// The happy wobble's curves, the reference's cubic-bezier()s: a settle in
+/// and out, and the spring out of the squash.
+const _settle = Cubic(0.45, 0, 0.55, 1);
+const _spring = Cubic(0.2, 0.9, 0.3, 1.25);
+const _armSpring = Cubic(0.2, 0.9, 0.3, 1.3);
+
+/// Each expression's loop [seconds] in: a breath, the happy one's wobble with
+/// its arms swinging, and the sleepy one's deeper breath with its Z's drifting
+/// up.
+(double, double, Offset, double, Offset, double) _loop(
   MascotExpression expression,
   double seconds,
 ) {
   switch (expression) {
     case MascotExpression.thinking || MascotExpression.sad:
       final (width, height) = _breath(seconds, 3, 1.012, 0.982);
-      return (width, height, 0, 0, 0, Offset.zero, 1);
+      return (width, height, _feet, 0, Offset.zero, 1);
     case MascotExpression.sleepy:
       final (width, height) = _breath(seconds, 4.2, 1.02, 0.97);
       final at = seconds % 4.2 / 4.2;
@@ -319,26 +346,37 @@ const _hopCurve = Cubic(0.3, 0.6, 0.4, 1);
       return (
         width,
         height,
-        0,
-        0,
+        _feet,
         0,
         Offset.lerp(const Offset(-20, 30), const Offset(10, -40), drift)!,
         _keyed(at, [(0, 0), (0.3, 1), (0.7, 1), (1, 0)], Curves.easeInOut),
       );
     case MascotExpression.happy:
-      final at = seconds % 1.6 / 1.6;
-      double hop(List<double> values) => _keyed(at, [
-        for (final (i, share) in [0.0, 0.12, 0.3, 0.48, 0.6, 1.0].indexed)
-          (share, values[i]),
-      ], _hopCurve);
-      double wave(double up) =>
-          _keyed(at, [(0, 0), (0.3, up), (0.6, 0), (1, 0)], Curves.easeInOut);
+      final at = seconds % 1.8 / 1.8;
+      double wobble(List<double> values) => _keyedEach(at, [
+        (0, values[0], _settle),
+        (0.11, values[1], _spring),
+        (0.26, values[2], _settle),
+        (0.37, values[3], _settle),
+        (0.46, values[4], _settle),
+        (0.54, values[5], _settle),
+        (0.61, 1, Curves.ease),
+        (1, 1, Curves.ease),
+      ]);
+      final degrees = _keyedEach(at, [
+        (0, 0, _settle),
+        (0.12, -10, _armSpring),
+        (0.28, 14, _settle),
+        (0.4, -4, _settle),
+        (0.52, 2, Curves.ease),
+        (0.62, 0, Curves.ease),
+        (1, 0, Curves.ease),
+      ]);
       return (
-        hop([1, 1.04, 0.98, 1.03, 1, 1]),
-        hop([1, 0.95, 1.03, 0.97, 1, 1]),
-        hop([0, 0, -46, 0, 0, 0]),
-        wave(-3 * math.pi / 180),
-        wave(-14),
+        wobble([1, 1.12, 0.91, 1.06, 0.97, 1.015]),
+        wobble([1, 0.85, 1.11, 0.95, 1.03, 0.99]),
+        _happyFeet,
+        degrees * math.pi / 180,
         Offset.zero,
         1,
       );
@@ -473,7 +511,7 @@ class _MovingMascotState extends State<_MovingMascot>
 
 /// What moves a shape of the drawing, as its class names it in
 /// `tools/brand/`.
-enum _Move { eye, pupil, lid, arms, zz }
+enum _Move { ground, eye, pupil, lid, arms, zz }
 
 /// One shape of the drawing, as `make brand` writes it: an oval or a path of
 /// absolute M, L, H, V, C, Q and Z commands, filled, stroked or both, under
@@ -594,23 +632,32 @@ class _MascotPainter extends CustomPainter {
   final List<_Shape> shapes;
   final ValueListenable<MascotPose> pose;
 
-  /// Where the whole drawing stands, and the happy one's arms meet its body.
-  static const _feet = Offset(512, 960);
-  static const _shoulders = Offset(512, 640);
+  /// Where the happy one's left and right arm turn: 92% and 8% across each
+  /// arm's own box and 79% down it, as the web's `transform-origin`s.
+  static const _shoulders = [
+    Offset(151.258, 703.374),
+    Offset(872.742, 703.374),
+  ];
 
   @override
   void paint(Canvas canvas, Size size) {
     final now = pose.value;
+    final feet = now.feet;
+    var arm = 0;
     canvas
       ..save()
-      ..scale(size.width / 1024)
-      ..translate(_feet.dx, _feet.dy + now.rise)
-      ..scale(now.width, now.height)
-      ..translate(-_feet.dx, -_feet.dy);
+      ..scale(size.width / 1024);
     for (final shape in shapes) {
       final (path, matrix) = _build(shape);
       var opacity = 1.0;
       canvas.save();
+      // The ground stays put while the drawing above it moves.
+      if (shape.move != _Move.ground) {
+        canvas
+          ..translate(feet.dx, feet.dy)
+          ..scale(now.width, now.height)
+          ..translate(-feet.dx, -feet.dy);
+      }
       if (matrix != null) canvas.transform(matrix.storage);
       switch (shape.move) {
         case _Move.eye || _Move.pupil:
@@ -629,15 +676,16 @@ class _MascotPainter extends CustomPainter {
         case _Move.lid:
           opacity = now.lid;
         case _Move.arms:
+          final shoulder = _shoulders[arm];
           canvas
-            ..translate(_shoulders.dx, _shoulders.dy)
-            ..rotate(now.armsTurn)
-            ..translate(0, now.armsRise)
-            ..translate(-_shoulders.dx, -_shoulders.dy);
+            ..translate(shoulder.dx, shoulder.dy)
+            ..rotate(arm == 0 ? now.armsTurn : -now.armsTurn)
+            ..translate(-shoulder.dx, -shoulder.dy);
+          arm++;
         case _Move.zz:
           canvas.translate(now.zz.dx, now.zz.dy);
           opacity = now.zzOpacity;
-        case null:
+        case _Move.ground || null:
       }
       if (opacity > 0) {
         if (shape.fill case final fill?) {

@@ -133,6 +133,20 @@ describe("Mascot", () => {
     expect(svg?.getAttribute("data-eyes")).toBeNull();
   });
 
+  it("at 200 px wobbles the happy one inside the group that moves, its ground ticks outside it", () => {
+    mascot("happy");
+    show(200);
+
+    const svg = moving();
+    expect(svg?.getAttribute("data-motion")).toBe("full");
+    const tick = svg?.querySelector('path[d="M222 908L204 950"]');
+    // Control: the tick is drawn, and the arms move inside the group.
+    expect(tick).not.toBeNull();
+    expect(svg?.querySelector(".breath .arms")).not.toBeNull();
+    expect(tick?.closest(".breath")).toBeNull();
+    expect(svg?.querySelectorAll(".ground path")).toHaveLength(4);
+  });
+
   it("holds a sad blink for 160 ms", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.5);
     mascot("sad");

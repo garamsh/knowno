@@ -199,7 +199,7 @@ const withLids = (nodes) =>
     ];
   });
 
-/** Each expression's drawing, its moving parts named by class: eye, pupil, lid, arms and zz. */
+/** Each expression's drawing, its moving parts named by class: eye, pupil, lid, arms and zz, and its still ground. */
 const parts = Object.fromEntries(
   ["thinking", "happy", "sad", "sleepy"].map((name) => [
     name,
@@ -217,13 +217,19 @@ const markup = (nodes) =>
     })
     .join("");
 
-/** The web's parts: each drawing inside the group that breathes, as markup for an inline SVG. */
+/** Whether [node] is the ground under the drawing, which stays still while the drawing moves. */
+const isGround = (node) => node.attrs.class === "ground";
+
+/** The web's parts: each drawing's ground, then the rest inside the group that breathes, as markup for an inline SVG. */
 const webParts = `// Written by tools/brand/generate.mjs from the drawings in tools/brand/; run make brand after changing one.
 
 ${Object.entries(parts)
-  .map(([name, nodes]) => `const ${name} =\n  '<g class="breath">${markup(nodes)}</g>';\n`)
+  .map(
+    ([name, nodes]) =>
+      `const ${name} =\n  '${markup(nodes.filter(isGround))}<g class="breath">${markup(nodes.filter((node) => !isGround(node)))}</g>';\n`,
+  )
   .join("\n")}
-/** Each expression's drawing on a 1024 square, inside the group that breathes, its moving parts named by class. */
+/** Each expression's drawing on a 1024 square, its ground still and the rest inside the group that breathes, its moving parts named by class. */
 export const mascotDrawings = { ${Object.keys(parts).join(", ")} };
 `;
 

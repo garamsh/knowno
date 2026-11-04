@@ -629,13 +629,23 @@
   .mascot[data-motion="full"][data-expression="sleepy"] .zz {
     animation: mascot-zz 4.2s ease-in-out infinite;
   }
+  /* The happy one wobbles about the foot of its tilted body's box, its ground ticks outside the
+     group, and each arm swings about its own shoulder, the right one the other way. */
   .mascot[data-motion="full"][data-expression="happy"] .breath {
-    animation: mascot-hop 1.6s cubic-bezier(0.3, 0.6, 0.4, 1) infinite;
+    transform-origin: 502.8px 860.8px;
+    animation: mascot-wobble 1.8s infinite;
   }
-  .mascot[data-motion="full"][data-expression="happy"] .arms {
-    transform-box: view-box;
-    transform-origin: 512px 640px;
-    animation: mascot-arms 1.6s ease-in-out infinite;
+  .mascot[data-motion="full"][data-expression="happy"] .arms > path {
+    transform-box: fill-box;
+    animation: mascot-wobble-arm 1.8s infinite;
+  }
+  .mascot[data-motion="full"][data-expression="happy"] .arms > path:first-child {
+    --arm: 1;
+    transform-origin: 92% 79%;
+  }
+  .mascot[data-motion="full"][data-expression="happy"] .arms > path:last-child {
+    --arm: -1;
+    transform-origin: 8% 79%;
   }
 }
 @keyframes mascot-breath {
@@ -648,30 +658,59 @@
     transform: scale(1.02, 0.97);
   }
 }
-@keyframes mascot-hop {
-  0%,
-  60%,
+@keyframes mascot-wobble {
+  0% {
+    transform: scale(1, 1);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  11% {
+    transform: scale(1.12, 0.85);
+    animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1.25);
+  }
+  26% {
+    transform: scale(0.91, 1.11);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  37% {
+    transform: scale(1.06, 0.95);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  46% {
+    transform: scale(0.97, 1.03);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  54% {
+    transform: scale(1.015, 0.99);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  61%,
   100% {
-    transform: translateY(0) scale(1, 1);
-  }
-  12% {
-    transform: translateY(0) scale(1.04, 0.95);
-  }
-  30% {
-    transform: translateY(-46px) scale(0.98, 1.03);
-  }
-  48% {
-    transform: translateY(0) scale(1.03, 0.97);
+    transform: scale(1, 1);
   }
 }
-@keyframes mascot-arms {
-  0%,
-  60%,
-  100% {
-    transform: rotate(0) translateY(0);
+@keyframes mascot-wobble-arm {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
   }
-  30% {
-    transform: rotate(-3deg) translateY(-14px);
+  12% {
+    transform: rotate(calc(var(--arm) * -10deg));
+    animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  }
+  28% {
+    transform: rotate(calc(var(--arm) * 14deg));
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  40% {
+    transform: rotate(calc(var(--arm) * -4deg));
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  52% {
+    transform: rotate(calc(var(--arm) * 2deg));
+  }
+  62%,
+  100% {
+    transform: rotate(0deg);
   }
 }
 @keyframes mascot-zz {

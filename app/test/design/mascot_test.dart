@@ -394,18 +394,102 @@ void main() {
       final deepest = at(expression, period / 2);
       expect(deepest.width, closeTo(width, 1e-9), reason: '$expression');
       expect(deepest.height, closeTo(height, 1e-9), reason: '$expression');
-      expect(deepest.rise, 0, reason: '$expression');
       expect(at(expression, period).height, closeTo(1, 1e-9));
     }
     final sleepy = at(MascotExpression.sleepy, 0);
     expect(sleepy.zzOpacity, 0);
     expect(at(MascotExpression.sleepy, 2.1).zzOpacity, 1);
+  });
 
-    final top = at(MascotExpression.happy, 0.3 * 1.6);
-    expect(top.rise, closeTo(-46, 1e-9));
-    expect(top.armsRise, closeTo(-14, 1e-9));
-    expect(at(MascotExpression.happy, 0.12 * 1.6).height, closeTo(0.95, 1e-9));
-    expect(at(MascotExpression.happy, 0.48 * 1.6).height, closeTo(0.97, 1e-9));
-    expect(at(MascotExpression.happy, 1.6).rise, closeTo(0, 1e-9));
+  test('the happy one wobbles on 1.8 s: squashed, stretched, settling by '
+      '0.61 and still to the loop\'s end, its arms swinging after', () {
+    MascotPose at(double share) => MascotPose.at(
+      MascotExpression.happy,
+      full: true,
+      time: Duration(microseconds: (share * 1.8 * 1e6).round()),
+    );
+    for (final (share, width, height) in [
+      (0.0, 1.0, 1.0),
+      (0.11, 1.12, 0.85),
+      (0.26, 0.91, 1.11),
+      (0.37, 1.06, 0.95),
+      (0.46, 0.97, 1.03),
+      (0.54, 1.015, 0.99),
+      (0.61, 1.0, 1.0),
+      (0.8, 1.0, 1.0),
+      (1.0, 1.0, 1.0),
+    ]) {
+      final pose = at(share);
+      expect(pose.width, closeTo(width, 1e-6), reason: 'width at $share');
+      expect(pose.height, closeTo(height, 1e-6), reason: 'height at $share');
+    }
+    for (final (share, degrees) in [
+      (0.0, 0.0),
+      (0.12, -10.0),
+      (0.28, 14.0),
+      (0.4, -4.0),
+      (0.52, 2.0),
+      (0.62, 0.0),
+      (0.9, 0.0),
+    ]) {
+      expect(
+        at(share).armsTurn,
+        closeTo(degrees * pi / 180, 1e-3),
+        reason: 'arms at $share',
+      );
+    }
+    // Between keys it follows the reference's curves: the stretch out of
+    // the squash overshoots on cubic-bezier(.2, .9, .3, 1.25).
+    expect(
+      at(0.11 + 0.15 * 0.8).height,
+      greaterThan(1.11),
+      reason: 'the stretch overshoots before it settles at 0.26',
+    );
+  });
+
+  testWidgets('the happy one\'s ground ticks stay still while it squashes, '
+      'against its body, which moves', (tester) async {
+    const key = Key('happy');
+    await pumpComponent(
+      tester,
+      const RepaintBoundary(
+        key: key,
+        child: Mascot(expression: MascotExpression.happy, size: 400),
+      ),
+      settle: false,
+    );
+    expect(_asset(tester), isNull, reason: 'setup: it moves');
+    final rest = await _painted(tester, key);
+    // The deepest squash, 0.11 into the 1.8 s loop.
+    await tester.pump(const Duration(milliseconds: 198));
+    final squashed = await _painted(tester, key);
+
+    img.Image crop(img.Image image, Rect units) {
+      final scale = image.width / 1024;
+      return img.copyCrop(
+        image,
+        x: (units.left * scale).round(),
+        y: (units.top * scale).round(),
+        width: (units.width * scale).round(),
+        height: (units.height * scale).round(),
+      );
+    }
+
+    for (final ticks in [
+      const Rect.fromLTRB(190, 896, 274, 978),
+      const Rect.fromLTRB(758, 900, 842, 982),
+    ]) {
+      expect(
+        _difference(crop(rest, ticks), crop(squashed, ticks)),
+        0,
+        reason: 'the ticks at $ticks stay still',
+      );
+    }
+    const body = Rect.fromLTRB(300, 120, 720, 300);
+    expect(
+      _difference(crop(rest, body), crop(squashed, body)),
+      greaterThan(1),
+      reason: 'control: the body squashes',
+    );
   });
 }

@@ -104,24 +104,28 @@ const _drawings = {
       stroke: Color(0xFFFB7262),
       width: 16,
       cap: StrokeCap.round,
+      move: _Move.ground,
     ),
     _Shape(
       d: 'M262 926L252 966',
       stroke: Color(0xFFFB7262),
       width: 16,
       cap: StrokeCap.round,
+      move: _Move.ground,
     ),
     _Shape(
       d: 'M770 930L784 970',
       stroke: Color(0xFFFB7262),
       width: 16,
       cap: StrokeCap.round,
+      move: _Move.ground,
     ),
     _Shape(
       d: 'M808 912L830 952',
       stroke: Color(0xFFFB7262),
       width: 16,
       cap: StrokeCap.round,
+      move: _Move.ground,
     ),
     _Shape(
       oval: (348, 950, 80, 40),
