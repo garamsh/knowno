@@ -126,7 +126,7 @@ void main() {
   }
 
   Future<void> enterText(WidgetTester tester, String label, String text) =>
-      tester.enterText(find.widgetWithText(AppTextField, label), text);
+      tester.enterText(widgetWithShownText(AppTextField, label), text);
 
   /// A new card's front field, its first Text block.
   final front = find.byType(TextField).at(0);
@@ -334,7 +334,7 @@ void main() {
       expect(shownText('Browse public notes'), findsNothing);
       await tester.tap(shownText('Create a note'));
       await tester.pumpAndSettle();
-      expect(find.widgetWithText(AppTextField, 'Note name'), findsOneWidget);
+      expect(widgetWithShownText(AppTextField, 'Note name'), findsOneWidget);
       await unmountApp(tester);
 
       await pumpApp(
@@ -907,7 +907,7 @@ void main() {
 
         // A search typed in the field under the top bar.
         await tester.enterText(
-          find.widgetWithText(AppTextField, 'Search'),
+          widgetWithShownText(AppTextField, 'Search'),
           'ch',
         );
         await tester.pumpAndSettle();

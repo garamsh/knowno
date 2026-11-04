@@ -5,6 +5,7 @@ import 'package:knowno/design/theme.dart';
 
 import '../contrast.dart';
 import 'harness.dart';
+import '../word_breaks.dart';
 
 void main() {
   for (final MapEntry(key: mode, value: colors) in themeModes.entries) {
@@ -23,7 +24,7 @@ void main() {
         );
 
         final field = tester.getRect(find.byType(TextField));
-        expect(tester.getRect(find.text('Name')).bottom, lessThan(field.top));
+        expect(tester.getRect(shownText('Name')).bottom, lessThan(field.top));
         expect(find.text('A short name'), findsOneWidget);
         expect(
           tester.getRect(find.text('Enter a name')).top,

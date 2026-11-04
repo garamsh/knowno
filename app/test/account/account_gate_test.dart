@@ -178,7 +178,7 @@ void main() {
   Future<void> createAndOpenDeck(WidgetTester tester) async {
     await tapAndSettle(tester, shownText('Create a note'));
     await tester.enterText(
-      find.widgetWithText(AppTextField, 'Note name'),
+      widgetWithShownText(AppTextField, 'Note name'),
       'French',
     );
     await tapAndSettle(tester, shownText('Save'));

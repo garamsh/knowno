@@ -447,7 +447,7 @@ void main() {
       await shot(tester, '07e-card-list-largest-text');
       tester.platformDispatcher.clearTextScaleFactorTestValue();
       await tester.pumpAndSettle();
-      final cardSearch = find.widgetWithText(AppTextField, ko.searchCards);
+      final cardSearch = widgetWithShownText(AppTextField, ko.searchCards);
       await tester.enterText(cardSearch, 'ent');
       await tester.pumpAndSettle();
       await shot(tester, '07c-card-search');
@@ -1160,7 +1160,7 @@ void main() {
       }
 
       Future<void> fill(String label, String text, [int index = 0]) async {
-        final field = find.widgetWithText(AppTextField, label).at(index);
+        final field = widgetWithShownText(AppTextField, label).at(index);
         await reveal(field);
         await tester.enterText(field, text);
         await tester.pumpAndSettle();
@@ -2545,7 +2545,7 @@ void main() {
       await tap(tester, shownText(ko.publish));
       await shot(tester, '26-publish-sheet');
       await tester.enterText(
-        find.widgetWithText(AppTextField, ko.displayName),
+        widgetWithShownText(AppTextField, ko.displayName),
         '아다',
       );
       await tap(

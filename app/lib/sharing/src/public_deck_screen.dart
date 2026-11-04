@@ -41,6 +41,11 @@ class _PublicDeckScreenState extends State<PublicDeckScreen> {
     final colors = AppColors.of(context);
     final deck = widget.deck;
     final description = deck.description;
+    final deckLine = l10n.publicDeckLine(
+      deck.ownerName.value,
+      deck.cardCount,
+      deck.copyCount,
+    );
     return Scaffold(
       appBar: AppBar(
         actions: [
@@ -74,16 +79,17 @@ class _PublicDeckScreenState extends State<PublicDeckScreen> {
           ),
           const SizedBox(height: AppSpace.s4),
           Text(
-            l10n.publicDeckLine(
-              deck.ownerName.value,
-              deck.cardCount,
-              deck.copyCount,
-            ),
+            keepWords(deckLine),
+            semanticsLabel: deckLine,
             style: AppType.secondary.copyWith(color: colors.muted),
           ),
           if (description != null && description.isNotEmpty) ...[
             const SizedBox(height: AppSpace.s12),
-            Text(description, style: AppType.body),
+            Text(
+              keepWords(description),
+              semanticsLabel: description,
+              style: AppType.body,
+            ),
           ],
           const SizedBox(height: AppSpace.s24),
           FutureBuilder(

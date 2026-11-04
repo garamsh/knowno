@@ -127,10 +127,10 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Finder field() => find.widgetWithText(AppTextField, '노트 이름');
+  Finder field() => widgetWithShownText(AppTextField, '노트 이름');
 
   /// The label of the name field, not the preview's placeholder.
-  Finder label() => find.descendant(of: field(), matching: find.text('노트 이름'));
+  Finder label() => find.descendant(of: field(), matching: shownText('노트 이름'));
 
   /// The white group holding [finder].
   Rect groupOf(WidgetTester tester, Finder finder) => tester.getRect(

@@ -78,7 +78,7 @@ void main() {
 
     await tapAndSettle(tester, 'Create a note');
     await tester.enterText(
-      find.widgetWithText(AppTextField, 'Note name'),
+      widgetWithShownText(AppTextField, 'Note name'),
       'French',
     );
     // Saving 새 노트 makes the deck and opens it.

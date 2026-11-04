@@ -78,7 +78,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await app.tapText('New note');
-      expect(find.widgetWithText(AppTextField, 'Note name'), findsOneWidget);
+      expect(widgetWithShownText(AppTextField, 'Note name'), findsOneWidget);
       await app.close();
     },
   );

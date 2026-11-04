@@ -46,13 +46,13 @@ void main() {
 
       await app.deckMenu('Publish');
       expect(shownText('Publish "French"'), findsOneWidget);
-      expect(find.widgetWithText(AppTextField, 'Public name'), findsOneWidget);
+      expect(widgetWithShownText(AppTextField, 'Public name'), findsOneWidget);
       await tester.enterText(
-        find.widgetWithText(AppTextField, 'Public name'),
+        widgetWithShownText(AppTextField, 'Public name'),
         'Ada',
       );
       await tester.enterText(
-        find.widgetWithText(AppTextField, 'Description (optional)'),
+        widgetWithShownText(AppTextField, 'Description (optional)'),
         'Cats',
       );
       await tester.pump();
@@ -89,13 +89,13 @@ void main() {
       );
 
       await tester.enterText(
-        find.widgetWithText(AppTextField, 'Public name'),
+        widgetWithShownText(AppTextField, 'Public name'),
         'A',
       );
       await app.tap(widgetWithShownText(FilledButton, 'Publish'));
       expect(find.text('Use 2 to 20 characters'), findsOneWidget);
       await tester.enterText(
-        find.widgetWithText(AppTextField, 'Public name'),
+        widgetWithShownText(AppTextField, 'Public name'),
         'a' * 21,
       );
       await app.tap(widgetWithShownText(FilledButton, 'Publish'));
@@ -105,7 +105,7 @@ void main() {
 
       // Control: a valid name publishes.
       await tester.enterText(
-        find.widgetWithText(AppTextField, 'Public name'),
+        widgetWithShownText(AppTextField, 'Public name'),
         'Ad',
       );
       await app.tap(widgetWithShownText(FilledButton, 'Publish'));
@@ -124,7 +124,7 @@ void main() {
       );
       await app.deckMenu('Publish');
       await tester.enterText(
-        find.widgetWithText(AppTextField, 'Description (optional)'),
+        widgetWithShownText(AppTextField, 'Description (optional)'),
         // 151 characters the field counts once each, of two code points each.
         '👍🏽' * 151,
       );
@@ -148,7 +148,7 @@ void main() {
     );
     await app.deckMenu('Publish');
 
-    expect(find.widgetWithText(AppTextField, 'Public name'), findsNothing);
+    expect(widgetWithShownText(AppTextField, 'Public name'), findsNothing);
     await app.tap(
       shownText("I won't publish inappropriate or copyrighted content"),
     );
@@ -263,7 +263,7 @@ void main() {
         await app.tapText('Publish');
         await app.meetsGuidelines();
         await tester.enterText(
-          find.widgetWithText(AppTextField, 'Public name'),
+          widgetWithShownText(AppTextField, 'Public name'),
           'A',
         );
         await app.tap(
@@ -272,7 +272,7 @@ void main() {
         await app.tap(widgetWithShownText(FilledButton, 'Publish'));
         await app.meetsGuidelines();
         await tester.enterText(
-          find.widgetWithText(AppTextField, 'Public name'),
+          widgetWithShownText(AppTextField, 'Public name'),
           'Ada',
         );
         await app.tap(widgetWithShownText(FilledButton, 'Publish'));
