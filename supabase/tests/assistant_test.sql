@@ -5,9 +5,12 @@
 -- budget set; every write recorded; configurations append-only; no client reaching the tables or
 -- the service functions; and both reverts.
 begin;
-select plan(97);
+select plan(96);
 
 delete from private.admin_audit;
+-- The card-form skills' migration gives each plan a draft sending prompt v2, which
+-- card_form_skills_test.sql tests; this file tests the assistant without them.
+delete from private.assistant_configuration_labels where label = 'test';
 
 -- A is an admin, so on 스페셜; B is on Free; both from long ago.
 insert into auth.users (id, email, created_at) values
@@ -95,10 +98,8 @@ select results_eq(
     order by array_position(array['free', 'pro', 'max', 'special'], plan)$$,
   $$values ('free', 10), ('pro', 100), ('max', 300), ('special', null::integer)$$,
   'the message limits stay as they were, for the revert');
-select is((select count(*) from private.assistant_configuration_labels where label = 'test'),
-  0::bigint, 'no plan has an assistant draft');
-select is((select count(*) from private.assistant_prompts), 1::bigint,
-  'the first prompt is the one assistant prompt');
+select is((select count(*) from private.assistant_prompts), 2::bigint,
+  'the first prompt and v2 are the assistant prompts');
 
 -- No client reaches the tables or the service functions.
 
@@ -302,6 +303,8 @@ select isnt(public.admin_save_assistant_prompt('Be kind.', ' v2 '), null,
 select results_eq(
   $$select left(text, 12), note, created_by_email, labels from public.admin_assistant_prompts()$$,
   $$values ('Be kind.', 'v2', 'admin@example.com', '{}'::text[]),
+    ('You are 말랑이,', '말랑이 assistant prompt v2, its working order and card forms (#751)', null,
+      '{}'::text[]),
     ('You are 말랑이,', '말랑이 assistant prompt v1 (#713)', null, '{active}'::text[])$$,
   'the prompts list newest first, the new one serving no one');
 reset role;

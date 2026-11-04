@@ -1,6 +1,8 @@
 // The assistant end to end, with Supabase Auth, PostgREST, its functions, Vault and the providers
 // replaced by an in-memory fake that applies row-level security's owner rule. No network.
 import assert from "node:assert/strict";
+import { cardFormSkills, FORMS } from "../_shared/card_forms.ts";
+import { SEED } from "../_shared/card_forms_seed.ts";
 import {
   BYTES_PER_TOKEN,
   createHandler,
@@ -59,6 +61,10 @@ type Fake = {
   replies: ((body: Row, signal: AbortSignal) => Response)[];
   requests: Row[];
   writes: { method: string; table: string; body: unknown }[];
+  /** What `card_form_skills` answers the caller: one served version of each form. */
+  skills: Row[];
+  /** Whether `card_form_skills` answers 500. */
+  skillsDown: boolean;
 };
 
 function seed(): Fake {
@@ -119,6 +125,13 @@ function seed(): Fake {
     replies: [],
     requests: [],
     writes: [],
+    skills: FORMS.map((form, index) => ({
+      form,
+      version_id: index + 1,
+      summary: SEED[form].summary,
+      text: SEED[form].text,
+    })),
+    skillsDown: false,
   };
 }
 
@@ -221,6 +234,16 @@ function fakeFetch(fake: Fake): typeof fetch {
       return user !== undefined && fake.admins.has(user)
         ? Response.json(true)
         : Response.json({ code: "42501" }, { status: 403 });
+    }
+    if (rpc === "card_form_skills") {
+      // Called as the user, as the tools read.
+      assert.equal(headers.get("apikey"), "anon-key");
+      if (TOKENS[bearer] === undefined) {
+        return Response.json({ code: "PGRST301" }, { status: 401 });
+      }
+      return fake.skillsDown
+        ? Response.json({ code: "XX000" }, { status: 500 })
+        : Response.json(fake.skills);
     }
     if (rpc !== undefined) {
       assert.equal(bearer, "service-role-key");
@@ -385,6 +408,7 @@ function handlerOf(
     random: (bytes) => new Uint8Array(bytes).fill(7),
     resolve: () => Promise.resolve(["93.184.216.34"]),
     timeout: clocks.timeout ?? (() => new AbortController().signal),
+    skills: cardFormSkills(() => clock),
   });
 }
 
@@ -458,7 +482,10 @@ Deno.test("a message streams its text, then one usage event last, and is recorde
   // The provider is sent the configuration's model, prompt and the conversation.
   const request = fake.requests[0]!;
   assert.equal(request.model, "anthropic/claude-haiku-5.5");
-  assert.equal(request.instructions, "You are 말랑이.");
+  assert.match(
+    String(request.instructions),
+    /^You are 말랑이\.\n\n# Card forms\n/,
+  );
   assert.deepEqual(input(request), [{
     role: "user",
     content: "영단어 노트 만들어 줘",
@@ -655,26 +682,222 @@ Deno.test("regenerating a group remakes it alone, the other group kept as it was
   ]);
 });
 
-Deno.test("a group of one format refuses a card without that format, against mixed", async () => {
+const SENSES_CARD = {
+  blocks: [{
+    type: "senses",
+    term: "pear",
+    ask: "term",
+    senses: [{ labels: [], meaning: "배", examples: [] }],
+  }],
+};
+const CLOZE_CARD = {
+  blocks: [{ type: "cloze", text: "A ___ is a fruit.", answers: ["plum"] }],
+};
+
+Deno.test("the system prompt is the configuration's prompt, then the card forms index with every form's summary", async () => {
+  const fake = seed();
+  fake.replies.push(says("안녕하세요!"));
+  await send(fake);
+  const system = String(fake.requests[0]!.instructions);
+  assert.ok(system.startsWith("You are 말랑이.\n\n# Card forms\n"));
+  for (const form of FORMS) {
+    assert.ok(system.includes(`- **${form}** — ${SEED[form].summary}\n`), form);
+  }
+  assert.match(
+    system,
+    /Every card of a proposal group takes the group's form\.\n$/,
+  );
+  // Neither the guides nor an instruction to read one: that is prompt v2's, an admin's to apply.
+  assert.ok(!system.includes(SEED.table.text));
+  assert.ok(!system.includes("read_card_form"));
+});
+
+Deno.test("read_card_form answers the form's served guide, the text MCP serves, and refuses a form that is none", async () => {
+  const fake = seed();
+  fake.skills = fake.skills.map((row) =>
+    row.form === "table" ? { ...row, text: "Edited table guide." } : row
+  );
+  fake.replies.push(
+    calls_("read_card_form", { form: "table" }),
+    calls_("read_card_form", { form: "flip" }),
+    says("알겠어요."),
+  );
+  await send(fake);
+  const read = input(fake.requests[1]!).at(-1)!;
+  assert.equal(read.output, "Edited table guide.");
+  const refused = answered(fake.requests[2]!);
+  assert.match(
+    refused,
+    /^form must be one of text, senses, cloze, table, image, mixed\./,
+  );
+  // Control: the tool knows every form the index names, each answered its own guide.
+  for (const form of FORMS) {
+    const each = seed();
+    each.replies.push(calls_("read_card_form", { form }), says("네."));
+    await send(each);
+    assert.equal(answered(each.requests[1]!), SEED[form].text, form);
+  }
+});
+
+Deno.test("a proposal whose group mixes forms shows nothing and names each card out of its form, against a group a form", async () => {
   const fake = seed();
   fake.replies.push(
     calls_("propose_cards", {
       deck_id: ADA_DECK,
+      groups: [{
+        title: "과일",
+        format: "senses",
+        cards: [SENSES_CARD, CLOZE_CARD],
+      }],
+    }),
+    says("고칠게요."),
+  );
+  const run = await send(fake);
+  assert.ok(!run.events.some((e) => e.event === "proposal"));
+  const refused = input(fake.requests[1]!).at(-1)!;
+  assert.match(
+    String(refused.output),
+    /^Nothing was shown: a group holds cards of one form, and card 1 of group 0 \(과일, senses\) is a cloze card\. Move each into a group of its form/,
+  );
+  assert.deepEqual(fake.writes, []);
+  // Control: the same cards in a group of each form are shown.
+  const split = seed();
+  split.replies.push(
+    calls_("propose_cards", {
+      deck_id: ADA_DECK,
       groups: [
-        { title: "빈칸", format: "cloze", cards: [card("pear", "배")] },
-        { title: "섞어서", format: "mixed", cards: [card("plum", "자두")] },
+        { title: "단어", format: "senses", cards: [SENSES_CARD] },
+        { title: "문장", format: "cloze", cards: [CLOZE_CARD] },
       ],
     }),
     says("만들었어요."),
   );
-  const run = await send(fake);
-  const proposal = run.events.find((e) => e.event === "proposal")!
+  const shown = (await send(split)).events.find((e) => e.event === "proposal")!
     .data as unknown as Proposal;
-  assert.deepEqual(proposal.groups.map((g) => g.title), ["섞어서"]);
+  assert.deepEqual(shown.groups.map((g) => [g.title, g.format]), [
+    ["단어", "senses"],
+    ["문장", "cloze"],
+  ]);
+});
+
+Deno.test("a mixed group holds only cards that combine forms, and a text block beside one form is that form", async () => {
+  const combined = {
+    blocks: [
+      ...SENSES_CARD.blocks,
+      { type: "cloze", text: "I ate a ___.", answers: ["pear"] },
+    ],
+  };
+  const named = {
+    blocks: [{ type: "text", front: "과일" }, ...CLOZE_CARD.blocks],
+  };
+  const fake = seed();
+  fake.replies.push(
+    calls_("propose_deck", {
+      name: "과일",
+      groups: [
+        { title: "섞어서", format: "mixed", cards: [combined] },
+        { title: "빈칸", format: "cloze", cards: [named] },
+      ],
+    }),
+    says("만들었어요."),
+  );
+  const shown = (await send(fake)).events.find((e) => e.event === "proposal")!
+    .data as unknown as Proposal;
+  assert.deepEqual(shown.groups.map((g) => g.cards.length), [1, 1]);
+  // Control: a card of one form in a mixed group is refused as mixing forms.
+  const wrong = seed();
+  wrong.replies.push(
+    calls_("propose_deck", {
+      name: "과일",
+      groups: [{ title: "섞어서", format: "mixed", cards: [combined, named] }],
+    }),
+    says("고칠게요."),
+  );
+  await send(wrong);
+  assert.match(
+    answered(wrong.requests[1]!),
+    /card 1 of group 0 \(섞어서, mixed\) is a cloze card/,
+  );
+});
+
+Deno.test("propose_changes groups changes by form and refuses a group that mixes them, against the card in its form's group", async () => {
+  const change = (format: string) => ({
+    deck_id: ADA_DECK,
+    groups: [{
+      title: "고치기",
+      format,
+      cards: [{
+        id: "00000000-0000-7000-8000-000000000c01",
+        blocks: [{ type: "text", front: "apple", back: "사과 (과일)" }],
+      }],
+    }],
+  });
+  const fake = seed();
+  fake.replies.push(calls_("propose_changes", change("cloze")), says("네."));
+  const refused = await send(fake);
+  assert.ok(!refused.events.some((e) => e.event === "proposal"));
   assert.match(
     answered(fake.requests[1]!),
-    /a card of a cloze group holds a cloze block/,
+    /card 0 of group 0 \(고치기, cloze\) is a text card/,
   );
+  const control = seed();
+  control.replies.push(calls_("propose_changes", change("text")), says("네."));
+  const shown = (await send(control)).events.find((e) =>
+    e.event === "proposal"
+  )!.data as unknown as Proposal;
+  assert.equal(shown.kind, "changes");
+  assert.deepEqual(shown.groups.map((g) => [g.title, g.format]), [
+    ["고치기", "text"],
+  ]);
+  assert.equal(
+    shown.groups[0]!.cards[0]!.id,
+    "00000000-0000-7000-8000-000000000c01",
+  );
+});
+
+Deno.test("regenerating a group in a form its cards do not take is refused, and the proposal stays as it was", async () => {
+  const fake = seed();
+  fake.replies.push(
+    calls_("regenerate_group", {
+      proposal_id: PROPOSAL.id,
+      group_id: PROPOSAL.groups[1]!.id,
+      format: "senses",
+      cards: [CLOZE_CARD],
+    }),
+    says("고칠게요."),
+  );
+  const run = await send(fake, {
+    body: {
+      messages: [
+        { role: "user", text: "영단어 카드 만들어 줘" },
+        { role: "assistant", text: "만들었어요.", proposals: [PROPOSAL] },
+        { role: "user", text: "이 부분은 단어로" },
+      ],
+    },
+  });
+  assert.ok(!run.events.some((e) => e.event === "proposal"));
+  assert.match(
+    answered(fake.requests[1]!),
+    /card 0 of group 0 \(문장, senses\) is a cloze card/,
+  );
+});
+
+Deno.test("a message whose card forms cannot be read is refused unavailable before it starts, against one read", async () => {
+  const fake = seed();
+  fake.skillsDown = true;
+  const run = await send(fake);
+  assert.equal(run.status, 503);
+  assert.deepEqual(run.json, { error: "unavailable" });
+  assert.equal(fake.begun, 0);
+  assert.equal(fake.requests.length, 0);
+  // Control: a database missing a form's skill is refused too, rather than indexing a gap.
+  const gap = seed();
+  gap.skills = gap.skills.filter((row) => row.form !== "mixed");
+  assert.equal((await send(gap)).status, 503);
+  const read = seed();
+  read.replies.push(says("안녕하세요!"));
+  assert.equal((await send(read)).status, 200);
+  assert.equal(read.begun, 1);
 });
 
 Deno.test("a commit adds only the checked cards through add_cards", async () => {

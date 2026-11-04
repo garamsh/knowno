@@ -4,6 +4,13 @@ import assert from "node:assert/strict";
 import validity from "../../fixtures/card-frame/validity.json" with {
   type: "json",
 };
+import {
+  cardFormSkills,
+  FORMS,
+  formUri,
+  GUIDE_URI,
+} from "../_shared/card_forms.ts";
+import { SEED } from "../_shared/card_forms_seed.ts";
 import type { IdSource } from "../_shared/cards.ts";
 import { readConfig } from "./config.ts";
 import { createHandler, type LogEntry } from "./handler.ts";
@@ -64,6 +71,8 @@ type Fake = {
    */
   rest: "up" | "offline" | "refusing card writes";
   calls: { url: string; method: string; headers: Headers }[];
+  /** What `card_form_skills` answers: one served version of each form. */
+  skills: Row[];
 };
 
 function block(type: string, payload: Row) {
@@ -98,6 +107,12 @@ function seed(): Fake {
   return {
     rest: "up",
     calls: [],
+    skills: FORMS.map((form, index) => ({
+      form,
+      version_id: index + 1,
+      summary: SEED[form].summary,
+      text: SEED[form].text,
+    })),
     revision: 100,
     card_states: [{
       card_id: "00000000-0000-7000-8000-000000000c01",
@@ -239,6 +254,9 @@ function rest(
     return Response.json({ code: "PGRST301" }, { status: 401 });
   }
   const table = url.pathname.split("/").at(-1);
+  if (url.pathname.endsWith("/rpc/card_form_skills") && method === "POST") {
+    return Response.json(fake.skills);
+  }
   const rows = table === "decks"
     ? fake.decks
     : table === "cards"
@@ -428,6 +446,7 @@ async function send(
     }),
     resolve: (host) => Promise.resolve(fake.dns[host] ?? ["93.184.216.34"]),
     timeout: () => new AbortController().signal,
+    skills: cardFormSkills(() => clock),
   });
   const headers = new Headers({
     "X-Forwarded-Host": "127.0.0.1:54321",
@@ -1264,19 +1283,84 @@ Deno.test("add_cards fetches ten photos a call, an eleventh card refused with wh
   assert.match(String(refused[0]!.reason), /another call/);
 });
 
-Deno.test("the guide resource is listed and read, and another uri is refused", async () => {
-  const rpc = async (method: string, params: unknown) =>
-    (await send({ body: { jsonrpc: "2.0", id: 1, method, params } })).json as {
-      result: Record<string, { uri?: string; text?: string }[]>;
-      error?: { code: number };
-    };
-  const uri = (await rpc("resources/list", {})).result.resources[0]!.uri;
-  const read = await rpc("resources/read", { uri });
-  assert.match(read.result.contents[0]!.text!, /"type":"cloze"/);
-  assert.match(read.result.contents[0]!.text!, /"type":"table"/);
+/** Sends the JSON-RPC request [method] with [params] over [fake]. */
+async function resource(method: string, params: unknown, fake = seed()) {
+  const run = await send({
+    fake,
+    body: { jsonrpc: "2.0", id: 1, method, params },
+  });
+  return {
+    ...run.json as {
+      result?: Record<string, { uri?: string; text?: string }[]>;
+      error?: { code: number; message: string };
+    },
+    logs: run.logs,
+  };
+}
+
+/** The text of the resource at [uri] over [fake]. */
+async function readResource(uri: string, fake = seed()): Promise<string> {
+  const read = await resource("resources/read", { uri }, fake);
+  return read.result!.contents![0]!.text!;
+}
+
+Deno.test("the card-form resources list the index, at the guide's old uri, and a guide for every form", async () => {
+  const listed = (await resource("resources/list", {})).result!.resources!;
+  assert.deepEqual(listed.map((one) => one.uri), [
+    "knowno://guide/card-forms",
+    ...FORMS.map((form) => `knowno://guide/card-forms/${form}`),
+  ]);
+});
+
+Deno.test("the index names every form with its summary and its guide's uri, and each guide is its served skill's text", async () => {
+  const index = await readResource(GUIDE_URI);
+  for (const form of FORMS) {
+    assert.ok(
+      index.includes(
+        `- **${form}** — ${SEED[form].summary} Guide: ${formUri(form)}`,
+      ),
+      form,
+    );
+    assert.equal(await readResource(formUri(form)), SEED[form].text, form);
+  }
+});
+
+Deno.test("a skill version the database serves in place of the seed is what its resource reads", async () => {
+  const fake = seed();
+  fake.skills = fake.skills.map((row) =>
+    row.form === "cloze"
+      ? { ...row, version_id: 40, summary: "Edited summary.", text: "Edited." }
+      : row
+  );
+  assert.equal(await readResource(formUri("cloze"), fake), "Edited.");
+  assert.match(
+    await readResource(GUIDE_URI, fake),
+    /\*\*cloze\*\* — Edited summary\./,
+  );
+  // Control: the forms not edited read their seed.
+  assert.equal(await readResource(formUri("table"), fake), SEED.table.text);
+});
+
+Deno.test("a resource read is refused at another uri before the database is asked, and answers -32603 while the database is down", async () => {
+  const fake = seed();
+  const other = await resource(
+    "resources/read",
+    { uri: "knowno://guide/card-forms/flip" },
+    fake,
+  );
+  assert.equal(other.error?.code, -32002);
+  assert.ok(!fake.calls.some((one) => one.url.includes("card_form_skills")));
+  const down = seed();
+  down.rest = "offline";
+  const read = await resource("resources/read", { uri: GUIDE_URI }, down);
+  assert.equal(read.error?.code, -32603);
+  assert.equal(read.logs[0]?.outcome, "unavailable");
+  // Control: a database missing a form's skill fails the read too, rather than serving a gap.
+  const gap = seed();
+  gap.skills = gap.skills.filter((row) => row.form !== "image");
   assert.equal(
-    (await rpc("resources/read", { uri: "knowno://other" })).error?.code,
-    -32002,
+    (await resource("resources/read", { uri: GUIDE_URI }, gap)).error?.code,
+    -32603,
   );
 });
 

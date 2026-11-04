@@ -24,6 +24,16 @@ export const MAX_SENSES = 20;
 /** The most 칸 a card holds, as the web's save takes. */
 export const MAX_BLOCKS = 100;
 
+/** The 칸 types a card of a call may hold; a sound is only kept, by its media, on update. */
+export const BLOCK_TYPES = [
+  "text",
+  "senses",
+  "cloze",
+  "table",
+  "image",
+] as const;
+export type BlockType = (typeof BLOCK_TYPES)[number];
+
 /** A block as stored in `cards.front`. */
 export type StoredBlock = {
   readonly type: string;
@@ -202,7 +212,8 @@ function built(value: Args, ids: IdSource, kept: Kept | null): Built {
       (value.type === "image" && value.url === undefined &&
         value.media !== undefined))
   ) return keptBlock(value, ids, kept);
-  switch (value.type) {
+  const type = BLOCK_TYPES.find((known) => known === value.type);
+  switch (type) {
     case "text":
       return textBlock(value);
     case "senses":
@@ -213,7 +224,7 @@ function built(value: Args, ids: IdSource, kept: Kept | null): Built {
       return tableBlock(value);
     case "image":
       return imageBlock(value, ids);
-    default:
+    case undefined:
       return `type must be text, senses, cloze, table or image, not ${
         JSON.stringify(value.type)
       }.`;

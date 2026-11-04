@@ -1,25 +1,21 @@
 /**
- * The assistant's tools (ADR 0190): the MCP read tools, called as `mcp` calls them; the proposal
- * tools, which validate as `add_cards` and `update_cards` do and write nothing; a group's
- * regeneration; and a question with choices. A proposal is shown to the user, who adds it.
+ * The assistant's tools (ADR 0190, ADR 0197): the MCP read tools, called as `mcp` calls them; a
+ * card form's guide; the proposal tools, which validate as `add_cards` and `update_cards` do, hold
+ * each group to one form and write nothing; a group's regeneration; and a question with choices. A
+ * proposal is shown to the user, who adds it.
  */
 
+import {
+  type Form,
+  formOf,
+  FORMS,
+  type Skills,
+} from "../_shared/card_forms.ts";
 import { type IdSource, uuidV7 } from "../_shared/cards.ts";
 import { keptOf, readCard } from "../_shared/input.ts";
 import { deckKeys, readCards, readDeck, type Store } from "../_shared/store.ts";
 import { callTool, MAX_CARDS, type ToolDeps, TOOLS } from "../_shared/tools.ts";
 import type { ToolSpec } from "./providers.ts";
-
-/** The format a group's cards share: a 칸 type each card holds, or any mix of them. */
-export const FORMATS = [
-  "text",
-  "senses",
-  "cloze",
-  "table",
-  "image",
-  "mixed",
-] as const;
-export type Format = (typeof FORMATS)[number];
 
 /** A card of a proposal: its id, and the card as `add_cards` or `update_cards` takes it. */
 export type ProposedCard = {
@@ -30,7 +26,8 @@ export type ProposedCard = {
 export type Group = {
   readonly id: string;
   readonly title: string;
-  readonly format: Format;
+  /** The form every card of the group takes. */
+  readonly format: Form;
   readonly cards: readonly ProposedCard[];
 };
 
@@ -94,7 +91,7 @@ const groupsField = (card: unknown) => ({
   minItems: 1,
   maxItems: MAX_GROUPS,
   description:
-    `The cards by area or topic, ${MAX_CARDS} cards at most over all groups. Each group's cards share one format.`,
+    `The cards by area or topic, ${MAX_CARDS} cards at most over all groups. Every card of a group takes the group's form; cards of another form go in a group of their own.`,
   items: {
     type: "object",
     properties: {
@@ -107,9 +104,9 @@ const groupsField = (card: unknown) => ({
       },
       format: {
         type: "string",
-        enum: FORMATS,
+        enum: FORMS,
         description:
-          "The 칸 type every card of the group holds: text, senses, cloze, table or image; or mixed.",
+          "The card form every card of the group takes, as the card forms index names it.",
       },
       cards: { type: "array", minItems: 1, maxItems: MAX_CARDS, items: card },
     },
@@ -134,6 +131,17 @@ export const ASSISTANT_TOOLS: readonly ToolSpec[] = [
       inputSchema: tool.inputSchema,
     };
   }),
+  {
+    name: "read_card_form",
+    description:
+      "Reads one card form's guide: its rules, a good and a bad example, and its edge cases.",
+    inputSchema: {
+      type: "object",
+      properties: { form: { type: "string", enum: FORMS } },
+      required: ["form"],
+      additionalProperties: false,
+    },
+  },
   {
     name: "propose_deck",
     description:
@@ -170,17 +178,8 @@ export const ASSISTANT_TOOLS: readonly ToolSpec[] = [
       `Shows the user changes to cards of one of their notes as a draft. Nothing is saved: the user applies the changes they check. Each card is its id with its new blocks, as update_cards takes it; read the cards first.`,
     inputSchema: {
       type: "object",
-      properties: {
-        deck_id: deckIdField,
-        title: { type: "string", minLength: 1, maxLength: MAX_TITLE },
-        cards: {
-          type: "array",
-          minItems: 1,
-          maxItems: MAX_CARDS,
-          items: changedCard,
-        },
-      },
-      required: ["deck_id", "title", "cards"],
+      properties: { deck_id: deckIdField, groups: groupsField(changedCard) },
+      required: ["deck_id", "groups"],
       additionalProperties: false,
     },
   },
@@ -193,7 +192,7 @@ export const ASSISTANT_TOOLS: readonly ToolSpec[] = [
       properties: {
         proposal_id: { type: "string", format: "uuid" },
         group_id: { type: "string", format: "uuid" },
-        format: { type: "string", enum: FORMATS },
+        format: { type: "string", enum: FORMS },
         cards: {
           type: "array",
           minItems: 1,
@@ -269,7 +268,7 @@ export function parseProposal(value: unknown): Proposal | null {
     if (!isRecord(group) || !Array.isArray(group.cards)) return null;
     const groupId = idOf(group.id);
     const title = trimmed(group.title, MAX_TITLE);
-    const format = FORMATS.find((known) => known === group.format);
+    const format = FORMS.find((known) => known === group.format);
     if (groupId === null || title === null || format === undefined) return null;
     const cards: ProposedCard[] = [];
     for (const proposed of group.cards) {
@@ -286,34 +285,55 @@ export function parseProposal(value: unknown): Proposal | null {
   return { id, kind, deck: { id: deckId, name }, groups };
 }
 
-/** Why a card cannot be in a group of [format], or null when it can. */
-function formatRefusal(
-  blocks: readonly { type: string }[],
-  format: Format,
-): string | null {
-  return format === "mixed" || blocks.some((block) => block.type === format)
-    ? null
-    : `a card of a ${format} group holds a ${format} block; this one holds ${
-      blocks.map((block) => block.type).join(", ")
-    }. Put it in a group of its own format or of mixed.`;
-}
-
 type Skipped = { group: number; index: number; front: string; reason: string };
 type Refused = { group: number; index: number; reason: string };
+/** A card whose form is not its group's. */
+type Misplaced = { group: number; index: number; form: Form };
+
+/** A group as the model gave it. */
+type GroupInput = { title: string; format: Form; cards: unknown[] };
+
+/**
+ * The refusal of a proposal whose groups mix forms, naming each card out of its group's form, or
+ * null when every card takes its group's.
+ */
+function mixedForms(
+  groups: readonly GroupInput[],
+  misplaced: readonly Misplaced[],
+): Ran | null {
+  if (misplaced.length === 0) return null;
+  const named = misplaced.map(({ group, index, form }) =>
+    `card ${index} of group ${group} (${groups[group]?.title}, ${
+      groups[group]?.format
+    }) is a ${form} card`
+  );
+  return refuse(
+    `Nothing was shown: a group holds cards of one form, and ${
+      named.join("; ")
+    }. Move each into a group of its form, one group a form, or rewrite it in its group's form; read_card_form says what each form holds.`,
+  );
+}
 
 /**
  * Reads each group's cards as `add_cards` reads them, leaving out duplicates of [keys] and of the
- * cards before; keeps the groups with a card left. [ids] names the groups kept as before, by index.
+ * cards before, and names each card out of its group's form; keeps the groups with a card left.
+ * [ids] names the groups kept as before, by index.
  */
 function readGroups(
-  input: readonly { title: string; format: Format; cards: unknown[] }[],
+  input: readonly GroupInput[],
   keys: Map<string, string>,
   deps: IdSource,
   groupIds: readonly (string | undefined)[],
-): { groups: Group[]; skipped: Skipped[]; refused: Refused[] } {
+): {
+  groups: Group[];
+  skipped: Skipped[];
+  refused: Refused[];
+  misplaced: Misplaced[];
+} {
   const groups: Group[] = [];
   const skipped: Skipped[] = [];
   const refused: Refused[] = [];
+  const misplaced: Misplaced[] = [];
   for (const [g, group] of input.entries()) {
     const cards: ProposedCard[] = [];
     for (const [index, value] of group.cards.entries()) {
@@ -328,9 +348,9 @@ function readGroups(
         });
         continue;
       }
-      const format = formatRefusal(card.blocks, group.format);
-      if (format !== null) {
-        refused.push({ group: g, index, reason: format });
+      const form = formOf(card.blocks.map((block) => block.type));
+      if (form !== group.format) {
+        misplaced.push({ group: g, index, form });
         continue;
       }
       if (keys.has(card.key)) {
@@ -356,13 +376,11 @@ function readGroups(
       });
     }
   }
-  return { groups, skipped, refused };
+  return { groups, skipped, refused, misplaced };
 }
 
 /** The groups argument read, or a refusal naming what is wrong. */
-function groupsOf(
-  value: unknown,
-): { title: string; format: Format; cards: unknown[] }[] | string {
+function groupsOf(value: unknown): GroupInput[] | string {
   if (
     !Array.isArray(value) || value.length === 0 || value.length > MAX_GROUPS
   ) {
@@ -373,7 +391,7 @@ function groupsOf(
   for (const [index, group] of value.entries()) {
     const title = isRecord(group) ? trimmed(group.title, MAX_TITLE) : null;
     const format = isRecord(group)
-      ? FORMATS.find((known) => known === group.format)
+      ? FORMS.find((known) => known === group.format)
       : undefined;
     if (
       !isRecord(group) || title === null || format === undefined ||
@@ -381,7 +399,7 @@ function groupsOf(
       group.cards.length === 0
     ) {
       return `group ${index} must have a title of 1 to ${MAX_TITLE} characters, a format of ${
-        FORMATS.join(", ")
+        FORMS.join(", ")
       } and at least one card.`;
     }
     total += group.cards.length;
@@ -457,6 +475,8 @@ async function proposeCards(
     keys = new Map();
   }
   const read = readGroups(groups, keys, deps, []);
+  const mixed = mixedForms(groups, read.misplaced);
+  if (mixed !== null) return mixed;
   return shownProposal(
     { id: uuidV7(deps), kind: "cards", deck, groups: read.groups },
     read.skipped,
@@ -472,57 +492,71 @@ async function proposeChanges(
   const id = idOf(args.deck_id);
   const deck = id === null ? null : await readDeck(store, id);
   if (deck === null) return refuse(NOT_FOUND);
-  const title = trimmed(args.title, MAX_TITLE);
-  if (title === null) {
-    return refuse(`title must be 1 to ${MAX_TITLE} characters.`);
-  }
-  const input = args.cards;
-  if (!Array.isArray(input) || input.length === 0 || input.length > MAX_CARDS) {
-    return refuse(
-      `cards must be a list of 1 to ${MAX_CARDS} cards, each with its id and blocks.`,
-    );
-  }
-  const wanted = input.map((value) => isRecord(value) ? idOf(value.id) : null);
+  const input = groupsOf(args.groups);
+  if (typeof input === "string") return refuse(input);
+  const wanted = input.flatMap((group) =>
+    group.cards.map((value) => isRecord(value) ? idOf(value.id) : null)
+  );
   const stored = new Map(
     (await readCards(store, [...new Set(wanted.filter((one) => one !== null))]))
       .filter((card) => card.deck_id === deck.id)
       .map((card) => [card.id, card]),
   );
-  const cards: ProposedCard[] = [];
+  const groups: Group[] = [];
   const refused: Refused[] = [];
-  for (const [index, value] of input.entries()) {
-    const cardId = wanted[index];
-    const card = cardId === null ? undefined : stored.get(cardId);
-    if (cardId === null || card === undefined) {
-      refused.push({
-        group: 0,
-        index,
-        reason: "no live card of this note has that id.",
-      });
-      continue;
+  const misplaced: Misplaced[] = [];
+  const changed = new Set<string>();
+  for (const [g, group] of input.entries()) {
+    const cards: ProposedCard[] = [];
+    for (const [index, value] of group.cards.entries()) {
+      const cardId = isRecord(value) ? idOf(value.id) : null;
+      const card = cardId === null ? undefined : stored.get(cardId);
+      if (cardId === null || card === undefined) {
+        refused.push({
+          group: g,
+          index,
+          reason: "no live card of this note has that id.",
+        });
+        continue;
+      }
+      if (changed.has(cardId)) {
+        refused.push({
+          group: g,
+          index,
+          reason: "the card is changed earlier in this call.",
+        });
+        continue;
+      }
+      const read = readCard(value, deps, keptOf(card));
+      if (typeof read === "string" || !isRecord(value)) {
+        refused.push({
+          group: g,
+          index,
+          reason: typeof read === "string"
+            ? read
+            : "the card must be an object.",
+        });
+        continue;
+      }
+      const form = formOf(read.blocks.map((block) => block.type));
+      if (form !== group.format) {
+        misplaced.push({ group: g, index, form });
+        continue;
+      }
+      changed.add(cardId);
+      cards.push({ id: cardId, card: value });
     }
-    if (cards.some((done) => done.id === cardId)) {
-      refused.push({
-        group: 0,
-        index,
-        reason: "the card is changed earlier in this call.",
+    if (cards.length > 0) {
+      groups.push({
+        id: uuidV7(deps),
+        title: group.title,
+        format: group.format,
+        cards,
       });
-      continue;
     }
-    const read = readCard(value, deps, keptOf(card));
-    if (typeof read === "string" || !isRecord(value)) {
-      refused.push({
-        group: 0,
-        index,
-        reason: typeof read === "string" ? read : "the card must be an object.",
-      });
-      continue;
-    }
-    cards.push({ id: cardId, card: value });
   }
-  const groups = cards.length === 0
-    ? []
-    : [{ id: uuidV7(deps), title, format: "mixed" as const, cards }];
+  const mixed = mixedForms(input, misplaced);
+  if (mixed !== null) return mixed;
   return shownProposal(
     { id: uuidV7(deps), kind: "changes", deck, groups },
     [],
@@ -543,14 +577,14 @@ async function regenerateGroup(
   const at = proposal.groups.findIndex((group) =>
     group.id === idOf(args.group_id)
   );
-  const format = FORMATS.find((known) => known === args.format);
+  const format = FORMS.find((known) => known === args.format);
   if (at === -1 || proposal.kind !== "cards") {
     return refuse(
       "That proposal has no group with that group_id whose cards are new.",
     );
   }
   if (format === undefined) {
-    return refuse(`format must be one of ${FORMATS.join(", ")}.`);
+    return refuse(`format must be one of ${FORMS.join(", ")}.`);
   }
   const kept = proposal.groups.filter((_, index) => index !== at);
   const cards = Array.isArray(args.cards) ? args.cards : [];
@@ -575,9 +609,10 @@ async function regenerateGroup(
   if (old === undefined) {
     return refuse("That proposal has no group with that group_id.");
   }
-  const read = readGroups([{ title: old.title, format, cards }], keys, deps, [
-    old.id,
-  ]);
+  const remade = [{ title: old.title, format, cards }];
+  const read = readGroups(remade, keys, deps, [old.id]);
+  const mixed = mixedForms(remade, read.misplaced);
+  if (mixed !== null) return mixed;
   const replaced = read.groups[0];
   if (replaced === undefined) {
     return shownProposal(
@@ -620,16 +655,26 @@ function askChoice(args: Record<string, unknown>): Ran {
   };
 }
 
-/** Runs the tool [name] for the caller behind [store]; [earlier] is the conversation's proposals. */
+/**
+ * Runs the tool [name] for the caller behind [store]; [earlier] is the conversation's proposals and
+ * [skills] the card forms' guides served to the caller.
+ */
 export async function runTool(
   name: string,
   args: unknown,
   store: Store,
   deps: ToolDeps,
   earlier: readonly Proposal[],
+  skills: Skills,
 ): Promise<Ran> {
   if (!isRecord(args)) return refuse("The arguments must be a JSON object.");
   switch (name) {
+    case "read_card_form": {
+      const form = FORMS.find((known) => known === args.form);
+      return form === undefined
+        ? refuse(`form must be one of ${FORMS.join(", ")}.`)
+        : { content: skills[form].text, isError: false, shown: null };
+    }
     case "list_decks":
     case "list_cards":
     case "search_cards": {

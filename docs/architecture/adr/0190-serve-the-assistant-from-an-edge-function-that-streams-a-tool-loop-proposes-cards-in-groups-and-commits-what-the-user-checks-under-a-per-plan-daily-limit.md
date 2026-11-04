@@ -1,6 +1,6 @@
 # ADR 0190: Serve the assistant from an Edge Function that streams a tool loop, proposes cards in groups and commits what the user checks, under a per-plan daily limit
 
-> Status: accepted; its daily message limit, Free 10, Pro 100, Max 300, superseded by ADR-0195
+> Status: accepted; its daily message limit, Free 10, Pro 100, Max 300, superseded by ADR-0195; its group format, a 칸 type every card holds or `mixed` taking any card, superseded by ADR-0197
 > Date: 2026-11-04
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

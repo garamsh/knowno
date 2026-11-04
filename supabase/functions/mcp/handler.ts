@@ -7,7 +7,14 @@
 import { SupabaseError, type UserId } from "../_shared/auth.ts";
 import { authorize } from "./authorize.ts";
 import type { Config } from "./config.ts";
-import { GUIDE_RESOURCE, GUIDE_TEXT, GUIDE_URI } from "../_shared/guide.ts";
+import {
+  cardFormIndex,
+  type CardForms,
+  FORMS,
+  formUri,
+  GUIDE_URI,
+  type Skills,
+} from "../_shared/card_forms.ts";
 import { callTool, type ToolDeps, TOOLS } from "../_shared/tools.ts";
 
 /** The protocol versions served, newest first; `initialize` answers the newest it is not offered. */
@@ -45,10 +52,11 @@ export type HandlerDeps = ToolDeps & {
   readonly config: Config;
   readonly fetch: typeof fetch;
   readonly log: (entry: LogEntry) => void;
+  readonly skills: CardForms;
 };
 
 const INSTRUCTIONS =
-  "knowno is a flashcard app. These tools read, add, change and delete the signed-in user's decks and cards. Find a deck's id with list_decks, read a deck with list_cards, find cards with search_cards, make a deck with create_deck and add cards with add_cards, choosing each card's form: text, senses, cloze, table or a photo. The resource knowno://guide/card-forms says which fits. To change a card, read it and send its blocks back changed with update_cards; prefer that to deleting a card and adding a new one, which loses its study history. Rename a deck with update_deck. Before delete_cards or delete_deck, confirm with the user what will be deleted: a deleted card or deck leaves every device. Changes reach the user's phone and the web at their next sync.";
+  "knowno is a flashcard app. These tools read, add, change and delete the signed-in user's decks and cards. Find a deck's id with list_decks, read a deck with list_cards, find cards with search_cards, make a deck with create_deck and add cards with add_cards, choosing each card's form: text, senses, cloze, table or a photo. The resource knowno://guide/card-forms indexes the forms and links each one's guide; read a form's guide before making cards of it. To change a card, read it and send its blocks back changed with update_cards; prefer that to deleting a card and adding a new one, which loses its study history. Rename a deck with update_deck. Before delete_cards or delete_deck, confirm with the user what will be deleted: a deleted card or deck leaves every device. Changes reach the user's phone and the web at their next sync.";
 
 type Exchange = {
   response: Response;
@@ -56,6 +64,34 @@ type Exchange = {
 };
 
 const empty = { user_id: null, method: null, tool: null };
+
+/** The card-form resources as `resources/list` names them: the index, then each form's guide. */
+const RESOURCES = [
+  {
+    uri: GUIDE_URI,
+    name: "card-forms",
+    title: "Choosing a card's form",
+    description:
+      "Each form a card can take, when it fits, and where its guide is. Read it before add_cards.",
+    mimeType: "text/markdown",
+  },
+  ...FORMS.map((form) => ({
+    uri: formUri(form),
+    name: `card-form-${form}`,
+    title: `Making a ${form} card`,
+    description:
+      `The ${form} form's rules, a good and a bad example, and its edge cases.`,
+    mimeType: "text/markdown",
+  })),
+];
+
+/** The index resource's text, each form linked to its guide's uri (ADR 0197). */
+const guideIndex = (skills: Skills) =>
+  cardFormIndex(
+    skills,
+    (form) => ` Guide: ${formUri(form)}`,
+    "Read a form's guide, at its uri above, before making cards of that form.",
+  );
 
 function rpcError(id: unknown, code: number, message: string) {
   return { jsonrpc: "2.0", id: id ?? null, error: { code, message } };
@@ -222,6 +258,13 @@ async function handle(request: Request, deps: HandlerDeps): Promise<Exchange> {
   const params = typeof body.params === "object" && body.params !== null
     ? body.params as Record<string, unknown>
     : {};
+  const store = {
+    url: config.supabaseUrl,
+    anonKey: config.anonKey,
+    token: caller.token,
+    userId: caller.userId,
+    fetch: deps.fetch,
+  };
   const answer = (
     result: unknown,
     outcome: Outcome = "answered",
@@ -252,17 +295,14 @@ async function handle(request: Request, deps: HandlerDeps): Promise<Exchange> {
     case "tools/list":
       return answer({ tools: TOOLS });
     case "resources/list":
-      return answer({ resources: [GUIDE_RESOURCE] });
-    case "resources/read":
-      return params.uri === GUIDE_URI
-        ? answer({
-          contents: [{
-            uri: GUIDE_URI,
-            mimeType: GUIDE_RESOURCE.mimeType,
-            text: GUIDE_TEXT,
-          }],
-        })
-        : {
+      return answer({ resources: RESOURCES });
+    case "resources/read": {
+      // The index is null here and a form's guide is its form.
+      const form = params.uri === GUIDE_URI
+        ? null
+        : FORMS.find((known) => formUri(known) === params.uri);
+      if (form === undefined) {
+        return {
           response: Response.json(
             rpcError(id, -32002, `No resource at that uri; read ${GUIDE_URI}`),
           ),
@@ -273,15 +313,38 @@ async function handle(request: Request, deps: HandlerDeps): Promise<Exchange> {
             outcome: "not_found",
           },
         };
+      }
+      let skills;
+      try {
+        skills = await deps.skills.read(store);
+      } catch (error) {
+        if (!(error instanceof SupabaseError)) throw error;
+        return {
+          response: Response.json(
+            rpcError(
+              id,
+              -32603,
+              "knowno's server did not answer; read the resource again in a moment",
+            ),
+          ),
+          entry: {
+            user_id: caller.userId,
+            method,
+            tool: null,
+            outcome: "unavailable",
+          },
+        };
+      }
+      return answer({
+        contents: [{
+          uri: params.uri,
+          mimeType: "text/markdown",
+          text: form === null ? guideIndex(skills) : skills[form].text,
+        }],
+      });
+    }
     case "tools/call": {
       const name = typeof params.name === "string" ? params.name : "";
-      const store = {
-        url: config.supabaseUrl,
-        anonKey: config.anonKey,
-        token: caller.token,
-        userId: caller.userId,
-        fetch: deps.fetch,
-      };
       let result;
       try {
         result = await callTool(name, params.arguments, store, deps);
