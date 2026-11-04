@@ -37,6 +37,16 @@ Rows that share one meaning: a settings section, a note's cards, one 칸 of a ca
 
 One group per meaning; groups stand `AppSpace.sectionGap` apart. Inside a group a hairline separates the rows, never a border on each field.
 
+### Table
+
+Rows of the same columns an operator compares and pages through: the web admin area's users, notes and plans ([ADR 0181](../adr/0181-list-every-user-in-admin-as-a-paged-table-filtered-by-plan-and-status-with-the-one-chosen-beside-it-and-give-plans-and-admins-a-page-each.md)), drawn by `admin-table.tsx`. The phone has none.
+
+1. Filters, optional, above it: the list's search and native selects, each `search` high in its outline, wrapping.
+2. The table: one `surface` on the `group` radius over `edgeCard`; a header row of column names in `section`, `muted`; its rows split by a `hairline`; a number aligned to the end; the row a side panel shows on the brand tint. A row that opens something is pressed as one.
+3. The pager, optional, under it: "first–last / total" in `caption` and the pages around the current one, the current marked as the menu marks its item.
+
+Below 1024 px the header row is read and not shown, and each row is a row of the group (§Group and section), its cells wrapping, each naming what it holds before its value.
+
 ### Sheet and dialog
 
 Every modal on the phone: `AppSheet` opened by `showAppSheet`; the web's dialogs follow the same parts.
