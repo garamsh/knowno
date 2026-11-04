@@ -3019,6 +3019,12 @@ abstract class AppLocalizations {
   /// **'약 {minutes}분이면 끝나요'**
   String homeMinutes(int minutes);
 
+  /// Today's cards and how long they take, on the slim bar 홈's hero collapses into.
+  ///
+  /// In ko, this message translates to:
+  /// **'오늘 {count}장 · {minutes}분'**
+  String homeTodayBar(int count, int minutes);
+
   /// The hero's button that studies every note.
   ///
   /// In ko, this message translates to:

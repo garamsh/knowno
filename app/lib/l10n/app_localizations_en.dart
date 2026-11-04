@@ -1892,6 +1892,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String homeTodayBar(int count, int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cards today',
+      one: '1 card today',
+    );
+    return '$_temp0 · $minutes min';
+  }
+
+  @override
   String get homeStart => 'Start';
 
   @override

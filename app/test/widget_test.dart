@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show QueryExecutor;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -959,6 +960,31 @@ void main() {
     expect(brightness(tester), Brightness.dark);
     await unmountApp(tester);
   });
+
+  for (final (mode, onGround) in [
+    ('light', Brightness.dark),
+    ('dark', Brightness.light),
+  ]) {
+    testWidgets(
+      "in the $mode theme the status bar's glyphs are light over 홈's hero and ${onGround.name} over the 기록 tab's ground",
+      (tester) async {
+        Brightness? glyphs() =>
+            SystemChrome.latestStyle?.statusBarIconBrightness;
+
+        await pumpApp(tester, themeMode: mode);
+        await createDeckAndOpen(tester, 'French');
+        await addCard(tester, 'Chat', 'cat');
+        await showTab(tester, 'Home');
+        expect(shownText('Start'), findsOneWidget);
+        expect(glyphs(), Brightness.light);
+        await showTab(tester, 'Record');
+        expect(glyphs(), onGround);
+        await showTab(tester, 'Home');
+        expect(glyphs(), Brightness.light);
+        await unmountApp(tester);
+      },
+    );
+  }
 
   for (final mode in ['light', 'dark']) {
     testWidgets(

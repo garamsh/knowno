@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// The family of the bundled Pretendard, declared in `pubspec.yaml`: body
@@ -389,6 +390,20 @@ abstract final class AppShadow {
   /// A card resting on the ground: the today card, a study card, a group.
   static List<BoxShadow> card(AppColors colors) =>
       edge(colors.edge, AppSize.edgeCard);
+}
+
+/// The status bar over a screen that runs under it (#728): clear, with
+/// glyphs that read on what is drawn there.
+abstract final class AppStatusBar {
+  /// Light glyphs over a dark [ground], such as the hero, and dark ones over
+  /// a light one.
+  static SystemUiOverlayStyle over(Brightness ground) => SystemUiOverlayStyle(
+    statusBarColor: const Color(0x00000000),
+    statusBarIconBrightness: ground == Brightness.dark
+        ? Brightness.light
+        : Brightness.dark,
+    statusBarBrightness: ground,
+  );
 }
 
 /// The card list's one mark for what study hides until the reveal: a light

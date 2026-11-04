@@ -1073,6 +1073,8 @@
   "@homeToday": {"description": "Today's cards, large on the home's hero.", "placeholders": {"count": {"type": "int"}}},
   "homeMinutes": "약 {minutes}분이면 끝나요",
   "@homeMinutes": {"description": "How long today's cards take, under the count.", "placeholders": {"minutes": {"type": "int"}}},
+  "homeTodayBar": "오늘 {count}장 · {minutes}분",
+  "@homeTodayBar": {"description": "Today's cards and how long they take, on the slim bar 홈's hero collapses into.", "placeholders": {"count": {"type": "int"}, "minutes": {"type": "int"}}},
   "homeStart": "시작",
   "@homeStart": {"description": "The hero's button that studies every note."},
   "studyThisDeck": "이 노트 학습 · {count}장",

@@ -1741,6 +1741,11 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String homeTodayBar(int count, int minutes) {
+    return '오늘 $count장 · $minutes분';
+  }
+
+  @override
   String get homeStart => '시작';
 
   @override

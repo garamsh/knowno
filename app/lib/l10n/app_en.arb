@@ -486,6 +486,7 @@
   "tabHome": "Home",
   "homeToday": "{count, plural, =1{1 card today} other{{count} cards today}}",
   "homeMinutes": "About {minutes} min",
+  "homeTodayBar": "{count, plural, =1{1 card today} other{{count} cards today}} · {minutes} min",
   "homeStart": "Start",
   "studyThisDeck": "Study this note · {count}",
   "studyThisDeckPlain": "Study this note",
