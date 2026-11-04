@@ -3,13 +3,13 @@ import { Suspense } from "react";
 
 import { BrandMark } from "@/design/brand";
 import { LegalLinks } from "@/features/legal";
-import { CallbackError, SignInButton } from "@/features/account";
+import { AppleSignInButton, CallbackError, SignInButton } from "@/features/account";
 
 export const metadata: Metadata = { title: "로그인 · 알아몰라" };
 
 /**
  * The sign-in page, the only page a signed-out visitor can open, as the phone's welcome draws
- * it: the stacked logo and what the app does on the ground's panel, then Google's button and
+ * it: the stacked logo and what the app does on the ground's panel, then Google's and Apple's buttons and
  * the terms the user agrees to.
  */
 export default function LoginPage({ searchParams }: PageProps<"/login">) {
@@ -26,6 +26,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
       <div className="mx-auto flex w-full max-w-list flex-col gap-4 px-gutter pt-8 pb-4">
         <div className="flex flex-col gap-3">
           <SignInButton />
+          <AppleSignInButton />
           <Suspense>
             <CallbackError searchParams={searchParams} />
           </Suspense>

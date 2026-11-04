@@ -104,13 +104,12 @@ export type PreviousAnswer = {
 };
 
 /**
- * What the completion card shows of today's study day over the session's decks: the answers
- * stored before the session opened and the session's own written answers, as they stand.
+ * What the completion sheet shows of today's study day over the session's decks: the answers
+ * stored before the session opened and the session's own written answers.
  */
 export type Completion = {
-  /** Answers standing as each choice; a re-shown card counts each time. */
-  knowCount: number;
-  dontKnowCount: number;
+  /** The cards answered today, each once however often it was answered. */
+  cards: number;
   /** The time the cards were on screen before their answers. */
   timeSpentMs: number;
   /** Study days in a row with an answer, across every deck. */
@@ -118,7 +117,7 @@ export type Completion = {
 };
 
 /**
- * What the screen shows: the current card; the completion card once no card is left today; or
+ * What the screen shows: the current card; the completion sheet once no card is left today; or
  * nothing to study when no card is left to take and none was answered today.
  */
 export type SessionView = {
@@ -157,7 +156,7 @@ type Answered = { card: StudyCard; answer: Answer; first: Answer; review: Sessio
 
 /**
  * One study session, by the queue rules of study.md. It shows the cards left today, then the
- * completion card; from there, `studyOn` goes on with the new cards past today's, oldest first,
+ * completion sheet; from there, `studyOn` goes on with the new cards past today's, oldest first,
  * each answer recorded as any other. A session that opens with no card left today starts on
  * those at once. Every random choice, the queue's order, each re-show gap and each answer's
  * fuzz factor, comes from one source seeded with the start time. An answer or a toggle changes
@@ -263,7 +262,7 @@ export class StudySession {
   }
 
   /**
-   * Goes on from the completion card with the new cards past today's, oldest first; with none
+   * Goes on from the completion sheet with the new cards past today's, oldest first; with none
    * left, does nothing.
    */
   studyOn(): void {
@@ -283,7 +282,7 @@ export class StudySession {
   /**
    * Toggles the answer at [position] between "안다" and "모른다" and returns the write that
    * reschedules its card. A toggle to "모른다" of a card's last answer puts the card back as an
-   * answer would, unless it is waiting, which takes the completion card away again, and a toggle
+   * answer would, unless it is waiting, which ends the completion again, and a toggle
    * to "안다" of a card's last answer removes its re-show while it waits behind the card on
    * screen.
    */
@@ -343,16 +342,16 @@ export class StudySession {
     };
   }
 
-  private completion(): Completion {
+  /** Today's study day over the session's decks, [cards] of their cards answered in it. */
+  private completion(cards: number): Completion {
     const written = this.answers;
     const answers = [
       ...this.plan.today.answers,
-      ...written.map(({ answer, review }) => ({ answer, durationMs: review.durationMs })),
+      ...written.map(({ review }) => ({ durationMs: review.durationMs })),
     ];
     const studiedToday = this.plan.today.answeredAnyDeck || written.length > 0;
     return {
-      knowCount: answers.filter(({ answer }) => answer === "know").length,
-      dontKnowCount: answers.filter(({ answer }) => answer === "dontKnow").length,
+      cards,
       timeSpentMs: answers.reduce((sum, { durationMs }) => sum + durationMs, 0),
       streak: this.plan.today.streakBefore + (studiedToday ? 1 : 0),
     };
@@ -396,7 +395,7 @@ export class StudySession {
     return {
       ...counts,
       kind: "complete",
-      completion: this.completion(),
+      completion: this.completion(answered.size),
       more: this.more.length > 0,
     };
   }

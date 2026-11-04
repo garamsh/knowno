@@ -9,6 +9,7 @@ import { supabaseUnreachable } from "@/testing/mocks/handlers";
 import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
 import { render } from "@/testing/render";
+import { testRouter } from "@/testing/router";
 import { signedInCookies } from "@/testing/session";
 import { typeSizesOf } from "@/testing/type-sizes";
 import { sensesUnder } from "@/testing/senses";
@@ -206,7 +207,7 @@ describe("the deck page", () => {
     expect(screen.getAllByText("French")).toHaveLength(1);
   });
 
-  it("with no card left today still links 학습하기 · 0장 to the study page, which opens on nothing to study or on the completion card", async () => {
+  it("with no card left today still links 학습하기 · 0장 to the study page, which opens on nothing to study or on the completion sheet", async () => {
     postgrest.seed("decks", deckRow("d-done", "Done"));
     postgrest.seed("cards", cardRow("c-done", "d-done", "fini"));
     postgrest.seed(
@@ -242,13 +243,18 @@ describe("the deck page", () => {
       if (answered === "yesterday") {
         expect(screen.getByText("오늘은 학습할 카드가 없어요")).toBeInTheDocument();
       } else {
-        expect(screen.getByRole("region", { name: "오늘 학습 완료" })).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "오늘 학습을 다 했어요" })).toBeInTheDocument();
       }
-      // Every 그만하기, the close and the completion card's, returns to this deck's page.
-      const ways = screen.getAllByRole("link", { name: "그만하기" });
-      expect(ways.length, answered).toBe(answered === "yesterday" ? 1 : 2);
-      for (const way of ways) {
-        expect(way, answered).toHaveAttribute("href", `/decks/${uuidOf("d-done")}`);
+      // Every way out, the close and the completion sheet's 완료, returns to this deck's page.
+      expect(screen.getByRole("link", { name: "그만하기" }), answered).toHaveAttribute(
+        "href",
+        `/decks/${uuidOf("d-done")}`,
+      );
+      if (answered === "today") {
+        await userEvent.setup().click(screen.getByRole("button", { name: "완료" }));
+        await waitFor(() => {
+          expect(testRouter.push).toHaveBeenCalledExactlyOnceWith(`/decks/${uuidOf("d-done")}`);
+        });
       }
       cleanup();
     }

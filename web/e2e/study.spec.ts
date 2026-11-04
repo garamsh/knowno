@@ -295,49 +295,6 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   await expect(page.getByRole("complementary", { name: "이번 학습" })).toBeHidden();
   await shot(page, "05c-study-phone-width");
   if (desktop) await page.setViewportSize(desktop);
-  await page.keyboard.press("ArrowRight");
-  // No card is left today: the completion card takes the current card's place, below the stack.
-  const completion = page.getByRole("region", { name: "오늘 학습 완료", exact: true });
-  await expect(completion).toBeVisible();
-  await expect(front).toHaveCount(0);
-  await expect(
-    page.getByRole("complementary", { name: "이번 학습" }).getByRole("button"),
-  ).toHaveCount(2);
-  await expect(completion.locator("dl > div").first()).toHaveText("안다2");
-  await expect(completion.getByText("1일 연속", { exact: true })).toBeVisible();
-  await shot(page, "06-study-complete");
-  await atDoubleZoom(page, "06-study-complete");
-
-  // The writes ran after the screen changed; each state is written after its review.
-  await expect
-    .poll(async () => (await phone.from("card_states").select("card_id")).data?.length)
-    .toBe(2);
-  const reviews = await phone.from("reviews").select("card_id, rating, fuzz_factor, revision");
-  expect(reviews.error).toBeNull();
-  expect(reviews.data).toEqual(
-    expect.arrayContaining(
-      [...cardIds.values()].map((cardId) =>
-        expect.objectContaining({
-          card_id: cardId,
-          rating: "good",
-          fuzz_factor: expect.any(Number),
-        }),
-      ),
-    ),
-  );
-  expect(reviews.data).toHaveLength(2);
-  const states = await phone.from("card_states").select("card_id, stability, due, revision");
-  expect(states.data).toHaveLength(2);
-  for (const state of states.data ?? []) {
-    expect(state).toEqual(expect.objectContaining({ stability: expect.any(Number) }));
-    // A new card answered 안다 is next due days from now, as the engine schedules it.
-    expect(Date.parse(String(state.due))).toBeGreaterThan(Date.now() + 86_400_000);
-  }
-
-  // No new card is left past today's: the completion card says so, and offers no 학습하기.
-  await expect(completion.getByText("더 학습할 카드가 없어요", { exact: true })).toBeVisible();
-  await expect(completion.getByRole("button", { name: "학습하기" })).toHaveCount(0);
-
   // A change whose write fails is not dropped by leaving: Esc sends it again, and when that
   // fails too, asks first. The Server Action posts to this page's address.
   const refuse = (url: URL) => url.pathname === "/study";
@@ -373,9 +330,56 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   await expect(writeFailure).toHaveCount(0);
   // Z changes the card back to 안다, so the day stays done for 오늘 below.
   await page.keyboard.press("z");
+  await expect(front).toHaveText(second);
 
-  // Esc sends that write, then returns to the deck page the session was opened from.
-  await page.keyboard.press("Escape");
+  await page.keyboard.press("ArrowRight");
+  // No card is left today: the completion sheet asks over the stack, the day's two cards, their
+  // minutes and the streak in one line.
+  const completion = page.getByRole("dialog", { name: "오늘 학습을 다 했어요", exact: true });
+  await expect(completion).toBeVisible();
+  await expect(front).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("complementary", { name: "이번 학습", includeHidden: true })
+      .getByRole("button", { includeHidden: true }),
+  ).toHaveCount(2);
+  await expect(completion.getByText(/^2장 · \d+분 · 1일 연속$/)).toBeVisible();
+  await shot(page, "06-study-complete");
+  await atDoubleZoom(page, "06-study-complete");
+
+  // The writes ran after the screen changed; each state is written after its review.
+  await expect
+    .poll(async () => (await phone.from("card_states").select("card_id")).data?.length)
+    .toBe(2);
+  const reviews = await phone.from("reviews").select("card_id, rating, fuzz_factor, revision");
+  expect(reviews.error).toBeNull();
+  expect(reviews.data).toEqual(
+    expect.arrayContaining(
+      [...cardIds.values()].map((cardId) =>
+        expect.objectContaining({
+          card_id: cardId,
+          rating: "good",
+          fuzz_factor: expect.any(Number),
+        }),
+      ),
+    ),
+  );
+  expect(reviews.data).toHaveLength(2);
+  const states = await phone.from("card_states").select("card_id, stability, due, revision");
+  expect(states.data).toHaveLength(2);
+  for (const state of states.data ?? []) {
+    expect(state).toEqual(expect.objectContaining({ stability: expect.any(Number) }));
+    // A new card answered 안다 is next due days from now, as the engine schedules it.
+    expect(Date.parse(String(state.due))).toBeGreaterThan(Date.now() + 86_400_000);
+  }
+
+  // No new card is left past today's: the completion sheet says so, and offers 완료 alone.
+  await expect(completion.getByText("더 학습할 카드가 없어요", { exact: true })).toBeVisible();
+  await expect(completion.getByRole("button", { name: "이어서 하기" })).toHaveCount(0);
+  await expect(completion.getByRole("button", { name: "완료", exact: true })).toBeFocused();
+
+  // 완료 returns to the deck page the session was opened from.
+  await completion.getByRole("button", { name: "완료", exact: true }).click();
   await expect(page).toHaveURL(`${baseURL}/decks/${deckId}`);
 
   // A deck whose one card is due next week, and was not answered today, has nothing to study.
@@ -1238,12 +1242,12 @@ test.describe("in UTC, where a study day runs from 04:00 to 04:00 UTC", () => {
 
     await page.goto(`/study?decks=${deckId}`);
     await expect(page.getByRole("group", { name: "앞면", exact: true })).toHaveText("lundi");
-    const completion = page.getByRole("region", { name: "오늘 학습 완료", exact: true });
+    const completion = page.getByRole("dialog", { name: "오늘 학습을 다 했어요", exact: true });
     await untilReacted(
       () => page.keyboard.press("ArrowRight"),
       async () => (await completion.count()) > 0,
     );
-    await expect(completion.getByText("3일 연속", { exact: true })).toBeVisible();
+    await expect(completion.getByText(/ · 3일 연속$/)).toBeVisible();
   });
 });
 

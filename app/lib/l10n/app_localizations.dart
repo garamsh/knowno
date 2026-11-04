@@ -1135,10 +1135,10 @@ abstract class AppLocalizations {
   /// **'학습 시간을 기기에 저장하지 못했어요. 다시 시도해 주세요.'**
   String get settingNotSaved;
 
-  /// Heading of the completion card, shown in the current card's place once no card is left today.
+  /// Title of the sheet that opens once the day's planned cards are done.
   ///
   /// In ko, this message translates to:
-  /// **'오늘 학습 완료'**
+  /// **'오늘 학습을 다 했어요'**
   String get studyComplete;
 
   /// The study screen when no card is left today and none of its decks' cards was answered today.
@@ -1147,41 +1147,41 @@ abstract class AppLocalizations {
   /// **'오늘은 학습할 카드가 없어요'**
   String get nothingToStudyToday;
 
-  /// The completion card's time on screen today, in whole minutes rounded up.
+  /// The completion sheet's one line under its title: the cards studied today over the session's notes, their minutes on screen rounded up, and the streak in study days.
   ///
   /// In ko, this message translates to:
-  /// **'{minutes}분'**
-  String completionMinutes(int minutes);
+  /// **'{cards}장 · {minutes}분 · {days}일 연속'**
+  String completionSummary(int cards, int minutes, int days);
 
-  /// The completion panel's streak, under its heading: study days in a row.
+  /// The completion sheet's question, under its line of counts, while new cards are left past today's.
   ///
   /// In ko, this message translates to:
-  /// **'{days}일 연속'**
-  String completionStreak(int days);
+  /// **'이어서 더 할까요?'**
+  String get studyOnQuestion;
 
-  /// What a screen reader reads for the completion card's line of counts.
+  /// The completion sheet's secondary button: goes on in the same session with the new cards past today's, each answer recorded.
   ///
   /// In ko, this message translates to:
-  /// **'안다 {know}, 모른다 {dontKnow}, {minutes}분, {days}일 연속'**
-  String completionSemantics(int know, int dontKnow, int minutes, int days);
-
-  /// The completion card's primary button: goes on in the same session with the new cards past today's, each answer recorded.
-  ///
-  /// In ko, this message translates to:
-  /// **'학습하기'**
+  /// **'이어서 하기'**
   String get studyOn;
 
-  /// The completion card's line in place of studyOn when no new card is left past today's.
+  /// The completion sheet's line in place of studyOnQuestion when no new card is left past today's.
   ///
   /// In ko, this message translates to:
   /// **'더 학습할 카드가 없어요'**
   String get noCardsLeft;
 
-  /// The completion card's quiet button: closes the study screen.
+  /// The completion sheet's primary button while new cards are left past today's: closes the study screen.
   ///
   /// In ko, this message translates to:
   /// **'그만하기'**
   String get stopStudying;
+
+  /// The completion sheet's one button when no new card is left past today's: closes the study screen.
+  ///
+  /// In ko, this message translates to:
+  /// **'완료'**
+  String get studyDone;
 
   /// Shown when the scheduling engine refused a review.
   ///
@@ -3077,12 +3077,6 @@ abstract class AppLocalizations {
     String back,
     String changed,
   );
-
-  /// Under the minutes on the completion panel's third tile, beside the tiles of answers known and not known.
-  ///
-  /// In ko, this message translates to:
-  /// **'걸린 시간'**
-  String get completionTimeLabel;
 
   /// Button that moves the study coach back to its step before; disabled on the first step.
   ///

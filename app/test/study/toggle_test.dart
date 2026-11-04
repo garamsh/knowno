@@ -146,7 +146,7 @@ void main() {
     expect(session.state, isA<SessionComplete>());
   });
 
-  test("after the queue empties, a toggle that puts a card back takes the completion card away, and one that does not leaves it", () async {
+  test("after the queue empties, a toggle that puts a card back ends the completion, and one that does not leaves it", () async {
     final session = await _open(['a']);
     session.answer(Answer.dontKnow);
     session.answer(Answer.know);
@@ -161,27 +161,25 @@ void main() {
     expect(_current(session), 'a');
   });
 
-  test(
-    "the completion card counts today's answers as they stand after toggles",
-    () async {
-      final session = await _open(['a', 'b']);
-      session.answer(Answer.know);
-      session.answer(Answer.dontKnow);
-      session.answer(Answer.know);
-      final before = (session.state as SessionComplete).completion;
-      expect((before.knowCount, before.dontKnowCount), (2, 1));
+  test("the completion sheet counts each card answered today once, a re-shown one included, before and after a toggle", () async {
+    final session = await _open(['a', 'b']);
+    session.answer(Answer.know);
+    session.answer(Answer.dontKnow);
+    session.answer(Answer.know);
+    final before = (session.state as SessionComplete).completion;
+    // Three answers, to two cards.
+    expect(before.cards, 2);
 
-      session.toggle(1);
+    session.toggle(1);
 
-      final after = (session.state as SessionComplete).completion;
-      expect((after.knowCount, after.dontKnowCount), (3, 0));
-      expect(
-        [
-          for (final card in (session.state as SessionComplete).previous)
-            card.changed,
-        ],
-        [false, true, false],
-      );
-    },
-  );
+    final after = (session.state as SessionComplete).completion;
+    expect(after.cards, 2);
+    expect(
+      [
+        for (final card in (session.state as SessionComplete).previous)
+          card.changed,
+      ],
+      [false, true, false],
+    );
+  });
 }

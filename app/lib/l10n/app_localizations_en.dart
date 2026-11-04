@@ -636,28 +636,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nothingToStudyToday => 'No cards to study today';
 
   @override
-  String completionMinutes(int minutes) {
-    return '$minutes min';
+  String completionSummary(int cards, int minutes, int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      cards,
+      locale: localeName,
+      other: '$cards cards',
+      one: '1 card',
+    );
+    return '$_temp0 · $minutes min · $days-day streak';
   }
 
   @override
-  String completionStreak(int days) {
-    return '$days-day streak';
-  }
+  String get studyOnQuestion => 'Study some more?';
 
   @override
-  String completionSemantics(int know, int dontKnow, int minutes, int days) {
-    return 'Know $know, don\'t know $dontKnow, $minutes min, $days-day streak';
-  }
-
-  @override
-  String get studyOn => 'Study';
+  String get studyOn => 'Keep going';
 
   @override
   String get noCardsLeft => 'No more cards to study';
 
   @override
   String get stopStudying => 'Stop';
+
+  @override
+  String get studyDone => 'Done';
 
   @override
   String get schedulingFailure =>
@@ -1932,9 +1934,6 @@ class AppLocalizationsEn extends AppLocalizations {
     });
     return 'Card just seen, $answer. Front: $front. Back: $back$_temp0';
   }
-
-  @override
-  String get completionTimeLabel => 'Time';
 
   @override
   String get coachPrevious => 'Back';

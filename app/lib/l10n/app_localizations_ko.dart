@@ -622,34 +622,30 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingNotSaved => '학습 시간을 기기에 저장하지 못했어요. 다시 시도해 주세요.';
 
   @override
-  String get studyComplete => '오늘 학습 완료';
+  String get studyComplete => '오늘 학습을 다 했어요';
 
   @override
   String get nothingToStudyToday => '오늘은 학습할 카드가 없어요';
 
   @override
-  String completionMinutes(int minutes) {
-    return '$minutes분';
+  String completionSummary(int cards, int minutes, int days) {
+    return '$cards장 · $minutes분 · $days일 연속';
   }
 
   @override
-  String completionStreak(int days) {
-    return '$days일 연속';
-  }
+  String get studyOnQuestion => '이어서 더 할까요?';
 
   @override
-  String completionSemantics(int know, int dontKnow, int minutes, int days) {
-    return '안다 $know, 모른다 $dontKnow, $minutes분, $days일 연속';
-  }
-
-  @override
-  String get studyOn => '학습하기';
+  String get studyOn => '이어서 하기';
 
   @override
   String get noCardsLeft => '더 학습할 카드가 없어요';
 
   @override
   String get stopStudying => '그만하기';
+
+  @override
+  String get studyDone => '완료';
 
   @override
   String get schedulingFailure => '이 카드의 다음 복습 일정을 계산하지 못했어요. 일정은 그대로예요.';
@@ -1787,9 +1783,6 @@ class AppLocalizationsKo extends AppLocalizations {
     });
     return '방금 본 카드, $answer. 앞면: $front. 뒷면: $back$_temp0';
   }
-
-  @override
-  String get completionTimeLabel => '걸린 시간';
 
   @override
   String get coachPrevious => '이전';

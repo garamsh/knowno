@@ -9,8 +9,11 @@ vi.mock("@/supabase/browser", () => ({
   createClient: () => ({ auth: { signInWithOAuth: vi.fn() } }),
 }));
 
+// Apple's script, which draws its button, is not loaded here; the wrapper it draws into is.
+vi.mock("next/script", () => ({ default: () => null }));
+
 describe("the admin host's sign-in", () => {
-  it("shows the brand over 관리, what it is, and Google's button, with none of the service's links", async () => {
+  it("shows the brand over 관리, what it is, and Google's and Apple's buttons, with none of the service's links", async () => {
     await render(AdminLoginPage, {
       params: Promise.resolve({}),
       searchParams: Promise.resolve({}),
@@ -22,6 +25,7 @@ describe("the admin host's sign-in", () => {
       screen.getByText("관리자 계정으로 로그인해 주세요. 서비스의 로그인과는 따로예요."),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Google로 로그인" })).toBeEnabled();
+    expect(document.getElementById("appleid-signin")).toHaveAttribute("data-type", "sign-in");
     // The legal pages are the service's, which the admin host does not open.
     expect(screen.queryByRole("link")).toBeNull();
   });
