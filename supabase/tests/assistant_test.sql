@@ -4,7 +4,7 @@
 -- a limit set; every write recorded; configurations append-only; no client reaching the tables or
 -- the service functions; and the revert.
 begin;
-select plan(64);
+select plan(70);
 
 delete from private.admin_audit;
 
@@ -171,6 +171,9 @@ select results_eq($$select used, allowed from pg_temp.start('a')$$, $$values (30
 
 select lives_ok(format($$select pg_temp.finish(%s, 'ok')$$, pg_temp.last_message('b')),
   'service_role records a turn''s outcome and usage');
+select lives_ok(format($$select pg_temp.finish(%s, 'cut'), pg_temp.finish(%s, 'cancelled')$$,
+    pg_temp.last_message('a') - 1, pg_temp.last_message('a') - 2),
+  'a reply cut at the output limit and a turn the client left are recorded');
 select throws_ok(format($$select pg_temp.finish(%s, 'ok')$$, pg_temp.last_message('b')),
   'P0002', null, 'a second record of the same message is refused');
 select throws_ok($$select pg_temp.finish(-1, 'ok')$$, 'P0002', null,
@@ -181,8 +184,9 @@ reset role;
 select results_eq(
   $$select outcome, model_calls, input_tokens, output_tokens, reasoning_tokens,
       web_search_requests, latency_ms
-    from private.assistant_messages where outcome is not null$$,
-  $$values ('ok', 2, 3000, 400, 50, 1, 4200)$$,
+    from private.assistant_messages where outcome is not null order by outcome$$,
+  $$values ('cancelled', 2, 3000, 400, 50, 1, 4200), ('cut', 2, 3000, 400, 50, 1, 4200),
+    ('ok', 2, 3000, 400, 50, 1, 4200)$$,
   'the record holds what the turn used, the refused records nothing');
 
 -- The allowance.
@@ -235,11 +239,18 @@ select throws_ok($$select public.save_assistant_configuration('00000000-0000-400
   'special', 'openrouter', 'vendor/draft')$$, '42501', null, 'a draft is saved for an admin alone');
 select is(public.save_assistant_configuration('00000000-0000-4000-8000-00000000000a', 'special',
   'openrouter', 'vendor/draft', -1), null, 'a prompt version that does not exist saves nothing');
+select is(public.save_assistant_configuration('00000000-0000-4000-8000-00000000000a', 'special',
+  'anthropic', 'claude-opus-5-5', null, false, null, 'none'), null,
+  'a model whose thinking is always on saves nothing at no reasoning');
+select is(public.save_assistant_configuration('00000000-0000-4000-8000-00000000000a', 'special',
+  'anthropic', 'claude-haiku-4-5', null, false, null, 'low'), null,
+  'a model with extended thinking alone saves nothing at an effort');
 select isnt(public.save_assistant_configuration('00000000-0000-4000-8000-00000000000a', 'special',
   'anthropic', 'claude-draft', null, false, null, 'low'), null,
   'control: an admin''s draft on 스페셜 is saved');
 reset role;
-select is((select count(*) from private.assistant_configurations where model = 'vendor/draft'),
+select is((select count(*) from private.assistant_configurations
+    where model in ('vendor/draft', 'claude-opus-5-5', 'claude-haiku-4-5')),
   0::bigint, 'the refused saves appended nothing');
 select results_eq(
   $$select c.provider, c.model, c.web_search, c.max_searches, c.reasoning_effort,
@@ -309,13 +320,52 @@ select lives_ok($$update private.assistant_configurations set created_by = null
     where created_by = '00000000-0000-4000-8000-00000000000a'$$,
   'control: its author''s removal is let through');
 
--- The revert.
+-- A model and an effort, by Anthropic's per-model thinking table.
 
+select results_eq(
+  $$select private.assistant_effort_fits(provider, model, effort)
+    from (values ('anthropic', 'claude-opus-5-5', 'none'), ('anthropic', 'claude-opus-5-5', 'low'),
+      ('anthropic', 'claude-fable-5-1', 'none'), ('anthropic', 'claude-mythos-preview', 'none'),
+      ('anthropic', 'claude-haiku-4-5-20251001', 'medium'), ('anthropic', 'claude-haiku-4-5', 'none'),
+      ('anthropic', 'claude-haiku-5-5', 'none'), ('anthropic', 'claude-sonnet-5-5', 'none'),
+      ('openrouter', 'anthropic/claude-opus-5.5', 'none')) as t (provider, model, effort)$$,
+  $$values (false), (true), (false), (false), (false), (true), (true), (true), (true)$$,
+  'always-on thinking refuses none and extended thinking alone refuses an effort, nothing else');
+select throws_ok($$insert into private.assistant_configurations
+    (plan, provider, model, prompt_version_id, web_search, max_searches, reasoning_effort)
+    values ('free', 'anthropic', 'claude-opus-5-5',
+      (select min(id) from private.assistant_prompts), false, 3, 'none')$$,
+  '23514', null, 'the table refuses such a configuration however it is written');
+
+-- The revert: every table and function the migration made is gone, its own revert aside.
+
+create function pg_temp.made_tables() returns text[] language sql stable as $$
+  select coalesce(array_agg(c.relname::text order by c.relname), '{}')
+  from pg_class as c join pg_namespace as n on n.oid = c.relnamespace
+  where n.nspname = 'private' and c.relkind = 'r' and c.relname like 'assistant%';
+$$;
+create function pg_temp.made_functions() returns text[] language sql stable as $$
+  select coalesce(array_agg(n.nspname || '.' || p.proname order by n.nspname, p.proname), '{}')
+  from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
+  where n.nspname in ('public', 'private') and p.proname like '%assistant%';
+$$;
+
+select is(pg_temp.made_tables(), array['assistant_configuration_labels',
+    'assistant_configurations', 'assistant_limits', 'assistant_messages', 'assistant_prompts'],
+  'control: the migration''s five tables are found before the revert');
+select is(pg_temp.made_functions(), array['private.assistant_effort_fits',
+    'private.keep_assistant_configuration', 'private.revert_assistant',
+    'public.admin_activate_assistant_configuration', 'public.admin_assistant_configurations',
+    'public.admin_assistant_limits', 'public.admin_assistant_prompts',
+    'public.admin_clear_assistant_test', 'public.admin_save_assistant_prompt',
+    'public.admin_set_assistant_limit', 'public.assistant_allowance',
+    'public.begin_assistant_message', 'public.finish_assistant_message',
+    'public.save_assistant_configuration'],
+  'control: its fourteen functions are found before the revert');
 select lives_ok($$select private.revert_assistant()$$, 'the revert runs');
-select hasnt_table('private', 'assistant_messages', 'the tables are gone');
-select hasnt_table('private', 'assistant_prompts', 'the prompts with them');
-select hasnt_function('public', 'begin_assistant_message', array['uuid'],
-  'and the functions');
+select is(pg_temp.made_tables(), '{}'::text[], 'every table is gone');
+select is(pg_temp.made_functions(), array['private.revert_assistant'],
+  'every function is gone but the revert, which the PM drops next');
 
 select * from finish();
 rollback;

@@ -5,10 +5,7 @@ import {
   SupabaseError,
   type UserId,
 } from "../_shared/auth.ts";
-
-/** The providers an assistant configuration may name, as `private.assistant_configurations` does. */
-export const PROVIDERS = ["openrouter", "openai", "anthropic"] as const;
-export type Provider = (typeof PROVIDERS)[number];
+import { type Provider, PROVIDERS } from "../_shared/keys.ts";
 
 /** How much a model reasons before it answers; `none` asks for no reasoning. */
 export const EFFORTS = ["none", "low", "medium", "high"] as const;
@@ -56,7 +53,9 @@ export type Outcome =
   | "choice"
   | "depth_limit"
   | "time_limit"
-  | "model_error";
+  | "model_error"
+  | "cut"
+  | "cancelled";
 
 /** What a turn used, summed over its model calls. */
 export type Usage = {

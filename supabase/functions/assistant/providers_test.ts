@@ -49,14 +49,23 @@ const toolTypes = (request: Record<string, unknown>) =>
   );
 
 Deno.test("OpenRouter sends its web search server tool with the cap only when search is on", () => {
-  assert.deepEqual(toolTypes(body("openrouter")), ["function"]);
+  const off = body("openrouter");
+  assert.deepEqual(off.tools, [{
+    type: "function",
+    name: "list_decks",
+    description: "Lists the decks.",
+    parameters: { type: "object", properties: {} },
+  }]);
   const on = body("openrouter", { webSearch: true, maxSearches: 4 });
   assert.deepEqual((on.tools as unknown[])[1], {
     type: "openrouter:web_search",
     parameters: { engine: "exa", max_uses: 4 },
   });
+  // A responses request: the prompt as instructions, the conversation as input.
+  assert.equal(on.instructions, "You are 말랑이.");
+  assert.deepEqual(on.input, [{ role: "user", content: "hi" }]);
+  assert.equal(on.max_output_tokens, 8192);
   assert.equal(on.stream, true);
-  assert.deepEqual(on.stream_options, { include_usage: true });
 });
 
 Deno.test("OpenRouter sends the reasoning effort, none included", () => {
@@ -79,14 +88,25 @@ Deno.test("Anthropic sends web search and web fetch with the cap only when searc
   const on = body("anthropic", { webSearch: true, maxSearches: 2 });
   assert.deepEqual((on.tools as unknown[]).slice(1), [
     { type: "web_search_20250305", name: "web_search", max_uses: 2 },
-    { type: "web_fetch_20250910", name: "web_fetch", max_uses: 2 },
+    {
+      type: "web_fetch_20250910",
+      name: "web_fetch",
+      max_uses: 2,
+      max_content_tokens: 20_000,
+      // A URL in a tool's answer is not fetched; the user's and a search's are.
+      url_sources: { client_tool_results: { type: "none" } },
+    },
   ]);
 });
 
 Deno.test("Anthropic turns thinking off at none and adaptive with the effort otherwise", () => {
-  const none = body("anthropic");
+  const none = body("anthropic", { model: "claude-haiku-5-5" });
   assert.deepEqual(none.thinking, { type: "disabled" });
   assert.equal("output_config" in none, false);
+  // Claude Sonnet 5.5 refuses disabled and turns up-front thinking off with between_tools.
+  assert.deepEqual(body("anthropic", { model: "claude-sonnet-5-5" }).thinking, {
+    type: "between_tools",
+  });
   const medium = body("anthropic", { effort: "medium" });
   assert.deepEqual(medium.thinking, { type: "adaptive" });
   assert.deepEqual(medium.output_config, { effort: "medium" });
@@ -101,9 +121,9 @@ const data = (value: unknown): SseEvent => ({
   data: JSON.stringify(value),
 });
 
-Deno.test("a chat stream's text, tool call pieces, reasoning tokens and searches are read", async () => {
+Deno.test("a chat stream's text, tool call pieces and reasoning tokens are read", async () => {
   const seen: CallEvent[] = [];
-  const result = await ADAPTERS.openrouter.read(
+  const result = await ADAPTERS.openai.read(
     events(
       data({ choices: [{ delta: { content: "잠시만요" } }] }),
       data({
@@ -134,7 +154,6 @@ Deno.test("a chat stream's text, tool call pieces, reasoning tokens and searches
           prompt_tokens: 50,
           completion_tokens: 30,
           completion_tokens_details: { reasoning_tokens: 12 },
-          server_tool_use_details: { web_search_requests: 2 },
         },
       }),
       { event: "message", data: "[DONE]" },
@@ -152,9 +171,10 @@ Deno.test("a chat stream's text, tool call pieces, reasoning tokens and searches
     inputTokens: 50,
     outputTokens: 30,
     reasoningTokens: 12,
-    webSearchRequests: 2,
+    webSearchRequests: 0,
+    webFetchRequests: 0,
   });
-  assert.deepEqual(result.message, {
+  assert.deepEqual(result.messages, [{
     role: "assistant",
     content: "잠시만요",
     tool_calls: [{
@@ -162,7 +182,7 @@ Deno.test("a chat stream's text, tool call pieces, reasoning tokens and searches
       type: "function",
       function: { name: "list_decks", arguments: '{"a":1}' },
     }],
-  });
+  }]);
 });
 
 Deno.test("a chat stream that ends before it finishes is an error, against one that finishes", async () => {
@@ -256,7 +276,8 @@ Deno.test("an Anthropic stream's citations, tool input, thinking and searches ar
         delta: { stop_reason: "tool_use" },
         usage: {
           output_tokens: 40,
-          server_tool_use: { web_search_requests: 1 },
+          output_tokens_details: { thinking_tokens: 25 },
+          server_tool_use: { web_search_requests: 1, web_fetch_requests: 2 },
         },
       }),
       data({ type: "message_stop" }),
@@ -276,12 +297,13 @@ Deno.test("an Anthropic stream's citations, tool input, thinking and searches ar
   assert.deepEqual(result.usage, {
     inputTokens: 80,
     outputTokens: 40,
-    reasoningTokens: 0,
+    reasoningTokens: 25,
     webSearchRequests: 1,
+    webFetchRequests: 2,
   });
   // The thinking block goes back with its signature, as the next call requires.
   const content =
-    (result.message as { content: Record<string, unknown>[] }).content;
+    (result.messages[0] as { content: Record<string, unknown>[] }).content;
   assert.deepEqual(content[0], {
     type: "thinking",
     thinking: "hmm",
@@ -334,4 +356,148 @@ Deno.test("server-sent events are split across chunks as the provider sent them"
     event: "message",
     data: "two",
   }]);
+});
+
+Deno.test("a responses stream's text, citations, function calls and usage are read, a server tool's item run by none", async () => {
+  const seen: CallEvent[] = [];
+  const search = {
+    type: "openrouter:web_search",
+    id: "ws_1",
+    status: "completed",
+    action: { type: "search", query: "서울" },
+  };
+  const call = {
+    type: "function_call",
+    id: "fc_1",
+    call_id: "call_1",
+    name: "list_decks",
+    arguments: '{"a":1}',
+  };
+  const result = await ADAPTERS.openrouter.read(
+    events(
+      data({ type: "response.output_item.added", item: search }),
+      data({ type: "response.output_item.done", item: search }),
+      data({ type: "response.output_text.delta", delta: "서울이에요" }),
+      data({
+        type: "response.output_text.annotation.added",
+        annotation: {
+          type: "url_citation",
+          url: "https://example.com/s",
+          title: "S",
+        },
+      }),
+      data({
+        type: "response.completed",
+        response: {
+          status: "completed",
+          output: [search, call],
+          usage: {
+            input_tokens: 50,
+            output_tokens: 30,
+            output_tokens_details: { reasoning_tokens: 12 },
+            server_tool_use_details: { web_search_requests: 1 },
+          },
+        },
+      }),
+      { event: "message", data: "[DONE]" },
+    ),
+    (event) => seen.push(event),
+  );
+  assert.deepEqual(seen, [
+    { kind: "text", delta: "서울이에요" },
+    { kind: "citation", url: "https://example.com/s", title: "S" },
+  ]);
+  assert.deepEqual(result.toolCalls, [{
+    id: "call_1",
+    name: "list_decks",
+    input: { a: 1 },
+  }]);
+  assert.equal(result.stop, "tool_use");
+  assert.deepEqual(result.usage, {
+    inputTokens: 50,
+    outputTokens: 30,
+    reasoningTokens: 12,
+    webSearchRequests: 1,
+    webFetchRequests: 0,
+  });
+  // Every output item goes back as the response gave it, the search's included.
+  assert.deepEqual(result.messages, [search, call]);
+});
+
+Deno.test("a responses call of server tools alone ends its turn, against one calling a function", async () => {
+  const done = (output: unknown[]) =>
+    ADAPTERS.openrouter.read(
+      events(data({
+        type: "response.completed",
+        response: { status: "completed", output, usage: {} },
+      })),
+      () => {},
+    );
+  const searched = await done([{
+    type: "openrouter:web_search",
+    id: "ws_1",
+    status: "completed",
+    action: { type: "search", query: "q" },
+  }]);
+  assert.deepEqual(searched.toolCalls, []);
+  assert.equal(searched.stop, "end");
+  const called = await done([{
+    type: "function_call",
+    id: "fc_1",
+    call_id: "call_1",
+    name: "list_decks",
+    arguments: "{}",
+  }]);
+  assert.equal(called.stop, "tool_use");
+});
+
+Deno.test("a responses stream cut short is read as cut, and a failed or unfinished one is an error", async () => {
+  const cut = await ADAPTERS.openrouter.read(
+    events(data({
+      type: "response.incomplete",
+      response: {
+        status: "incomplete",
+        incomplete_details: { reason: "max_output_tokens" },
+        output: [],
+        usage: {},
+      },
+    })),
+    () => {},
+  );
+  assert.equal(cut.stop, "cut");
+  await assert.rejects(
+    ADAPTERS.openrouter.read(
+      events(data({ type: "response.failed", response: { output: [] } })),
+      () => {},
+    ),
+    StreamError,
+  );
+  await assert.rejects(
+    ADAPTERS.openrouter.read(
+      events(data({ type: "response.output_text.delta", delta: "hi" })),
+      () => {},
+    ),
+    StreamError,
+  );
+});
+
+Deno.test("a body that breaks off is a stream error, after the events it sent", async () => {
+  let pulls = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (pulls++ === 0) {
+        controller.enqueue(new TextEncoder().encode('data: {"x":1}\n\n'));
+      } else {
+        controller.error(new TypeError("error reading a body from connection"));
+      }
+    },
+  });
+  const read: SseEvent[] = [];
+  await assert.rejects(
+    (async () => {
+      for await (const event of sseEvents(stream)) read.push(event);
+    })(),
+    StreamError,
+  );
+  assert.deepEqual(read, [{ event: "message", data: '{"x":1}' }]);
 });

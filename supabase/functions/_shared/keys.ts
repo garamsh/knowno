@@ -5,10 +5,14 @@ import { type SupabaseDeps, SupabaseError } from "./auth.ts";
 /** How long a key read from Vault is reused before it is read again. */
 export const KEY_CACHE_MS = 60_000;
 
+/** The providers Vault may hold a key for, as `public.provider_key` names them. */
+export const PROVIDERS = ["openrouter", "openai", "anthropic"] as const;
+export type Provider = (typeof PROVIDERS)[number];
+
 /** A provider's key, or null when none can serve it; and forgetting one that was just replaced. */
 export type Keys = {
-  readonly get: (provider: string) => Promise<string | null>;
-  readonly forget: (provider: string) => void;
+  readonly get: (provider: Provider) => Promise<string | null>;
+  readonly forget: (provider: Provider) => void;
 };
 
 /**
@@ -18,8 +22,8 @@ export type Keys = {
 export function vaultKeys(
   deps: SupabaseDeps & { readonly now: () => number },
 ): Keys {
-  const kept = new Map<string, { key: string | null; until: number }>();
-  const read = async (provider: string): Promise<string | null> => {
+  const kept = new Map<Provider, { key: string | null; until: number }>();
+  const read = async (provider: Provider): Promise<string | null> => {
     const response = await deps.fetch(`${deps.url}/rest/v1/rpc/provider_key`, {
       method: "POST",
       headers: {

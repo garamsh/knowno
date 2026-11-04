@@ -1,17 +1,20 @@
 /**
  * How one streamed model call with tools is sent to each provider and its stream read (ADR 0190):
- * OpenRouter's and OpenAI's chat completions and Anthropic's messages, each with its own native
- * web search, reasoning setting and usage.
+ * OpenRouter's responses, OpenAI's chat completions and Anthropic's messages, each with its own
+ * native web search, reasoning setting and usage.
  */
 
-import type { Configuration, Provider } from "./supabase.ts";
+import type { Provider } from "../_shared/keys.ts";
+import type { Configuration } from "./supabase.ts";
 
-export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+export const OPENROUTER_URL = "https://openrouter.ai/api/v1/responses";
 export const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 export const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
 /** The most tokens one call may answer with. */
 export const MAX_OUTPUT_TOKENS = 8192;
+/** The most tokens of a page Anthropic's web fetch puts in the context. */
+export const MAX_FETCH_TOKENS = 20_000;
 
 /** A tool the model may call, as the function defines it. */
 export type ToolSpec = {
@@ -52,23 +55,27 @@ export type CallEvent =
 /** How a call stopped: its turn ended, it asked for tools, the provider paused it, or the cap cut it. */
 export type Stop = "end" | "tool_use" | "pause" | "cut";
 
-/** What one call used, as its provider reports it. */
+/** What one call used, as its provider reports it; web fetches are Anthropic's alone. */
 export type CallUsage = {
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly reasoningTokens: number;
   readonly webSearchRequests: number;
+  readonly webFetchRequests: number;
 };
 
-/** A finished call: its message to send back in the next call, its tool calls, stop and usage. */
+/** A finished call: what it answered, sent back in the next call, its tool calls, stop and usage. */
 export type CallResult = {
-  readonly message: unknown;
+  readonly messages: readonly unknown[];
   readonly toolCalls: readonly ToolCall[];
   readonly stop: Stop;
   readonly usage: CallUsage;
 };
 
-/** Raised when a provider's stream says it failed or ends in a form the adapter does not read. */
+/**
+ * Raised when a provider's stream breaks off, says it failed, or ends in a form the adapter does not
+ * read.
+ */
 export class StreamError extends Error {
   override name = "StreamError";
 }
@@ -100,9 +107,18 @@ export type Adapter = {
 export async function* sseEvents(
   body: ReadableStream<Uint8Array>,
 ): AsyncGenerator<SseEvent> {
+  const reader = body.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = "";
-  for await (const chunk of body.pipeThrough(new TextDecoderStream())) {
-    buffer += chunk.replace(/\r\n?/g, "\n");
+  for (;;) {
+    let next;
+    try {
+      next = await reader.read();
+    } catch (cause) {
+      // The connection failed, or the call was aborted.
+      throw new StreamError("the stream broke off", { cause });
+    }
+    if (next.done) return;
+    buffer += next.value.replace(/\r\n?/g, "\n");
     let end;
     while ((end = buffer.indexOf("\n\n")) !== -1) {
       const block = buffer.slice(0, end);
@@ -148,11 +164,7 @@ function parsed(data: string): Record<string, unknown> {
   return value;
 }
 
-// Chat completions: OpenRouter and OpenAI.
-
-function chatHistory(turns: readonly Turn[]): unknown[] {
-  return turns.map((turn) => ({ role: turn.role, content: turn.text }));
-}
+// OpenAI's chat completions.
 
 function chatTools(tools: readonly ToolSpec[]): unknown[] {
   return tools.map((tool) => ({
@@ -165,48 +177,19 @@ function chatTools(tools: readonly ToolSpec[]): unknown[] {
   }));
 }
 
-function chatToolResults(results: readonly ToolResult[]): unknown[] {
-  return results.map((result) => ({
-    role: "tool",
-    tool_call_id: result.call.id,
-    content: result.content,
-  }));
-}
-
-/** One reasoning detail, merged into the one before it when both continue the same index. */
-function mergeReasoning(details: Record<string, unknown>[], next: unknown) {
-  if (!isRecord(next)) return;
-  const last = details.at(-1);
-  if (
-    last !== undefined && next.index !== undefined &&
-    last.index === next.index &&
-    last.type === next.type
-  ) {
-    for (const key of ["text", "summary", "data", "signature"]) {
-      if (typeof next[key] === "string") {
-        last[key] = `${typeof last[key] === "string" ? last[key] : ""}${
-          next[key]
-        }`;
-      }
-    }
-    return;
-  }
-  details.push({ ...next });
-}
-
 async function readChat(
   events: AsyncIterable<SseEvent>,
   emit: (event: CallEvent) => void,
 ): Promise<CallResult> {
   let text = "";
   const calls: { id: string; name: string; args: string }[] = [];
-  const reasoning: Record<string, unknown>[] = [];
   let finish: unknown = null;
   let usage: CallUsage = {
     inputTokens: 0,
     outputTokens: 0,
     reasoningTokens: 0,
     webSearchRequests: 0,
+    webFetchRequests: 0,
   };
   for await (const { data } of events) {
     if (data.trim() === "[DONE]") break;
@@ -219,17 +202,12 @@ async function readChat(
       const details = isRecord(u.completion_tokens_details)
         ? u.completion_tokens_details
         : {};
-      // OpenRouter names its server tools' counts either way.
-      const tools = isRecord(u.server_tool_use)
-        ? u.server_tool_use
-        : isRecord(u.server_tool_use_details)
-        ? u.server_tool_use_details
-        : {};
       usage = {
         inputTokens: count(u.prompt_tokens),
         outputTokens: count(u.completion_tokens),
         reasoningTokens: count(details.reasoning_tokens),
-        webSearchRequests: count(tools.web_search_requests),
+        webSearchRequests: 0,
+        webFetchRequests: 0,
       };
     }
     const choice = Array.isArray(chunk.choices) ? chunk.choices[0] : undefined;
@@ -241,25 +219,6 @@ async function readChat(
     if (typeof delta.content === "string" && delta.content !== "") {
       text += delta.content;
       emit({ kind: "text", delta: delta.content });
-    }
-    if (Array.isArray(delta.reasoning_details)) {
-      for (const detail of delta.reasoning_details) {
-        mergeReasoning(reasoning, detail);
-      }
-    }
-    if (Array.isArray(delta.annotations)) {
-      for (const note of delta.annotations) {
-        const cited = isRecord(note) && isRecord(note.url_citation)
-          ? note.url_citation
-          : null;
-        if (cited !== null && typeof cited.url === "string") {
-          emit({
-            kind: "citation",
-            url: cited.url,
-            title: typeof cited.title === "string" ? cited.title : null,
-          });
-        }
-      }
     }
     if (Array.isArray(delta.tool_calls)) {
       for (const part of delta.tool_calls) {
@@ -279,24 +238,24 @@ async function readChat(
   if (finish === null) {
     throw new StreamError("the stream ended before the call finished");
   }
-  const toolCalls = calls.filter((call) => call !== undefined).map((call) => ({
+  const made = calls.filter((call) => call !== undefined);
+  const toolCalls = made.map((call) => ({
     id: call.id,
     name: call.name,
     input: parseInput(call.args),
   }));
   return {
-    message: {
+    messages: [{
       role: "assistant",
       content: text === "" ? null : text,
-      ...(toolCalls.length === 0 ? {} : {
-        tool_calls: calls.filter((call) => call !== undefined).map((call) => ({
+      ...(made.length === 0 ? {} : {
+        tool_calls: made.map((call) => ({
           id: call.id,
           type: "function",
           function: { name: call.name, arguments: call.args },
         })),
       }),
-      ...(reasoning.length === 0 ? {} : { reasoning_details: reasoning }),
-    },
+    }],
     toolCalls,
     stop: finish === "length"
       ? "cut"
@@ -304,6 +263,87 @@ async function readChat(
       ? "tool_use"
       : "end",
     usage,
+  };
+}
+
+// OpenRouter's responses, whose reference documents the web search server tool's output item as a
+// type of its own, apart from function calls (ADR 0190).
+
+async function readResponses(
+  events: AsyncIterable<SseEvent>,
+  emit: (event: CallEvent) => void,
+): Promise<CallResult> {
+  let ended: { response: Record<string, unknown>; cut: boolean } | null = null;
+  for await (const { data } of events) {
+    if (data.trim() === "[DONE]") break;
+    const event = parsed(data);
+    switch (event.type) {
+      case "error":
+      case "response.failed":
+        throw new StreamError("the provider reported an error");
+      case "response.output_text.delta":
+        if (typeof event.delta === "string" && event.delta !== "") {
+          emit({ kind: "text", delta: event.delta });
+        }
+        break;
+      case "response.output_text.annotation.added": {
+        const note = isRecord(event.annotation) ? event.annotation : {};
+        if (note.type === "url_citation" && typeof note.url === "string") {
+          emit({
+            kind: "citation",
+            url: note.url,
+            title: typeof note.title === "string" ? note.title : null,
+          });
+        }
+        break;
+      }
+      case "response.completed":
+      case "response.incomplete":
+        if (isRecord(event.response)) {
+          ended = {
+            response: event.response,
+            cut: event.type === "response.incomplete",
+          };
+        }
+        break;
+    }
+  }
+  if (ended === null || !Array.isArray(ended.response.output)) {
+    throw new StreamError("the stream ended before the response did");
+  }
+  const output: unknown[] = ended.response.output;
+  // A server tool's item, such as openrouter:web_search, has a type of its own: only a function
+  // call is the function's to run.
+  const toolCalls = output.flatMap((item) =>
+    isRecord(item) && item.type === "function_call" &&
+      typeof item.call_id === "string" && typeof item.name === "string"
+      ? [{
+        id: item.call_id,
+        name: item.name,
+        input: parseInput(
+          typeof item.arguments === "string" ? item.arguments : "",
+        ),
+      }]
+      : []
+  );
+  const u = isRecord(ended.response.usage) ? ended.response.usage : {};
+  const details = isRecord(u.output_tokens_details)
+    ? u.output_tokens_details
+    : {};
+  const tools = isRecord(u.server_tool_use_details)
+    ? u.server_tool_use_details
+    : {};
+  return {
+    messages: output,
+    toolCalls,
+    stop: ended.cut ? "cut" : toolCalls.length > 0 ? "tool_use" : "end",
+    usage: {
+      inputTokens: count(u.input_tokens),
+      outputTokens: count(u.output_tokens),
+      reasoningTokens: count(details.reasoning_tokens),
+      webSearchRequests: count(tools.web_search_requests),
+      webFetchRequests: 0,
+    },
   };
 }
 
@@ -315,12 +355,19 @@ const bearer = (apiKey: string) => ({
 const openrouter: Adapter = {
   url: OPENROUTER_URL,
   headers: bearer,
-  history: chatHistory,
+  history: (turns) =>
+    turns.map((turn) => ({ role: turn.role, content: turn.text })),
   body: ({ configuration, system, messages, tools }) => ({
     model: configuration.model,
-    messages: [{ role: "system", content: system }, ...messages],
+    instructions: system,
+    input: messages,
     tools: [
-      ...chatTools(tools),
+      ...tools.map((tool) => ({
+        type: "function",
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema,
+      })),
       // OpenRouter's server tool, on the Exa engine the owner's cost figure names (#713).
       ...(configuration.webSearch
         ? [{
@@ -330,19 +377,24 @@ const openrouter: Adapter = {
         : []),
     ],
     reasoning: { effort: configuration.effort },
-    max_tokens: MAX_OUTPUT_TOKENS,
+    max_output_tokens: MAX_OUTPUT_TOKENS,
     stream: true,
-    stream_options: { include_usage: true },
   }),
-  toolResults: chatToolResults,
-  read: readChat,
+  toolResults: (results) =>
+    results.map((result) => ({
+      type: "function_call_output",
+      call_id: result.call.id,
+      output: result.content,
+    })),
+  read: readResponses,
 };
 
 // OpenAI's chat completions have no native web search, so a configuration on it searches nothing.
 const openai: Adapter = {
   url: OPENAI_URL,
   headers: bearer,
-  history: chatHistory,
+  history: (turns) =>
+    turns.map((turn) => ({ role: turn.role, content: turn.text })),
   body: ({ configuration, system, messages, tools }) => ({
     model: configuration.model,
     messages: [{ role: "system", content: system }, ...messages],
@@ -354,7 +406,12 @@ const openai: Adapter = {
     stream: true,
     stream_options: { include_usage: true },
   }),
-  toolResults: chatToolResults,
+  toolResults: (results) =>
+    results.map((result) => ({
+      role: "tool",
+      tool_call_id: result.call.id,
+      content: result.content,
+    })),
   read: readChat,
 };
 
@@ -369,7 +426,9 @@ async function readAnthropic(
   let stop: unknown = null;
   let inputTokens = 0;
   let outputTokens = 0;
+  let thinkingTokens = 0;
   let searches = 0;
+  let fetches = 0;
   let ended = false;
   for await (const { data } of events) {
     const event = parsed(data);
@@ -462,8 +521,13 @@ async function readAnthropic(
             count(usage.cache_read_input_tokens) +
             count(usage.cache_creation_input_tokens);
         }
+        // Thinking's share of the output tokens, sent on the final message_delta.
+        if (isRecord(usage.output_tokens_details)) {
+          thinkingTokens = count(usage.output_tokens_details.thinking_tokens);
+        }
         if (isRecord(usage.server_tool_use)) {
           searches = count(usage.server_tool_use.web_search_requests);
+          fetches = count(usage.server_tool_use.web_fetch_requests);
         }
         break;
       }
@@ -491,10 +555,10 @@ async function readAnthropic(
       : [];
   });
   return {
-    message: {
+    messages: [{
       role: "assistant",
       content: blocks.filter((block) => block !== undefined),
-    },
+    }],
     toolCalls,
     stop: stop === "tool_use"
       ? "tool_use"
@@ -506,10 +570,21 @@ async function readAnthropic(
     usage: {
       inputTokens,
       outputTokens,
-      // Anthropic counts thinking within the output tokens and reports no part of its own.
-      reasoningTokens: 0,
+      reasoningTokens: thinkingTokens,
       webSearchRequests: searches,
+      webFetchRequests: fetches,
     },
+  };
+}
+
+/**
+ * How thinking is turned off on [model], by Anthropic's per-model table: Claude Sonnet 5.5 takes
+ * `between_tools` in place of `disabled`. A model whose thinking is always on is refused at `none`
+ * when its configuration is saved (`private.assistant_effort_fits`).
+ */
+function thinkingOff(model: string): { type: "disabled" | "between_tools" } {
+  return {
+    type: model.startsWith("claude-sonnet-5-5") ? "between_tools" : "disabled",
   };
 }
 
@@ -533,7 +608,8 @@ const anthropic: Adapter = {
         description: tool.description,
         input_schema: tool.inputSchema,
       })),
-      // The basic variants, which every current model takes; web fetch reads a URL in the chat.
+      // The basic variants, which every current model takes. Web fetch reads a URL of the user's or
+      // of a search's, never one a tool of the function's answered, which the model may have written.
       ...(configuration.webSearch
         ? [
           {
@@ -545,14 +621,18 @@ const anthropic: Adapter = {
             type: "web_fetch_20250910",
             name: "web_fetch",
             max_uses: configuration.maxSearches,
+            max_content_tokens: MAX_FETCH_TOKENS,
+            url_sources: { client_tool_results: { type: "none" } },
           },
         ]
         : []),
     ],
-    ...(configuration.effort === "none" ? { thinking: { type: "disabled" } } : {
-      thinking: { type: "adaptive" },
-      output_config: { effort: configuration.effort },
-    }),
+    ...(configuration.effort === "none"
+      ? { thinking: thinkingOff(configuration.model) }
+      : {
+        thinking: { type: "adaptive" },
+        output_config: { effort: configuration.effort },
+      }),
     stream: true,
   }),
   toolResults: (results) => [{

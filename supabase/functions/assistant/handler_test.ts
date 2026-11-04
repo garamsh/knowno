@@ -1,7 +1,15 @@
 // The assistant end to end, with Supabase Auth, PostgREST, its functions, Vault and the providers
 // replaced by an in-memory fake that applies row-level security's owner rule. No network.
 import assert from "node:assert/strict";
-import { createHandler, type LogEntry, MAX_MODEL_CALLS } from "./handler.ts";
+import {
+  createHandler,
+  type LogEntry,
+  MAX_BODY_BYTES,
+  MAX_MODEL_CALLS,
+  MAX_TURN_TEXT,
+  MAX_TURNS,
+  TURN_LIMIT_MS,
+} from "./handler.ts";
 import { readConfig } from "./config.ts";
 import { ANTHROPIC_URL, OPENROUTER_URL } from "./providers.ts";
 import type { Proposal } from "./tools.ts";
@@ -29,7 +37,7 @@ type Fake = {
   configuration: Row;
   finished: Row[];
   /** The provider's replies in order, each given the request's body. */
-  replies: ((body: Row) => Response)[];
+  replies: ((body: Row, signal: AbortSignal) => Response)[];
   requests: Row[];
   writes: { method: string; table: string; body: unknown }[];
 };
@@ -174,7 +182,7 @@ function fakeFetch(fake: Fake): typeof fetch {
       if (reply === undefined) {
         throw new Error("the provider was called once too often");
       }
-      return reply(body);
+      return reply(body, init?.signal ?? new AbortController().signal);
     }
     if (url.href === `${SUPABASE_URL}/auth/v1/user`) {
       const user = TOKENS[bearer];
@@ -217,63 +225,78 @@ function fakeFetch(fake: Fake): typeof fetch {
   };
 }
 
-/** A chat completions stream of [chunks]. */
-function chatStream(chunks: unknown[]): Response {
+/** An OpenRouter responses stream of [events], each sent under its type. */
+function responsesStream(events: Row[]): Response {
   const text =
-    chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join("") +
-    "data: [DONE]\n\n";
+    events.map((event) =>
+      `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`
+    ).join("") + "data: [DONE]\n\n";
   return new Response(text, {
     headers: { "Content-Type": "text/event-stream" },
   });
 }
 
-const usage = { prompt_tokens: 100, completion_tokens: 20 };
+const usage = { input_tokens: 100, output_tokens: 20 };
+
+/** The event ending a response of [output] items. */
+const completed = (output: unknown[], used: Row = usage): Row => ({
+  type: "response.completed",
+  response: { status: "completed", output, usage: used },
+});
+
+const message = (text: string) => ({
+  type: "message",
+  role: "assistant",
+  status: "completed",
+  content: [{ type: "output_text", text, annotations: [] }],
+});
 
 /** A reply of [parts] of text, ending its turn. */
 function says(...parts: string[]) {
   return () =>
-    chatStream([
-      ...parts.map((content) => ({
-        choices: [{ delta: { content }, finish_reason: null }],
-      })),
-      { choices: [{ delta: {}, finish_reason: "stop" }] },
-      { choices: [], usage },
+    responsesStream([
+      ...parts.map((delta) => ({ type: "response.output_text.delta", delta })),
+      completed([message(parts.join(""))]),
     ]);
 }
 
 let calls = 0;
+/** A function call of the tool [name] with [args], as a response's output item. */
+function functionCall(name: string, args: unknown) {
+  const n = ++calls;
+  return {
+    type: "function_call",
+    id: `fc_${n}`,
+    call_id: `call_${n}`,
+    name,
+    arguments: JSON.stringify(args),
+  };
+}
+
 /** A reply calling the tool [name] with [args], its arguments streamed in two pieces. */
 function calls_(name: string, args: unknown) {
   return () => {
-    const json = JSON.stringify(args);
-    const id = `call_${++calls}`;
-    return chatStream([
+    const call = functionCall(name, args);
+    return responsesStream([
+      { type: "response.output_item.added", item: { ...call, arguments: "" } },
       {
-        choices: [{
-          delta: {
-            tool_calls: [{
-              index: 0,
-              id,
-              type: "function",
-              function: { name, arguments: json.slice(0, 5) },
-            }],
-          },
-          finish_reason: null,
-        }],
+        type: "response.function_call_arguments.delta",
+        delta: call.arguments.slice(0, 5),
       },
       {
-        choices: [{
-          delta: {
-            tool_calls: [{ index: 0, function: { arguments: json.slice(5) } }],
-          },
-          finish_reason: null,
-        }],
+        type: "response.function_call_arguments.delta",
+        delta: call.arguments.slice(5),
       },
-      { choices: [{ delta: {}, finish_reason: "tool_calls" }] },
-      { choices: [], usage },
+      completed([call]),
     ]);
   };
 }
+
+/** The input items of [request], the conversation the provider was sent. */
+const input = (request: Row) => request.input as Row[];
+
+/** What the last tool call of [request] answered the model. */
+const answered = (request: Row) => String(input(request).at(-1)!.output);
 
 type Event = { event: string; data: Record<string, unknown> };
 
@@ -289,17 +312,13 @@ function parseEvents(text: string): Event[] {
 
 let clock = Date.UTC(2026, 10, 4);
 
-async function send(
+/** The handler over [fake], logging into [logs]; [now] and [timeout] replace the clock's. */
+function handlerOf(
   fake: Fake,
-  options: {
-    path?: string;
-    token?: string | null;
-    body?: unknown;
-    method?: string;
-  } = {},
+  logs: LogEntry[],
+  clocks: { now?: () => number; timeout?: (ms: number) => AbortSignal } = {},
 ) {
-  const logs: LogEntry[] = [];
-  const handler = createHandler({
+  return createHandler({
     config: readConfig((name) =>
       ({
         SUPABASE_URL,
@@ -313,11 +332,26 @@ async function send(
       get: () => Promise.resolve(fake.keyed ? "sk-test" : null),
       forget: () => {},
     },
-    now: () => clock++,
+    now: clocks.now ?? (() => clock++),
     random: (bytes) => new Uint8Array(bytes).fill(7),
     resolve: () => Promise.resolve(["93.184.216.34"]),
-    timeout: () => new AbortController().signal,
+    timeout: clocks.timeout ?? (() => new AbortController().signal),
   });
+}
+
+async function send(
+  fake: Fake,
+  options: {
+    path?: string;
+    token?: string | null;
+    body?: unknown;
+    method?: string;
+    now?: () => number;
+    timeout?: (ms: number) => AbortSignal;
+  } = {},
+) {
+  const logs: LogEntry[] = [];
+  const handler = handlerOf(fake, logs, options);
   const token = options.token === undefined ? "ada-token" : options.token;
   const response = await handler(
     new Request(`http://localhost${options.path ?? "/assistant"}`, {
@@ -375,14 +409,11 @@ Deno.test("a message streams its text, then one usage event last, and is recorde
   // The provider is sent the configuration's model, prompt and the conversation.
   const request = fake.requests[0]!;
   assert.equal(request.model, "anthropic/claude-haiku-5.5");
-  assert.deepEqual((request.messages as Row[])[0], {
-    role: "system",
-    content: "You are 말랑이.",
-  });
-  assert.deepEqual((request.messages as Row[])[1], {
+  assert.equal(request.instructions, "You are 말랑이.");
+  assert.deepEqual(input(request), [{
     role: "user",
     content: "영단어 노트 만들어 줘",
-  });
+  }]);
   assert.equal(run.logs.length, 1);
   assert.equal(run.logs[0]!.outcome, "ok");
   assert.equal(run.logs[0]!.outcome_recorded, true);
@@ -409,9 +440,9 @@ Deno.test("the tool loop stops at its call limit, against a loop the model ends 
   assert.equal(ending.requests.length, 2);
   assert.equal(control.events.at(-1)!.data.outcome, "ok");
   // The read tool's answer reached the model as the tool's result.
-  const answered = (ending.requests[1]!.messages as Row[]).at(-1)!;
-  assert.equal(answered.role, "tool");
-  assert.deepEqual(JSON.parse(String(answered.content)).decks, [{
+  const result = input(ending.requests[1]!).at(-1)!;
+  assert.equal(result.type, "function_call_output");
+  assert.deepEqual(JSON.parse(String(result.output)).decks, [{
     id: ADA_DECK,
     name: "영단어",
     card_count: 1,
@@ -433,8 +464,7 @@ Deno.test("a proposal of refused cards shows nothing and tells the model why, ag
   );
   const run = await send(refused);
   assert.deepEqual(run.events.map((e) => e.event), ["text", "usage"]);
-  const result = (refused.requests[1]!.messages as Row[]).at(-1)!;
-  assert.match(String(result.content), /No card could be shown/);
+  assert.match(answered(refused.requests[1]!), /No card could be shown/);
   assert.deepEqual(refused.writes, []);
 
   const shown = seed();
@@ -474,10 +504,7 @@ Deno.test("a proposal over 100 cards is refused whole, against 100", async () =>
   );
   const run = await send(over);
   assert.equal(run.events.filter((e) => e.event === "proposal").length, 0);
-  assert.match(
-    String((over.requests[1]!.messages as Row[]).at(-1)!.content),
-    /at most 100 cards/,
-  );
+  assert.match(answered(over.requests[1]!), /at most 100 cards/);
 
   const full = seed();
   full.replies.push(
@@ -565,7 +592,7 @@ Deno.test("regenerating a group remakes it alone, the other group kept as it was
   });
   // The model read the earlier proposal's ids in the conversation.
   assert.match(
-    String((fake.requests[0]!.messages as Row[])[2]!.content),
+    String(input(fake.requests[0]!)[1]!.content),
     new RegExp(PROPOSAL.groups[1]!.id),
   );
   const remade = run.events.find((e) => e.event === "proposal")!
@@ -596,7 +623,7 @@ Deno.test("a group of one format refuses a card without that format, against mix
     .data as unknown as Proposal;
   assert.deepEqual(proposal.groups.map((g) => g.title), ["섞어서"]);
   assert.match(
-    String((fake.requests[1]!.messages as Row[]).at(-1)!.content),
+    answered(fake.requests[1]!),
     /a card of a cloze group holds a cloze block/,
   );
 });
@@ -710,35 +737,23 @@ Deno.test("a provider without a key is refused uncounted", async () => {
 
 Deno.test("citations are streamed once each", async () => {
   const fake = seed();
+  const cited = {
+    type: "response.output_text.annotation.added",
+    annotation: {
+      type: "url_citation",
+      url: "https://example.com/a",
+      title: "A",
+    },
+  };
   fake.replies.push(() =>
-    chatStream([
-      {
-        choices: [{
-          delta: { content: "서울은 수도예요." },
-          finish_reason: null,
-        }],
-      },
-      {
-        choices: [{
-          delta: {
-            annotations: [
-              {
-                type: "url_citation",
-                url_citation: { url: "https://example.com/a", title: "A" },
-              },
-              {
-                type: "url_citation",
-                url_citation: { url: "https://example.com/a", title: "A" },
-              },
-            ],
-          },
-          finish_reason: "stop",
-        }],
-      },
-      {
-        choices: [],
-        usage: { ...usage, server_tool_use: { web_search_requests: 1 } },
-      },
+    responsesStream([
+      { type: "response.output_text.delta", delta: "서울은 수도예요." },
+      cited,
+      cited,
+      completed([message("서울은 수도예요.")], {
+        ...usage,
+        server_tool_use_details: { web_search_requests: 1 },
+      }),
     ])
   );
   const run = await send(fake);
@@ -769,7 +784,7 @@ Deno.test("the open note is named to the model", async () => {
     body: { ...ask("카드 더 만들어 줘"), context: { deck_id: ADA_DECK } },
   });
   assert.match(
-    String((fake.requests[0]!.messages as Row[])[0]!.content),
+    String(fake.requests[0]!.instructions),
     /inside their note "영단어"/,
   );
 });
@@ -878,23 +893,11 @@ Deno.test("a turn's searches are shared by its calls, the search tool dropped on
     max_searches: 3,
   };
   const searched = (requests: number) => () =>
-    chatStream([
-      {
-        choices: [{
-          delta: {
-            tool_calls: [{
-              index: 0,
-              id: `s${requests}`,
-              function: { name: "list_decks", arguments: "{}" },
-            }],
-          },
-          finish_reason: "tool_calls",
-        }],
-      },
-      {
-        choices: [],
-        usage: { ...usage, server_tool_use: { web_search_requests: requests } },
-      },
+    responsesStream([
+      completed([functionCall("list_decks", {})], {
+        ...usage,
+        server_tool_use_details: { web_search_requests: requests },
+      }),
     ]);
   fake.replies.push(searched(2), searched(1), says("끝"));
   await send(fake);
@@ -911,4 +914,330 @@ Deno.test("a turn's searches are shared by its calls, the search tool dropped on
     max_uses: 1,
   });
   assert.equal(search(fake.requests[2]!), undefined);
+});
+
+/**
+ * A reply that streams some text and holds until [gate] opens, then completes; its call's signal
+ * aborting breaks the stream off, as a real fetch's body does.
+ */
+function held(gate: Promise<void>) {
+  return (_body: Row, signal: AbortSignal) => {
+    const encoder = new TextEncoder();
+    const event = (value: Row) =>
+      encoder.encode(
+        `event: ${value.type}\ndata: ${JSON.stringify(value)}\n\n`,
+      );
+    return new Response(
+      new ReadableStream<Uint8Array>({
+        async start(controller) {
+          controller.enqueue(
+            event({ type: "response.output_text.delta", delta: "잠시만요" }),
+          );
+          const aborted = new Promise<"aborted">((resolve) =>
+            signal.addEventListener("abort", () => resolve("aborted"), {
+              once: true,
+            })
+          );
+          const first = await Promise.race([
+            gate.then(() => "open" as const),
+            aborted,
+          ]);
+          if (first === "aborted") {
+            controller.error(signal.reason);
+            return;
+          }
+          controller.enqueue(event(completed([message("잠시만요")])));
+          controller.close();
+        },
+      }),
+      { headers: { "Content-Type": "text/event-stream" } },
+    );
+  };
+}
+
+/** Resolves once [condition] holds, failing after a second of event-loop turns. */
+async function until(condition: () => boolean) {
+  for (let turn = 0; turn < 1000; turn++) {
+    if (condition()) return;
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  throw new Error("the condition never held");
+}
+
+Deno.test("a client that goes away ends the turn as cancelled and records what it used, against one that stays", async () => {
+  const gone = seed();
+  let open = () => {};
+  gone.replies.push(held(new Promise((resolve) => open = resolve)));
+  const logs: LogEntry[] = [];
+  const response = await handlerOf(gone, logs)(
+    new Request("http://localhost/assistant", {
+      method: "POST",
+      headers: { Authorization: "Bearer ada-token" },
+      body: JSON.stringify(ask("안녕")),
+    }),
+  );
+  assert.ok(response.body !== null);
+  const reader = response.body.getReader();
+  const first = await reader.read();
+  assert.match(new TextDecoder().decode(first.value), /event: text/);
+  await reader.cancel();
+  open();
+  await until(() => logs.length > 0);
+  assert.equal(gone.finished.length, 1);
+  assert.equal(gone.finished[0]!.outcome, "cancelled");
+  assert.equal(gone.finished[0]!.model_calls, 1);
+  assert.equal(logs[0]!.outcome, "cancelled");
+  assert.equal(logs[0]!.outcome_recorded, true);
+
+  const stays = seed();
+  stays.replies.push(held(Promise.resolve()));
+  const run = await send(stays);
+  assert.deepEqual(run.events.map((e) => e.event), ["text", "usage"]);
+  assert.equal(stays.finished[0]!.outcome, "ok");
+});
+
+Deno.test("the turn stops at its time limit, against a call made just inside it", async () => {
+  const late = seed();
+  late.replies.push(calls_("list_decks", {}), says("끝"));
+  // The clock reads the limit once the first call was made.
+  const run = await send(late, {
+    now: () => late.requests.length === 0 ? 0 : TURN_LIMIT_MS,
+  });
+  assert.equal(late.requests.length, 1);
+  assert.equal(run.events.at(-1)!.data.outcome, "time_limit");
+  assert.equal(run.events.at(-1)!.data.model_calls, 1);
+  assert.equal(late.finished[0]!.outcome, "time_limit");
+
+  const inside = seed();
+  inside.replies.push(calls_("list_decks", {}), says("끝"));
+  const control = await send(inside, {
+    now: () => inside.requests.length === 0 ? 0 : TURN_LIMIT_MS - 1,
+  });
+  assert.equal(inside.requests.length, 2);
+  assert.equal(control.events.at(-1)!.data.outcome, "ok");
+});
+
+Deno.test("a call the turn's time runs out on ends as time_limit, against one that fails in time", async () => {
+  const run = async (outOfTime: boolean) => {
+    const fake = seed();
+    const timer = new AbortController();
+    let called = false;
+    fake.replies.push((body, signal) => {
+      called = true;
+      setTimeout(() =>
+        timer.abort(new DOMException("timed out", "TimeoutError"))
+      );
+      return held(new Promise(() => {}))(body, signal);
+    });
+    const done = await send(fake, {
+      now: () => outOfTime && called ? TURN_LIMIT_MS : 0,
+      timeout: () => timer.signal,
+    });
+    return { done, fake };
+  };
+  const late = await run(true);
+  assert.deepEqual(late.done.events.map((e) => e.event), ["text", "usage"]);
+  assert.equal(late.done.events.at(-1)!.data.outcome, "time_limit");
+  assert.equal(late.fake.finished[0]!.outcome, "time_limit");
+
+  const failed = await run(false);
+  assert.deepEqual(failed.done.events.map((e) => e.event), [
+    "text",
+    "error",
+    "usage",
+  ]);
+  assert.equal(failed.done.events.at(-1)!.data.outcome, "model_error");
+});
+
+Deno.test("a reply cut at the output limit ends as cut with an error event, against one that completes", async () => {
+  const fake = seed();
+  fake.replies.push(() =>
+    responsesStream([
+      { type: "response.output_text.delta", delta: "카드를 만들" },
+      {
+        type: "response.incomplete",
+        response: {
+          status: "incomplete",
+          incomplete_details: { reason: "max_output_tokens" },
+          output: [message("카드를 만들")],
+          usage,
+        },
+      },
+    ])
+  );
+  const run = await send(fake);
+  assert.deepEqual(run.events.map((e) => e.event), ["text", "error", "usage"]);
+  assert.deepEqual(run.events[1]!.data, { error: "cut" });
+  assert.equal(run.events.at(-1)!.data.outcome, "cut");
+  assert.equal(fake.finished[0]!.outcome, "cut");
+
+  const whole = seed();
+  whole.replies.push(says("카드를 만들었어요"));
+  const control = await send(whole);
+  assert.equal(control.events.at(-1)!.data.outcome, "ok");
+});
+
+Deno.test("a programming error surfaces unrecorded, against a network error ending as model_error", async () => {
+  const broken = seed();
+  broken.replies.push(() => {
+    throw new RangeError("a defect in the function");
+  });
+  await assert.rejects(send(broken), RangeError);
+  assert.deepEqual(broken.finished, []);
+
+  const offline = seed();
+  offline.replies.push(() => {
+    throw new TypeError("error sending request");
+  });
+  const control = await send(offline);
+  assert.equal(control.events.at(-1)!.data.outcome, "model_error");
+  assert.equal(offline.finished[0]!.outcome, "model_error");
+});
+
+Deno.test("a body over 512 KiB is refused uncounted, against one at the cap", async () => {
+  const padded = (bytes: number) => {
+    const bare = JSON.stringify({ ...ask("안녕"), pad: "" });
+    return {
+      ...ask("안녕"),
+      pad: "x".repeat(bytes - new TextEncoder().encode(bare).length),
+    };
+  };
+  const over = seed();
+  const run = await send(over, { body: padded(MAX_BODY_BYTES + 1) });
+  assert.equal(run.status, 413);
+  assert.deepEqual(run.json, { error: "too_large" });
+  assert.equal(over.used, 0);
+
+  const at = seed();
+  at.replies.push(says("네"));
+  assert.equal((await send(at, { body: padded(MAX_BODY_BYTES) })).status, 200);
+});
+
+Deno.test("more than 40 turns, or a turn over 4,000 characters, is refused, against the limits", async () => {
+  const turns = (n: number, text = "네") =>
+    Array.from({ length: n }, (_, i) => ({
+      role: (n - 1 - i) % 2 === 0 ? "user" : "assistant",
+      text,
+    }));
+  const fake = seed();
+  const many = await send(fake, { body: { messages: turns(MAX_TURNS + 1) } });
+  assert.equal(many.status, 400);
+  const long = await send(fake, {
+    body: { messages: turns(1, "가".repeat(MAX_TURN_TEXT + 1)) },
+  });
+  assert.equal(long.status, 400);
+  assert.equal(fake.used, 0);
+
+  const control = seed();
+  control.replies.push(says("네"), says("네"));
+  assert.equal(
+    (await send(control, { body: { messages: turns(MAX_TURNS) } })).status,
+    200,
+  );
+  assert.equal(
+    (await send(control, {
+      body: { messages: turns(1, "가".repeat(MAX_TURN_TEXT)) },
+    })).status,
+    200,
+  );
+});
+
+Deno.test("a turn whose proposals describe it past the cap is refused, against one inside it", async () => {
+  const id = (kind: string, n: number) =>
+    `00000000-0000-7000-8000-${kind}${String(n).padStart(11, "0")}`;
+  // The largest proposal the tools make: 20 groups of long titles, 100 cards of long fronts.
+  const big = (n: number): Proposal => ({
+    id: id("f", n),
+    kind: "cards",
+    deck: { id: ADA_DECK, name: "영단어" },
+    groups: Array.from({ length: 20 }, (_, g) => ({
+      id: id("a", n * 100 + g),
+      title: "가".repeat(60),
+      format: "text",
+      cards: Array.from({ length: 5 }, (_, c) => ({
+        id: id("c", n * 1000 + g * 10 + c),
+        card: card("f".repeat(200), "b"),
+      })),
+    })),
+  });
+  const turn = (proposals: Proposal[]) => ({
+    messages: [
+      { role: "user", text: "카드 만들어 줘" },
+      { role: "assistant", text: "가".repeat(MAX_TURN_TEXT), proposals },
+      { role: "user", text: "좋아요" },
+    ],
+  });
+  const fake = seed();
+  const over = await send(fake, { body: turn([big(1), big(2)]) });
+  assert.equal(over.status, 400);
+  assert.equal(fake.used, 0);
+
+  const control = seed();
+  control.replies.push(says("네"));
+  assert.equal((await send(control, { body: turn([big(1)]) })).status, 200);
+});
+
+Deno.test("Anthropic's web fetches share the turn's searches with its web searches", async () => {
+  const fake = seed();
+  fake.configuration = {
+    ...fake.configuration,
+    provider: "anthropic",
+    model: "claude-haiku-5-5",
+    web_search: true,
+    max_searches: 3,
+  };
+  fake.replies.push(
+    () =>
+      messagesStream([
+        {
+          type: "message_start",
+          message: { usage: { input_tokens: 10, output_tokens: 1 } },
+        },
+        {
+          type: "content_block_start",
+          index: 0,
+          content_block: {
+            type: "tool_use",
+            id: "toolu_1",
+            name: "list_decks",
+            input: {},
+          },
+        },
+        {
+          type: "content_block_delta",
+          index: 0,
+          delta: { type: "input_json_delta", partial_json: "{}" },
+        },
+        { type: "content_block_stop", index: 0 },
+        {
+          type: "message_delta",
+          delta: { stop_reason: "tool_use" },
+          usage: {
+            output_tokens: 5,
+            server_tool_use: { web_search_requests: 1, web_fetch_requests: 1 },
+          },
+        },
+        { type: "message_stop" },
+      ]),
+    () =>
+      messagesStream([
+        {
+          type: "message_start",
+          message: { usage: { input_tokens: 20, output_tokens: 1 } },
+        },
+        {
+          type: "message_delta",
+          delta: { stop_reason: "end_turn" },
+          usage: { output_tokens: 2 },
+        },
+        { type: "message_stop" },
+      ]),
+  );
+  await send(fake);
+  const uses = (request: Row) =>
+    (request.tools as Row[]).filter((tool) =>
+      tool.name === "web_search" || tool.name === "web_fetch"
+    ).map((tool) => tool.max_uses);
+  assert.deepEqual(uses(fake.requests[0]!), [3, 3]);
+  assert.deepEqual(uses(fake.requests[1]!), [1, 1]);
 });

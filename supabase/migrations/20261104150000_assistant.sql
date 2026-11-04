@@ -32,6 +32,25 @@ create index assistant_prompts_created_by on private.assistant_prompts (created_
 create trigger assistant_prompts_append_only before update or delete on private.assistant_prompts
   for each row execute function private.keep_prompt_version();
 
+-- Whether [model] of [provider] can run at [effort], by Anthropic's per-model thinking table: a
+-- model whose thinking is always on refuses `none`, and one with extended thinking alone refuses
+-- the adaptive thinking every other effort sends. Every model of another provider fits.
+create function private.assistant_effort_fits(provider text, model text, effort text)
+returns boolean
+language sql
+immutable
+security definer
+set search_path = ''
+as $$
+  select assistant_effort_fits.provider <> 'anthropic' or case
+    when assistant_effort_fits.model ~ '^claude-(fable|mythos)-|^claude-opus-5-5'
+      then assistant_effort_fits.effort <> 'none'
+    when assistant_effort_fits.model ~ '^claude-(opus|sonnet|haiku)-4-(5|1|20)'
+      then assistant_effort_fits.effort = 'none'
+    else true
+  end;
+$$;
+
 -- Every saved assistant configuration: a plan's provider, model and prompt version, whether it
 -- searches the web, how many searches one turn may make and its reasoning effort, who saved it and
 -- when. Rows are never changed or removed.
@@ -46,7 +65,8 @@ create table private.assistant_configurations (
   reasoning_effort text not null check (reasoning_effort in ('none', 'low', 'medium', 'high')),
   created_by uuid references auth.users on delete set null,
   created_at timestamptz not null default now(),
-  unique (id, plan)
+  unique (id, plan),
+  check (private.assistant_effort_fits(provider, model, reasoning_effort))
 );
 
 create index assistant_configurations_created_by on private.assistant_configurations (created_by);
@@ -112,7 +132,8 @@ create table private.assistant_messages (
   plan text not null,
   configuration_id bigint not null references private.assistant_configurations,
   created_at timestamptz not null default now(),
-  outcome text check (outcome in ('ok', 'choice', 'depth_limit', 'time_limit', 'model_error')),
+  outcome text check (outcome in ('ok', 'choice', 'depth_limit', 'time_limit', 'model_error',
+    'cut', 'cancelled')),
   model_calls integer check (model_calls >= 0),
   input_tokens integer check (input_tokens >= 0),
   output_tokens integer check (output_tokens >= 0),
@@ -316,7 +337,8 @@ grant execute on function public.assistant_allowance() to authenticated;
 -- provider and model, and makes it the plan's one draft, served to admins: the 'test' label,
 -- replacing any draft. A setting left null keeps the draft's, or else the active one's. Records it
 -- and returns the configuration's id; null, recording nothing, for a prompt version that does not
--- exist or a plan with no configuration to keep a setting from.
+-- exist, a plan with no configuration to keep a setting from, or a model that cannot run at the
+-- effort (`private.assistant_effort_fits`).
 create function public.save_assistant_configuration(
   admin_id uuid, plan text, provider text, model text, prompt_version_id bigint default null,
   web_search boolean default null, max_searches integer default null,
@@ -341,6 +363,9 @@ begin
     or (kept.id is null and (save_assistant_configuration.web_search is null
       or save_assistant_configuration.max_searches is null
       or save_assistant_configuration.reasoning_effort is null))
+    or not private.assistant_effort_fits(save_assistant_configuration.provider,
+      save_assistant_configuration.model,
+      coalesce(save_assistant_configuration.reasoning_effort, kept.reasoning_effort))
   then
     return null;
   end if;
@@ -589,8 +614,10 @@ begin
   drop table private.assistant_configurations;
   drop table private.assistant_prompts;
   drop function private.keep_assistant_configuration();
+  drop function private.assistant_effort_fits(text, text, text);
 end;
 $$;
 
-revoke all on function private.keep_assistant_configuration(), private.revert_assistant()
+revoke all on function private.keep_assistant_configuration(),
+  private.assistant_effort_fits(text, text, text), private.revert_assistant()
   from public, anon, authenticated;

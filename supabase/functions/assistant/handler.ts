@@ -15,6 +15,7 @@ import {
   ADAPTERS,
   type CallUsage,
   sseEvents,
+  StreamError,
   type ToolResult,
   type Turn,
 } from "./providers.ts";
@@ -42,6 +43,10 @@ export const TURN_LIMIT_MS = 120_000;
 export const MAX_TURNS = 40;
 /** The longest one turn's text may be. */
 export const MAX_TURN_TEXT = 4000;
+/** The longest one turn may be once the proposals and the choice it showed are described in it. */
+export const MAX_DESCRIBED_TURN = 16_000;
+/** The most characters of a card's front an earlier proposal's description shows. */
+const FRONT_SHOWN = 80;
 /** The largest body a request may send, proposals included. */
 export const MAX_BODY_BYTES = 512 * 1024;
 
@@ -241,18 +246,30 @@ async function handle(
     model: configuration.model,
   };
   const encoder = new TextEncoder();
+  // Aborted when the client goes away and cancels the stream: nothing more is sent to it.
+  const client = new AbortController();
   const stream = new ReadableStream<Uint8Array>({
     start: async (controller) => {
-      const send = (event: string, data: unknown) =>
+      const send = (event: string, data: unknown) => {
+        if (client.signal.aborted) return;
         controller.enqueue(
           encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
         );
+      };
       let ended: { outcome: Outcome; usage: Usage };
       try {
-        ended = await converse(incoming, store, deps, start, send, started);
+        ended = await converse(
+          incoming,
+          store,
+          deps,
+          start,
+          send,
+          started,
+          client.signal,
+        );
       } catch (error) {
         log({ ...counted, outcome: "internal" });
-        controller.error(error);
+        if (!client.signal.aborted) controller.error(error);
         throw error;
       }
       send("usage", {
@@ -265,7 +282,7 @@ async function handle(
         daily_limit: start.dailyLimit,
         used: start.used,
       });
-      controller.close();
+      if (!client.signal.aborted) controller.close();
       // The record is telemetry: when it fails, the answer stands and the log says so.
       let recorded = true;
       try {
@@ -291,6 +308,7 @@ async function handle(
         outcome: ended.outcome,
       });
     },
+    cancel: () => client.abort(),
   });
   return {
     response: new Response(stream, {
@@ -321,7 +339,9 @@ function describe(proposal: Proposal, ids: IdSource): string {
   const groups = proposal.groups.map((group) => {
     const fronts = group.cards.slice(0, 5).map(({ card }) => {
       const read = readCard(card, ids);
-      return typeof read === "string" ? "?" : read.front;
+      return typeof read === "string"
+        ? "?"
+        : [...read.front].slice(0, FRONT_SHOWN).join("");
     });
     return `group ${group.id} "${group.title}" (${group.format}, ${group.cards.length} cards: ${
       fronts.join(" / ")
@@ -374,7 +394,7 @@ function readMessage(body: unknown, ids: IdSource): Incoming | null {
       return null;
     }
     const joined = parts.filter((part) => part.trim() !== "").join("\n\n");
-    if (joined === "") return null;
+    if (joined === "" || [...joined].length > MAX_DESCRIBED_TURN) return null;
     turns.push({ role: message.role, text: joined });
   }
   if (turns.at(-1)?.role !== "user") return null;
@@ -398,6 +418,22 @@ const ZERO: Usage = {
   webSearchRequests: 0,
 };
 
+/** A call that answered nothing: refused, failed or broken off. */
+const NOTHING: CallUsage = {
+  inputTokens: 0,
+  outputTokens: 0,
+  reasoningTokens: 0,
+  webSearchRequests: 0,
+  webFetchRequests: 0,
+};
+
+/** Whether [error] is how `fetch` fails: a network error, or the call's signal aborting it. */
+function fetchFailed(error: unknown): boolean {
+  return error instanceof TypeError ||
+    (error instanceof DOMException &&
+      (error.name === "AbortError" || error.name === "TimeoutError"));
+}
+
 function plus(usage: Usage, call: CallUsage): Usage {
   return {
     modelCalls: usage.modelCalls + 1,
@@ -414,7 +450,7 @@ const UNREACHABLE =
 /**
  * Runs the tool loop for one message: each model call streams its text and citations, the tools it
  * calls run, and their proposals and choices are sent, until the model ends its turn, asks a
- * choice, or the loop reaches its call or time limit.
+ * choice, the loop reaches its call or time limit, or the client goes away and [client] aborts.
  */
 async function converse(
   incoming: Incoming,
@@ -423,13 +459,25 @@ async function converse(
   start: Extract<Start, { kind: "allowed" }>,
   send: (event: string, data: unknown) => void,
   started: number,
+  client: AbortSignal,
 ): Promise<{ outcome: Outcome; usage: Usage }> {
   const configuration = start.configuration;
   const adapter = ADAPTERS[configuration.provider];
   let usage = ZERO;
+  // Fetches share the turn's searches but are not recorded: Anthropic charges none (ADR 0190).
+  let fetches = 0;
   const failed = () => {
     send("error", { error: "model_error" });
     return { outcome: "model_error" as const, usage };
+  };
+  // A call that broke off: the client went away, the turn's time ran out, or the call failed.
+  const interrupted = () => {
+    usage = plus(usage, NOTHING);
+    if (client.aborted) return { outcome: "cancelled" as const, usage };
+    if (deps.now() - started >= TURN_LIMIT_MS) {
+      return { outcome: "time_limit" as const, usage };
+    }
+    return failed();
   };
   let apiKey;
   try {
@@ -454,17 +502,19 @@ async function converse(
   const proposals = [...incoming.proposals];
   const cited = new Set<string>();
   for (;;) {
+    if (client.aborted) return { outcome: "cancelled", usage };
     if (usage.modelCalls >= MAX_MODEL_CALLS) {
       return { outcome: "depth_limit", usage };
     }
     const left = TURN_LIMIT_MS - (deps.now() - started);
     if (left <= 0) return { outcome: "time_limit", usage };
-    const searchesLeft = configuration.maxSearches - usage.webSearchRequests;
-    let result;
+    const searchesLeft = configuration.maxSearches - usage.webSearchRequests -
+      fetches;
+    let response;
     try {
-      const response = await deps.fetch(adapter.url, {
+      response = await deps.fetch(adapter.url, {
         method: "POST",
-        signal: deps.timeout(left),
+        signal: AbortSignal.any([deps.timeout(left), client]),
         headers: adapter.headers(apiKey),
         body: JSON.stringify(adapter.body({
           // The searches a turn may make are shared by its calls: each call is offered those left.
@@ -478,16 +528,17 @@ async function converse(
           tools: ASSISTANT_TOOLS,
         })),
       });
-      if (!response.ok || response.body === null) {
-        await response.body?.cancel();
-        usage = plus(usage, {
-          inputTokens: 0,
-          outputTokens: 0,
-          reasoningTokens: 0,
-          webSearchRequests: 0,
-        });
-        return failed();
-      }
+    } catch (error) {
+      if (!fetchFailed(error)) throw error;
+      return interrupted();
+    }
+    if (!response.ok || response.body === null) {
+      await response.body?.cancel();
+      usage = plus(usage, NOTHING);
+      return failed();
+    }
+    let result;
+    try {
       result = await adapter.read(sseEvents(response.body), (event) => {
         if (event.kind === "text") send("text", { delta: event.delta });
         else if (!cited.has(event.url)) {
@@ -495,19 +546,18 @@ async function converse(
           send("citation", { url: event.url, title: event.title });
         }
       });
-    } catch {
-      // A failed request, an aborted one, or a stream that broke off or reported an error.
-      usage = plus(usage, {
-        inputTokens: 0,
-        outputTokens: 0,
-        reasoningTokens: 0,
-        webSearchRequests: 0,
-      });
-      return failed();
+    } catch (error) {
+      if (!(error instanceof StreamError)) throw error;
+      return interrupted();
     }
     usage = plus(usage, result.usage);
-    messages.push(result.message);
+    fetches += result.usage.webFetchRequests;
+    messages.push(...result.messages);
     if (result.stop === "pause") continue;
+    if (result.stop === "cut") {
+      send("error", { error: "cut" });
+      return { outcome: "cut", usage };
+    }
     if (result.stop !== "tool_use" || result.toolCalls.length === 0) {
       return { outcome: "ok", usage };
     }
