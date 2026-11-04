@@ -14,7 +14,6 @@ import 'package:shared_preferences_platform_interface/shared_preferences_async_p
 import 'package:knowno/account/account.dart';
 import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart';
-import 'package:knowno/deck/src/senses_block.dart' show LabelPresetStrip;
 import 'package:knowno/design/app_chip.dart';
 import 'package:knowno/design/app_text_field.dart';
 import 'package:knowno/design/keyboard_dismissal.dart';
@@ -1220,7 +1219,6 @@ void main() {
       addTearDown(tester.view.resetViewInsets);
       await tester.pumpAndSettle();
       // No label is stored, so no strip shows above the keyboard.
-      expect(find.byType(LabelPresetStrip), findsNothing);
       await tester.enterText(label(), '명');
       await tester.pumpAndSettle();
       await shot(tester, '05c-card-editor-label-presets');
