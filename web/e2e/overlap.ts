@@ -8,7 +8,9 @@ import type { Page } from "@playwright/test";
  * their boxes intersect and neither holds the other. One is clipped when an ancestor that clips
  * its overflow does not hold its box: inside the ancestor's box where it hides what overflows, and
  * inside what the ancestor scrolls through where it scrolls, so a row scrolled away is not clipped
- * but an edge past a scrolling menu's foot is. While a modal dialog is open, only what is inside it
+ * but an edge past a scrolling menu's foot is. One lies outside when its box leaves the padding of
+ * the nearest ancestor drawn as a surface, a fill or an edge, as a switch's current item whose edge
+ * hangs past its bar. While a modal dialog is open, only what is inside it
  * is looked at, as the rest lies under it. Each is named by its tag and label.
  */
 export async function overlaps(page: Page): Promise<string[]> {
@@ -21,14 +23,11 @@ export async function overlaps(page: Page): Promise<string[]> {
     );
     const scope = modal ?? document.body;
     const name = (element: Element) =>
-      `${element.tagName} "${(element.getAttribute("aria-label") ?? element.textContent).trim().slice(0, 24)}"`;
-    const boxes = [...scope.querySelectorAll<HTMLElement>(interactive)].flatMap((element) => {
-      const rect = element.getBoundingClientRect();
-      const style = getComputedStyle(element);
-      // A visually hidden element, as a skip link at rest, is one pixel wide.
-      if (rect.width <= 1 || rect.height <= 1 || style.visibility !== "visible") return [];
-      // The furthest a visible shadow with no blur reaches below the box, whichever rule drew it.
-      const edge = Math.max(
+      `${element.tagName} "${(element.getAttribute("aria-label") ?? element.textContent).replace(/\s+/g, " ").trim().slice(0, 24)}"`;
+    const clear = (colour: string) => colour === "transparent" || /[,/]\s*0\)$/.test(colour);
+    // The furthest a visible shadow with no blur reaches below the box, whichever rule drew it.
+    const edgeOf = (style: CSSStyleDeclaration) =>
+      Math.max(
         0,
         ...style.boxShadow.split(/,(?![^(]*\))/).map((shadow) => {
           const colour = /[a-z-]+\([^)]*\)|transparent/.exec(shadow)?.[0] ?? "";
@@ -37,10 +36,18 @@ export async function overlaps(page: Page): Promise<string[]> {
               .replace(colour, "")
               .match(/-?[\d.]+px/g)
               ?.map(parseFloat) ?? [];
-          const clear = colour === "transparent" || /[,/]\s*0\)$/.test(colour);
-          return shadow.includes("inset") || blur > 0 || clear ? 0 : down + spread;
+          return shadow.includes("inset") || blur > 0 || clear(colour) ? 0 : down + spread;
         }),
       );
+    // Whether an element is drawn as a surface: a fill, an image or a hard edge.
+    const drawn = (style: CSSStyleDeclaration) =>
+      !clear(style.backgroundColor) || style.backgroundImage !== "none" || edgeOf(style) > 0;
+    const boxes = [...scope.querySelectorAll<HTMLElement>(interactive)].flatMap((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      // A visually hidden element, as a skip link at rest, is one pixel wide.
+      if (rect.width <= 1 || rect.height <= 1 || style.visibility !== "visible") return [];
+      const edge = edgeOf(style);
       return [
         {
           element,
@@ -83,6 +90,35 @@ export async function overlaps(page: Page): Promise<string[]> {
         ) {
           found.push(`${name(a.element)} clipped by ${name(parent)}`);
         }
+      }
+      // Inside the padding of the nearest ancestor drawn as a surface, its own edge left out.
+      for (
+        let parent = a.element.parentElement;
+        parent && parent !== document.body && scope.contains(parent);
+        parent = parent.parentElement
+      ) {
+        const style = getComputedStyle(parent);
+        if (!drawn(style)) continue;
+        const box = parent.getBoundingClientRect();
+        const scrolls = (overflow: string) => overflow === "auto" || overflow === "scroll";
+        const x =
+          a.left -
+          box.left -
+          parent.clientLeft +
+          (scrolls(style.overflowX) ? parent.scrollLeft : 0);
+        const y =
+          a.top - box.top - parent.clientTop + (scrolls(style.overflowY) ? parent.scrollTop : 0);
+        const width = scrolls(style.overflowX) ? parent.scrollWidth : parent.clientWidth;
+        const height = scrolls(style.overflowY) ? parent.scrollHeight : parent.clientHeight;
+        if (
+          x < -0.5 ||
+          y < -0.5 ||
+          x + a.right - a.left > width + 0.5 ||
+          y + a.bottom - a.top > height + 0.5
+        ) {
+          found.push(`${name(a.element)} outside ${name(parent)}`);
+        }
+        break;
       }
     });
     return [...new Set(found)];

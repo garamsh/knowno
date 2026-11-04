@@ -14,6 +14,7 @@ test("the overlap check names each control drawn over another or clipped, and on
   expect(await overlaps(page)).toEqual([
     'BUTTON "지정" overlaps BUTTON "무료로 되돌리기"',
     'A "카드" overlaps A "다음 카드"',
+    'A "신고된 노트" outside UL "신고된 노트 모든 공개 노트"',
     'SPAN "‹" overlaps A "1"',
     'BUTTON "이용 정지" clipped by DIV "이용 정지"',
     'A "사용자" clipped by NAV "사용자"',

@@ -29,6 +29,18 @@
           box-shadow: 0 4px 0 #ccc;
         }
       }
+      .switch {
+        display: flex;
+        gap: 4px;
+        margin: 0 0 24px;
+        padding: 4px;
+        list-style: none;
+        background: #fff;
+        box-shadow: 0 6px 0 #ccc;
+      }
+      .current {
+        background: #dde;
+      }
       .stack {
         display: flex;
         flex-direction: column;
@@ -53,6 +65,16 @@
       <a href="#card" class="card">카드</a>
       <a href="#next" class="card">다음 카드</a>
     </div>
+    <!-- A view switch whose current item's edge hangs past the bar's 4 px padding (#689). -->
+    <ul class="switch">
+      <li><a href="#reported" class="edged current">신고된 노트</a></li>
+      <li><a href="#public">모든 공개 노트</a></li>
+    </ul>
+    <!-- Control: the same switch with its current item flat. -->
+    <ul class="switch">
+      <li><a href="#hidden" class="current">숨긴 노트</a></li>
+      <li><a href="#all">모든 노트</a></li>
+    </ul>
     <!-- A pager's disabled arrow, a pressable with no edge, drawn over the page beside it. -->
     <nav style="display: flex; margin-bottom: 24px">
       <span class="pressable" aria-hidden="true">‹</span>
