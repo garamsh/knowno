@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart' hide Card;
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/database/database.dart';
@@ -134,6 +135,59 @@ void main() {
       tester.widget<Switch>(find.byType(Switch)).value;
 
   group('cards from a file', () {
+    testWidgets(
+      'a screen reader counts the review as one list over the cards: the '
+      'parts above them indexed 0 on without a restart, the cards 0 on',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final over = '가' * (spreadsheetCellLimit + 1);
+        await review(
+          tester,
+          _csv('front,back\npear,배\n,빈 앞면\nplum,자두\nfig,$over\n'),
+        );
+        expect(
+          [
+            find.bySemanticsLabel(ko.spreadsheetSkipped(1)),
+            find.bySemanticsLabel(RegExp('^${ko.photoTargetTitle}')),
+          ].map((finder) => finder.evaluate().length),
+          [1, greaterThan(0)],
+          reason: 'setup: each part above the cards shows',
+        );
+
+        final scroll = tester.getSemantics(find.byType(CustomScrollView));
+        final cards = <int?>[];
+        final above = <int?>[];
+        String labels(SemanticsNode node) {
+          final own = node.getSemanticsData().label;
+          final inner = <String>[];
+          node.visitChildren((child) {
+            inner.add(labels(child));
+            return true;
+          });
+          return [own, ...inner].join('|');
+        }
+
+        void indexed(SemanticsNode node) {
+          if (node.indexInParent != null) {
+            (RegExp(r'^\|?\d+행 ').hasMatch(labels(node)) ? cards : above).add(
+              node.indexInParent,
+            );
+            return;
+          }
+          node.visitChildren((child) {
+            indexed(child);
+            return true;
+          });
+        }
+
+        indexed(scroll);
+        expect(cards, [0, 1]);
+        expect(above, [for (var i = 0; i < above.length; i++) i]);
+        expect(above.length, greaterThan(8), reason: 'every part is counted');
+        semantics.dispose();
+        await unmount(tester);
+      },
+    );
     testWidgets(
       'maps columns under a detected header, counts skipped rows and saves only the chosen cards',
       (tester) async {

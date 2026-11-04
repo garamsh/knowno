@@ -298,6 +298,43 @@ class _SpreadsheetImportScreenState
         ? ref.watch(decksProvider).value ?? const <Deck>[]
         : const <Deck>[];
     const gutter = EdgeInsets.symmetric(horizontal: AppSpace.gutter);
+    final top = <Widget>[
+      Semantics(
+        header: true,
+        child: Text(
+          l10n.spreadsheetReviewTitle,
+          style: AppType.title.copyWith(color: AppColors.of(context).ink),
+        ),
+      ),
+      _FileLine(
+        name: _file.name,
+        onAnother: _picking || _saving ? null : _anotherFile,
+      ),
+      const SizedBox(height: AppSpace.s16),
+    ];
+    final notices = <Widget>[
+      if (!distinct) ...[
+        const SizedBox(height: AppSpace.s8),
+        SpreadsheetAlert(l10n.spreadsheetDistinct),
+      ],
+      if (read case RefusedSheet(:final refusal)) ...[
+        const SizedBox(height: AppSpace.s8),
+        SpreadsheetAlert(spreadsheetRefusalMessage(l10n, refusal)),
+      ],
+      if (cards.isNotEmpty && widget.deck == null) ...[
+        const SizedBox(height: AppSpace.s20),
+        AppGroup(
+          children: [
+            AppChoiceRow(
+              title: l10n.photoTargetTitle,
+              value: _target?.name ?? l10n.newDeck,
+              onTap: _saving ? null : () => _chooseTarget(decks),
+            ),
+          ],
+        ),
+      ],
+    ];
+    final noticesOffset = top.length + _ColumnsGroup.itemCount;
     return PopScope(
       canPop: chosen.isEmpty && !_saving,
       onPopInvokedWithResult: (popped, _) {
@@ -317,25 +354,9 @@ class _SpreadsheetImportScreenState
               padding: gutter,
               sliver: SliverMainAxisGroup(
                 slivers: [
-                  SliverList.list(
-                    children: [
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          l10n.spreadsheetReviewTitle,
-                          style: AppType.title.copyWith(
-                            color: AppColors.of(context).ink,
-                          ),
-                        ),
-                      ),
-                      _FileLine(
-                        name: _file.name,
-                        onAnother: _picking || _saving ? null : _anotherFile,
-                      ),
-                      const SizedBox(height: AppSpace.s16),
-                    ],
-                  ),
+                  SliverList.list(children: top),
                   _ColumnsGroup(
+                    semanticIndexOffset: top.length,
                     sheet: _file.sheets.length > 1
                         ? _file.sheets[_sheet].name
                         : null,
@@ -353,36 +374,15 @@ class _SpreadsheetImportScreenState
                             _map();
                           }),
                   ),
-                  SliverList.list(
-                    children: [
-                      if (!distinct) ...[
-                        const SizedBox(height: AppSpace.s8),
-                        SpreadsheetAlert(l10n.spreadsheetDistinct),
-                      ],
-                      if (read case RefusedSheet(:final refusal)) ...[
-                        const SizedBox(height: AppSpace.s8),
-                        SpreadsheetAlert(
-                          spreadsheetRefusalMessage(l10n, refusal),
-                        ),
-                      ],
-                      if (cards.isNotEmpty && widget.deck == null) ...[
-                        const SizedBox(height: AppSpace.s20),
-                        AppGroup(
-                          children: [
-                            AppChoiceRow(
-                              title: l10n.photoTargetTitle,
-                              value: _target?.name ?? l10n.newDeck,
-                              onTap: _saving
-                                  ? null
-                                  : () => _chooseTarget(decks),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
+                  SliverList(
+                    delegate: SliverChildListDelegate(
+                      notices,
+                      semanticIndexOffset: noticesOffset,
+                    ),
                   ),
                   if (distinct && read is SheetRows)
                     _RowsHeading(
+                      semanticIndexOffset: noticesOffset + notices.length,
                       count: cards.length,
                       noneChosen: chosen.isEmpty,
                       skipped: _result.skipped.length,
@@ -467,6 +467,7 @@ typedef _NextColumns = SheetColumns Function(int? chosen);
 /// [columnName], and the header switch. A null callback disables its row.
 class _ColumnsGroup extends StatelessWidget {
   const _ColumnsGroup({
+    required this.semanticIndexOffset,
     required this.sheet,
     required this.columns,
     required this.header,
@@ -475,6 +476,13 @@ class _ColumnsGroup extends StatelessWidget {
     required this.onChooseColumn,
     required this.onHeader,
   });
+
+  /// How many items it adds to the screen's list.
+  static const itemCount = 2;
+
+  /// The index a screen reader gives its first item: how many items of the
+  /// screen's list come before it, so the list reads as one.
+  final int semanticIndexOffset;
 
   /// The sheet shown, or null where the file holds one.
   final String? sheet;
@@ -508,43 +516,46 @@ class _ColumnsGroup extends StatelessWidget {
           ? null
           : () => onChooseColumn(title, current, next, optional: optional),
     );
-    return SliverList.list(
-      children: [
-        AppSectionLabel(l10n.spreadsheetColumns),
-        AppGroup(
-          children: [
-            if (sheet != null)
-              AppChoiceRow(
-                title: l10n.spreadsheetSheet,
-                value: sheet,
-                onTap: onChooseSheet,
+    return SliverList(
+      delegate: SliverChildListDelegate(
+        semanticIndexOffset: semanticIndexOffset,
+        [
+          AppSectionLabel(l10n.spreadsheetColumns),
+          AppGroup(
+            children: [
+              if (sheet != null)
+                AppChoiceRow(
+                  title: l10n.spreadsheetSheet,
+                  value: sheet,
+                  onTap: onChooseSheet,
+                ),
+              column(
+                l10n.cardFront,
+                columns.front,
+                (chosen) => columns.copyWith(front: chosen),
               ),
-            column(
-              l10n.cardFront,
-              columns.front,
-              (chosen) => columns.copyWith(front: chosen),
-            ),
-            column(
-              l10n.cardBack,
-              columns.back,
-              (chosen) => columns.copyWith(back: chosen),
-            ),
-            column(
-              l10n.spreadsheetLabelColumn,
-              columns.label,
-              (chosen) => columns.copyWith(label: (chosen,)),
-              optional: true,
-            ),
-            column(
-              l10n.spreadsheetExampleColumn,
-              columns.example,
-              (chosen) => columns.copyWith(example: (chosen,)),
-              optional: true,
-            ),
-            _HeaderSwitch(value: header, onChanged: onHeader),
-          ],
-        ),
-      ],
+              column(
+                l10n.cardBack,
+                columns.back,
+                (chosen) => columns.copyWith(back: chosen),
+              ),
+              column(
+                l10n.spreadsheetLabelColumn,
+                columns.label,
+                (chosen) => columns.copyWith(label: (chosen,)),
+                optional: true,
+              ),
+              column(
+                l10n.spreadsheetExampleColumn,
+                columns.example,
+                (chosen) => columns.copyWith(example: (chosen,)),
+                optional: true,
+              ),
+              _HeaderSwitch(value: header, onChanged: onHeader),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -554,12 +565,17 @@ class _ColumnsGroup extends StatelessWidget {
 /// cell, when there are any.
 class _RowsHeading extends StatelessWidget {
   const _RowsHeading({
+    required this.semanticIndexOffset,
     required this.count,
     required this.noneChosen,
     required this.skipped,
     required this.tooLong,
     required this.onToggleAll,
   });
+
+  /// The index a screen reader gives its first item: how many items of the
+  /// screen's list come before it, so the list reads as one.
+  final int semanticIndexOffset;
 
   final int count;
   final bool noneChosen;
@@ -574,43 +590,46 @@ class _RowsHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final tooLong = this.tooLong;
-    return SliverList.list(
-      children: [
-        const SizedBox(height: AppSpace.s20),
-        AppSectionLabel(
-          l10n.cardCount(count),
-          trailing: count == 0
-              ? null
-              : AppButton(
-                  label: noneChosen
-                      ? l10n.spreadsheetSelectAll
-                      : l10n.spreadsheetExcludeAll,
-                  variant: AppButtonVariant.text,
-                  onPressed: onToggleAll,
-                ),
-        ),
-        if (skipped > 0)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpace.s8),
-            child: Semantics(
-              liveRegion: true,
-              child: Text(
-                keepWords(l10n.spreadsheetSkipped(skipped)),
-                semanticsLabel: l10n.spreadsheetSkipped(skipped),
-                style: AppType.secondary.copyWith(
-                  color: AppColors.of(context).muted,
+    return SliverList(
+      delegate: SliverChildListDelegate(
+        semanticIndexOffset: semanticIndexOffset,
+        [
+          const SizedBox(height: AppSpace.s20),
+          AppSectionLabel(
+            l10n.cardCount(count),
+            trailing: count == 0
+                ? null
+                : AppButton(
+                    label: noneChosen
+                        ? l10n.spreadsheetSelectAll
+                        : l10n.spreadsheetExcludeAll,
+                    variant: AppButtonVariant.text,
+                    onPressed: onToggleAll,
+                  ),
+          ),
+          if (skipped > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpace.s8),
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  keepWords(l10n.spreadsheetSkipped(skipped)),
+                  semanticsLabel: l10n.spreadsheetSkipped(skipped),
+                  style: AppType.secondary.copyWith(
+                    color: AppColors.of(context).muted,
+                  ),
                 ),
               ),
             ),
-          ),
-        if (tooLong != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpace.s8),
-            child: SpreadsheetAlert(
-              l10n.spreadsheetTooLong(tooLong, spreadsheetCellLimit),
+          if (tooLong != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpace.s8),
+              child: SpreadsheetAlert(
+                l10n.spreadsheetTooLong(tooLong, spreadsheetCellLimit),
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
