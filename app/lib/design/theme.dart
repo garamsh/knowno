@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// The family of the bundled Pretendard, declared in `pubspec.yaml`: body
@@ -122,11 +123,8 @@ abstract final class AppSize {
   /// The stacked lockup's width on the sign-in screen.
   static const stackedLockupWidth = 150.0;
 
-  /// The mascot where it heads the first-run home or a cardless 오늘 tab.
-  static const mascotLarge = 128.0;
-
-  /// The mascot on the hero that fills 홈's first screen.
-  static const mascotHero = 210.0;
+  /// The mascot on 홈's hill, in every state and on every screen (#742).
+  static const mascotHero = 140.0;
 
   /// The mascot over a card's or a screen's words.
   static const mascotMedium = 96.0;
@@ -391,6 +389,20 @@ abstract final class AppShadow {
       edge(colors.edge, AppSize.edgeCard);
 }
 
+/// The status bar over a screen that runs under it: clear, with glyphs that
+/// read on what is drawn there.
+abstract final class AppStatusBar {
+  /// Light glyphs over a dark [ground], such as 홈's sky, and dark ones over
+  /// a light one.
+  static SystemUiOverlayStyle over(Brightness ground) => SystemUiOverlayStyle(
+    statusBarColor: const Color(0x00000000),
+    statusBarIconBrightness: ground == Brightness.dark
+        ? Brightness.light
+        : Brightness.dark,
+    statusBarBrightness: ground,
+  );
+}
+
 /// The card list's one mark for what study hides until the reveal: a light
 /// hatch of [AppColors.hatchStripe] over [AppColors.hatch], stripes 6 wide
 /// every 12 across their own direction, running up to the right, as the
@@ -515,6 +527,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     required this.tintRed,
     required this.onKnowTint,
     required this.onDontKnowTint,
+    required this.todayMark,
+    required this.todayText,
     required this.deckBlue,
     required this.deckSky,
     required this.deckPeach,
@@ -571,6 +585,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     tintRed: Color(0xFFFFD2DE),
     onKnowTint: Color(0xFF14683F),
     onDontKnowTint: Color(0xFFA3202F),
+    todayMark: Color(0xFFFB7262),
+    todayText: Color(0xFFC2412F),
     deckBlue: Color(0xFFDCE6FF),
     deckSky: Color(0xFFE0F0FA),
     deckPeach: Color(0xFFFFE3DC),
@@ -627,6 +643,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     tintRed: Color(0xFF6B2331),
     onKnowTint: Color(0xFF8CE6BC),
     onDontKnowTint: Color(0xFFFFA8BA),
+    todayMark: Color(0xFFFB7262),
+    todayText: Color(0xFFFF9C8C),
     deckBlue: Color(0xFF2C3A66),
     deckSky: Color(0xFF1D3A50),
     deckPeach: Color(0xFF4A3330),
@@ -765,6 +783,14 @@ final class AppColors extends ThemeExtension<AppColors> {
   /// it.
   final Color onDontKnowTint;
 
+  /// Today's day dot on 홈, in the mascot's coral: decoration beside its
+  /// label, which says it is today, so it is not held to 3:1.
+  final Color todayMark;
+
+  /// Today's label under its day dot on 홈, in the mascot's coral darkened
+  /// to 4.5:1 on the ground.
+  final Color todayText;
+
   /// What a pressed row draws over itself: [ink] at the 10% a pressed
   /// button's label colour is drawn at, so a press dims either alike.
   /// Derived, so the web's token set needs no colour of its own.
@@ -832,6 +858,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     Color? tintRed,
     Color? onKnowTint,
     Color? onDontKnowTint,
+    Color? todayMark,
+    Color? todayText,
     Color? deckBlue,
     Color? deckSky,
     Color? deckPeach,
@@ -884,6 +912,8 @@ final class AppColors extends ThemeExtension<AppColors> {
     tintRed: tintRed ?? this.tintRed,
     onKnowTint: onKnowTint ?? this.onKnowTint,
     onDontKnowTint: onDontKnowTint ?? this.onDontKnowTint,
+    todayMark: todayMark ?? this.todayMark,
+    todayText: todayText ?? this.todayText,
     deckBlue: deckBlue ?? this.deckBlue,
     deckSky: deckSky ?? this.deckSky,
     deckPeach: deckPeach ?? this.deckPeach,
@@ -942,6 +972,8 @@ final class AppColors extends ThemeExtension<AppColors> {
       tintRed: mix(tintRed, other.tintRed),
       onKnowTint: mix(onKnowTint, other.onKnowTint),
       onDontKnowTint: mix(onDontKnowTint, other.onDontKnowTint),
+      todayMark: mix(todayMark, other.todayMark),
+      todayText: mix(todayText, other.todayText),
       deckBlue: mix(deckBlue, other.deckBlue),
       deckSky: mix(deckSky, other.deckSky),
       deckPeach: mix(deckPeach, other.deckPeach),

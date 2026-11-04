@@ -735,7 +735,7 @@ void main() {
           );
           await tester.runAsync(() async {
             final decks = [
-              for (final name in heroNotes)
+              for (final name in heroNotesOf(state))
                 (await repository.createDeck(name)).id,
             ];
             final minutes = await setup(db, repository, decks);
@@ -921,9 +921,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      // The day's plan done: its title, the next review and 학습하기.
+      // The day's plan done: its title, the cards done today and 학습하기.
       expect(shownText(ko.todayDone), findsOneWidget);
-      expect(shownText(ko.nextReview(ko.dayTomorrow, 35, 6)), findsOneWidget);
+      expect(shownText(ko.homeCards(35)), findsOneWidget);
       expect(shownText(ko.todayStudy), findsOneWidget);
       await shot(tester, '16i-today-done-extra');
       await tester.scrollUntilVisible(

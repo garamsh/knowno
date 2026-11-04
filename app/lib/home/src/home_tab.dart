@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../account/account.dart';
@@ -15,14 +18,15 @@ import '../../l10n/app_localizations.dart';
 import '../../sharing/sharing.dart';
 import '../../study/study.dart';
 import 'above_menu.dart';
-import 'first_run.dart';
 import 'new_deck.dart';
-import 'week_card.dart';
+import 'streak_days.dart';
 
-/// 홈: before the first deck, how to start; then today on the hero surface,
-/// and under it the streak over the last seven study days. The profile button
-/// at the top right opens 설정 through [onSettings]; a deck opens in the 노트
-/// tab through [onOpenDeck], and [onNotes] shows that tab.
+/// 홈, one screen: the sky, with the app's name, the profile button and the
+/// day's words, over a hill on the ground, with the mascot on its crest; on
+/// the ground the streak over the last seven study days and the one action.
+/// Before the first deck the same screen says how to start. The profile
+/// button opens 설정 through [onSettings]; a deck opens in the 노트 tab
+/// through [onOpenDeck], and [onNotes] shows that tab.
 class HomeTab extends ConsumerWidget {
   const HomeTab({
     super.key,
@@ -37,30 +41,13 @@ class HomeTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sharing = ref.watch(sharingServiceProvider);
     return switch ((ref.watch(decksProvider), ref.watch(cardCountsProvider))) {
       (AsyncData(value: final decks), AsyncData(value: final counts)) =>
         switch (DeckSelection.of([for (final deck in decks) deck.id])) {
-          null => Scaffold(
-            appBar: AppBar(
-              toolbarHeight: AppButton.barHeight(context),
-              titleSpacing: AppSpace.gutter,
-              title: const _AppName(),
-              actions: [
-                ProfileButton(onPressed: onSettings),
-                const SizedBox(width: AppSpace.gutter),
-              ],
-            ),
-            body: _FirstRunHome(
-              onNewDeck: () => openNewDeck(context, onOpenDeck),
-              onBrowse: sharing == null
-                  ? null
-                  : () => Navigator.of(aboveMenu(context)).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => sharing.browseScreen(),
-                      ),
-                    ),
-            ),
+          null => _Home(
+            face: _firstRun(context, ref),
+            cards: false,
+            onSettings: onSettings,
           ),
           final all => TodayOverviewReader(
             decks: all,
@@ -71,15 +58,18 @@ class HomeTab extends ConsumerWidget {
                     ? _cardless(context, decks)
                     : _face(context, overview, all),
                 cards: !cardless,
-                below: switch (overview) {
-                  TodayOverview(:final streak, :final week) when !cardless =>
-                    WeekCard(streak: streak, week: week),
-                  _ => null,
-                },
-                problem: switch (overview) {
-                  OverviewUnavailable(:final message) when !cardless =>
-                    _ProblemRow(message: message),
-                  _ => null,
+                ground: switch (overview) {
+                  _ when cardless => null,
+                  TodayOverview(:final streak, :final week, :final count) =>
+                    StreakDays(
+                      streak: streak,
+                      week: week,
+                      done: count.total == 0,
+                    ),
+                  OverviewUnavailable(:final message) => _ProblemRow(
+                    message: message,
+                  ),
+                  OverviewPending() => null,
                 },
                 onSettings: onSettings,
               );
@@ -90,9 +80,36 @@ class HomeTab extends ConsumerWidget {
     };
   }
 
-  /// The hero's words and action for [overview]: today's cards, the backlog,
-  /// or the day done; none while it is read, and only the action while it
-  /// cannot be.
+  /// Before the first deck: "첫 노트를 만들어 볼까요?", "새 노트 만들기" and,
+  /// with sharing, the public decks.
+  _Face _firstRun(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final sharing = ref.watch(sharingServiceProvider);
+    return _Face(
+      mascot: MascotExpression.thinking,
+      title: l10n.emptyHomeTitle,
+      actions: [
+        AppButton(
+          label: l10n.newDeckTitle,
+          size: AppButtonSize.cta,
+          onPressed: () => openNewDeck(context, onOpenDeck),
+        ),
+        if (sharing != null)
+          AppButton(
+            label: l10n.browsePublicDecks,
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.cta,
+            onPressed: () => Navigator.of(aboveMenu(context)).push(
+              MaterialPageRoute<void>(builder: (_) => sharing.browseScreen()),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// The sky's words and the action for [overview]: today's cards, the
+  /// backlog, or the day done; none while it is read, and only the action
+  /// while it cannot be.
   _Face? _face(
     BuildContext context,
     TodayOverviewRead overview,
@@ -100,40 +117,49 @@ class HomeTab extends ConsumerWidget {
   ) {
     final l10n = AppLocalizations.of(context);
     void study() => unawaited(openStudy(aboveMenu(context), all));
+    AppButton start({bool done = false}) => AppButton(
+      label: done ? l10n.todayStudy : l10n.homeStart,
+      variant: done ? AppButtonVariant.secondary : AppButtonVariant.primary,
+      size: AppButtonSize.cta,
+      onPressed: study,
+    );
     return switch (overview) {
-      TodayOverview(count: TodayCounted(total: 0)) => _Face(
-        mascot: MascotExpression.happy,
+      TodayOverview(count: TodayCounted(total: 0), :final week) => _Face(
+        mascot: MascotExpression.sleepy,
+        eyebrow: l10n.dayToday,
         title: l10n.todayDone,
-        line: _nextReview(context, overview),
-        action: l10n.todayStudy,
-        onAction: study,
+        figure: true,
+        // The cards done today, or, where none was due, the next review.
+        line: switch (week.last.cards) {
+          0 => _nextReview(context, overview),
+          final cards => l10n.homeCards(cards),
+        },
+        actions: [start(done: true)],
       ),
       TodayOverview(count: TodayCounted(backlog: true, :final total)) => _Face(
         mascot: MascotExpression.thinking,
         title: l10n.backlogTitle,
         line: l10n.backlogBody(total),
-        action: l10n.homeStart,
-        onAction: study,
+        actions: [start()],
       ),
       TodayOverview(:final count) => _Face(
-        mascot: MascotExpression.happy,
-        title: l10n.homeToday(count.total),
+        mascot: MascotExpression.thinking,
+        eyebrow: l10n.dayToday,
+        title: l10n.homeCards(count.total),
         figure: true,
         line: l10n.homeMinutes(count.minutes),
-        action: l10n.homeStart,
-        onAction: study,
+        actions: [start()],
       ),
       OverviewUnavailable() => _Face(
         mascot: MascotExpression.thinking,
-        action: l10n.homeStart,
-        onAction: study,
+        actions: [start()],
       ),
       OverviewPending() => null,
     };
   }
 
-  /// The hero while no deck holds a card: add cards to the one deck, or, with
-  /// more, show the 노트 tab to choose one.
+  /// While no deck holds a card: add cards to the one deck, or, with more,
+  /// show the 노트 tab to choose one.
   _Face _cardless(BuildContext context, List<Deck> decks) {
     final l10n = AppLocalizations.of(context);
     final (action, onAction) = switch (decks) {
@@ -141,10 +167,11 @@ class HomeTab extends ConsumerWidget {
       _ => (l10n.addCardsInDecks, onNotes),
     };
     return _Face(
-      mascot: MascotExpression.happy,
+      mascot: MascotExpression.thinking,
       title: l10n.noCardsTitle,
-      action: action,
-      onAction: onAction,
+      actions: [
+        AppButton(label: action, size: AppButtonSize.cta, onPressed: onAction),
+      ],
     );
   }
 }
@@ -165,31 +192,31 @@ String _nextReview(BuildContext context, TodayOverview overview) {
   );
 }
 
-/// What the hero says: the [mascot] over [title], large as a figure while
-/// [figure], then [line], and the one [action].
+/// What 홈 says: the [mascot], and in the sky [eyebrow] over [title], large
+/// as a figure while [figure], over [line]; on the ground the [actions].
 final class _Face {
   const _Face({
     required this.mascot,
+    this.eyebrow,
     this.title,
     this.figure = false,
     this.line,
-    required this.action,
-    required this.onAction,
+    required this.actions,
   });
 
   final MascotExpression mascot;
+  final String? eyebrow;
   final String? title;
   final bool figure;
   final String? line;
-  final String action;
-  final VoidCallback onAction;
+  final List<Widget> actions;
 }
 
 /// The app's name, read as the screen's heading.
 class _AppName extends StatelessWidget {
-  const _AppName({this.color});
+  const _AppName({required this.color});
 
-  final Color? color;
+  final Color color;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -201,50 +228,16 @@ class _AppName extends StatelessWidget {
   );
 }
 
-/// The first-run home: the mascot, "첫 노트를 만들어 볼까요?", "새 노트 만들기",
-/// which [onNewDeck] opens, and, with sharing, the public decks.
-class _FirstRunHome extends StatelessWidget {
-  const _FirstRunHome({required this.onNewDeck, required this.onBrowse});
-
-  final VoidCallback onNewDeck;
-  final VoidCallback? onBrowse;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final onBrowse = this.onBrowse;
-    return FirstRun(
-      mascot: MascotExpression.thinking,
-      title: l10n.emptyHomeTitle,
-      actions: [
-        AppButton(
-          label: l10n.newDeckTitle,
-          size: AppButtonSize.cta,
-          onPressed: onNewDeck,
-        ),
-        if (onBrowse != null)
-          AppButton(
-            label: l10n.browsePublicDecks,
-            variant: AppButtonVariant.secondary,
-            size: AppButtonSize.cta,
-            onPressed: onBrowse,
-          ),
-      ],
-    );
-  }
-}
-
-/// Today on the hero, rounded at its foot, and [below] it, on the ground,
-/// the week card. The hero fills the first screen but for [below]'s top
-/// edge, [_peek] high, and grows past it rather than cut a word; [below]
-/// follows by scrolling. Why the day cannot be read, [problem], is in the
-/// hero under its action, so it is on the first screen.
+/// 홈's one screen: the sky, up behind the status bar, about [_skyShare] of
+/// the screen, its foot a hill on the ground with the mascot on its crest;
+/// on the ground [ground], the streak or why the day cannot be read, over
+/// the [face]'s actions. Where the words need more than the screen, at a
+/// large text size, the page scrolls rather than cut a word.
 class _Home extends StatelessWidget {
   const _Home({
     required this.face,
     required this.cards,
-    required this.below,
-    required this.problem,
+    this.ground,
     required this.onSettings,
   });
 
@@ -252,80 +245,59 @@ class _Home extends StatelessWidget {
 
   /// Whether any deck holds a card, before which the first-run step waits.
   final bool cards;
-  final Widget? below;
-  final Widget? problem;
+  final Widget? ground;
   final VoidCallback onSettings;
 
-  /// How much of [below] the first screen shows: its top edge, so that the
-  /// page reads as one that scrolls.
-  static const _peek = AppSpace.s16;
-
-  /// The space between the hero and [below].
-  static const _gap = AppSpace.s16;
+  /// How much of the screen the sky takes where the ground leaves it room.
+  static const _skyShare = 0.58;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final face = this.face;
-    final below = this.below;
-    final hero = DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.hero,
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(AppRadius.sheet),
-        ),
-      ),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpace.gutter,
-          MediaQuery.paddingOf(context).top + AppSpace.s12,
-          AppSpace.gutter,
-          AppSpace.s20,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    final sky = _Sky(
+      face: face,
+      top: [
+        // The first-run step asks for the minutes once a day with cards
+        // shows.
+        if (face != null && cards) const FirstDailyMinutes(),
+        Row(
+          spacing: AppSpace.s8,
           children: [
-            // The first-run step asks for the minutes once a day with cards
-            // shows.
-            if (face != null && cards) const FirstDailyMinutes(),
-            Row(
-              spacing: AppSpace.s8,
-              children: [
-                Expanded(child: _AppName(color: colors.onHero)),
-                ProfileButton(onPressed: onSettings, onHero: true),
-              ],
-            ),
-            Expanded(child: _Hero(face: face)),
-            ?problem,
+            Expanded(child: _AppName(color: colors.onHero)),
+            ProfileButton(onPressed: onSettings, onHero: true),
           ],
         ),
+      ],
+    );
+    final below = Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.gutter,
+        AppSpace.s4,
+        AppSpace.gutter,
+        AppSpace.s16,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: AppSpace.s16,
+        children: [
+          Expanded(child: Center(child: ground)),
+          ...?face?.actions,
+        ],
       ),
     );
-    return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: below == null
-                      ? constraints.maxHeight
-                      : constraints.maxHeight - _gap - _peek,
-                ),
-                child: IntrinsicHeight(child: hero),
-              ),
-              if (below != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpace.gutter,
-                    _gap,
-                    AppSpace.gutter,
-                    AppSpace.s12,
-                  ),
-                  child: below,
-                ),
-            ],
+    // The sky is drawn under the status bar, whose glyphs are light on it.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppStatusBar.over(Brightness.dark),
+      child: Scaffold(
+        backgroundColor: colors.ground,
+        body: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: _SkyOverGround(
+              viewport: constraints.maxHeight,
+              sky: MediaQuery.sizeOf(context).height * _skyShare,
+              children: [sky, below],
+            ),
           ),
         ),
       ),
@@ -333,69 +305,89 @@ class _Home extends StatelessWidget {
   }
 }
 
-/// The hero's face in its space: the mascot at [AppSize.mascotHero] over the
-/// words and the action, the group centred.
-class _Hero extends StatelessWidget {
-  const _Hero({required this.face});
+/// The sky: [top] under the status bar, then the [face]'s words centred in
+/// what the mascot leaves, the mascot on the crest of the hill at its foot.
+class _Sky extends StatelessWidget {
+  const _Sky({required this.face, required this.top});
 
   final _Face? face;
+  final List<Widget> top;
 
-  /// The space between the mascot and the words, and around the group.
-  static const _gap = AppSpace.s8;
+  /// How high the hill's crest rises above the sky's foot at its sides.
+  static const _hill = AppSpace.s32;
+
+  /// How far the mascot's box reaches below the crest, where its feet stand.
+  static const _sink = AppSpace.s8;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final face = this.face;
+    final eyebrow = face?.eyebrow;
     final title = face?.title;
     final line = face?.line;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: _gap),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        spacing: _gap,
-        children: [
-          Mascot(
-            expression: face?.mascot ?? MascotExpression.thinking,
-            size: AppSize.mascotHero,
+    Widget words(String text, TextStyle style, {bool header = false}) =>
+        Semantics(
+          header: header,
+          child: Text(
+            keepWords(text),
+            semanticsLabel: text,
+            textAlign: TextAlign.center,
+            style: style.copyWith(color: colors.onHero),
           ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: AppSpace.s8,
-            children: [
-              if (title != null)
-                Semantics(
-                  header: true,
-                  child: Text(
-                    keepWords(title),
-                    semanticsLabel: title,
-                    textAlign: TextAlign.center,
-                    style: (face!.figure ? AppType.heroFigure : AppType.title)
-                        .copyWith(color: colors.onHero),
-                  ),
-                ),
-              if (line != null)
-                Text(
-                  keepWords(line),
-                  semanticsLabel: line,
-                  textAlign: TextAlign.center,
-                  style: AppType.bodyStrong.copyWith(color: colors.onHero),
-                ),
-              if (face != null) ...[
-                const SizedBox(height: AppSpace.s8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minWidth: AppSize.mascotHero + AppSpace.s12,
-                  ),
-                  child: AppButton(
-                    label: face.action,
-                    variant: AppButtonVariant.onHero,
-                    size: AppButtonSize.cta,
-                    onPressed: face.onAction,
+        );
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: colors.hero,
+        shape: const _SkyShape(hill: _hill),
+      ),
+      child: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpace.gutter,
+              MediaQuery.paddingOf(context).top + AppSpace.s12,
+              AppSpace.gutter,
+              AppSize.mascotHero + _hill - _sink,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ...top,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpace.s4),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      spacing: AppSpace.s4,
+                      children: [
+                        if (eyebrow != null) words(eyebrow, AppType.label),
+                        if (title != null)
+                          words(
+                            title,
+                            face!.figure ? AppType.heroFigure : AppType.title,
+                            header: true,
+                          ),
+                        if (line != null) words(line, AppType.bodyStrong),
+                      ],
+                    ),
                   ),
                 ),
               ],
-            ],
+            ),
+          ),
+          // Nothing else is drawn at its upper right, where the assistant's
+          // bubble is to go (#721).
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: _hill - _sink,
+            child: Center(
+              child: Mascot(
+                expression: face?.mascot ?? MascotExpression.thinking,
+                size: AppSize.mascotHero,
+              ),
+            ),
           ),
         ],
       ),
@@ -403,7 +395,124 @@ class _Hero extends StatelessWidget {
   }
 }
 
-/// Why today's count cannot be read, in the week card's place.
+/// The sky's shape: a box whose foot is a hill [hill] high at its centre, a
+/// quadratic curve from either side, the ground under it.
+class _SkyShape extends ShapeBorder {
+  const _SkyShape({required this.hill});
+
+  final double hill;
+
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) => Path()
+    ..moveTo(rect.left, rect.top)
+    ..lineTo(rect.right, rect.top)
+    ..lineTo(rect.right, rect.bottom)
+    // A quadratic's peak is half its control point's height.
+    ..quadraticBezierTo(
+      rect.center.dx,
+      rect.bottom - 2 * hill,
+      rect.left,
+      rect.bottom,
+    )
+    ..close();
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      getOuterPath(rect, textDirection: textDirection);
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {}
+
+  @override
+  ShapeBorder scale(double t) => _SkyShape(hill: hill * t);
+}
+
+/// The sky over the ground in a [viewport] high: the sky [sky] high where the
+/// ground's content leaves it room, shorter down to its own content where
+/// not, and the ground the rest; both grow past the viewport, which then
+/// scrolls, rather than cut their content.
+class _SkyOverGround extends MultiChildRenderObjectWidget {
+  const _SkyOverGround({
+    required this.viewport,
+    required this.sky,
+    required super.children,
+  });
+
+  final double viewport;
+  final double sky;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderSkyOverGround(viewport, sky);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderSkyOverGround renderObject,
+  ) => renderObject
+    ..viewport = viewport
+    ..sky = sky;
+}
+
+class _SkyOverGroundData extends ContainerBoxParentData<RenderBox> {}
+
+class _RenderSkyOverGround extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _SkyOverGroundData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _SkyOverGroundData> {
+  _RenderSkyOverGround(this._viewport, this._sky);
+
+  double _viewport;
+  set viewport(double value) {
+    if (value == _viewport) return;
+    _viewport = value;
+    markNeedsLayout();
+  }
+
+  double _sky;
+  set sky(double value) {
+    if (value == _sky) return;
+    _sky = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _SkyOverGroundData) {
+      child.parentData = _SkyOverGroundData();
+    }
+  }
+
+  @override
+  void performLayout() {
+    final width = constraints.maxWidth;
+    final sky = firstChild!;
+    final ground = childAfter(sky)!;
+    final groundNeeds = ground.getMinIntrinsicHeight(width);
+    final skyHeight = max(
+      sky.getMinIntrinsicHeight(width),
+      min(_sky, _viewport - groundNeeds),
+    );
+    final groundHeight = max(groundNeeds, _viewport - skyHeight);
+    sky.layout(BoxConstraints.tightFor(width: width, height: skyHeight));
+    ground.layout(BoxConstraints.tightFor(width: width, height: groundHeight));
+    (ground.parentData! as _SkyOverGroundData).offset = Offset(0, skyHeight);
+    size = constraints.constrain(Size(width, skyHeight + groundHeight));
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) =>
+      defaultPaint(context, offset);
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      defaultHitTestChildren(result, position: position);
+}
+
+/// Why today's count cannot be read, in the streak's place.
 class _ProblemRow extends StatelessWidget {
   const _ProblemRow({required this.message});
 

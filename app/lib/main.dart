@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -201,10 +202,15 @@ class KnownoApp extends ConsumerWidget {
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      builder: (context, child) => KeyboardDismissal(
-        child: imports == null || child == null
-            ? child
-            : PhotoImportFrame(imports: imports, child: child),
+      // A screen that draws nothing of its own under the status bar keeps the
+      // glyphs that read on the theme's ground.
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: AppStatusBar.over(Theme.of(context).brightness),
+        child: KeyboardDismissal(
+          child: imports == null || child == null
+              ? child
+              : PhotoImportFrame(imports: imports, child: child),
+        ),
       ),
       home: const AccountGate(signedIn: HomeScreen()),
     );

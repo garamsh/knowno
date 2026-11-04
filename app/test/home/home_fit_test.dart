@@ -28,7 +28,9 @@ void main() {
       for (final MapEntry(key: state, value: (title, setup))
           in heroStates.entries) {
         testWidgets(
-          'on a ${phone.name} (${phone.size.height.toInt()} pt) at text scale $scale, 홈 $state fills the first screen with the hero and its mascot at full size, the week card\'s top edge under it and the rest a scroll away',
+          scale == 1.0
+              ? 'on a ${phone.name} (${phone.size.height.toInt()} pt) at text scale 1.0, 홈 $state is one screen with no scroll: the sky over the ground, the mascot at 140 on the hill, and the action whole above the tab bar'
+              : 'on a ${phone.name} (${phone.size.height.toInt()} pt) at text scale 3.12, 홈 $state cuts nothing and scrolls to the action whole',
           (tester) async {
             tester.view.physicalSize = phone.size;
             tester.view.devicePixelRatio = 1;
@@ -59,7 +61,7 @@ void main() {
             );
             await tester.runAsync(() async {
               final decks = [
-                for (final name in heroNotes)
+                for (final name in heroNotesOf(state))
                   (await repository.createDeck(name)).id,
               ];
               final minutes = await setup(db, repository, decks);
@@ -89,9 +91,10 @@ void main() {
             );
             await tester.pumpAndSettle();
 
-            // The state asked for is the one drawn, on the owner's streak
-            // where it has one, and the week card under it but with no card.
-            expect(shownText(title(ko)), findsOneWidget);
+            // The state asked for is the one drawn, with the streak on the
+            // ground but with no card.
+            final heading = shownText(title(ko));
+            expect(heading, findsOneWidget);
             final streak = find.text(
               ko.streakDays(switch (state) {
                 'today' => heroStreak,
@@ -100,13 +103,18 @@ void main() {
               }),
               findRichText: true,
             );
-            expect(streak, state == 'no cards' ? findsNothing : findsOneWidget);
-            final action = find.byWidgetPredicate(
-              (widget) =>
-                  widget is AppButton &&
-                  widget.variant == AppButtonVariant.onHero,
+            expect(
+              streak,
+              state == 'no cards' || state == 'first run'
+                  ? findsNothing
+                  : findsOneWidget,
             );
-            expect(action, findsOneWidget);
+            final action = find
+                .byWidgetPredicate(
+                  (widget) =>
+                      widget is AppButton && widget.size == AppButtonSize.cta,
+                )
+                .last;
             final page = find
                 .ancestor(of: action, matching: find.byType(Scrollable))
                 .first;
@@ -114,81 +122,75 @@ void main() {
             final viewport = tester.getRect(page);
             final tabBar = tester.getRect(find.bySemanticsLabel(ko.tabsLabel));
             expect(viewport.bottom, lessThanOrEqualTo(tabBar.top));
-            final heroBox = find
+            final mascot = find.descendant(
+              of: page,
+              matching: find.byType(Mascot),
+            );
+
+            // The mascot at 140 in every state, at every height and text
+            // size, under the words and over the action, overlapping
+            // neither.
+            expect(
+              tester.getSize(mascot),
+              const Size.square(AppSize.mascotHero),
+            );
+            expect(
+              tester.getRect(heading).bottom,
+              lessThanOrEqualTo(tester.getRect(mascot).top),
+            );
+            expect(
+              tester.getRect(mascot).bottom,
+              lessThanOrEqualTo(tester.getRect(action).top),
+            );
+            if (state != 'no cards' && state != 'first run') {
+              expect(
+                tester.getRect(mascot).bottom,
+                lessThanOrEqualTo(tester.getRect(streak).top),
+              );
+              expect(
+                tester.getRect(streak).bottom,
+                lessThanOrEqualTo(tester.getRect(action).top),
+              );
+            }
+            // The sky runs from the top of the screen, behind the status
+            // bar.
+            final sky = find
                 .ancestor(
-                  of: action,
+                  of: mascot,
                   matching: find.byWidgetPredicate(
                     (widget) =>
                         widget is DecoratedBox &&
-                        widget.decoration is BoxDecoration &&
-                        (widget.decoration as BoxDecoration).color ==
-                            AppColors.of(tester.element(action)).hero,
+                        widget.decoration is ShapeDecoration,
                   ),
                 )
                 .first;
+            expect(tester.getRect(sky).top, 0);
 
-            // The mascot at its full size in every state, at every height and
-            // text size.
-            expect(
-              tester.getSize(
-                find.descendant(of: page, matching: find.byType(Mascot)),
-              ),
-              const Size.square(AppSize.mascotHero),
-            );
-
-            // The first screen: the hero from its top, filling it but for the
-            // week card's top edge, 16 high, and the space over it; with no
-            // card, the whole of it and nothing under it.
-            final hero = tester.getRect(heroBox);
-            expect(hero.top, viewport.top);
-            const peek = AppSpace.s16;
-            if (state == 'no cards') {
-              expect(hero.bottom, greaterThanOrEqualTo(viewport.bottom));
-              if (scale == 1.0) expect(position.maxScrollExtent, 0);
-            } else {
-              final week = find
-                  .ancestor(of: streak, matching: find.byType(DecoratedBox))
-                  .first;
-              final card = tester.getRect(week);
+            if (scale == 1.0) {
+              // One screen: nothing to scroll, the sky about 58% of the
+              // screen, and the action's raised edge whole above the tab bar.
+              expect(position.maxScrollExtent, 0);
               expect(
-                hero.bottom,
-                greaterThanOrEqualTo(viewport.bottom - peek - AppSpace.s16),
+                tester.getRect(sky).height,
+                moreOrLessEquals(phone.size.height * 0.58, epsilon: 60),
               );
-              expect(card.top, greaterThan(hero.bottom));
-              // At text scale 1.0 the hero's group fits, so the first screen
-              // shows the week card's top edge, 16 high, and no more, with
-              // 시작 whole above it; past that, the hero grows and the week
-              // card is further down.
-              if (scale == 1.0) {
-                expect(card.top, moreOrLessEquals(viewport.bottom - peek));
-                final start = tester.getRect(action);
-                expect(start.top, greaterThanOrEqualTo(viewport.top));
-                expect(start.bottom, lessThanOrEqualTo(hero.bottom));
-              } else {
-                expect(card.top, greaterThanOrEqualTo(viewport.bottom - peek));
-              }
-
-              // Scrolled to, the week card is whole above the tab bar, its
-              // edge included.
-              await tester.ensureVisible(week);
-              await tester.pumpAndSettle();
-              final scrolled = tester.getRect(week);
-              expect(position.pixels, greaterThan(0));
-              expect(scrolled.top, greaterThanOrEqualTo(viewport.top));
               expect(
-                scrolled.bottom + AppSize.edgeCard,
+                tester.getRect(action).bottom + AppSize.edgeButton,
+                lessThanOrEqualTo(viewport.bottom),
+              );
+            } else {
+              // Too much to fit: the page scrolls, and the action, scrolled
+              // to, is whole with its edge.
+              expect(position.maxScrollExtent, greaterThan(0));
+              await tester.ensureVisible(action);
+              await tester.pumpAndSettle();
+              final shown = tester.getRect(action);
+              expect(shown.top, greaterThanOrEqualTo(viewport.top));
+              expect(
+                shown.bottom + AppSize.edgeButton,
                 lessThanOrEqualTo(viewport.bottom),
               );
             }
-
-            // 시작, scrolled to where it is not on the first screen, is whole
-            // in the page.
-            position.jumpTo(0);
-            await tester.ensureVisible(action);
-            await tester.pumpAndSettle();
-            final shown = tester.getRect(action);
-            expect(shown.top, greaterThanOrEqualTo(viewport.top));
-            expect(shown.bottom, lessThanOrEqualTo(viewport.bottom));
             expect(tester.takeException(), isNull);
             // Unmounting cancels drift's stream queries, whose cleanup timer
             // must fire before the test body ends.

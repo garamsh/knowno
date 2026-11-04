@@ -21,5 +21,20 @@ void main() {
         expect(contrast(colors.hairline, card), lessThan(3));
       },
     );
+
+    test(
+      '$name: 홈\'s today label meets WCAG AA on the ground, where its dot, decoration beside it, need not',
+      () {
+        expect(
+          contrast(colors.todayText, colors.ground),
+          greaterThanOrEqualTo(4.5),
+        );
+        // Control: the dot's coral itself fails 4.5:1 on the light ground, so
+        // the label cannot be drawn in it.
+        if (name == 'light') {
+          expect(contrast(colors.todayMark, colors.ground), lessThan(4.5));
+        }
+      },
+    );
   }
 }

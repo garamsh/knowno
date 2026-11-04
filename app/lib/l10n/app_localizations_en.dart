@@ -1265,7 +1265,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get todayDone => 'You\'ve done today\'s cards';
+  String get todayDone => 'All done';
 
   @override
   String get todayStudy => 'Study';
@@ -1876,12 +1876,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabHome => 'Home';
 
   @override
-  String homeToday(int count) {
+  String homeCards(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count cards today',
-      one: '1 card today',
+      other: '$count cards',
+      one: '1 card',
     );
     return '$_temp0';
   }
