@@ -17,14 +17,14 @@ export async function removeProviderKey(provider: string): Promise<ActionResult>
   switch (result.data) {
     case "removed":
       revalidatePath("/admin", "layout");
-      return { changed: true, message: "키를 지웠어요." };
+      return { changed: true, message: "키를 삭제했어요." };
     case "in_use":
       return {
         changed: false,
         message: "사용 중인 키예요. 이 키를 쓰지 않는 설정을 먼저 적용해 주세요.",
       };
     case "reauth":
-      return { changed: false, message: "보안을 위해 다시 로그인한 뒤 지워 주세요." };
+      return { changed: false, message: "보안을 위해 다시 로그인한 뒤 삭제해 주세요." };
     case "none":
       return { changed: false, message: "지울 키가 없어요." };
     default:

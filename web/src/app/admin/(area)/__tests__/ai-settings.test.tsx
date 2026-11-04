@@ -212,10 +212,13 @@ describe("AI's provider keys", () => {
     });
     admin.recentSignIn = false;
     expect((await removeProviderKey("openai")).message).toBe(
-      "보안을 위해 다시 로그인한 뒤 지워 주세요.",
+      "보안을 위해 다시 로그인한 뒤 삭제해 주세요.",
     );
     admin.recentSignIn = true;
-    expect(await removeProviderKey("openai")).toEqual({ changed: true, message: "키를 지웠어요." });
+    expect(await removeProviderKey("openai")).toEqual({
+      changed: true,
+      message: "키를 삭제했어요.",
+    });
     expect([...admin.providerKeys.keys()]).toEqual(["openrouter"]);
   });
 });
