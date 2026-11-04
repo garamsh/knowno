@@ -40,4 +40,16 @@ describe("a page's loading skeleton", () => {
       expect(placeholders?.className).not.toMatch(/(^|\s)animate-/);
     },
   );
+
+  it("on 홈 gives the browser's bar the sky's colour while it shows, as 홈 does", () => {
+    document.documentElement.style.setProperty("--color-hero", "#2547d0");
+    const themeColor = () =>
+      document.head.querySelector('meta[name="theme-color"]')?.getAttribute("content");
+
+    const { unmount } = render(<TodaySkeleton />);
+    expect(themeColor()).toBe("#2547d0");
+    unmount();
+    expect(themeColor()).toBeUndefined();
+    document.documentElement.style.removeProperty("--color-hero");
+  });
 });

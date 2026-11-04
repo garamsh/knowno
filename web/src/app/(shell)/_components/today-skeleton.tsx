@@ -8,15 +8,17 @@ import {
   homeSky,
   homeWords,
 } from "./home-frame";
+import { SkyThemeColor } from "./sky-theme-color";
 
 /**
  * 홈 while it is read: the sky with its title, count and the mascot's place, and on the ground the
- * streak and the button in their places, laid out as 홈 is.
+ * streak and the button in their places, laid out as 홈 is, the browser's bar in the sky's colour.
  */
 export function TodaySkeleton() {
   return (
     <Skeleton status="오늘 할 카드를 불러오는 중이에요." className="">
       <div className={homeFrame}>
+        <SkyThemeColor />
         <div className={homeSky}>
           <div className="flex min-h-tap-target items-center lg:hidden">
             <SkeletonLine text="text-title" width="w-28" />
