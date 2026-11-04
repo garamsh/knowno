@@ -35,7 +35,7 @@ export const button = {
   rowDestructive: `${buttonClass("destructive", "header")} w-fit self-start`,
 } as const;
 
-/** A card of 처리할 일 or 사진 AI: one solid surface on its edge, holding a figure and one action. */
+/** A card of 처리할 일: one solid surface on its edge, holding a figure and one action. */
 export const card = "flex flex-col gap-2 rounded-group bg-surface p-5";
 
 /**
