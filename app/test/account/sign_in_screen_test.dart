@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/account/account.dart';
@@ -11,6 +12,7 @@ import 'package:knowno/design/theme.dart';
 import 'package:knowno/l10n/app_localizations.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../app_fonts.dart';
 import '../contrast.dart';
 import 'fake_account_service.dart';
 import '../word_breaks.dart';
@@ -166,7 +168,7 @@ void main() {
 
       await tapAndSettle(tester, 'Continue with Google');
 
-      expect(shownText(message), findsOneWidget);
+      expect(find.text(message), findsOneWidget);
       expect(shownText('Continue with Google'), findsOneWidget);
     });
   }
@@ -374,6 +376,75 @@ void main() {
     );
   }
 
+  group('at the largest text size, in the bundled fonts,', () {
+    setUpAll(loadAppFonts);
+
+    for (final width in [320.0, 390.0]) {
+      for (final mode in ThemeMode.values.skip(1)) {
+        testWidgets(
+          "on a ${width.toInt()} wide phone in the ${mode.name} theme Google's Korean label is whole, broken between words, inside a button grown to hold it, with the mark and the padding unchanged",
+          (tester) async {
+            tester.view.physicalSize = Size(width, 844);
+            tester.view.devicePixelRatio = 1;
+            addTearDown(tester.view.reset);
+            tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+            addTearDown(
+              tester.platformDispatcher.clearTextScaleFactorTestValue,
+            );
+            await pumpScreen(
+              tester,
+              FakeAccountService(),
+              locale: const Locale('ko'),
+              themeMode: mode,
+            );
+
+            const text = 'Google로 계속하기';
+            final button = find.byType(GoogleSignInButton);
+            final label = find.descendant(
+              of: button,
+              matching: shownText(text),
+            );
+            final paragraph = tester.renderObject<RenderParagraph>(
+              find.descendant(of: label, matching: find.byType(RichText)),
+            );
+            // The label laid out at its width with no height to fit.
+            final whole = TextPainter(
+              text: paragraph.text,
+              textDirection: paragraph.textDirection,
+              textScaler: paragraph.textScaler,
+            )..layout(maxWidth: paragraph.size.width);
+            addTearDown(whole.dispose);
+            expect(paragraph.size.height, greaterThanOrEqualTo(whole.height));
+            expectBreaksBetweenWords(tester, text);
+            // Room above and below the label, as a call to action has.
+            final box = tester.getRect(button);
+            final words = tester.getRect(label);
+            expect(words.top - box.top, greaterThanOrEqualTo(AppSpace.s8));
+            expect(
+              box.bottom - words.bottom,
+              greaterThanOrEqualTo(AppSpace.s8),
+            );
+            expect(box.height, greaterThan(AppSize.cta));
+            final mark = find.descendant(
+              of: button,
+              matching: find.byType(Image),
+            );
+            expect(
+              tester.getSize(mark),
+              const Size.square(GoogleButtonStyle.markSize),
+            );
+            expect(
+              tester.getRect(mark).left - box.left,
+              greaterThanOrEqualTo(12),
+            );
+            expect(tester.getRect(label).left - tester.getRect(mark).right, 10);
+            expect(tester.takeException(), isNull);
+          },
+        );
+      }
+    }
+  });
+
   testWidgets('the logo sits in the upper part and the buttons at the bottom', (
     tester,
   ) async {
@@ -409,7 +480,7 @@ void main() {
       );
 
       expect(
-        shownText(
+        find.text(
           'By continuing, you agree to the Terms of Service and the Privacy Policy.',
         ),
         findsOneWidget,
@@ -441,7 +512,7 @@ void main() {
     await tapAndSettle(tester, 'Privacy Policy');
     expect(opened, [Uri.parse('https://knowno.app/privacy')]);
     expect(
-      shownText("Couldn't open the link. Please try again."),
+      find.text("Couldn't open the link. Please try again."),
       findsOneWidget,
     );
   });

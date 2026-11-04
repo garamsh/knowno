@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../design/theme.dart';
+import '../../design/word_break.dart';
 
 /// Google's "Sign in with Google" button, full width: the "G" mark and
 /// [label] on the light button in the light theme and the dark one in the
@@ -25,8 +26,10 @@ class GoogleSignInButton extends StatelessWidget {
     );
     return Semantics(
       button: true,
-      child: SizedBox(
-        height: AppSize.cta,
+      // At least the app's call-to-action height, and taller where a large
+      // text size wraps the label.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: AppSize.cta),
         child: Material(
           color: style.fill,
           shape: shape,
@@ -36,7 +39,9 @@ class GoogleSignInButton extends StatelessWidget {
             child: Padding(
               padding: EdgeInsetsDirectional.only(
                 start: spacing.start,
+                top: AppSpace.s8,
                 end: spacing.end,
+                bottom: AppSpace.s8,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -50,7 +55,11 @@ class GoogleSignInButton extends StatelessWidget {
                   ),
                   Flexible(
                     child: Text(
-                      label,
+                      keepWords(label),
+                      semanticsLabel: label,
+                      // As wide as its longest line, so a wrapped label and
+                      // the mark stay centred together.
+                      textWidthBasis: TextWidthBasis.longestLine,
                       style: GoogleButtonStyle.labelStyle.copyWith(
                         color: style.label,
                       ),
