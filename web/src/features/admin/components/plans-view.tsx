@@ -16,7 +16,7 @@ const head = [
   { label: "요금제" },
   { label: "사진 한도" },
   { label: "AI 구성" },
-  { label: "가입자", numeric: true },
+  { label: "가입자", align: "end" },
   { label: "작업" },
 ] as const;
 
@@ -69,7 +69,7 @@ export function PlansView({
                 AI에서 보기
               </Link>
             </td>
-            <td className={cellClass({ numeric: true })}>
+            <td className={cellClass({ align: "end" })}>
               <CellLabel>가입자</CellLabel>
               {count === null ? "읽지 못함" : `${count.toLocaleString("ko-KR")}명`}
             </td>

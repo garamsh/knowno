@@ -15,10 +15,10 @@ import { SheetLink } from "./sheet-link";
 const head = [
   { label: "노트" },
   { label: "만든 사람" },
-  { label: "카드", numeric: true },
-  { label: "가져오기", numeric: true },
+  { label: "카드", align: "end" },
+  { label: "가져오기", align: "end" },
   { label: "첫 신고" },
-  { label: "신고" },
+  { label: "신고", align: "end" },
   { label: "작업" },
 ] as const;
 
@@ -54,11 +54,11 @@ function NoteItem({ note, timeZone }: { note: NoteRow; timeZone: string }) {
         <CellLabel>만든 사람</CellLabel>
         <Email email={note.owner.email} />
       </td>
-      <td className={cellClass({ numeric: true })}>
+      <td className={cellClass({ align: "end" })}>
         <CellLabel>카드</CellLabel>
         {note.cards.toLocaleString("ko-KR")}장
       </td>
-      <td className={cellClass({ numeric: true })}>
+      <td className={cellClass({ align: "end" })}>
         <CellLabel>가져오기</CellLabel>
         {note.copies.toLocaleString("ko-KR")}회
       </td>
@@ -66,7 +66,7 @@ function NoteItem({ note, timeZone }: { note: NoteRow; timeZone: string }) {
         <CellLabel>첫 신고</CellLabel>
         {note.firstReportedAt === null ? "없음" : formatDate(note.firstReportedAt, timeZone)}
       </td>
-      <td className={`${cellClass()} whitespace-nowrap`}>
+      <td className={`${cellClass({ align: "end" })} whitespace-nowrap`}>
         {note.reports > 0 ? (
           <Chip tone="amber">신고 {note.reports}</Chip>
         ) : (

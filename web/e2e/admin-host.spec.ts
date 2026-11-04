@@ -56,6 +56,43 @@ async function capture(page: Page, name: string, widths: readonly number[] = [39
   await page.emulateMedia({ colorScheme: "light" });
 }
 
+/**
+ * Asserts that, at the width the page is at, each [centre] column of the table named [name] holds
+ * its header's text and every cell's content on one centre x, and each [end] column on one right
+ * x (`design/frames.md` §Table). Columns count from 0; a cell with nothing in it is passed over.
+ */
+async function expectAligned(
+  page: Page,
+  name: string,
+  { centre = [], end = [] }: { centre?: number[]; end?: number[] },
+) {
+  const table = page.getByRole("table", { name, exact: true });
+  for (const [columns, at] of [
+    [centre, (box: { left: number; right: number }) => (box.left + box.right) / 2],
+    [end, (box: { left: number; right: number }) => box.right],
+  ] as const) {
+    for (const column of columns) {
+      const boxes = await table.evaluate((element, index) => {
+        return [...element.querySelectorAll("tr")].flatMap((row) => {
+          const cell = row.children[index];
+          if (cell === undefined) return [];
+          const range = document.createRange();
+          range.selectNodeContents(cell);
+          const { left, right } = range.getBoundingClientRect();
+          return right - left > 0 ? [{ left, right }] : [];
+        });
+      }, column);
+      const [head, ...cells] = boxes;
+      if (head === undefined) throw new Error(`${name} has no column ${String(column)}`);
+      expect(cells.length, `${name} column ${String(column)} has cells`).toBeGreaterThan(0);
+      expect(
+        cells.map((cell) => Math.round(Math.abs(at(cell) - at(head)))),
+        `${name} column ${String(column)}, each cell's distance from its header`,
+      ).toEqual(cells.map(() => 0));
+    }
+  }
+}
+
 test.describe("signed out", () => {
   test("the service's /admin moves to the admin host, whose own sign-in opens there, and the service's sign-in stays", async ({
     page,
@@ -279,6 +316,8 @@ test.describe("signed in", () => {
     await expect(emails.first()).toHaveText(email(1));
     await expect(pager.getByText("1–20 / 425", { exact: true })).toBeVisible();
     await capture(page, "admin-users");
+    // From 1024 px 요금제 and 상태 are centred, 노트 and 카드 end at one x, under their headers.
+    await expectAligned(page, "사용자 목록", { centre: [5, 6], end: [3, 4] });
 
     // The 10th of 22 pages: the first, the last and the pages beside it, which fit at 390 px.
     await page.goto(`${admin}/users?q=${tag}&page=10`);
@@ -392,6 +431,12 @@ test.describe("signed in", () => {
       ).toBeVisible();
       await capture(page, name);
     }
+    // From 1024 px a count ends at its header's x: 노트's 카드, 가져오기 and 신고, 요금제's 가입자.
+    await page.goto(`${admin}/decks?q=${tag}`);
+    await expectAligned(page, "노트 목록", { end: [2, 3, 5] });
+    await page.goto(`${admin}/plans`);
+    await expectAligned(page, "요금제 목록", { end: [3] });
+
     // A plan's 한도 바꾸기 opens its versions and its form in the sheet, the page under it unchanged.
     await page.goto(`${admin}/plans`);
     const plan = page.getByRole("dialog", { name: "프로 한도 바꾸기", exact: true });

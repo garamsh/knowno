@@ -5,6 +5,17 @@ import type { ReactNode } from "react";
 import { switchLink } from "./admin-section";
 
 /**
+ * Where a column holds its header and its cells from 1024 px (`design/frames.md` §Table): a chip
+ * column centred, a number at the end in tabular figures; text, the default, at the start.
+ */
+export type Align = "center" | "end";
+
+const aligned: Record<Align, string> = {
+  center: "lg:text-center",
+  end: "tabular-nums lg:text-right",
+};
+
+/**
  * A table of the admin area, as `design/frames.md` §Table lays one out: from 1024 px one surface on
  * its edge, its header row in the `section` type, its rows split by hairlines; below it the header
  * row goes and each row is a card of its own, its cells wrapping, each naming what it holds through
@@ -16,8 +27,8 @@ export function AdminTable({
   children,
 }: {
   label: string;
-  /** Each column's heading, a number's aligned to the end. */
-  head: readonly { label: string; numeric?: boolean }[];
+  /** Each column's heading, aligned as its cells are. */
+  head: readonly { label: string; align?: Align }[];
   children: ReactNode;
 }) {
   return (
@@ -29,8 +40,8 @@ export function AdminTable({
               <th
                 key={column.label}
                 scope="col"
-                className={`px-3 py-3 text-section whitespace-nowrap text-muted first:pl-4 last:pr-4 ${
-                  column.numeric === true ? "text-right" : "text-left"
+                className={`px-3 py-3 text-left text-section whitespace-nowrap text-muted first:pl-4 last:pr-4 ${
+                  column.align === undefined ? "" : aligned[column.align]
                 }`}
               >
                 {column.label}
@@ -59,13 +70,10 @@ export function rowClass({
   } ${current ? "lg:bg-ground" : ""}`;
 }
 
-/** A cell of an [AdminTable]; a [numeric] one aligned to the end, a [lead] one alone on its line below 1024 px. */
-export function cellClass({
-  numeric = false,
-  lead = false,
-}: { numeric?: boolean; lead?: boolean } = {}): string {
+/** A cell of an [AdminTable], aligned as its column's heading; a [lead] one alone on its line below 1024 px. */
+export function cellClass({ align, lead = false }: { align?: Align; lead?: boolean } = {}): string {
   return `lg:px-3 lg:py-3 lg:first:pl-4 lg:last:pr-4 align-middle max-lg:empty:hidden ${
-    numeric ? "tabular-nums lg:text-right" : ""
+    align === undefined ? "" : aligned[align]
   } ${lead ? "max-lg:min-w-0 max-lg:basis-full" : "max-lg:text-caption max-lg:text-ink-2"}`;
 }
 

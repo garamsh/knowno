@@ -13,10 +13,10 @@ const head = [
   { label: "이메일" },
   { label: "가입" },
   { label: "마지막 학습", detail: true },
-  { label: "노트", numeric: true, detail: true },
-  { label: "카드", numeric: true, detail: true },
-  { label: "요금제" },
-  { label: "상태" },
+  { label: "노트", align: "end", detail: true },
+  { label: "카드", align: "end", detail: true },
+  { label: "요금제", align: "center" },
+  { label: "상태", align: "center" },
 ] as const;
 
 /**
@@ -74,17 +74,17 @@ export function UserTable({
                     <CellLabel>마지막 학습</CellLabel>
                     {user.lastAnswerAt === null ? "없음" : formatDate(user.lastAnswerAt, timeZone)}
                   </td>
-                  <td className={cellClass({ numeric: true })}>
+                  <td className={cellClass({ align: "end" })}>
                     <CellLabel>노트</CellLabel>
                     {user.decks.toLocaleString("ko-KR")}
                   </td>
-                  <td className={cellClass({ numeric: true })}>
+                  <td className={cellClass({ align: "end" })}>
                     <CellLabel>카드</CellLabel>
                     {user.cards.toLocaleString("ko-KR")}
                   </td>
                 </>
               )}
-              <td className={cellClass()}>
+              <td className={cellClass({ align: "center" })}>
                 <CellLabel>요금제</CellLabel>
                 {user.plan === null ? (
                   "없음"
@@ -93,7 +93,7 @@ export function UserTable({
                 )}
               </td>
               {/* Empty, and so not drawn below 1024 px, for a user who is neither. */}
-              <td className={cellClass()}>
+              <td className={cellClass({ align: "center" })}>
                 {(user.admin || user.suspended) && (
                   <span className="inline-flex items-center gap-1">
                     <CellLabel>상태</CellLabel>
