@@ -323,8 +323,11 @@ Future<void> _scrollThrough(WidgetTester tester) async {
       in find.byType(Scrollable).hitTestable().evaluate().toList()) {
     final state = (scrollable as StatefulElement).state as ScrollableState;
     final finder = find.byElementPredicate((element) => element == scrollable);
+    // Most of a screen at a time: 홈's hero settles back from a release short of
+    // half its collapse, which is less than its screen.
+    final step = state.position.viewportDimension * 0.8;
     while (state.position.pixels < state.position.maxScrollExtent) {
-      await tester.drag(finder, const Offset(0, -300), warnIfMissed: false);
+      await tester.drag(finder, Offset(0, -step), warnIfMissed: false);
       await tester.pumpAndSettle();
     }
   }

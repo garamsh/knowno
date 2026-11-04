@@ -17,10 +17,15 @@ import {
   studyHref,
 } from "@/features/study";
 
-import { Mascot } from "@/design/brand";
+import Link from "next/link";
 
+import { Mascot } from "@/design/brand";
+import { buttonClass } from "@/design/button";
+import { FittedLine } from "@/design/fitted-line";
+
+import { CollapsingHero } from "./collapsing-hero";
 import { EnterLink } from "./enter-link";
-import { belowHero, heroFold, heroGroup } from "./hero-fold";
+import { heroFading, heroFold, heroGroup, heroTop } from "./hero-fold";
 import { ProfileButton, readInitial } from "./profile-button";
 import { WeekCard } from "./week-card";
 
@@ -79,6 +84,7 @@ export async function Today() {
         </>
       }
       problem={<ReadFailure failure={failure} />}
+      bar={<HeroBar href={href} />}
     />
   );
   // With notes but no card in any, how to start rather than a finished day, and no week.
@@ -110,6 +116,7 @@ export async function Today() {
       <Home
         initial={initial}
         below={below}
+        bar={<HeroBar text="오늘 할 카드를 다 했어요" href={href} label="학습하기" />}
         hero={
           <>
             <Mascot expression="happy" className="" />
@@ -128,10 +135,19 @@ export async function Today() {
     );
   }
 
+  const minutes = sessionMinutes(count.review, count.fresh, pace);
   return (
     <Home
       initial={initial}
       below={below}
+      bar={
+        <HeroBar
+          text={
+            count.backlog ? "다시 시작하면 돼요" : `오늘 ${String(total)}장 · ${String(minutes)}분`
+          }
+          href={href}
+        />
+      }
       hero={
         count.backlog ? (
           <>
@@ -151,7 +167,7 @@ export async function Today() {
               오늘 {total}장
             </h2>
             <p id="hero-time" className="text-body-strong">
-              약 {sessionMinutes(count.review, count.fresh, pace)}분이면 끝나요
+              약 {minutes}분이면 끝나요
             </p>
             <StartLink href={href} />
           </>
@@ -171,43 +187,59 @@ function StartLink({ href, label = "시작" }: { href: string; label?: string })
 }
 
 /**
+ * The hero collapsed into its bar: [text], the day in a line shrunk to the bar where it is wider,
+ * and the study link, "시작" unless [label] says otherwise, at the header size.
+ */
+function HeroBar({ text, href, label = "시작" }: { text?: string; href: string; label?: string }) {
+  return (
+    <>
+      <FittedLine className="flex-1 text-title">{text}</FittedLine>
+      <Link href={href} className={`${buttonClass("onHero", "header")} shrink-0`}>
+        {label}
+      </Link>
+    </>
+  );
+}
+
+/**
  * 홈's two parts: the [hero] on the `hero` surface, rounded at its foot, under "알아몰라" and,
  * below 1024 px, the profile button with the account's [initial]; under it [below], the week card.
  * Why the day cannot be read, [problem], is in the hero under its action, on a `surface` row, so
  * it is on the first screen. From 1024 px the profile button is the side menu's.
  *
  * Below 1024 px the hero fills the screen above the tab bar but for [below]'s top edge, which
- * shows at the foot of the first screen; the rest of [below] follows by scrolling (ADR 0179). The
+ * shows at the foot of the first screen (ADR 0179), its blue up behind the status bar with its
+ * words in the safe area; scrolled, it collapses into [bar] pinned at the top (ADR 0188). The
  * hero's first item, the mascot, is at `mascot-hero`, the group centred.
  */
 function Home({
   hero,
   below,
   problem,
+  bar,
   initial,
 }: {
   hero: ReactNode;
   below?: ReactNode;
   problem?: ReactNode;
+  bar?: ReactNode;
   initial: string | null;
 }) {
   return (
-    // One block, so that main's gap does not come between the hero and what is under it.
-    <div>
-      <section
-        aria-labelledby="hero-title"
-        className={`${heroFold(below !== undefined)} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 text-on-hero lg:mx-0 lg:rounded-card lg:p-8`}
-      >
-        <div className="mb-4 flex items-center justify-between gap-3 lg:sr-only">
-          <h1 className="text-title">알아몰라</h1>
-          <span className="lg:hidden">
-            <ProfileButton initial={initial} onHero />
-          </span>
-        </div>
-        <div className={heroGroup}>{hero}</div>
-        {problem && <div className="mt-4 rounded-row bg-surface p-4">{problem}</div>}
-      </section>
-      {below && <div className={belowHero}>{below}</div>}
-    </div>
+    <CollapsingHero
+      labelledBy="hero-title"
+      className={`${heroFold(below !== undefined)} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-[calc(env(safe-area-inset-top)+--spacing(6))] pb-5 text-on-hero lg:mx-0 lg:rounded-card lg:p-8`}
+      bar={bar}
+      below={below}
+    >
+      <div className={`${heroTop} mb-4 flex items-center justify-between gap-3 lg:sr-only`}>
+        <h1 className="text-title">알아몰라</h1>
+        <span className="lg:hidden">
+          <ProfileButton initial={initial} onHero />
+        </span>
+      </div>
+      <div className={heroGroup}>{hero}</div>
+      {problem && <div className={`${heroFading} mt-4 rounded-row bg-surface p-4`}>{problem}</div>}
+    </CollapsingHero>
   );
 }

@@ -10,7 +10,7 @@ export function TodaySkeleton() {
   return (
     <Skeleton status="오늘 할 카드를 불러오는 중이에요." className="">
       <div
-        className={`${heroFold(true)} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 lg:mx-0 lg:rounded-card lg:p-8`}
+        className={`${heroFold(true)} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-[calc(env(safe-area-inset-top)+--spacing(6))] pb-5 lg:mx-0 lg:rounded-card lg:p-8`}
       >
         <div className="mb-4 flex min-h-tap-target items-center lg:hidden">
           <SkeletonLine text="text-title" width="w-28" />

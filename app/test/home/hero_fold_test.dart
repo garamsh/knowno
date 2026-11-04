@@ -224,11 +224,14 @@ void main() {
                 moreOrLessEquals(collapsed.bottom + AppSpace.s16),
               );
 
-              // At the page's end the week card's foot is above the tab bar,
-              // its edge included, and where the card fits under the bar it
-              // is whole there.
+              // At the page's end the bar is still pinned at the top, the week
+              // card's foot is above the tab bar, its edge included, and
+              // where the card fits under the bar it is whole there.
               position.jumpTo(position.maxScrollExtent);
               await tester.pump();
+              final pinned = tester.getRect(heroBox);
+              expect(pinned.top, 0);
+              expect(pinned.height, moreOrLessEquals(collapsed.height));
               final end = tester.getRect(week);
               expect(
                 end.bottom + AppSize.edgeCard,

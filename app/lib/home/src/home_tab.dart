@@ -743,9 +743,7 @@ class _CollapsedBar extends StatelessWidget {
                         child: Text(
                           text,
                           maxLines: 1,
-                          style: AppType.headline.copyWith(
-                            color: colors.onHero,
-                          ),
+                          style: AppType.title.copyWith(color: colors.onHero),
                         ),
                       ),
               ),

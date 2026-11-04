@@ -10,10 +10,20 @@ export const heroFold = (under: boolean) =>
 
 /**
  * The hero's group under its top bar: the mascot, its first item, at `mascot-hero` in every
- * state, over the words and the action, centred in what the top bar leaves.
+ * state, over the words and the action, centred in what the top bar leaves. As the hero collapses
+ * (`CollapsingHero`, `--hero-t` from 0 to 1) the group rises with the hero's centre, the mascot
+ * shrinking and fading first, the title, its second item, shrinking and then fading, and the rest
+ * fading, as the phone's do.
  */
 export const heroGroup =
-  "flex flex-1 flex-col items-center justify-center gap-1 py-1 text-center [&>:first-child]:size-mascot-hero [&>:first-child]:shrink-0";
+  "flex flex-1 flex-col items-center justify-center gap-1 py-1 text-center translate-y-[calc(var(--hero-hold,0px)/2)] [&>:first-child]:size-mascot-hero [&>:first-child]:shrink-0 [&>:first-child]:scale-[calc(1-var(--hero-t,0)/2)] [&>:first-child]:opacity-[calc(1-min(1,var(--hero-t,0)/0.6))] [&>:nth-child(2)]:scale-[calc(1-var(--hero-t,0)*0.4)] [&>:nth-child(2)]:opacity-[calc(1-clamp(0,(var(--hero-t,0)-0.3)/0.4,1))] [&>:nth-child(n+3)]:opacity-[calc(1-min(1,var(--hero-t,0)/0.4))]";
+
+/** The hero's top bar, held at the top while the hero collapses and fading by half of it. */
+export const heroTop =
+  "translate-y-[var(--hero-hold,0px)] opacity-[calc(1-min(1,var(--hero-t,0)*2))]";
+
+/** What fades with the hero's action as it collapses: why the day cannot be read. */
+export const heroFading = "opacity-[calc(1-min(1,var(--hero-t,0)/0.4))]";
 
 /** What is under the hero: 16 px under it, its top edge 16 px above the tab bar. */
 export const belowHero = "mt-4 lg:mt-6";
