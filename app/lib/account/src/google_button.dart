@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../design/theme.dart';
@@ -15,6 +17,36 @@ class GoogleSignInButton extends StatelessWidget {
 
   final String label;
   final VoidCallback onPressed;
+
+  /// The height the button takes at [width] for [label] in [context]: the
+  /// app's call-to-action height, or the wrapped label's with 8 above and
+  /// below where a large text size makes that taller.
+  static double heightFor(BuildContext context, String label, double width) {
+    final spacing = GoogleButtonStyle.spacing(Theme.of(context).platform);
+    final painter =
+        TextPainter(
+          // The label's style over the text style of the Material the button
+          // draws its surface with, and the app's locale, as the label has.
+          text: TextSpan(
+            text: keepWords(label),
+            style: Theme.of(context).textTheme.bodyMedium!
+                .merge(GoogleButtonStyle.labelStyle),
+          ),
+          textDirection: Directionality.of(context),
+          locale: Localizations.maybeLocaleOf(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout(
+          maxWidth:
+              width -
+              spacing.start -
+              GoogleButtonStyle.markSize -
+              spacing.gap -
+              spacing.end,
+        );
+    final labelHeight = painter.height;
+    painter.dispose();
+    return math.max(AppSize.cta, labelHeight + 2 * AppSpace.s8);
+  }
 
   @override
   Widget build(BuildContext context) {

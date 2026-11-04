@@ -442,6 +442,36 @@ void main() {
           },
         );
       }
+
+      testWidgets(
+        "on a ${width.toInt()} wide iPhone Apple's button is as tall as Google's grown one, its title at the size it has at 64",
+        (tester) async {
+          tester.view.physicalSize = Size(width, 844);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await pumpScreen(
+            tester,
+            FakeAccountService(),
+            locale: const Locale('ko'),
+          );
+
+          final google = tester.getSize(find.byType(GoogleSignInButton));
+          // The setup: Google's button has grown past 64.
+          expect(google.height, greaterThan(AppSize.cta));
+          final apple = find.byType(SignInWithAppleButton);
+          expect(tester.getSize(apple).height, google.height);
+          expect(tester.getSize(apple).width, google.width);
+          final title = tester.widget<Text>(
+            find.descendant(of: apple, matching: find.text('Apple로 계속하기')),
+          );
+          // Apple's proportion of the title to a 64 high button.
+          expect(title.style!.fontSize, AppSize.cta * 0.43);
+          expect(tester.takeException(), isNull);
+        },
+        variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+      );
     }
   });
 
