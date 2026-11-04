@@ -541,6 +541,33 @@ describe("the study page", () => {
     });
   });
 
+  describe("unloading the page", () => {
+    /** Whether the page holds the browser's unload back, as its leave prompt asks. */
+    const unloadHeld = () => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+
+    it("asks the browser first while an answer waits to be saved, and not once it is saved", async () => {
+      seedDeck(postgrest, "d1", ["un", "deux"]);
+      await open("d1");
+      expect(unloadHeld(), "control: nothing waits before an answer").toBe(false);
+      const stop = postgrest.fail("reviews", 500);
+      await userEvent.setup().keyboard("{ArrowRight}");
+      await screen.findByRole("alert");
+      expect(unloadHeld()).toBe(true);
+      stop();
+      await userEvent.setup().click(screen.getByRole("button", { name: "다시 시도" }));
+      await waitFor(() => {
+        expect(postgrest.rows.reviews).toHaveLength(1);
+      });
+      await waitFor(() => {
+        expect(unloadHeld()).toBe(false);
+      });
+    });
+  });
+
   describe("today", () => {
     /** Seeds "d1" with "un" and "deux", new, and "trois", answered 모른다 this morning. */
     function seedToday() {
@@ -1361,6 +1388,18 @@ describe("the study page", () => {
 
       expect(stack()).toEqual([`앞면: ${front}. 뒷면: ${front} back. 응답: ${answer}`]);
       expect(currentFront()).not.toBe(front);
+    });
+
+    it("leaves a key pressed with a modifier to the browser, while the key alone acts", async () => {
+      const front = currentFront();
+
+      await userEvent.setup().keyboard("{Control>}{ArrowRight}{/Control}{Alt>}?{/Alt}");
+
+      expect(screen.queryByRole("complementary", { name: "이번 학습" })).not.toBeInTheDocument();
+      expect(currentFront()).toBe(front);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      await userEvent.setup().keyboard("{ArrowRight}");
+      expect(stack()).toEqual([`앞면: ${front}. 뒷면: ${front} back. 응답: 안다`]);
     });
 
     it("answers nothing with J or K, while → does", async () => {
