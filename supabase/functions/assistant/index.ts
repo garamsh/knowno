@@ -1,5 +1,6 @@
 /** The assistant Edge Function: 말랑이, which builds notes and cards with the user in conversation. */
 
+import { cardFormSkills } from "../_shared/card_forms.ts";
 import { type Keys, vaultKeys } from "../_shared/keys.ts";
 import { readConfig } from "./config.ts";
 import { createHandler } from "./handler.ts";
@@ -33,4 +34,5 @@ Deno.serve(createHandler({
     );
   },
   timeout: (ms) => AbortSignal.timeout(ms),
+  skills: cardFormSkills(() => Date.now()),
 }));

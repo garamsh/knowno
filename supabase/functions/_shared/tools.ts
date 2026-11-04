@@ -11,7 +11,7 @@ import {
   uuidV7,
 } from "./cards.ts";
 import { blocksOut, cellsOf, searchText, type StoredSides } from "./frame.ts";
-import { GUIDE_URI } from "./guide.ts";
+import { GUIDE_URI } from "./card_forms.ts";
 import {
   keptOf,
   MAX_BLOCKS,

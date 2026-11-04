@@ -5,6 +5,11 @@
  */
 
 import { authenticate, SupabaseError, type UserId } from "../_shared/auth.ts";
+import {
+  cardFormIndex,
+  type CardForms,
+  type Skills,
+} from "../_shared/card_forms.ts";
 import type { Keys } from "../_shared/keys.ts";
 import type { IdSource } from "../_shared/cards.ts";
 import { readCard } from "../_shared/input.ts";
@@ -106,6 +111,7 @@ export type HandlerDeps = ToolDeps & {
   readonly fetch: typeof fetch;
   readonly log: (entry: LogEntry) => void;
   readonly keys: Keys;
+  readonly skills: CardForms;
 };
 
 type Entry = Omit<LogEntry, "latency_ms">;
@@ -270,8 +276,10 @@ async function handle(
   if (route === "commit") return await commitRequest(body, store, deps, entry);
   const incoming = readMessage(body, deps);
   if (incoming === null) return refusal(400, "bad_request", entry);
+  let skills;
   let start;
   try {
+    skills = await deps.skills.read(store);
     start = await beginMessage(userId, service);
   } catch (error) {
     if (error instanceof SupabaseError) {
@@ -316,6 +324,7 @@ async function handle(
           incoming,
           store,
           deps,
+          skills,
           start,
           send,
           started,
@@ -595,6 +604,7 @@ async function converse(
   incoming: Incoming,
   store: Store,
   deps: HandlerDeps,
+  skills: Skills,
   start: Extract<Start, { kind: "allowed" }>,
   send: (event: string, data: unknown) => void,
   started: number,
@@ -627,7 +637,13 @@ async function converse(
     apiKey = null;
   }
   if (apiKey === null) return failed();
-  let system = configuration.prompt;
+  let system = `${configuration.prompt}\n\n${
+    cardFormIndex(
+      skills,
+      () => "",
+      "Before proposing cards of a form, read its guide with read_card_form.",
+    )
+  }`;
   if (incoming.deckId !== null) {
     const deck = await readDeck(store, incoming.deckId).catch((error) => {
       if (error instanceof SupabaseError) return null;
@@ -716,7 +732,14 @@ async function converse(
             isError: true,
             shown: null,
           }
-          : await runTool(call.name, call.input, store, deps, proposals);
+          : await runTool(
+            call.name,
+            call.input,
+            store,
+            deps,
+            proposals,
+            skills,
+          );
       } catch (error) {
         if (!(error instanceof SupabaseError)) throw error;
         ran = { content: UNREACHABLE, isError: true, shown: null };

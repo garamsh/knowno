@@ -1,5 +1,6 @@
 /** The mcp Edge Function: knowno's remote MCP server for Claude and ChatGPT (ADR 0126). */
 
+import { cardFormSkills } from "../_shared/card_forms.ts";
 import { readConfig } from "./config.ts";
 import { createHandler } from "./handler.ts";
 
@@ -20,4 +21,5 @@ Deno.serve(createHandler({
     );
   },
   timeout: (ms) => AbortSignal.timeout(ms),
+  skills: cardFormSkills(() => Date.now()),
 }));

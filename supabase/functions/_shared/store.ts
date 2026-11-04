@@ -132,6 +132,17 @@ export async function readDeck(
     : { id: text(row, "id"), name: text(row, "name") };
 }
 
+/** The card-form skills served to the caller, as `public.card_form_skills` answers them. */
+export async function cardFormRows(
+  store: Store,
+): Promise<Record<string, unknown>[]> {
+  const response = await request(store, "rpc/card_form_skills", {
+    method: "POST",
+    body: {},
+  });
+  return rowsOf(await response.json());
+}
+
 /** A stored card's id and columns, as the read tools describe them. */
 export type StoredCard = StoredSides & {
   readonly id: string;
