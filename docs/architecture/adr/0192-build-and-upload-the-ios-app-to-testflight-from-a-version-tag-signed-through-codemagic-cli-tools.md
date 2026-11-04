@@ -34,6 +34,10 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **This pull request's first dry run** (run 41818551017, 2026-11-04, on #741) tried cloud signing with the App Manager key: `xcodebuild archive` and `-exportArchive` with `-allowProvisioningUpdates` and the key.
   - The archive succeeded, signed with "Apple Development: Created via API".
   - The export failed with "Cloud signing permission error" and "No signing certificate "iOS Distribution" found".
+- **This pull request's dry run with Codemagic CLI tools** (run 41825198633, 2026-11-04, head `8b3e23c284e273aebe569b41e28ed3aa51890f52`) used the App Manager key and `IOS_DISTRIBUTION_CERT_PRIVATE_KEY`.
+  - `fetch-signing-files` found no distribution certificate signed by the key and created `SXTR5TZ9RY`. It then created the App Store profile `MQNKD5L8P3`.
+  - `flutter build ipa` built `knowno.ipa`, which held 0.0.0 (4) and passed the ipa check with the Sign in with Apple entitlement.
+  - `keychain use-login` ran in the cleanup step. The upload did not run.
 - **Alternatives considered:**
   - **Cloud-managed signing through `xcodebuild` and the API key.** Run 41818551017 refused it under the App Manager key. Apple Developer Forums [thread 698117](https://developer.apple.com/forums/thread/698117) (January 2022, a user's report) says only an Admin key succeeds. An Admin key is a wider grant than releasing needs. Rejected.
   - **fastlane with match**, as Flutter's CD page shows. It keeps certificates in a separate store, a git repository or a bucket, behind a passphrase, and needs a Ruby toolchain. Rejected: the owner chose no certificate repository.
@@ -74,13 +78,13 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - One distribution certificate serves every run: the first run that finds none signed by `IOS_DISTRIBUTION_CERT_PRIVATE_KEY` creates it, and later runs find it.
 - **The certificate cap.** If the team already holds 3 distribution certificates and none matches the key, `--create` is refused and the build fails before signing. The owner then deletes one in the developer portal.
 - **Expiry.** The listing filters on the key alone, so an expired certificate still listed by Apple would be kept, and signing would fail. Revoking it lets the next run create a new one from the same key.
-- Creating the certificate needs a role that may create distribution certificates. Apple's help names Account Holder or Admin, while Flutter's section says an App Manager key suffices. The first dry run with the certificate key shows which holds for this key.
+- Apple's help names Account Holder or Admin for creating distribution certificates. The App Manager key still created one through the API in run 41825198633, as Flutter's section implies it can.
 - A tag on a commit that did not land through a pull request is refused, even if CI ran on it some other way.
 - The upload depends on Codemagic CLI tools and the `altool` they call. A change to either reaches the release through a Dependabot pull request, whose dry run is skipped. It is therefore tested by the next pull request that touches the workflow, or by the next release.
 
 ## Signs the decision was wrong
 
-- `fetch-signing-files --create` is refused under the App Manager key, so creating the certificate needs a wider key after all, or a certificate made by hand.
+- A later run creates a second certificate though `IOS_DISTRIBUTION_CERT_PRIVATE_KEY` is unchanged, so the match by key does not hold.
 - Runs fail at the certificate cap again and again, because certificates made from other keys keep filling it.
 - A tag on a commit with a passing pull request is refused because the tree check or the `(#N)` subject fails. Branch protection would then not hold what this decision relies on.
 - A build reaches TestFlight but fails processing or runs without Sign in with Apple, though the ipa check passed.

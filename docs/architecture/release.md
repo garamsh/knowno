@@ -62,4 +62,4 @@ The iOS app's release: the `release` workflow that builds the app from a version
 
 ## Open questions
 
-- Whether the App Manager key may create the distribution certificate. Apple's help names Account Holder or Admin for creating distribution certificates, while Flutter's section uses an App Manager key. The first dry run with `IOS_DISTRIBUTION_CERT_PRIVATE_KEY` shows which holds.
+- None. The App Manager key created the team's distribution certificate `SXTR5TZ9RY` and the App Store profile `MQNKD5L8P3` from `IOS_DISTRIBUTION_CERT_PRIVATE_KEY` in #741's dry run (run 41825198633, 2026-11-04). Later runs reuse both.
