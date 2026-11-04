@@ -240,6 +240,25 @@ export type Draft = {
 };
 
 /**
+ * Whether [draft]'s model can run at its effort, by Anthropic's per-model thinking table
+ * (`public.assistant_effort_fits`), as the database holds every configuration to it.
+ */
+export async function effortFits(
+  draft: Draft,
+  deps: SupabaseDeps,
+): Promise<boolean> {
+  const fits = await rpc("assistant_effort_fits", {
+    provider: draft.provider,
+    model: draft.model,
+    effort: draft.effort,
+  }, deps);
+  if (typeof fits !== "boolean") {
+    throw new SupabaseError("assistant_effort_fits answered no boolean");
+  }
+  return fits;
+}
+
+/**
  * Saves [draft] as its plan's one draft for [adminId], through
  * `public.save_assistant_configuration`, answering the configuration's id; null when the database
  * holds no such prompt or the model cannot run at the effort.

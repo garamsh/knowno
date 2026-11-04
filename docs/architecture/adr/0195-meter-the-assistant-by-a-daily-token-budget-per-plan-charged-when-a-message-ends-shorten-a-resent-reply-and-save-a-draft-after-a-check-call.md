@@ -27,7 +27,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **What the client is told.** A refused message is `429` with `rate_limited` and the budget and tokens used, or `busy`; the last event of a message names the budget and the tokens used with it; `assistant_allowance()` answers the budget, the tokens used and those left.
 - **The default budgets**, for the owner's approval: Free 200,000 tokens a day, Pro 2,000,000, Max 6,000,000, 스페셜 none, about the message limits at 20,000 tokens a message.
 - **A resent reply.** An assistant turn's text over 4,000 characters is shortened to its head and tail around a marker counting what was left out; a user turn over the cap is refused as before.
-- **The draft.** `POST /assistant/settings/configuration` takes a plan, provider, model, optional prompt version, web search, searches a turn and reasoning effort from an admin, makes one call with them through the provider's adapter, and saves them as the plan's draft only when that call answered, with extract-cards' codes.
+- **The draft.** `POST /assistant/settings/configuration` takes a plan, provider, model, optional prompt version, web search, searches a turn and reasoning effort from an admin, makes one call with them through the provider's adapter, and saves them as the plan's draft only when that call answered, with extract-cards' codes. A model that cannot run at the effort is refused as `effort_unsupported` before the call, asked of the database's per-model check so the two cannot disagree.
 
 ## Consequences
 

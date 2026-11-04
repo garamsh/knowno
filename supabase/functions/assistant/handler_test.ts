@@ -225,6 +225,11 @@ function fakeFetch(fake: Fake): typeof fetch {
         case "save_assistant_configuration":
           fake.saved.push(body);
           return Response.json(99);
+        case "assistant_effort_fits":
+          // As the table has it for Claude Opus 5.5, whose thinking is always on.
+          return Response.json(
+            !(body.model === "claude-opus-5-5" && body.effort === "none"),
+          );
         case "user_suspended":
           return Response.json(fake.suspended.has(body.user_id));
         case "provider_key":
@@ -1618,4 +1623,36 @@ Deno.test("a draft whose check call fails saves nothing and names why, against o
   answers.replies.push(says("네"));
   assert.equal((await draftRequest(answers, DRAFT)).status, 200);
   assert.equal(answers.saved.length, 1);
+});
+
+Deno.test("a draft of a model that cannot run at its effort is refused as effort_unsupported before any call, against one that can", async () => {
+  const opus = {
+    ...DRAFT,
+    provider: "anthropic",
+    model: "claude-opus-5-5",
+    web_search: false,
+  };
+  const fake = seed();
+  const run = await draftRequest(fake, { ...opus, reasoning_effort: "none" });
+  assert.equal(run.status, 400);
+  assert.deepEqual(run.json, { error: "effort_unsupported" });
+  assert.equal(fake.requests.length, 0);
+  assert.deepEqual(fake.saved, []);
+
+  fake.replies.push(() =>
+    messagesStream([
+      {
+        type: "message_start",
+        message: { usage: { input_tokens: 10, output_tokens: 1 } },
+      },
+      { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: {} },
+      { type: "message_stop" },
+    ])
+  );
+  const control = await draftRequest(fake, {
+    ...opus,
+    reasoning_effort: "low",
+  });
+  assert.equal(control.status, 200);
+  assert.equal(fake.saved.length, 1);
 });

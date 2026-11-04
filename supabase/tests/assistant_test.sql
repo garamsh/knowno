@@ -5,7 +5,7 @@
 -- budget set; every write recorded; configurations append-only; no client reaching the tables or
 -- the service functions; and both reverts.
 begin;
-select plan(95);
+select plan(97);
 
 delete from private.admin_audit;
 
@@ -111,6 +111,16 @@ select throws_ok($$select * from public.begin_assistant_message('00000000-0000-4
   '42501', null, 'a signed-in user starts no message');
 select throws_ok($$select private.assistant_tokens_today('00000000-0000-4000-8000-00000000000b')$$,
   '42501', null, 'a signed-in user reads no charge');
+select throws_ok($$select public.assistant_effort_fits('anthropic', 'claude-opus-5-5', 'none')$$,
+  '42501', null, 'a signed-in user asks no effort check');
+set local role service_role;
+select results_eq(
+  $$select public.assistant_effort_fits('anthropic', 'claude-opus-5-5', e)
+    from (values ('none'), ('low')) as t (e)$$,
+  $$values (false), (true)$$,
+  'service_role asks whether a model runs at an effort, as the configurations are held to it');
+reset role;
+select pg_temp.sign_in('b');
 select throws_ok($$select public.finish_assistant_message(1, 'ok', 1, 1, 1, 0, 0, 1)$$,
   '42501', null, 'a signed-in user records no turn');
 select throws_ok($$select public.save_assistant_configuration('00000000-0000-4000-8000-00000000000a',
@@ -123,7 +133,7 @@ select results_eq(
   $$values ('admin_activate_assistant_configuration', true), ('admin_assistant_configurations', true),
     ('admin_assistant_prompts', true), ('admin_assistant_token_budgets', true),
     ('admin_clear_assistant_test', true), ('admin_save_assistant_prompt', true),
-    ('admin_set_assistant_token_budget', true), ('assistant_allowance', true),
+    ('admin_set_assistant_token_budget', true), ('assistant_allowance', true), ('assistant_effort_fits', true),
     ('begin_assistant_message', true), ('finish_assistant_message', true),
     ('save_assistant_configuration', true)$$,
   'every assistant function runs as its owner with an empty search_path');
@@ -475,10 +485,10 @@ select is(pg_temp.made_functions(), array['private.assistant_effort_fits',
     'public.admin_activate_assistant_configuration', 'public.admin_assistant_configurations',
     'public.admin_assistant_prompts', 'public.admin_assistant_token_budgets',
     'public.admin_clear_assistant_test', 'public.admin_save_assistant_prompt',
-    'public.admin_set_assistant_token_budget', 'public.assistant_allowance',
+    'public.admin_set_assistant_token_budget', 'public.assistant_allowance', 'public.assistant_effort_fits',
     'public.begin_assistant_message', 'public.finish_assistant_message',
     'public.save_assistant_configuration'],
-  'control: the seventeen functions are found before the reverts');
+  'control: the eighteen functions are found before the reverts');
 select lives_ok($$select private.revert_assistant_tokens()$$, 'the token budget''s revert runs');
 select is(pg_temp.made_tables(), array['assistant_configuration_labels',
     'assistant_configurations', 'assistant_limits', 'assistant_messages', 'assistant_prompts'],

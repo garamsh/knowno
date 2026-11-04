@@ -8,7 +8,8 @@
 -- 6,000,000 for Max and none for 스페셜. It replaces `begin_assistant_message`,
 -- `finish_assistant_message` and `assistant_allowance`, and replaces the admin functions of the
 -- message limit, `admin_assistant_limits` and `admin_set_assistant_limit`, with those of the
--- budget. `private.assistant_limits` stays, read by nothing but the revert.
+-- budget. `private.assistant_limits` stays, read by nothing but the revert. It also lets
+-- `service_role` ask `public.assistant_effort_fits` whether a model runs at an effort.
 --
 -- Revert, run once against production before `private.revert_assistant()` if that is run too:
 -- `select private.revert_assistant_tokens();`, then `drop function private.revert_assistant_tokens();`.
@@ -252,6 +253,24 @@ grant execute on function public.admin_assistant_token_budgets(),
   public.admin_set_assistant_token_budget(text, bigint)
   to authenticated;
 
+-- Whether [model] of [provider] can run at [effort], as `private.assistant_effort_fits` holds a
+-- configuration to it: the assistant function asks it before a draft's check call, to name the
+-- refusal.
+create function public.assistant_effort_fits(provider text, model text, effort text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select private.assistant_effort_fits(assistant_effort_fits.provider, assistant_effort_fits.model,
+    assistant_effort_fits.effort);
+$$;
+
+revoke all on function public.assistant_effort_fits(text, text, text)
+  from public, anon, authenticated;
+grant execute on function public.assistant_effort_fits(text, text, text) to service_role;
+
 -- The revert the header names: puts the message limit's functions back as
 -- `20261104150000_assistant.sql` made them, and drops what this migration made.
 create function private.revert_assistant_tokens() returns void
@@ -259,6 +278,7 @@ language plpgsql
 set search_path = ''
 as $revert$
 begin
+  drop function public.assistant_effort_fits(text, text, text);
   drop function public.admin_set_assistant_token_budget(text, bigint);
   drop function public.admin_assistant_token_budgets();
   drop function public.assistant_allowance();

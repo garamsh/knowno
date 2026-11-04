@@ -11,7 +11,13 @@ import {
 } from "../_shared/auth.ts";
 import { type Keys, PROVIDERS } from "../_shared/keys.ts";
 import { ADAPTERS, sseEvents, StreamError } from "./providers.ts";
-import { type Draft, EFFORTS, isAdmin, saveConfiguration } from "./supabase.ts";
+import {
+  type Draft,
+  effortFits,
+  EFFORTS,
+  isAdmin,
+  saveConfiguration,
+} from "./supabase.ts";
 import { ASSISTANT_TOOLS } from "./tools.ts";
 
 /** The plans an assistant configuration serves, as `private.assistant_configurations` names them. */
@@ -30,6 +36,7 @@ export type SettingsOutcome =
   | {
     readonly kind:
       | "bad_request"
+      | "effort_unsupported"
       | "unauthenticated"
       | "forbidden"
       | "no_key"
@@ -149,8 +156,9 @@ export async function checkCall(
 /**
  * `POST /assistant/settings/configuration` with `{plan, provider, model, prompt_version_id?,
  * web_search, max_searches, reasoning_effort}`: an admin saves them as the plan's one draft, served
- * to admins, after the check call with the provider's key in use answered. Without a prompt
- * version the draft keeps the one it had, or else the active one's.
+ * to admins, after the check call with the provider's key in use answered. A model that cannot
+ * run at the effort is refused before the call. Without a prompt version the draft keeps the one
+ * it had, or else the active one's.
  */
 export async function saveDraft(
   request: Request,
@@ -165,6 +173,9 @@ export async function saveDraft(
   if (!await isAdmin(token, deps.supabase)) return { kind: "forbidden" };
   const draft = readDraft(await request.json().catch(() => null));
   if (draft === null) return { kind: "bad_request" };
+  if (!await effortFits(draft, deps.supabase)) {
+    return { kind: "effort_unsupported" };
+  }
   const key = await deps.keys.get(draft.provider);
   if (key === null) return { kind: "no_key" };
   const failure = await checkCall(draft, key, deps);
@@ -179,6 +190,7 @@ export function settingsStatus(outcome: SettingsOutcome): number {
     case "saved":
       return 200;
     case "bad_request":
+    case "effort_unsupported":
       return 400;
     case "unauthenticated":
       return 401;
