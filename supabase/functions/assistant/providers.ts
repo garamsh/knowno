@@ -108,31 +108,38 @@ export async function* sseEvents(
   body: ReadableStream<Uint8Array>,
 ): AsyncGenerator<SseEvent> {
   const reader = body.pipeThrough(new TextDecoderStream()).getReader();
-  let buffer = "";
-  for (;;) {
-    let next;
-    try {
-      next = await reader.read();
-    } catch (cause) {
-      // The connection failed, or the call was aborted.
-      throw new StreamError("the stream broke off", { cause });
-    }
-    if (next.done) return;
-    buffer += next.value.replace(/\r\n?/g, "\n");
-    let end;
-    while ((end = buffer.indexOf("\n\n")) !== -1) {
-      const block = buffer.slice(0, end);
-      buffer = buffer.slice(end + 2);
-      let event = "message";
-      const data: string[] = [];
-      for (const line of block.split("\n")) {
-        if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) {
-          data.push(line.slice(5).replace(/^ /, ""));
-        }
+  let open = true;
+  try {
+    let buffer = "";
+    for (;;) {
+      let next;
+      try {
+        next = await reader.read();
+      } catch (cause) {
+        // The connection failed, or the call was aborted.
+        open = false;
+        throw new StreamError("the stream broke off", { cause });
       }
-      if (data.length > 0) yield { event, data: data.join("\n") };
+      if (next.done) return;
+      buffer += next.value.replace(/\r\n?/g, "\n");
+      let end;
+      while ((end = buffer.indexOf("\n\n")) !== -1) {
+        const block = buffer.slice(0, end);
+        buffer = buffer.slice(end + 2);
+        let event = "message";
+        const data: string[] = [];
+        for (const line of block.split("\n")) {
+          if (line.startsWith("event:")) event = line.slice(6).trim();
+          else if (line.startsWith("data:")) {
+            data.push(line.slice(5).replace(/^ /, ""));
+          }
+        }
+        if (data.length > 0) yield { event, data: data.join("\n") };
+      }
     }
+  } finally {
+    // A reader that stops early, at `[DONE]` or an error, closes the provider's connection.
+    if (open) await reader.cancel();
   }
 }
 

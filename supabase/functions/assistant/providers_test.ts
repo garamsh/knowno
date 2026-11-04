@@ -501,3 +501,49 @@ Deno.test("a body that breaks off is a stream error, after the events it sent", 
   );
   assert.deepEqual(read, [{ event: "message", data: '{"x":1}' }]);
 });
+
+Deno.test("a stream read stopped at [DONE], an error event or a break cancels the body, against one read to its end", async () => {
+  // A body that sends [lines] and stays open, as a provider's connection does, until cancelled.
+  const open = (lines: string[], close = false) => {
+    const body = { cancelled: false, stream: new ReadableStream<Uint8Array>() };
+    body.stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const line of lines) {
+          controller.enqueue(new TextEncoder().encode(`${line}\n\n`));
+        }
+        if (close) controller.close();
+      },
+      cancel() {
+        body.cancelled = true;
+      },
+    });
+    return body;
+  };
+  const chat = (stream: ReadableStream<Uint8Array>) =>
+    ADAPTERS.openai.read(sseEvents(stream), () => {});
+
+  const done = open([
+    `data: ${
+      JSON.stringify({
+        choices: [{ delta: { content: "네" }, finish_reason: "stop" }],
+      })
+    }`,
+    "data: [DONE]",
+  ]);
+  await chat(done.stream);
+  assert.equal(done.cancelled, true);
+
+  const failed = open([`data: ${JSON.stringify({ error: { message: "busy" } })}`]);
+  await assert.rejects(chat(failed.stream), StreamError);
+  assert.equal(failed.cancelled, true);
+
+  const left = open(["data: one", "data: two"]);
+  for await (const _ of sseEvents(left.stream)) break;
+  assert.equal(left.cancelled, true);
+
+  const whole = open(["data: one"], true);
+  const read: SseEvent[] = [];
+  for await (const event of sseEvents(whole.stream)) read.push(event);
+  assert.deepEqual(read, [{ event: "message", data: "one" }]);
+  assert.equal(whole.cancelled, false);
+});
