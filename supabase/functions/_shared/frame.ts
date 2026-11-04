@@ -1,5 +1,5 @@
 /**
- * The 칸 frame as the function reads it (ADR 0137, ADR 0140): stored blocks parsed by the rules
+ * The 칸 frame as the card tools read it (ADR 0137, ADR 0140): stored blocks parsed by the rules
  * `web/src/features/decks/card-content.ts` and `app/lib/deck/src/card_frame.dart` read by, a card
  * of two sides converted, the rule of a part before the reveal and one added by it, and the card
  * key. `supabase/fixtures/card-frame/` holds the three to one reading.
