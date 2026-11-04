@@ -1,0 +1,90 @@
+name: release
+
+# A pushed tag v<major>.<minor>.<patch>, or one named by hand, builds the iOS app as that version
+# and uploads it to TestFlight (release.md, ADR 0192). make release-check refuses a tag unless it
+# is on main, landed by a pull request whose ci (ubuntu) and ci (macos) passed on the same tree.
+# make release-ios archives and exports the app signed through the App Store Connect API key alone,
+# and make release-upload uploads it. Submitting a build for App Review stays the owner's, by hand.
+#
+# A pull request that changes this file or scripts/release-ios.ts runs a dry run: it builds and
+# signs the app as 0.0.0 and uploads nothing. A pull request from a fork or from Dependabot gets no
+# repository secret, so it skips the job; the next release runs Dependabot's moved pins.
+#
+# Dependabot moves the `uses:` pins, which are ci.yml's ios job's. The runner label and the Xcode
+# in DEVELOPER_DIR, one of the image's versioned paths, are moved by the PM with ci.yml's labels;
+# "Set up job" logs the image each run resolved to.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag to release, v<major>.<minor>.<patch>
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - 'scripts/release-ios.ts'
+
+permissions: read-all
+
+# Releases run one at a time and are never cancelled; a new push to a pull request cancels its dry run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || 'release' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ios:
+    name: release iOS
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      TAG: ${{ github.event_name != 'pull_request' && (inputs.tag || github.ref_name) || '' }}
+    steps:
+      # make release-check reads main and the tag from the clone.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG != '' && format('refs/tags/{0}', env.TAG) || '' }}
+          fetch-depth: 0
+          persist-credentials: false
+      # scripts/run.sh runs scripts/release-ios.ts, a Deno program.
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: 2.9.7
+      - if: env.TAG != ''
+        run: make release-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: app/pubspec.yaml
+          cache: true
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          rust-src-dir: engine
+          cache-workspaces: |
+            engine
+            app/rust
+      # The build number is the run number plus one, so it rises with every run.
+      - run: make release-ios
+        env:
+          RUN: ${{ github.run_number }}
+          TMPDIR: ${{ runner.temp }}
+          APP_STORE_CONNECT_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - if: env.TAG != ''
+        run: make release-upload
+        env:
+          TMPDIR: ${{ runner.temp }}
+          APP_STORE_CONNECT_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      # The program removes the key at the end of each step; this removes it when a step was killed.
+      - if: always()
+        run: rm -rf "$RUNNER_TEMP/release-ios"

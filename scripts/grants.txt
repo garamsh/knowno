@@ -6,6 +6,7 @@ check-migration-order: --allow-run=git
 check-secrets: --allow-run=git --allow-read=.
 deno: --allow-run=git,deno --allow-read=<tmp> --allow-write=<tmp>
 migration-preview: --allow-run=which,realpath,git,docker,supabase,tar --allow-read=<tmp>,supabase --allow-write=<tmp> --allow-net=127.0.0.1 --allow-env=TMPDIR
+release-ios: --allow-run=git,gh,flutter,xcodebuild,xcrun,unzip,plutil,codesign --allow-read=<tmp>,app/ios/Runner/Runner.entitlements --allow-write=<tmp> --allow-env=TMPDIR,GITHUB_REPOSITORY,APP_STORE_CONNECT_KEY_P8,APP_STORE_CONNECT_KEY_ID,APP_STORE_CONNECT_ISSUER_ID,APPLE_TEAM_ID
 test-db: --allow-run=which,docker,supabase --allow-read=supabase/card-frame-dry-run.sql,supabase/fixtures/card-frame/conversion.json --allow-write=<tmp> --allow-net=127.0.0.1 --allow-env=CI,TMPDIR
 test-migration-preview: --allow-run=which,git,docker,deno --allow-read=<tmp>,scripts,supabase --allow-write=<tmp> --allow-env=CI,TMPDIR
 test-sync: --allow-run=which,docker,supabase,flutter --allow-write=<tmp> --allow-net=127.0.0.1 --allow-env=CI,TMPDIR
