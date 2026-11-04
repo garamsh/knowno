@@ -60,6 +60,48 @@ void main() {
     }
   }
 
+  for (final scale in [1.0, 3.12]) {
+    testWidgets(
+      'on a 390 wide phone at text scale $scale, a short title keeps the row\'s '
+      'start when a long value goes under it, the value at the row\'s end',
+      (tester) async {
+        tester.view
+          ..physicalSize = const Size(390, 844)
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        const value =
+            'A · a very long first cell of a sheet that goes on and on';
+        await pumpComponent(
+          tester,
+          AppChoiceRow(title: '앞면', value: value, onTap: () {}),
+        );
+
+        expect(tester.takeException(), isNull);
+        final row = tester.getRect(find.byType(AppChoiceRow));
+        final named = tester.getRect(shownText('앞면'));
+        final chosen = tester.getRect(find.text(value));
+        final chevron = tester.getRect(find.byType(Icon));
+        expect(
+          chosen.top,
+          greaterThanOrEqualTo(named.bottom),
+          reason: 'setup: the value went under the title',
+        );
+        expect(
+          named.left,
+          moreOrLessEquals(row.left + AppListRow.inset.left, epsilon: 0.5),
+          reason: "the title stays on the row's start",
+        );
+        expect(
+          chevron.right,
+          moreOrLessEquals(row.right - AppListRow.inset.right, epsilon: 0.5),
+          reason: "the value's chevron ends on the row's end",
+        );
+      },
+    );
+  }
+
   testWidgets(
     'on a 390 wide phone a value too long for its line is cut with an ellipsis, under '
     'the title, and the row reads as one button with its title and value',
