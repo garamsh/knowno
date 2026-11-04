@@ -99,7 +99,7 @@ describe("the admin area's gate", () => {
     // The menu's count is asked beside the check, and the server refuses it.
     expect(admin.calls.map((call) => call.split(" ")[0])).toEqual(["is_admin", "admin_note_list"]);
 
-    // Control: the admin sees the six sections on the admin host's paths, the current one
+    // Control: the admin sees the seven sections on the admin host's paths, the current one
     // marked, the account at the foot, and the page; none of the service's menus.
     cleanup();
     await signIn();
@@ -115,6 +115,7 @@ describe("the admin area's gate", () => {
       ["사용자", "/users"],
       ["노트", "/decks"],
       ["AI", "/ai"],
+      ["말랑이", "/assistant"],
       ["요금제", "/plans"],
       ["관리자", "/admins"],
     ]);
@@ -159,7 +160,7 @@ describe("the admin area's gate", () => {
     expect(screen.queryByText("내용")).not.toBeInTheDocument();
   });
 
-  it("marks each section current on its pages, 요금제, 관리자 and AI on their own", async () => {
+  it("marks each section current on its pages, 요금제, 관리자, AI and 말랑이 on their own", async () => {
     const at = async (path: string) => {
       pathname.current = path;
       cleanup();
@@ -172,13 +173,14 @@ describe("the admin area's gate", () => {
     expect(await at("/users/abc")).toEqual(["사용자"]);
     expect(await at("/decks/abc")).toEqual(["노트"]);
     expect(await at("/ai")).toEqual(["AI"]);
+    expect(await at("/assistant")).toEqual(["말랑이"]);
     expect(await at("/plans")).toEqual(["요금제"]);
     expect(await at("/admins")).toEqual(["관리자"]);
     expect(
       within(screen.getByRole("navigation", { name: "관리 메뉴" }))
         .getAllByRole("link")
         .map((link) => link.getAttribute("href")),
-    ).toEqual(["/", "/users", "/decks", "/ai", "/plans", "/admins"]);
+    ).toEqual(["/", "/users", "/decks", "/ai", "/assistant", "/plans", "/admins"]);
   });
 
   it("opens the menu as a full screen below 1024 px, and a section's link closes it and opens the section", async () => {
@@ -191,7 +193,7 @@ describe("the admin area's gate", () => {
       within(sections)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["처리할 일, 새 신고 1건", "사용자", "노트", "AI", "요금제", "관리자"]);
+    ).toEqual(["처리할 일, 새 신고 1건", "사용자", "노트", "AI", "말랑이", "요금제", "관리자"]);
     expect(within(screenMenu).getByRole("button", { name: "로그아웃" })).toBeInTheDocument();
 
     await userEvent.click(within(sections).getByRole("link", { name: "사용자" }));

@@ -112,6 +112,7 @@ The `assistant` Edge Function, 말랑이 as an assistant that builds notes and c
   - a model that cannot run at the effort by Anthropic's per-model table is refused before any call, as the database asks it through `assistant_effort_fits` ([`server.md`](server.md) §Assistant);
   - one call with the provider's key in Vault, the model, the effort, the tools and web search as the draft has them, through the provider's adapter, read to its end, at most 30 s (`CHECK_TIMEOUT_MS`); only when it answered is the draft saved, through `save_assistant_configuration`.
 - It answers `200` `{saved: true, configuration_id}`, or `{error}`: `400` `bad_request`, also when the database refuses the draft; `400` `effort_unsupported`; `401` `unauthenticated`; `403` `forbidden`; `409` `no_key`; `422` `key_refused`, `model_not_found` or `call_failed` when the check call failed; `503` `unavailable` when Supabase did not answer.
+- An admin reads each plan's configuration and budget, saves a draft through this route and a prompt, and applies or ends a draft on admin's 말랑이 ([`web-admin.md`](web-admin.md) §Area).
 
 ### Log and privacy
 
@@ -133,5 +134,4 @@ The `assistant` Edge Function, 말랑이 as an assistant that builds notes and c
 
 - Whether the PM's defaults hold once the owner prices them: web search on for paid plans, no reasoning, Haiku 5.5 for every plan (#713's PR).
 - Whether tokens should be weighted by price once a plan's spend shows plain tokens do not track it.
-- The admin pages for the budgets and the configuration are #713's next pull request.
 - The tools the PM's comment on #713 lists that are not built: reading the study record and labels, and a photo attached in the chat read through `extract-cards`.

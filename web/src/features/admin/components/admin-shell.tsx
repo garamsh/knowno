@@ -15,14 +15,15 @@ import { AdminBrand } from "./admin-brand";
 import { Email, switchLink } from "./admin-section";
 
 /**
- * The admin area's six sections on the admin host, one per job (ADR 0178, ADR 0181), each with the
- * paths it is current on.
+ * The admin area's seven sections on the admin host, one per job (ADR 0178, ADR 0181, ADR 0196),
+ * each with the paths it is current on.
  */
 const sections = [
   { href: "/", label: "처리할 일", current: (path: string) => path === "/" },
   { href: "/users", label: "사용자", current: (path: string) => path.startsWith("/users") },
   { href: "/decks", label: "노트", current: (path: string) => path.startsWith("/decks") },
   { href: "/ai", label: "AI", current: (path: string) => path === "/ai" },
+  { href: "/assistant", label: "말랑이", current: (path: string) => path === "/assistant" },
   { href: "/plans", label: "요금제", current: (path: string) => path === "/plans" },
   { href: "/admins", label: "관리자", current: (path: string) => path === "/admins" },
 ] as const;
@@ -57,7 +58,7 @@ const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visi
 
 /**
  * The admin host's shell (ADR 0178), with none of the service's menus: from 1024 px a side menu
- * beside the page, pinned as it scrolls, holding the brand over "관리", the six sections and at its
+ * beside the page, pinned as it scrolls, holding the brand over "관리", the seven sections and at its
  * foot the account, "서비스 열기" and 로그아웃; below 1024 px a bar over the page holding the
  * brand and "메뉴", which opens the same menu as a full screen. The skip link leads past them to
  * the page, whose Korean breaks only between words.
@@ -187,7 +188,7 @@ function Brand() {
 }
 
 /**
- * The six sections, the current one in `accent` on the brand tint, 처리할 일 carrying the open
+ * The seven sections, the current one in `accent` on the brand tint, 처리할 일 carrying the open
  * reports' count; [onNavigate] takes a link's press where the menu must close first.
  */
 function Sections({

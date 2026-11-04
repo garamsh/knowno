@@ -1,7 +1,14 @@
 import Link from "next/link";
 
 import { formatTime } from "../format";
-import { actionLabels, labelOf, planLabels, providerLabels, termsLabel } from "../labels";
+import {
+  actionLabels,
+  labelOf,
+  planLabels,
+  providerLabels,
+  termsLabel,
+  tokenBudgetLabel,
+} from "../labels";
 import type { AuditEntry } from "../read-admin";
 import { Empty, group } from "./admin-section";
 
@@ -16,7 +23,7 @@ function Target({ entry }: { entry: AuditEntry }) {
         ? email
         : entry.targetKind === "plan"
           ? labelOf(planLabels, entry.targetId)
-          : entry.targetKind === "prompt"
+          : entry.targetKind === "prompt" || entry.targetKind === "assistant_prompt"
             ? `버전 ${entry.targetId}`
             : entry.targetKind === "provider"
               ? labelOf(providerLabels, entry.targetId)
@@ -29,10 +36,12 @@ function Target({ entry }: { entry: AuditEntry }) {
         : entry.targetKind === "plan" && entry.action.endsWith("_plan_version")
           ? "/plans"
           : entry.targetKind === "plan"
-            ? `/ai?${new URLSearchParams({ plan: entry.targetId }).toString()}`
+            ? `${entry.action.includes("assistant") ? "/assistant" : "/ai"}?${new URLSearchParams({ plan: entry.targetId }).toString()}`
             : entry.targetKind === "provider" || entry.targetKind === "prompt"
               ? "/ai"
-              : null;
+              : entry.targetKind === "assistant_prompt"
+                ? "/assistant"
+                : null;
   return href === null ? (
     <span>{words}</span>
   ) : (
@@ -69,6 +78,9 @@ export function AuditLog({ entries, timeZone }: { entries: AuditEntry[]; timeZon
               : ""}
             {typeof entry.detail.provider === "string" && typeof entry.detail.model === "string"
               ? ` · ${labelOf(providerLabels, entry.detail.provider)} · ${entry.detail.model}`
+              : ""}
+            {"daily_tokens" in entry.detail
+              ? ` · ${tokenBudgetLabel(entry.detail.daily_tokens)}`
               : ""}
             {entry.detail.applies_to_all === true ? " · 기존 사용자도 적용" : ""}
           </span>

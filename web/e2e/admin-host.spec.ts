@@ -231,6 +231,7 @@ test.describe("signed in", () => {
       "사용자",
       "노트",
       "AI",
+      "말랑이",
       "요금제",
       "관리자",
     ]);
@@ -521,6 +522,62 @@ test.describe("signed in", () => {
     await capture(page, "admin-ai");
     // From 1024 px the rate and draft chips are centred, the cost at the end, under their headers.
     await expectAligned(page, "요금제별 사용 중인 구성", { centre: [5, 6], end: [4] });
+    await context.close();
+  });
+
+  test("an admin opens 말랑이 on the plan with a draft, its settings and prompt's lines against the active one's, its token budget, and every edge whole", async ({
+    browser,
+    baseURL,
+  }) => {
+    const { admin } = hostsOf(baseURL);
+    const context = await browser.newContext();
+    const { userId } = await signUp(context, [admin], "assistant");
+    makeAdmin(userId);
+    // Pro's draft: its active provider and model on a new prompt, one line longer, reasoning low.
+    runSql(`with version as (
+        insert into private.assistant_prompts (text, note)
+        select text || E'\\nAsk before a long list.', 'w140 e2e' from private.assistant_prompts
+        order by id desc limit 1
+        returning id
+      ), draft as (
+        insert into private.assistant_configurations (plan, provider, model, prompt_version_id,
+          web_search, max_searches, reasoning_effort)
+        select 'pro', c.provider, c.model, version.id, c.web_search, c.max_searches, 'low'
+        from version, private.assistant_configuration_labels as l
+        join private.assistant_configurations as c on c.id = l.configuration_id
+        where l.plan = 'pro' and l.label = 'active'
+        returning id
+      )
+      insert into private.assistant_configuration_labels (plan, label, configuration_id)
+      select 'pro', 'test', id from draft
+      on conflict (plan, label) do update set configuration_id = excluded.configuration_id`);
+    const page = await context.newPage();
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    await page.goto(`${admin}/assistant`);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "말랑이", exact: true }),
+    ).toBeVisible();
+    const panel = page.getByRole("region", {
+      name: "프로 · 초안 (관리자만 테스트 중)",
+      exact: true,
+    });
+    await expect(panel.getByRole("button", { name: "모두에게 적용", exact: true })).toBeVisible();
+    await panel.getByText(/^프롬프트 v\d+ → v\d+ 다른 점$/).click();
+    await expect(
+      panel.getByRole("listitem").filter({ hasText: "더함: Ask before a long list." }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole("form", { name: "프로 하루 토큰 예산", exact: true })
+        .getByRole("button", { name: "예산 저장", exact: true }),
+    ).toBeVisible();
+    await capture(page, "admin-assistant");
+    // From 1024 px the daily tokens (하루 토큰) end at their header's x and the draft chips are centred.
+    await expectAligned(page, "요금제별 사용 중인 구성", { centre: [7], end: [6] });
+    await page.goto(`${admin}/assistant?plan=pro&write=`);
+    await expect(page.getByRole("form", { name: "새 버전", exact: true })).toBeVisible();
+    await capture(page, "admin-assistant-write");
     await context.close();
   });
 

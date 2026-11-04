@@ -5,24 +5,29 @@ import { useActionState, useState } from "react";
 import { Section } from "@/design/section";
 
 import { maxNoteLength, maxPromptLength } from "../prompt-limits";
-import { savePrompt, type SavePromptState } from "../save-prompt";
+import type { SavePromptState } from "../save-prompt";
 import { button, field, group } from "./admin-section";
 
 /**
- * The form that saves a new version, starting from [initialText]. Saving serves it to no one; a
- * plan's draft then names it, and is tried and applied. 모두에게 적용 is AI's one primary, so its
- * button is outlined.
+ * The form that saves a new version through [save], starting from [initialText], under [note].
+ * Saving serves it to no one; a plan's draft then names it, and applying the draft sends it. 모두에게
+ * 적용 is the page's one primary, so its button is outlined.
  */
-export function PromptForm({ initialText, basis }: { initialText: string; basis: string }) {
-  const [state, action, pending] = useActionState<SavePromptState, FormData>(savePrompt, {
+export function PromptForm({
+  initialText,
+  note,
+  save,
+}: {
+  initialText: string;
+  note: string;
+  save: (previous: SavePromptState, form: FormData) => Promise<SavePromptState>;
+}) {
+  const [state, action, pending] = useActionState<SavePromptState, FormData>(save, {
     message: null,
   });
   const [length, setLength] = useState(initialText.length);
   return (
-    <Section
-      label="새 버전"
-      note={`${basis}에서 시작해요. 저장해도 바로 쓰이지 않아요: 초안의 프롬프트로 골라 시험하고 적용해요. 모든 버전 뒤에는 함수에 고정된 출력 계약(카드의 필드와 규칙)이 함께 보내져서, 카드의 형식과 검사는 여기서 바뀌지 않아요.`}
-    >
+    <Section label="새 버전" note={note}>
       <form action={action} aria-label="새 버전" className="flex flex-col gap-2">
         <div className={group}>
           <label className="flex flex-col gap-2 px-4 py-3">

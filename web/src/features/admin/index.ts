@@ -9,6 +9,7 @@ export { AuditLog } from "./components/audit-log";
 export { DeckView } from "./components/deck-view";
 export { GrantAdminForm } from "./components/grant-admin-form";
 export { AiView } from "./components/ai-view";
+export { AssistantView } from "./components/assistant-view";
 export { NoteList } from "./components/note-list";
 export { TodoView } from "./components/todo-view";
 export { ViewSwitch } from "./components/view-switch";
@@ -34,6 +35,9 @@ export {
   readIsAdmin,
   readNotes,
   readAiConfigurations,
+  readAssistantConfigurations,
+  readAssistantBudgets,
+  readAssistantPrompts,
   readOpenReports,
   readPlanVersions,
   readProviderKeys,
