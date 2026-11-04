@@ -433,7 +433,7 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   // With the day's cards done, 오늘 draws the done card and its navy 학습하기 (#275).
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "오늘 할 카드를 다 했어요", exact: true }),
+    page.getByRole("heading", { name: "오늘 다 했어요", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "학습하기", exact: true })).toBeVisible();
   await shot(page, "01d-today-done");
