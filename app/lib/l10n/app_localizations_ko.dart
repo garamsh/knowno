@@ -493,28 +493,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get addSense => '뜻 추가';
 
   @override
-  String partOfSpeechName(String category) {
-    String _temp0 = intl.Intl.selectLogic(category, {
-      'noun': '명사',
-      'verb': '동사',
-      'adjective': '형용사',
-      'adverb': '부사',
-      'pronoun': '대명사',
-      'preposition': '전치사',
-      'conjunction': '접속사',
-      'interjection': '감탄사',
-      'determiner': '관사',
-      'numeral': '수사',
-      'particle': '조사',
-      'auxiliary': '조동사',
-      'classifier': '양사',
-      'phrase': '구',
-      'other': '',
-    });
-    return '$_temp0';
-  }
-
-  @override
   String get duplicateTitle => '이 노트에 이미 있는 카드예요';
 
   @override

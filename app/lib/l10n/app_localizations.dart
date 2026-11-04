@@ -914,12 +914,6 @@ abstract class AppLocalizations {
   /// **'뜻 추가'**
   String get addSense;
 
-  /// The name of a part of speech of the closed list (ADR 0075), by its category.
-  ///
-  /// In ko, this message translates to:
-  /// **'{category, select, noun{명사} verb{동사} adjective{형용사} adverb{부사} pronoun{대명사} preposition{전치사} conjunction{접속사} interjection{감탄사} determiner{관사} numeral{수사} particle{조사} auxiliary{조동사} classifier{양사} phrase{구} other{}}'**
-  String partOfSpeechName(String category);
-
   /// Title of the sheet shown when a card's front duplicates another in the deck.
   ///
   /// In ko, this message translates to:

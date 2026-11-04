@@ -497,28 +497,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addSense => 'Add meaning';
 
   @override
-  String partOfSpeechName(String category) {
-    String _temp0 = intl.Intl.selectLogic(category, {
-      'noun': 'noun',
-      'verb': 'verb',
-      'adjective': 'adjective',
-      'adverb': 'adverb',
-      'pronoun': 'pronoun',
-      'preposition': 'preposition',
-      'conjunction': 'conjunction',
-      'interjection': 'interjection',
-      'determiner': 'determiner',
-      'numeral': 'numeral',
-      'particle': 'particle',
-      'auxiliary': 'auxiliary',
-      'classifier': 'classifier',
-      'phrase': 'phrase',
-      'other': '',
-    });
-    return '$_temp0';
-  }
-
-  @override
   String get duplicateTitle => 'This note already has this card';
 
   @override
