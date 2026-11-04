@@ -19,6 +19,8 @@ export function useLeave(writes: WriteQueue, unsaved: boolean) {
   const [leaving, setLeaving] = useState<string | null>(null);
   /** The control that asked to leave, which takes the focus back if the user stays. */
   const leaveFrom = useRef<HTMLElement | null>(null);
+  /** Whether a dialog's leave is sending the answers or going, so a second one does nothing. */
+  const exiting = useRef(false);
   /**
    * A link out of the page while answers wait to be saved: instead of following it, sends them,
    * the failed one again first, then goes to [href], or asks before leaving if one fails again.
@@ -35,8 +37,11 @@ export function useLeave(writes: WriteQueue, unsaved: boolean) {
   /**
    * Leaves for [href] from an open dialog: sends the answers waiting, the failed one again first,
    * then drops the dialogs' history entries and goes, or asks before leaving if one fails again.
+   * A second call while one is sending or going does nothing.
    */
   function exitDialog(href: string) {
+    if (exiting.current) return;
+    exiting.current = true;
     // The dialog's own close returns the focus if the user stays.
     leaveFrom.current = null;
     void writes.flush().then((saved) => {
@@ -44,7 +49,10 @@ export function useLeave(writes: WriteQueue, unsaved: boolean) {
         leaveThen(() => {
           router.push(href);
         });
-      } else setLeaving(href);
+      } else {
+        exiting.current = false;
+        setLeaving(href);
+      }
     });
   }
   function stay() {

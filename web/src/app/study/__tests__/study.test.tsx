@@ -431,13 +431,17 @@ describe("the study page", () => {
     it.each(Object.keys(exits) as (keyof typeof exits)[])(
       "by %s, sends the failed write again and, when it fails again, asks before leaving without it",
       async (way) => {
-        seedDeck(postgrest, "d1", ["un"]);
+        const bySheet = way === "the completion sheet";
+        // The top bar's ways out with a card still left, since in a browser the open sheet makes
+        // the top bar inert; the sheet's with the one card answered.
+        seedDeck(postgrest, "d1", bySheet ? ["un"] : ["un", "deux"]);
         await open("d1");
         postgrest.fail("reviews", 500);
         await userEvent.setup().keyboard("{ArrowRight}");
         await screen.findByRole("alert");
-        // The one card is answered, so the completion sheet shows.
-        expect(screen.getByRole("dialog", { name: "오늘 학습을 다 했어요" })).toBeInTheDocument();
+        expect(screen.queryByRole("dialog", { name: "오늘 학습을 다 했어요" }) !== null).toBe(
+          bySheet,
+        );
 
         await exits[way]();
 
@@ -466,9 +470,9 @@ describe("the study page", () => {
         await waitFor(() => {
           expect(testRouter.push).toHaveBeenCalledExactlyOnceWith("/");
         });
-        // The dialogs' history entries, the completion sheet's and the confirm's, are dropped
+        // The dialogs' history entries, the confirm's and any completion sheet's, are dropped
         // before the push, so a back from where it goes does not land on a stale entry.
-        expect(go).toHaveBeenCalledExactlyOnceWith(-2);
+        expect(go).toHaveBeenCalledExactlyOnceWith(bySheet ? -2 : -1);
         expect(go.mock.invocationCallOrder[0]).toBeLessThan(
           testRouter.push.mock.invocationCallOrder[0] ?? 0,
         );
@@ -492,6 +496,29 @@ describe("the study page", () => {
       });
       expect(confirm()).not.toBeInTheDocument();
       expect(postgrest.rows.reviews).toHaveLength(1);
+    });
+
+    it("ignores a second stop of the completion sheet while the waiting answers are sent, and leaves once", async () => {
+      seedDeck(postgrest, "d1", ["un"]);
+      await open("d1");
+      const stop = postgrest.fail("reviews", 500);
+      await userEvent.setup().keyboard("{ArrowRight}");
+      await screen.findByRole("alert");
+      stop();
+      const release = postgrest.hold("reviews");
+      const go = vi.spyOn(window.history, "go");
+
+      await exits["the completion sheet"]();
+      await exits["the completion sheet"]();
+      act(release);
+
+      await waitFor(() => {
+        expect(testRouter.push).toHaveBeenCalledWith("/");
+      });
+      expect(postgrest.rows.reviews).toHaveLength(1);
+      expect(testRouter.push).toHaveBeenCalledOnce();
+      expect(go).toHaveBeenCalledExactlyOnceWith(-1);
+      go.mockRestore();
     });
 
     it("sends the waiting answers and then returns to the deck page the session was opened from", async () => {
@@ -691,6 +718,49 @@ describe("the study page", () => {
       await waitFor(() => {
         expect(testRouter.push).toHaveBeenCalledExactlyOnceWith("/");
       });
+    });
+
+    it("leaves the page's keys doing nothing while the completion sheet is open, with the focus outside it, and Esc to the sheet's own close", async () => {
+      seedDeck(postgrest, "d1", ["un", "deux"]);
+      await open("d1");
+      const user = userEvent.setup();
+      const blur = () => {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        expect(document.body).toHaveFocus();
+      };
+      await user.keyboard("{ArrowRight}");
+      // Control: with a card left, the same keys from the body reach the page.
+      blur();
+      await user.keyboard("?");
+      expect(screen.getByRole("dialog", { name: "단축키" })).toBeInTheDocument();
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      await user.keyboard("{ArrowRight}");
+      const sheet = completionSheet();
+      await waitFor(() => {
+        expect(postgrest.rows.reviews).toHaveLength(2);
+      });
+      const answers = stack();
+
+      blur();
+      await user.keyboard("z");
+      await user.keyboard("?");
+
+      expect(screen.queryByRole("dialog", { name: "단축키" })).not.toBeInTheDocument();
+      expect(stack()).toEqual(answers);
+      expect(sheet).toBeInTheDocument();
+      // Esc closes the sheet as its own close does, dropping its history entry before going,
+      // not by the top bar's close behind it.
+      const go = vi.spyOn(window.history, "go");
+      await user.keyboard("{Escape}");
+      await waitFor(() => {
+        expect(testRouter.push).toHaveBeenCalledExactlyOnceWith("/");
+      });
+      expect(go).toHaveBeenCalledExactlyOnceWith(-1);
+      expect(go.mock.invocationCallOrder[0]).toBeLessThan(
+        testRouter.push.mock.invocationCallOrder[0] ?? 0,
+      );
+      go.mockRestore();
     });
 
     it("reads the streak before today in one request and counts today's answer with it", async () => {

@@ -176,6 +176,8 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
       }
       return;
     }
+    // The completion sheet answers Escape by its own close.
+    if (view.kind === "complete") return;
     const action = shortcut(event, view.kind === "studying", view.previous.length > 0);
     if (!action) return;
     event.preventDefault();
