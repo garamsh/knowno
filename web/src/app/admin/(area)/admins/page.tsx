@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 
-import { AdminSkeleton } from "../../_components/admin-skeleton";
-import { AdminsContent } from "../../_components/content";
+import { AdminSkeleton } from "../_components/admin-skeleton";
+import { AdminsContent } from "../_components/content";
 
-/** 설정, 관리자: the admins, with granting and revoking. */
+/** 관리자: the admins, with granting and revoking, and the latest admin writes (ADR 0181). */
 export default function Page() {
   return (
     <>

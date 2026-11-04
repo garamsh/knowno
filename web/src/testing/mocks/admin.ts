@@ -216,6 +216,15 @@ export class FakeAdmin {
     });
   }
 
+  /** The plan [id] is on now: 스페셜 for an admin whatever it was granted (ADR 0177), a grant not ended, or Free. */
+  private planOf(id: string): string {
+    const grant = this.userPlans.get(id);
+    if (this.admins.has(id)) return "special";
+    return grant && (grant.endsAt === null || Date.parse(grant.endsAt) > Date.now())
+      ? grant.plan
+      : "free";
+  }
+
   /** [plan]'s version a user subscribing at [at] takes: the latest started by then. */
   private currentVersion(plan: string, at = Date.now()): FakePlanVersion | undefined {
     return this.planVersions
@@ -325,21 +334,29 @@ export class FakeAdmin {
         }));
       case "admin_audit_log":
         return this.audit;
-      case "admin_search_users": {
+      case "admin_users": {
+        // Every user that matches, newest sign-up first, as the server pages them (ADR 0181).
         const query = typeof args.query === "string" ? args.query.trim().toLowerCase() : "";
-        if (query === "") return [];
         const matches = this.users
-          .filter((user) => user.email.toLowerCase().includes(query))
-          .toSorted(
-            (a, b) =>
-              Number(!a.email.toLowerCase().startsWith(query)) -
-                Number(!b.email.toLowerCase().startsWith(query)) || a.email.localeCompare(b.email),
-          );
+          .filter((user) => query === "" || user.email.toLowerCase().includes(query))
+          .filter((user) => args.plan == null || this.planOf(user.id) === args.plan)
+          .filter(
+            (user) =>
+              args.status == null ||
+              (args.status === "suspended") === this.suspensions.has(user.id),
+          )
+          .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
         const offset = Number(args.page_offset ?? 0);
-        return matches.slice(offset, offset + Number(args.page_size ?? 20)).map((user) => ({
+        const size = Math.min(Math.max(Number(args.page_size ?? 20), 1), 100);
+        return matches.slice(offset, offset + size).map((user) => ({
           user_id: user.id,
           email: user.email,
           created_at: user.createdAt,
+          last_answer_at: user.lastAnswerAt,
+          decks: user.decks,
+          cards: user.cards,
+          user_plan: this.planOf(user.id),
+          admin: this.admins.has(user.id),
           suspended: this.suspensions.has(user.id),
           total: matches.length,
         }));
@@ -617,13 +634,7 @@ export class FakeAdmin {
         const user = this.users.find((candidate) => candidate.id === args.user_id);
         if (!user) return [];
         const grant = this.userPlans.get(user.id);
-        // An admin is on 스페셜 whatever it was granted (ADR 0177).
-        const active = this.admins.has(user.id)
-          ? "special"
-          : grant && (grant.endsAt === null || Date.parse(grant.endsAt) > Date.now())
-            ? grant.plan
-            : "free";
-        const terms = this.currentVersion(active);
+        const terms = this.currentVersion(this.planOf(user.id));
         const serving = this.aiConfigurations.find(
           (entry) => entry.plan === terms?.plan && entry.label === "active",
         );

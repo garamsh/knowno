@@ -18,6 +18,44 @@ function hostsOf(baseURL: string | undefined) {
 }
 
 /**
+ * Each element that draws a hard edge under it (`--edge`) whose edge does not show whole: cut by
+ * an ancestor that clips its overflow and ends inside the edge, or covered by an element that is
+ * neither its ancestor nor its descendant (#637). Each is named by its tag, classes and text.
+ */
+async function cutEdges(page: Page): Promise<string[]> {
+  return await page.evaluate(() => {
+    const cut: string[] = [];
+    const name = (element: Element) =>
+      `${element.tagName} "${element.textContent.trim().slice(0, 24)}" ${element.className}`;
+    for (const element of document.querySelectorAll<HTMLElement>("body *")) {
+      const edge = parseFloat(getComputedStyle(element).getPropertyValue("--edge"));
+      if (!(edge > 0) || element.getClientRects().length === 0) continue;
+      element.scrollIntoView({ block: "center", inline: "nearest" });
+      const box = element.getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) continue;
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent);
+        if (style.overflowX === "visible" && style.overflowY === "visible") continue;
+        const clip = parent.getBoundingClientRect();
+        if (box.bottom <= clip.bottom + 0.5 && box.bottom + edge > clip.bottom + 0.5) {
+          cut.push(`${name(element)} cut by ${name(parent)}`);
+        }
+      }
+      const y = box.bottom + edge / 2;
+      for (const share of [0.25, 0.5, 0.75]) {
+        const above = document.elementFromPoint(box.left + box.width * share, y);
+        if (above && !above.contains(element) && !element.contains(above)) {
+          cut.push(`${name(element)} covered by ${name(above)}`);
+          break;
+        }
+      }
+    }
+    window.scrollTo(0, 0);
+    return [...new Set(cut)];
+  });
+}
+
+/**
  * Saves [page] at [widths], 390 and 1280 px unless named, in both themes under [name], when
  * E2E_SCREENSHOTS names a directory; at each, nothing reaches past the viewport's right edge.
  */
@@ -40,6 +78,7 @@ async function capture(page: Page, name: string, widths: readonly number[] = [39
         ),
         `${name} at ${String(width)} scrolls sideways`,
       ).toEqual([]);
+      expect(await cutEdges(page), `${name} at ${String(width)} cuts an edge`).toEqual([]);
       if (directory)
         await page.screenshot({
           path: `${directory}/${colorScheme}/web-${name}-${String(width)}.png`,
@@ -118,8 +157,12 @@ async function signUp(context: BrowserContext, origins: string[], name: string) 
 
 /** Makes [userId] an admin, the row the PM inserts for the first admin (ADR 0070). */
 function makeAdmin(userId: string) {
+  runSql(`insert into private.admins (user_id) values ('${userId}')`);
+}
+
+/** Runs [sql] in the stack's database as its superuser. */
+function runSql(sql: string) {
   if (!database) throw new Error("skipped without local stack");
-  const sql = `insert into private.admins (user_id) values ('${userId}')`;
   execFileSync(
     "docker",
     ["exec", database, "psql", "-U", "supabase_admin", "-d", "postgres"].concat([
@@ -221,6 +264,109 @@ test.describe("signed in", () => {
     );
     await page.goto(`${admin}/users`);
     await expect(page).toHaveURL(`${admin}/login`);
+    await context.close();
+  });
+
+  test("an admin pages through every user, sized and filtered above the table, opens one beside it, and every section draws each edge whole", async ({
+    browser,
+    baseURL,
+  }) => {
+    const { admin } = hostsOf(baseURL);
+    const context = await browser.newContext();
+    const { userId } = await signUp(context, [admin], "sections");
+    makeAdmin(userId);
+    // 25 users of this run alone, newest first from -01, -03 suspended and -02 on Pro.
+    const tag = randomUUID().slice(0, 8);
+    runSql(`insert into auth.users (id, email, created_at, is_anonymous, aud, role)
+      select gen_random_uuid(), format('w651-${tag}-%s@example.com', lpad(n::text, 2, '0')),
+        now() - n * interval '1 minute', false, 'authenticated', 'authenticated'
+      from generate_series(1, 25) as n`);
+    runSql(`insert into private.suspensions (user_id, reason)
+      select id, 'e2e' from auth.users where email = 'w651-${tag}-03@example.com'`);
+    runSql(`insert into private.user_plans (user_id, plan, version_id)
+      select u.id, 'pro', (select v.id from private.plan_versions as v
+        where v.plan = 'pro' and v.starts_at <= now() order by v.starts_at desc, v.id desc limit 1)
+      from auth.users as u where u.email = 'w651-${tag}-02@example.com'`);
+    const page = await context.newPage();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const table = page.getByRole("table", { name: "사용자 목록", exact: true });
+    const emails = table.getByRole("link");
+    const pager = page.getByRole("navigation", { name: "사용자 페이지", exact: true });
+
+    await page.goto(`${admin}/users?q=${tag}`);
+    await expect(emails).toHaveCount(20);
+    await expect(emails.first()).toHaveText(`w651-${tag}-01@example.com`);
+    await expect(pager.getByText("1–20 / 25", { exact: true })).toBeVisible();
+    await capture(page, "admin-users");
+
+    await pager.getByRole("link", { name: "2페이지", exact: true }).click();
+    await expect(page).toHaveURL(`${admin}/users?q=${tag}&page=2`);
+    await expect(emails).toHaveCount(5);
+    await expect(pager.getByText("21–25 / 25", { exact: true })).toBeVisible();
+
+    await page.getByRole("combobox", { name: "몇 명씩 보기", exact: true }).selectOption("50");
+    await expect(page).toHaveURL(`${admin}/users?q=${tag}&size=50`);
+    await expect(emails).toHaveCount(25);
+    await expect(pager.getByText("1–25 / 25", { exact: true })).toBeVisible();
+
+    await page.getByRole("combobox", { name: "상태", exact: true }).selectOption("suspended");
+    await expect(page).toHaveURL(`${admin}/users?q=${tag}&status=suspended&size=50`);
+    await expect(emails).toHaveText([`w651-${tag}-03@example.com`]);
+    await page.getByRole("combobox", { name: "상태", exact: true }).selectOption("");
+    await page.getByRole("combobox", { name: "요금제", exact: true }).selectOption("pro");
+    await expect(page).toHaveURL(`${admin}/users?q=${tag}&plan=pro&size=50`);
+    await expect(emails).toHaveText([`w651-${tag}-02@example.com`]);
+
+    // The search applies once the typing pauses, on the first page, keeping the filters.
+    const search = page.getByRole("searchbox", { name: "이메일로 찾기", exact: true });
+    await search.fill(`${tag}-0`);
+    await expect(page).toHaveURL(`${admin}/users?q=${tag}-0&plan=pro&size=50`);
+    await page.getByRole("combobox", { name: "요금제", exact: true }).selectOption("");
+    await expect(emails).toHaveCount(9);
+
+    // A row opens its user beside the list from 1024 px, and in the list's place below it.
+    const chosen = `w651-${tag}-02@example.com`;
+    await page.getByRole("row", { name: chosen }).click({ position: { x: 600, y: 10 } });
+    const panel = page.getByRole("complementary", { name: chosen, exact: true });
+    await expect(panel.getByRole("heading", { level: 2, name: chosen, exact: true })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/users\\?q=${tag}-0&size=50&user=`));
+    await expect(table).toBeVisible();
+    const [listBox, panelBox] = [await table.boundingBox(), await panel.boundingBox()];
+    expect((panelBox?.x ?? 0) > (listBox?.x ?? 0) + (listBox?.width ?? 0) - 1).toBe(true);
+    await panel.getByText("요금제 바꾸기", { exact: true }).click();
+    await expect(panel.getByRole("button", { name: "무료로 되돌리기", exact: true })).toBeVisible();
+    await capture(page, "admin-user-panel");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(table).toBeHidden();
+    await expect(panel).toBeVisible();
+    await panel.getByRole("link", { name: "목록으로", exact: true }).click();
+    await expect(page).toHaveURL(`${admin}/users?q=${tag}-0&size=50`);
+    await expect(table).toBeVisible();
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    // The user's own page, with 요금제 바꾸기 open over 무료로 되돌리기 (#637).
+    await page.goto(`${admin}/users?q=${chosen}`);
+    await emails.first().click();
+    await panel.getByRole("link", { name: "전체 화면으로", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: chosen, exact: true })).toBeVisible();
+    await page.getByText("요금제 바꾸기", { exact: true }).click();
+    await capture(page, "admin-user");
+
+    for (const [path, heading, name] of [
+      ["/", "처리할 일", "admin-todo"],
+      ["/decks", "노트", "admin-notes"],
+      ["/decks?view=public", "노트", "admin-notes-public"],
+      ["/ai", "AI", "admin-ai"],
+      ["/settings/ai", "AI", "admin-ai-settings"],
+      ["/plans", "요금제", "admin-plans"],
+      ["/admins", "관리자", "admin-admins"],
+    ] as const) {
+      await page.goto(`${admin}${path}`);
+      await expect(
+        page.getByRole("heading", { level: 1, name: heading, exact: true }),
+      ).toBeVisible();
+      await capture(page, name);
+    }
     await context.close();
   });
 

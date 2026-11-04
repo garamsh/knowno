@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 
 import { grantPlan, type GrantPlanState } from "../grant-plan";
-import { button, field, group } from "./admin-section";
+import { button, field, formInput, formLine, group } from "./admin-section";
 
 /** Puts a user on Pro, or on Max or 스페셜 with an optional last day. */
 export function GrantPlanForm({ userId }: { userId: string }) {
@@ -14,9 +14,9 @@ export function GrantPlanForm({ userId }: { userId: string }) {
     <form action={action} aria-label="요금제 지정" className="mt-2 flex flex-col gap-3">
       <input type="hidden" name="user" value={userId} />
       <div className={group}>
-        <label className="flex min-h-button items-center justify-between gap-3 px-4">
+        <label className={formLine}>
           <span className="text-body">바꿀 요금제</span>
-          <select name="plan" defaultValue="pro" className={`${field} h-tap-target px-2`}>
+          <select name="plan" defaultValue="pro" className={`${field} ${formInput}`}>
             <option value="pro">프로</option>
             <option value="max">맥스</option>
             <option value="special">스페셜</option>
@@ -29,7 +29,7 @@ export function GrantPlanForm({ userId }: { userId: string }) {
               type="date"
               name="ends_on"
               aria-describedby={`${userId}-ends`}
-              className={`${field} h-tap-target px-2`}
+              className={`${field} ${formInput}`}
             />
           </label>
           <span id={`${userId}-ends`} className="text-caption text-muted">

@@ -28,7 +28,6 @@ import { signedInCookies } from "@/testing/session";
 import { AdminGate } from "../_components/admin-gate";
 import {
   AdminsContent,
-  AuditContent,
   DeckContent,
   NotesContent,
   PlansContent,
@@ -116,8 +115,8 @@ describe("the admin area's gate", () => {
       ["사용자", "/users"],
       ["노트", "/decks"],
       ["AI", "/ai"],
-      ["요금제", "/settings"],
-      ["관리자", "/settings/admins"],
+      ["요금제", "/plans"],
+      ["관리자", "/admins"],
     ]);
     expect(within(menu).getByRole("link", { name: "노트" })).toHaveAttribute(
       "aria-current",
@@ -160,7 +159,7 @@ describe("the admin area's gate", () => {
     expect(screen.queryByText("내용")).not.toBeInTheDocument();
   });
 
-  it("marks each section current on its pages, 설정's pages under the section that holds their job", async () => {
+  it("marks each section current on its pages, 요금제 and 관리자 on their own and AI 제공자 under AI", async () => {
     const at = async (path: string) => {
       pathname.current = path;
       cleanup();
@@ -174,9 +173,13 @@ describe("the admin area's gate", () => {
     expect(await at("/decks/abc")).toEqual(["노트"]);
     expect(await at("/ai/3")).toEqual(["AI"]);
     expect(await at("/settings/ai")).toEqual(["AI"]);
-    expect(await at("/settings")).toEqual(["요금제"]);
-    expect(await at("/settings/admins")).toEqual(["관리자"]);
-    expect(await at("/settings/audit")).toEqual(["관리자"]);
+    expect(await at("/plans")).toEqual(["요금제"]);
+    expect(await at("/admins")).toEqual(["관리자"]);
+    expect(
+      within(screen.getByRole("navigation", { name: "관리 메뉴" }))
+        .getAllByRole("link")
+        .map((link) => link.getAttribute("href")),
+    ).toEqual(["/", "/users", "/decks", "/ai", "/plans", "/admins"]);
   });
 
   it("opens the menu as a full screen below 1024 px, and a section's link closes it and opens the section", async () => {
@@ -337,9 +340,11 @@ describe("처리할 일", () => {
 const notes = (params: Record<string, string> = {}) =>
   render(NotesContent, { searchParams: Promise.resolve(params) });
 
-/** The rows of 노트's list. */
+/** The rows of 노트's table, under its header row. */
 const noteRows = () =>
-  within(screen.getByRole("list", { name: "노트 목록" })).getAllByRole("listitem");
+  within(screen.getByRole("table", { name: "노트 목록" }))
+    .getAllByRole("row")
+    .slice(1);
 
 describe("노트", () => {
   beforeEach(() => {
@@ -365,11 +370,24 @@ describe("노트", () => {
       "page",
     );
 
+    expect(
+      within(screen.getByRole("table", { name: "노트 목록" }))
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent),
+    ).toEqual(["노트", "만든 사람", "카드", "가져오기", "첫 신고", "작업"]);
     const [row] = noteRows();
-    // The row's line carries the owner and counts together, so a substring is right.
-    expect(row).toHaveTextContent(
-      /French신고 2other@example.com · 카드 2장 · 가져오기 3회 · 사유: 저작권 침해, 스팸/,
-    );
+    expect(
+      within(row as HTMLElement)
+        .getAllByRole("cell")
+        .slice(0, 5)
+        .map((cell) => cell.textContent),
+    ).toEqual([
+      "French신고 2사유: 저작권 침해, 스팸",
+      "other@example.com",
+      "카드 2장",
+      "가져오기 3회",
+      "첫 신고 2026-10-18",
+    ]);
     // Latin is reported but hidden, German has no report, Diary is private.
     for (const name of ["Latin", "German", "Diary"]) {
       expect(screen.queryByText(name)).not.toBeInTheDocument();
@@ -516,7 +534,7 @@ describe("노트", () => {
     await signIn(otherUser);
     await notes();
     expect(screen.getByRole("alert")).toHaveTextContent("관리자만 볼 수 있어요.");
-    expect(screen.queryByRole("list", { name: "노트 목록" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "노트 목록" })).not.toBeInTheDocument();
   });
 });
 
@@ -712,14 +730,14 @@ describe("removing a deck from sharing", () => {
   });
 });
 
-/** Adds [count] users whose emails are `user01@example.com` onward. */
+/** Adds [count] users whose emails are `user01@example.com` onward, each signed up a minute before the one before. */
 function seedUsers(count: number) {
   for (let index = 1; index <= count; index++) {
     const number = String(index).padStart(2, "0");
     admin.users.push({
       id: `a0000000-0000-4000-8000-0000000000${number}`,
       email: `user${number}@example.com`,
-      createdAt: "2026-10-10T00:00:00Z",
+      createdAt: new Date(Date.UTC(2026, 9, 20) - index * 60_000).toISOString(),
       lastAnswerAt: null,
       decks: 0,
       cards: 0,
@@ -728,28 +746,207 @@ function seedUsers(count: number) {
   }
 }
 
-/** The emails the users list shows. */
+/** The emails the users' table lists, in order. */
 const listedEmails = () =>
-  screen
-    .queryAllByRole("listitem")
-    .map((item) => item.textContent.split("정지")[0]?.split("2026")[0]);
+  within(screen.getByRole("table", { name: "사용자 목록" }))
+    .queryAllByRole("link")
+    .map((link) => link.textContent);
+
+/** The users' table's row of [email], whose cells carry more than the email, so a substring is right. */
+const userRow = (email: string) => screen.getByRole("row", { name: new RegExp(email) });
 
 describe("the users pages", () => {
-  it("finds users by email and opens one, read-only, with the period's photos against the plan's limit", async () => {
+  beforeEach(() => {
+    testRouter.replace.mockClear();
+  });
+
+  it("lists every user as a table, newest sign-up first, with sign-up, last study, notes, cards, plan and state", async () => {
+    admin.suspensions.set(otherUser.id, { reason: "spam", by: testUser.id });
+    await render(UsersContent, { searchParams: Promise.resolve({}) });
+    expect(
+      within(screen.getByRole("table", { name: "사용자 목록" }))
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent),
+    ).toEqual(["이메일", "가입", "마지막 학습", "노트", "카드", "요금제", "상태"]);
+    expect(listedEmails()).toEqual([otherUser.email, testUser.email]);
+    const other = within(userRow(otherUser.email));
+    expect(other.getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
+      otherUser.email,
+      "가입 2026-10-15",
+      "마지막 학습 2026-10-18",
+      "노트 2",
+      "카드 3",
+      "무료",
+      "정지됨",
+    ]);
+    // The admin is on 스페셜, shown like any plan, with no hidden badge (ADR 0177).
+    const self = within(userRow(testUser.email));
+    expect(self.getAllByRole("cell").map((cell) => cell.textContent)).toEqual([
+      testUser.email,
+      "가입 2026-10-01",
+      "마지막 학습 없음",
+      "노트 0",
+      "카드 0",
+      "스페셜",
+      "관리자",
+    ]);
+    expect(screen.getByRole("navigation", { name: "사용자 페이지" })).toHaveTextContent("1–2 / 2");
+  });
+
+  it("shows 20, 50 or 100 users a page as the select above the table chooses, and pages through them", async () => {
+    const user = userEvent.setup();
+    seedUsers(45);
+    await render(UsersContent, { searchParams: Promise.resolve({}) });
+    expect(listedEmails()).toHaveLength(20);
+    expect(listedEmails()[0]).toBe("user01@example.com");
+    const pager = within(screen.getByRole("navigation", { name: "사용자 페이지" }));
+    expect(pager.getByText("1–20 / 47")).toBeInTheDocument();
+    expect(pager.getByRole("link", { name: "1페이지" })).toHaveAttribute("aria-current", "page");
+    expect(pager.getByRole("link", { name: "3페이지" })).toHaveAttribute("href", "/users?page=3");
+    expect(pager.getByRole("link", { name: "다음 페이지" })).toHaveAttribute(
+      "href",
+      "/users?page=2",
+    );
+    expect(pager.queryByRole("link", { name: "이전 페이지" })).not.toBeInTheDocument();
+    // The select alone says how many a page holds.
+    expect(screen.queryByText(/한 페이지/)).not.toBeInTheDocument();
+
+    const size = screen.getByRole("combobox", { name: "몇 명씩 보기" });
+    expect(size).toHaveValue("20");
+    await user.selectOptions(size, "50");
+    expect(testRouter.replace).toHaveBeenCalledWith("/users?size=50");
+
+    cleanup();
+    await render(UsersContent, { searchParams: Promise.resolve({ page: "3" }) });
+    expect(listedEmails()).toHaveLength(7);
+    expect(screen.getByText("41–47 / 47")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "다음 페이지" })).not.toBeInTheDocument();
+
+    cleanup();
+    await render(UsersContent, { searchParams: Promise.resolve({ size: "50", page: "1" }) });
+    expect(listedEmails()).toHaveLength(47);
+    expect(screen.getByText("1–47 / 47")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "몇 명씩 보기" })).toHaveValue("50");
+  });
+
+  it("reads the first page of 20 for an address whose page or size is not one it offers", async () => {
+    seedUsers(21);
+    for (const [page, size] of [
+      ["x", "30"],
+      ["0", "x"],
+      ["-1", "200"],
+      ["1.5", ""],
+    ]) {
+      const view = await render(UsersContent, { searchParams: Promise.resolve({ page, size }) });
+      expect(listedEmails(), `${String(page)} ${String(size)}`).toHaveLength(20);
+      expect(listedEmails()[0]).toBe("user01@example.com");
+      view.unmount();
+    }
+    // Control: a page it offers reads that page.
+    await render(UsersContent, { searchParams: Promise.resolve({ page: "2" }) });
+    expect(listedEmails()).toEqual(["user21@example.com", otherUser.email, testUser.email]);
+  });
+
+  it("searches by email as the admin types, once the typing pauses, on the list's first page", async () => {
+    const user = userEvent.setup();
     await render(UsersContent, { searchParams: Promise.resolve({ q: "OTHER" }) });
-    expect(screen.getByRole("link", { name: /other@example.com/ })).toHaveAttribute(
+    // The server reads the address's search, ignoring case.
+    expect(listedEmails()).toEqual([otherUser.email]);
+
+    const field = screen.getByRole("searchbox", { name: "이메일로 찾기" });
+    expect(field).toHaveValue("OTHER");
+    await user.clear(field);
+    await user.type(field, "learner");
+    await vi.waitFor(() => {
+      expect(testRouter.replace).toHaveBeenCalledWith("/users?q=learner");
+    });
+    // One change of the address for the whole typed word, none for each keystroke.
+    expect(testRouter.replace).toHaveBeenCalledTimes(1);
+  });
+
+  it("filters by plan and by status, each on the first page and keeping the search", async () => {
+    const user = userEvent.setup();
+    admin.suspensions.set(otherUser.id, { reason: "spam", by: testUser.id });
+    await render(UsersContent, { searchParams: Promise.resolve({ plan: "special" }) });
+    expect(listedEmails()).toEqual([testUser.email]);
+    cleanup();
+    await render(UsersContent, { searchParams: Promise.resolve({ status: "suspended" }) });
+    expect(listedEmails()).toEqual([otherUser.email]);
+    cleanup();
+    // Control: a plan the list does not know filters nothing.
+    await render(UsersContent, { searchParams: Promise.resolve({ plan: "gold" }) });
+    expect(listedEmails()).toEqual([otherUser.email, testUser.email]);
+
+    cleanup();
+    await render(UsersContent, {
+      searchParams: Promise.resolve({ q: "example", status: "active", page: "2" }),
+    });
+    await user.selectOptions(screen.getByRole("combobox", { name: "요금제" }), "pro");
+    expect(testRouter.replace).toHaveBeenLastCalledWith("/users?q=example&plan=pro&status=active");
+    await user.selectOptions(screen.getByRole("combobox", { name: "상태" }), "");
+    expect(testRouter.replace).toHaveBeenLastCalledWith("/users?q=example");
+  });
+
+  it("says when nothing matches the search and the filters", async () => {
+    await render(UsersContent, { searchParams: Promise.resolve({ q: "nobody" }) });
+    expect(
+      screen.getByText("찾는 사용자가 없어요. 다른 단어나 조건으로 찾아보세요."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("opens a user's details beside the list from its row, with the way back to the list and to its page", async () => {
+    await render(UsersContent, { searchParams: Promise.resolve({ status: "active" }) });
+    expect(screen.getByRole("link", { name: otherUser.email })).toHaveAttribute(
+      "href",
+      `/users?status=active&user=${otherUser.id}`,
+    );
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+
+    cleanup();
+    await render(UsersContent, {
+      searchParams: Promise.resolve({ status: "active", user: otherUser.id }),
+    });
+    expect(screen.getByRole("link", { name: otherUser.email })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    const panel = within(screen.getByRole("complementary", { name: otherUser.email }));
+    expect(panel.getByRole("heading", { level: 2, name: otherUser.email })).toBeInTheDocument();
+    expect(panel.getByText("노트 · 카드").nextSibling).toHaveTextContent("2개 · 3장");
+    expect(panel.getByRole("link", { name: "목록으로" })).toHaveAttribute(
+      "href",
+      "/users?status=active",
+    );
+    expect(panel.getByRole("link", { name: "전체 화면으로" })).toHaveAttribute(
       "href",
       `/users/${otherUser.id}`,
     );
+    expect(panel.getByRole("region", { name: "이용 정지" })).toBeInTheDocument();
+    // Below 1024 px the details take the list's place, as a page would.
+    expect(
+      screen.getByRole("table", { name: "사용자 목록" }).closest(".max-lg\\:hidden"),
+    ).not.toBeNull();
 
+    cleanup();
+    // Control: an address naming no user's id shows the list alone.
+    await render(UsersContent, { searchParams: Promise.resolve({ user: "not-a-uuid" }) });
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    expect(listedEmails()).toEqual([otherUser.email, testUser.email]);
+  });
+
+  it("opens one user's own page, read-only, with the period's photos against the plan's limit", async () => {
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
-    expect(screen.getByRole("heading", { name: "other@example.com" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "other@example.com" }),
+    ).toBeInTheDocument();
     const account = within(screen.getByRole("region", { name: "계정" }));
     expect(account.getByText("이번 달 사진 추출").nextSibling).toHaveTextContent(
       "4장 / 한 달 10장",
     );
     expect(account.getByText("마지막 학습").nextSibling).toHaveTextContent("2026-10-18 09:30");
     expect(account.getByText("노트 · 카드").nextSibling).toHaveTextContent("2개 · 3장");
+    expect(screen.queryByRole("link", { name: "목록으로" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /삭제|편집/ })).not.toBeInTheDocument();
   });
 
@@ -787,91 +984,6 @@ describe("the users pages", () => {
     expect(plan.getByRole("form", { name: "요금제 지정" })).toBeInTheDocument();
   });
 
-  it("says when the search finds no one, and shows no list before a search", async () => {
-    await render(UsersContent, { searchParams: Promise.resolve({ q: "nobody" }) });
-    expect(
-      screen.getByText("찾는 사용자가 없어요. 다른 단어로 검색해 보세요."),
-    ).toBeInTheDocument();
-    await render(UsersContent, { searchParams: Promise.resolve({}) });
-    expect(admin.calls.filter((call) => call.startsWith("admin_search_users"))).toHaveLength(1);
-  });
-
-  it("searches as the admin types, once after the typing pauses, and updates the list in place", async () => {
-    const user = userEvent.setup();
-    await render(UsersContent, { searchParams: Promise.resolve({ q: "learner" }) });
-    expect(listedEmails()).toEqual([testUser.email]);
-
-    const field = screen.getByRole("searchbox", { name: "이메일 검색" });
-    await user.clear(field);
-    await user.type(field, "other");
-    await vi.waitFor(() => {
-      expect(listedEmails()).toEqual([otherUser.email]);
-    });
-    expect(screen.getByRole("status")).toHaveTextContent("1명");
-    // One search for the page's own query, and one for the whole typed word.
-    expect(admin.calls.filter((call) => call.startsWith("admin_search_users"))).toHaveLength(2);
-  });
-
-  it("shows twenty users at a time, the prefix matches first, and adds the next page on 더 보기", async () => {
-    const user = userEvent.setup();
-    seedUsers(21);
-    await render(UsersContent, { searchParams: Promise.resolve({ q: "user" }) });
-    expect(screen.getByRole("status")).toHaveTextContent("21명");
-    expect(listedEmails()).toHaveLength(20);
-    expect(listedEmails()[0]).toBe("user01@example.com");
-
-    await user.click(screen.getByRole("button", { name: "더 보기" }));
-    await vi.waitFor(() => {
-      expect(listedEmails()).toHaveLength(21);
-    });
-    expect(listedEmails()[20]).toBe("user21@example.com");
-    expect(screen.queryByRole("button", { name: "더 보기" })).not.toBeInTheDocument();
-  });
-
-  it("keeps the search and the pages shown in the address, so coming back from a user shows them again", async () => {
-    const user = userEvent.setup();
-    seedUsers(21);
-    window.history.replaceState(null, "", "/users");
-    const view = await render(UsersContent, { searchParams: Promise.resolve({}) });
-
-    await user.type(screen.getByRole("searchbox", { name: "이메일 검색" }), "user");
-    await vi.waitFor(() => {
-      expect(listedEmails()).toHaveLength(20);
-    });
-    expect(window.location.pathname + window.location.search).toBe("/users?q=user");
-    // 더 보기 stays disabled until the search's transition has settled.
-    await vi.waitFor(() => {
-      expect(screen.getByRole("button", { name: "더 보기" })).toBeEnabled();
-    });
-    await user.click(screen.getByRole("button", { name: "더 보기" }));
-    await vi.waitFor(() => {
-      expect(listedEmails()).toHaveLength(21);
-    });
-    expect(window.location.search).toBe("?q=user&page=1");
-
-    // Back from a user's page opens the address again, which reads both pages on the server.
-    view.unmount();
-    const params = Object.fromEntries(new URLSearchParams(window.location.search));
-    await render(UsersContent, { searchParams: Promise.resolve(params) });
-    expect(screen.getByRole("searchbox", { name: "이메일 검색" })).toHaveValue("user");
-    expect(listedEmails()).toHaveLength(21);
-    expect(screen.queryByRole("button", { name: "더 보기" })).not.toBeInTheDocument();
-  });
-
-  it("reads the first page alone for an address whose page is no whole number", async () => {
-    seedUsers(21);
-    for (const page of ["x", "-1", "1.5", ""]) {
-      const view = await render(UsersContent, {
-        searchParams: Promise.resolve({ q: "user", page }),
-      });
-      expect(listedEmails(), page).toHaveLength(20);
-      view.unmount();
-    }
-    // Control: a whole number reads through that page.
-    await render(UsersContent, { searchParams: Promise.resolve({ q: "user", page: "1" }) });
-    expect(listedEmails()).toHaveLength(21);
-  });
-
   it("lists every live deck of a user, private ones too, each opening the deck", async () => {
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
     const decks = within(screen.getByRole("region", { name: "노트" }));
@@ -894,7 +1006,8 @@ describe("a user's suspension", () => {
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
     expect(screen.getByText("정지됨 · spam decks")).toBeInTheDocument();
     await render(UsersContent, { searchParams: Promise.resolve({ q: "other" }) });
-    expect(screen.getByRole("link", { name: /other@example.com/ })).toHaveTextContent("정지 ·");
+    // The row carries every cell, so a substring is right.
+    expect(screen.getByRole("row", { name: /other@example.com/ })).toHaveTextContent("정지됨");
 
     expect(await unsuspendUser(otherUser.id)).toEqual({
       changed: true,
@@ -1012,7 +1125,7 @@ describe("the audit log", () => {
     const data = new FormData();
     data.set("email", "other@example.com");
     await grantAdmin({ message: null }, data);
-    await render(AuditContent, {});
+    await render(AdminsContent, {});
     expect(auditEntries()).toEqual(["관리자 지정 · other@example.com", "노트 숨기기 · French"]);
     expect(screen.getByRole("link", { name: "French" })).toHaveAttribute(
       "href",
@@ -1024,7 +1137,7 @@ describe("the audit log", () => {
     await suspendUser(otherUser.id, "spam decks");
     await unsuspendUser(otherUser.id);
     await removeDeck(french, "copyright");
-    await render(AuditContent, {});
+    await render(AdminsContent, {});
     expect(auditEntries()).toEqual([
       "공유에서 영구 삭제 · French · copyright",
       "정지 해제 · other@example.com",
@@ -1034,8 +1147,10 @@ describe("the audit log", () => {
 
   it("is refused to a user who is not an admin", async () => {
     await signIn(otherUser);
-    await render(AuditContent, {});
-    expect(screen.getByRole("alert")).toHaveTextContent("관리자만 볼 수 있어요.");
+    await render(AdminsContent, {});
+    const log = within(screen.getByRole("region", { name: "작업 기록" }));
+    expect(log.getByRole("alert")).toHaveTextContent("관리자만 볼 수 있어요.");
+    expect(log.queryByRole("list", { name: "작업 기록" })).not.toBeInTheDocument();
   });
 });
 
@@ -1057,9 +1172,68 @@ describe("the plans page", () => {
       applies_to_all: false,
       created_by: testUser.id,
     });
+    admin.aiConfigurations[1] = {
+      ...admin.aiConfigurations[1]!,
+      provider: "anthropic",
+      model: "claude-sonnet-5",
+    };
     await render(PlansContent, {});
+    const table = within(screen.getByRole("table", { name: "요금제 목록" }));
+    expect(table.getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual([
+      "요금제",
+      "사진 한도",
+      "AI 구성",
+      "가입자",
+      "작업",
+    ]);
+    expect(
+      table
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) =>
+          within(row)
+            .getAllByRole("cell")
+            .map((cell) => cell.textContent),
+        ),
+    ).toEqual([
+      [
+        "무료",
+        "사진 한도 한 달 10장",
+        "OpenRouter · anthropic/claude-haiku-5.5AI에서 보기",
+        "가입자 1명",
+        "한도 바꾸기",
+      ],
+      [
+        "프로",
+        "사진 한도 하루 100장",
+        "Anthropic · claude-sonnet-5AI에서 보기",
+        "가입자 0명",
+        "한도 바꾸기",
+      ],
+      [
+        "맥스",
+        "사진 한도 무제한 (하루 1000장까지)",
+        "OpenRouter · anthropic/claude-haiku-5.5AI에서 보기",
+        "가입자 0명",
+        "한도 바꾸기",
+      ],
+      [
+        "스페셜",
+        "사진 한도 제한 없음",
+        "OpenRouter · anthropic/claude-haiku-5.5AI에서 보기",
+        "가입자 1명",
+        "",
+      ],
+    ]);
+    // The AI configuration is shown here and changed in AI.
+    for (const link of table.getAllByRole("link", { name: "AI에서 보기" })) {
+      expect(link).toHaveAttribute("href", "/settings/ai");
+    }
+    expect(table.getAllByRole("link", { name: "한도 바꾸기" })[0]).toHaveAttribute(
+      "href",
+      "#plan-free",
+    );
     const free = within(screen.getByRole("region", { name: "무료" }));
-    expect(free.getByText("지금 가입하면 한 달 10장")).toBeInTheDocument();
     expect(free.getByRole("combobox", { name: "한도" })).toHaveValue("monthly");
     expect(free.getByRole("spinbutton", { name: "사진 장 수" })).toHaveValue(10);
     expect(free.queryByRole("textbox", { name: "모델" })).not.toBeInTheDocument();
@@ -1075,12 +1249,7 @@ describe("the plans page", () => {
     // The row carries its start and author after its terms, so a substring is right.
     expect(pro.getByText(/learner@example.com/)).toBeInTheDocument();
     const max = within(screen.getByRole("region", { name: "맥스" }));
-    expect(max.getByText("지금 가입하면 무제한 (하루 1000장까지)")).toBeInTheDocument();
     expect(max.getByText(/기존 사용자도 적용/)).toBeInTheDocument();
-    // The note holds the link inside its sentence, so a substring finds the note.
-    expect(
-      within(screen.getByText(/에서 정해요/)).getByRole("link", { name: "AI 제공자" }),
-    ).toHaveAttribute("href", "/settings/ai");
   });
 
   it("creates a version from now, records it, and says when the terms are the current ones", async () => {
@@ -1243,7 +1412,7 @@ describe("스페셜", () => {
       changed: true,
       message: "무료로 되돌렸어요.",
     });
-    await render(AuditContent, {});
+    await render(AdminsContent, {});
     expect(auditEntries()).toEqual([
       "무료로 되돌리기 · other@example.com · 스페셜",
       "요금제 지정 · other@example.com · 스페셜",
@@ -1265,7 +1434,9 @@ describe("스페셜", () => {
   it("lists 스페셜 on the plans page with no limit and no form for a new version", async () => {
     await render(PlansContent, {});
     const special = within(screen.getByRole("region", { name: "스페셜" }));
-    expect(special.getByText("지금 가입하면 제한 없음")).toBeInTheDocument();
+    // The row carries every cell, so a substring is right.
+    expect(screen.getByRole("row", { name: /^스페셜/ })).toHaveTextContent("사진 한도 제한 없음");
+    expect(screen.getByRole("row", { name: /^스페셜/ })).not.toHaveTextContent("숨김");
     expect(special.queryByRole("form")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "스페셜" })).not.toHaveTextContent("숨김");
     const max = within(screen.getByRole("region", { name: "맥스" }));
@@ -1352,11 +1523,11 @@ describe("a user's plan", () => {
       }),
     );
     await grantPlan({ message: null }, form({ user: otherUser.id, plan: "pro", ends_on: "" }));
-    await render(AuditContent, {});
+    await render(AdminsContent, {});
     expect(auditEntries()).toEqual([
       "요금제 지정 · other@example.com · 프로",
       "요금제 새 버전 · 프로 · 하루 200장",
     ]);
-    expect(screen.getByRole("link", { name: "프로" })).toHaveAttribute("href", "/settings");
+    expect(screen.getByRole("link", { name: "프로" })).toHaveAttribute("href", "/plans");
   });
 });

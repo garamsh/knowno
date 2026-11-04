@@ -5,7 +5,7 @@ import { formatDate, formatTime } from "../format";
 import { labelOf, planLabels, providerLabels, termsLabel } from "../labels";
 import type { UserPlan as Plan } from "../read-admin";
 import { Section } from "@/design/section";
-import { button, group } from "./admin-section";
+import { button, Facts } from "./admin-section";
 import { ConfirmAction } from "./confirm-action";
 import { GrantPlanForm } from "./grant-plan-form";
 
@@ -64,30 +64,26 @@ export function UserPlan({
   ];
   return (
     <Section label="요금제">
-      <dl className={group}>
-        {facts.map(([term, value]) => (
-          <div key={term} className="flex items-baseline justify-between gap-3 px-4 py-3">
-            <dt className="shrink-0 text-body text-ink-2">{term}</dt>
-            <dd className="text-right text-body-strong break-all tabular-nums">{value}</dd>
-          </div>
-        ))}
-      </dl>
-      <details className="flex flex-col gap-2">
+      <Facts facts={facts} />
+      <details>
         <summary
           className={`${button.row} mt-2 w-fit list-none [&::-webkit-details-marker]:hidden`}
         >
           요금제 바꾸기
         </summary>
-        <GrantPlanForm userId={userId} />
-        {grant !== null && (
-          <ConfirmAction
-            compact
-            label="무료로 되돌리기"
-            question={`${email}의 요금제를 무료로 되돌릴까요?`}
-            confirmLabel="무료로 되돌리기"
-            action={revokePlan.bind(null, userId)}
-          />
-        )}
+        {/* A details element does not lay its content out as flex items, so one block holds the gap. */}
+        <div className="flex flex-col gap-3">
+          <GrantPlanForm userId={userId} />
+          {grant !== null && (
+            <ConfirmAction
+              compact
+              label="무료로 되돌리기"
+              question={`${email}의 요금제를 무료로 되돌릴까요?`}
+              confirmLabel="무료로 되돌리기"
+              action={revokePlan.bind(null, userId)}
+            />
+          )}
+        </div>
       </details>
     </Section>
   );

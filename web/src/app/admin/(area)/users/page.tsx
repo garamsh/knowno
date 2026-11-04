@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { UsersContent } from "../_components/content";
 import { AdminSkeleton } from "../_components/admin-skeleton";
 
-/** Users found by email. */
+/** Every user as a paged table, with the one chosen beside it (ADR 0181). */
 export default function Page({ searchParams }: PageProps<"/admin/users">) {
   return (
     <>

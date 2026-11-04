@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { SearchField } from "@/design/search-field";
+import { Section } from "@/design/section";
 import { parseDeckId } from "@/features/decks";
 
 import {
@@ -17,7 +18,11 @@ import {
   NoteList,
   type NoteView,
   outcomeDays,
+  listUsers,
+  parsePlanFilter,
+  parseStatusFilter,
   parseUserId,
+  type PlanId,
   PlansView,
   PromptForm,
   PromptView,
@@ -37,12 +42,15 @@ import {
   readUser,
   readVersionCalls,
   readWeekActivity,
-  searchUsersThrough,
   summarizeOutcomes,
   summarizeWeeks,
   TodoView,
-  UserSearch,
+  UserFilters,
+  type UserListAddress,
+  userPageSizes,
+  UserTable,
   UserView,
+  usersHref,
   ViewSwitch,
   weekUsageDays,
 } from "@/features/admin";
@@ -54,9 +62,23 @@ function searchText(value: string | string[] | undefined): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-/** The last page of the user search an address names, 0 when it names none or no whole number. */
-function pageIndex(value: string | string[] | undefined): number {
-  return typeof value === "string" && /^\d{1,3}$/.test(value) ? Number(value) : 0;
+/** The page of the users' list an address names, from 1; the first when it names none or no whole number. */
+function pageNumber(value: string | string[] | undefined): number {
+  return typeof value === "string" && /^[1-9]\d{0,4}$/.test(value) ? Number(value) : 1;
+}
+
+/** The users' list's address as [params] name it, each part its default where it names none it knows. */
+function userListAddress(params: Record<string, string | string[] | undefined>): UserListAddress {
+  const size = userPageSizes.find((known) => String(known) === params.size) ?? userPageSizes[0];
+  const user = typeof params.user === "string" ? parseUserId(params.user) : null;
+  return {
+    query: searchText(params.q),
+    plan: parsePlanFilter(params.plan),
+    status: parseStatusFilter(params.status),
+    page: pageNumber(params.page),
+    size,
+    user,
+  };
 }
 
 /** A version's or an extraction's id in an address: digits only, as the server numbers them. */
@@ -129,7 +151,11 @@ export async function NotesContent({ searchParams }: { searchParams: SearchParam
   const search = searchText(params.q);
   const shown = noteViews.find(({ view }) => view === params.view) ?? noteViews[0];
   if (shown === undefined) return null;
-  const [read, reports] = await Promise.all([readNotes(shown.view, search), readOpenReports()]);
+  const [read, reports, timeZone] = await Promise.all([
+    readNotes(shown.view, search),
+    readOpenReports(),
+    adminTimeZone(),
+  ]);
   return (
     <>
       <ViewSwitch
@@ -151,6 +177,7 @@ export async function NotesContent({ searchParams }: { searchParams: SearchParam
         <AdminFailureMessage failure={read.failure} />
       ) : (
         <NoteList
+          timeZone={timeZone}
           notes={read.data}
           empty={search === "" ? shown.empty : "찾는 노트가 없어요. 다른 단어로 검색해 보세요."}
         />
@@ -170,22 +197,42 @@ export async function DeckContent({ params }: { params: Promise<{ id: string }> 
 }
 
 export async function UsersContent({ searchParams }: { searchParams: SearchParams }) {
-  const { q, page } = await searchParams;
-  const query = searchText(q);
-  const shown = pageIndex(page);
-  const timeZone = await adminTimeZone();
-  // An address with a query opens on the pages it names, read on the server, so a search the
-  // admin left for a user's page comes back as it was.
-  const read = query === "" ? null : await searchUsersThrough(query, shown);
+  const address = userListAddress(await searchParams);
+  const filter = { query: address.query, plan: address.plan, status: address.status };
+  const [list, selected, timeZone] = await Promise.all([
+    listUsers(filter, address.page - 1, address.size),
+    address.user === null ? null : readUser(address.user),
+    adminTimeZone(),
+  ]);
+  const user = selected !== null && !("failure" in selected) ? selected.data : null;
+  const close = { ...address, user: null };
   return (
     <>
-      <UserSearch
-        initialQuery={query}
-        initialPage={read === null || "failure" in read ? null : read.data}
-        initialPageIndex={shown}
-        timeZone={timeZone}
-      />
-      {read !== null && "failure" in read && <AdminFailureMessage failure={read.failure} />}
+      <UserFilters address={address} />
+      <div
+        className={
+          user === null
+            ? "flex flex-col"
+            : "grid items-start gap-section-gap lg:grid-cols-[minmax(0,1fr)_--spacing(90)] lg:gap-4"
+        }
+      >
+        {/* Below 1024 px the user shown takes the list's place, as a page of its own would. */}
+        <div className={user === null ? "contents" : "max-lg:hidden"}>
+          {"failure" in list ? (
+            <AdminFailureMessage failure={list.failure} />
+          ) : (
+            <UserTable page={list.data} address={address} timeZone={timeZone} />
+          )}
+        </div>
+        {selected !== null && "failure" in selected && (
+          <AdminFailureMessage failure={selected.failure} />
+        )}
+        {user !== null && (
+          <aside aria-label={user.email} className="min-w-0 lg:sticky lg:top-8">
+            <UserView user={user} timeZone={timeZone} panel={{ close: usersHref(close) }} />
+          </aside>
+        )}
+      </div>
     </>
   );
 }
@@ -273,32 +320,43 @@ export async function PromptContent({
   );
 }
 
-/** 설정's three pages, each an address of its own. */
-function SettingsSwitch({ current }: { current: "plans" | "ai" | "admins" | "audit" }) {
-  return (
-    <ViewSwitch
-      label="설정 보기"
-      views={[
-        { href: "/settings", label: "요금제", current: current === "plans" },
-        { href: "/settings/ai", label: "AI 제공자", current: current === "ai" },
-        { href: "/settings/admins", label: "관리자", current: current === "admins" },
-        { href: "/settings/audit", label: "작업 기록", current: current === "audit" },
-      ]}
-    />
+/** The users on each plan now, each read as the total of the users' list filtered by it. */
+async function readPlanMembers(): Promise<Record<PlanId, number | null>> {
+  const plans = ["free", "pro", "max", "special"] as const;
+  const counts = await Promise.all(
+    plans.map((plan) => listUsers({ query: "", plan, status: null }, 0, 1)),
   );
+  const members: Record<PlanId, number | null> = {
+    free: null,
+    pro: null,
+    max: null,
+    special: null,
+  };
+  plans.forEach((plan, index) => {
+    const read = counts[index];
+    members[plan] = read === undefined || "failure" in read ? null : read.data.total;
+  });
+  return members;
 }
 
 export async function PlansContent() {
-  const [read, timeZone] = await Promise.all([readPlanVersions(), adminTimeZone()]);
+  const [read, configurations, members, timeZone] = await Promise.all([
+    readPlanVersions(),
+    readAiConfigurations(),
+    readPlanMembers(),
+    adminTimeZone(),
+  ]);
+  if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
+  if ("failure" in configurations) {
+    return <AdminFailureMessage failure={configurations.failure} />;
+  }
   return (
-    <>
-      <SettingsSwitch current="plans" />
-      {"failure" in read ? (
-        <AdminFailureMessage failure={read.failure} />
-      ) : (
-        <PlansView versions={read.data} timeZone={timeZone} />
-      )}
-    </>
+    <PlansView
+      versions={read.data}
+      configurations={configurations.data}
+      members={members}
+      timeZone={timeZone}
+    />
   );
 }
 
@@ -309,12 +367,7 @@ export async function AiSettingsContent() {
     readPromptLabels(),
     adminTimeZone(),
   ]);
-  const failed = (failure: AdminFailure) => (
-    <>
-      <SettingsSwitch current="ai" />
-      <AdminFailureMessage failure={failure} />
-    </>
-  );
+  const failed = (failure: AdminFailure) => <AdminFailureMessage failure={failure} />;
   if ("failure" in keys) return failed(keys.failure);
   if ("failure" in configurations) return failed(configurations.failure);
   if ("failure" in labels) return failed(labels.failure);
@@ -322,47 +375,41 @@ export async function AiSettingsContent() {
   const test = labels.data.find((label) => label.label === "test");
   const served = test ?? labels.data.find((label) => label.label === "active");
   return (
-    <>
-      <SettingsSwitch current="ai" />
-      <AiSettingsView
-        keys={keys.data}
-        configurations={configurations.data}
-        prompt={
-          served === undefined
-            ? "사용 중인 버전"
-            : `${test === undefined ? "사용 중" : "테스트"} 버전 ${String(served.versionId)}`
-        }
-        timeZone={timeZone}
-      />
-    </>
+    <AiSettingsView
+      keys={keys.data}
+      configurations={configurations.data}
+      prompt={
+        served === undefined
+          ? "사용 중인 버전"
+          : `${test === undefined ? "사용 중" : "테스트"} 버전 ${String(served.versionId)}`
+      }
+      timeZone={timeZone}
+    />
   );
 }
 
+/** 관리자: the form to grant the role, the admins, and the latest 100 admin writes. */
 export async function AdminsContent() {
-  const [read, timeZone] = await Promise.all([readAdmins(), adminTimeZone()]);
+  const [admins, audit, timeZone] = await Promise.all([
+    readAdmins(),
+    readAuditLog(),
+    adminTimeZone(),
+  ]);
   return (
     <>
-      <SettingsSwitch current="admins" />
       <GrantAdminForm />
-      {"failure" in read ? (
-        <AdminFailureMessage failure={read.failure} />
+      {"failure" in admins ? (
+        <AdminFailureMessage failure={admins.failure} />
       ) : (
-        <AdminList admins={read.data} timeZone={timeZone} />
+        <AdminList admins={admins.data} timeZone={timeZone} />
       )}
-    </>
-  );
-}
-
-export async function AuditContent() {
-  const [read, timeZone] = await Promise.all([readAuditLog(), adminTimeZone()]);
-  return (
-    <>
-      <SettingsSwitch current="audit" />
-      {"failure" in read ? (
-        <AdminFailureMessage failure={read.failure} />
-      ) : (
-        <AuditLog entries={read.data} timeZone={timeZone} />
-      )}
+      <Section label="작업 기록" note="최근 100건">
+        {"failure" in audit ? (
+          <AdminFailureMessage failure={audit.failure} />
+        ) : (
+          <AuditLog entries={audit.data} timeZone={timeZone} />
+        )}
+      </Section>
     </>
   );
 }

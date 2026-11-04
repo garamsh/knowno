@@ -2,23 +2,25 @@ import { describe, expect, it } from "vitest";
 
 import { redirectTarget } from "@/testing/redirect";
 
-import AdminsPage from "../admins/page";
 import AuditPage from "../audit/page";
 import ExtractionsPage from "../extractions/page";
-import PlansPage from "../plans/page";
 import PromptPage from "../prompts/[id]/page";
 import PromptsPage from "../prompts/page";
 import ReportsPage from "../reports/page";
+import SettingsAdminsPage from "../settings/admins/page";
+import SettingsAuditPage from "../settings/audit/page";
+import SettingsPage from "../settings/page";
 
 /** [page]'s redirect, the call wrapped so a synchronous throw reaches the helper as a rejection. */
 const target = (page: () => unknown) => redirectTarget(Promise.resolve().then(page));
 
-describe("an address the admin area had before its five sections", () => {
+describe("an address the admin area had before its sections", () => {
   it("redirects to its new place", async () => {
     expect(await target(ReportsPage)).toBe("/decks");
-    expect(await target(PlansPage)).toBe("/settings");
-    expect(await target(AdminsPage)).toBe("/settings/admins");
-    expect(await target(AuditPage)).toBe("/settings/audit");
+    expect(await target(AuditPage)).toBe("/admins");
+    expect(await target(SettingsPage)).toBe("/plans");
+    expect(await target(SettingsAdminsPage)).toBe("/admins");
+    expect(await target(SettingsAuditPage)).toBe("/admins");
     expect(await target(ExtractionsPage)).toBe("/ai");
     expect(
       await target(() =>

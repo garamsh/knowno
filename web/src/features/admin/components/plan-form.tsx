@@ -4,10 +4,9 @@ import { useActionState, useId } from "react";
 
 import { createPlanVersion, type PlanFormState } from "../create-plan-version";
 import type { Quota } from "../read-admin";
-import { button, field, group } from "./admin-section";
+import { button, field, formInput, formLine, group } from "./admin-section";
 
-const line = "flex min-h-button items-center justify-between gap-3 px-4";
-const input = `${field} h-tap-target min-w-0 px-2 text-right`;
+const input = `${field} ${formInput}`;
 
 /**
  * A new version of one plan's terms, starting from the current version's. The plans page draws one
@@ -33,7 +32,7 @@ export function PlanForm({
       <h3 className="px-1 text-section text-muted">새 버전</h3>
       <input type="hidden" name="plan" value={plan} />
       <div className={group}>
-        <label className={line}>
+        <label className={formLine}>
           <span className="text-body">한도</span>
           <select name="quota" defaultValue={quota} className={input}>
             <option value="monthly">한 달에</option>
@@ -41,7 +40,7 @@ export function PlanForm({
             <option value="unlimited">무제한 (하루 공정 사용 한도)</option>
           </select>
         </label>
-        <label className={line}>
+        <label className={formLine}>
           <span className="text-body">사진 장 수</span>
           <input
             name="amount"
