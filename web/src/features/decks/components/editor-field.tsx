@@ -18,7 +18,9 @@ const cellBox = "whitespace-pre-wrap break-words p-3 text-body";
 /** A small outlined control, its target the tap target's height past what it draws. */
 const chipShape =
   "pressable relative h-8 min-w-tap-target rounded-chip border px-3 text-secondary before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-[''] disabled:opacity-40";
+/** A chip's classes while it is off: outlined on the surface. */
 export const chip = `${chipShape} border-outline bg-surface`;
+/** A chip's classes while it is on: an ink outline on the brand tint. */
 export const chipOn = `${chipShape} border-ink bg-brand-tint`;
 
 /**
