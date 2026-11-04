@@ -64,9 +64,9 @@ function clientImports(): string[] {
 describe("a server module of the admin area", () => {
   it("imports only components from a client module, which it cannot call", () => {
     const imported = clientImports();
-    // Control: the trial is a client module 사진 AI renders, so the scan
+    // Control: the trial is a client module AI renders, so the scan
     // reaches client modules and reads what is imported from them.
-    expect(imported).toContain("features/admin/components/ai-view.tsx: PromptTrial");
+    expect(imported).toContain("features/admin/components/ai-view.tsx: AiTrial");
 
     expect(imported.filter((entry) => !/: [A-Z]/.test(entry))).toEqual([]);
   });

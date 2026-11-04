@@ -3,13 +3,13 @@ import { Suspense } from "react";
 import { AdminSkeleton } from "../_components/admin-skeleton";
 import { AiContent } from "../_components/content";
 
-/** 사진 AI: the active and test prompts, the trial, and each version's results. */
-export default function Page() {
+/** AI: each plan's configuration, the chosen plan's draft, the keys, the prompt versions and the results. */
+export default function Page({ searchParams }: PageProps<"/admin/ai">) {
   return (
     <>
       <h1 className="text-display">AI</h1>
       <Suspense fallback={<AdminSkeleton />}>
-        <AiContent />
+        <AiContent searchParams={searchParams} />
       </Suspense>
     </>
   );

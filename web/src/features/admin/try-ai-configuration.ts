@@ -11,8 +11,8 @@ function isId(value: unknown): value is number {
 
 /**
  * Runs extract-cards on the form's `photo` twice at once as the signed-in admin (ADR 0162): with
- * the draft [draftId] and with the active configuration [activeId] of the same plan, each served
- * the prompt an admin is served. Each photo is recorded as any extraction is; no limit applies to
+ * the draft [draftId] and with the active configuration [activeId] of the same plan, each with its
+ * own provider, model and prompt. Each photo is recorded as any extraction is; no limit applies to
  * an admin. A user who is not an admin is refused before the function is called.
  */
 export async function tryAiConfiguration(

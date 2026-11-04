@@ -1,7 +1,9 @@
-import { cleanup, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { existsSync } from "node:fs";
+import path from "node:path";
 
+import { cleanup, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FakeAdmin } from "@/testing/mocks/admin";
 import { otherUser, supabaseUrl, testUser } from "@/testing/mocks/handlers";
@@ -10,7 +12,7 @@ import { setRequestCookies } from "@/testing/next-headers";
 import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 
-import { AiContent, PromptContent } from "../_components/content";
+import { AiContent } from "../_components/content";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
 
@@ -19,254 +21,337 @@ async function signIn(user: typeof testUser | typeof otherUser = testUser) {
   setRequestCookies([...(await signedInCookies(user)), { name: "smartman-tz", value: "UTC" }]);
 }
 
-/** The UTC day [offset] days from now, as YYYY-MM-DD. */
-const utcDay = (offset = 0) =>
-  new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
-
-/** A recorded call of version 1 as the server holds it. */
-function call(id: number, fields: Record<string, unknown> = {}) {
+/** One configuration's counts as `admin_configuration_results` answers them. */
+function result(model: string, version: number, fields: Record<string, number | null>) {
   return {
-    usage_id: id,
-    created_at: "2026-11-01T03:04:00Z",
-    plan: "free",
-    model: "anthropic/claude-haiku-5.5",
-    prompt_version_id: 1,
-    outcome: "ok",
-    attempts: 1,
-    latency_ms: 12_345,
-    cards_returned: 14,
-    cards_dropped: 0,
-    failures: [],
-    ...fields,
-  };
-}
-
-/** One day's counts for one version as `admin_extraction_failures` answers them. */
-function counts(day: string, version: number, fields: Record<string, number>) {
-  return {
-    day,
+    provider: "openrouter",
+    model,
     prompt_version_id: version,
     calls: 0,
     ok: 0,
     no_cards: 0,
     invalid_output: 0,
     model_error: 0,
-    retried: 0,
-    recovered: 0,
     failure_rate: null,
     unrecorded: 0,
     ...fields,
   };
 }
 
-const unrecorded = {
-  outcome: null,
-  attempts: null,
-  latency_ms: null,
-  cards_returned: null,
-  cards_dropped: null,
-  failures: null,
-};
+const haiku = "anthropic/claude-haiku-5.5";
 
-const version = (id: string, before?: string) =>
-  render(PromptContent, {
-    params: Promise.resolve({ id }),
-    searchParams: Promise.resolve(before === undefined ? {} : { before }),
-  });
+/** AI as the address [params] opens it. */
+const ai = (params: Record<string, string> = {}) =>
+  render(AiContent, { searchParams: Promise.resolve(params) });
+
+/** The cells of each body row of the table named [name], each cell's text. */
+function cells(name: string): string[][] {
+  return within(screen.getByRole("table", { name }))
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) =>
+      within(row)
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent),
+    );
+}
 
 let admin: FakeAdmin;
 beforeEach(async () => {
   admin = new FakeAdmin();
   server.use(...admin.handlers);
-  admin.prompts.push({ id: 2, text: "Prompt v9.\nName the rule.", note: "prompt v9", by: null });
-  admin.promptLabels.set("test", 2);
+  admin.prompts.push({ id: 2, text: "Prompt v8.\nName the rule.", note: "prompt v9", by: null });
+  // Pro's draft: the same provider and model, prompt v2.
+  admin.aiConfigurations.push({
+    id: 5,
+    plan: "pro",
+    label: "test",
+    provider: "openrouter",
+    model: haiku,
+    prompt_version_id: 2,
+    created_by: testUser.id,
+  });
   await signIn();
 });
 
-describe("사진 AI", () => {
-  it("shows the active prompt's week, the test prompt's month and each version's 30 days, each opening the version", async () => {
-    admin.extractionFailures = [
-      // Version 1: a failure 10 days ago, outside the week, and 1 in 20 this week.
-      counts(utcDay(-10), 1, { calls: 10, ok: 9, invalid_output: 1 }),
-      counts(utcDay(-1), 1, { calls: 20, ok: 18, no_cards: 1, model_error: 1 }),
-      // Version 2, under test: 2 of 25 failed.
-      counts(utcDay(), 2, { calls: 25, ok: 23, invalid_output: 2 }),
-    ];
-    await render(AiContent, {});
+describe("AI's plans", () => {
+  it("lists each plan's provider, model, prompt, cost per photo, week's failure rate and draft, each opening its panel", async () => {
+    const pro = admin.aiConfigurations[1];
+    if (pro === undefined) throw new Error("the seed has Pro's configuration");
+    admin.aiConfigurations[1] = { ...pro, model: "anthropic/claude-sonnet-9" };
+    admin.configurationResults.set(7, [
+      // Free's, Max's and 스페셜's configuration: 1 in 20 failed.
+      result(haiku, 1, { calls: 20, ok: 19, model_error: 1, failure_rate: 0.05 }),
+      // Pro's draft, which the row of Pro's active configuration does not count.
+      result(haiku, 2, { calls: 4, ok: 2, invalid_output: 2, failure_rate: 0.5 }),
+    ]);
+    await ai();
 
-    const active = within(screen.getByRole("region", { name: "사용 중 프롬프트" }));
-    expect(active.getByText("버전 1")).toBeInTheDocument();
-    expect(active.getByText("실패율 5.0% · 최근 7일")).toBeInTheDocument();
-    expect(active.getByRole("link", { name: "새 버전 쓰기" })).toHaveAttribute("href", "/ai/new");
-
-    const test = within(screen.getByRole("region", { name: "테스트 중" }));
-    expect(test.getByText("버전 2")).toBeInTheDocument();
-    expect(test.getByText("실패율 8.0% · 관리자 25회")).toBeInTheDocument();
-    expect(test.getByRole("button", { name: "모두에게 적용" })).toBeInTheDocument();
-
-    expect(screen.getByRole("region", { name: "사진 한 장으로 시험" })).toHaveTextContent(
-      "테스트 버전 2로 카드를 만들어요.",
-    );
-
-    const results = within(screen.getByRole("region", { name: "버전별 결과" }));
-    const rows = results.getAllByRole("link");
-    expect(rows.map((row) => row.getAttribute("href"))).toEqual(["/ai/2", "/ai/1"]);
-    // A row carries the version, its labels, counts and rate together, so a substring is right.
-    expect(rows[1]).toHaveTextContent(
-      /버전 1사용 중prompt v8추출 30건 · 카드 없음 1 · 형식 오류 1 · 모델 오류 16\.7%/,
-    );
-    expect(rows[0]).toHaveTextContent(/8\.0%$/);
-    expect(admin.calls).toContain('admin_extraction_failures {"days":30}');
+    expect(cells("요금제별 사용 중인 구성")).toEqual([
+      [
+        "무료",
+        "제공자 OpenRouter",
+        `모델 ${haiku}`,
+        "프롬프트 v1",
+        "사진당 비용 $0.0018",
+        "실패율 · 7일 5.0%",
+        "초안 —",
+        "바꾸기",
+      ],
+      [
+        "프로",
+        "제공자 OpenRouter",
+        "모델 anthropic/claude-sonnet-9",
+        "프롬프트 v1",
+        "사진당 비용 측정 없음",
+        "실패율 · 7일 기록 없음",
+        "초안 테스트 중",
+        "초안 보기",
+      ],
+      [
+        "맥스",
+        "제공자 OpenRouter",
+        `모델 ${haiku}`,
+        "프롬프트 v1",
+        "사진당 비용 $0.0018",
+        "실패율 · 7일 5.0%",
+        "초안 —",
+        "바꾸기",
+      ],
+      [
+        "스페셜",
+        "제공자 OpenRouter",
+        `모델 ${haiku}`,
+        "프롬프트 v1",
+        "사진당 비용 $0.0018",
+        "실패율 · 7일 5.0%",
+        "초안 —",
+        "바꾸기",
+      ],
+    ]);
+    const table = within(screen.getByRole("table", { name: "요금제별 사용 중인 구성" }));
+    expect(
+      table.getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")]),
+    ).toEqual([
+      ["바꾸기", "/ai?plan=free"],
+      ["초안 보기", "/ai?plan=pro"],
+      ["바꾸기", "/ai?plan=max"],
+      ["바꾸기", "/ai?plan=special"],
+    ]);
+    expect(admin.calls).toContain('admin_configuration_results {"days":7}');
   });
 
-  it("draws a version's rate red over 5%, against one at 5%", async () => {
-    admin.extractionFailures = [
-      counts(utcDay(), 1, { calls: 20, ok: 19, invalid_output: 1 }),
-      counts(utcDay(), 2, { calls: 20, ok: 18, invalid_output: 2 }),
-    ];
-    await render(AiContent, {});
-    const results = within(screen.getByRole("region", { name: "버전별 결과" }));
-    expect(results.getByText("10.0%")).toHaveClass("text-dont-know-text");
+  it("draws a week's rate over 5% red, against one at 5%", async () => {
+    admin.configurationResults.set(7, [
+      result(haiku, 1, { calls: 20, ok: 18, model_error: 2, failure_rate: 0.1 }),
+    ]);
+    await ai();
+    expect(within(screen.getByRole("table")).getAllByText("10.0%")[0]).toHaveClass(
+      "bg-dont-know-text",
+    );
+
     // Control: 5.0% is not over the line.
-    expect(results.getByText("5.0%")).not.toHaveClass("text-dont-know-text");
-  });
-
-  it("says when no version is under test, and offers no 모두에게 적용", async () => {
-    admin.promptLabels.delete("test");
-    await render(AiContent, {});
-    const test = within(screen.getByRole("region", { name: "테스트 중" }));
-    expect(test.getByText("없음")).toBeInTheDocument();
-    expect(test.queryByRole("button", { name: "모두에게 적용" })).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "사진 한 장으로 시험" })).toHaveTextContent(
-      "사용 중인 버전 1로 카드를 만들어요.",
+    cleanup();
+    admin.configurationResults.set(7, [
+      result(haiku, 1, { calls: 20, ok: 19, model_error: 1, failure_rate: 0.05 }),
+    ]);
+    await ai();
+    expect(within(screen.getByRole("table")).getAllByText("5.0%")[0]).not.toHaveClass(
+      "bg-dont-know-text",
     );
   });
+});
 
+describe("AI's panel", () => {
+  it("opens the first plan with a draft, saying what the draft changes, and its prompt's lines collapsed, in words as well as colour", async () => {
+    await ai();
+    const panel = within(screen.getByRole("region", { name: "프로 · 초안 (관리자만 테스트 중)" }));
+    expect(
+      panel.getByRole("heading", { name: "제공자·모델 그대로 · 프롬프트 v1 → v2" }),
+    ).toBeInTheDocument();
+    const lines = screen.getByText("프롬프트 v1 → v2 다른 점").closest("details");
+    expect(lines).not.toHaveAttribute("open");
+    expect(
+      within(lines ?? document.body)
+        .getAllByRole("listitem")
+        .map((line) => line.textContent),
+    ).toEqual(["Prompt v8.", "−뺌: Keep each fact.", "+더함: Name the rule."]);
+    expect(panel.getByRole("button", { name: "모두에게 적용" })).toHaveClass("bg-primary");
+    expect(panel.getByRole("button", { name: "테스트 끝내기" })).not.toHaveClass("bg-primary");
+    // The table marks the plan shown.
+    expect(screen.getAllByRole("row")[2]).toHaveClass("bg-ground");
+  });
+
+  it("opens the plan the address names, and without a draft its active configuration and the form", async () => {
+    await ai({ plan: "max" });
+    const panel = within(screen.getByRole("region", { name: "맥스 · 사용 중인 구성" }));
+    expect(
+      panel.getByRole("heading", { name: `OpenRouter · ${haiku} · 프롬프트 v1` }),
+    ).toBeInTheDocument();
+    expect(panel.queryByRole("button", { name: "모두에게 적용" })).not.toBeInTheDocument();
+    const form = within(panel.getByRole("form", { name: "맥스 새 초안" }));
+    expect(form.getByRole("textbox", { name: "모델" })).toHaveValue(haiku);
+    expect(form.getByRole("combobox", { name: "프롬프트" })).toHaveValue("1");
+    expect(
+      within(form.getByRole("combobox", { name: "프롬프트" }))
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["v2", "v1"]);
+
+    // Control: Free without a draft, when no plan has one and the address names none.
+    cleanup();
+    admin.aiConfigurations.pop();
+    await ai({ plan: "gold" });
+    expect(screen.getByRole("region", { name: "무료 · 사용 중인 구성" })).toBeInTheDocument();
+  });
+
+  it("starts a draft's form from the draft's prompt, and says what changes when everything does", async () => {
+    const draft = admin.aiConfigurations.at(-1);
+    if (draft === undefined) throw new Error("the test made Pro's draft");
+    draft.provider = "anthropic";
+    draft.model = "claude-haiku-5-5";
+    await ai({ plan: "pro" });
+    const panel = within(screen.getByRole("region", { name: "프로 · 초안 (관리자만 테스트 중)" }));
+    expect(
+      panel.getByRole("heading", {
+        name: `제공자 OpenRouter → Anthropic · 모델 ${haiku} → claude-haiku-5-5 · 프롬프트 v1 → v2`,
+      }),
+    ).toBeInTheDocument();
+    expect(panel.getByRole("combobox", { name: "프롬프트" })).toHaveValue("2");
+    expect(panel.getByRole("combobox", { name: "제공자" })).toHaveValue("anthropic");
+  });
+});
+
+describe("AI's prompt versions", () => {
+  it("lists every version newest first with the configurations sending it, each opening the form from it", async () => {
+    await ai();
+    const versions = within(screen.getByRole("list", { name: "프롬프트 버전" }));
+    expect(
+      versions.getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")]),
+    ).toEqual([
+      ["v2 · 초안에서 사용 · 2026-10-19prompt v9", "/ai?plan=pro&write=2"],
+      ["v1 · 사용 중 · 2026-10-19prompt v8", "/ai?plan=pro&write=1"],
+    ]);
+    expect(screen.getByRole("link", { name: "새 버전 쓰기" })).toHaveAttribute(
+      "href",
+      "/ai?plan=pro&write=",
+    );
+    expect(screen.queryByRole("form", { name: "새 버전" })).not.toBeInTheDocument();
+  });
+
+  it("opens the new version's form from the plan's active version, or from the version the address names", async () => {
+    await ai({ plan: "pro", write: "" });
+    expect(screen.getByRole("textbox", { name: "프롬프트" })).toHaveValue(
+      "Prompt v8.\nKeep each fact.",
+    );
+    expect(screen.getByRole("region", { name: "새 버전" })).toHaveTextContent(
+      /버전 1에서 시작해요/,
+    );
+
+    cleanup();
+    await ai({ plan: "pro", write: "2" });
+    expect(screen.getByRole("textbox", { name: "프롬프트" })).toHaveValue(
+      "Prompt v8.\nName the rule.",
+    );
+  });
+});
+
+describe("AI's results", () => {
+  it("lists each configuration's 30 days, marking what serves now and what is under test, red over 5%", async () => {
+    admin.configurationResults.set(30, [
+      result(haiku, 1, { calls: 40, ok: 37, no_cards: 1, model_error: 2, failure_rate: 0.05 }),
+      result(haiku, 2, {
+        calls: 10,
+        ok: 8,
+        invalid_output: 1,
+        model_error: 1,
+        failure_rate: 0.2,
+      }),
+      result("openai/gpt-old", 1, { calls: 0, unrecorded: 3 }),
+    ]);
+    await ai();
+    expect(cells("결과 · 30일 (구성별)")).toEqual([
+      [
+        `OpenRouter · ${haiku} · v1 (사용 중)`,
+        "호출 40",
+        "카드 없음 1",
+        "형식 오류 0",
+        "모델 오류 2",
+        "실패율 5.0%",
+      ],
+      [
+        `OpenRouter · ${haiku} · v2 (테스트)`,
+        "호출 10",
+        "카드 없음 0",
+        "형식 오류 1",
+        "모델 오류 1",
+        "실패율 20.0%",
+      ],
+      [
+        "OpenRouter · openai/gpt-old · v1",
+        "호출 0",
+        "카드 없음 0",
+        "형식 오류 0",
+        "모델 오류 0",
+        "실패율 기록 없음",
+      ],
+    ]);
+    const table = within(screen.getByRole("table", { name: "결과 · 30일 (구성별)" }));
+    expect(table.getByText("20.0%")).toHaveClass("text-dont-know-text");
+    // Control: 5.0% is not over the line.
+    expect(table.getByText("5.0%")).not.toHaveClass("text-dont-know-text");
+    expect(admin.calls).toContain('admin_configuration_results {"days":30}');
+  });
+
+  it("says when nothing was recorded", async () => {
+    await ai();
+    expect(
+      screen.getByText("최근 30일에 기록된 추출이 없어요. 사진으로 카드를 만들면 여기에 쌓여요."),
+    ).toBeInTheDocument();
+  });
+
+  it("says it could not read a rate that disagrees with its calls, against one that agrees", async () => {
+    admin.configurationResults.set(30, [result(haiku, 1, { calls: 0, failure_rate: 0 })]);
+    await ai();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "받은 답을 읽지 못했어요. 페이지를 새로 고친 뒤 다시 시도해 주세요.",
+    );
+
+    // Control: no calls and no rate are read.
+    cleanup();
+    admin.configurationResults.set(30, [result(haiku, 1, { calls: 0, failure_rate: null })]);
+    await ai();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("AI", () => {
   it("says a user who is not an admin may not see it", async () => {
     await signIn(otherUser);
-    await render(AiContent, {});
+    await ai();
     expect(screen.getByRole("alert")).toHaveTextContent("관리자만 볼 수 있어요.");
-    expect(screen.queryByRole("region", { name: "버전별 결과" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
   it("says it could not load when the server fails, with a way to try again", async () => {
     server.use(
-      http.post(`${supabaseUrl}/rest/v1/rpc/admin_extraction_failures`, () =>
+      http.post(`${supabaseUrl}/rest/v1/rpc/admin_configuration_results`, () =>
         HttpResponse.json({ code: "P0001", message: "boom" }, { status: 400 }),
       ),
     );
-    await render(AiContent, {});
+    await ai();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
     );
     expect(screen.getByRole("button", { name: "다시 시도" })).toBeInTheDocument();
   });
-});
 
-describe("a version's page", () => {
-  it("shows that version's 30 days by day, leaving out another version's", async () => {
-    admin.extractionFailures = [
-      counts(utcDay(-1), 1, { calls: 10, ok: 6, invalid_output: 3, model_error: 1 }),
-      counts(utcDay(), 1, { calls: 40, ok: 39, no_cards: 1 }),
-      counts(utcDay(), 2, { calls: 10, invalid_output: 10 }),
-    ];
-    await version("1");
-
-    expect(
-      screen.getByText("최근 30일 추출 50건 · 카드 없음 1 · 형식 오류 3 · 모델 오류 1"),
-    ).toBeInTheDocument();
-    const daily = within(screen.getByRole("region", { name: "날짜별 실패율" }));
-    expect(daily.getByRole("img")).toHaveAccessibleName(
-      `날짜별 실패율, 최근 30일: ${utcDay(-1).slice(5)} 40.0%, ${utcDay().slice(5)} 0.0%`,
-    );
-  });
-
-  it("lists that version's recent extractions with their time, plan, outcome, calls, latency and cards, and no user", async () => {
-    admin.extractionCalls = [
-      call(43, { prompt_version_id: 2 }),
-      call(42, { cards_dropped: 2 }),
-      call(41, {
-        plan: "pro",
-        outcome: "model_error",
-        attempts: 2,
-        latency_ms: 95_000,
-        cards_returned: 0,
-        failures: ["timeout", "model_error"],
-      }),
-      call(40, { outcome: "ok", attempts: 2, failures: ["invalid_output"] }),
-      call(39, unrecorded),
-    ];
-    const { container } = await version("1");
-
-    const list = within(screen.getByRole("list", { name: "최근 추출" }));
-    expect(list.getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "성공2026-11-01 03:04무료 · 시도 1회 · 12.3초 · 카드 14장 · 거른 카드 2장",
-      "모델 오류2026-11-01 03:04프로 · 시도 2회 (시간 초과, 모델 오류) · 95.0초 · 카드 0장",
-      "성공2026-11-01 03:04무료 · 시도 2회 (형식 오류) · 12.3초 · 카드 14장",
-      "기록 없음2026-11-01 03:04무료",
-    ]);
-    // Nothing names the user each call served.
-    for (const user of [testUser, otherUser]) {
-      expect(container.innerHTML).not.toContain(user.id);
-      expect(container.innerHTML).not.toContain(user.email);
+  it("is one page: the pages of a version, a new version and AI 제공자 are gone", () => {
+    const area = path.join(import.meta.dirname, "..");
+    for (const route of ["ai/[id]", "ai/new", "settings/ai"]) {
+      expect(existsSync(path.join(area, route, "page.tsx")), route).toBe(false);
     }
-    expect(admin.calls).toContain(
-      'admin_version_calls {"version_id":1,"before":null,"page_size":50}',
-    );
-    // A page shorter than a full one is the last.
-    expect(screen.queryByRole("link", { name: "이전 추출 더 보기" })).not.toBeInTheDocument();
-  });
-
-  it("links a full page to the one before it, and that page back to the newest", async () => {
-    admin.extractionCalls = Array.from({ length: 60 }, (_, index) => call(1000 - index));
-    await version("1");
-    expect(
-      within(screen.getByRole("list", { name: "최근 추출" })).getAllByRole("listitem"),
-    ).toHaveLength(50);
-    expect(screen.getByRole("link", { name: "이전 추출 더 보기" })).toHaveAttribute(
-      "href",
-      "/ai/1?before=951",
-    );
-    expect(screen.queryByRole("link", { name: "최신 추출로" })).not.toBeInTheDocument();
-
-    cleanup();
-    await version("1", "951");
-    expect(admin.calls).toContain(
-      'admin_version_calls {"version_id":1,"before":951,"page_size":50}',
-    );
-    expect(
-      within(screen.getByRole("list", { name: "최근 추출" })).getAllByRole("listitem"),
-    ).toHaveLength(10);
-    expect(screen.getByRole("link", { name: "최신 추출로" })).toHaveAttribute("href", "/ai/1");
-    expect(screen.queryByRole("link", { name: "이전 추출 더 보기" })).not.toBeInTheDocument();
-  });
-
-  it("says when nothing was recorded, on the newest page and before it", async () => {
-    await version("1");
-    expect(
-      screen.getByText("이 버전으로 기록된 추출이 없어요. 사진으로 카드를 만들면 여기에 쌓여요."),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("img")).toHaveAccessibleName("날짜별 실패율: 기록된 추출이 없어요.");
-
-    cleanup();
-    await version("1", "12");
-    expect(
-      screen.getByText("이보다 이전 추출이 없어요. 최신 추출로 돌아가 보세요."),
-    ).toBeInTheDocument();
-  });
-
-  it("says it could not read an answer whose outcome's parts disagree, against one whose agree", async () => {
-    admin.extractionCalls = [call(42, { ...unrecorded, attempts: 1 })];
-    await version("1");
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "받은 답을 읽지 못했어요. 페이지를 새로 고친 뒤 다시 시도해 주세요.",
-    );
-
-    // Control: the same row with every part of its outcome null is read.
-    cleanup();
-    admin.extractionCalls = [call(42, unrecorded)];
-    await version("1");
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "최근 추출" })).toHaveTextContent("기록 없음");
+    // Control: AI's own page is where this looks.
+    expect(existsSync(path.join(area, "ai", "page.tsx"))).toBe(true);
   });
 });

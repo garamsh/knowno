@@ -8,13 +8,6 @@ const measured: Record<string, number> = {
   "anthropic/claude-sonnet-5.5": 0.0267,
 };
 
-/** The measured models and their cost per photo, cheapest first. */
-export const measuredModels: readonly { model: string; usdPerPhoto: number }[] = Object.entries(
-  measured,
-)
-  .map(([model, usdPerPhoto]) => ({ model, usdPerPhoto }))
-  .toSorted((a, b) => a.usdPerPhoto - b.usdPerPhoto);
-
 /** [model]'s measured cost per photo, or null when the eval has not measured it. */
 export function usdPerPhoto(model: string): number | null {
   return measured[model] ?? null;

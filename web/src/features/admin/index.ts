@@ -8,24 +8,22 @@ export { AdminShell } from "./components/admin-shell";
 export { AuditLog } from "./components/audit-log";
 export { DeckView } from "./components/deck-view";
 export { GrantAdminForm } from "./components/grant-admin-form";
-export { AiSettingsView } from "./components/ai-settings-view";
 export { AiView } from "./components/ai-view";
 export { NoteList } from "./components/note-list";
 export { TodoView } from "./components/todo-view";
 export { ViewSwitch } from "./components/view-switch";
-export { outcomeDays, summarizeOutcomes } from "./outcomes";
+export { summarizeOutcomes } from "./outcomes";
 export { summarizeWeeks, weekUsageDays } from "./usage";
 export { PlansView } from "./components/plans-view";
 export { PromptForm } from "./components/prompt-form";
-export { PromptView } from "./components/prompt-view";
 export { UserFilters } from "./components/user-filters";
 export { UserTable } from "./components/user-table";
 export { UserView } from "./components/user-view";
 export {
   type AdminFailure,
   adminTimeZone,
-  extractionPageSize,
   type NoteView,
+  parsePlanId,
   type PlanId,
   readExtractionOutcomes,
   readAdmins,
@@ -38,11 +36,10 @@ export {
   readOpenReports,
   readPlanVersions,
   readProviderKeys,
-  readPromptLabels,
+  readConfigurationResults,
   readPromptVersion,
   readPromptVersions,
   readUser,
-  readVersionCalls,
   readWeekActivity,
   listUsers,
 } from "./read-admin";

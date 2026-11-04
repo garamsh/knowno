@@ -159,7 +159,7 @@ describe("the admin area's gate", () => {
     expect(screen.queryByText("내용")).not.toBeInTheDocument();
   });
 
-  it("marks each section current on its pages, 요금제 and 관리자 on their own and AI 제공자 under AI", async () => {
+  it("marks each section current on its pages, 요금제, 관리자 and AI on their own", async () => {
     const at = async (path: string) => {
       pathname.current = path;
       cleanup();
@@ -171,8 +171,7 @@ describe("the admin area's gate", () => {
     expect(await at("/")).toEqual(["처리할 일, 새 신고 1건"]);
     expect(await at("/users/abc")).toEqual(["사용자"]);
     expect(await at("/decks/abc")).toEqual(["노트"]);
-    expect(await at("/ai/3")).toEqual(["AI"]);
-    expect(await at("/settings/ai")).toEqual(["AI"]);
+    expect(await at("/ai")).toEqual(["AI"]);
     expect(await at("/plans")).toEqual(["요금제"]);
     expect(await at("/admins")).toEqual(["관리자"]);
     expect(
@@ -208,7 +207,7 @@ const utcDay = (offset = 0) =>
   new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
 
 describe("처리할 일", () => {
-  it("shows the open reports, the week's failure rate and the prompt under test, each with its one action", async () => {
+  it("shows the open reports, the week's failure rate and the plans with a draft, each with its one action", async () => {
     admin.extractionFailures = [
       // 2 of 20 failed: 10.0%, over the 5% line.
       {
@@ -225,9 +224,17 @@ describe("처리할 일", () => {
         unrecorded: 0,
       },
     ];
-    admin.prompts.push({ id: 2, text: "Prompt v9.", note: "prompt v9", by: null });
-    admin.promptLabels.set("test", 2);
-    admin.promptLabelsSetAt.set("test", new Date(Date.now() - 2 * day - 60_000).toISOString());
+    for (const plan of ["max", "pro"]) {
+      admin.aiConfigurations.push({
+        id: admin.aiConfigurations.length + 1,
+        plan,
+        label: "test",
+        provider: "openrouter",
+        model: "anthropic/claude-haiku-5.5",
+        prompt_version_id: 1,
+        created_by: null,
+      });
+    }
     const now = Date.now();
     await render(TodoContent, {});
 
@@ -242,10 +249,13 @@ describe("처리할 일", () => {
     expect(failures.getByText("10.0%")).toHaveClass("text-dont-know-text");
     expect(failures.getByRole("link", { name: "자세히" })).toHaveAttribute("href", "/ai");
 
-    const test = within(screen.getByRole("region", { name: "테스트 중인 프롬프트" }));
-    expect(test.getByText("버전 2")).toBeInTheDocument();
-    expect(test.getByText("관리자만 쓰는 중 · 3일째")).toBeInTheDocument();
-    expect(test.getByRole("link", { name: "적용 또는 끝내기" })).toHaveAttribute("href", "/ai/2");
+    const test = within(screen.getByRole("region", { name: "테스트 중인 초안" }));
+    // In the plans' order, whichever draft was saved first.
+    expect(test.getByText("프로 · 맥스")).toBeInTheDocument();
+    expect(test.getByRole("link", { name: "적용 또는 끝내기" })).toHaveAttribute(
+      "href",
+      "/ai?plan=pro",
+    );
     expect(admin.calls).toContain('admin_extraction_failures {"days":7}');
   });
 
@@ -257,9 +267,10 @@ describe("처리할 일", () => {
     ).toBeInTheDocument();
     const failures = within(screen.getByRole("region", { name: "사진 읽기 실패율 · 7일" }));
     expect(failures.getByText("최근 7일에 기록된 추출이 없어요.")).toBeInTheDocument();
-    const test = within(screen.getByRole("region", { name: "테스트 중인 프롬프트" }));
+    const test = within(screen.getByRole("region", { name: "테스트 중인 초안" }));
     expect(test.getByText("없음")).toBeInTheDocument();
-    expect(test.getByRole("link", { name: "사진 AI 보기" })).toHaveAttribute("href", "/ai");
+    expect(test.getByText("관리자만 쓰는 초안이 없어요.")).toBeInTheDocument();
+    expect(test.getByRole("link", { name: "AI 보기" })).toHaveAttribute("href", "/ai");
 
     cleanup();
     admin.extractionFailures = [
@@ -1216,7 +1227,7 @@ function form(fields: Record<string, string>): FormData {
 }
 
 describe("the plans page", () => {
-  it("shows the terms each plan's new subscribers take, and opens a plan's versions and its form for a new one in a sheet, the model left to AI 제공자", async () => {
+  it("shows the terms each plan's new subscribers take, and opens a plan's versions and its form for a new one in a sheet, the model changed in AI", async () => {
     const user = userEvent.setup();
     admin.planVersions.push({
       id: 7,
@@ -1281,9 +1292,9 @@ describe("the plans page", () => {
       ],
     ]);
     // The AI configuration is shown here and changed in AI.
-    for (const link of table.getAllByRole("link", { name: "AI에서 보기" })) {
-      expect(link).toHaveAttribute("href", "/settings/ai");
-    }
+    expect(
+      table.getAllByRole("link", { name: "AI에서 보기" }).map((link) => link.getAttribute("href")),
+    ).toEqual(["/ai?plan=free", "/ai?plan=pro", "/ai?plan=max", "/ai?plan=special"]);
     // Nothing but the table is open until a plan's 한도 바꾸기 is pressed.
     expect(screen.queryByRole("form")).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

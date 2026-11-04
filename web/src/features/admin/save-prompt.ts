@@ -10,9 +10,9 @@ import { maxNoteLength, maxPromptLength } from "./prompt-limits";
 export type SavePromptState = { message: string | null };
 
 /**
- * Saves the form's `text` as a new prompt version with its `note`, and opens it. Saving serves it
- * to no one: activating it, or making it the test version, is a separate action. The server checks
- * the role and the limits, and records the save.
+ * Saves the form's `text` as a new prompt version with its `note`, and returns to AI. Saving serves
+ * it to no one: a plan's draft names it, and applying the draft sends it. The server checks the
+ * role and the limits, and records the save.
  */
 export async function savePrompt(
   _previous: SavePromptState,
@@ -34,7 +34,7 @@ export async function savePrompt(
     return { message: failureMessages.unreadable };
   }
   revalidatePath("/admin", "layout");
-  redirect(`/ai/${String(result.data)}`);
+  redirect("/ai");
 }
 
 /** [value]'s length in code points, as Postgres' `char_length` counts it. */

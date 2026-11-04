@@ -9,8 +9,9 @@ import { savePrompt, type SavePromptState } from "../save-prompt";
 import { button, field, group } from "./admin-section";
 
 /**
- * The form that saves a new version, starting from [initialText]. Saving serves it to no one; the
- * version's page then tests or activates it.
+ * The form that saves a new version, starting from [initialText]. Saving serves it to no one; a
+ * plan's draft then names it, and is tried and applied. 모두에게 적용 is AI's one primary, so its
+ * button is outlined.
  */
 export function PromptForm({ initialText, basis }: { initialText: string; basis: string }) {
   const [state, action, pending] = useActionState<SavePromptState, FormData>(savePrompt, {
@@ -20,7 +21,7 @@ export function PromptForm({ initialText, basis }: { initialText: string; basis:
   return (
     <Section
       label="새 버전"
-      note={`${basis}에서 시작해요. 저장해도 바로 쓰이지 않아요: 버전 화면에서 테스트하거나 적용해요. 카드의 형식과 검사는 서버 코드에 있어서 여기서 바뀌지 않아요.`}
+      note={`${basis}에서 시작해요. 저장해도 바로 쓰이지 않아요: 초안의 프롬프트로 골라 시험하고 적용해요. 모든 버전 뒤에는 함수에 고정된 출력 계약(카드의 필드와 규칙)이 함께 보내져서, 카드의 형식과 검사는 여기서 바뀌지 않아요.`}
     >
       <form action={action} aria-label="새 버전" className="flex flex-col gap-2">
         <div className={group}>
@@ -52,7 +53,7 @@ export function PromptForm({ initialText, basis }: { initialText: string; basis:
             />
           </label>
         </div>
-        <button type="submit" disabled={pending} className={button.primary}>
+        <button type="submit" disabled={pending} className={button.secondary}>
           저장
         </button>
         <p role="status" className="text-caption text-muted empty:hidden">

@@ -22,19 +22,15 @@ describe("an address the admin area had before its sections", () => {
     expect(await target(SettingsAdminsPage)).toBe("/admins");
     expect(await target(SettingsAuditPage)).toBe("/admins");
     expect(await target(ExtractionsPage)).toBe("/ai");
-    expect(
-      await target(() =>
-        PromptPage({ params: Promise.resolve({ id: "7" }), searchParams: Promise.resolve({}) }),
-      ),
-    ).toBe("/ai/7");
+    expect(await target(PromptPage)).toBe("/ai");
   });
 
-  it("keeps the version the prompts page's form started from, and goes to 사진 AI without one", async () => {
+  it("opens AI's form from the version the prompts page's form started from, and AI without one", async () => {
     const prompts = (searchParams: Record<string, string>) =>
       target(() =>
         PromptsPage({ params: Promise.resolve({}), searchParams: Promise.resolve(searchParams) }),
       );
-    expect(await prompts({ from: "3" })).toBe("/ai/new?from=3");
+    expect(await prompts({ from: "3" })).toBe("/ai?write=3");
     expect(await prompts({})).toBe("/ai");
   });
 });
