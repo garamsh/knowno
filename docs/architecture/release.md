@@ -43,5 +43,5 @@ The iOS app's release: the `release` workflow that builds the app from a version
 
 ## Open questions
 
-- Whether the API key's role allows cloud-managed distribution certificates. A user's report on Apple's forums says only an Admin key does (ADR 0192). The dry run's export shows it.
-- Whether signing on an empty keychain creates a certificate in the team's account on every run. If it does, a distribution certificate kept in the secrets would stop that, but no such secret exists today.
+- The key in the secrets on 2026-11-04 cannot export. #741's dry run archived with it and then failed with "Cloud signing permission error" (ADR 0192). A user's report on Apple's forums says only an Admin key reaches cloud-managed distribution certificates. Until the owner replaces the key with one that does, or the repository holds a distribution certificate, no release uploads.
+- The archive signs with an "Apple Development: Created via API" certificate on a runner whose keychain starts empty. Whether that adds a certificate to the team's account on every run is unknown: the account's Certificates list shows it.
