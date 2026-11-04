@@ -1,4 +1,4 @@
-/** The caller's suspension, and its plan's assistant configuration and message count (ADR 0187). */
+/** The caller's suspension, and its plan's assistant configuration and message count (ADR 0190). */
 
 import {
   type SupabaseDeps,

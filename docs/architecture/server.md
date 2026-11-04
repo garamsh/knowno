@@ -185,7 +185,7 @@ The Supabase schema the app syncs to, and the extraction count, the plans and th
 
 ### Assistant
 
-- The assistant's server side ([`assistant.md`](assistant.md), [ADR 0187](adr/0187-serve-the-assistant-from-an-edge-function-that-streams-a-tool-loop-proposes-cards-in-groups-and-commits-what-the-user-checks-under-a-per-plan-daily-limit.md)) is five tables in `private`, on which no client role holds a privilege:
+- The assistant's server side ([`assistant.md`](assistant.md), [ADR 0190](adr/0190-serve-the-assistant-from-an-edge-function-that-streams-a-tool-loop-proposes-cards-in-groups-and-commits-what-the-user-checks-under-a-per-plan-daily-limit.md)) is five tables in `private`, on which no client role holds a privilege:
   - `private.assistant_prompts` — the assistant's prompts, of `private.prompt_versions`' shape and append-only by its trigger function, `keep_prompt_version`; seeded with one, noted `말랑이 assistant prompt v1 (#713)`;
   - `private.assistant_configurations` — each plan's assistant configurations, append-only by a trigger as ADR 0182's are: the plan, the provider and model, checked by `private.model_fits`, the prompt, `web_search`, `max_searches` from 1 to 10 and `reasoning_effort`, `none`, `low`, `medium` or `high`;
   - `private.assistant_configuration_labels` — each plan's `active` configuration, served to its users, and its one draft, `test`, served to admins;

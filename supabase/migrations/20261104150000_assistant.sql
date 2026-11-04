@@ -1,4 +1,4 @@
--- The 말랑이 assistant's server side (#713, ADR 0187): the assistant's prompts, append-only as the
+-- The 말랑이 assistant's server side (#713, ADR 0190): the assistant's prompts, append-only as the
 -- photo prompts are; each plan's assistant configuration, a provider, model and prompt version as
 -- #702 made the photo one (ADR 0182), with its web search switch, the searches a turn may make and
 -- its reasoning effort; each plan's daily message limit; and one row per user message, counted

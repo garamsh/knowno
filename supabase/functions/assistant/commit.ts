@@ -1,5 +1,5 @@
 /**
- * Applies a proposal the user confirmed (ADR 0187): the cards checked in each group, through the
+ * Applies a proposal the user confirmed (ADR 0190): the cards checked in each group, through the
  * shared write path, `create_deck` and `add_cards` or `update_cards`, with their refusals.
  */
 

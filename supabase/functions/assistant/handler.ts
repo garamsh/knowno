@@ -1,5 +1,5 @@
 /**
- * The assistant's two requests (ADR 0187): a message, answered as server-sent events from a tool
+ * The assistant's two requests (ADR 0190): a message, answered as server-sent events from a tool
  * loop over the caller's plan's model, and a commit of the cards the user checked in a proposal.
  */
 

@@ -1,5 +1,5 @@
 /**
- * The assistant's tools (ADR 0187): the MCP read tools, called as `mcp` calls them; the proposal
+ * The assistant's tools (ADR 0190): the MCP read tools, called as `mcp` calls them; the proposal
  * tools, which validate as `add_cards` and `update_cards` do and write nothing; a group's
  * regeneration; and a question with choices. A proposal is shown to the user, who adds it.
  */

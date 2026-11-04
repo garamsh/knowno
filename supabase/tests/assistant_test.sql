@@ -1,4 +1,4 @@
--- The 말랑이 assistant's server side (#713, ADR 0187): the seed of each plan's configuration and
+-- The 말랑이 assistant's server side (#713, ADR 0190): the seed of each plan's configuration and
 -- daily limit; a message counted under the user's lock up to the limit, and not without a key;
 -- what a turn used recorded once; the allowance; a draft saved, served to admins, applied and ended;
 -- a limit set; every write recorded; configurations append-only; no client reaching the tables or

@@ -1,4 +1,4 @@
-# ADR 0187: Serve the assistant from an Edge Function that streams a tool loop, proposes cards in groups and commits what the user checks, under a per-plan daily limit
+# ADR 0190: Serve the assistant from an Edge Function that streams a tool loop, proposes cards in groups and commits what the user checks, under a per-plan daily limit
 
 > Status: accepted
 > Date: 2026-11-04

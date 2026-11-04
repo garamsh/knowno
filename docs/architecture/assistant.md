@@ -6,7 +6,7 @@ The `assistant` Edge Function, 말랑이 as an assistant that builds notes and c
 
 ### Location
 
-- `supabase/functions/assistant/` is a Deno module with no third-party dependency: it calls Supabase Auth, PostgREST and the provider of the caller's plan with `fetch` ([ADR 0187](adr/0187-serve-the-assistant-from-an-edge-function-that-streams-a-tool-loop-proposes-cards-in-groups-and-commits-what-the-user-checks-under-a-per-plan-daily-limit.md)).
+- `supabase/functions/assistant/` is a Deno module with no third-party dependency: it calls Supabase Auth, PostgREST and the provider of the caller's plan with `fetch` ([ADR 0190](adr/0190-serve-the-assistant-from-an-edge-function-that-streams-a-tool-loop-proposes-cards-in-groups-and-commits-what-the-user-checks-under-a-per-plan-daily-limit.md)).
 - It imports the card tools from `supabase/functions/_shared/` (`tools.ts`, `store.ts`, `input.ts`, `cards.ts`), as `mcp` does, and Vault's key read, `_shared/keys.ts`, as `extract-cards` does.
 - `index.ts` is its composition site: it reads the configuration once and passes `fetch`, the keys, the logger, the clock, the random source, the address lookup and the timeout to the handler.
 - `config.toml` sets `verify_jwt = true`; the function then asks Supabase Auth for the token's user with the service-role key, refusing the anon key and an anonymous sign-in, as `extract-cards` does. It reads `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`, which the platform sets, and no other secret.
@@ -105,7 +105,7 @@ The `assistant` Edge Function, 말랑이 as an assistant that builds notes and c
 
 ## Rationale
 
-- [ADR 0187](adr/0187-serve-the-assistant-from-an-edge-function-that-streams-a-tool-loop-proposes-cards-in-groups-and-commits-what-the-user-checks-under-a-per-plan-daily-limit.md) records the function, the stream, the loop's limits, the tools and proposals, the commit through the shared write path, the provider mapping, and why the configuration, prompts and limit are tables of their own; epic #711 and issue #713 record the owner's and the PM's decisions.
+- [ADR 0190](adr/0190-serve-the-assistant-from-an-edge-function-that-streams-a-tool-loop-proposes-cards-in-groups-and-commits-what-the-user-checks-under-a-per-plan-daily-limit.md) records the function, the stream, the loop's limits, the tools and proposals, the commit through the shared write path, the provider mapping, and why the configuration, prompts and limit are tables of their own; epic #711 and issue #713 record the owner's and the PM's decisions.
 
 ## Open questions
 
