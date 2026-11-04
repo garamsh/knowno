@@ -1,5 +1,6 @@
-// Fails when committed generated code in app/ or engine-wasm/pkg/ differs from what its generators
-// write from the current sources. Each selected file is hashed, every generator is rerun with the
+// Fails when committed generated code in app/ or engine-wasm/pkg/, or the Google Sans font
+// tools/fonts/google_sans.py writes, differs from what its generators write from the current
+// sources. Each selected file is hashed, every generator is rerun with the
 // command its documentation gives, and the set is hashed again; a changed, added or removed file
 // is stale output. Hashing the working tree rather than diffing the index keeps the check true on
 // an uncommitted edit as well as on a clean checkout.
@@ -31,6 +32,7 @@ const APP_SCOPE = [
   "rust/src/frb_generated.rs",
 ];
 const WASM_SCOPE = ["engine-wasm/pkg"];
+const FONT_SCOPE = ["app/assets/fonts/GoogleSans-*"];
 
 async function isFile(path: string): Promise<boolean> {
   try {
@@ -151,9 +153,34 @@ async function checkWasm(): Promise<void> {
   );
 }
 
+/** Google Sans Medium, cut from Google's file by fontTools at the release tools/fonts/uv.lock pins. */
+async function checkFonts(): Promise<void> {
+  if (!(await hasCommand("uv"))) {
+    skip("checking app/assets/fonts/GoogleSans-*: this host has no uv command");
+    return;
+  }
+  const old = await before(FONT_SCOPE, ".");
+  await attached("uv", [
+    "run",
+    "--project",
+    "tools/fonts",
+    "--locked",
+    "python",
+    "tools/fonts/google_sans.py",
+  ]);
+  const fresh = await snapshot(FONT_SCOPE, ".");
+  await failIfStale(old, fresh);
+  console.log(
+    `checked ${fresh.length} generated files in app/assets/fonts/ against tools/fonts/google_sans.py, selected by: ${
+      scopeText(FONT_SCOPE)
+    }`,
+  );
+}
+
 async function main(): Promise<void> {
   await checkApp();
   await checkWasm();
+  await checkFonts();
 }
 
 if (import.meta.main) await entry(main);

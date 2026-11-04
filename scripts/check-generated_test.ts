@@ -9,6 +9,10 @@ const APP_SCOPE =
   "git ls-files --cached --others --exclude-standard -- 'lib/*.g.dart' 'lib/*.steps.dart' 'lib/l10n/app_localizations*.dart' 'drift_schemas' 'test/drift/*/generated/*' 'lib/study/src/rust' 'rust/src/frb_generated.rs'";
 const WASM_SCOPE =
   "git ls-files --cached --others --exclude-standard -- 'engine-wasm/pkg'";
+const FONT_SCOPE =
+  "git ls-files --cached --others --exclude-standard -- 'app/assets/fonts/GoogleSans-*'";
+const FONT_RUN =
+  "uv run --project tools/fonts --locked python tools/fonts/google_sans.py";
 
 const codegen = (writes = "") =>
   `if [ "$1" = --version ]; then echo "flutter_rust_bridge_codegen 2.13.0"; exit; fi\n${RECORD}\n${writes}`;
@@ -24,6 +28,7 @@ function generators(
     flutter: RECORD,
     cargo: RECORD,
     "wasm-bindgen": cli,
+    uv: RECORD,
     ...overrides,
   };
 }
@@ -36,6 +41,7 @@ async function fixture(): Promise<string> {
   await write(repo, "app/drift_schemas/two/v1.json", "{}\n");
   await write(repo, "engine-wasm/Cargo.lock", WASM_LOCK);
   await write(repo, "engine-wasm/pkg/glue.js", "generated\n");
+  await write(repo, "app/assets/fonts/GoogleSans-Medium.ttf", "generated\n");
   await commit(repo, "generated");
   return repo;
 }
@@ -58,12 +64,20 @@ Deno.test("passes when the generators change nothing, counting each set beside i
     ),
     ran.stdout,
   );
+  assert.ok(
+    ran.stdout.includes(
+      `checked 1 generated files in app/assets/fonts/ against tools/fonts/google_sans.py, selected by: ${FONT_SCOPE}\n`,
+    ),
+    ran.stdout,
+  );
 });
 
 Deno.test("runs each generator, and drift's for each database", async () => {
   const { path, log } = await host(generators());
   await program(await fixture(), "check-generated", [], { PATH: path });
-  assert.deepEqual((await log()).trim().split("\n").slice(0, 6), [
+  const calls = (await log()).trim().split("\n");
+  assert.equal(calls.at(-1), FONT_RUN);
+  assert.deepEqual(calls.slice(0, 6), [
     "flutter_rust_bridge_codegen generate",
     "dart run build_runner build",
     "flutter gen-l10n",
@@ -180,7 +194,7 @@ Deno.test("without wasm-bindgen it skips engine-wasm/pkg/ after the app's set, a
   const local = await program(repo, "check-generated", [], { PATH: path });
   assert.equal(local.code, 0, local.stderr);
   assert.ok(
-    local.stdout.endsWith(
+    local.stdout.includes(
       "skipped checking engine-wasm/pkg/: this host has no wasm-bindgen command\n",
     ),
     local.stdout,
@@ -191,4 +205,45 @@ Deno.test("without wasm-bindgen it skips engine-wasm/pkg/ after the app's set, a
   });
   assert.equal(ci.code, 1);
   assert.match(ci.stderr, /^did not run checking engine-wasm\/pkg\//);
+});
+
+Deno.test("fails on a stale Google Sans font after the other sets passed", async () => {
+  const { path } = await host(
+    generators({
+      uv: `${RECORD}\necho new >app/assets/fonts/GoogleSans-Medium.ttf`,
+    }),
+  );
+  const ran = await program(await fixture(), "check-generated", [], {
+    PATH: path,
+  });
+  assert.equal(ran.code, 1);
+  assert.ok(
+    ran.stdout.includes("checked 1 generated files in engine-wasm/pkg/"),
+    ran.stdout,
+  );
+  assert.match(
+    ran.stderr,
+    /^< \S+ app\/assets\/fonts\/GoogleSans-Medium\.ttf$/m,
+  );
+});
+
+Deno.test("without uv it skips the Google Sans font, and fails where CI is set", async () => {
+  const stubs = generators();
+  delete stubs.uv;
+  const { path } = await host(stubs);
+  const repo = await fixture();
+  const local = await program(repo, "check-generated", [], { PATH: path });
+  assert.equal(local.code, 0, local.stderr);
+  assert.ok(
+    local.stdout.endsWith(
+      "skipped checking app/assets/fonts/GoogleSans-*: this host has no uv command\n",
+    ),
+    local.stdout,
+  );
+  const ci = await program(repo, "check-generated", [], {
+    PATH: path,
+    CI: "true",
+  });
+  assert.equal(ci.code, 1);
+  assert.match(ci.stderr, /^did not run checking app\/assets\/fonts\//);
 });

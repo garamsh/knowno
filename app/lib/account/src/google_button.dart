@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../design/theme.dart';
+import '../../design/word_break.dart';
 
 /// Google's "Sign in with Google" button, full width: the "G" mark and
 /// [label] on the light button in the light theme and the dark one in the
@@ -15,6 +18,36 @@ class GoogleSignInButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
 
+  /// The height the button takes at [width] for [label] in [context]: the
+  /// app's call-to-action height, or the wrapped label's with 8 above and
+  /// below where a large text size makes that taller.
+  static double heightFor(BuildContext context, String label, double width) {
+    final spacing = GoogleButtonStyle.spacing(Theme.of(context).platform);
+    final painter =
+        TextPainter(
+          // The label's style over the text style of the Material the button
+          // draws its surface with, and the app's locale, as the label has.
+          text: TextSpan(
+            text: keepWords(label),
+            style: Theme.of(context).textTheme.bodyMedium!
+                .merge(GoogleButtonStyle.labelStyle),
+          ),
+          textDirection: Directionality.of(context),
+          locale: Localizations.maybeLocaleOf(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout(
+          maxWidth:
+              width -
+              spacing.start -
+              GoogleButtonStyle.markSize -
+              spacing.gap -
+              spacing.end,
+        );
+    final labelHeight = painter.height;
+    painter.dispose();
+    return math.max(AppSize.cta, labelHeight + 2 * AppSpace.s8);
+  }
+
   @override
   Widget build(BuildContext context) {
     final style = GoogleButtonStyle.of(context);
@@ -25,8 +58,10 @@ class GoogleSignInButton extends StatelessWidget {
     );
     return Semantics(
       button: true,
-      child: SizedBox(
-        height: AppSize.cta,
+      // At least the app's call-to-action height, and taller where a large
+      // text size wraps the label.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: AppSize.cta),
         child: Material(
           color: style.fill,
           shape: shape,
@@ -36,7 +71,9 @@ class GoogleSignInButton extends StatelessWidget {
             child: Padding(
               padding: EdgeInsetsDirectional.only(
                 start: spacing.start,
+                top: AppSpace.s8,
                 end: spacing.end,
+                bottom: AppSpace.s8,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -50,7 +87,11 @@ class GoogleSignInButton extends StatelessWidget {
                   ),
                   Flexible(
                     child: Text(
-                      label,
+                      keepWords(label),
+                      semanticsLabel: label,
+                      // As wide as its longest line, so a wrapped label and
+                      // the mark stay centred together.
+                      textWidthBasis: TextWidthBasis.longestLine,
                       style: GoogleButtonStyle.labelStyle.copyWith(
                         color: style.label,
                       ),
@@ -68,8 +109,8 @@ class GoogleSignInButton extends StatelessWidget {
 
 /// Google's "Sign in with Google" button as its branding guidelines specify
 /// (developers.google.com/identity/branding-guidelines): each theme's fill,
-/// one-pixel stroke, label colour and "G" mark, the label's size, and the
-/// space around the mark per platform.
+/// one-pixel stroke, label colour and "G" mark, the label's font and size,
+/// and the space around the mark per platform.
 final class GoogleButtonStyle {
   const GoogleButtonStyle._({
     required this.fill,
@@ -108,9 +149,11 @@ final class GoogleButtonStyle {
   /// The mark's width and height.
   static const markSize = 20.0;
 
-  /// The label: medium weight, 14 on 20.
+  /// The label: Google Sans Medium, 14 on 20. Google Sans has no Hangul, so
+  /// a Korean label's other characters are the app's font.
   static const labelStyle = TextStyle(
-    fontFamily: appFontFamily,
+    fontFamily: 'GoogleSans',
+    fontFamilyFallback: [appFontFamily],
     fontSize: 14,
     height: 20 / 14,
     fontWeight: FontWeight.w500,

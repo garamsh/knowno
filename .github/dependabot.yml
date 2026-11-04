@@ -4,6 +4,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+  # A fontTools or Brotli bump lands with the font tools/fonts/google_sans.py rewrites (docs/architecture/design/theme.md).
+  - package-ecosystem: "uv"
+    directory: "/tools/fonts"
+    schedule:
+      interval: "weekly"
   - package-ecosystem: "pub"
     directory: "/app"
     schedule:
