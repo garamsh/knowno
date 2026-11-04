@@ -583,17 +583,28 @@ test("draws 홈 as one screen with the owner's 481 cards over four notes on a 19
     if (directory)
       await page.screenshot({ path: `${directory}/${colorScheme}/web-home-owner-1280.png` });
   }
-  const [panel, button, column] = await Promise.all([
+  const [panel, button, column, dots] = await Promise.all([
     sky.boundingBox(),
     start.boundingBox(),
     page.locator("main").boundingBox(),
+    week.getByRole("img").boundingBox(),
   ]);
-  if (!panel || !button || !column)
+  if (!panel || !button || !column || !dots)
     throw new Error(
-      `홈 is drawn at 1280, but not: ${undrawn({ sky: panel, 시작: button, column })}`,
+      `홈 is drawn at 1280, but not: ${undrawn({ sky: panel, 시작: button, column, "the day dots": dots })}`,
     );
   expect(panel.x).toBeGreaterThanOrEqual(column.x);
   expect(button.y + button.height).toBeLessThanOrEqual(800);
+  // The ground's dots and 시작 as wide as on a phone, centred under the sky.
+  for (const [what, box] of [
+    ["시작", button],
+    ["the day dots", dots],
+  ] as const) {
+    expect(box.width, what).toBeLessThanOrEqual(400);
+    expect(Math.abs(box.x + box.width / 2 - (panel.x + panel.width / 2)), what).toBeLessThanOrEqual(
+      1,
+    );
+  }
   expect(
     await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
   ).toBeLessThanOrEqual(0);
@@ -609,6 +620,85 @@ test("draws 홈 as one screen with the owner's 481 cards over four notes on a 19
   const reached = await start.boundingBox();
   expect(reached && reached.y + reached.height).toBeLessThanOrEqual(422);
   if (directory) await page.screenshot({ path: `${directory}/200/light/web-home-owner-390.png` });
+});
+
+test("keeps 홈 one screen at 375 × 667 with its tallest ground, a day that cannot be counted, the sky giving way so nothing scrolls", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  const { userId, db } = await signUp(context, baseURL, "uncounted");
+  const time = new Date().toISOString();
+  const deck = { id: randomUUID(), user_id: userId, name: "영단어 기본", visibility: "private" };
+  expect(
+    (await db.from("decks").insert({ ...deck, created_at: time, updated_at: time })).error,
+  ).toBeNull();
+  const card = {
+    id: randomUUID(),
+    deck_id: deck.id,
+    user_id: userId,
+    front: [text("f", "candid")],
+    back: [text("b", "솔직한")],
+    card_key: "candid",
+    source: "manual",
+    template: "free",
+    template_version: 2,
+    created_at: time,
+    updated_at: time,
+  };
+  expect((await db.from("cards").insert(card)).error).toBeNull();
+  // A stability this version cannot read: Postgres stores NaN and returns it as the string "NaN".
+  expect(
+    (
+      await db.from("card_states").insert({
+        user_id: userId,
+        card_id: card.id,
+        stability: "NaN",
+        difficulty: 5,
+        last_review: time,
+        due: time,
+        updated_at: time,
+      })
+    ).error,
+  ).toBeNull();
+
+  await page.setViewportSize({ width: 375, height: 667 });
+  await page.goto("/");
+  // The reason the day cannot be counted, not Next.js' route announcer, the other alert.
+  const reason = page
+    .getByRole("alert")
+    .filter({ hasText: "이 앱이 읽을 수 없는 카드가 있어 불러오지 못했어요." });
+  await expect(reason).toBeVisible();
+  const sky = page.getByRole("region", { name: "오늘 할 카드" });
+  const mascot = sky.locator('img[src*="/brand/knowno-"], svg.mascot').first();
+  await untilMascotSettled(mascot);
+  const start = page.getByRole("link", { name: "시작", exact: true });
+  const [panel, drawn, why, button, tabBar] = await Promise.all([
+    sky.boundingBox(),
+    mascot.boundingBox(),
+    reason.boundingBox(),
+    start.boundingBox(),
+    page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox(),
+  ]);
+  if (!panel || !drawn || !why || !button || !tabBar)
+    throw new Error(
+      `홈 is drawn, but not: ${undrawn({ sky: panel, mascot: drawn, why, 시작: button, "the tab bar": tabBar })}`,
+    );
+  const directory = process.env.E2E_SCREENSHOTS;
+  if (directory) await page.screenshot({ path: `${directory}/light/web-home-uncounted-667.png` });
+  // The ground needs more than the 42% the sky leaves it, so the sky gives way: nothing to
+  // scroll, the mascot whole at 140 over why, which is over 시작, its edge whole above the tab bar.
+  expect
+    .soft(await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight))
+    .toBeLessThanOrEqual(0);
+  expect.soft(panel.y).toBe(0);
+  expect.soft(panel.height).toBeLessThan(0.58 * 667 - 1);
+  expect.soft(drawn.height).toBe(140);
+  expect.soft(drawn.y + drawn.height).toBeLessThanOrEqual(why.y);
+  expect.soft(why.y + why.height).toBeLessThanOrEqual(button.y);
+  expect.soft(button.y + button.height + 7).toBeLessThanOrEqual(tabBar.y);
+  expect.soft(await clipped(page)).toEqual([]);
 });
 
 test("draws 홈 with the day done and in a backlog at 390 and 1280 px and at 200%, in both themes, with nothing cut", async ({
