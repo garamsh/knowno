@@ -314,3 +314,86 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
     expect(Number(card.revision)).toBeGreaterThan(0);
   }
 });
+
+test("leaves a failed photo import by the browser's back in one step, and the next import starts afresh", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!url || !key || !baseURL) throw new Error("skipped without local stack");
+  test.setTimeout(60_000);
+  const jar = new Map<string, string>();
+  const auth = createServerClient(url, key, {
+    cookies: {
+      getAll: () => [...jar].map(([name, value]) => ({ name, value })),
+      setAll: (cookies) => {
+        for (const { name, value } of cookies) jar.set(name, value);
+      },
+    },
+  });
+  const signup = await auth.auth.signUp({
+    email: `web-photo-back-${randomUUID()}@example.com`,
+    password: "web-photo-test-password",
+  });
+  expect(signup.error).toBeNull();
+  await context.addCookies([...jar].map(([name, value]) => ({ name, value, url: baseURL })));
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const jpeg = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 600;
+    canvas.height = 400;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("no canvas");
+    context.fillStyle = "#c00";
+    context.fillRect(0, 0, 600, 400);
+    const data = canvas.toDataURL("image/jpeg", 0.9);
+    return data.slice(data.indexOf(",") + 1);
+  });
+  // The first read fails as the provider's; the next one reads a card.
+  const answers = [{ failure: { kind: "model" } }, { cards: [candidate("서울", "한국의 수도")] }];
+  let calls = 0;
+  await page.route("**/decks**", async (route) => {
+    if (route.request().method() !== "POST" || !uploadOf(route.request())) {
+      await route.fallback();
+      return;
+    }
+    const answer = answers[Math.min(calls, answers.length - 1)];
+    calls += 1;
+    const response = await route.fetch();
+    const body = (await response.text()).replace(
+      /^(\d+:)\{"(?:failure|cards)".*$/mu,
+      (_, row: string) => `${row}${JSON.stringify(answer)}`,
+    );
+    await route.fulfill({ response, body });
+  });
+
+  await untilReacted(
+    () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
+    () => page.getByRole("dialog").isVisible(),
+  );
+  await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("임시");
+  await page.getByRole("button", { name: "저장하고 카드 추가", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "카드 추가", exact: true });
+  await expect(sheet).toBeVisible();
+  const photo = { name: "page.jpg", mimeType: "image/jpeg", buffer: Buffer.from(jpeg, "base64") };
+  await page.getByLabel("앨범에서 고르기", { exact: true }).setInputFiles([photo]);
+  await expect(
+    page.getByText("카드를 읽지 못했어요. 잠시 후 다시 시도해 주세요.", { exact: true }),
+  ).toBeVisible();
+  await capture(page, "failed-one");
+
+  // One step out, with no question: nothing read would be lost (#690).
+  await page.goBack();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(calls).toBe(1);
+
+  await page.getByRole("button", { name: "카드 추가", exact: true }).click();
+  await expect(sheet).toBeVisible();
+  await page.getByLabel("앨범에서 고르기", { exact: true }).setInputFiles([photo]);
+  await expect(
+    page.getByRole("heading", { name: "카드 1장을 만들었어요", exact: true }),
+  ).toBeVisible();
+  expect(calls).toBe(2);
+});
