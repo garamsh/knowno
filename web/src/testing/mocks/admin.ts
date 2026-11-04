@@ -184,6 +184,8 @@ export class FakeAdmin {
     ["max", 6_000_000],
     ["special", null],
   ]);
+  /** Who set each plan's budget, and when, once an admin has; the seed's set_by is null. */
+  readonly assistantBudgetSetters = new Map<string, { by: string; at: string }>();
   /** Each suspended user's suspension. */
   readonly suspensions = new Map<string, { reason: string; by: string }>();
   /** Each deck removed from sharing, and why. */
@@ -621,8 +623,10 @@ export class FakeAdmin {
         return [...this.assistantTokenBudgets].map(([plan, daily]) => ({
           plan,
           daily_tokens: daily,
-          set_by_email: null,
-          set_at: "2026-11-05T01:00:00Z",
+          set_by_email:
+            this.users.find((user) => user.id === this.assistantBudgetSetters.get(plan)?.by)
+              ?.email ?? null,
+          set_at: this.assistantBudgetSetters.get(plan)?.at ?? "2026-11-05T01:00:00Z",
         }));
       case "admin_set_assistant_token_budget": {
         const plan = String(args.plan);
@@ -632,6 +636,7 @@ export class FakeAdmin {
         const before = this.assistantTokenBudgets.get(plan) ?? null;
         if (before === tokens) return "unchanged";
         this.assistantTokenBudgets.set(plan, tokens);
+        this.assistantBudgetSetters.set(plan, { by: admin, at: "2026-11-05T11:00:00Z" });
         this.record(admin, "set_assistant_token_budget", "plan", plan, {
           daily_tokens: tokens,
           daily_tokens_before: before,

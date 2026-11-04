@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -398,6 +398,13 @@ describe("a plan's daily token budget", () => {
       await section.findByText("하루 토큰 예산을 바꿨어요. 다음 메시지부터 적용돼요."),
     ).toBeInTheDocument();
     expect(admin.assistantTokenBudgets.get("pro")).toBe(3_000_000);
+    // The section names who set the budget once it is set again.
+    expect(section.queryByText(new RegExp(testUser.email))).toBeNull();
+    cleanup();
+    await assistant({ plan: "pro" });
+    const changed = within(screen.getByRole("region", { name: "프로 · 하루 토큰 예산" }));
+    expect(changed.getByText("하루 3,000,000토큰")).toBeInTheDocument();
+    expect(changed.getByText(`2026-11-05 11:00 · ${testUser.email}`)).toBeInTheDocument();
 
     const set = (fields: Record<string, string>) =>
       setAssistantTokenBudget({ message: null }, form({ plan: "max", ...fields }));

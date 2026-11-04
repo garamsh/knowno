@@ -10,7 +10,7 @@ import { button, field, group } from "./admin-section";
 
 /**
  * The form that saves a new version through [save], starting from [initialText], under [note].
- * Saving serves it to no one; a plan's draft then names it, and is tried and applied. 모두에게
+ * Saving serves it to no one; a plan's draft then names it, and applying the draft sends it. 모두에게
  * 적용 is the page's one primary, so its button is outlined.
  */
 export function PromptForm({

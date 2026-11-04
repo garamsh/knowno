@@ -573,7 +573,7 @@ test.describe("signed in", () => {
         .getByRole("button", { name: "예산 저장", exact: true }),
     ).toBeVisible();
     await capture(page, "admin-assistant");
-    // From 1024 px the daily messages end at their header's x and the draft chips are centred.
+    // From 1024 px the daily tokens (하루 토큰) end at their header's x and the draft chips are centred.
     await expectAligned(page, "요금제별 사용 중인 구성", { centre: [7], end: [6] });
     await page.goto(`${admin}/assistant?plan=pro&write=`);
     await expect(page.getByRole("form", { name: "새 버전", exact: true })).toBeVisible();
