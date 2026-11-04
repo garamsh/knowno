@@ -1,6 +1,6 @@
 # ADR 0030: Read only what each web page shows, count a read's first page and request the rest together, run the web's functions in Supabase's region, and size the web from the app's tokens
 
-> Status: accepted
+> Status: accepted; `web/vercel.json` holding nothing but `regions` superseded by ADR 0180, for its `ignoreCommand` only
 > Date: 2026-10-16
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
