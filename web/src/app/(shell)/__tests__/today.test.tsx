@@ -333,6 +333,14 @@ describe("홈 and the 노트 page", () => {
     await render(Today, {});
 
     expect(screen.getByText(unreadable)).toBeInTheDocument();
+    // In the hero, under 시작, so it is on the first screen and not a scroll away (#652).
+    const hero = screen.getByRole("region", { name: "오늘 할 카드" });
+    expect(within(hero).getByText(unreadable)).toBeInTheDocument();
+    expect(
+      within(hero)
+        .getByRole("link", { name: "시작" })
+        .compareDocumentPosition(within(hero).getByText(unreadable)),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("marks a deck its owner published with 공개, and no other", async () => {

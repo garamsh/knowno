@@ -73,15 +73,14 @@ class HomeTab extends ConsumerWidget {
                     : _face(context, overview, all),
                 cards: !cardless,
                 below: switch (overview) {
-                  _ when cardless => null,
-                  TodayOverview(:final streak, :final week) => _WeekCard(
-                    streak: streak,
-                    week: week,
-                  ),
-                  OverviewUnavailable(:final message) => _ProblemRow(
-                    message: message,
-                  ),
-                  OverviewPending() => null,
+                  TodayOverview(:final streak, :final week) when !cardless =>
+                    _WeekCard(streak: streak, week: week),
+                  _ => null,
+                },
+                problem: switch (overview) {
+                  OverviewUnavailable(:final message) when !cardless =>
+                    _ProblemRow(message: message),
+                  _ => null,
                 },
                 onSettings: onSettings,
               );
@@ -237,14 +236,16 @@ class _FirstRunHome extends StatelessWidget {
 }
 
 /// Today on the hero, rounded at its foot, and [below] it, on the ground,
-/// the week card or why the day cannot be read. The hero fills the first
-/// screen but for [below]'s top edge, [_peek] high, and grows past it rather
-/// than cut a word; [below] follows by scrolling.
+/// the week card. The hero fills the first screen but for [below]'s top
+/// edge, [_peek] high, and grows past it rather than cut a word; [below]
+/// follows by scrolling. Why the day cannot be read, [problem], is in the
+/// hero under its action, so it is on the first screen.
 class _Home extends StatelessWidget {
   const _Home({
     required this.face,
     required this.cards,
     required this.below,
+    required this.problem,
     required this.onSettings,
   });
 
@@ -253,6 +254,7 @@ class _Home extends StatelessWidget {
   /// Whether any deck holds a card, before which the first-run step waits.
   final bool cards;
   final Widget? below;
+  final Widget? problem;
   final VoidCallback onSettings;
 
   /// How much of [below] the first screen shows: its top edge, so that the
@@ -295,6 +297,7 @@ class _Home extends StatelessWidget {
               ],
             ),
             Expanded(child: _Hero(face: face)),
+            ?problem,
           ],
         ),
       ),

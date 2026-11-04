@@ -77,7 +77,7 @@ export async function Today() {
           <StartLink href={href} />
         </>
       }
-      below={<ReadFailure failure={failure} />}
+      problem={<ReadFailure failure={failure} />}
     />
   );
   // With notes but no card in any, how to start rather than a finished day, and no week.
@@ -171,8 +171,9 @@ function StartLink({ href, label = "시작" }: { href: string; label?: string })
 
 /**
  * 홈's two parts: the [hero] on the `hero` surface, rounded at its foot, under "알아몰라" and,
- * below 1024 px, the profile button with the account's [initial]; under it [below], the week card
- * or why the day cannot be read. From 1024 px the profile button is the side menu's.
+ * below 1024 px, the profile button with the account's [initial]; under it [below], the week card.
+ * Why the day cannot be read, [problem], is in the hero under its action, on a `surface` row, so
+ * it is on the first screen. From 1024 px the profile button is the side menu's.
  *
  * Below 1024 px the hero fills the screen above the tab bar but for [below]'s top edge, which
  * shows at the foot of the first screen; the rest of [below] follows by scrolling (ADR 0178). The
@@ -181,10 +182,12 @@ function StartLink({ href, label = "시작" }: { href: string; label?: string })
 function Home({
   hero,
   below,
+  problem,
   initial,
 }: {
   hero: ReactNode;
   below?: ReactNode;
+  problem?: ReactNode;
   initial: string | null;
 }) {
   return (
@@ -201,6 +204,7 @@ function Home({
           </span>
         </div>
         <div className={heroGroup}>{hero}</div>
+        {problem && <div className="mt-4 rounded-row bg-surface p-4">{problem}</div>}
       </section>
       {below && <div className={belowHero}>{below}</div>}
     </div>
