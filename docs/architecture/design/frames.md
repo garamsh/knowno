@@ -45,7 +45,7 @@ Rows of the same columns an operator compares and pages through: the web admin a
 2. The table: one `surface` on the `group` radius over `edgeCard`; a header row of column names in `section`, `muted`; its rows split by a `hairline`; a number aligned to the end; the row a side panel shows on the ground. A row that opens something is pressed as one.
 3. The pager, optional, under it: "first–last / total" in `caption` and the pages around the current one, the current marked as the menu marks its item.
 
-Below 1024 px the header row goes, and each row is a row of the group (§Group and section), its cells wrapping, each naming what it holds before its value.
+Below 1024 px the header row goes, and each row is a card of its own, as a row alone is (§List row): a `surface` on the `row` radius over `edgeRow`, `AppSpace.rowGap` apart, its first cell on a line of its own and the others wrapping under it, each naming what it holds before its value. The pager then shows "page / pages" in `caption` and the two arrows alone.
 
 ### Sheet and dialog
 
