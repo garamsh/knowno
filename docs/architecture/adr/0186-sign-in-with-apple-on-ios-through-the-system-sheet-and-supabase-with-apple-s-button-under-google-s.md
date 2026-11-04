@@ -1,6 +1,6 @@
 # ADR 0186: Sign in with Apple on iOS through the system sheet and Supabase, with Apple's button under Google's
 
-> Status: accepted; its button 64 tall at every text size superseded by ADR-0187
+> Status: accepted; its button 64 tall at every text size superseded by ADR-0187; its iOS alone superseded for the web by ADR-0191
 > Date: 2026-11-04
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

@@ -9,8 +9,11 @@ vi.mock("@/supabase/browser", () => ({
   createClient: () => ({ auth: { signInWithOAuth: vi.fn() } }),
 }));
 
+// Apple's script, which draws its button, is not loaded here; the wrapper it draws into is.
+vi.mock("next/script", () => ({ default: () => null }));
+
 describe("the login page", () => {
-  it("shows the stacked logo, the welcome sentence, Google's button and the consent line with its links", async () => {
+  it("shows the stacked logo, the welcome sentence, Google's and Apple's buttons and the consent line with its links", async () => {
     await render(LoginPage, { params: Promise.resolve({}), searchParams: Promise.resolve({}) });
 
     // Both themes' logos are in the tree and CSS, which hides one, does not run here, so the name
@@ -25,6 +28,7 @@ describe("the login page", () => {
       "밀어서 응답하고,\n잊을 때쯤 다시 만나는 암기 카드",
     );
     expect(screen.getByRole("button", { name: "Google로 로그인" })).toBeEnabled();
+    expect(document.getElementById("appleid-signin")).toHaveAttribute("data-type", "sign-in");
     expect(
       screen.getByText("계속하면 이용약관과 개인정보 처리방침에 동의하는 것으로 봐요."),
     ).toBeInTheDocument();

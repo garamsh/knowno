@@ -26,7 +26,7 @@ function GoogleMark({ theme }: { theme: "light" | "dark" }) {
 /**
  * Google's "Sign in with Google" button, drawn to its branding guidelines (ADR 0024, ADR 0031):
  * the light button in the light theme and the dark one in the dark, with the "G" mark and a
- * localized label. It starts Google sign-in through Supabase Auth: the browser leaves for Google
+ * localized label, as wide as Apple's button beside it (ADR 0191). It starts Google sign-in through Supabase Auth: the browser leaves for Google
  * and comes back to `/auth/callback` on this origin, which must be in Supabase Auth's allowed
  * redirect URLs.
  */
@@ -57,7 +57,7 @@ export function SignInButton() {
         onClick={start}
         disabled={state === "pending"}
         aria-busy={state === "pending"}
-        className="pressable flex min-h-cta items-center justify-center gap-google-gap rounded-button border border-google-stroke bg-google-fill ps-google-start pe-google-end text-google text-google-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50 font-google"
+        className="pressable flex min-h-cta w-full max-w-sign-in self-center items-center justify-center gap-google-gap rounded-button border border-google-stroke bg-google-fill ps-google-start pe-google-end text-google text-google-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50 font-google"
       >
         {state === "pending" ? (
           // Progress takes the mark's place while the browser leaves for Google.
