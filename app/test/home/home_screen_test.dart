@@ -303,6 +303,11 @@ Future<_List> _open(
         locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        // As the app places it, over every screen.
+        builder: imports == null
+            ? null
+            : (context, child) =>
+                  PhotoImportFrame(imports: imports, child: child!),
         home: const HomeScreen(),
       ),
     ),

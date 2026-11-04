@@ -186,12 +186,14 @@ Widget composeApp(
 }
 
 /// The application root, opening on the account gate in the theme the user
-/// chose, every route closing the keyboard as [KeyboardDismissal] says.
+/// chose, every route closing the keyboard as [KeyboardDismissal] says, and
+/// under the photo import's bar while one is under way.
 class KnownoApp extends ConsumerWidget {
   const KnownoApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final imports = ref.watch(photoImportsProvider);
     return MaterialApp(
       theme: lightTheme,
       darkTheme: darkTheme,
@@ -199,7 +201,11 @@ class KnownoApp extends ConsumerWidget {
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      builder: (context, child) => KeyboardDismissal(child: child),
+      builder: (context, child) => KeyboardDismissal(
+        child: imports == null || child == null
+            ? child
+            : PhotoImportFrame(imports: imports, child: child),
+      ),
       home: const AccountGate(signedIn: HomeScreen()),
     );
   }

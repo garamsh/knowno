@@ -9,7 +9,9 @@ import { server } from "@/testing/mocks/server";
 import { supabaseUrl, testAccessToken } from "@/testing/mocks/handlers";
 import { setRequestCookies } from "@/testing/next-headers";
 import { signedInCookies } from "@/testing/session";
+import { testRouter } from "@/testing/router";
 import { AuthoringButton } from "../components/authoring-button";
+import { PhotoImports } from "../components/photo-imports";
 import { preparePhoto } from "../extract-photo";
 import { describeFailure } from "../photo-failure";
 import { readPhoto } from "../read-photo";
@@ -453,10 +455,11 @@ describe("photo import", () => {
   /** Picks [count] photos from the album on the deck's 카드 추가 sheet. */
   async function choose(count: number) {
     const files = Array.from({ length: count }, (_, at) => new File([], `${String(at)}.jpg`));
-    await render(() => <AuthoringButton deck={deck} />, {});
+    const view = await render(() => <AuthoringButton deck={deck} />, {});
     await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
     const picker = screen.getByLabelText("앨범에서 고르기", { selector: "input" });
     fireEvent.change(picker, { target: { files } });
+    return view;
   }
   /** The function's answers in turn, counting the photos sent. */
   function answer(...answers: { status: number; body: Record<string, unknown> }[]) {
@@ -491,6 +494,200 @@ describe("photo import", () => {
     await waitFor(() => {
       expect(db.rows.cards).toHaveLength(1);
     });
+  });
+  // Leaving a failed import closes it at once: nothing is lost and nothing is left to read (#690).
+  for (const [kind, failure] of [
+    ["model", failed502],
+    ["unavailable", { status: 503, body: { error: "unavailable" } }],
+    ["limit", { status: 429, body: { error: "photo_limit", photo_limit: 10, period: "month" } }],
+    ["no cards", { status: 422, body: { error: "no_cards" } }],
+  ] as const) {
+    it(`closes a failed photo (${kind}) on 닫기 at once, and the next import starts afresh`, async () => {
+      const sent = answer(failure);
+      await choose(1);
+      await screen.findByText((_, node) => node?.matches("p[aria-live]") ?? false);
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+      expect(
+        screen.queryByRole("dialog", { name: "찾은 카드를 버릴까요?" }),
+      ).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+      expect(sent.count).toBe(1);
+
+      answer(read);
+      await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+      fireEvent.change(screen.getByLabelText("앨범에서 고르기", { selector: "input" }), {
+        target: { files: [new File([], "again.jpg")] },
+      });
+      expect(
+        await screen.findByRole("heading", { name: "카드 1장을 만들었어요" }),
+      ).toBeInTheDocument();
+    });
+  }
+  it("dismisses several photos that all failed on 닫기 at once, against a batch with one read, which 닫기 leaves in the bar", async () => {
+    answer(failed502, { status: 422, body: { error: "no_cards" } });
+    await choose(2);
+    expect(
+      await screen.findByRole("heading", { name: "사진 2장을 읽지 못했어요" }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /읽지 못했어요/ })).not.toBeInTheDocument();
+    cleanup();
+
+    answer(failed502, read);
+    await choose(2);
+    expect(
+      await screen.findByRole("heading", { name: "사진 1장을 읽지 못했어요" }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+    // Control: the read photo's card is kept, with no question.
+    expect(
+      await screen.findByRole("button", { name: "사진 1장을 읽지 못했어요" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+  it("reads on after 닫기 while reading, counting in the bar at the page's top, which opens the list once every photo is read", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const sent = { count: 0 };
+    server.use(
+      http.post(`${supabaseUrl}/functions/v1/extract-cards`, async () => {
+        sent.count += 1;
+        await held;
+        return HttpResponse.json(read.body);
+      }),
+    );
+    await choose(2);
+    await waitFor(() => {
+      expect(sent.count).toBe(1);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    const bar = screen.getByRole("button", { name: "사진 읽는 중 0/2" });
+    // Announced as it changes, and first in the page, so it covers nothing.
+    expect(within(bar).getByText("사진 읽는 중 0/2")).toHaveAttribute("aria-live", "polite");
+    expect(document.body.firstElementChild).toContainElement(bar);
+    release();
+    // Both photos hold the same card, which saving merges into one.
+    expect(await screen.findByRole("button", { name: "카드 1장 확인하기" })).toBeInTheDocument();
+    expect(sent.count, "the second photo is sent").toBe(2);
+    expect(
+      screen.queryByRole("dialog"),
+      "reading ends with nothing opened",
+    ).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "카드 1장 확인하기" }));
+    expect(
+      await screen.findByRole("heading", { name: "카드 2장을 만들었어요" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "카드 1장 확인하기" })).not.toBeInTheDocument();
+  });
+  it("sends no further photo after 취소 while reading, and the reply under way changes nothing", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const sent = { count: 0 };
+    server.use(
+      http.post(`${supabaseUrl}/functions/v1/extract-cards`, async () => {
+        sent.count += 1;
+        await held;
+        return HttpResponse.json(read.body);
+      }),
+    );
+    await choose(2);
+    await waitFor(() => {
+      expect(sent.count).toBe(1);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "취소" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /사진 읽는 중/ })).not.toBeInTheDocument();
+    expect(sent.count, "the second photo is never sent").toBe(1);
+  });
+  it("opens the import under way from the photo rows, choosing no photo, while one reads", async () => {
+    server.use(
+      http.post(
+        `${supabaseUrl}/functions/v1/extract-cards`,
+        () => new Promise<never>(() => undefined),
+      ),
+    );
+    await choose(2);
+    expect(
+      await screen.findByRole("heading", { name: "사진 2장 중 0장 읽음" }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+    expect(
+      screen.queryByLabelText("앨범에서 고르기", { selector: "input" }),
+      "no picker while one reads",
+    ).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "앨범에서 고르기" }));
+    expect(
+      await screen.findByRole("heading", { name: "사진 2장 중 0장 읽음" }),
+    ).toBeInTheDocument();
+  });
+  it("reads on once the page that started it is left, its bar heading the next page", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.post(`${supabaseUrl}/functions/v1/extract-cards`, async () => {
+        await held;
+        return HttpResponse.json(read.body);
+      }),
+    );
+    const view = await choose(1);
+    expect(await screen.findByRole("heading", { name: "카드를 찾고 있어요" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+    // Another page in the same root layout: the note's button is gone.
+    view.rerender(
+      <PhotoImports>
+        <p>다른 페이지</p>
+      </PhotoImports>,
+    );
+    expect(screen.queryByRole("button", { name: "카드 추가" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "사진 읽는 중 0/1" })).toBeInTheDocument();
+    release();
+    await userEvent.click(await screen.findByRole("button", { name: "카드 1장 확인하기" }));
+    expect(
+      await screen.findByRole("heading", { name: "카드 1장을 만들었어요" }),
+    ).toBeInTheDocument();
+  });
+  it("opens the note's 카드 추가 for another way to add, once the page that started an unavailable import is left", async () => {
+    testRouter.push.mockClear();
+    answer({ status: 503, body: { error: "unavailable" } });
+    await choose(1);
+    expect(await screen.findByRole("button", { name: "직접 입력" })).toBeInTheDocument();
+    // Control: on the note's page, 직접 입력 opens 새 카드 there.
+    await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
+    expect(await screen.findByRole("dialog", { name: "새 카드" })).toBeInTheDocument();
+    expect(testRouter.push).not.toHaveBeenCalled();
+    cleanup();
+
+    const away = await choose(1);
+    expect(await screen.findByRole("button", { name: "직접 입력" })).toBeInTheDocument();
+    // The note's page left with the import still open over it.
+    away.rerender(
+      <PhotoImports>
+        <p>다른 페이지</p>
+      </PhotoImports>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
+    expect(testRouter.push).toHaveBeenCalledWith(`/decks/${deck.id}?adding=1`);
   });
   it("offers no retry for a failure sending again cannot fix, against the retake it does offer", async () => {
     answer({ status: 422, body: { error: "no_cards" } });
