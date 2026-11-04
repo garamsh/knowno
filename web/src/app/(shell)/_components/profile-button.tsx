@@ -36,7 +36,7 @@ export function ProfileButton({
     <Link
       href="/account"
       aria-label={labelled ? undefined : "설정"}
-      className={`pressable flex items-center gap-3 rounded-field focus-visible:outline-2 focus-visible:outline-offset-2 ${onHero ? "focus-visible:outline-on-hero" : "focus-visible:outline-ink"} ${labelled ? "min-h-tap-target px-2 text-label text-ink-2" : "rounded-full"}`}
+      className={`pressable flex items-center gap-3 rounded-field focus-visible:outline-2 focus-visible:outline-offset-2 ${onHero ? "focus-visible:outline-on-hero" : "focus-visible:outline-ink"} ${labelled ? "min-h-tap-target text-label text-ink-2" : "rounded-full"}`}
     >
       {circle}
       {labelled && "설정"}
