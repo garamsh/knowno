@@ -590,6 +590,29 @@ describe("photo import", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "카드 1장 확인하기" })).not.toBeInTheDocument();
   });
+  it("sets the bar's height on the page while it shows, and clears it once the import opens", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.post(`${supabaseUrl}/functions/v1/extract-cards`, async () => {
+        await held;
+        return HttpResponse.json(read.body);
+      }),
+    );
+    const height = () => document.documentElement.style.getPropertyValue("--photo-import-bar");
+    await choose(1);
+    expect(height(), "control: no bar while the import is shown").toBe("");
+    await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+    await userEvent.click(await screen.findByRole("button", { name: "사진 읽는 중 0/1" }));
+    expect(height(), "cleared as the bar goes").toBe("");
+    await userEvent.click(screen.getByRole("button", { name: "닫기" }));
+    await screen.findByRole("button", { name: "사진 읽는 중 0/1" });
+    // jsdom lays nothing out, so the bar measures 0.
+    expect(height()).toBe("0px");
+    release();
+  });
   it("sends no further photo after 취소 while reading, and the reply under way changes nothing", async () => {
     let release: () => void = () => undefined;
     const held = new Promise<void>((resolve) => {
@@ -718,6 +741,21 @@ describe("photo import", () => {
     expect(sent.count).toBe(3);
     expect(screen.getByRole("heading", { name: "사진 1, 카드 1장" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "사진 2, 카드 1장" })).toBeInTheDocument();
+  });
+  it("leaves a failed photo out on its 빼기, sending nothing more, and shows the one left on its own", async () => {
+    const sent = answer(failed502, { status: 422, body: { error: "no_cards" } });
+    await choose(2);
+    expect(
+      await screen.findByRole("heading", { name: "사진 2장을 읽지 못했어요" }),
+    ).toBeInTheDocument();
+    expect(sent.count).toBe(2);
+    await userEvent.click(screen.getByRole("button", { name: "사진 1 빼기" }));
+    expect(screen.queryByRole("button", { name: /빼기$/ })).not.toBeInTheDocument();
+    expect(
+      screen.getByText("카드를 찾지 못했어요. 더 밝고 반듯하게 찍어 보세요."),
+      "the second photo's failure, on the one photo's screen",
+    ).toBeInTheDocument();
+    expect(sent.count).toBe(2);
   });
   it("re-sends every retryable failed photo at once, leaving a failure sending cannot fix on its row", async () => {
     const sent = answer(failed502, { status: 422, body: { error: "no_cards" } }, failed502, read);
@@ -1345,6 +1383,23 @@ describe("photo import", () => {
         screen.getByRole("heading", { name: "카드 1장을 만들었어요" }),
         "a cancelled picker keeps the list",
       ).toBeInTheDocument();
+    });
+    it("reads a retaken photo on the one photo's screen in place of the list, then lists its cards", async () => {
+      const sent = answer(read);
+      await choose(1);
+      await screen.findByRole("heading", { name: "카드 1장을 만들었어요" });
+      await userEvent.click(screen.getByRole("button", { name: "사진 작업" }));
+      const input = document.querySelector<HTMLInputElement>('input[type="file"][tabindex="-1"]');
+      if (!input) throw new Error("the retake's picker is not drawn");
+      vi.spyOn(input, "click").mockImplementation(() => undefined);
+      await userEvent.click(screen.getByRole("menuitem", { name: "다시 선택" }));
+      await userEvent.click(screen.getByRole("button", { name: "버리기" }));
+      fireEvent.change(input, { target: { files: [new File([], "retaken.jpg")] } });
+      expect(screen.getByRole("dialog", { name: "카드를 찾고 있어요" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("heading", { name: "카드 1장을 만들었어요" }),
+      ).toBeInTheDocument();
+      expect(sent.count, "the retaken photo is sent").toBe(2);
     });
     it("collapses and expands each photo's group from its header, leaving the other photos' rows", async () => {
       answer(read, { status: 200, body: { cards: [{ ...card, front: "강", answer: "한강" }] } });
