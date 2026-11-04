@@ -126,16 +126,31 @@ beforeEach(async () => {
 });
 
 describe("AI's provider keys", () => {
-  it("shows each provider's key by its last four characters alone, OpenRouter without one unusable as every provider, and an empty key field", async () => {
+  it("shows each provider's key by its last four characters alone, OpenRouter without one unusable as every provider, and opens one key's form, its field empty, from the address", async () => {
     admin.providerKeys.set("anthropic", { lastFour: "3333", setBy: testUser.id });
-    await ai();
+    const { unmount } = await ai();
     const keys = within(screen.getByRole("list", { name: "제공자 키" }));
     const rows = keys.getAllByRole("listitem");
-    // Each row holds the name, the state and the form, so a substring is right.
+    // Each row holds the name, the state and its link, so a substring is right.
     expect(rows[0]).toHaveTextContent(/OpenRouter사용 중키 없음 · 이 제공자는 쓸 수 없어요/);
     expect(rows[1]).toHaveTextContent(/OpenAI키 없음 · 이 제공자는 쓸 수 없어요/);
     expect(rows[2]).toHaveTextContent(/Anthropic끝자리 3333 · .* · learner@example.com/);
-    const anthropic = within(keys.getByRole("form", { name: "Anthropic 키" }));
+    // No key form is laid out until the address opens one.
+    expect(keys.queryByRole("form")).not.toBeInTheDocument();
+    expect(within(rows[0]).getByRole("link", { name: "키 저장" })).toHaveAttribute(
+      "href",
+      "/ai?plan=free&key=openrouter",
+    );
+    expect(within(rows[2]).getByRole("link", { name: "키 바꾸기" })).toHaveAttribute(
+      "href",
+      "/ai?plan=free&key=anthropic",
+    );
+    unmount();
+    await ai({ key: "anthropic" });
+    const opened = within(screen.getByRole("list", { name: "제공자 키" }));
+    expect(opened.getAllByRole("form")).toHaveLength(1);
+    expect(opened.getByRole("link", { name: "닫기" })).toHaveAttribute("href", "/ai?plan=free");
+    const anthropic = within(opened.getByRole("form", { name: "Anthropic 키" }));
     expect(anthropic.getByLabelText("새 키")).toHaveAttribute("type", "password");
     expect(anthropic.getByLabelText("새 키")).toHaveValue("");
     expect(anthropic.getByRole("textbox", { name: "확인할 모델" })).toHaveValue("claude-haiku-5-5");

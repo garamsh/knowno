@@ -18,6 +18,7 @@ import {
   listUsers,
   parsePlanFilter,
   parsePlanId,
+  parseProvider,
   parseStatusFilter,
   parseUserId,
   type PlanId,
@@ -309,6 +310,7 @@ export async function AiContent({ searchParams }: { searchParams: SearchParams }
       keys={keys.data}
       plan={plan}
       diff={from !== null && to !== null ? { before: from.text, after: to.text } : null}
+      editing={parseProvider(params.key)}
       write={
         typeof params.write === "string"
           ? {

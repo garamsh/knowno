@@ -56,10 +56,14 @@ const resultsHead = [
   { label: "실패율", numeric: true },
 ] as const;
 
-/** AI's address with [plan]'s panel open and, with [write], the new version's form from it. */
-function aiHref(plan: PlanId, write?: number | "active"): string {
+/**
+ * AI's address with [plan]'s panel open and, with [write], the new version's form from it, or with
+ * [key], that provider's key form.
+ */
+function aiHref(plan: PlanId, write?: number | "active", key?: Provider): string {
   const params = new URLSearchParams({ plan });
   if (write !== undefined) params.set("write", write === "active" ? "" : String(write));
+  if (key !== undefined) params.set("key", key);
   return `/ai?${params.toString()}`;
 }
 
@@ -132,6 +136,7 @@ export function AiView({
   plan,
   diff,
   write,
+  editing,
   timeZone,
 }: {
   configurations: AiConfiguration[];
@@ -148,6 +153,8 @@ export function AiView({
   diff: { before: string; after: string } | null;
   /** The new version's form, from the text it starts with, while the address opens it. */
   write: { text: string; basis: string } | null;
+  /** The provider whose key form the address opens, or null. */
+  editing: Provider | null;
   timeZone: string;
 }) {
   const find = (of: PlanId, label: "active" | "test") =>
@@ -219,7 +226,13 @@ export function AiView({
           />
         </div>
         <div className="flex min-w-0 flex-col gap-section-gap">
-          <ProviderKeys keys={keys} configurations={configurations} timeZone={timeZone} />
+          <ProviderKeys
+            keys={keys}
+            configurations={configurations}
+            plan={plan}
+            editing={editing}
+            timeZone={timeZone}
+          />
           <PromptVersions versions={versions} plan={plan} timeZone={timeZone} />
         </div>
       </div>
@@ -413,10 +426,14 @@ function Panel({
 function ProviderKeys({
   keys,
   configurations,
+  plan,
+  editing,
   timeZone,
 }: {
   keys: ProviderKey[];
   configurations: AiConfiguration[];
+  plan: PlanId;
+  editing: Provider | null;
   timeZone: string;
 }) {
   return (
@@ -443,14 +460,8 @@ function ProviderKeys({
                       entry.key.setByEmail === null ? "" : ` · ${entry.key.setByEmail}`
                     }`}
               </p>
-              <details>
-                <summary
-                  className={`${button.row} w-fit list-none [&::-webkit-details-marker]:hidden`}
-                >
-                  {entry.key === null ? "키 저장" : "키 바꾸기"}
-                </summary>
-                {/* A details element does not lay its content out as flex items, so one block holds the gap. */}
-                <div className="mt-3 flex flex-col gap-3">
+              {editing === entry.provider ? (
+                <>
                   <ProviderKeyForm
                     provider={entry.provider}
                     name={name}
@@ -466,8 +477,15 @@ function ProviderKeys({
                       action={removeProviderKey.bind(null, entry.provider)}
                     />
                   )}
-                </div>
-              </details>
+                  <Link href={aiHref(plan)} className={button.row}>
+                    닫기
+                  </Link>
+                </>
+              ) : (
+                <Link href={aiHref(plan, undefined, entry.provider)} className={button.row}>
+                  {entry.key === null ? "키 저장" : "키 바꾸기"}
+                </Link>
+              )}
             </li>
           );
         })}
