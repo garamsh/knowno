@@ -150,7 +150,7 @@ jobs:
         if: matrix.frb
         run: echo "version=$(sed -n '/^name = "flutter_rust_bridge"$/{n;s/^version = "\(.*\)"$/\1/p;}' app/rust/Cargo.lock)" >> "$GITHUB_OUTPUT"
       - if: matrix.frb
-        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+        uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
         with:
           tool: flutter_rust_bridge_codegen@${{ steps.frb.outputs.version }}
           fallback: cargo-install
@@ -159,7 +159,7 @@ jobs:
         if: matrix.wasm-bindgen
         run: echo "version=$(sed -n '/^name = "wasm-bindgen"$/{n;s/^version = "\(.*\)"$/\1/p;}' engine-wasm/Cargo.lock)" >> "$GITHUB_OUTPUT"
       - if: matrix.wasm-bindgen
-        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+        uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
         with:
           tool: wasm-bindgen@${{ steps.wasm-bindgen.outputs.version }}
       # scripts/web.ts runs on the release web/.nvmrc names, and make test-app runs engine-wasm/'s
