@@ -5,13 +5,7 @@
  * step of a destructive action, and a quiet action in text.
  */
 export type ButtonVariant =
-  | "primary"
-  | "onHero"
-  | "secondary"
-  | "tonal"
-  | "destructive"
-  | "destructiveFinal"
-  | "text";
+  "primary" | "onHero" | "secondary" | "tonal" | "destructive" | "destructiveFinal" | "text";
 
 /**
  * A button's size, as the phone's `AppButtonSize`: `cta` for the actions at the foot of a screen
