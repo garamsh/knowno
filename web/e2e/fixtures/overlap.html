@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>Overlap fixture</title>
+    <!-- Overlaps on purpose, each case named by the check in overlap.spec.ts, beside controls that do not. -->
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        font: 16px sans-serif;
+      }
+      button,
+      a,
+      .pressable {
+        display: inline-flex;
+        height: 44px;
+        align-items: center;
+        padding: 0 16px;
+        box-sizing: border-box;
+      }
+      .edged {
+        --edge: 6px;
+        box-shadow: 0 6px 0 #ccc;
+      }
+      .stack {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 지정's edge under 무료로 되돌리기, 2 px below it (#637). -->
+    <div class="stack" style="gap: 2px">
+      <button class="edged">지정</button>
+      <button class="edged">무료로 되돌리기</button>
+    </div>
+    <!-- Control: the same pair with room for the edge. -->
+    <div class="stack" style="gap: 8px">
+      <button class="edged">저장</button>
+      <button class="edged">취소</button>
+    </div>
+    <!-- A pager's disabled arrow, a pressable with no edge, drawn over the page beside it. -->
+    <nav style="display: flex; margin-bottom: 24px">
+      <span class="pressable" aria-hidden="true">‹</span>
+      <a href="#1" style="margin-left: -20px">1</a>
+      <a href="#2" style="margin-left: 8px">2</a>
+    </nav>
+    <!-- A button wider than the box that hides its overflow. -->
+    <div style="width: 80px; overflow: hidden; margin-bottom: 24px">
+      <button style="width: 120px">이용 정지</button>
+    </div>
+    <!-- A menu that scrolls sideways, its height ending inside its current item's edge (#637). -->
+    <nav style="display: flex; overflow-x: auto; margin-bottom: 24px">
+      <a href="#users" class="edged">사용자</a>
+    </nav>
+    <!-- Control: a row scrolled out of its list's view is not clipped. -->
+    <div style="height: 50px; overflow-y: auto">
+      <div style="height: 120px"></div>
+      <button>더 아래</button>
+    </div>
+    <!-- Opened by the spec: what is inside it alone is looked at. -->
+    <dialog aria-label="시트">
+      <button>닫기</button>
+    </dialog>
+  </body>
+</html>
