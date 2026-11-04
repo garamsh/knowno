@@ -14,7 +14,7 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_button.dart';
 import 'package:knowno/design/app_section_label.dart';
 import 'package:knowno/study/src/card_preview_screen.dart';
-import 'package:knowno/study/src/completion_card.dart';
+import 'package:knowno/study/src/completion_sheet.dart';
 import 'package:knowno/study/src/coach_hand_drawing.dart';
 import 'package:knowno/study/src/study_coach.dart';
 import 'package:knowno/design/mascot.dart';
@@ -1449,47 +1449,30 @@ void main() {
     );
 
     testWidgets(
-      'at text scale $textScale the completion panel keeps its place under the previous card, with no overflow, scrolling inside to its last action',
+      'at text scale $textScale the completion sheet shows its title, its line and its action whole over the stack, with no overflow',
       (tester) async {
         final study = await _open(tester, ['a'], textScale: textScale);
         await study.know();
-        expect(find.byType(CompletionCard), findsOneWidget);
+        expect(find.byType(CompletionSheet), findsOneWidget);
 
         expect(tester.takeException(), isNull);
-        final panel = tester.getRect(find.byType(CompletionCard));
-        expect(panel.top, greaterThan(tester.getRect(_previousCard).bottom));
-        expect(panel.bottom, lessThanOrEqualTo(_phone.height));
-        // Every word of its own whole: the heading and the tiles' names.
-        for (final text in ['Done for today', 'Know', "Don't know", 'Time']) {
+        for (final text in [
+          'Done for today',
+          '1 card · 0 min · 1-day streak',
+          'No more cards to study',
+          'Done',
+        ]) {
           final paragraph = tester.renderObject<RenderParagraph>(
-            find
-                .descendant(
-                  of: find.descendant(
-                    of: find.byType(CompletionCard),
-                    matching: find.text(text),
-                  ),
-                  matching: find.byType(RichText),
-                )
-                .first,
+            find.descendant(
+              of: shownText(text),
+              matching: find.byType(RichText),
+            ),
           );
           expect(paragraph.didExceedMaxLines, isFalse, reason: text);
         }
-        // A finger on the panel's heading scrolls it to its last action,
-        // inside its place.
-        for (
-          var drags = 0;
-          drags < 8 && tester.getRect(shownText('Stop')).bottom > panel.bottom;
-          drags++
-        ) {
-          await tester.dragFrom(
-            Offset(panel.center.dx, panel.top + 40),
-            const Offset(0, -100),
-          );
-          await tester.pumpAndSettle();
-        }
         expect(
-          tester.getRect(shownText('Stop')).bottom,
-          lessThanOrEqualTo(panel.bottom),
+          tester.getRect(widgetWithShownText(AppButton, 'Done')).bottom,
+          lessThanOrEqualTo(_phone.height),
         );
       },
     );
@@ -1724,131 +1707,68 @@ void main() {
   );
 
   testWidgets(
-    'once no card is left the completion panel takes the current card\'s place on the hero surface, below the stack, with today\'s streak as a run and three tiles of its answers and time, and with no new card left past today\'s, stopping as its one primary',
+    "once the day's cards are done, and not before, the completion sheet asks over the stack, its title first, the day's cards, minutes and streak in one line, and with no new card left past today's offers Done alone, which closes the screen",
     (tester) async {
       final study = await _open(tester, ['a', 'b']);
 
-      // While studying, no mascot is drawn.
       expect(study.current, 'a front');
-      expect(find.byType(Mascot), findsNothing);
       await study.dontKnow(elapsed: const Duration(seconds: 10));
       await study.know(elapsed: const Duration(seconds: 10));
+      // a comes back after its "Don't know": the day is not done yet.
       expect(study.current, 'a front');
+      expect(find.byType(CompletionSheet), findsNothing);
+      expect(find.byType(BottomSheet), findsNothing);
       await study.know(elapsed: const Duration(seconds: 45));
 
+      expect(find.byType(BottomSheet), findsOneWidget);
       expect(shownText('Done for today'), findsOneWidget);
       expect(_currentCard, findsNothing);
-      // The happy mascot over the heading, the screen's one.
-      expect(
-        tester
-            .widget<Mascot>(
-              find.descendant(
-                of: find.byType(CompletionCard),
-                matching: find.byType(Mascot),
-              ),
-            )
-            .expression,
-        MascotExpression.happy,
-      );
-      expect(find.byType(Mascot), findsOneWidget);
-      expect(
-        find.bySemanticsLabel("Know 2, don't know 1, 2 min, 1-day streak"),
-        findsOneWidget,
-      );
-      // The streak reads as a run, as on 오늘 and 기록, not as a duration.
-      expect(
-        find.descendant(
-          of: find.byType(CompletionCard),
-          matching: find.text('1-day streak', findRichText: true),
-        ),
-        findsOneWidget,
-      );
-      // On the hero the streak is in the hero's text colour.
-      expect(
-        tester
-            .widget<Text>(
-              find.descendant(
-                of: find.byType(CompletionCard),
-                matching: find.text('1-day streak'),
-              ),
-            )
-            .style!
-            .color,
-        AppColors.light.onHero,
-      );
+      expect(find.byType(Mascot), findsNothing);
+      // Two cards, answered three times, each counted once.
+      expect(shownText('2 cards · 2 min · 1-day streak'), findsOneWidget);
       expect(shownText('2/2'), findsOneWidget);
-      // On the hero surface, in the place the current card had.
-      expect(
-        tester
-            .widgetList<DecoratedBox>(
-              find.descendant(
-                of: find.byType(CompletionCard),
-                matching: find.byType(DecoratedBox),
-              ),
-            )
-            .map((box) => (box.decoration as BoxDecoration).color)
-            .first,
-        AppColors.light.hero,
+      // No new card is left past today's, so nothing to go on with.
+      expect(shownText('No more cards to study'), findsOneWidget);
+      expect(shownText('Study some more?'), findsNothing);
+      expect(widgetWithShownText(AppButton, 'Keep going'), findsNothing);
+      expect(widgetWithShownText(AppButton, 'Stop'), findsNothing);
+      final done = tester.widget<AppButton>(
+        widgetWithShownText(AppButton, 'Done'),
       );
-      expect(
-        tester.getSize(find.byType(CompletionCard)).height,
-        greaterThan(_cardHeight),
-      );
-      // Three tiles: the answers known in green, not known in red, and the
-      // time, each over its name.
-      for (final (count, colour, name) in [
-        ('2', AppColors.light.know, 'Know'),
-        ('1', AppColors.light.dontKnowText, "Don't know"),
-        ('2 min', AppColors.light.ink, 'Time'),
-      ]) {
-        final shown = find.descendant(
-          of: find.byType(CompletionCard),
-          matching: find.text(count),
-        );
-        expect(shown, findsOneWidget, reason: name);
-        expect(tester.widget<Text>(shown).style!.color, colour, reason: name);
-        expect(
-          tester.getRect(shown).bottom,
-          lessThanOrEqualTo(
-            tester
-                .getRect(
-                  find.descendant(
-                    of: find.byType(CompletionCard),
-                    matching: find.text(name),
-                  ),
-                )
-                .top,
-          ),
-          reason: name,
-        );
-      }
-      // The previous card stays above the completion card.
+      expect(done.variant, AppButtonVariant.primary);
+      expect(done.size, AppButtonSize.cta);
+      // The previous card stays behind the sheet, above it.
       expect(
         tester.getRect(_previous('a front').last).bottom,
         lessThan(tester.getRect(shownText('Done for today')).top),
       );
-      // No new card is left past today's, so nothing to go on with.
-      expect(shownText('No more cards to study'), findsOneWidget);
-      expect(widgetWithShownText(AppButton, 'Study'), findsNothing);
-      // Stopping is the one thing left, so it is the panel's primary, the
-      // fill a button takes on the hero.
-      final stop = tester.widget<AppButton>(
-        widgetWithShownText(AppButton, 'Stop'),
-      );
-      expect(stop.variant, AppButtonVariant.onHero);
-      expect(stop.size, AppButtonSize.cta);
-
-      // Changing the last answer to "Don't know" studies the card again.
+      // A screen reader meets the title first: a heading, above the rest.
       final semantics = tester.ensureSemantics();
-      await _act(tester, _previous('a front').last, "Change to Don't know");
+      expect(
+        tester.getSemantics(shownText('Done for today')),
+        matchesSemantics(label: 'Done for today', isHeader: true),
+      );
       semantics.dispose();
-      expect(shownText('Done for today'), findsNothing);
-      expect(study.current, 'a front');
+      for (final text in [
+        '2 cards · 2 min · 1-day streak',
+        'No more cards to study',
+        'Done',
+      ]) {
+        expect(
+          tester.getRect(shownText('Done for today')).bottom,
+          lessThanOrEqualTo(tester.getRect(shownText(text)).top),
+          reason: text,
+        );
+      }
+
+      await tester.tap(widgetWithShownText(AppButton, 'Done'));
+      await tester.pumpAndSettle();
+      expect(find.byType(StudyScreen), findsNothing);
     },
   );
 
   testWidgets(
-    'the completion card offers no change of the daily minutes, which settings holds',
+    'the completion sheet offers no change of the daily minutes, which settings holds',
     (tester) async {
       final study = await _open(tester, ['a']);
       await study.know();
@@ -1858,7 +1778,7 @@ void main() {
       // other buttons take their labels from their text.
       final labelled = find
           .descendant(
-            of: find.byType(CompletionCard),
+            of: find.byType(CompletionSheet),
             matching: find.byWidgetPredicate(
               (widget) =>
                   widget is Semantics && widget.properties.button == true,
@@ -2041,35 +1961,38 @@ void main() {
   );
 
   testWidgets(
-    'Study goes on with the next new cards in the same screen and route, each answer written, and stop closes it',
+    "Keep going on the completion sheet goes on with the next new cards in the same screen and route, each answer written, until none is left and the sheet offers Done alone",
     (tester) async {
       // All but two of the day's new cards answered today: two are left
       // today, and two more past them.
       final (names, states) = _deck(_quota + 2, today: _quota - 2);
       final study = await _open(tester, names, states: states);
       await study.know();
+      // One of the day's cards is left: no sheet yet.
+      expect(find.byType(CompletionSheet), findsNothing);
       await study.know();
       expect(shownText('Done for today'), findsOneWidget);
-      // Control: with new cards left, going on is the primary and stopping
-      // quiet.
+      expect(shownText('Study some more?'), findsOneWidget);
+      expect(shownText('30 cards · 0 min · 1-day streak'), findsOneWidget);
+      // Stopping is the primary, last; going on is secondary, above it.
+      final keepGoing = widgetWithShownText(AppButton, 'Keep going');
+      final stop = widgetWithShownText(AppButton, 'Stop');
       expect(
-        tester
-            .widget<AppButton>(widgetWithShownText(AppButton, 'Study'))
-            .variant,
-        AppButtonVariant.onHero,
+        tester.widget<AppButton>(keepGoing).variant,
+        AppButtonVariant.secondary,
       );
+      expect(tester.widget<AppButton>(stop).variant, AppButtonVariant.primary);
       expect(
-        tester
-            .widget<AppButton>(widgetWithShownText(AppButton, 'Stop'))
-            .variant,
-        AppButtonVariant.onHeroText,
+        tester.getRect(keepGoing).bottom,
+        lessThanOrEqualTo(tester.getRect(stop).top),
       );
       final screen = tester.state(find.byType(StudyScreen));
       final route = ModalRoute.of(tester.element(find.byType(StudyScreen)));
 
-      await tester.tap(widgetWithShownText(AppButton, 'Study'));
+      await tester.tap(keepGoing);
       await tester.pumpAndSettle();
 
+      expect(find.byType(CompletionSheet), findsNothing);
       expect(study.current, 'c30 front');
       expect(tester.state(find.byType(StudyScreen)), same(screen));
       expect(
@@ -2080,28 +2003,72 @@ void main() {
       expect(shownText('30/30'), findsOneWidget);
       await study.know();
       expect(study.current, 'c31 front');
+      expect(
+        find.bySemanticsLabel('1 more card studied past today\'s plan'),
+        findsOneWidget,
+      );
       await study.know();
       // The day's bar stays full; the two past it are counted apart.
       expect(shownText('30/30'), findsOneWidget);
       expect(shownText('+2 extra'), findsOneWidget);
-      expect(
-        find.bySemanticsLabel('2 more cards studied past today\'s plan'),
-        findsOneWidget,
-      );
+      // None is left past today's: the sheet again, with Done alone.
+      expect(shownText('32 cards · 0 min · 1-day streak'), findsOneWidget);
       expect(shownText('No more cards to study'), findsOneWidget);
+      expect(widgetWithShownText(AppButton, 'Keep going'), findsNothing);
       final reviews = await tester.runAsync(
         () => study.db.select(study.db.reviews).get(),
       );
       // The seeded answers and the session's four.
       expect(reviews, hasLength(_quota - 2 + 4));
 
-      // Control: the completion card's other choice closes the screen.
-      await tester.ensureVisible(shownText('Stop'));
-      await tester.tap(shownText('Stop'));
+      await tester.tap(widgetWithShownText(AppButton, 'Done'));
       await tester.pumpAndSettle();
       expect(find.byType(StudyScreen), findsNothing);
     },
   );
+
+  for (final (name, stop) in [
+    (
+      'Stop',
+      (WidgetTester tester) =>
+          tester.tap(widgetWithShownText(AppButton, 'Stop')),
+    ),
+    (
+      'a tap on the scrim',
+      (WidgetTester tester) => tester.tapAt(const Offset(20, 20)),
+    ),
+    ('going back', (WidgetTester tester) => tester.binding.handlePopRoute()),
+    (
+      'a drag down',
+      (WidgetTester tester) =>
+          tester.drag(shownText('Done for today'), const Offset(0, 500)),
+    ),
+  ]) {
+    testWidgets(
+      "$name on the completion sheet leaves the screen, with the day's answers written and no card taken past today's",
+      (tester) async {
+        // One of the day's new cards left, and two more past them.
+        final (names, states) = _deck(_quota + 2, today: _quota - 1);
+        final study = await _open(tester, names, states: states);
+        await study.know();
+        // Control: the sheet offers to go on.
+        expect(widgetWithShownText(AppButton, 'Keep going'), findsOneWidget);
+
+        await stop(tester);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(CompletionSheet), findsNothing);
+        expect(find.byType(StudyScreen), findsNothing);
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        final reviews = await tester.runAsync(
+          () => study.db.select(study.db.reviews).get(),
+        );
+        expect(reviews, hasLength(_quota));
+      },
+    );
+  }
 
   testWidgets(
     'a deck with no card left today and none answered today says there is nothing to study',
@@ -2123,7 +2090,7 @@ void main() {
         MascotExpression.sleepy,
       );
       expect(shownText('Done for today'), findsNothing);
-      expect(shownText('Study'), findsNothing);
+      expect(shownText('Keep going'), findsNothing);
       expect(study.current, isNull);
 
       // Its way back is a button as well as the ✕, the one primary.
@@ -2795,9 +2762,11 @@ void main() {
         );
         expect(shownText('0/1'), findsOneWidget);
 
-        await study.know();
+        // "Don't know" shows it again, so the session goes on, its previous
+        // card open to a tap, rather than ending under the completion sheet.
+        await study.dontKnow();
 
-        expect(shownText('1/1'), findsOneWidget);
+        expect(shownText('0/1'), findsOneWidget);
         expect(hatchedBlanksUnder(_previousCard), ['Paris']);
         expect(
           find.descendant(
@@ -2808,7 +2777,7 @@ void main() {
         );
         expect(
           _label(tester, _previous('The capital of France is blank')),
-          '${_justSeen}Know. Front: The capital of France is blank. '
+          "${_justSeen}Don't know. Front: The capital of France is blank. "
           'Back: The capital of France is Paris',
         );
 

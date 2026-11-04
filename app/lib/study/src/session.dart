@@ -99,8 +99,8 @@ final class SessionSize {
   int get hashCode => Object.hash(cards, minutes, resumed);
 }
 
-/// No card is left today: the completion card takes the current card's
-/// place, below every card answered so far in [previous].
+/// No card is left today: the completion sheet asks whether to go on, over
+/// every card answered so far in [previous].
 final class SessionComplete extends SessionState {
   const SessionComplete(
     this.completion,
@@ -168,20 +168,18 @@ final class SessionProgress {
   final int extra;
 }
 
-/// What the completion card shows of today's study day over the session's
+/// What the completion sheet shows of today's study day over the session's
 /// decks: the stored answers given before the session opened and the
-/// session's own, as they stand.
+/// session's own.
 final class Completion {
   const Completion({
-    required this.knowCount,
-    required this.dontKnowCount,
+    required this.cards,
     required this.timeSpent,
     required this.streak,
   });
 
-  /// Answers standing as each choice; a re-shown card counts each time.
-  final int knowCount;
-  final int dontKnowCount;
+  /// The cards answered today, each once however often it was answered.
+  final int cards;
 
   /// The time the cards were on screen before their answers.
   final Duration timeSpent;
@@ -208,7 +206,7 @@ final class _Answered {
 
 /// One study session over one or more decks.
 ///
-/// It shows the cards left today, then the completion card; from there,
+/// It shows the cards left today, then the completion sheet; from there,
 /// [studyOn] goes on with the new cards past today's, oldest first, each
 /// answer recorded as any other. A session that opens with no card left today
 /// starts on those at once.
@@ -346,7 +344,7 @@ class StudySession extends ChangeNotifier {
     }
     if (_answeredToday.isEmpty && _answers.isEmpty) return const SessionEmpty();
     return SessionComplete(
-      _completion(),
+      _completion(answered.length),
       previous,
       progress,
       more: _more.isNotEmpty,
@@ -354,17 +352,12 @@ class StudySession extends ChangeNotifier {
     );
   }
 
-  Completion _completion() {
+  /// Today's study day over the session's decks, [cards] of their cards
+  /// answered in it.
+  Completion _completion(int cards) {
     final written = _answers;
-    final answers = [
-      for (final stored in _storedToday) stored.answer,
-      for (final answered in written) answered.answer,
-    ];
     return Completion(
-      knowCount: answers.where((answer) => answer == Answer.know).length,
-      dontKnowCount: answers
-          .where((answer) => answer == Answer.dontKnow)
-          .length,
+      cards: cards,
       timeSpent: [
         for (final stored in _storedToday) stored.duration,
         for (final answered in written) answered.review.duration,
@@ -445,7 +438,7 @@ class StudySession extends ChangeNotifier {
     return shown.isNegative ? Duration.zero : shown;
   }
 
-  /// Goes on from the completion card with the new cards past today's,
+  /// Goes on from the completion sheet with the new cards past today's,
   /// oldest first; with none left, does nothing.
   void studyOn() {
     if (state is! SessionComplete || _more.isEmpty) return;
@@ -467,7 +460,7 @@ class StudySession extends ChangeNotifier {
   /// The answer is rescheduled by replaying its card's answers in this
   /// session, each with the fuzz factor drawn when it was given. A toggle to
   /// "Don't know" of a card's last answer puts the card back as an answer
-  /// would, unless it is already waiting, which takes the completion card away
+  /// would, unless it is already waiting, which ends the session's completion
   /// again; a toggle to "Know" of a card's last answer removes the card's
   /// re-show if it is waiting behind the card on screen.
   void toggle(int position) {

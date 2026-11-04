@@ -13,16 +13,13 @@ abstract final class StudyStyle {
   static const previousRadius = AppRadius.previous;
   static const cardPadding = AppSpace.s16;
 
-  /// The completion panel's least height.
-  static const completionMinHeight = 200.0;
-
   /// Space above the previous card.
   static const topGap = AppSpace.s20;
 
   /// Space between the previous card and the current card.
   static const cardGap = AppSpace.s16;
 
-  /// The space kept below the guide's row, or below the completion card.
+  /// The space kept below the guide's row.
   static const currentBottomGap = AppSpace.s16;
 
   /// Space between the current card and the guide's row under it.

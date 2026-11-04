@@ -357,7 +357,7 @@ describe("the study page", () => {
         "30",
       );
       expect([...shown].sort()).toEqual(["due", ...news.slice(24, 29)].sort());
-      expect(screen.getByRole("heading", { name: "오늘 학습 완료" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "오늘 학습을 다 했어요" })).toBeInTheDocument();
     });
   });
 
@@ -405,7 +405,7 @@ describe("the study page", () => {
   });
 
   describe("leaving with answers not saved", () => {
-    /** The page's three ways out: the top bar's close, Esc, and the completion card's 그만하기. */
+    /** The page's three ways out: the top bar's close, Esc, and the completion sheet's 완료. */
     const exits = {
       close: async () => {
         await userEvent.setup().click(closeLink());
@@ -413,9 +413,9 @@ describe("the study page", () => {
       Esc: async () => {
         await userEvent.setup().keyboard("{Escape}");
       },
-      "the completion card": async () => {
-        const completion = screen.getByRole("region", { name: "오늘 학습 완료" });
-        await userEvent.setup().click(within(completion).getByRole("link", { name: "그만하기" }));
+      "the completion sheet": async () => {
+        const completion = screen.getByRole("dialog", { name: "오늘 학습을 다 했어요" });
+        await userEvent.setup().click(within(completion).getByRole("button", { name: "완료" }));
       },
     };
     const confirm = () => screen.queryByRole("dialog", { name: "저장하지 않고 나갈까요?" });
@@ -436,8 +436,8 @@ describe("the study page", () => {
         postgrest.fail("reviews", 500);
         await userEvent.setup().keyboard("{ArrowRight}");
         await screen.findByRole("alert");
-        // The one card is answered, so the completion card shows.
-        expect(screen.getByRole("region", { name: "오늘 학습 완료" })).toBeInTheDocument();
+        // The one card is answered, so the completion sheet shows.
+        expect(screen.getByRole("dialog", { name: "오늘 학습을 다 했어요" })).toBeInTheDocument();
 
         await exits[way]();
 
@@ -466,9 +466,9 @@ describe("the study page", () => {
         await waitFor(() => {
           expect(testRouter.push).toHaveBeenCalledExactlyOnceWith("/");
         });
-        // The confirm's history entry is dropped before the push, so a back from where it goes
-        // does not land on the study page's stale entry.
-        expect(go).toHaveBeenCalledExactlyOnceWith(-1);
+        // The dialogs' history entries, the completion sheet's and the confirm's, are dropped
+        // before the push, so a back from where it goes does not land on a stale entry.
+        expect(go).toHaveBeenCalledExactlyOnceWith(-2);
         expect(go.mock.invocationCallOrder[0]).toBeLessThan(
           testRouter.push.mock.invocationCallOrder[0] ?? 0,
         );
@@ -589,22 +589,8 @@ describe("the study page", () => {
       );
     }
 
-    /** The completion card's line of counts, as read: its paragraph's text. */
-    /** The completion panel's streak line, under its heading. */
-    const completionLine = () =>
-      screen.getByRole("region", { name: "오늘 학습 완료" }).querySelector("p")?.textContent;
-
-    /** The completion panel's tiles: each count, its colour class, and its name. */
-    const completionTiles = () =>
-      [...screen.getByRole("region", { name: "오늘 학습 완료" }).querySelectorAll("dl > div")].map(
-        (tile) => ({
-          count: tile.querySelector("dd")?.textContent,
-          colour: tile
-            .querySelector("dd")
-            ?.className.match(/\btext-(know|dont-know-text|ink)\b/)?.[0],
-          name: tile.querySelector("dt")?.textContent,
-        }),
-      );
+    /** The completion sheet, by its title. */
+    const completionSheet = () => screen.getByRole("dialog", { name: "오늘 학습을 다 했어요" });
 
     it("keeps a card answered 모른다 earlier today in today's list, and counts the day's cards done 안다", async () => {
       seedDeck(postgrest, "d1", ["un"]);
@@ -669,7 +655,7 @@ describe("the study page", () => {
       expect(screen.getByRole("status")).toBeEmptyDOMElement();
     });
 
-    it("shows the completion panel on the hero surface in the current card's place, below the stack, once no card is left", async () => {
+    it("asks in the completion sheet over the stack once the day's cards are done, and not before, with the day's cards, minutes and streak in one line, and with none left past today's, 완료 alone, focused, which leaves", async () => {
       seedToday();
       await open("d1");
       const user = userEvent.setup();
@@ -678,35 +664,33 @@ describe("the study page", () => {
       await user.keyboard("{ArrowRight}");
       await user.keyboard("{ArrowRight}");
       expect(screen.getByRole("group", { name: "앞면" })).toBeInTheDocument();
-      // While studying, no mascot is drawn.
-      expect(document.querySelectorAll('img[src*="/brand/knowno-"]')).toHaveLength(0);
+      // One of the day's cards is left: no sheet yet.
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       await user.keyboard("{ArrowRight}");
 
+      const sheet = completionSheet();
       expect(screen.queryByRole("group", { name: "앞면" })).not.toBeInTheDocument();
-      const completion = screen.getByRole("region", { name: "오늘 학습 완료" });
-      const [previous] = within(cards()).getAllByRole("article");
-      expect(previous?.compareDocumentPosition(completion)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      // The stack stays under the sheet.
       expect(stack()).toHaveLength(3);
-      // On the hero surface, with yesterday and today in a row.
-      expect(completion.className).toContain("bg-hero");
-      expect(completionLine()).toBe("2일 연속");
-      // This morning's 모른다 and the session's three 안다, in green and red; 90 s and the
-      // session's time, rounded up.
-      expect(completionTiles()).toEqual([
-        { count: "3", colour: "text-know", name: "안다" },
-        { count: "1", colour: "text-dont-know-text", name: "모른다" },
-        { count: "2분", colour: "text-ink", name: "걸린 시간" },
-      ]);
-      // The happy mascot (ADR 0141), the screen's one.
-      expect(document.querySelectorAll('img[src*="/brand/knowno-"]')).toHaveLength(1);
-      expect(completion.querySelector('img[src*="knowno-happy"]')).not.toBeNull();
-      // No new card is left past today's, so the card says so and 그만하기 takes the focus.
-      expect(screen.getByText("더 학습할 카드가 없어요")).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "학습하기" })).not.toBeInTheDocument();
-      // The top bar's 그만하기 leaves too; the card's is the one in the card.
-      const stop = within(completion).getByRole("link", { name: "그만하기" });
-      expect(stop).toHaveFocus();
-      expect(stop).toHaveAttribute("href", "/");
+      // Three cards, trois answered this morning too, each counted once; 90 s and the session's
+      // time, rounded up; yesterday and today in a row.
+      expect(sheet).toHaveAccessibleDescription("3장 · 2분 · 2일 연속");
+      expect(within(sheet).getByText("더 학습할 카드가 없어요")).toBeInTheDocument();
+      expect(within(sheet).queryByText("이어서 더 할까요?")).not.toBeInTheDocument();
+      expect(within(sheet).queryByRole("button", { name: "이어서 하기" })).not.toBeInTheDocument();
+      expect(within(sheet).queryByRole("button", { name: "그만하기" })).not.toBeInTheDocument();
+      const done = within(sheet).getByRole("button", { name: "완료" });
+      expect(done).toHaveClass("bg-primary");
+      await waitFor(() => {
+        expect(done).toHaveFocus();
+      });
+      // No mascot, on the sheet or behind it.
+      expect(document.querySelectorAll('img[src*="/brand/knowno-"]')).toHaveLength(0);
+
+      await user.click(done);
+      await waitFor(() => {
+        expect(testRouter.push).toHaveBeenCalledExactlyOnceWith("/");
+      });
     });
 
     it("reads the streak before today in one request and counts today's answer with it", async () => {
@@ -721,7 +705,7 @@ describe("the study page", () => {
       await open("d1");
       await userEvent.setup().keyboard("{ArrowRight}");
 
-      expect(completionLine()).toBe("3일 연속");
+      expect(completionSheet()).toHaveAccessibleDescription(/ · 3일 연속$/);
       expect(
         postgrest.requests.filter((request) => request === "POST rpc/study_streak_before"),
       ).toHaveLength(1);
@@ -744,7 +728,7 @@ describe("the study page", () => {
       expect(progress.firstElementChild).toHaveStyle({ width: "100%" });
     });
 
-    it("goes on with the new cards past today's on 학습하기, oldest first, each answer written and counted apart from the day's", async () => {
+    it("goes on with the new cards past today's on 이어서 하기, oldest first, each answer written and counted apart from the day's, until none is left and the sheet offers 완료 alone", async () => {
       const fronts = past(todayNewCards + 2);
       seedDeck(postgrest, "d1", fronts);
       // All but the last of the day's new cards were answered this morning.
@@ -756,11 +740,21 @@ describe("the study page", () => {
       await waitFor(() => {
         expect(postgrest.rows.reviews).toHaveLength(todayNewCards);
       });
-      const studyOn = screen.getByRole("button", { name: "학습하기" });
-      expect(studyOn).toHaveFocus();
+      const sheet = completionSheet();
+      expect(within(sheet).getByText("이어서 더 할까요?")).toBeInTheDocument();
+      // 그만하기 is the primary, last and focused; 이어서 하기 is secondary, before it.
+      const studyOn = within(sheet).getByRole("button", { name: "이어서 하기" });
+      const stop = within(sheet).getByRole("button", { name: "그만하기" });
+      expect(stop).toHaveClass("bg-primary");
+      expect(studyOn).not.toHaveClass("bg-primary");
+      expect(studyOn.compareDocumentPosition(stop)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      await waitFor(() => {
+        expect(stop).toHaveFocus();
+      });
       const progress = screen.getByRole("progressbar", { name: "진행" });
 
       await userEvent.setup().click(studyOn);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(await answerAll("{ArrowRight}", 2)).toEqual(fronts.slice(todayNewCards));
 
       expect(screen.getByRole("progressbar", { name: "진행" })).toBe(progress);
@@ -770,11 +764,81 @@ describe("the study page", () => {
       );
       expect(chipTone(screen.getByText("추가 2장"))).toBe("brand-tint");
       expect(screen.getByText("오늘 계획 밖으로 2장 더 학습함")).toHaveClass("sr-only");
-      expect(screen.getByText("더 학습할 카드가 없어요")).toBeInTheDocument();
+      // None is left past today's: the sheet again, with 완료 alone.
+      const again = completionSheet();
+      expect(within(again).getByText("더 학습할 카드가 없어요")).toBeInTheDocument();
+      expect(within(again).queryByRole("button", { name: "이어서 하기" })).not.toBeInTheDocument();
+      expect(within(again).getByRole("button", { name: "완료" })).toBeInTheDocument();
+      expect(testRouter.push).not.toHaveBeenCalled();
       await waitFor(() => {
         expect(postgrest.rows.reviews).toHaveLength(todayNewCards + 2);
       });
     });
+
+    it.each([
+      [
+        "그만하기",
+        async () => {
+          await userEvent
+            .setup()
+            .click(within(completionSheet()).getByRole("button", { name: "그만하기" }));
+        },
+      ],
+      [
+        "닫기",
+        async () => {
+          await userEvent
+            .setup()
+            .click(within(completionSheet()).getByRole("button", { name: "닫기" }));
+        },
+      ],
+      [
+        "a click on the scrim",
+        async () => {
+          await userEvent.setup().click(completionSheet());
+        },
+      ],
+      [
+        "Esc",
+        async () => {
+          await userEvent.setup().keyboard("{Escape}");
+        },
+      ],
+      [
+        "the browser's back",
+        () => {
+          act(() => {
+            window.history.back();
+          });
+          return Promise.resolve();
+        },
+      ],
+    ])(
+      "leaves for where the session was opened from by %s on the completion sheet, taking no card past today's",
+      async (_, stop) => {
+        const fronts = past(todayNewCards + 2);
+        seedDeck(postgrest, "d1", fronts);
+        answeredThisMorning(postgrest, todayNewCards - 1);
+        await open("d1");
+        await answerAll("{ArrowRight}", 1);
+        // Control: the sheet offers to go on, and nothing has left yet.
+        expect(
+          within(completionSheet()).getByRole("button", { name: "이어서 하기" }),
+        ).toBeInTheDocument();
+        await waitFor(() => {
+          expect(within(completionSheet()).getByRole("button", { name: "그만하기" })).toHaveFocus();
+        });
+        expect(testRouter.push).not.toHaveBeenCalled();
+
+        await stop();
+
+        await waitFor(() => {
+          expect(testRouter.push).toHaveBeenCalledExactlyOnceWith("/");
+        });
+        expect(screen.queryByRole("group", { name: "앞면" })).not.toBeInTheDocument();
+        expect(postgrest.rows.reviews).toHaveLength(todayNewCards);
+      },
+    );
 
     it("says there is nothing to study when no card is left and none was answered today", async () => {
       postgrest.seed("decks", deckRow("d1", "d1"));
@@ -797,14 +861,14 @@ describe("the study page", () => {
       // Its way back is a button as well as the ✕, the screen's one coral fill.
       expect(screen.getByRole("link", { name: "닫기" })).toHaveClass("bg-primary");
       expect(screen.queryByRole("progressbar", { name: "진행" })).not.toBeInTheDocument();
-      expect(screen.queryByRole("region", { name: "오늘 학습 완료" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(screen.queryByRole("group", { name: "앞면" })).not.toBeInTheDocument();
 
-      // Control: the same card answered this morning opens on the completion card.
+      // Control: the same card answered this morning opens on the completion sheet.
       cleanup();
       postgrest.seed("reviews", reviewRow("r-today", "later", start - hour, 1_000));
       await open("d1");
-      expect(screen.getByRole("region", { name: "오늘 학습 완료" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "오늘 학습을 다 했어요" })).toBeInTheDocument();
       expect(screen.queryByRole("link", { name: "닫기" })).not.toBeInTheDocument();
       expect(screen.queryByText("오늘은 학습할 카드가 없어요")).not.toBeInTheDocument();
       expect(document.querySelector('img[src*="knowno-sleepy"]')).toBeNull();
@@ -1329,7 +1393,7 @@ describe("the study page", () => {
       answeredThisMorning(postgrest, todayNewCards);
       await open("d1");
 
-      expect(screen.queryByRole("region", { name: "오늘 학습 완료" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(currentFront()).toBe(fronts[todayNewCards]);
       expect(shown()).toEqual([
         expect.stringMatching(/^지난번 마지막 카드\. 앞면: f\d\d\. .*응답: 안다$/),

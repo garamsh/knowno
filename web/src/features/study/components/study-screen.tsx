@@ -19,7 +19,7 @@ import { AnswerButtons } from "./answer-buttons";
 import { AnswerList } from "./answer-list";
 import { CardDetail } from "./card-detail";
 import { cardHeight } from "./card-height";
-import { CompletionCard } from "./completion-card";
+import { CompletionSheet } from "./completion-sheet";
 import { CurrentCard } from "./current-card";
 import { GradedCard } from "./graded-card";
 import { Hint } from "./key-hint";
@@ -42,12 +42,12 @@ function touchFirst(): boolean {
  * its front over its back, above the current card, which shows its front alone, with the two
  * answer buttons under them where the page is used by a pointer. A click on the previous card
  * opens it whole; a touch swipe on it, Z or "마지막 응답 바꾸기" changes its answer. On a wide screen this session's answers are
- * listed beside, each a button that changes it. Once no card is left today the completion card
- * takes the current card's place, and the new cards past today's go on from it. Every action
+ * listed beside, each a button that changes it. Once no card is left today the completion sheet
+ * asks over the cards whether to go on with the new cards past today's. Every action
  * shows at once; its write runs behind it, and a write that fails is shown with a retry while
  * its answer stays. Each action has a keyboard shortcut, listed by "단축키", and a visible
- * control. Every way out, the close, Esc and "그만하기", leaves for [back], where the session was
- * opened from.
+ * control. Every way out, the close, Esc and the completion sheet's stopping, leaves for [back],
+ * where the session was opened from.
  */
 export function StudyScreen({
   plan,
@@ -117,7 +117,7 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
   const helpButton = useRef<HTMLButtonElement>(null);
   const closeLink = useRef<HTMLAnchorElement>(null);
   const status = useSyncExternalStore(writes.subscribe, writes.getStatus, writes.getStatus);
-  const { leaving, exit, stay, go } = useLeave(writes, status.pending > 0);
+  const { leaving, exit, exitDialog, stay, go } = useLeave(writes, status.pending > 0);
   const [coach, setCoach] = useCoach(view.kind);
   /** Applies an action and queues its write. */
   function apply(write: AnswerWrite | null) {
@@ -228,14 +228,8 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
         currentCard
       )
     ) : view.kind === "complete" ? (
-      <CompletionCard
-        completion={view.completion}
-        back={back}
-        onStudyOn={view.more ? studyOn : null}
-        onStop={(event) => {
-          exit(event, back);
-        }}
-      />
+      // The current card's place, under the completion sheet.
+      <div aria-hidden />
     ) : null;
 
   return (
@@ -383,6 +377,15 @@ function Session({ plan, back }: { plan: SessionPlan; back: string }) {
         {view.previous.length > 0 && <AnswerList answers={view.previous} onToggle={toggle} />}
       </div>
 
+      {view.kind === "complete" && (
+        <CompletionSheet
+          completion={view.completion}
+          onStudyOn={view.more ? studyOn : null}
+          onStop={() => {
+            exitDialog(back);
+          }}
+        />
+      )}
       {helpOpen && <ShortcutHelp onClose={closeHelp} />}
       {leaving !== null && (
         <LeaveConfirm

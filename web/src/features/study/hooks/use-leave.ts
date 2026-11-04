@@ -3,12 +3,15 @@
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
 
+import { leaveThen } from "@/design/use-back-entry";
+
 import type { WriteQueue } from "../write-queue";
 
 /**
  * Leaving the study page while [writes] holds answers not saved: [exit] sends them before a link
- * out is followed, and [leaving] holds where it was going while the screen asks, which [stay]
- * answers by staying and [go] by going. While [unsaved], unloading the page asks the browser first.
+ * out is followed, and [exitDialog] before a dialog's choice leaves, and [leaving] holds where it
+ * was going while the screen asks, which [stay] answers by staying and [go] by going. While
+ * [unsaved], unloading the page asks the browser first.
  */
 export function useLeave(writes: WriteQueue, unsaved: boolean) {
   const router = useRouter();
@@ -27,6 +30,21 @@ export function useLeave(writes: WriteQueue, unsaved: boolean) {
     void writes.flush().then((saved) => {
       if (saved) router.push(href);
       else setLeaving(href);
+    });
+  }
+  /**
+   * Leaves for [href] from an open dialog: sends the answers waiting, the failed one again first,
+   * then drops the dialogs' history entries and goes, or asks before leaving if one fails again.
+   */
+  function exitDialog(href: string) {
+    // The dialog's own close returns the focus if the user stays.
+    leaveFrom.current = null;
+    void writes.flush().then((saved) => {
+      if (saved) {
+        leaveThen(() => {
+          router.push(href);
+        });
+      } else setLeaving(href);
     });
   }
   function stay() {
@@ -48,5 +66,5 @@ export function useLeave(writes: WriteQueue, unsaved: boolean) {
       window.removeEventListener("beforeunload", listener);
     };
   }, [unsaved]);
-  return { leaving, exit, stay, go };
+  return { leaving, exit, exitDialog, stay, go };
 }
