@@ -10,7 +10,7 @@ export type Config =
 
 /**
  * Reads `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, which the platform sets. Every provider key
- * is read from Vault (`keys.ts`), and the provider, model and limit are the caller's plan's, read at
+ * is read from Vault (`_shared/keys.ts`), and the provider, model and limit are the caller's plan's, read at
  * each call (`supabase.ts`).
  */
 export function readConfig(env: (name: string) => string | undefined): Config {

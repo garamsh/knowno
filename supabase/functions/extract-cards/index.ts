@@ -3,7 +3,7 @@
 import { readConfig } from "./config.ts";
 import { newCursorToken } from "./continuation.ts";
 import { createHandler } from "./handler.ts";
-import { type Keys, vaultKeys } from "./keys.ts";
+import { type Keys, vaultKeys } from "../_shared/keys.ts";
 import { MODEL_TIMEOUT_MS } from "./model.ts";
 
 const config = readConfig((name) => Deno.env.get(name));

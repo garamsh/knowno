@@ -19,7 +19,7 @@ import {
   type Extraction,
   type ModelId,
 } from "./model.ts";
-import type { Keys } from "./keys.ts";
+import type { Keys } from "../_shared/keys.ts";
 import type { Provider } from "./providers.ts";
 import { type ExtractRequest, parseRequest } from "./request.ts";
 import {
