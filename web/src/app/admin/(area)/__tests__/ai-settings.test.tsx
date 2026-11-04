@@ -137,11 +137,10 @@ describe("AI's provider keys", () => {
     expect(rows[2]).toHaveTextContent(/Anthropic끝자리 3333 · .* · learner@example.com/);
     // No key form is laid out until the address opens one.
     expect(keys.queryByRole("form")).not.toBeInTheDocument();
-    expect(within(rows[0]).getByRole("link", { name: "키 저장" })).toHaveAttribute(
-      "href",
-      "/ai?plan=free&key=openrouter",
-    );
-    expect(within(rows[2]).getByRole("link", { name: "키 바꾸기" })).toHaveAttribute(
+    expect(
+      keys.getAllByRole("link", { name: "키 저장" }).map((link) => link.getAttribute("href")),
+    ).toEqual(["/ai?plan=free&key=openrouter", "/ai?plan=free&key=openai"]);
+    expect(keys.getByRole("link", { name: "키 바꾸기" })).toHaveAttribute(
       "href",
       "/ai?plan=free&key=anthropic",
     );
