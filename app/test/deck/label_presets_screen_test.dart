@@ -286,6 +286,41 @@ void main() {
     },
   );
 
+  for (final scale in [1.0, 3.12]) {
+    testWidgets(
+      'at text scale $scale on a 390 wide phone the label being edited shows '
+      'whole in its field, which keeps its 64 at the default size',
+      (tester) async {
+        tester.view
+          ..physicalSize = const Size(390, 844)
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await _open(tester);
+        await tester.tap(find.bySemanticsLabel('Edit 명 noun'));
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        final field = find.widgetWithText(AppTextField, 'Label');
+        final editable = tester
+            .state<EditableTextState>(
+              find.descendant(of: field, matching: find.byType(EditableText)),
+            )
+            .renderEditable;
+        expect(editable.text?.toPlainText(), '명');
+        expect(
+          editable.getMaxIntrinsicWidth(double.infinity),
+          lessThanOrEqualTo(editable.size.width),
+        );
+        if (scale == 1.0) {
+          // Control: at the default size the field is as wide as before.
+          expect(tester.getSize(field).width, 64);
+        }
+      },
+    );
+  }
+
   for (final mode in [ThemeMode.light, ThemeMode.dark]) {
     testWidgets(
       'in the ${mode.name} theme the screen meets the tap target, label and contrast guidelines, a preset being edited included',

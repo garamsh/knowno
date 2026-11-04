@@ -197,7 +197,7 @@ void main() {
       expect(find.text('목표 90%'), findsOneWidget);
       expect(shownText('기억 상태'), findsOneWidget);
       expect(find.text('지금 기억하고 있을 확률'), findsNothing);
-      expect(find.text('좋음'), findsOneWidget);
+      expect(shownText('좋음'), findsOneWidget);
       expect(find.text('단단함'), findsNothing);
       expect(find.text('7주 전'), findsOneWidget);
       expect(shownText('7주 전보다 +3장'), findsOneWidget);

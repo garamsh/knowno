@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
+import '../../design/app_list_row.dart';
 import '../../design/app_sheet.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -93,12 +94,16 @@ class _PublicDeckScreenState extends State<PublicDeckScreen> {
               AsyncSnapshot(hasData: true, :final data?) => Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final card in data)
-                    CardSplitRow(
-                      front: card.front,
-                      back: card.back,
-                      cells: card.cells,
-                    ),
+                  AppGroup(
+                    children: [
+                      for (final card in data)
+                        CardBackRow(
+                          front: card.front,
+                          back: card.back,
+                          cells: card.cells,
+                        ),
+                    ],
+                  ),
                   if (deck.cardCount > data.length)
                     Padding(
                       padding: const EdgeInsets.only(top: AppSpace.s8),

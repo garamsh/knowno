@@ -308,7 +308,7 @@ void main() {
               body: SingleChildScrollView(
                 child: Column(
                   children: [
-                    CardSplitRow(front: card.front, back: card.back),
+                    CardBackRow(front: card.front, back: card.back),
                     CardPreview(front: card.front, back: card.back),
                   ],
                 ),
