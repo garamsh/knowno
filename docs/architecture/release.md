@@ -22,7 +22,7 @@ The iOS app's release: the `release` workflow that builds the app from a version
 - `make release-upload` runs `app-store-connect publish` on the ipa.
 - `make release-cleanup` runs in an `if: always()` step. It runs `keychain use-login`, deletes the signing keychain with `keychain delete`, and removes the steps' files.
 - The steps are `scripts/release-ios.ts`, under its grant in `scripts/grants.txt`. Its tests are `scripts/release-ios_test.ts`.
-- Codemagic CLI tools are a uv project in `tools/release/`, pinned with each file's hash by `tools/release/uv.lock`. The program runs them with `uv run --project tools/release --locked`, as `tools/fonts/` is run, and Dependabot's `uv` entry for `/tools/release` moves them.
+- Codemagic CLI tools are a uv project in `tools/release/`, pinned with each file's hash by `tools/release/uv.lock`. The program runs them with `uv run --project <repository>/tools/release --locked` with the project by absolute path, since a tool runs from `app/`, as `tools/fonts/` is run, and Dependabot's `uv` entry for `/tools/release` moves them.
 
 ### Concurrency
 
@@ -56,6 +56,7 @@ The iOS app's release: the `release` workflow that builds the app from a version
 - A pull request runs the job `dry-run` when it changes any of these: `.github/workflows/release.yml`, `Makefile`, `scripts/release-ios.ts`, `scripts/grants.txt`, `scripts/process.ts`, `scripts/run.sh` or `tools/release/`.
 - The job runs in no environment and reads no secret:
   - it installs the locked tools with `uv sync --locked`;
+  - `make release-ios` with no tag runs `xcode-project --version` through the locked tools from `app/`, the directory the signed build runs them from, so a tool path that fails there fails in the pull request;
   - `make release-ios` with no tag builds the app unsigned as 0.0.0 with `flutter build ipa --no-codesign`;
   - it checks the archive's version and build number.
 - So it runs on pull requests from forks and Dependabot too. It signs and uploads nothing, so signing is tested only by a release. It is not a required check.

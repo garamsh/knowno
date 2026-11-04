@@ -36,8 +36,12 @@ const IPA_DIR = "app/build/ios/ipa";
 /** Where flutter build ipa --no-codesign writes the archive, relative to the repository. */
 const ARCHIVE = "app/build/ios/archive/Runner.xcarchive";
 
-/** The uv project that pins Codemagic CLI tools. */
-const TOOLS = "tools/release";
+/**
+ * The uv project that pins Codemagic CLI tools, by absolute path: a tool runs in app/ where the
+ * build needs it, and a path relative to the repository does not exist there. scripts/run.sh starts
+ * the program at the repository root.
+ */
+const TOOLS = `${Deno.cwd()}/tools/release`;
 
 /** The version a release tag names, or nothing where the tag is not v<major>.<minor>.<patch>. */
 export function versionOf(tag: string): string | undefined {
@@ -331,9 +335,11 @@ async function checkVersion(
   }
 }
 
-/** Builds the release unsigned as 0.0.0, with no key and no signing tool: a pull request's dry run. */
+/** Builds the release unsigned as 0.0.0, with no key and no signing: a pull request's dry run. */
 async function dryRun(config: string, number: number): Promise<void> {
   const version = "0.0.0";
+  // Runs a tool as the signed build does, from app/, so a path the tools need that fails there fails here.
+  await codemagic("xcode-project", ["--version"], { cwd: "app" });
   await removeIfPresent(ARCHIVE, true);
   await attached("flutter", [
     "build",

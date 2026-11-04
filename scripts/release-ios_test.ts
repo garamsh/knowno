@@ -272,7 +272,10 @@ const ENV_LINE =
   `echo "keys in env: \${APP_STORE_CONNECT_KEY_P8:-no} \${IOS_DISTRIBUTION_CERT_PRIVATE_KEY:-no}" >>"$(dirname "$0")/calls"`;
 
 /** A uv that records its call and runs the tool after `run --project tools/release --locked`. */
-const UV = `${RECORD}\nshift 4\nexec "$@"`;
+const UV = `${RECORD}
+[ -d "$3" ] || { echo "error: Project directory \`$3\` does not exist" >&2; exit 2; }
+shift 4
+exec "$@"`;
 
 /** The `app-store-connect` stub's arguments, as shell variables: the two key files and the certificates' directory. */
 const ASC_ARGS =
@@ -311,12 +314,14 @@ const KEYS = {
 };
 const IPA = "app/build/ios/ipa/knowno.ipa";
 const ARCHIVE = "app/build/ios/archive/Runner.xcarchive";
-const TOOLS = "uv run --project tools/release --locked";
+const tools = (repo: string) =>
+  `uv run --project ${repo}/tools/release --locked`;
 
 async function appRepo(): Promise<{ repo: string; tmp: string }> {
   const repo = await repository();
   await write(repo, ENTITLEMENTS, GRANTED);
   await Deno.mkdir(`${repo}/app/ios`, { recursive: true });
+  await Deno.mkdir(`${repo}/tools/release`, { recursive: true });
   return { repo, tmp: await Deno.realPath(await Deno.makeTempDir()) };
 }
 
@@ -360,10 +365,16 @@ Deno.test("build signs a tag through the locked tools with both keys, owner-only
     `--issuer-id @env:APP_STORE_CONNECT_ISSUER_ID --key-id @env:APP_STORE_CONNECT_KEY_ID --private-key @file:${work}/api_key.p8 --disable-jwt-cache`;
   for (
     const call of [
-      `${TOOLS} keychain initialize ${keychain}`,
-      `${TOOLS} app-store-connect fetch-signing-files app.knowno --platform IOS --type IOS_APP_STORE --certificate-key @file:${work}/certificate_key.pem --create --strict-match-identifier --certificates-dir ${work}/certificates ${api}`,
-      `${TOOLS} keychain add-certificates ${keychain} --certificate ${work}/certificates/*.p12`,
-      `${TOOLS} xcode-project use-profiles --project ios/Runner.xcodeproj --export-options-plist ${work}/export_options.plist`,
+      `${tools(repo)} keychain initialize ${keychain}`,
+      `${
+        tools(repo)
+      } app-store-connect fetch-signing-files app.knowno --platform IOS --type IOS_APP_STORE --certificate-key @file:${work}/certificate_key.pem --create --strict-match-identifier --certificates-dir ${work}/certificates ${api}`,
+      `${
+        tools(repo)
+      } keychain add-certificates ${keychain} --certificate ${work}/certificates/*.p12`,
+      `${
+        tools(repo)
+      } xcode-project use-profiles --project ios/Runner.xcodeproj --export-options-plist ${work}/export_options.plist`,
       `flutter build ipa --release --dart-define-from-file=config/dev.json --build-name=1.2.3 --build-number=8 --export-options-plist=${work}/export_options.plist`,
     ]
   ) {
@@ -388,7 +399,7 @@ Deno.test("build signs a tag through the locked tools with both keys, owner-only
   );
 });
 
-Deno.test("build with no tag builds unsigned as 0.0.0 with no key and no signing tool", async () => {
+Deno.test("build with no tag runs a locked tool from app/, then builds unsigned as 0.0.0 with no key", async () => {
   const { repo, tmp } = await appRepo();
   const { path, log } = await host(
     buildTools("0.0.0", "8", "com.apple.developer.applesignin"),
@@ -397,7 +408,9 @@ Deno.test("build with no tag builds unsigned as 0.0.0 with no key and no signing
   assert.equal(ran.code, 0, ran.stderr);
   assert.equal(
     await log(),
-    "flutter build ipa --release --no-codesign --dart-define-from-file=config/dev.json --build-name=0.0.0 --build-number=8\nkeys in env: no no\n",
+    `${
+      tools(repo)
+    } xcode-project --version\nxcode-project --version\nflutter build ipa --release --no-codesign --dart-define-from-file=config/dev.json --build-name=0.0.0 --build-number=8\nkeys in env: no no\n`,
   );
   assert.equal(
     ran.stdout,
@@ -501,7 +514,9 @@ Deno.test("upload publishes the built ipa through the locked tools with the API 
     `app-store-connect publish --path ${IPA} --issuer-id @env:APP_STORE_CONNECT_ISSUER_ID --key-id @env:APP_STORE_CONNECT_KEY_ID --private-key @file:${key} --disable-jwt-cache`;
   assert.equal(
     await log(),
-    `${TOOLS} ${call}\n${call}\napi key mode -rw-------, holds secret\nkeys in env: no no\n`,
+    `${
+      tools(repo)
+    } ${call}\n${call}\napi key mode -rw-------, holds secret\nkeys in env: no no\n`,
   );
   assert.equal(await exists(key), false);
 });
