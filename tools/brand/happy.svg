@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><title>knowno, happy</title>
-<g fill="none" stroke="#FB7262" stroke-width="16" stroke-linecap="round">
+<g class="ground" fill="none" stroke="#FB7262" stroke-width="16" stroke-linecap="round">
 <path d="M222 908L204 950"/>
 <path d="M262 926L252 966"/>
 <path d="M770 930L784 970"/>

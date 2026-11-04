@@ -54,7 +54,7 @@ export type MascotExpression = "thinking" | "happy" | "sad" | "sleepy";
 
 /**
  * How much a mascot moves at its size (ADR 0152): it blinks from 41 to 199 px across, and from 200
- * it also breathes, hops or dozes.
+ * it also breathes, wobbles or dozes.
  */
 type Motion = "blink" | "full";
 
@@ -93,7 +93,7 @@ const ahead: { shut: boolean; glance: [number, number] | null } = { shut: false,
  * The mascot in its [expression], on no ground of its own, sized by [className], decorative.
  *
  * On screen it moves, drawn inline from the parts `make brand` writes (ADR 0152): at 200 px and
- * more it blinks and breathes, the happy one hops and the sleepy one dozes; from 41 to 199 px it
+ * more it blinks and breathes, the happy one wobbles and the sleepy one dozes; from 41 to 199 px it
  * only blinks. At 40 px or less, under reduce motion, off screen, and where its expression has
  * nothing to move at its size, it is the still image.
  */
