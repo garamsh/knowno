@@ -24,8 +24,9 @@ import 'model.dart';
 import 'name_sheet.dart';
 import 'providers.dart';
 import 'spreadsheet.dart';
+import 'spreadsheet_alert.dart';
 import 'spreadsheet_cards.dart';
-import 'spreadsheet_import.dart';
+import 'spreadsheet_pick.dart';
 
 /// A file's cards before they are saved: its columns chosen, each card listed
 /// and kept or left out, and only "카드 n장 추가" saving them, into [deck] or a
