@@ -409,6 +409,11 @@ verify_jwt = true
 [functions.mcp]
 verify_jwt = false
 
+# Refuses a request without a valid JWT before the function runs; the function then refuses
+# the anon key and anonymous sign-ins itself.
+[functions.assistant]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 54327
