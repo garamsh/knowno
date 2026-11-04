@@ -2,12 +2,11 @@ import Link from "next/link";
 
 import { labelOf, reasonLabels } from "../labels";
 import type { AdminDeck } from "../read-admin";
-import { removeDeck } from "../remove-deck";
 import { formatDate } from "../format";
 import { Section } from "@/design/section";
 import { Empty, group } from "./admin-section";
 import { DeckActions } from "./deck-actions";
-import { ReasonAction } from "./reason-action";
+import { RemoveAction } from "./moderation-actions";
 import { DeckStateChips } from "./deck-state";
 
 /**
@@ -57,14 +56,7 @@ export function DeckView({ deck, timeZone }: { deck: AdminDeck; timeZone: string
         )}
       </Section>
       {deck.removal === null && deck.state.visibility === "public" && !deck.state.deleted && (
-        <ReasonAction
-          label="공유에서 영구 삭제"
-          reasonLabel="삭제하는 이유"
-          question={`'${deck.name}' 노트를 공유에서 영구 삭제할까요? 노트는 주인에게 남고, 다시 공개할 수 없어요.`}
-          confirmLabel="영구 삭제"
-          final
-          action={removeDeck.bind(null, deck.id)}
-        />
+        <RemoveAction note={deck} />
       )}
     </div>
   );

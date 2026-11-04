@@ -1,9 +1,9 @@
 /**
- * The function's reads and writes, each through PostgREST as the caller: the user's token and the
+ * The card tools' reads and writes, each through PostgREST as the caller: the user's token and the
  * anon key, so row-level security decides every row, never the service-role key (ADR 0126).
  */
 
-import { SupabaseError, type UserId } from "../_shared/auth.ts";
+import { SupabaseError, type UserId } from "./auth.ts";
 import type { StoredSides } from "./frame.ts";
 
 /** The caller's connection to the project's REST API. */

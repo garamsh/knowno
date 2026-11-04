@@ -7,8 +7,8 @@
 import { SupabaseError, type UserId } from "../_shared/auth.ts";
 import { authorize } from "./authorize.ts";
 import type { Config } from "./config.ts";
-import { GUIDE_RESOURCE, GUIDE_TEXT, GUIDE_URI } from "./guide.ts";
-import { callTool, type ToolDeps, TOOLS } from "./tools.ts";
+import { GUIDE_RESOURCE, GUIDE_TEXT, GUIDE_URI } from "../_shared/guide.ts";
+import { callTool, type ToolDeps, TOOLS } from "../_shared/tools.ts";
 
 /** The protocol versions served, newest first; `initialize` answers the newest it is not offered. */
 export const PROTOCOL_VERSIONS = [

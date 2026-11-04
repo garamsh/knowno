@@ -18,7 +18,7 @@ import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 import { field } from "@/supabase/row";
 
-import { AiContent, AuditContent, NewPromptContent, PromptContent } from "../_components/content";
+import { AdminsContent, AiContent, NewPromptContent, PromptContent } from "../_components/content";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
 vi.mock("next/navigation", async (importOriginal) => ({
@@ -327,7 +327,7 @@ describe("the audit log", () => {
     ).toContain(";/ai/3;");
     await testPrompt(3);
     await activatePrompt(3);
-    await render(AuditContent, {});
+    await render(AdminsContent, {});
     expect(auditEntries()).toEqual([
       "프롬프트 적용 · 버전 3",
       "프롬프트 테스트 시작 · 버전 3",

@@ -1,6 +1,16 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
-/** 요금제 is under 설정 now (ADR 0155). The admin gate checks the role before this runs. */
+import { AdminSkeleton } from "../_components/admin-skeleton";
+import { PlansContent } from "../_components/content";
+
+/** 요금제: each plan's terms, AI configuration and users, and its versions (ADR 0181). */
 export default function Page() {
-  redirect("/settings");
+  return (
+    <>
+      <h1 className="text-display">요금제</h1>
+      <Suspense fallback={<AdminSkeleton />}>
+        <PlansContent />
+      </Suspense>
+    </>
+  );
 }

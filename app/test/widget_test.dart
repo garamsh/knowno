@@ -49,6 +49,28 @@ final class _NoExtraction implements ExtractionClient {
       throw UnimplementedError('not called');
 }
 
+/// The labels a device stored, as the label presets are kept: enough to
+/// scroll the strip above the keyboard.
+final _storedLabels = jsonEncode([
+  for (final (label, name) in const [
+    ('명', 'noun'),
+    ('동', 'verb'),
+    ('형', 'adjective'),
+    ('부', 'adverb'),
+    ('대', 'pronoun'),
+    ('전', 'preposition'),
+    ('접', 'conjunction'),
+    ('감', 'interjection'),
+    ('관', 'determiner'),
+    ('수', 'numeral'),
+    ('조', 'particle'),
+    ('보', 'auxiliary'),
+    ('양', 'classifier'),
+    ('구', 'phrase'),
+  ])
+    {'label': label, 'name': name},
+]);
+
 void main() {
   late Scheduler scheduler;
   late QueryExecutor executor;
@@ -68,11 +90,13 @@ void main() {
     ImportJobStore? jobStore,
     SharingServer? sharing,
     bool minutesAsked = true,
+    bool labelsStored = false,
   }) async {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.withData({
           'themeMode': ?themeMode,
           studyCoachShownKey: true,
+          if (labelsStored) deckStorageKeys.single: _storedLabels,
           if (minutesAsked) dailyMinutesAskedKey: true,
         });
     final themeStorage = (await tester.runAsync(
@@ -543,7 +567,7 @@ void main() {
         ..physicalSize = const Size(390, 844)
         ..devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      await pumpApp(tester);
+      await pumpApp(tester, labelsStored: true);
       await createDeckAndOpen(tester, 'French');
       await tester.tap(shownText('Add card'));
       await tester.pumpAndSettle();
@@ -879,7 +903,7 @@ void main() {
   testWidgets(
     "the account screen's 품사 표시 row, under Study beside the minutes, opens the labels the card editor offers",
     (tester) async {
-      await pumpApp(tester);
+      await pumpApp(tester, labelsStored: true);
 
       await showSettings(tester);
       expect(

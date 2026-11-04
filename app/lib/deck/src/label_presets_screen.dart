@@ -48,10 +48,7 @@ class PartOfSpeechPresetsScreen extends ConsumerStatefulWidget {
 
 class _PartOfSpeechPresetsScreenState
     extends ConsumerState<PartOfSpeechPresetsScreen> {
-  late List<LabelPreset> _presets = labelPresets(
-    ref.read(deckStorageProvider),
-    defaultLabelPresets(AppLocalizations.of(context)),
-  );
+  late List<LabelPreset> _presets = labelPresets(ref.read(deckStorageProvider));
 
   /// The preset being edited, by its place, or null.
   int? _editing;

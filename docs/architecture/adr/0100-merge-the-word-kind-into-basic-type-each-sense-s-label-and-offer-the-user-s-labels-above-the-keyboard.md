@@ -1,6 +1,6 @@
 # ADR 0100: Merge the word kind into basic, type each sense's label, and offer the user's labels above the keyboard
 
-> Status: accepted; its kind and its basic form superseded by ADR-0114; its sense buttons and the presets' delete button and handle menu refined by ADR-0117, which puts them in each row's ⋯ menu
+> Status: accepted; its kind and its basic form superseded by ADR-0114; its sense buttons and the presets' delete button and handle menu refined by ADR-0117, which puts them in each row's ⋯ menu; its starting set of fourteen labels superseded by ADR-0184
 > Date: 2026-10-26
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

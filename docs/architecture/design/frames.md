@@ -37,6 +37,17 @@ Rows that share one meaning: a settings section, a note's cards, one 칸 of a ca
 
 One group per meaning; groups stand `AppSpace.sectionGap` apart. Inside a group a hairline separates the rows, never a border on each field.
 
+### Table
+
+Rows of the same columns an operator compares and pages through: the web admin area's users, notes and plans ([ADR 0181](../adr/0181-list-every-user-in-admin-as-a-paged-table-filtered-by-plan-and-status-with-the-one-chosen-beside-it-and-give-plans-and-admins-a-page-each.md)), drawn by `admin-table.tsx`. The phone has none.
+
+1. Filters, optional, above it: the list's search and native selects, each `search` high in its outline, wrapping.
+2. The table: one `surface` on the `group` radius over `edgeCard`; a header row of column names in `section`, `muted`; its rows split by a `hairline`; the row a side panel shows on the ground. A row that opens something is pressed as one.
+   - **Alignment**, set per column, its header and its cells alike: a short categorical column drawn as chips, such as a plan or a state, centred; a number, such as a count, aligned to the end in tabular figures; text, such as an email, a name or a date, at the start. A card below 1024 px keeps every value at the start.
+3. The pager, optional, under it: "first–last / total" in `caption` and the pages around the current one, the current marked as the menu marks its item.
+
+Below 1024 px the header row goes, and each row is a card of its own, as a row alone is (§List row): a `surface` on the `row` radius over `edgeRow`, `AppSpace.rowGap` apart, its first cell on a line of its own and the others wrapping under it, each naming what it holds before its value. The pager then shows "page / pages" in `caption` and the two arrows alone.
+
 ### Sheet and dialog
 
 Every modal on the phone: `AppSheet` opened by `showAppSheet`; the web's dialogs follow the same parts.

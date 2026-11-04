@@ -4,7 +4,7 @@ import { activatePrompt } from "../activate-prompt";
 import { countsLine, failureAlarm, failureRate, type OutcomeCounts, percent } from "../outcomes";
 import type { PromptVersion } from "../read-admin";
 import { Section } from "@/design/section";
-import { button, card, Empty, group } from "./admin-section";
+import { button, card, Empty, group, linkRow } from "./admin-section";
 import { ConfirmAction } from "./confirm-action";
 import { PromptChips } from "./prompt-chips";
 import { PromptTrial } from "./prompt-trial";
@@ -101,10 +101,7 @@ export function AiView({
               const rate = failureRate(counts);
               return (
                 <li key={version.id}>
-                  <Link
-                    href={`/ai/${String(version.id)}`}
-                    className="pressable flex min-h-13 items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
-                  >
+                  <Link href={`/ai/${String(version.id)}`} className={linkRow}>
                     <span className="flex min-w-0 flex-col gap-1">
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="text-body-strong">버전 {version.id}</span>
