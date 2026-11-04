@@ -47,7 +47,12 @@ export async function overlaps(page: Page): Promise<string[]> {
           found.push(`${name(a.element)} overlaps ${name(b.element)}`);
         }
       }
-      for (let parent = a.element.parentElement; parent; parent = parent.parentElement) {
+      // A modal lies in the top layer, clipped by none of the elements it sits inside.
+      for (
+        let parent = a.element.parentElement;
+        parent && scope.contains(parent);
+        parent = parent.parentElement
+      ) {
         const style = getComputedStyle(parent);
         if (style.overflowX === "visible" && style.overflowY === "visible") continue;
         const clip = parent.getBoundingClientRect();

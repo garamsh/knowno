@@ -61,9 +61,12 @@
       <div style="height: 120px"></div>
       <button>더 아래</button>
     </div>
-    <!-- Opened by the spec: what is inside it alone is looked at. -->
-    <dialog aria-label="시트">
-      <button>닫기</button>
-    </dialog>
+    <!-- Opened by the spec: what is inside it alone is looked at, and the box it sits in, which
+         hides what overflows it, does not clip it in the top layer. -->
+    <div style="height: 10px; overflow: hidden">
+      <dialog aria-label="시트">
+        <button>닫기</button>
+      </dialog>
+    </div>
   </body>
 </html>

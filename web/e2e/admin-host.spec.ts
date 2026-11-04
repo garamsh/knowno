@@ -232,7 +232,7 @@ test.describe("signed in", () => {
     await context.close();
   });
 
-  test("an admin pages through every user, sized and filtered above the table, opens one beside it, and every section draws each edge whole", async ({
+  test("an admin pages through every user, sized and filtered above the table, opens one beside it, and no control on any section overlaps another", async ({
     browser,
     baseURL,
   }) => {
@@ -280,6 +280,17 @@ test.describe("signed in", () => {
       ["1", "9", "10", "11", "22"].map((shown) => new RegExp(`^${shown}$`)),
     );
     await capture(page, "admin-users-pages");
+    // On a phone, the page of how many and the arrows alone (design/frames.md §Table).
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(pager.getByText("10 / 22", { exact: true })).toBeVisible();
+    await expect(pager.getByRole("link", { name: "10페이지", exact: true })).toBeHidden();
+    await expect(pager.getByRole("link", { name: "다음 페이지", exact: true })).toBeVisible();
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    // A page past the end shows the last one.
+    await page.goto(`${admin}/users?q=${tag}&page=99`);
+    await expect(emails).toHaveCount(5);
+    await expect(pager.getByText("421–425 / 425", { exact: true })).toBeVisible();
     await page.goto(`${admin}/users?q=${tag}`);
 
     await pager.getByRole("link", { name: "2페이지", exact: true }).click();
@@ -318,9 +329,18 @@ test.describe("signed in", () => {
     // Beside the list: to its right, and starting above its end rather than below it.
     expect((panelBox?.x ?? 0) > (listBox?.x ?? 0) + 200).toBe(true);
     expect((panelBox?.y ?? 0) < (listBox?.y ?? 0) + (listBox?.height ?? 0)).toBe(true);
-    await panel.getByText("요금제 바꾸기", { exact: true }).click();
     await expect(panel.getByRole("button", { name: "무료로 되돌리기", exact: true })).toBeVisible();
     await capture(page, "admin-user-panel");
+    // 요금제 바꾸기 opens its form in the sheet, whose one primary is 지정.
+    const sheet = page.getByRole("dialog", { name: "요금제 바꾸기", exact: true });
+    await untilReacted(
+      () => panel.getByRole("button", { name: "요금제 바꾸기", exact: true }).click(),
+      () => sheet.isVisible(),
+    );
+    await expect(sheet.getByRole("button", { name: "지정", exact: true })).toBeVisible();
+    await capture(page, "admin-user-plan-sheet");
+    await sheet.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(sheet).toBeHidden();
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(table).toBeHidden();
     await expect(panel).toBeVisible();
@@ -329,13 +349,11 @@ test.describe("signed in", () => {
     await expect(table).toBeVisible();
     await page.setViewportSize({ width: 1280, height: 900 });
 
-    // The user's own page, with 요금제 바꾸기 open over 무료로 되돌리기 (#637).
+    // The user's own page, its actions in one row (#637).
     await page.goto(`${admin}/users?q=${chosen}`);
     await emails.first().click();
     await panel.getByRole("link", { name: "전체 화면으로", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: chosen, exact: true })).toBeVisible();
-    // The page before stays in the document, hidden, so the shown summary is the one pressed.
-    await page.getByText("요금제 바꾸기", { exact: true }).filter({ visible: true }).click();
     await capture(page, "admin-user");
 
     for (const [path, heading, name] of [
@@ -353,6 +371,19 @@ test.describe("signed in", () => {
       ).toBeVisible();
       await capture(page, name);
     }
+    // A plan's 한도 바꾸기 opens its versions and its form in the sheet, the page under it unchanged.
+    await page.goto(`${admin}/plans`);
+    const plan = page.getByRole("dialog", { name: "프로 한도 바꾸기", exact: true });
+    await untilReacted(
+      () =>
+        page
+          .getByRole("row", { name: /^프로/ })
+          .getByRole("button", { name: "한도 바꾸기", exact: true })
+          .click(),
+      () => plan.isVisible(),
+    );
+    await expect(plan.getByRole("button", { name: "만들기", exact: true })).toBeVisible();
+    await capture(page, "admin-plan-sheet");
     await context.close();
   });
 
