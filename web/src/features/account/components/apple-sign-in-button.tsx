@@ -172,9 +172,9 @@ export function AppleSignInButton() {
           data-type="sign-in"
           data-color={dark ? "white" : "black"}
           data-border="false"
-          // A percentage of the height to Apple's script: 38% of h-cta's 64 px is rounded-button's 24.
-          data-border-radius="38"
-          className="flex h-cta w-full justify-center"
+          // A percentage of the height to Apple's script: 50% of 48 px is the 24 px of rounded-button.
+          data-border-radius="50"
+          className="flex h-sign-in-button w-full justify-center"
         />
       </div>
     </>

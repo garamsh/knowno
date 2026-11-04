@@ -18,9 +18,9 @@ class GoogleSignInButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
 
-  /// The height the button takes at [width] for [label] in [context]: the
-  /// app's call-to-action height, or the wrapped label's with 8 above and
-  /// below where a large text size makes that taller.
+  /// The height the button takes at [width] for [label] in [context]:
+  /// [GoogleButtonStyle.height], or the wrapped label's with 8 above and below
+  /// where a large text size makes that taller.
   static double heightFor(BuildContext context, String label, double width) {
     final spacing = GoogleButtonStyle.spacing(Theme.of(context).platform);
     final painter =
@@ -45,7 +45,7 @@ class GoogleSignInButton extends StatelessWidget {
         );
     final labelHeight = painter.height;
     painter.dispose();
-    return math.max(AppSize.cta, labelHeight + 2 * AppSpace.s8);
+    return math.max(GoogleButtonStyle.height, labelHeight + 2 * AppSpace.s8);
   }
 
   @override
@@ -58,10 +58,10 @@ class GoogleSignInButton extends StatelessWidget {
     );
     return Semantics(
       button: true,
-      // At least the app's call-to-action height, and taller where a large
-      // text size wraps the label.
+      // At least the sign-in buttons' height, and taller where a large text
+      // size wraps the label.
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: AppSize.cta),
+        constraints: const BoxConstraints(minHeight: GoogleButtonStyle.height),
         child: Material(
           color: style.fill,
           shape: shape,
@@ -148,6 +148,11 @@ final class GoogleButtonStyle {
 
   /// The mark's width and height.
   static const markSize = 20.0;
+
+  /// The button's height at the default text size, which Apple's button
+  /// beside it shares: 48, the least a tap target takes on Android, at which
+  /// Apple's title, 43% of its button's height, stays near this label's size.
+  static const height = 48.0;
 
   /// The label: Google Sans Medium, 14 on 20. Google Sans has no Hangul, so
   /// a Korean label's other characters are the app's font.

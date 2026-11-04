@@ -167,7 +167,7 @@ test.describe("signed out", () => {
     }
   });
 
-  test("Google's and Apple's buttons are one width, centred, on both hosts' /login at 390 and 1280", async ({
+  test("Google's and Apple's buttons are one width and one 48 px height, centred, on both hosts' /login at 390 and 1280", async ({
     page,
     baseURL,
   }) => {
@@ -198,14 +198,23 @@ test.describe("signed out", () => {
           .getByRole("button", { name: "Google로 로그인", exact: true })
           .boundingBox();
         const drawn = await apple.boundingBox();
-        expect({ origin, width, google: google?.width, x: google?.x }).toEqual({
+        expect({
+          origin,
+          width,
+          google: google?.width,
+          x: google?.x,
+          height: google?.height,
+        }).toEqual({
           origin,
           width,
           google: drawn?.width,
           x: drawn?.x,
+          height: drawn?.height,
         });
         // Below 375 px plus the gutters both fill the column; above it both stop at 375.
         expect(drawn?.width).toBe(Math.min(375, width - 40));
+        // The pair's height, the least a tap target takes on Android (ADR 0194).
+        expect(drawn?.height).toBe(48);
       }
     }
   });

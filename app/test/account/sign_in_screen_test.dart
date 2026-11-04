@@ -227,6 +227,25 @@ void main() {
       );
     }
 
+    testWidgets(
+      "at the default text size Google's and Apple's buttons are both 48 tall, Apple's title 43% of it",
+      (tester) async {
+        await pumpScreen(
+          tester,
+          FakeAccountService(),
+          locale: const Locale('ko'),
+        );
+
+        expect(tester.getSize(find.byType(GoogleSignInButton)).height, 48);
+        expect(tester.getSize(apple).height, 48);
+        final title = tester.widget<Text>(
+          find.descendant(of: apple, matching: find.text('Apple로 계속하기')),
+        );
+        expect(title.style!.fontSize, 48 * 0.43);
+      },
+      variant: iOS,
+    );
+
     testWidgets("Apple's title keeps its size at the largest text", (
       tester,
     ) async {
@@ -257,18 +276,33 @@ void main() {
     }, variant: iOS);
 
     testWidgets(
-      'shows progress while signing in with Apple, then nothing more for a cancelled sheet',
+      "shows progress in the buttons' place while signing in with Apple, then nothing more for a cancelled sheet",
       (tester) async {
         final pending = Completer<void>();
         final service = FakeAccountService()
           ..cancelSignIn = true
           ..pendingSignIn = pending;
         await pumpScreen(tester, service);
+        final buttons = tester
+            .getRect(find.byType(GoogleSignInButton))
+            .expandToInclude(tester.getRect(apple));
 
         await tester.tap(find.text('Continue with Apple'));
         await tester.pump();
         expect(find.bySemanticsLabel('Signing in'), findsOneWidget);
         expect(apple, findsNothing);
+        // Progress holds the buttons' place, so nothing around them moves.
+        expect(
+          tester.getRect(
+            find
+                .ancestor(
+                  of: find.byType(CircularProgressIndicator),
+                  matching: find.byType(SizedBox),
+                )
+                .first,
+          ),
+          buttons,
+        );
         pending.complete();
         await tester.pumpAndSettle();
 
@@ -424,7 +458,7 @@ void main() {
               box.bottom - words.bottom,
               greaterThanOrEqualTo(AppSpace.s8),
             );
-            expect(box.height, greaterThan(AppSize.cta));
+            expect(box.height, greaterThan(GoogleButtonStyle.height));
             final mark = find.descendant(
               of: button,
               matching: find.byType(Image),
@@ -444,7 +478,7 @@ void main() {
       }
 
       testWidgets(
-        "on a ${width.toInt()} wide iPhone Apple's button is as tall as Google's grown one, its title at the size it has at 64",
+        "on a ${width.toInt()} wide iPhone Apple's button is as tall as Google's grown one, its title at the size it has at 48",
         (tester) async {
           tester.view.physicalSize = Size(width, 844);
           tester.view.devicePixelRatio = 1;
@@ -458,16 +492,16 @@ void main() {
           );
 
           final google = tester.getSize(find.byType(GoogleSignInButton));
-          // The setup: Google's button has grown past 64.
-          expect(google.height, greaterThan(AppSize.cta));
+          // The setup: Google's button has grown past 48.
+          expect(google.height, greaterThan(GoogleButtonStyle.height));
           final apple = find.byType(SignInWithAppleButton);
           expect(tester.getSize(apple).height, google.height);
           expect(tester.getSize(apple).width, google.width);
           final title = tester.widget<Text>(
             find.descendant(of: apple, matching: find.text('Apple로 계속하기')),
           );
-          // Apple's proportion of the title to a 64 high button.
-          expect(title.style!.fontSize, AppSize.cta * 0.43);
+          // Apple's proportion of the title to a 48 high button.
+          expect(title.style!.fontSize, GoogleButtonStyle.height * 0.43);
           expect(tester.takeException(), isNull);
         },
         variant: TargetPlatformVariant.only(TargetPlatform.iOS),
