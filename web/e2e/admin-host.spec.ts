@@ -519,6 +519,8 @@ test.describe("signed in", () => {
       panel.getByRole("listitem").filter({ hasText: "더함: Name each rule once." }),
     ).toBeVisible();
     await capture(page, "admin-ai");
+    // From 1024 px the rate and draft chips are centred, the cost at the end, under their headers.
+    await expectAligned(page, "요금제별 사용 중인 구성", { centre: [5, 6], end: [4] });
     await context.close();
   });
 

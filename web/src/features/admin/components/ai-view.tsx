@@ -41,19 +41,19 @@ const plansHead = [
   { label: "제공자" },
   { label: "모델" },
   { label: "프롬프트" },
-  { label: "사진당 비용", numeric: true },
-  { label: "실패율 · 7일" },
-  { label: "초안" },
+  { label: "사진당 비용", align: "end" },
+  { label: "실패율 · 7일", align: "center" },
+  { label: "초안", align: "center" },
   { label: "작업" },
 ] as const;
 
 const resultsHead = [
   { label: "구성" },
-  { label: "호출", numeric: true },
-  { label: "카드 없음", numeric: true },
-  { label: "형식 오류", numeric: true },
-  { label: "모델 오류", numeric: true },
-  { label: "실패율", numeric: true },
+  { label: "호출", align: "end" },
+  { label: "카드 없음", align: "end" },
+  { label: "형식 오류", align: "end" },
+  { label: "모델 오류", align: "end" },
+  { label: "실패율", align: "end" },
 ] as const;
 
 /**
@@ -185,11 +185,11 @@ export function AiView({
                   <CellLabel>프롬프트</CellLabel>
                   {active === null ? "—" : `v${String(active.promptVersionId)}`}
                 </td>
-                <td className={cellClass({ numeric: true })}>
+                <td className={cellClass({ align: "end" })}>
                   <CellLabel>사진당 비용</CellLabel>
                   {usd === null ? "측정 없음" : estimatedCost(1, usd)}
                 </td>
-                <td className={cellClass()}>
+                <td className={cellClass({ align: "center" })}>
                   <CellLabel>실패율 · 7일</CellLabel>
                   {result?.failureRate == null ? (
                     <Chip>기록 없음</Chip>
@@ -199,7 +199,7 @@ export function AiView({
                     </Chip>
                   )}
                 </td>
-                <td className={cellClass()}>
+                <td className={cellClass({ align: "center" })}>
                   <CellLabel>초안</CellLabel>
                   {draft === null ? "—" : <Chip>테스트 중</Chip>}
                 </td>
@@ -268,23 +268,23 @@ export function AiView({
                     />
                     {marks.length === 0 ? "" : ` ${marks.join(" ")}`}
                   </td>
-                  <td className={cellClass({ numeric: true })}>
+                  <td className={cellClass({ align: "end" })}>
                     <CellLabel>호출</CellLabel>
                     {result.calls.toLocaleString("ko-KR")}
                   </td>
-                  <td className={cellClass({ numeric: true })}>
+                  <td className={cellClass({ align: "end" })}>
                     <CellLabel>카드 없음</CellLabel>
                     {result.noCards.toLocaleString("ko-KR")}
                   </td>
-                  <td className={cellClass({ numeric: true })}>
+                  <td className={cellClass({ align: "end" })}>
                     <CellLabel>형식 오류</CellLabel>
                     {result.invalidOutput.toLocaleString("ko-KR")}
                   </td>
-                  <td className={cellClass({ numeric: true })}>
+                  <td className={cellClass({ align: "end" })}>
                     <CellLabel>모델 오류</CellLabel>
                     {result.modelError.toLocaleString("ko-KR")}
                   </td>
-                  <td className={`${cellClass({ numeric: true })} text-body-strong`}>
+                  <td className={`${cellClass({ align: "end" })} text-body-strong`}>
                     <CellLabel>실패율</CellLabel>
                     {result.failureRate === null ? "기록 없음" : <Rate rate={result.failureRate} />}
                   </td>
