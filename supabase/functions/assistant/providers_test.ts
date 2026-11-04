@@ -533,7 +533,9 @@ Deno.test("a stream read stopped at [DONE], an error event or a break cancels th
   await chat(done.stream);
   assert.equal(done.cancelled, true);
 
-  const failed = open([`data: ${JSON.stringify({ error: { message: "busy" } })}`]);
+  const failed = open([
+    `data: ${JSON.stringify({ error: { message: "busy" } })}`,
+  ]);
   await assert.rejects(chat(failed.stream), StreamError);
   assert.equal(failed.cancelled, true);
 
