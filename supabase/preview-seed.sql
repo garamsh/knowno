@@ -146,7 +146,7 @@ with usage as (
 )
 insert into private.extraction_calls (usage_id, plan, provider, model, prompt_version_id)
 select usage.id, case when usage.user_id = '5eed0000-0000-4000-8000-0000000000a2' then 'pro' else 'free' end,
-  'openrouter', 'anthropic/claude-haiku-5.5', (select version_id from private.prompt_labels where label = 'active')
+  'openrouter', 'anthropic/claude-haiku-5.5', (select max(id) from private.prompt_versions)
 from usage;
 insert into private.extraction_calls_before_versions (usage_id)
 select min(usage_id) from private.extraction_calls;
@@ -154,11 +154,11 @@ insert into private.extraction_cursors (token, usage_id, expires_at)
 select '5eed0000-0000-4000-8000-0000000000e1', max(usage_id), now() + interval '10 minutes'
 from private.extraction_calls;
 
--- A draft for Pro on OpenAI, beside the seeded active configurations, and an OpenAI key in Vault
--- that is no real key.
+-- A draft for Pro on OpenAI with the first prompt version, beside the seeded active
+-- configurations, and an OpenAI key in Vault that is no real key.
 with draft as (
-  insert into private.ai_configurations (plan, provider, model, created_by)
-  values ('pro', 'openai', 'gpt-seed-model', '5eed0000-0000-4000-8000-0000000000a3')
+  insert into private.ai_configurations (plan, provider, model, prompt_version_id, created_by)
+  values ('pro', 'openai', 'gpt-seed-model', 1, '5eed0000-0000-4000-8000-0000000000a3')
   returning id, plan
 )
 insert into private.ai_configuration_labels (plan, label, configuration_id, set_by)

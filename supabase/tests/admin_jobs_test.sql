@@ -1,7 +1,7 @@
 -- The admin area's reads for its five sections (#589, ADR 0155): each refuses a signed-in user who
 -- is not an admin and anon, with an admin as control, and reads what it says.
 begin;
-select plan(23);
+select plan(21);
 
 -- A is an admin, B a signed-in user who is not; C and F own notes; D and E report. C signed up 2
 -- days ago, F 9 days ago and D 20 days ago.
@@ -60,7 +60,6 @@ create function pg_temp.calls() returns setof text language sql as $$
   values
     ($q$select * from public.admin_note_list('public')$q$),
     ($q$select * from public.admin_week_activity('UTC')$q$),
-    ($q$select * from public.admin_prompt_labels()$q$),
     ($q$select * from public.admin_version_calls(1)$q$)
 $$;
 grant execute on function pg_temp.calls() to public;
@@ -90,12 +89,12 @@ $$;
 
 select results_eq(
   $$select count(*) from pg_temp.refused_as('b') as r (call) where call not like 'failed: %'$$,
-  $$values (4::bigint)$$,
+  $$values (3::bigint)$$,
   'a signed-in user who is not an admin is refused by each new function');
 reset role;
 select results_eq(
   $$select count(*) from pg_temp.refused_as(null) as r (call) where call not like 'failed: %'$$,
-  $$values (4::bigint)$$,
+  $$values (3::bigint)$$,
   'anon is refused by each new function');
 reset role;
 select is_empty($$select * from pg_temp.refused_as('a')$$,
@@ -104,9 +103,9 @@ reset role;
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc as p
     where p.pronamespace = 'public'::regnamespace and p.proname in
-      ('admin_note_list', 'admin_week_activity', 'admin_prompt_labels', 'admin_version_calls')
+      ('admin_note_list', 'admin_week_activity', 'admin_version_calls')
       and p.prosecdef and p.proconfig = array['search_path=""']),
-  array['admin_note_list', 'admin_prompt_labels', 'admin_version_calls', 'admin_week_activity'],
+  array['admin_note_list', 'admin_version_calls', 'admin_week_activity'],
   'each runs as its owner with an empty search_path');
 
 -- The notes.
@@ -186,29 +185,11 @@ select throws_ok($$select * from public.admin_week_activity('Nowhere/Zone')$$, '
   'an unknown zone raises');
 reset role;
 
--- The prompt labels: version 1 active, as the seed sets it, and a second version under test since
--- 3 days ago.
+-- A second version, which one of B's photos below was served.
 insert into private.prompt_versions (text, note) values ('Second.', '');
 create temp table second (id bigint primary key);
 insert into second select max(id) from private.prompt_versions;
 grant select on second to public;
-insert into private.prompt_labels (label, version_id, set_at)
-  select 'test', id, now() - interval '3 days' from second;
-
-create temp table labels as select label, version_id, set_at from private.prompt_labels;
-grant select on labels to public;
-
-select pg_temp.sign_in('a');
-select results_eq(
-  $$select label, version_id, set_at from public.admin_prompt_labels()$$,
-  $$select label, version_id, set_at from labels order by label$$,
-  'each label set, with its version and when it was set');
-select results_eq(
-  $$select version_id, extract(day from now() - set_at)::integer
-    from public.admin_prompt_labels() where label = 'test'$$,
-  $$select id, 3 from second$$,
-  'the test label names the version under test, set 3 days ago');
-reset role;
 
 -- One version's calls: B's four photos, numbered newest first, the second on the second version
 -- and the rest on version 1, the newest with an outcome.

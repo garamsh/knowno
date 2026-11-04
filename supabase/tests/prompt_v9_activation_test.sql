@@ -1,6 +1,8 @@
 -- The activation of prompt v9 (20261019230003_activate_prompt_v9.sql, ADR 0080): a new version
 -- holding prompt_v9.ts's text, the active one, served to users and recorded in the audit log as
--- the admin area's activation is, with version 1 kept, so activating it again serves prompt v8.
+-- the admin area's activation is, with version 1 kept, so applying it again serves prompt v8. Since
+-- 20261104021846_configuration_prompts.sql the labels it set are kept as a backup, and the active
+-- version is each plan's active configuration's prompt (ADR 0182).
 begin;
 select plan(13);
 
@@ -86,9 +88,9 @@ select is((select text from v9), (select text from expected),
   'the new version holds prompt_v9.ts''s text, character for character');
 select is((select note from v9), 'prompt v9 (#261, #266), PM eval 2026-10-19: dense 89.3/90.5',
   'its note names the prompt, the issues and the PM''s runs');
-select is((select version_id from private.prompt_labels where label = 'active'),
+select is((select version_id from private.prompt_labels_before_configurations where label = 'active'),
   (select id from v9), 'the active label names it');
-select is((select version_id from private.prompt_labels where label = 'active'),
+select is((select version_id from private.prompt_labels_before_configurations where label = 'active'),
   2::bigint, 'it is version 2, after the seed');
 select results_eq($$ select version_id, prompt from pg_temp.served('b') $$,
   $$ select id, text from v9 $$, 'a user''s photo is served prompt v9');
@@ -104,15 +106,21 @@ select results_eq(
        'prompt', '2', '{"previous": 1, "test_cleared": false}'::jsonb) $$,
   'one audit row records the activation as the admin area''s activation does');
 
--- Rollback: an admin activates version 1 again in the admin area.
+-- Rollback: an admin saves version 1 in Free's draft, on Free's provider and model, and applies it.
+create temp table free_active as
+  select c.provider, c.model from private.ai_configuration_labels as l
+  join private.ai_configurations as c on c.id = l.configuration_id
+  where l.plan = 'free' and l.label = 'active';
+grant select on free_active to public;
+select set_config('role', 'service_role', true);
+select ok(public.save_ai_configuration('00000000-0000-4000-8000-00000000000a', 'free', provider,
+    model, 1) is not null, 'an admin saves version 1 in Free''s draft')
+  from free_active;
 select set_config('role', 'authenticated', true);
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-4000-8000-00000000000a","role":"authenticated"}', true);
-select is(public.admin_set_prompt_label('active', 1), true,
-  'an admin activates version 1 again');
-select set_config('role', 'none', true);
-select is((select version_id from private.prompt_labels where label = 'active'), 1::bigint,
-  'the active label names version 1');
+select is(public.admin_activate_ai_configuration('free'), 'activated',
+  'and applies it to everyone');
 select results_eq($$ select version_id from pg_temp.served('b') $$, $$ values (1::bigint) $$,
   'a user''s photo is served version 1, prompt v8, again');
 select is((select count(*) from private.prompt_versions)::int, 2,
