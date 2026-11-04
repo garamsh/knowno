@@ -445,7 +445,7 @@ test("answers the browser's back on an authoring screen as the phone's back, and
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
-test("fills 홈's first screen with the hero with the owner's 481 cards over four notes on a 19-day streak: the mascot at 210, 시작 whole, the week card's top edge 16 px above the first screen's foot and the rest of it a scroll away", async ({
+test("fills 홈's first screen with the hero with the owner's 481 cards over four notes on a 19-day streak: the mascot at 210, 시작 whole, the week card's top edge 16 px above the tab bar and the rest of it a scroll away", async ({
   page,
   context,
   baseURL,
@@ -546,16 +546,13 @@ test("fills 홈's first screen with the hero with the owner's 481 cards over fou
         throw new Error(
           `홈 is drawn ${at}, but not: ${undrawn({ hero: panel, 시작: button, mascot: drawn, "the week card": card, "the tab bar": tabBar })}`,
         );
-      // The first screen is the screen above the tab bar, the height less main's 96 px of room
-      // for it. The hero fills it from its top, 시작 whole, and the week card shows its top
-      // edge, 16 px, at its foot, above the tab bar; each size is checked, and shot, whatever
-      // an earlier one found.
-      const fold = height - 96;
+      // The hero fills the first screen from its top, 시작 whole, and the week card shows its
+      // top edge, 16 px, above the tab bar; each size is checked, and shot, whatever an earlier
+      // one found.
       expect.soft(panel.y, at).toBe(0);
       expect.soft(button.y, at).toBeGreaterThanOrEqual(0);
       expect.soft(button.y + button.height, at).toBeLessThanOrEqual(panel.y + panel.height);
-      expect.soft(card.y, at).toBeCloseTo(fold - 16, 0);
-      expect.soft(card.y, at).toBeLessThan(tabBar.y);
+      expect.soft(card.y, at).toBeCloseTo(tabBar.y - 16, 0);
       // The mascot at its full 210, square, at every height.
       expect.soft(drawn.height, at).toBe(210);
       expect.soft(drawn.width, at).toBe(210);

@@ -19,7 +19,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 ## Decision
 
 - **The hero fills the first screen** on the phone and on the web below 1024 px: the screen above the tab bar, less the week card's top edge, 16 high, and the 16 over it. Its mascot is `mascotHero` (210) in every state, at every height and text size, the group centred in what the top bar leaves. Where the group needs more than the screen, at a large text size, the hero grows past it and the page scrolls; no word is cut and no part shrinks.
-- **Below the hero,** on the ground, in one ordinary page scroll: the week card, then any card added later. The first screen shows the week card's top edge, 16 above the screen's foot, so the page reads as one that scrolls; there is no drawer, sheet, snap or label.
+- **Below the hero,** on the ground, in one ordinary page scroll: the week card, then any card added later. The first screen shows the week card's top edge, 16 high, so the page reads as one that scrolls: on the phone the last 16 of the page above the tab bar's area, and on the web, whose tab bar floats over the page, 16 px above the tab bar. There is no drawer, sheet, snap or label.
 - **With no card,** the hero is the whole first screen with nothing under it, as before.
 - **A count that cannot be read** keeps its reason in the week card's place, under the hero, its top edge shown as the week card's is.
 - **From 1024 px on the web,** the hero takes its own height and the week card is stacked under it in the one column, as before.
