@@ -249,6 +249,140 @@ void main() {
     },
   );
 
+  group('a photo import in the background', () {
+    Future<void> frames(WidgetTester tester) async {
+      for (var frame = 0; frame < 5; frame++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+    }
+
+    /// Starts a job of [count] photos into the only deck, opens it by the
+    /// bar and leaves it by the system back, as a user leaving the import
+    /// does; resolves to the app's photo import.
+    Future<PhotoImports> startAndLeave(WidgetTester tester, int count) async {
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(AccountGate, skipOffstage: false)),
+      );
+      final imports = container.read(photoImportsProvider)!;
+      final deck = (await tester.runAsync(
+        () => container.read(deckRepositoryProvider).watchDecks().first,
+      ))!.single;
+      final job = imports.create(deck.id, PhotoOrigin.album);
+      imports.attach(job);
+      await job.add([for (var i = 0; i < count; i++) () async => testPhoto]);
+      await frames(tester);
+      await tester.tap(find.byType(PhotoImportBar));
+      // The reading screens animate while they wait, so they never settle.
+      await frames(tester);
+      expect(
+        find.byType(PhotoImportBar),
+        findsNothing,
+        reason: 'no bar over the import it opens',
+      );
+      await tester.binding.handlePopRoute();
+      await frames(tester);
+      expect(imports.job, same(job), reason: 'leaving keeps it reading');
+      return imports;
+    }
+
+    /// What the bar reads.
+    String barText(WidgetTester tester) => tester
+        .widget<Text>(
+          find.descendant(
+            of: find.byType(PhotoImportBar),
+            matching: find.byType(Text),
+          ),
+        )
+        .data!;
+
+    testWidgets(
+      'reads on while the user studies, counting in a bar over study that covers none of it, changes nothing when it ends, and opens the read cards from the bar',
+      (tester) async {
+        final client = FakeExtractionClient();
+        await pumpApp(tester, extraction: client);
+        await createDeckAndOpen(tester, 'French');
+        await addCard(tester, 'Chat', 'cat');
+        await addCard(tester, 'Chien', 'dog');
+        await startAndLeave(tester, 3);
+
+        await showTab(tester, 'Home');
+        await tester.ensureVisible(shownText('Start'));
+        await tester.pumpAndSettle();
+        await tester.tap(shownText('Start'));
+        await tester.pumpAndSettle();
+        expect(find.byType(StudyScreen), findsOneWidget);
+        expect(barText(tester), 'Reading photos 0/3');
+        // Study lays out below the bar, so the bar covers none of its
+        // controls.
+        expect(
+          tester.getRect(find.byType(StudyScreen)).top,
+          greaterThanOrEqualTo(
+            tester.getRect(find.byType(PhotoImportBar)).bottom,
+          ),
+        );
+
+        // Study goes on: a card answered.
+        expect(find.text('0/2'), findsOneWidget);
+        final study = tester.getRect(find.byType(StudyScreen));
+        await tester.timedDragFrom(
+          Offset(study.center.dx, study.top + study.height * 0.6),
+          const Offset(200, 0),
+          const Duration(seconds: 1),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('1/2'), findsOneWidget);
+
+        expect(client.calls, hasLength(3));
+        client.calls[0].answer.complete([word(front: 'face', meaning: '얼굴')]);
+        await tester.pump();
+        await tester.pump();
+        expect(barText(tester), 'Reading photos 1/3');
+        client.calls[1].answer.complete([word(front: 'eye', meaning: '눈')]);
+        client.calls[2].answer.complete([word(front: 'ear', meaning: '귀')]);
+        await tester.pumpAndSettle();
+
+        // Reading ends with no dialog and no screen opened.
+        expect(barText(tester), 'Review 3 cards');
+        expect(find.byType(StudyScreen), findsOneWidget);
+        expect(find.byType(Dialog), findsNothing);
+        expect(find.text('1/2'), findsOneWidget);
+
+        await tester.tap(find.byType(PhotoImportBar));
+        await tester.pumpAndSettle();
+        // The list of the three photos' cards, the first two rows in view.
+        expect(shownText('Words found'), findsOneWidget);
+        expect(shownText('Add 3 cards'), findsOneWidget);
+        expect(shownText('face'), findsOneWidget);
+        expect(shownText('eye'), findsOneWidget);
+        expect(find.byType(PhotoImportBar), findsNothing);
+        await unmountApp(tester);
+      },
+    );
+
+    testWidgets(
+      'a failure while the user is away shows in the bar, and the bar opens the failure',
+      (tester) async {
+        final client = FakeExtractionClient();
+        await pumpApp(tester, extraction: client);
+        await createDeckAndOpen(tester, 'French');
+        await startAndLeave(tester, 1);
+        expect(barText(tester), 'Reading photos 0/1');
+
+        client.fail(const ModelFailed());
+        await tester.pumpAndSettle();
+        expect(barText(tester), "Couldn't read 1 photo");
+
+        await tester.tap(find.byType(PhotoImportBar));
+        await tester.pumpAndSettle();
+        expect(
+          shownText("Couldn't read the cards. Please try again in a moment."),
+          findsOneWidget,
+        );
+        await unmountApp(tester);
+      },
+    );
+  });
+
   testWidgets(
     'the composed app gives every new row a version 7 uuid in canonical lowercase form',
     (tester) async {

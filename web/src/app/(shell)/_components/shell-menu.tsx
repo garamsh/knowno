@@ -63,7 +63,10 @@ export function SideMenu({ profile }: { profile?: ReactNode }) {
 export function SideMenuAt({ path, profile }: { path: string | null; profile?: ReactNode }) {
   return (
     <div className="hidden w-60 shrink-0 border-r border-hairline bg-surface lg:block">
-      <nav aria-label="주 메뉴" className="sticky top-0 flex h-dvh flex-col gap-1.5 px-4 py-7">
+      <nav
+        aria-label="주 메뉴"
+        className="sticky top-(--photo-import-bar,0px) flex h-[calc(100dvh-var(--photo-import-bar,0px))] flex-col gap-1.5 px-4 py-7"
+      >
         <Link
           href="/"
           aria-label="알아몰라, 홈"
