@@ -764,13 +764,36 @@ void main() {
             ),
           );
           await tester.pumpAndSettle();
-          await shot(
-            tester,
-            '16m-home-$state-${device.size.height.toInt()}'.replaceAll(
-              ' ',
-              '-',
-            ),
-          );
+          final name = '16m-home-$state-${device.size.height.toInt()}'
+              .replaceAll(' ', '-');
+          // The first screen, then scrolled to the foot, at the text size
+          // before and at the largest.
+          Future<void> shoot(String name) async {
+            final page = tester
+                .state<ScrollableState>(
+                  find
+                      .ancestor(
+                        of: find.text(ko.appTitle),
+                        matching: find.byType(Scrollable),
+                      )
+                      .first,
+                )
+                .position;
+            page.jumpTo(0);
+            await tester.pumpAndSettle();
+            await shot(tester, name);
+            page.jumpTo(page.maxScrollExtent);
+            await tester.pumpAndSettle();
+            await shot(tester, '$name-scrolled');
+          }
+
+          await shoot(name);
+          tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await tester.pumpAndSettle();
+          await shoot('$name-largest-text');
+          tester.platformDispatcher.clearTextScaleFactorTestValue();
+          await tester.pumpAndSettle();
           // The owner's four notes, on the 노트 tab.
           if (state == 'today') {
             await showNotes(tester);

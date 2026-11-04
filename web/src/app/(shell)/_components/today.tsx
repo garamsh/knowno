@@ -20,7 +20,7 @@ import {
 import { Mascot } from "@/design/brand";
 
 import { EnterLink } from "./enter-link";
-import { belowHero, heroFit, heroFitGroup, homeFit } from "./hero-fit";
+import { belowHero, heroFold, heroGroup } from "./hero-fold";
 import { ProfileButton, readInitial } from "./profile-button";
 import { WeekCard } from "./week-card";
 
@@ -174,10 +174,9 @@ function StartLink({ href, label = "시작" }: { href: string; label?: string })
  * below 1024 px, the profile button with the account's [initial]; under it [below], the week card
  * or why the day cannot be read. From 1024 px the profile button is the side menu's.
  *
- * Below 1024 px the two take the screen above the tab bar: [below] at its own height, and the
- * hero the rest, its first item, the mascot, taking what the words and the action leave, from
- * `mascot-hero` down to `mascot-floor`, the group centred; only where the words leave less does
- * the hero grow and the page scroll. It holds the mascot and at most three items under it.
+ * Below 1024 px the hero fills the screen above the tab bar but for [below]'s top edge, which
+ * shows at the foot of the first screen; the rest of [below] follows by scrolling (ADR 0178). The
+ * hero's first item, the mascot, is at `mascot-hero`, the group centred.
  */
 function Home({
   hero,
@@ -189,23 +188,21 @@ function Home({
   initial: string | null;
 }) {
   return (
-    // A block, so that the grid is not one of main's flex items (see homeFit).
+    // One block, so that main's gap does not come between the hero and what is under it.
     <div>
-      <div className={homeFit}>
-        <section
-          aria-labelledby="hero-title"
-          className={`${heroFit} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 text-on-hero lg:mx-0 lg:rounded-card lg:p-8`}
-        >
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h1 className="text-title">알아몰라</h1>
-            <span className="lg:hidden">
-              <ProfileButton initial={initial} onHero />
-            </span>
-          </div>
-          <div className={heroFitGroup}>{hero}</div>
-        </section>
-        {below && <div className={belowHero}>{below}</div>}
-      </div>
+      <section
+        aria-labelledby="hero-title"
+        className={`${heroFold(below !== undefined)} -mx-gutter rounded-b-sheet bg-hero px-gutter pt-6 pb-5 text-on-hero lg:mx-0 lg:rounded-card lg:p-8`}
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h1 className="text-title">알아몰라</h1>
+          <span className="lg:hidden">
+            <ProfileButton initial={initial} onHero />
+          </span>
+        </div>
+        <div className={heroGroup}>{hero}</div>
+      </section>
+      {below && <div className={belowHero}>{below}</div>}
     </div>
   );
 }

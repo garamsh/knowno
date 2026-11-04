@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:ui' show PathMetric;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -238,9 +237,9 @@ class _FirstRunHome extends StatelessWidget {
 }
 
 /// Today on the hero, rounded at its foot, and [below] it, on the ground,
-/// the week card or why the day cannot be read: the hero takes the height
-/// [below] leaves, and the page scrolls only where the hero's words leave its
-/// mascot less than its floor.
+/// the week card or why the day cannot be read. The hero fills the first
+/// screen but for [below]'s top edge, [_peek] high, and grows past it rather
+/// than cut a word; [below] follows by scrolling.
 class _Home extends StatelessWidget {
   const _Home({
     required this.face,
@@ -255,6 +254,13 @@ class _Home extends StatelessWidget {
   final bool cards;
   final Widget? below;
   final VoidCallback onSettings;
+
+  /// How much of [below] the first screen shows: its top edge, so that the
+  /// page reads as one that scrolls.
+  static const _peek = AppSpace.s16;
+
+  /// The space between the hero and [below].
+  static const _gap = AppSpace.s16;
 
   @override
   Widget build(BuildContext context) {
@@ -296,20 +302,28 @@ class _Home extends StatelessWidget {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
-          child: _HomeFit(
-            height: constraints.maxHeight,
-            fill: hero,
-            below: below == null
-                ? const SizedBox.shrink()
-                : Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpace.gutter,
-                      AppSpace.s16,
-                      AppSpace.gutter,
-                      AppSpace.s12,
-                    ),
-                    child: below,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: below == null
+                      ? constraints.maxHeight
+                      : constraints.maxHeight - _gap - _peek,
+                ),
+                child: IntrinsicHeight(child: hero),
+              ),
+              if (below != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpace.gutter,
+                    _gap,
+                    AppSpace.gutter,
+                    AppSpace.s12,
                   ),
+                  child: below,
+                ),
+            ],
           ),
         ),
       ),
@@ -317,81 +331,15 @@ class _Home extends StatelessWidget {
   }
 }
 
-/// [fill] over [below] in [height]: [below] at its own height, and [fill] in
-/// what it leaves, but never shorter than [fill]'s least height, past which
-/// the two are taller than [height].
-class _HomeFit extends MultiChildRenderObjectWidget {
-  _HomeFit({required this.height, required Widget fill, required Widget below})
-    : super(children: [fill, below]);
-
-  final double height;
-
-  @override
-  _RenderHomeFit createRenderObject(BuildContext context) =>
-      _RenderHomeFit(height);
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderHomeFit renderObject) =>
-      renderObject.height = height;
-}
-
-final class _FitData extends ContainerBoxParentData<RenderBox> {}
-
-/// Lays out and paints a fit's children, placed by [performLayout].
-abstract class _RenderFit extends RenderBox
-    with
-        ContainerRenderObjectMixin<RenderBox, _FitData>,
-        RenderBoxContainerDefaultsMixin<RenderBox, _FitData> {
-  @override
-  void setupParentData(RenderBox child) {
-    if (child.parentData is! _FitData) child.parentData = _FitData();
-  }
-
-  void place(RenderBox child, Offset offset) =>
-      (child.parentData! as _FitData).offset = offset;
-
-  @override
-  void paint(PaintingContext context, Offset offset) =>
-      defaultPaint(context, offset);
-
-  @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
-      defaultHitTestChildren(result, position: position);
-}
-
-class _RenderHomeFit extends _RenderFit {
-  _RenderHomeFit(this._height);
-
-  double _height;
-  set height(double value) {
-    if (value == _height) return;
-    _height = value;
-    markNeedsLayout();
-  }
-
-  @override
-  void performLayout() {
-    final fill = firstChild!;
-    final below = lastChild!;
-    final width = constraints.maxWidth;
-    below.layout(BoxConstraints.tightFor(width: width), parentUsesSize: true);
-    final height = max(
-      _height - below.size.height,
-      fill.getMinIntrinsicHeight(width),
-    );
-    fill.layout(BoxConstraints.tight(Size(width, height)));
-    place(fill, Offset.zero);
-    place(below, Offset(0, height));
-    size = constraints.constrain(Size(width, height + below.size.height));
-  }
-}
-
-/// The hero's face in its space: the mascot as large as the words leave room
-/// for, the group centred.
+/// The hero's face in its space: the mascot at [AppSize.mascotHero] over the
+/// words and the action, the group centred.
 class _Hero extends StatelessWidget {
   const _Hero({required this.face});
 
   final _Face? face;
+
+  /// The space between the mascot and the words, and around the group.
+  static const _gap = AppSpace.s8;
 
   @override
   Widget build(BuildContext context) {
@@ -399,108 +347,57 @@ class _Hero extends StatelessWidget {
     final face = this.face;
     final title = face?.title;
     final line = face?.line;
-    return _HeroFit(
-      mascot: LayoutBuilder(
-        builder: (context, constraints) => Mascot(
-          expression: face?.mascot ?? MascotExpression.thinking,
-          size: constraints.maxWidth,
-        ),
-      ),
-      words: Column(
-        mainAxisSize: MainAxisSize.min,
-        spacing: AppSpace.s8,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: _gap),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        spacing: _gap,
         children: [
-          if (title != null)
-            Semantics(
-              header: true,
-              child: Text(
-                keepWords(title),
-                semanticsLabel: title,
-                textAlign: TextAlign.center,
-                style: (face!.figure ? AppType.heroFigure : AppType.title)
-                    .copyWith(color: colors.onHero),
-              ),
-            ),
-          if (line != null)
-            Text(
-              keepWords(line),
-              semanticsLabel: line,
-              textAlign: TextAlign.center,
-              style: AppType.bodyStrong.copyWith(color: colors.onHero),
-            ),
-          if (face != null) ...[
-            const SizedBox(height: AppSpace.s8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(
-                minWidth: AppSize.mascotHero + AppSpace.s12,
-              ),
-              child: AppButton(
-                label: face.action,
-                variant: AppButtonVariant.onHero,
-                size: AppButtonSize.cta,
-                onPressed: face.onAction,
-              ),
-            ),
-          ],
+          Mascot(
+            expression: face?.mascot ?? MascotExpression.thinking,
+            size: AppSize.mascotHero,
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            spacing: AppSpace.s8,
+            children: [
+              if (title != null)
+                Semantics(
+                  header: true,
+                  child: Text(
+                    keepWords(title),
+                    semanticsLabel: title,
+                    textAlign: TextAlign.center,
+                    style: (face!.figure ? AppType.heroFigure : AppType.title)
+                        .copyWith(color: colors.onHero),
+                  ),
+                ),
+              if (line != null)
+                Text(
+                  keepWords(line),
+                  semanticsLabel: line,
+                  textAlign: TextAlign.center,
+                  style: AppType.bodyStrong.copyWith(color: colors.onHero),
+                ),
+              if (face != null) ...[
+                const SizedBox(height: AppSpace.s8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: AppSize.mascotHero + AppSpace.s12,
+                  ),
+                  child: AppButton(
+                    label: face.action,
+                    variant: AppButtonVariant.onHero,
+                    size: AppButtonSize.cta,
+                    onPressed: face.onAction,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );
-  }
-}
-
-/// The [mascot] over the [words] in the height it is given: the words at
-/// their own size, and the mascot square in what they leave, from
-/// [AppSize.mascotHero] down to [AppSize.mascotFloor], the two centred as a
-/// group. Its least height is the words under the mascot at that floor.
-class _HeroFit extends MultiChildRenderObjectWidget {
-  _HeroFit({required Widget mascot, required Widget words})
-    : super(children: [mascot, words]);
-
-  @override
-  _RenderHeroFit createRenderObject(BuildContext context) => _RenderHeroFit();
-}
-
-class _RenderHeroFit extends _RenderFit {
-  /// The space between the mascot and the words, and around the group.
-  static const _gap = AppSpace.s8;
-
-  double _group(double words, double mascot) => mascot + _gap * 3 + words;
-
-  @override
-  double computeMinIntrinsicHeight(double width) =>
-      _group(lastChild!.getMinIntrinsicHeight(width), AppSize.mascotFloor);
-
-  @override
-  double computeMaxIntrinsicHeight(double width) =>
-      _group(lastChild!.getMaxIntrinsicHeight(width), AppSize.mascotHero);
-
-  @override
-  double computeMinIntrinsicWidth(double height) =>
-      lastChild!.getMinIntrinsicWidth(double.infinity);
-
-  @override
-  double computeMaxIntrinsicWidth(double height) =>
-      lastChild!.getMaxIntrinsicWidth(double.infinity);
-
-  @override
-  void performLayout() {
-    final mascot = firstChild!;
-    final words = lastChild!;
-    final width = constraints.maxWidth;
-    words.layout(BoxConstraints.tightFor(width: width), parentUsesSize: true);
-    final room = constraints.hasBoundedHeight
-        ? constraints.maxHeight
-        : constraints.minHeight;
-    final side = (room - _group(words.size.height, 0)).clamp(
-      AppSize.mascotFloor,
-      AppSize.mascotHero,
-    );
-    mascot.layout(BoxConstraints.tight(Size.square(side)));
-    final group = _group(words.size.height, side) - _gap * 2;
-    size = constraints.constrain(Size(width, max(room, group + _gap * 2)));
-    final top = (size.height - group) / 2;
-    place(mascot, Offset((width - side) / 2, top));
-    place(words, Offset(0, top + side + _gap));
   }
 }
 

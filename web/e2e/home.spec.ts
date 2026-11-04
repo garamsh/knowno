@@ -257,7 +257,8 @@ test("draws the first-run home, 홈 over its week card, the 노트 page, a note,
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "오늘 5장", exact: true })).toBeVisible();
-  // At a phone's width 홈 holds no note: the week card under the hero, above the tab bar.
+  // At a phone's width 홈 holds no note: the week card under the hero, its top edge above the
+  // tab bar and the rest of it below the first screen.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("region", { name: "노트 목록" })).toHaveCount(0);
   const [tabBar, week] = await Promise.all([
@@ -265,7 +266,8 @@ test("draws the first-run home, 홈 over its week card, the 노트 page, a note,
     page.getByRole("region", { name: "0일 연속" }).boundingBox(),
   ]);
   if (!tabBar || !week) throw new Error("the tab bar and the week card are drawn");
-  expect(week.y + week.height).toBeLessThanOrEqual(tabBar.y);
+  expect(week.y).toBeLessThan(tabBar.y);
+  expect(week.y + week.height).toBeGreaterThan(844);
   await expectEdge(
     page,
     page.getByRole("link", { name: "시작", exact: true }),
@@ -443,7 +445,7 @@ test("answers the browser's back on an authoring screen as the phone's back, and
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
-test("fits 홈 to the screen with the owner's 481 cards over four notes on a 19-day streak: 시작 and the week card whole above the tab bar, the mascot giving way from 210 to 64", async ({
+test("fills 홈's first screen with the hero with the owner's 481 cards over four notes on a 19-day streak: the mascot at 210, 시작 whole, the week card's top edge 16 px above the first screen's foot and the rest of it a scroll away", async ({
   page,
   context,
   baseURL,
@@ -525,32 +527,49 @@ test("fits 홈 to the screen with the owner's 481 cards over four notes on a 19-
     await page.setViewportSize({ width, height });
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+      });
       const at = `at ${String(width)} × ${String(height)} in ${colorScheme}`;
       if (directory)
         await page.screenshot({
-          path: `${directory}/${colorScheme}/web-home-fit-${String(height)}.png`,
+          path: `${directory}/${colorScheme}/web-home-fold-${String(height)}.png`,
         });
-      const [button, drawn, card, tabBar, scroll] = await Promise.all([
+      const [panel, button, drawn, card, tabBar] = await Promise.all([
+        hero.boundingBox(),
         start.boundingBox(),
         mascot.boundingBox(),
         week.boundingBox(),
         page.getByRole("navigation", { name: "주 메뉴" }).last().boundingBox(),
-        page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
       ]);
-      if (!button || !drawn || !card || !tabBar)
+      if (!panel || !button || !drawn || !card || !tabBar)
         throw new Error(
-          `홈 is drawn ${at}, but not: ${undrawn({ 시작: button, mascot: drawn, "the week card": card, "the tab bar": tabBar })}`,
+          `홈 is drawn ${at}, but not: ${undrawn({ hero: panel, 시작: button, mascot: drawn, "the week card": card, "the tab bar": tabBar })}`,
         );
-      // Nothing to scroll: 시작 and the week card whole on the first screen, the week card under
-      // 시작 and above the tab bar; each size is checked, and shot, whatever an earlier one found.
-      expect.soft(scroll, at).toBeLessThanOrEqual(0);
+      // The first screen is the screen above the tab bar, the height less main's 96 px of room
+      // for it. The hero fills it from its top, 시작 whole, and the week card shows its top
+      // edge, 16 px, at its foot, above the tab bar; each size is checked, and shot, whatever
+      // an earlier one found.
+      const fold = height - 96;
+      expect.soft(panel.y, at).toBe(0);
       expect.soft(button.y, at).toBeGreaterThanOrEqual(0);
-      expect.soft(button.y + button.height, at).toBeLessThanOrEqual(card.y);
-      expect.soft(card.y + card.height, at).toBeLessThanOrEqual(tabBar.y);
-      // The mascot gives way, from 210 down to its floor of 64, square.
-      expect.soft(drawn.height, at).toBeGreaterThanOrEqual(64);
-      expect.soft(drawn.height, at).toBeLessThanOrEqual(210);
-      expect.soft(drawn.width, at).toBeCloseTo(drawn.height, 0);
+      expect.soft(button.y + button.height, at).toBeLessThanOrEqual(panel.y + panel.height);
+      expect.soft(card.y, at).toBeCloseTo(fold - 16, 0);
+      expect.soft(card.y, at).toBeLessThan(tabBar.y);
+      // The mascot at its full 210, square, at every height.
+      expect.soft(drawn.height, at).toBe(210);
+      expect.soft(drawn.width, at).toBe(210);
+      // Scrolled, the whole week card above the tab bar.
+      await page.evaluate(() => {
+        window.scrollTo(0, document.documentElement.scrollHeight);
+      });
+      const scrolled = await week.boundingBox();
+      if (directory)
+        await page.screenshot({
+          path: `${directory}/${colorScheme}/web-home-fold-${String(height)}-scrolled.png`,
+        });
+      expect.soft(scrolled && scrolled.y + scrolled.height, at).toBeLessThanOrEqual(tabBar.y);
+      expect.soft(scrolled?.y, at).toBeGreaterThanOrEqual(0);
     }
     // The owner's four notes on the 노트 page.
     if (directory) {
@@ -570,21 +589,24 @@ test("fits 홈 to the screen with the owner's 481 cards over four notes on a 19-
       await untilMascotSettled(mascot);
     }
   }
-  // Control: given the room, the mascot is drawn at its full 210.
-  await page.setViewportSize({ width: 430, height: 1300 });
-  expect((await mascot.boundingBox())?.height).toBe(210);
-  // Short of room for the floor, the mascot holds at 64 and the page scrolls, 시작 still above
-  // the week card.
-  await page.setViewportSize({ width: 375, height: 420 });
-  const [floor, button, card] = await Promise.all([
-    mascot.boundingBox(),
-    start.boundingBox(),
-    week.boundingBox(),
-  ]);
-  if (!floor || !button || !card)
+  // From 1024 px the hero takes its own height and the week card is under it, in the column.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+  });
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    if (directory)
+      await page.screenshot({
+        path: `${directory}/${colorScheme}/web-home-fold-1280.png`,
+        fullPage: true,
+      });
+  }
+  const [panel, card] = await Promise.all([hero.boundingBox(), week.boundingBox()]);
+  if (!panel || !card)
     throw new Error(
-      `홈 is drawn at 375 × 420, but not: ${undrawn({ mascot: floor, 시작: button, "the week card": card })}`,
+      `홈 is drawn at 1280, but not: ${undrawn({ hero: panel, "the week card": card })}`,
     );
-  expect(floor.height).toBe(64);
-  expect(button.y + button.height).toBeLessThanOrEqual(card.y);
+  expect(card.y).toBeGreaterThan(panel.y + panel.height);
+  expect(card.x).toBe(panel.x);
 });
