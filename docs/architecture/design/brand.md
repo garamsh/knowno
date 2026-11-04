@@ -11,7 +11,7 @@ The brand on the phone and the web: the name, the marks and how they are generat
   - the mark alone, and the expressions;
   - the mark close up on cobalt: the launcher icon and the favicon ([ADR 0152](../adr/0152-let-the-mascot-blink-and-breathe-from-its-own-drawing-and-put-the-launcher-icon-on-cobalt.md));
   - the horizontal and stacked lockups: the mark on its circle beside or over one name, 알아몰라 for Korean and on the web and knowno for any other language on the phone, never both; on a white circle with its word cobalt `#2547D0` for a light ground, on a dark card `#232F4E` circle with its word `#8AB4FF` for a dark one ([ADR 0153](../adr/0153-draw-the-lockups-in-cobalt-on-a-white-or-dark-card-circle.md), [ADR 0154](../adr/0154-draw-the-logo-with-one-name-in-the-reader-s-language-korean-or-english.md)). Both names are drawn 446 across, so a stacked lockup is 446 by 421 with 알아몰라 and 446 by 390 with knowno, the horizontal one 674 by 200.
-- Where they appear: the app's name in `title` heads 홈 and the first-run home; the stacked lockup, `AppSize.stackedLockupWidth` wide, on the sign-in screen, in the phone's language; on the web the stacked lockup on `/login`, in 알아몰라, and the horizontal lockup atop the side menu, which the phone does not bundle.
+- Where they appear: the app's name in `title` heads 홈, the first run's included; the stacked lockup, `AppSize.stackedLockupWidth` wide, on the sign-in screen, in the phone's language; on the web the stacked lockup on `/login`, in 알아몰라, and the horizontal lockup atop the side menu, which the phone does not bundle.
 
 ### Generated files
 
@@ -31,12 +31,11 @@ The brand on the phone and the web: the name, the marks and how they are generat
   | Expression | Moment | Size |
   |---|---|---|
   | thinking, the mark itself | a photo being read, beside its words, while no row shows a failure | 64 |
-  | thinking | the first-run home | 128 |
-  | thinking | 홈's hero in a backlog | 210 |
+  | thinking | 홈 on the hill, while cards are left, in a backlog, while no deck holds a card, before the first deck and while the count cannot be read ([ADR 0193](../adr/0193-make-home-one-screen-of-sky-over-ground-with-the-mascot-on-a-hill-the-streak-s-days-and-one-action.md)) | 140 |
   | thinking | study's coach, at the left of its speech bubble while the coach shows ([ADR 0166](../adr/0166-draw-no-mascot-during-a-study-session-let-it-present-the-coach-with-a-back-and-a-next-and-a-tilted-hand-and-fill-an-empty-day-s-bar.md)) | 56 |
-  | happy | 홈's hero with cards today, once they are done, and while no deck holds a card | 210 |
   | sad | a failed photo's screen, "no cards found" among its failures | 96 |
   | sleepy | study with nothing today, and an empty deck | 96 |
+  | sleepy | 홈 on the hill once the day's cards are done ([ADR 0193](../adr/0193-make-home-one-screen-of-sky-over-ground-with-the-mascot-on-a-hill-the-streak-s-days-and-one-action.md)) | 140 |
 
   No other mascot is drawn while a card is studied.
 - It moves the same on both clients, within its own widget or component ([ADR 0152](../adr/0152-let-the-mascot-blink-and-breathe-from-its-own-drawing-and-put-the-launcher-icon-on-cobalt.md)):

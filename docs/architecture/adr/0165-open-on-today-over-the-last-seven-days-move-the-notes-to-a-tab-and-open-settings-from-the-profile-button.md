@@ -1,6 +1,6 @@
 # ADR 0165: Open on today over the last seven days, move the notes to a tab, and open 설정 from the profile button
 
-> Status: accepted; the 노트 tab's 새 노트 chip and 공개 노트 둘러보기 under its rows superseded by ADR 0172; the week card under the hero on the first screen and the fit of the hero from `mascotHero` to `mascotFloor` superseded by ADR 0179
+> Status: accepted; the 노트 tab's 새 노트 chip and 공개 노트 둘러보기 under its rows superseded by ADR 0172; the week card under the hero on the first screen and the fit of the hero from `mascotHero` to `mascotFloor` superseded by ADR 0179; 홈 as today on the hero over the week card superseded by ADR-0193
 > Date: 2026-11-03
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
