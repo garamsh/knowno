@@ -359,39 +359,61 @@ class _EditingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final labelField = AppTextField(
+      label: l10n.labelPresetLabel,
+      controller: label,
+      autofocus: true,
+      textAlign: TextAlign.center,
+      style: AppType.bodyStrong,
+      errorText: showLabelError ? l10n.labelPresetRequired : null,
+    );
+    final nameField = AppTextField(
+      label: l10n.labelPresetName,
+      controller: name,
+      onSubmitted: (_) => onDone(),
+    );
+    final done = AppButton(
+      label: l10n.labelPresetDone,
+      variant: AppButtonVariant.text,
+      onPressed: onDone,
+    );
     return Padding(
       padding: const EdgeInsets.all(groupInset),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: AppSpace.s4,
-        children: [
-          SizedBox(
-            width: _labelFieldWidth,
-            child: AppTextField(
-              label: l10n.labelPresetLabel,
-              controller: label,
-              autofocus: true,
-              textAlign: TextAlign.center,
-              style: AppType.bodyStrong,
-              errorText: showLabelError ? l10n.labelPresetRequired : null,
+      child: _labelFits(context)
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: AppSpace.s4,
+              children: [
+                SizedBox(width: _labelFieldWidth, child: labelField),
+                Expanded(child: nameField),
+                done,
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: AppSpace.s8,
+              children: [
+                labelField,
+                nameField,
+                Align(alignment: AlignmentDirectional.centerEnd, child: done),
+              ],
             ),
-          ),
-          Expanded(
-            child: AppTextField(
-              label: l10n.labelPresetName,
-              controller: name,
-              onSubmitted: (_) => onDone(),
-            ),
-          ),
-          AppButton(
-            label: l10n.labelPresetDone,
-            variant: AppButtonVariant.text,
-            onPressed: onDone,
-          ),
-        ],
-      ),
     );
   }
+}
+
+/// Whether, at the text size of [context], a label of one Hangul syllable,
+/// as the presets' are, fits the label field inside its insets. Where it
+/// does not, the fields stand one above another at the row's width.
+bool _labelFits(BuildContext context) {
+  final painter = TextPainter(
+    text: TextSpan(text: '가', style: AppType.bodyStrong),
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout();
+  final width = painter.width;
+  painter.dispose();
+  return width + 2 * AppSpace.s16 <= _labelFieldWidth;
 }
 
 /// The width of a preset's label field while it is edited, and the least
