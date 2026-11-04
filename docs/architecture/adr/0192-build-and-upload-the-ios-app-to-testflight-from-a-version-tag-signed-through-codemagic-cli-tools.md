@@ -106,3 +106,10 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - Runs fail at the certificate cap again and again, because certificates made from other keys keep filling it.
 - A tag on a commit with a passing pull request is refused because the tree check or the `(#N)` subject fails. Branch protection would then not hold what this decision relies on.
 - A build reaches TestFlight but fails processing or runs without Sign in with Apple, though the ipa check passed.
+
+## Note, 2026-11-04: the tools' project by absolute path
+
+The first release run (41833900906, tag v1.0.1) failed with `error: Project directory \`tools/release\` does not exist`. The program ran `xcode-project use-profiles` from `app/`, and the relative `--project tools/release` named no directory there. The dry run never ran a tool, so it did not meet it.
+
+- The program now passes the project by absolute path, from the directory it starts in, the repository root where `scripts/run.sh` starts it. The Decision's "with `uv run --project tools/release --locked`" reads so with that path.
+- The dry run now runs `xcode-project --version` through the locked tools from `app/`, so a path that fails where the signed build runs a tool fails in a pull request. The last Consequences line holds, since the signature is still tested only by a release.
