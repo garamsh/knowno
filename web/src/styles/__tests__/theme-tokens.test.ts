@@ -75,12 +75,12 @@ describe("the web theme's colour tokens", () => {
   });
 
   it("are the light tokens of app/lib/design/theme.dart", () => {
-    expect(dartColors("light").size).toBe(51);
+    expect(dartColors("light").size).toBe(53);
     expect(withoutGoogle(cssColors(lightCss))).toEqual(dartColors("light"));
   });
 
   it("are the dark tokens of app/lib/design/theme.dart, for the system's dark mode and for 다크", () => {
-    expect(dartColors("dark").size).toBe(51);
+    expect(dartColors("dark").size).toBe(53);
     expect(withoutGoogle(cssColors(systemDarkCss))).toEqual(dartColors("dark"));
     expect(withoutGoogle(cssColors(chosenDarkCss))).toEqual(dartColors("dark"));
   });
@@ -313,7 +313,7 @@ describe("the web theme's size tokens", () => {
     const web = [...withoutGoogle(cssSpacing)].filter(([name]) => !namedGaps.includes(name));
     // Control: both sides read their sizes, the button's height among them.
     expect(sizes.get("button")).toBe(64);
-    expect(web.length).toBe(19);
+    expect(web.length).toBe(18);
 
     for (const [name, value] of web) {
       expect({ name, value }).toEqual({ name, value: sizes.get(name) });

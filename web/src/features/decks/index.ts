@@ -12,7 +12,6 @@ export {
 export { CardGrid } from "./components/card-grid";
 export { DeckList } from "./components/deck-list";
 export { DeckTile } from "./components/deck-tile";
-export { EmptyHome, NoCardsHome } from "./components/empty-home";
 export { ReadFailure } from "./components/read-failure";
 export { SideText } from "./components/side-text";
 export { faceLength, WholeCells } from "./components/whole-card";

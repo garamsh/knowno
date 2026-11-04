@@ -47,6 +47,9 @@
   --color-tint-red: #ffd2de;
   --color-on-know-tint: #14683f;
   --color-on-dont-know-tint: #a3202f;
+  /* 홈's today dot, the mascot's coral, and its label darkened to 4.5:1 on the ground. */
+  --color-today-mark: #fb7262;
+  --color-today-text: #c2412f;
   --color-deck-blue: #dce6ff;
   --color-deck-sky: #e0f0fa;
   --color-deck-peach: #ffe3dc;
@@ -157,8 +160,7 @@
   --spacing-mascot-guide: 64px;
   --spacing-progress: 10px;
   --spacing-stacked-lockup-width: 150px;
-  --spacing-mascot-large: 128px;
-  --spacing-mascot-hero: 210px;
+  --spacing-mascot-hero: 140px;
   --spacing-tab-bar: 66px;
   --spacing-edge-card: 6px;
   --spacing-edge-button: 7px;
@@ -441,6 +443,8 @@
     --color-tint-red: #6b2331;
     --color-on-know-tint: #8ce6bc;
     --color-on-dont-know-tint: #ffa8ba;
+    --color-today-mark: #fb7262;
+    --color-today-text: #ff9c8c;
     --color-deck-blue: #2c3a66;
     --color-deck-sky: #1d3a50;
     --color-deck-peach: #4a3330;
@@ -499,6 +503,8 @@
   --color-tint-red: #6b2331;
   --color-on-know-tint: #8ce6bc;
   --color-on-dont-know-tint: #ffa8ba;
+  --color-today-mark: #fb7262;
+  --color-today-text: #ff9c8c;
   --color-deck-blue: #2c3a66;
   --color-deck-sky: #1d3a50;
   --color-deck-peach: #4a3330;
