@@ -216,20 +216,10 @@ class StudyCoach extends StatelessWidget {
               alignment: MainAxisAlignment.spaceBetween,
               overflowAlignment: OverflowBarAlignment.center,
               children: [
-                TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: colors.ink2,
-                    disabledForegroundColor: colors.ink2.withValues(
-                      alpha: StudyStyle.coachPreviousDisabled,
-                    ),
-                    minimumSize: const Size(
-                      AppSize.tapTarget,
-                      AppSize.tapTarget,
-                    ),
-                    textStyle: AppType.label,
-                  ),
+                AppButton(
+                  label: l10n.coachPrevious,
+                  variant: AppButtonVariant.text,
                   onPressed: step == 0 ? null : onPrevious,
-                  child: Text(l10n.coachPrevious),
                 ),
                 SizedBox(
                   height: AppSize.tapTarget,

@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart';
-import 'package:knowno/design/app_list_row.dart';
+import 'package:knowno/design/app_choice.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/l10n/app_localizations.dart';
 import 'package:knowno/study/src/daily_minutes.dart';
@@ -113,14 +113,18 @@ void main() {
         () => StudyRepository(db, newId: () => 'unused').dailyMinutes(),
       );
 
-      expect(find.text('Daily study time'), findsOneWidget);
-      expect(find.text('20 min'), findsOneWidget);
+      expect(shownText('Daily study time'), findsOneWidget);
+      expect(shownText('20 min'), findsOneWidget);
       expect(
-        tester.widget<AppListRow>(find.byType(AppListRow)).leading,
-        isNull,
+        find.descendant(
+          of: find.byType(AppChoiceRow),
+          matching: find.byType(Icon),
+        ),
+        findsOneWidget,
+        reason: 'its chevron alone',
       );
 
-      await tester.tap(find.text('Daily study time'));
+      await tester.tap(shownText('Daily study time'));
       await tester.pumpAndSettle();
       await waitForPicker(tester);
       // A screen of its own, not a sheet, titled as the row.
@@ -128,7 +132,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(AppBar),
-          matching: find.text('Daily study time'),
+          matching: shownText('Daily study time'),
         ),
         findsOneWidget,
       );
@@ -139,9 +143,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(DailyMinutesPicker), findsNothing);
       expect(await stored(), isNull);
-      expect(find.text('20 min'), findsOneWidget);
+      expect(shownText('20 min'), findsOneWidget);
 
-      await tester.tap(find.text('Daily study time'));
+      await tester.tap(shownText('Daily study time'));
       await tester.pumpAndSettle();
       await waitForPicker(tester);
       await tester.tap(find.bySemanticsLabel('20 minutes a day, tap to type'));
@@ -153,22 +157,22 @@ void main() {
 
       expect(find.byType(DailyMinutesPicker), findsNothing);
       expect(await stored(), 45);
-      expect(find.text('45 min'), findsOneWidget);
+      expect(shownText('45 min'), findsOneWidget);
     },
   );
 
   testWidgets('in Korean the row reads 하루 학습 시간 and 20분', (tester) async {
     await _pumpRow(tester, locale: const Locale('ko'));
 
-    expect(find.text('하루 학습 시간'), findsOneWidget);
-    expect(find.text('20분'), findsOneWidget);
+    expect(shownText('하루 학습 시간'), findsOneWidget);
+    expect(shownText('20분'), findsOneWidget);
   });
 
   testWidgets(
     'the − and + move the minutes by 5 within 5 to 180, each disabled at its bound, read by their names',
     (tester) async {
       await _pumpRow(tester);
-      await tester.tap(find.text('Daily study time'));
+      await tester.tap(shownText('Daily study time'));
       await tester.pumpAndSettle();
       await waitForPicker(tester);
       IconButton step(String tooltip) => tester.widget<IconButton>(
@@ -190,7 +194,7 @@ void main() {
         await tester.tap(find.byTooltip('5 minutes less'));
         await tester.pumpAndSettle();
       }
-      expect(find.text('5'), findsOneWidget);
+      expect(shownText('5'), findsOneWidget);
       expect(step('5 minutes less').onPressed, isNull);
       // A tap gives no step the focus, so reaching the bound hands none.
       expect(step('5 minutes more').focusNode!.hasFocus, isFalse);
@@ -202,7 +206,7 @@ void main() {
       await tester.enterText(find.byType(TextField), '180');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
-      expect(find.text('180'), findsOneWidget);
+      expect(shownText('180'), findsOneWidget);
       expect(step('5 minutes more').onPressed, isNull);
       expect(step('5 minutes less').onPressed, isNotNull);
     },
@@ -212,7 +216,7 @@ void main() {
     'a step disabled at its bound under the keyboard focus hands the focus to the other',
     (tester) async {
       await _pumpRow(tester);
-      await tester.tap(find.text('Daily study time'));
+      await tester.tap(shownText('Daily study time'));
       await tester.pumpAndSettle();
       await waitForPicker(tester);
       await tester.tap(find.bySemanticsLabel('20 minutes a day, tap to type'));
@@ -230,16 +234,16 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
 
-      expect(find.text('180'), findsOneWidget);
+      expect(shownText('180'), findsOneWidget);
       expect(node(LucideIcons.minus).hasFocus, isTrue);
       // Control: a step that does not reach a bound keeps the focus.
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
-      expect(find.text('175'), findsOneWidget);
+      expect(shownText('175'), findsOneWidget);
       expect(node(LucideIcons.minus).hasFocus, isTrue);
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
-      expect(find.text('170'), findsOneWidget);
+      expect(shownText('170'), findsOneWidget);
       expect(node(LucideIcons.minus).hasFocus, isTrue);
     },
   );
@@ -251,7 +255,7 @@ void main() {
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await _pumpRow(tester);
 
-      await tester.tap(find.text('Daily study time'));
+      await tester.tap(shownText('Daily study time'));
       await tester.pumpAndSettle();
       await waitForPicker(tester);
       await tester.tap(find.bySemanticsLabel('20 minutes a day, tap to type'));

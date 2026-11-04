@@ -148,7 +148,7 @@
   --spacing-cta: 64px;
   --spacing-button: 64px;
   --spacing-field: 50px;
-  --spacing-search: 46px;
+  --spacing-search: 48px;
   --spacing-tap-target: 44px;
   --spacing-deck-tile: 46px;
   --spacing-listed-photo: 96px;
@@ -346,6 +346,8 @@
   --font-sans: var(--font-pretendard), ui-sans-serif, system-ui, sans-serif;
   /* Jua, then Pretendard ExtraBold for a character it lacks: the styles below ask for 800. */
   --font-display: var(--font-jua), var(--font-sans);
+  /* Google's button label, Google Sans as its guidelines set it; Pretendard draws the Hangul it lacks. */
+  --font-google: var(--font-google-sans), var(--font-sans);
 }
 
 /* The styles AppType draws in Jua: what we write, and never a user's text. */

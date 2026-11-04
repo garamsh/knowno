@@ -7,7 +7,9 @@ import 'package:intl/intl.dart';
 
 import '../../deck/deck.dart'
     show DeckFailure, DeckSelection, deckRepositoryProvider, describeFailure;
+import '../../design/app_chip.dart';
 import '../../design/theme.dart';
+import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'failure.dart';
 import 'failure_message.dart';
@@ -15,7 +17,6 @@ import 'providers.dart';
 import 'queue.dart';
 import 'stats.dart';
 import 'stats_style.dart';
-import '../../design/word_break.dart';
 
 /// The 기록 tab's content: [title], then the retention against its target
 /// with the period selector it alone follows, the recall bands, the mastered
@@ -286,7 +287,7 @@ class _PeriodChoice extends StatelessWidget {
   }
 }
 
-/// A figure with [pill] beside it, or under it where both do not fit.
+/// A figure with [pill], a chip, beside it, or under it where both do not fit.
 class _Figure extends StatelessWidget {
   const _Figure({required this.value, required this.pill});
 
@@ -307,39 +308,6 @@ class _Figure extends StatelessWidget {
         ),
         ?pill,
       ],
-    );
-  }
-}
-
-/// A round pill beside a figure: a gain on the green tint, or a
-/// [shortfall] on the amber.
-class _Pill extends StatelessWidget {
-  const _Pill({required this.label, this.shortfall = false});
-
-  final String label;
-  final bool shortfall;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return DecoratedBox(
-      decoration: ShapeDecoration(
-        color: shortfall ? colors.tintAmber : colors.tintGreen,
-        shape: const StadiumBorder(),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpace.s12,
-          vertical: AppSpace.s4,
-        ),
-        child: Text(
-          keepWords(label),
-          semanticsLabel: label,
-          style: AppType.section.copyWith(
-            color: shortfall ? colors.ink : colors.onKnowTint,
-          ),
-        ),
-      ),
     );
   }
 }
@@ -402,8 +370,8 @@ class _RetentionCard extends StatelessWidget {
       content: [
         _Figure(
           value: l10n.retentionPercent(value),
-          pill: _Pill(
-            shortfall: gap < 0,
+          pill: AppChip(
+            tone: gap < 0 ? AppChipTone.amber : AppChipTone.knowTint,
             label: gap < 0
                 ? l10n.retentionBelow(-gap)
                 : gap > 0
@@ -816,7 +784,10 @@ class _MasteredCard extends StatelessWidget {
           value: l10n.statsCards(weeks.last),
           pill: gain == null
               ? null
-              : _Pill(label: l10n.masteredGain(weeks.length - 1, gain)),
+              : AppChip(
+                  tone: AppChipTone.knowTint,
+                  label: l10n.masteredGain(weeks.length - 1, gain),
+                ),
         ),
         Semantics(
           container: true,

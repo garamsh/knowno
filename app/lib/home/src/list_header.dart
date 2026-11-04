@@ -3,7 +3,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_button.dart';
 import '../../design/app_menu.dart';
-import '../../design/app_text_field.dart';
 import '../../design/theme.dart';
 import 'above_menu.dart';
 
@@ -52,26 +51,4 @@ class ListHeaderActions extends StatelessWidget {
       ],
     );
   }
-}
-
-/// The search field under a list screen's title, always shown: [hint] in
-/// it, each change handed to [onChanged].
-class ListSearchField extends StatelessWidget {
-  const ListSearchField({
-    super.key,
-    required this.hint,
-    required this.onChanged,
-  });
-
-  final String hint;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) => AppTextField(
-    hint: hint,
-    prefixIcon: const Icon(LucideIcons.search),
-    height: AppSize.search,
-    textInputAction: TextInputAction.search,
-    onChanged: onChanged,
-  );
 }

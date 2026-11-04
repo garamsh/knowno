@@ -1,0 +1,9 @@
+# The tools google_sans.py runs, pinned by uv.lock with each file's hash.
+[project]
+name = "knowno-fonts"
+version = "0"
+requires-python = ">=3.12"
+dependencies = ["fonttools==4.68.0", "brotli==1.2.1"]
+
+[tool.uv]
+package = false

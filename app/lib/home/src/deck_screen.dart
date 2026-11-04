@@ -5,18 +5,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
+import '../../design/app_choice.dart';
 import '../../design/app_list_row.dart';
+import '../../design/app_search_field.dart';
 import '../../design/app_sheet.dart';
 import '../../design/mascot.dart';
 import '../../design/theme.dart';
+import '../../design/word_break.dart';
 import 'above_menu.dart';
 import 'list_header.dart';
-import 'option_sheet.dart';
 import '../../l10n/app_localizations.dart';
 import '../../photo_import/photo_import.dart';
 import '../../sharing/sharing.dart';
 import '../../study/study.dart';
-import '../../design/word_break.dart';
 
 /// A deck's page, above the menu: "+ 카드 추가" and "노트 설정" in the top
 /// bar, the deck's name on its own line under it, then, while the deck holds
@@ -158,7 +159,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
                     0,
                   ),
                   sliver: SliverToBoxAdapter(
-                    child: ListSearchField(
+                    child: AppSearchField(
                       hint: l10n.searchCards,
                       onChanged: (query) => setState(() => _query = query),
                     ),
@@ -304,7 +305,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
   Future<void> _addCard() async {
     final l10n = AppLocalizations.of(context);
     final photoImport = ref.read(photoImportProvider);
-    final choice = await showOptionSheet<_Add>(
+    final choice = await showAppChoice<_Add>(
       aboveMenu(context),
       title: l10n.newCard,
       options: [
@@ -317,7 +318,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
       ],
     );
     if (!mounted) return;
-    switch (choice) {
+    switch (choice?.value) {
       case _Add.byHand:
         await _open(null);
       case _Add.camera:

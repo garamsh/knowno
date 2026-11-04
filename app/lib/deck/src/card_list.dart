@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 import 'card_frame.dart';
 import 'content.dart';
 import 'content_view.dart';
+import 'hatched_box.dart';
 import 'whole_card_view.dart';
 
 /// A card's row in a note's card list: the whole card, what study hides
@@ -76,25 +77,13 @@ class CardBackRow extends StatelessWidget {
                           style: AppType.bodyStrong,
                         ),
                         if (back.isNotEmpty)
-                          DecoratedBox(
-                            decoration: HatchDecoration(
-                              colors,
-                              borderRadius: BorderRadius.circular(
-                                AppRadius.chip,
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpace.s12,
-                                vertical: AppSpace.s8,
-                              ),
-                              child: Text.rich(
-                                contentSpan(l10n, back, wrap: keepWords),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppType.secondary.copyWith(
-                                  color: colors.ink2,
-                                ),
+                          HatchedBox(
+                            child: Text.rich(
+                              contentSpan(l10n, back, wrap: keepWords),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppType.secondary.copyWith(
+                                color: colors.ink2,
                               ),
                             ),
                           ),

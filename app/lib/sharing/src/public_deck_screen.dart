@@ -8,6 +8,7 @@ import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'failure.dart';
 import 'failure_message.dart';
+import 'list_message.dart';
 import 'copy_sheet.dart';
 import 'model.dart';
 import 'sharing_service.dart';
@@ -96,7 +97,7 @@ class _PublicDeckScreenState extends State<PublicDeckScreen> {
             future: _cards,
             builder: (context, snapshot) => switch (snapshot) {
               AsyncSnapshot(hasData: true, :final data?) when data.isEmpty =>
-                _State(text: l10n.noCards),
+                ListMessage(l10n.noCards),
               AsyncSnapshot(hasData: true, :final data?) => Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -121,8 +122,8 @@ class _PublicDeckScreenState extends State<PublicDeckScreen> {
                     ),
                 ],
               ),
-              AsyncSnapshot(:final error?, :final stackTrace) => _State(
-                text: switch (error) {
+              AsyncSnapshot(:final error?, :final stackTrace) => ListMessage(
+                switch (error) {
                   SharingFailure() => describeSharingFailure(l10n, error),
                   _ => Error.throwWithStackTrace(
                     error,
@@ -214,41 +215,6 @@ class _PublicDeckScreenState extends State<PublicDeckScreen> {
     });
     messenger.showSnackBar(SnackBar(content: Text(message)));
     if (blocked) navigator.pop(true);
-  }
-}
-
-/// A state in place of the cards: what happened, and a retry when [onRetry]
-/// is given.
-class _State extends StatelessWidget {
-  const _State({required this.text, this.onRetry});
-
-  final String text;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final onRetry = this.onRetry;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpace.s32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: AppSpace.s12,
-        children: [
-          Text(
-            keepWords(text),
-            semanticsLabel: text,
-            textAlign: TextAlign.center,
-            style: AppType.body.copyWith(color: AppColors.of(context).muted),
-          ),
-          if (onRetry != null)
-            AppButton(
-              label: AppLocalizations.of(context).retry,
-              variant: AppButtonVariant.secondary,
-              onPressed: onRetry,
-            ),
-        ],
-      ),
-    );
   }
 }
 

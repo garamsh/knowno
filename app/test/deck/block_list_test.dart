@@ -8,6 +8,7 @@ import 'package:knowno/design/app_sheet.dart';
 import 'package:knowno/deck/src/undo_snack_bar.dart';
 import 'package:knowno/study/study.dart' show CardPreviewScreen;
 import 'package:knowno/deck/src/editor_group.dart';
+import 'package:knowno/l10n/app_localizations.dart';
 
 import '../home/deck_screens.dart';
 import '../word_breaks.dart';
@@ -36,7 +37,7 @@ void main() {
       expect(find.bySemanticsLabel('Add to front'), findsNothing);
       expect(find.byType(EditorGroup), findsOneWidget, reason: 'one 칸');
       expect(
-        find.descendant(of: blockList, matching: find.text('Text')),
+        find.descendant(of: blockList, matching: shownText('Text')),
         findsOneWidget,
       );
       expect(find.byTooltip('Block 1 menu'), findsOneWidget);
@@ -94,7 +95,7 @@ void main() {
       final tops = [
         for (final (type, _, _) in rows)
           tester
-              .getTopLeft(find.descendant(of: sheet, matching: find.text(type)))
+              .getTopLeft(find.descendant(of: sheet, matching: shownText(type)))
               .dy,
       ];
       expect(tops, [...tops]..sort(), reason: 'in the order of ADR 0137');
@@ -104,7 +105,7 @@ void main() {
       );
       for (final (type, icon, line) in rows) {
         final row = find.ancestor(
-          of: find.descendant(of: sheet, matching: find.text(type)),
+          of: find.descendant(of: sheet, matching: shownText(type)),
           matching: find.byType(InkWell),
         );
         expect(row, findsOneWidget, reason: '$type is one row');
@@ -129,14 +130,14 @@ void main() {
               .dx,
           lessThan(
             tester
-                .getTopLeft(find.descendant(of: row, matching: find.text(type)))
+                .getTopLeft(find.descendant(of: row, matching: shownText(type)))
                 .dx,
           ),
           reason: "$type's icon leads its name",
         );
       }
       await screens.tap(
-        find.descendant(of: sheet, matching: find.text('Text')),
+        find.descendant(of: sheet, matching: shownText('Text')),
       );
       expect(find.byType(EditorGroup), findsNWidgets(2));
     },
@@ -199,7 +200,7 @@ void main() {
       bool enabled(String item) => switch (tester.widget(
         find
             .ancestor(
-              of: find.text(item).last,
+              of: shownText(item).last,
               matching: find.byWidgetPredicate(
                 (widget) => widget is PopupMenuItem,
               ),
@@ -269,7 +270,7 @@ void main() {
         tester.widget<TextField>(line).controller!.selection =
             const TextSelection(baseOffset: 7, extentOffset: 10);
         await tester.pump();
-        await screens.tap(find.text('Insert blank'));
+        await screens.tap(shownText('Insert blank'));
         await tapVisible(screens, shownText('Save'));
         final card = await _stored(screens);
         expect(card.cells, const [
@@ -309,19 +310,75 @@ void main() {
     });
   });
 
+  for (final locale in const [Locale('en'), Locale('ko')]) {
+    for (final scale in [1.0, 3.12]) {
+      testWidgets('in ${locale.languageCode} at text scale $scale a Word\'s '
+          '"Shown on the front" keeps its name and both chips inside its 칸, '
+          'side by side at 1.0 and the chips under the name where they do not '
+          'fit', (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        final l10n = lookupAppLocalizations(locale);
+        final screens = await DeckScreens.open(tester, locale: locale);
+        await screens.push(
+          (deck) => CardEditorScreen(preview: studyPreview, deck: deck),
+        );
+        await tapVisible(screens, find.bySemanticsLabel(l10n.addBlock));
+        await screens.tap(shownText(l10n.blockSenses).last);
+        final name = shownText(l10n.wordAskFirst);
+        await tester.ensureVisible(name);
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull, reason: 'nothing overflows');
+        final group = tester.getRect(
+          find.ancestor(of: name, matching: find.byType(EditorGroup)),
+        );
+        final named = tester.getRect(name);
+        final chips = [
+          for (final label in [l10n.wordTerm, l10n.senseMeaning])
+            tester.getRect(
+              find.descendant(
+                of: widgetWithShownText(AppChip, label),
+                matching: find.byType(Material),
+              ),
+            ),
+        ];
+        for (final part in [named, ...chips]) {
+          expect(part.left, greaterThanOrEqualTo(group.left));
+          expect(part.right, lessThanOrEqualTo(group.right));
+        }
+        final sideBySide = (chips.first.center.dy - named.center.dy).abs() <= 1;
+        if (scale == 1.0 && locale.languageCode == 'ko') {
+          expect(sideBySide, isTrue, reason: 'one line where it fits');
+        }
+        if (!sideBySide) {
+          expect(
+            chips.first.top,
+            greaterThanOrEqualTo(named.bottom),
+            reason: 'the chips under the name',
+          );
+        }
+        if (scale == 3.12 && locale.languageCode == 'en') {
+          expect(sideBySide, isFalse, reason: 'control: they do not fit');
+        }
+        await screens.close();
+      });
+    }
+  }
+
   testWidgets(
     'a Word asks its word first until Meaning is chosen, the chip says which, and a save stores it',
     (tester) async {
       final screens = await openNew(tester);
       await replaceFirstBlock(screens, 'Word');
-      expect(find.text('Shown on the front'), findsOneWidget);
+      expect(shownText('Shown on the front'), findsOneWidget);
       AppChip chip(String label) =>
-          tester.widget<AppChip>(find.widgetWithText(AppChip, label));
+          tester.widget<AppChip>(widgetWithShownText(AppChip, label));
       expect((chip('Word').selected, chip('Meaning').selected), (true, false));
       await typeInto(tester, namedField('Word'), 'apple');
       await typeInto(tester, labelledField('Meaning'), '사과');
 
-      await tapVisible(screens, find.widgetWithText(AppChip, 'Meaning'));
+      await tapVisible(screens, widgetWithShownText(AppChip, 'Meaning'));
       expect((chip('Word').selected, chip('Meaning').selected), (false, true));
       await tapVisible(screens, shownText('Save'));
       final card = await _stored(screens);
@@ -343,12 +400,12 @@ void main() {
       );
       expect(
         tester
-            .widget<AppChip>(find.widgetWithText(AppChip, 'Meaning'))
+            .widget<AppChip>(widgetWithShownText(AppChip, 'Meaning'))
             .selected,
         isTrue,
         reason: 'reopened as saved',
       );
-      await tapVisible(screens, find.widgetWithText(AppChip, 'Word'));
+      await tapVisible(screens, widgetWithShownText(AppChip, 'Word'));
       await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).front, const [TextContent('apple')]);
     },
@@ -391,7 +448,7 @@ void main() {
       tester.widget<TextField>(line).controller!.selection =
           const TextSelection(baseOffset: 7, extentOffset: 10);
       await tester.pump();
-      await screens.tap(find.text('Insert blank'));
+      await screens.tap(shownText('Insert blank'));
       await screens.tap(shownText('Preview'));
       await screens.tap(find.byType(CardPreviewScreen));
       final preview = find.byType(CardPreviewScreen);
@@ -416,8 +473,8 @@ void main() {
       await actOnBlock(screens, 1, 'Delete');
       expect(find.byType(AppSheet), findsNothing, reason: 'nothing asks');
       expect(shownText('Block deleted'), findsOneWidget);
-      expect(find.widgetWithText(TextField, 'Chat'), findsNothing);
-      await screens.tap(find.text('Undo'));
+      expect(widgetWithShownText(TextField, 'Chat'), findsNothing);
+      await screens.tap(shownText('Undo'));
       expect(find.byType(EditorGroup), findsNWidgets(2));
       expect(
         tester.widget<TextField>(blockField()).controller!.text,
@@ -428,7 +485,7 @@ void main() {
       await actOnBlock(screens, 2, 'Delete');
       await tester.pump(undoDuration);
       await tester.pumpAndSettle();
-      expect(find.text('Undo'), findsNothing, reason: 'the bar went');
+      expect(shownText('Undo'), findsNothing, reason: 'the bar went');
       await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).cells, const [
         TextCell(front: 'Chat', back: 'Cat'),
@@ -472,7 +529,7 @@ void main() {
         await addBlock(screens, 'Text');
         await typeBlock(tester, 'front $index', 3 + 2 * index);
       }
-      final error = find.text('Write something');
+      final error = shownText('Write something');
       await tapVisible(screens, shownText('Save'));
       expect(error, findsOneWidget, reason: 'refused');
       expect(inView(tester, error), isTrue, reason: 'its error is in view');

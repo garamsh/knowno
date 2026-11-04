@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_chip.dart';
+import '../../design/app_list_row.dart';
 import '../../design/app_sheet.dart';
 import '../../design/app_text_field.dart';
 import '../../design/theme.dart';
@@ -10,385 +10,13 @@ import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import '../../media/media.dart';
 import 'audio_block.dart';
+import 'block_draft.dart';
 import 'card_frame.dart';
 import 'cloze_block.dart';
-import 'content.dart';
 import 'editor_group.dart';
 import 'image_block.dart';
 import 'senses_block.dart';
 import 'table_block.dart';
-
-/// A block type the add sheet offers. A type whose block issue has not
-/// landed is not one of them (ADR 0108).
-enum BlockType {
-  text,
-  senses,
-  cloze,
-  table,
-  image,
-  audio;
-
-  /// An empty block of this type: a 글 with no text, a 단어 with one empty
-  /// meaning, a line with no blank, a table of two rows of two cells, a 사진
-  /// with no photo yet, or a 소리 with no sound yet.
-  BlockDraft draft() => switch (this) {
-    text => TextBlockDraft(),
-    senses => SensesBlockDraft(),
-    cloze => ClozeBlockDraft(),
-    table => TableBlockDraft(),
-    image => ImageBlockDraft(),
-    audio => AudioBlockDraft(),
-  };
-
-  String title(AppLocalizations l10n) => switch (this) {
-    text => l10n.blockText,
-    senses => l10n.blockSenses,
-    cloze => l10n.blockCloze,
-    table => l10n.blockTable,
-    image => l10n.blockImage,
-    audio => l10n.blockAudio,
-  };
-
-  /// The type's icon at the start of its row in the add sheet.
-  IconData get icon => switch (this) {
-    text => LucideIcons.type,
-    senses => LucideIcons.bookA,
-    cloze => LucideIcons.textCursorInput,
-    table => LucideIcons.table,
-    image => LucideIcons.image,
-    audio => LucideIcons.audioLines,
-  };
-
-  /// The line under the type in the add sheet.
-  String description(AppLocalizations l10n) => switch (this) {
-    text => l10n.blockTextDescription,
-    senses => l10n.blockSensesDescription,
-    cloze => l10n.blockClozeDescription,
-    table => l10n.blockTableDescription,
-    image => l10n.blockImageDescription,
-    audio => l10n.blockAudioDescription,
-  };
-}
-
-/// A 칸 as a block list edits it.
-sealed class BlockDraft {
-  BlockDraft({this.id});
-
-  /// A draft of [cell], or of a block this build cannot read, kept as it is.
-  static BlockDraft of(Cell cell) => switch (cell) {
-    TextCell() => TextBlockDraft(cell),
-    WordCell() => SensesBlockDraft(cell),
-    BlankCell(:final block, :final id) => _ofBlock(block, CellSide.front, id),
-    PlacedCell(:final block, :final side, :final id) => _ofBlock(
-      block,
-      side,
-      id,
-    ),
-    UnknownCell(:final block) => KeptBlockDraft(block),
-  };
-
-  static BlockDraft _ofBlock(Content block, CellSide side, String? id) =>
-      switch (block) {
-        TableContent() => TableBlockDraft(block, id),
-        ClozeContent() => ClozeBlockDraft(block, id),
-        ImageContent() => ImageBlockDraft(block, side, id),
-        AudioContent() => AudioBlockDraft(block, side, id),
-        _ => throw ArgumentError.value(
-          block,
-          'block',
-          'holds no blank or side',
-        ),
-      };
-
-  /// The stored block's id, kept across edits; a new 칸 takes one on saving.
-  final String? id;
-
-  /// The block's group, which keeps its fields' focus and state when it
-  /// moves, and which the editor scrolls into view.
-  final key = GlobalKey();
-
-  /// The edits made in the block's group, which end an undo offered for what
-  /// was taken out of it.
-  final edits = GroupEdits();
-
-  /// The field a new 칸 is typed in first; null for one with no text field.
-  FocusNode? get entry => null;
-
-  /// The field that keeps the block from being saved, once [isComplete] is
-  /// false; null where no one field does.
-  FocusNode? get problem => null;
-
-  /// The block's type, or null for a block this build cannot read.
-  BlockType? get type;
-
-  /// The 칸 as saved, meaningful once [isComplete]; null while it holds
-  /// nothing to save.
-  Cell? get cell;
-
-  /// The 칸 as the preview draws it, while it may still be incomplete.
-  Cell? get preview => cell;
-
-  /// Whether the block can be saved as it is.
-  bool get isComplete;
-
-  @mustCallSuper
-  void dispose() => edits.dispose();
-}
-
-/// A 글: its front and its back as typed.
-final class TextBlockDraft extends BlockDraft {
-  TextBlockDraft([TextCell? cell])
-    : front = TextEditingController(text: cell?.front),
-      back = TextEditingController(text: cell?.back),
-      super(id: cell?.id);
-
-  final TextEditingController front;
-  final TextEditingController back;
-
-  /// The front field's focus, which a new card's first 글 takes.
-  final focus = FocusNode();
-
-  @override
-  BlockType get type => BlockType.text;
-
-  @override
-  FocusNode get entry => focus;
-
-  /// The 글, a part holding only spaces saved empty; null with both so, as
-  /// the editor saves no 칸 for it.
-  @override
-  Cell? get cell {
-    String part(TextEditingController field) =>
-        field.text.trim().isEmpty ? '' : field.text;
-    final (shown, added) = (part(front), part(back));
-    if (shown.isEmpty && added.isEmpty) return null;
-    return TextCell(front: shown, back: added, id: id);
-  }
-
-  @override
-  bool get isComplete => true;
-
-  @override
-  void dispose() {
-    front.dispose();
-    back.dispose();
-    focus.dispose();
-    super.dispose();
-  }
-}
-
-/// A 단어: its word, its senses, one empty meaning when new, and which shows
-/// first.
-final class SensesBlockDraft extends BlockDraft {
-  SensesBlockDraft([WordCell? word])
-    : term = TextEditingController(text: word?.term),
-      ask = word?.ask ?? WordAsk.term,
-      senses = word == null || word.senses.isEmpty
-          ? [SenseDraft()]
-          : [for (final sense in word.senses) SenseDraft(sense)],
-      super(id: word?.id);
-
-  final TextEditingController term;
-  final List<SenseDraft> senses;
-
-  /// The 단어 field's focus.
-  final termFocus = FocusNode();
-
-  /// Which part shows before the reveal.
-  WordAsk ask;
-
-  @override
-  BlockType get type => BlockType.senses;
-
-  @override
-  FocusNode get entry => termFocus;
-
-  @override
-  FocusNode? get problem =>
-      senses.where((sense) => sense.isBlank).firstOrNull?.meaningFocus;
-
-  @override
-  Cell get cell => WordCell(
-    term: term.text.trim(),
-    senses: [for (final sense in senses) sense.sense],
-    ask: ask,
-    id: id,
-  );
-
-  @override
-  bool get isComplete => !senses.any((sense) => sense.isBlank);
-
-  @override
-  void dispose() {
-    term.dispose();
-    termFocus.dispose();
-    for (final sense in senses) {
-      sense.dispose();
-    }
-    super.dispose();
-  }
-}
-
-/// A 표: its headers, cells and blanks.
-final class TableBlockDraft extends BlockDraft {
-  TableBlockDraft([TableContent? table, String? id])
-    : table = table == null ? TableDraft() : TableDraft.of(table),
-      super(id: id);
-
-  final TableDraft table;
-
-  @override
-  BlockType get type => BlockType.table;
-
-  @override
-  FocusNode get entry => table.focusOf(table.columns.first);
-
-  @override
-  FocusNode? get problem => table.problemFocus;
-
-  @override
-  Cell get cell => BlankCell(table.table, id: id);
-
-  @override
-  bool get isComplete => table.problem == null;
-
-  @override
-  void dispose() {
-    table.dispose();
-    super.dispose();
-  }
-}
-
-/// A 빈칸 문장: its line and blanks, kept as stored until either is edited, so
-/// a blank inside a word survives an unchanged save.
-final class ClozeBlockDraft extends BlockDraft {
-  ClozeBlockDraft([ClozeContent? stored, String? id])
-    : _stored = stored,
-      cloze = stored == null ? ClozeDraft() : ClozeDraft.of(stored),
-      super(id: id) {
-    line = ClozeLineController(
-      text: cloze.line,
-      blanks: () => cloze.line == line.text ? cloze.blanks : const [],
-    )..addListener(_sync);
-  }
-
-  final ClozeContent? _stored;
-  final ClozeDraft cloze;
-  late final ClozeLineController line;
-
-  /// The line's focus, which shows the cloze's action above the keyboard.
-  final focus = FocusNode();
-
-  /// Whether the line or its blanks were changed since the block opened.
-  bool edited = false;
-
-  @override
-  BlockType get type => BlockType.cloze;
-
-  @override
-  FocusNode get entry => focus;
-
-  @override
-  FocusNode get problem => focus;
-
-  /// Keeps the blanks on the line as it is typed, and ends the blank "빈칸
-  /// 넣기" opened once the cursor leaves it.
-  void _sync() => cloze
-    ..update(line.text)
-    ..track(line.selection);
-
-  @override
-  Cell get cell => BlankCell(switch (_stored) {
-    final stored? when !edited => stored,
-    _ => cloze.content ?? cloze.preview,
-  }, id: id);
-
-  @override
-  Cell get preview =>
-      edited || _stored == null ? BlankCell(cloze.preview, id: id) : cell;
-
-  @override
-  bool get isComplete => (!edited && _stored != null) || cloze.content != null;
-
-  @override
-  void dispose() {
-    line
-      ..removeListener(_sync)
-      ..dispose();
-    focus.dispose();
-    super.dispose();
-  }
-}
-
-/// A 사진: its photo, once chosen, the boxes over it (ADR 0109), and the side
-/// it sits on while it holds none.
-final class ImageBlockDraft extends BlockDraft {
-  ImageBlockDraft([ImageContent? image, this.side = CellSide.front, String? id])
-    : image = ImageDraft(image),
-      super(id: id);
-
-  final ImageDraft image;
-  CellSide side;
-
-  @override
-  BlockType get type => BlockType.image;
-
-  /// Null while no photo is chosen, which [isComplete] refuses to save.
-  @override
-  Cell? get cell => switch (image.image) {
-    null => null,
-    final photo when photo.boxes.isNotEmpty => BlankCell(photo, id: id),
-    final photo => PlacedCell(photo, side, id: id),
-  };
-
-  @override
-  bool get isComplete => image.image != null;
-
-  @override
-  void dispose() {
-    image.dispose();
-    super.dispose();
-  }
-}
-
-/// A 소리: its sound, once recorded or picked (ADR 0112), and its side.
-final class AudioBlockDraft extends BlockDraft {
-  AudioBlockDraft([AudioContent? audio, this.side = CellSide.front, String? id])
-    : audio = AudioDraft(audio),
-      super(id: id);
-
-  final AudioDraft audio;
-  CellSide side;
-
-  @override
-  BlockType get type => BlockType.audio;
-
-  /// Null while no sound is in it, which [isComplete] refuses to save.
-  @override
-  Cell? get cell => switch (audio.audio) {
-    final sound? => PlacedCell(sound, side, id: id),
-    null => null,
-  };
-
-  @override
-  bool get isComplete => audio.audio != null;
-}
-
-/// A block this build cannot read, kept and written back as it was stored.
-final class KeptBlockDraft extends BlockDraft {
-  KeptBlockDraft(this.block);
-
-  final UnsupportedContent block;
-
-  @override
-  Cell get cell => UnknownCell(block);
-
-  @override
-  BlockType? get type => null;
-
-  @override
-  bool get isComplete => true;
-}
 
 /// A card's [blocks], one white group per 칸 headed by its type, each with a
 /// ⋯ menu that moves it up or down or deletes it, a non-drag way to reorder
@@ -516,8 +144,8 @@ class BlockList extends StatelessWidget {
   }
 }
 
-/// The add sheet's one grouped list of block types, each row its icon, its
-/// name and one line under it; a tap picks it.
+/// The add sheet's one group of block types, each row its icon, its name and
+/// one line under it; a tap picks it.
 class _TypeList extends StatelessWidget {
   const _TypeList();
 
@@ -525,55 +153,16 @@ class _TypeList extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
-    return Material(
-      color: colors.ground,
-      borderRadius: BorderRadius.circular(AppRadius.group),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final (index, type) in BlockType.values.indexed) ...[
-            if (index > 0) const Divider(height: 1, thickness: 1),
-            MergeSemantics(
-              child: InkWell(
-                onTap: () => Navigator.of(context).pop(type),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minHeight: AppSize.tapTarget,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpace.s16,
-                      vertical: AppSpace.s12,
-                    ),
-                    child: Row(
-                      spacing: AppSpace.s16,
-                      children: [
-                        Icon(type.icon, color: colors.ink2),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(type.title(l10n), style: AppType.bodyStrong),
-                              Text(
-                                keepWords(type.description(l10n)),
-                                semanticsLabel: type.description(l10n),
-                                style: AppType.caption.copyWith(
-                                  color: colors.muted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return AppGroup(
+      children: [
+        for (final type in BlockType.values)
+          AppListRow(
+            leading: Icon(type.icon, color: colors.ink2),
+            title: type.title(l10n),
+            subtitle: type.description(l10n),
+            onTap: () => Navigator.of(context).pop(type),
+          ),
+      ],
     );
   }
 }
@@ -845,7 +434,8 @@ class _NamedField extends StatelessWidget {
 }
 
 /// A row of a group offering a choice of chips, after its [name] when it has
-/// one.
+/// one, the chips at the row's end; where the name and the chips do not fit
+/// one line, as at a large text size, the chips go under the name.
 class _ChoiceRow extends StatelessWidget {
   const _ChoiceRow({this.name, required this.choices});
 
@@ -855,28 +445,35 @@ class _ChoiceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = this.name;
+    final chips = Wrap(
+      spacing: AppSpace.s8,
+      children: [
+        for (final choice in choices)
+          AppChip.action(
+            label: choice.label,
+            selected: choice.selected,
+            onPressed: choice.onPressed,
+          ),
+      ],
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.s20),
-      child: Row(
-        spacing: AppSpace.s8,
-        children: [
-          if (name != null)
-            Expanded(
-              child: Text(
-                name,
-                style: AppType.body.copyWith(
-                  color: AppColors.of(context).muted,
+      child: name == null
+          ? chips
+          : OverflowBar(
+              spacing: AppSpace.s8,
+              alignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  keepWords(name),
+                  semanticsLabel: name,
+                  style: AppType.body.copyWith(
+                    color: AppColors.of(context).muted,
+                  ),
                 ),
-              ),
+                chips,
+              ],
             ),
-          for (final choice in choices)
-            AppChip.action(
-              label: choice.label,
-              selected: choice.selected,
-              onPressed: choice.onPressed,
-            ),
-        ],
-      ),
     );
   }
 }

@@ -119,11 +119,19 @@ flutter:
   # ofl/jua/Jua-Regular.ttf and OFL.txt of github.com/google/fonts at commit
   # 6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec (SHA-256
   # 769677aef240bfc3b9965f2b50748075bff885e6c6992fc591a3fb268279f898).
+  # Google Sans Medium, the label font of Google's sign-in button, under the SIL
+  # Open Font License in assets/fonts/OFL-GoogleSans.txt, which is OFL.txt of
+  # ofl/googlesans/ in github.com/google/fonts at commit
+  # d4eb04601981780781306966afb88e876652bab4: a subset of that commit's
+  # GoogleSans[GRAD,opsz,wght].ttf (SHA-256
+  # d0a87d835a944b8b40d0e82a5651bb59ab97b936a2aeed5946eb57e7b2a3a90a), which
+  # tools/fonts/google_sans.py writes.
   # Google's "G" mark, from its Sign in with Google assets (docs/architecture/design/theme.md).
   # The brand's stacked lockup and circled mark (docs/architecture/design/brand.md).
   assets:
     - assets/fonts/OFL.txt
     - assets/fonts/OFL-Jua.txt
+    - assets/fonts/OFL-GoogleSans.txt
     - assets/google/
     - assets/brand/
   fonts:
@@ -146,6 +154,10 @@ flutter:
     - family: PretendardExtraBold
       fonts:
         - asset: assets/fonts/Pretendard-ExtraBold.otf
+    - family: GoogleSans
+      fonts:
+        - asset: assets/fonts/GoogleSans-Medium.ttf
+          weight: 500
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a

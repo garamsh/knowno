@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../design/theme.dart';
@@ -141,12 +142,23 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                               ),
                               if (offersApple) ...[
                                 const SizedBox(height: AppSpace.s8),
-                                AppleSignInButton(
-                                  label: l10n.signInWithApple,
-                                  onPressed: () => _signIn(
-                                    ref
-                                        .read(accountServiceProvider)
-                                        .signInWithApple,
+                                // As tall as Google's button at the same
+                                // width: Apple's guidelines make it no
+                                // smaller than another sign-in button.
+                                _HeightForWidth(
+                                  height: (width) =>
+                                      GoogleSignInButton.heightFor(
+                                        context,
+                                        l10n.signInWithGoogle,
+                                        width,
+                                      ),
+                                  child: AppleSignInButton(
+                                    label: l10n.signInWithApple,
+                                    onPressed: () => _signIn(
+                                      ref
+                                          .read(accountServiceProvider)
+                                          .signInWithApple,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -192,5 +204,55 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+}
+
+/// Lays [child] out at the height [height] gives for the width it is given,
+/// in a layout pass and when an ancestor such as [IntrinsicHeight] asks.
+class _HeightForWidth extends SingleChildRenderObjectWidget {
+  const _HeightForWidth({required this.height, required super.child});
+
+  final double Function(double width) height;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderHeightForWidth(height);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderHeightForWidth renderObject,
+  ) => renderObject.height = height;
+}
+
+class _RenderHeightForWidth extends RenderProxyBox {
+  _RenderHeightForWidth(this._height);
+
+  double Function(double width) _height;
+  set height(double Function(double width) value) {
+    _height = value;
+    markNeedsLayout();
+  }
+
+  BoxConstraints _tight(BoxConstraints constraints) => BoxConstraints.tightFor(
+    width: constraints.maxWidth,
+    height: constraints.constrainHeight(_height(constraints.maxWidth)),
+  );
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _height(width);
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _height(width);
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) =>
+      _tight(constraints).smallest;
+
+  @override
+  void performLayout() {
+    final tight = _tight(constraints);
+    child!.layout(tight);
+    size = tight.smallest;
   }
 }

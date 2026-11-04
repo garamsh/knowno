@@ -6,7 +6,7 @@ import '../../design/theme.dart';
 /// Apple's "Continue with Apple" button, full width, as the
 /// `sign_in_with_apple` package draws it to Apple's Human Interface
 /// Guidelines: black in the light theme and white in the dark one, as tall as
-/// Google's button beside it, and rounded as the app's buttons are.
+/// it is laid out, 64 at the least, and rounded as the app's buttons are.
 class AppleSignInButton extends StatelessWidget {
   const AppleSignInButton({
     super.key,
@@ -20,16 +20,20 @@ class AppleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MediaQuery.withNoTextScaling(
-    // The title keeps Apple's proportion to the button's height, as the
-    // system's button does at every text size.
-    child: SignInWithAppleButton(
-      text: label,
-      onPressed: onPressed,
-      height: AppSize.cta,
-      borderRadius: BorderRadius.circular(AppRadius.button),
-      style: Theme.of(context).brightness == Brightness.dark
-          ? SignInWithAppleButtonStyle.white
-          : SignInWithAppleButtonStyle.black,
+    // The package sizes the title from the height it is given, so it is
+    // given 64 and fills the height it is laid out at: the title keeps
+    // Apple's proportion to a 64 high button at every text size.
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: AppSize.cta),
+      child: SignInWithAppleButton(
+        text: label,
+        onPressed: onPressed,
+        height: AppSize.cta,
+        borderRadius: BorderRadius.circular(AppRadius.button),
+        style: Theme.of(context).brightness == Brightness.dark
+            ? SignInWithAppleButtonStyle.white
+            : SignInWithAppleButtonStyle.black,
+      ),
     ),
   );
 }

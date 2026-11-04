@@ -10,12 +10,12 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_list_row.dart';
 import 'package:knowno/design/app_sheet.dart';
 import 'package:knowno/design/mascot.dart';
+import 'package:knowno/design/round_check.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/l10n/app_localizations.dart';
 import 'package:knowno/photo_import/photo_import.dart';
 import 'package:knowno/photo_import/src/import_job.dart' show PhotoRead;
 import 'package:knowno/photo_import/src/photo_viewer.dart' show PhotoViewer;
-import 'package:knowno/photo_import/src/round_check.dart';
 
 import '../contrast.dart';
 import '../home/home_data.dart';

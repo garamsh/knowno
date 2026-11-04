@@ -52,7 +52,7 @@ final _phones = TargetPlatformVariant(const {
 });
 
 /// The bar's one action while it reads [label].
-Finder _action(String label) => find.widgetWithText(AppChip, label);
+Finder _action(String label) => widgetWithShownText(AppChip, label);
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -97,7 +97,7 @@ void main() {
   }
 
   Future<void> insertBlank(DeckScreens screens) =>
-      screens.tap(find.text('Insert blank'));
+      screens.tap(shownText('Insert blank'));
 
   Future<void> save(DeckScreens screens) async {
     await screens.tester.ensureVisible(shownText('Save'));
@@ -365,13 +365,13 @@ void main() {
       await tester.tap(insert);
       await tester.pumpAndSettle();
       expect(
-        find.widgetWithText(AppChip, 'Undo blank'),
+        widgetWithShownText(AppChip, 'Undo blank'),
         findsOneWidget,
         reason: '"capital" is a blank',
       );
       // Control: a tap on what handles none, the deck's name, still
       // closes the keyboard.
-      await tester.tap(find.text('French'));
+      await tester.tap(shownText('French'));
       await tester.pumpAndSettle();
       expect(tester.testTextInput.isVisible, isFalse);
       await screens.close();
@@ -554,10 +554,10 @@ void main() {
       final screens = await openCloze(tester);
       await typeLine(tester, 'The cat sat');
       expect(find.byType(FilterChip), findsNothing);
-      expect(find.text('Tap the words to make blanks'), findsNothing);
+      expect(shownText('Tap the words to make blanks'), findsNothing);
       await select(tester, 4, 7);
       await insertBlank(screens);
-      expect(find.text('Pick letters'), findsNothing);
+      expect(shownText('Pick letters'), findsNothing);
       expect(find.textContaining('Blank 1'), findsNothing);
       expect(find.byType(InputChip), findsNothing, reason: 'no chip row');
       expect(_blocks(tester), ['cat']);
@@ -587,7 +587,7 @@ void main() {
           findsNothing,
           reason: 'one face, no split card',
         );
-        expect(find.text('Front'), findsNothing, reason: 'one face: no side');
+        expect(shownText('Front'), findsNothing, reason: 'one face: no side');
         // Before the tap, each blank a box on the hatch with no answer, as
         // study's current card draws it; after it, each answer on the hatch,
         // as study's previous card does (ADR 0168, ADR 0176).

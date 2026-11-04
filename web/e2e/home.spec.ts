@@ -290,7 +290,7 @@ test("draws the first-run home, 홈 over its week card, the 노트 page, a note,
   // drawn round the field and its magnifier.
   expect(
     await fieldHeight(page.getByRole("searchbox", { name: "노트 검색" }).locator("xpath=..")),
-  ).toBe(46);
+  ).toBe(48);
   await capture(page, "notes-search");
 
   await page.goto(`/decks/${decks[0]?.id ?? ""}`);

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/account/account.dart';
@@ -11,6 +12,7 @@ import 'package:knowno/design/theme.dart';
 import 'package:knowno/l10n/app_localizations.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../app_fonts.dart';
 import '../contrast.dart';
 import 'fake_account_service.dart';
 import '../word_breaks.dart';
@@ -47,7 +49,7 @@ void main() {
   }
 
   Future<void> tapAndSettle(WidgetTester tester, String text) async {
-    await tester.tap(find.text(text));
+    await tester.tap(shownText(text));
     await tester.pumpAndSettle();
   }
 
@@ -136,15 +138,15 @@ void main() {
         ..pendingSignIn = pending;
       await pumpScreen(tester, service);
 
-      await tester.tap(find.text('Continue with Google'));
+      await tester.tap(shownText('Continue with Google'));
       await tester.pump();
       expect(find.bySemanticsLabel('Signing in'), findsOneWidget);
-      expect(find.text('Continue with Google'), findsNothing);
+      expect(shownText('Continue with Google'), findsNothing);
       pending.complete();
       await tester.pumpAndSettle();
 
       expect(find.bySemanticsLabel('Signing in'), findsNothing);
-      expect(find.text('Continue with Google'), findsOneWidget);
+      expect(shownText('Continue with Google'), findsOneWidget);
       expect(find.byType(SnackBar), findsNothing);
     },
   );
@@ -167,7 +169,7 @@ void main() {
       await tapAndSettle(tester, 'Continue with Google');
 
       expect(find.text(message), findsOneWidget);
-      expect(find.text('Continue with Google'), findsOneWidget);
+      expect(shownText('Continue with Google'), findsOneWidget);
     });
   }
 
@@ -331,14 +333,27 @@ void main() {
         expect(
           find.descendant(
             of: button,
-            matching: find.text('Continue with Google'),
+            matching: shownText('Continue with Google'),
           ),
           findsOneWidget,
         );
+        // The label is Google Sans Medium, 14 on 20, as the guidelines set
+        // it, with the app's font for the Hangul Google Sans lacks.
+        final label = tester
+            .widget<RichText>(
+              find.descendant(of: button, matching: find.byType(RichText)),
+            )
+            .text
+            .style!;
+        expect(label.fontFamily, 'GoogleSans');
+        expect(label.fontFamilyFallback, [appFontFamily]);
+        expect(label.fontWeight, FontWeight.w500);
+        expect(label.fontSize, 14);
+        expect(label.height, 20 / 14);
         // The mark sits before the label.
         expect(
           tester.getRect(mark).right,
-          lessThan(tester.getRect(find.text('Continue with Google')).left),
+          lessThan(tester.getRect(shownText('Continue with Google')).left),
         );
         final surface = tester.widget<Material>(
           find.descendant(of: button, matching: find.byType(Material)).first,
@@ -360,6 +375,105 @@ void main() {
       },
     );
   }
+
+  group('at the largest text size, in the bundled fonts,', () {
+    setUpAll(loadAppFonts);
+
+    for (final width in [320.0, 390.0]) {
+      for (final mode in ThemeMode.values.skip(1)) {
+        testWidgets(
+          "on a ${width.toInt()} wide phone in the ${mode.name} theme Google's Korean label is whole, broken between words, inside a button grown to hold it, with the mark and the padding unchanged",
+          (tester) async {
+            tester.view.physicalSize = Size(width, 844);
+            tester.view.devicePixelRatio = 1;
+            addTearDown(tester.view.reset);
+            tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+            addTearDown(
+              tester.platformDispatcher.clearTextScaleFactorTestValue,
+            );
+            await pumpScreen(
+              tester,
+              FakeAccountService(),
+              locale: const Locale('ko'),
+              themeMode: mode,
+            );
+
+            const text = 'Google로 계속하기';
+            final button = find.byType(GoogleSignInButton);
+            final label = find.descendant(
+              of: button,
+              matching: shownText(text),
+            );
+            final paragraph = tester.renderObject<RenderParagraph>(
+              find.descendant(of: label, matching: find.byType(RichText)),
+            );
+            // The label laid out at its width with no height to fit.
+            final whole = TextPainter(
+              text: paragraph.text,
+              textDirection: paragraph.textDirection,
+              textScaler: paragraph.textScaler,
+            )..layout(maxWidth: paragraph.size.width);
+            addTearDown(whole.dispose);
+            expect(paragraph.size.height, greaterThanOrEqualTo(whole.height));
+            expectBreaksBetweenWords(tester, text);
+            // Room above and below the label, as a call to action has.
+            final box = tester.getRect(button);
+            final words = tester.getRect(label);
+            expect(words.top - box.top, greaterThanOrEqualTo(AppSpace.s8));
+            expect(
+              box.bottom - words.bottom,
+              greaterThanOrEqualTo(AppSpace.s8),
+            );
+            expect(box.height, greaterThan(AppSize.cta));
+            final mark = find.descendant(
+              of: button,
+              matching: find.byType(Image),
+            );
+            expect(
+              tester.getSize(mark),
+              const Size.square(GoogleButtonStyle.markSize),
+            );
+            expect(
+              tester.getRect(mark).left - box.left,
+              greaterThanOrEqualTo(12),
+            );
+            expect(tester.getRect(label).left - tester.getRect(mark).right, 10);
+            expect(tester.takeException(), isNull);
+          },
+        );
+      }
+
+      testWidgets(
+        "on a ${width.toInt()} wide iPhone Apple's button is as tall as Google's grown one, its title at the size it has at 64",
+        (tester) async {
+          tester.view.physicalSize = Size(width, 844);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await pumpScreen(
+            tester,
+            FakeAccountService(),
+            locale: const Locale('ko'),
+          );
+
+          final google = tester.getSize(find.byType(GoogleSignInButton));
+          // The setup: Google's button has grown past 64.
+          expect(google.height, greaterThan(AppSize.cta));
+          final apple = find.byType(SignInWithAppleButton);
+          expect(tester.getSize(apple).height, google.height);
+          expect(tester.getSize(apple).width, google.width);
+          final title = tester.widget<Text>(
+            find.descendant(of: apple, matching: find.text('Apple로 계속하기')),
+          );
+          // Apple's proportion of the title to a 64 high button.
+          expect(title.style!.fontSize, AppSize.cta * 0.43);
+          expect(tester.takeException(), isNull);
+        },
+        variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+      );
+    }
+  });
 
   testWidgets('the logo sits in the upper part and the buttons at the bottom', (
     tester,
