@@ -227,7 +227,7 @@ void main() {
     // Controls: the expression finds a hand-drawn chip and AppChip's own
     // shape, and not a chip drawn through AppChip or a doc comment.
     expect(
-      chipShapes({
+      _chipShapes({
         'lib/study/src/planted.dart': '''
           DecoratedBox(
             decoration: BoxDecoration(
@@ -241,11 +241,11 @@ void main() {
       {'lib/study/src/planted.dart': 2},
     );
     expect(
-      chipShapes({'lib/x.dart': _appSources()['lib/design/app_chip.dart']!}),
+      _chipShapes({'lib/x.dart': _appSources()['lib/design/app_chip.dart']!}),
       {'lib/x.dart': 1},
     );
     expect(
-      chipShapes({
+      _chipShapes({
         'lib/study/src/planted.dart': '''
           /// Rounded on [AppRadius.chip].
           AppChip(label: label, tone: AppChipTone.knowTint)
@@ -255,7 +255,7 @@ void main() {
     );
 
     final shapes = {
-      for (final MapEntry(key: path, value: count) in chipShapes(
+      for (final MapEntry(key: path, value: count) in _chipShapes(
         _appSources(),
       ).entries)
         if (!path.startsWith('lib/design/')) path: count,
@@ -556,11 +556,9 @@ List<String> _sizeLiterals(Map<String, String> sources) => [
       for (final literal in styleLiterals(source)) '$path: $literal',
 ];
 
-/// Every Dart source under `lib/` keyed by its path under `app/`, leaving out
-/// generated code.
 /// How many boxes each of [sources] rounds on the chip radius or draws as a
 /// stadium, the two shapes of a chip, outside its comments.
-Map<String, int> chipShapes(Map<String, String> sources) {
+Map<String, int> _chipShapes(Map<String, String> sources) {
   final shape = RegExp(r'\bAppRadius\.chip\b|\bStadiumBorder\(');
   return {
     for (final MapEntry(key: path, value: source) in sources.entries)
@@ -577,6 +575,8 @@ Map<String, int> chipShapes(Map<String, String> sources) {
   };
 }
 
+/// Every Dart source under `lib/` keyed by its path under `app/`, leaving out
+/// generated code.
 Map<String, String> _appSources() => {
   for (final entity in Directory('lib').listSync(recursive: true))
     if (entity is File &&
