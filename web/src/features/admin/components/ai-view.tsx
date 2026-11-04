@@ -476,18 +476,22 @@ function ProviderKeys({
                     model={model}
                     replacing={entry.key !== null}
                   />
-                  {entry.key !== null && (
-                    <ConfirmAction
-                      label="키 지우기"
-                      question={`${name} 키를 지울까요?`}
-                      confirmLabel="지우기"
-                      disabled={entry.inUse}
-                      action={removeProviderKey.bind(null, entry.provider)}
-                    />
-                  )}
-                  <Link href={aiHref(plan)} className={button.row}>
-                    닫기
-                  </Link>
+                  {/* One row of one size; a question opened in place takes a line of its own. */}
+                  <div className="flex flex-wrap items-start gap-2 [&>*:has([role=group])]:basis-full">
+                    {entry.key !== null && (
+                      <ConfirmAction
+                        compact
+                        label="키 삭제"
+                        question={`${name} 키를 삭제할까요?`}
+                        confirmLabel="삭제"
+                        disabled={entry.inUse}
+                        action={removeProviderKey.bind(null, entry.provider)}
+                      />
+                    )}
+                    <Link href={aiHref(plan)} className={button.row}>
+                      닫기
+                    </Link>
+                  </div>
                 </>
               ) : (
                 <Link href={aiHref(plan, undefined, entry.provider)} className={button.row}>

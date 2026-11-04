@@ -148,7 +148,10 @@ describe("AI's provider keys", () => {
     await ai({ key: "anthropic" });
     const opened = within(screen.getByRole("list", { name: "제공자 키" }));
     expect(opened.getAllByRole("form")).toHaveLength(1);
-    expect(opened.getByRole("link", { name: "닫기" })).toHaveAttribute("href", "/ai?plan=free");
+    const close = opened.getByRole("link", { name: "닫기" });
+    expect(close).toHaveAttribute("href", "/ai?plan=free");
+    // The key's actions share one size.
+    expect(opened.getByRole("button", { name: "키 삭제" }).className).toBe(close.className);
     const anthropic = within(opened.getByRole("form", { name: "Anthropic 키" }));
     expect(anthropic.getByLabelText("새 키")).toHaveAttribute("type", "password");
     expect(anthropic.getByLabelText("새 키")).toHaveValue("");
