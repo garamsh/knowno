@@ -24,7 +24,7 @@ import { CellFields } from "./cell-fields";
 import { cellSection, firstField } from "./editing";
 import { DeckAppearanceFields, type Look, lookedTile, setPhoto } from "./deck-appearance";
 import { DeckTile } from "./deck-tile";
-import { PhotoImport } from "./photo-import";
+import { usePhotoImports } from "./photo-imports";
 import { SideText } from "./side-text";
 import { SpreadsheetImport } from "./spreadsheet-import";
 import { WholeCells } from "./whole-card";
@@ -56,11 +56,20 @@ export function AuthoringButton({
   compact?: boolean;
   adding?: boolean;
 }) {
-  const [screen, setScreen] = useState<"options" | "manual" | "photo" | "file" | "name" | null>(
+  const [screen, setScreen] = useState<"options" | "manual" | "file" | "name" | null>(
     deck && adding ? "options" : null,
   );
-  const [camera, setCamera] = useState(false);
-  const [photos, setPhotos] = useState<File[]>([]);
+  const imports = usePhotoImports();
+  const router = useRouter();
+  // An import left reading outlives this button; its other ways open here while it is shown, else
+  // on the note's page with its 카드 추가 sheet up.
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const label = deck ? "카드 추가" : compact ? "새 노트" : "새 노트 만들기";
   return (
     <>
@@ -87,7 +96,20 @@ export function AuthoringButton({
         >
           <div className="flex flex-col gap-3 pb-2">
             {choices.map(({ choice, open }) =>
-              open === "camera" || open === "album" ? (
+              (open === "camera" || open === "album") && imports.open ? (
+                // One import at a time: while one is under way, the photo rows open it.
+                <button
+                  type="button"
+                  key={choice}
+                  className="pressable flex min-h-cta w-full items-center rounded-row bg-surface px-4 text-left text-body-strong"
+                  onClick={() => {
+                    setScreen(null);
+                    imports.open?.();
+                  }}
+                >
+                  {choice}
+                </button>
+              ) : open === "camera" || open === "album" ? (
                 // The picker opens from the row itself, as the phone's does; a cancel opens nothing.
                 <label
                   key={choice}
@@ -104,9 +126,11 @@ export function AuthoringButton({
                       const chosen = Array.from(event.currentTarget.files ?? []);
                       event.currentTarget.value = "";
                       if (!chosen.length) return;
-                      setCamera(open === "camera");
-                      setPhotos(chosen);
-                      setScreen("photo");
+                      setScreen(null);
+                      imports.start(deck, open === "camera", chosen, (way) => {
+                        if (mounted.current) setScreen(way);
+                        else router.push(`/decks/${deck.id}?adding=1`);
+                      });
                     }}
                     className="sr-only"
                   />
@@ -148,17 +172,6 @@ export function AuthoringButton({
           close={() => {
             setScreen(null);
           }}
-        />
-      )}
-      {screen === "photo" && deck && (
-        <PhotoImport
-          deck={deck}
-          camera={camera}
-          files={photos}
-          close={() => {
-            setScreen(null);
-          }}
-          addInstead={setScreen}
         />
       )}
     </>

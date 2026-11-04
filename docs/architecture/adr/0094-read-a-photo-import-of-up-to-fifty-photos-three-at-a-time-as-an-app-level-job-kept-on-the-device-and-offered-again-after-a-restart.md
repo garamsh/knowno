@@ -1,6 +1,6 @@
 # ADR 0094: Read a photo import of up to fifty photos, three at a time, as an app-level job kept on the device and offered again after a restart
 
-> Status: accepted
+> Status: accepted; its bar above the tab bar and its refusal of a second import superseded by ADR 0183
 > Date: 2026-10-26
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
