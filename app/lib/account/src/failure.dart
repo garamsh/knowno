@@ -13,12 +13,13 @@ final class AccountOffline extends AccountFailure {
   String toString() => 'AccountOffline: $cause';
 }
 
-/// The app's sign-in configuration is missing or does not match what Google
-/// or Supabase expects.
+/// The app's sign-in configuration is missing or does not match what Google,
+/// Apple or Supabase expects.
 final class AccountMisconfigured extends AccountFailure {
   const AccountMisconfigured(this.cause);
 
-  /// An `InvalidAccountConfig`, or the exception Google or Supabase raised.
+  /// An `InvalidAccountConfig`, or the exception Google, Apple or Supabase
+  /// raised.
   final Exception cause;
 
   @override
@@ -36,7 +37,7 @@ final class AccountSuspended extends AccountFailure {
   String toString() => 'AccountSuspended: $cause';
 }
 
-/// Google or Supabase refused the request.
+/// Google, Apple or Supabase refused the request.
 final class AccountRejected extends AccountFailure {
   const AccountRejected(this.cause);
 

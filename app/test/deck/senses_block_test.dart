@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/material.dart' hide Card;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/deck/src/editor_group.dart';
@@ -237,6 +236,7 @@ void main() {
         ),
       );
       await openCard(screens, await _stored(screens));
+      await storeLabelPresets(tester, const [LabelPreset('명', '명사')]);
       final short = tester.getRect(_labelField());
       final long = tester.getRect(_labelField(1));
       expect(short.height, labelChipHeight, reason: 'a line of body text');
@@ -279,15 +279,10 @@ void main() {
     'the presets show above the keyboard in the user\'s order only while a label field has focus, and a tap fills that field',
     (tester) async {
       final screens = await openNew(tester);
-      final storage = ProviderScope.containerOf(
-        tester.element(find.byType(CardEditorScreen)),
-      ).read(deckStorageProvider);
-      await tester.runAsync(
-        () => saveLabelPresets(storage, const [
-          LabelPreset('숙어', 'idiom'),
-          LabelPreset('명', '명사'),
-        ]),
-      );
+      await storeLabelPresets(tester, const [
+        LabelPreset('숙어', 'idiom'),
+        LabelPreset('명', '명사'),
+      ]);
       await tester.tap(blockField());
       await tester.pumpAndSettle();
       expect(find.byType(LabelPresetStrip), findsNothing);
@@ -326,6 +321,57 @@ void main() {
         findsNothing,
         reason: 'control: gone with the focus on another field',
       );
+      await screens.close();
+    },
+  );
+
+  testWidgets(
+    'a device with no stored labels shows no strip above the keyboard while a label field has focus',
+    (tester) async {
+      final screens = await openNew(tester);
+      await tester.tap(_labelField());
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(_labelField()).focusNode!.hasFocus,
+        isTrue,
+        reason: 'setup',
+      );
+      expect(find.byType(LabelPresetStrip), findsNothing);
+      await screens.close();
+    },
+  );
+
+  testWidgets(
+    'a card whose senses are labelled opens and saves with its labels, with no label stored on the device',
+    (tester) async {
+      final screens = await DeckScreens.open(tester);
+      await tester.runAsync(
+        () => screens.repository.addCard(
+          screens.deck.id,
+          front: [const TextContent('present')],
+          back: [
+            const SensesContent([
+              CardSense(labels: [_noun], meaning: '선물'),
+              CardSense(
+                labels: [
+                  PartOfSpeechLabel(PartOfSpeech.verb, '동'),
+                  OtherLabel('격식'),
+                ],
+                meaning: '주다',
+              ),
+            ]),
+          ],
+        ),
+      );
+      final before = await _stored(screens);
+      await openCard(screens, before);
+      expect(tester.widget<TextField>(_labelField()).controller!.text, '명');
+      expect(tester.widget<TextField>(_labelField(1)).controller!.text, '동 격식');
+      await tester.tap(_labelField());
+      await tester.pumpAndSettle();
+      expect(find.byType(LabelPresetStrip), findsNothing);
+      await tapVisible(screens, shownText('Save'));
+      expect((await _stored(screens)).back, before.back);
       await screens.close();
     },
   );
@@ -535,6 +581,10 @@ void main() {
         );
         await replaceFirstBlock(screens, 'Word');
         await tapVisible(screens, find.bySemanticsLabel('Add meaning'));
+        await storeLabelPresets(tester, const [
+          LabelPreset('명', '명사'),
+          LabelPreset('동', '동사'),
+        ]);
         await tester.tap(_labelField());
         await tester.pumpAndSettle();
         expect(find.byType(LabelPresetStrip), findsOneWidget);

@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'account_state.dart';
@@ -22,7 +23,13 @@ abstract interface class AccountService {
   /// Opens the platform's Google account picker and starts a session for the
   /// account chosen. Returns normally, signed in or not, when the user cancels
   /// the picker; throws an [AccountFailure] otherwise.
-  Future<void> signIn();
+  Future<void> signInWithGoogle();
+
+  /// Opens the system's Apple ID sheet and starts a session for the Apple
+  /// account, storing the name Apple shares on its first sign-in. Returns
+  /// normally, signed in or not, when the user cancels the sheet; throws an
+  /// [AccountFailure] otherwise. Offered on iOS alone.
+  Future<void> signInWithApple();
 
   /// Ends the session on this device, then tells the server. Throws an
   /// [AccountFailure] when the server cannot be told; the device is signed
@@ -61,7 +68,7 @@ Future<AccountConnection> connectAccount(Map<String, String> defines) async {
     // The browser OAuth flow is not used, so no deep link carries a session.
     authOptions: const FlutterAuthClientOptions(detectSessionInUri: false),
   );
-  final service = await GoogleAccountService.start(
+  final service = await NativeAccountService.start(
     supabase.client.auth,
     GoogleSignIn.instance,
     functions: supabase.client.functions,
@@ -74,11 +81,11 @@ Future<AccountConnection> connectAccount(Map<String, String> defines) async {
   return (service: service, client: supabase.client);
 }
 
-/// Signs in with Google's native picker and exchanges the ID token it returns
-/// for a Supabase session; deletes the account through the `delete-account`
-/// Edge Function.
-final class GoogleAccountService implements AccountService {
-  GoogleAccountService._(
+/// Signs in with Google's native picker or Apple's system sheet and exchanges
+/// the ID token it returns for a Supabase session; deletes the account
+/// through the `delete-account` Edge Function.
+final class NativeAccountService implements AccountService {
+  NativeAccountService._(
     this._auth,
     this._google,
     this._functions,
@@ -88,7 +95,7 @@ final class GoogleAccountService implements AccountService {
   /// Initializes [google] with a new nonce and returns the service that signs
   /// in through it. Called once per run, since [google] takes one
   /// initialization; every sign-in in that run carries the same nonce.
-  static Future<GoogleAccountService> start(
+  static Future<NativeAccountService> start(
     GoTrueClient auth,
     GoogleSignIn google, {
     required FunctionsClient functions,
@@ -101,7 +108,7 @@ final class GoogleAccountService implements AccountService {
       serverClientId: serverClientId,
       nonce: nonce.hashed,
     );
-    return GoogleAccountService._(auth, google, functions, nonce);
+    return NativeAccountService._(auth, google, functions, nonce);
   }
 
   final GoTrueClient _auth;
@@ -110,6 +117,11 @@ final class GoogleAccountService implements AccountService {
   final Nonce _nonce;
 
   static const _scopes = ['email', 'profile'];
+
+  static const _appleScopes = [
+    AppleIDAuthorizationScopes.email,
+    AppleIDAuthorizationScopes.fullName,
+  ];
 
   @override
   AccountState get state => _stateOf(_auth.currentSession);
@@ -134,7 +146,7 @@ final class GoogleAccountService implements AccountService {
   }
 
   @override
-  Future<void> signIn() async {
+  Future<void> signInWithGoogle() async {
     final GoogleSignInAccount user;
     final GoogleSignInClientAuthorization authorization;
     try {
@@ -160,6 +172,73 @@ final class GoogleAccountService implements AccountService {
       );
     } on Exception catch (error) {
       throw classifyAuthError(error);
+    }
+  }
+
+  /// Apple takes a nonce per request, so each sign-in draws its own: Apple
+  /// puts its SHA-256 in the ID token, and Supabase checks the raw value.
+  @override
+  Future<void> signInWithApple() async {
+    final nonce = Nonce.generate();
+    final AuthorizationCredentialAppleID credential;
+    try {
+      credential = await SignInWithApple.getAppleIDCredential(
+        scopes: _appleScopes,
+        nonce: nonce.hashed,
+      );
+    } on SignInWithAppleException catch (error) {
+      final failure = classifyAppleError(error);
+      if (failure == null) return;
+      throw failure;
+    }
+    final idToken = credential.identityToken;
+    if (idToken == null) {
+      throw const AccountRejected(MissingIdToken());
+    }
+    try {
+      await _auth.signInWithIdToken(
+        provider: OAuthProvider.apple,
+        idToken: idToken,
+        nonce: nonce.raw,
+      );
+    } on Exception catch (error) {
+      throw classifyAuthError(error);
+    }
+    await _storeAppleName(credential);
+  }
+
+  /// Stores the name Apple shares only on an account's first sign-in, as
+  /// Supabase's guide stores it. The session has started by then, so a
+  /// failure is reported rather than thrown: the user stays signed in.
+  Future<void> _storeAppleName(
+    AuthorizationCredentialAppleID credential,
+  ) async {
+    final givenName = credential.givenName;
+    final familyName = credential.familyName;
+    final fullName = [
+      ?givenName,
+      ?familyName,
+    ].where((part) => part.isNotEmpty).join(' ');
+    if (fullName.isEmpty) return;
+    try {
+      await _auth.updateUser(
+        UserAttributes(
+          data: {
+            'full_name': fullName,
+            'given_name': givenName,
+            'family_name': familyName,
+          },
+        ),
+      );
+    } on Exception catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'account',
+          context: ErrorDescription("while storing the Apple account's name"),
+        ),
+      );
     }
   }
 
@@ -212,7 +291,10 @@ final class UnavailableAccountService implements AccountService {
   Stream<AccountState> get stateChanges => const Stream.empty();
 
   @override
-  Future<void> signIn() async => throw failure;
+  Future<void> signInWithGoogle() async => throw failure;
+
+  @override
+  Future<void> signInWithApple() async => throw failure;
 
   @override
   Future<void> signOut() async {}
@@ -221,8 +303,9 @@ final class UnavailableAccountService implements AccountService {
   Future<void> deleteAccount() async => throw failure;
 }
 
-/// The nonce that binds a Google ID token to this app's sign-in: Google puts
-/// [hashed] in the token, and Supabase checks it against the [raw] value.
+/// The nonce that binds a Google or Apple ID token to this app's sign-in: the
+/// provider puts [hashed] in the token, and Supabase checks it against the
+/// [raw] value.
 final class Nonce {
   Nonce._(this.raw) : hashed = sha256.convert(utf8.encode(raw)).toString();
 
@@ -236,16 +319,16 @@ final class Nonce {
   /// The value sent to Supabase.
   final String raw;
 
-  /// The SHA-256 of [raw] as lowercase hex, the value sent to Google.
+  /// The SHA-256 of [raw] as lowercase hex, the value sent to the provider.
   final String hashed;
 }
 
-/// Google returned an account without an ID token.
+/// Google or Apple returned an account without an ID token.
 final class MissingIdToken implements Exception {
   const MissingIdToken();
 
   @override
-  String toString() => 'MissingIdToken: Google returned no ID token';
+  String toString() => 'MissingIdToken: the provider returned no ID token';
 }
 
 /// `delete-account` answered with a success other than its 204.
@@ -281,6 +364,19 @@ AccountFailure? classifyGoogleError(GoogleSignInException error) =>
       GoogleSignInExceptionCode.uiUnavailable ||
       GoogleSignInExceptionCode.userMismatch ||
       GoogleSignInExceptionCode.unknownError => AccountRejected(error),
+    };
+
+/// The failure an Apple sign-in [error] means; null for a user who cancelled.
+/// A device that cannot offer the sheet is [AccountMisconfigured]; any other
+/// failure Apple reports is [AccountRejected].
+AccountFailure? classifyAppleError(SignInWithAppleException error) =>
+    switch (error) {
+      SignInWithAppleAuthorizationException(
+        code: AuthorizationErrorCode.canceled,
+      ) =>
+        null,
+      SignInWithAppleNotSupportedException() => AccountMisconfigured(error),
+      _ => AccountRejected(error),
     };
 
 /// The failure a Supabase Auth [error] means. The client wraps a request that

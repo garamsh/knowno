@@ -493,28 +493,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get addSense => '뜻 추가';
 
   @override
-  String partOfSpeechName(String category) {
-    String _temp0 = intl.Intl.selectLogic(category, {
-      'noun': '명사',
-      'verb': '동사',
-      'adjective': '형용사',
-      'adverb': '부사',
-      'pronoun': '대명사',
-      'preposition': '전치사',
-      'conjunction': '접속사',
-      'interjection': '감탄사',
-      'determiner': '관사',
-      'numeral': '수사',
-      'particle': '조사',
-      'auxiliary': '조동사',
-      'classifier': '양사',
-      'phrase': '구',
-      'other': '',
-    });
-    return '$_temp0';
-  }
-
-  @override
   String get duplicateTitle => '이 노트에 이미 있는 카드예요';
 
   @override
@@ -686,7 +664,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get signInWithGoogle => 'Google로 계속하기';
 
   @override
-  String get signInWithAppleSoon => 'Apple로 계속하기 · 준비 중';
+  String get signInWithApple => 'Apple로 계속하기';
 
   @override
   String get signingIn => '로그인 중';
@@ -707,7 +685,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get accountMisconfigured => '이 앱의 로그인 설정에 문제가 있어 로그인할 수 없어요.';
 
   @override
-  String get accountRejected => 'Google 로그인이 거부됐어요. 다시 시도해 주세요.';
+  String get accountRejected => '로그인이 거부됐어요. 다시 시도해 주세요.';
 
   @override
   String get accountSection => '계정';

@@ -914,12 +914,6 @@ abstract class AppLocalizations {
   /// **'뜻 추가'**
   String get addSense;
 
-  /// The name of a part of speech of the closed list (ADR 0075), by its category.
-  ///
-  /// In ko, this message translates to:
-  /// **'{category, select, noun{명사} verb{동사} adjective{형용사} adverb{부사} pronoun{대명사} preposition{전치사} conjunction{접속사} interjection{감탄사} determiner{관사} numeral{수사} particle{조사} auxiliary{조동사} classifier{양사} phrase{구} other{}}'**
-  String partOfSpeechName(String category);
-
   /// Title of the sheet shown when a card's front duplicates another in the deck.
   ///
   /// In ko, this message translates to:
@@ -1213,11 +1207,11 @@ abstract class AppLocalizations {
   /// **'Google로 계속하기'**
   String get signInWithGoogle;
 
-  /// Disabled sign-in screen button holding the place of Apple sign-in, which is not available yet.
+  /// Button that opens the system's Apple ID sheet to sign in: Apple's Korean title for Continue with Apple.
   ///
   /// In ko, this message translates to:
-  /// **'Apple로 계속하기 · 준비 중'**
-  String get signInWithAppleSoon;
+  /// **'Apple로 계속하기'**
+  String get signInWithApple;
 
   /// Accessible label of the progress indicator while signing in.
   ///
@@ -1255,10 +1249,10 @@ abstract class AppLocalizations {
   /// **'이 앱의 로그인 설정에 문제가 있어 로그인할 수 없어요.'**
   String get accountMisconfigured;
 
-  /// Shown when Google or Supabase refused the sign-in.
+  /// Shown when Google, Apple or Supabase refused the sign-in.
   ///
   /// In ko, this message translates to:
-  /// **'Google 로그인이 거부됐어요. 다시 시도해 주세요.'**
+  /// **'로그인이 거부됐어요. 다시 시도해 주세요.'**
   String get accountRejected;
 
   /// Heading of the settings screen section that holds the account's email and sign-out.

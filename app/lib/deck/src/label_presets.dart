@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../l10n/app_localizations.dart';
 import 'content.dart';
 import 'failure.dart';
 
@@ -38,24 +37,14 @@ final deckStorageProvider = Provider<SharedPreferencesWithCache>(
   ),
 );
 
-/// The presets a device starts from: the fourteen short forms of ADR 0075,
-/// each named.
-List<LabelPreset> defaultLabelPresets(AppLocalizations l10n) => [
-  for (final category in PartOfSpeech.values)
-    LabelPreset(category.short, l10n.partOfSpeechName(category.name)),
-];
-
-/// The presets in the user's order: those stored, or [defaults] when none
-/// are, or when the stored value cannot be read.
-List<LabelPreset> labelPresets(
-  SharedPreferencesWithCache storage,
-  List<LabelPreset> defaults,
-) {
+/// The presets in the user's order: those stored, or none when none are
+/// stored or the stored value cannot be read (ADR 0184).
+List<LabelPreset> labelPresets(SharedPreferencesWithCache storage) {
   final stored = storage.getString(labelPresetsKey);
-  if (stored == null) return defaults;
+  if (stored == null) return const [];
   try {
     final decoded = jsonDecode(stored);
-    if (decoded is! List<Object?>) return defaults;
+    if (decoded is! List<Object?>) return const [];
     return [
       for (final preset in decoded)
         if (preset case {
@@ -65,7 +54,7 @@ List<LabelPreset> labelPresets(
           LabelPreset(label, name),
     ];
   } on FormatException {
-    return defaults;
+    return const [];
   }
 }
 

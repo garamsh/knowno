@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/database/database.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/deck/src/card_preview.dart';
+import 'package:knowno/deck/src/label_presets.dart' show LabelPreset;
 import 'package:knowno/deck/src/senses_block.dart' show LabelPresetStrip;
 import 'package:knowno/study/study.dart' show CardPreviewScreen;
 import 'package:knowno/design/app_button.dart';
@@ -302,6 +303,10 @@ void main() {
         await screens.tap(find.text(ko.deleteBlock).last);
         await tapVisible(screens, find.bySemanticsLabel(ko.addBlock));
         await screens.tap(find.text(ko.blockSenses).last);
+        await storeLabelPresets(tester, const [
+          LabelPreset('명', '명사'),
+          LabelPreset('동', '동사'),
+        ]);
         await tapVisible(
           screens,
           find.byWidgetPredicate(

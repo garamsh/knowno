@@ -9,6 +9,7 @@ import 'package:knowno/account/src/legal.dart';
 import 'package:knowno/account/src/sign_in_screen.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/l10n/app_localizations.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../contrast.dart';
 import 'fake_account_service.dart';
@@ -153,7 +154,7 @@ void main() {
         const AccountOffline(FormatException('offline')),
     "Sign-in isn't set up correctly in this app, so you can't sign in.":
         const AccountMisconfigured(FormatException('bad client')),
-    'Google sign-in was refused. Please try again.': const AccountRejected(
+    'Sign-in was refused. Please try again.': const AccountRejected(
       FormatException('refused'),
     ),
   };
@@ -170,41 +171,141 @@ void main() {
     });
   }
 
-  testWidgets(
-    'the Apple slot is a disabled button, read out as such, in Korean',
-    (tester) async {
-      await pumpScreen(
-        tester,
-        FakeAccountService(),
-        locale: const Locale('ko'),
-      );
+  group('on iOS', () {
+    final iOS = TargetPlatformVariant.only(TargetPlatform.iOS);
 
-      final apple = widgetWithShownText(TextButton, 'Apple로 계속하기 · 준비 중');
-      expect(tester.widget<TextButton>(apple).onPressed, isNull);
-      expect(
-        tester.getSemantics(apple),
-        matchesSemantics(
-          label: 'Apple로 계속하기 · 준비 중',
-          isButton: true,
-          hasEnabledState: true,
-          isEnabled: false,
-        ),
+    final apple = find.byType(SignInWithAppleButton);
+
+    testWidgets(
+      "Apple's button sits under Google's, as tall, with Apple's Korean title",
+      (tester) async {
+        await pumpScreen(
+          tester,
+          FakeAccountService(),
+          locale: const Locale('ko'),
+        );
+
+        expect(
+          find.descendant(of: apple, matching: find.text('Apple로 계속하기')),
+          findsOneWidget,
+        );
+        final google = tester.getRect(find.byType(GoogleSignInButton));
+        final appleRect = tester.getRect(apple);
+        expect(appleRect.top, greaterThan(google.bottom));
+        expect(appleRect.height, google.height);
+        expect(appleRect.width, google.width);
+      },
+      variant: iOS,
+    );
+
+    for (final (mode, style) in [
+      (ThemeMode.light, SignInWithAppleButtonStyle.black),
+      (ThemeMode.dark, SignInWithAppleButtonStyle.white),
+    ]) {
+      testWidgets(
+        "in the ${mode.name} theme Apple's button is ${style.name}, and the screen meets the tap target and contrast guidelines",
+        (tester) async {
+          await pumpScreen(tester, FakeAccountService(), themeMode: mode);
+
+          expect(tester.widget<SignInWithAppleButton>(apple).style, style);
+          expect(
+            tester.getSemantics(find.text('Continue with Apple')),
+            matchesSemantics(
+              label: 'Continue with Apple',
+              isButton: true,
+              hasTapAction: true,
+              isFocusable: true,
+            ),
+          );
+          await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+          await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+          await expectLater(tester, meetsGuideline(textContrastGuideline));
+        },
+        variant: iOS,
+      );
+    }
+
+    testWidgets("Apple's title keeps its size at the largest text", (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 3.12;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await pumpScreen(tester, FakeAccountService());
+
+      final title = find.descendant(
+        of: apple,
+        matching: find.text('Continue with Apple'),
       );
       expect(
-        tester
-            .widget<GoogleSignInButton>(
-              find.widgetWithText(GoogleSignInButton, 'Google로 계속하기'),
-            )
-            .onPressed,
-        isNotNull,
+        tester.getSize(title).height,
+        lessThan(tester.getSize(apple).height),
       );
-      // Subordinate to Google's button: shorter, and a text button.
-      expect(
-        tester.getSize(apple).height,
-        lessThan(tester.getSize(find.byType(GoogleSignInButton)).height),
+      expect(tester.takeException(), isNull);
+    }, variant: iOS);
+
+    testWidgets('signs in with Apple, not Google', (tester) async {
+      final service = FakeAccountService();
+      await pumpScreen(tester, service);
+
+      await tapAndSettle(tester, 'Continue with Apple');
+
+      expect(service.state, isA<SignedIn>());
+      expect(service.appleSignIns, 1);
+      expect(service.googleSignIns, 0);
+    }, variant: iOS);
+
+    testWidgets(
+      'shows progress while signing in with Apple, then nothing more for a cancelled sheet',
+      (tester) async {
+        final pending = Completer<void>();
+        final service = FakeAccountService()
+          ..cancelSignIn = true
+          ..pendingSignIn = pending;
+        await pumpScreen(tester, service);
+
+        await tester.tap(find.text('Continue with Apple'));
+        await tester.pump();
+        expect(find.bySemanticsLabel('Signing in'), findsOneWidget);
+        expect(apple, findsNothing);
+        pending.complete();
+        await tester.pumpAndSettle();
+
+        expect(service.appleSignIns, 1);
+        expect(service.state, isA<SignedOut>());
+        expect(find.bySemanticsLabel('Signing in'), findsNothing);
+        expect(apple, findsOneWidget);
+        expect(find.byType(SnackBar), findsNothing);
+      },
+      variant: iOS,
+    );
+
+    for (final MapEntry(key: message, value: failure) in failures.entries) {
+      testWidgets(
+        '${failure.runtimeType} on Apple sign-in is shown as "$message"',
+        (tester) async {
+          final service = FakeAccountService()..failure = failure;
+          await pumpScreen(tester, service);
+
+          await tapAndSettle(tester, 'Continue with Apple');
+
+          expect(service.appleSignIns, 1);
+          expect(find.text(message), findsOneWidget);
+          expect(apple, findsOneWidget);
+        },
+        variant: iOS,
       );
-    },
-  );
+    }
+  });
+
+  testWidgets('offers no Apple button off iOS, where there is no Apple sheet', (
+    tester,
+  ) async {
+    await pumpScreen(tester, FakeAccountService());
+
+    expect(find.byType(GoogleSignInButton), findsOneWidget);
+    expect(find.byType(SignInWithAppleButton), findsNothing);
+    expect(find.textContaining('Apple'), findsNothing);
+  });
 
   for (final (mode, style) in [
     (ThemeMode.light, GoogleButtonStyle.light),
