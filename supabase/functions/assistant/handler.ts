@@ -510,24 +510,25 @@ async function converse(
     if (left <= 0) return { outcome: "time_limit", usage };
     const searchesLeft = configuration.maxSearches - usage.webSearchRequests -
       fetches;
+    const request = {
+      method: "POST",
+      signal: AbortSignal.any([deps.timeout(left), client]),
+      headers: adapter.headers(apiKey),
+      body: JSON.stringify(adapter.body({
+        // The searches a turn may make are shared by its calls: each call is offered those left.
+        configuration: {
+          ...configuration,
+          webSearch: configuration.webSearch && searchesLeft > 0,
+          maxSearches: searchesLeft,
+        },
+        system,
+        messages,
+        tools: ASSISTANT_TOOLS,
+      })),
+    };
     let response;
     try {
-      response = await deps.fetch(adapter.url, {
-        method: "POST",
-        signal: AbortSignal.any([deps.timeout(left), client]),
-        headers: adapter.headers(apiKey),
-        body: JSON.stringify(adapter.body({
-          // The searches a turn may make are shared by its calls: each call is offered those left.
-          configuration: {
-            ...configuration,
-            webSearch: configuration.webSearch && searchesLeft > 0,
-            maxSearches: searchesLeft,
-          },
-          system,
-          messages,
-          tools: ASSISTANT_TOOLS,
-        })),
-      });
+      response = await deps.fetch(adapter.url, request);
     } catch (error) {
       if (!fetchFailed(error)) throw error;
       return interrupted();

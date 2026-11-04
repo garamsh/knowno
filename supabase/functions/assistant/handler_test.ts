@@ -11,7 +11,7 @@ import {
   TURN_LIMIT_MS,
 } from "./handler.ts";
 import { readConfig } from "./config.ts";
-import { ANTHROPIC_URL, OPENROUTER_URL } from "./providers.ts";
+import { ADAPTERS, ANTHROPIC_URL, OPENROUTER_URL } from "./providers.ts";
 import type { Proposal } from "./tools.ts";
 
 const SUPABASE_URL = "http://kong:8000";
@@ -1092,6 +1092,34 @@ Deno.test("a programming error surfaces unrecorded, against a network error endi
   const control = await send(offline);
   assert.equal(control.events.at(-1)!.data.outcome, "model_error");
   assert.equal(offline.finished[0]!.outcome, "model_error");
+});
+
+Deno.test("a request the adapter fails to build surfaces unrecorded, not as model_error, against fetch failing", async () => {
+  const body = ADAPTERS.openrouter.body;
+  let built = 0;
+  Object.defineProperty(ADAPTERS.openrouter, "body", {
+    value: () => {
+      built++;
+      throw new TypeError("a defect in the adapter");
+    },
+  });
+  const broken = seed();
+  broken.replies.push(says("네"));
+  try {
+    await assert.rejects(send(broken), TypeError);
+  } finally {
+    Object.defineProperty(ADAPTERS.openrouter, "body", { value: body });
+  }
+  assert.equal(built, 1);
+  assert.equal(broken.replies.length, 1);
+  assert.deepEqual(broken.finished, []);
+
+  const offline = seed();
+  offline.replies.push(() => {
+    throw new TypeError("error sending request");
+  });
+  const control = await send(offline);
+  assert.equal(control.events.at(-1)!.data.outcome, "model_error");
 });
 
 Deno.test("a body over 512 KiB is refused uncounted, against one at the cap", async () => {
