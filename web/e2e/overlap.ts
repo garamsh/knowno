@@ -33,7 +33,10 @@ export async function overlaps(page: Page): Promise<string[]> {
         ...style.boxShadow.split(/,(?![^(]*\))/).map((shadow) => {
           const colour = /[a-z-]+\([^)]*\)|transparent/.exec(shadow)?.[0] ?? "";
           const [, down = 0, blur = 0, spread = 0] =
-            shadow.replace(colour, "").match(/-?[\d.]+px/g)?.map(parseFloat) ?? [];
+            shadow
+              .replace(colour, "")
+              .match(/-?[\d.]+px/g)
+              ?.map(parseFloat) ?? [];
           const clear = colour === "transparent" || /[,/]\s*0\)$/.test(colour);
           return shadow.includes("inset") || blur > 0 || clear ? 0 : down + spread;
         }),

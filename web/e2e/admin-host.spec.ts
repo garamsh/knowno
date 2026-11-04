@@ -415,7 +415,9 @@ test.describe("signed in", () => {
       () => more.isVisible(),
     );
     await more.getByRole("link", { name: "만든 사람 보기", exact: true }).click();
-    await expect(page.getByRole("heading", { level: 1, name: email(4), exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: email(4), exact: true }),
+    ).toBeVisible();
     expect(page.url()).toMatch(new RegExp(`^${admin}/users/[0-9a-f-]{36}$`));
     // The sheet left no entry of its own behind: the back returns to the notes.
     await page.goBack();
