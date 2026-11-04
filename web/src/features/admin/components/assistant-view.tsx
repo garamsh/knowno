@@ -6,11 +6,12 @@ import { Section } from "@/design/section";
 import { activateAssistantConfiguration } from "../activate-assistant-configuration";
 import { clearAssistantTest } from "../clear-assistant-test";
 import { formatTime } from "../format";
-import { effortLabels, labelOf, planLabels, providerLabels } from "../labels";
-import type { AssistantConfiguration, AssistantLimit, PlanId, PromptDetail } from "../read-admin";
+import { effortLabels, labelOf, planLabels, providerLabels, tokenBudgetLabel } from "../labels";
+import type { AssistantBudget, AssistantConfiguration, PlanId, PromptDetail } from "../read-admin";
 import { saveAssistantPrompt } from "../save-assistant-prompt";
 import { button, group, Parts, row } from "./admin-section";
 import { AdminTable, CellLabel, cellClass, rowClass } from "./admin-table";
+import { AssistantBudgetForm } from "./assistant-budget-form";
 import { AssistantConfigurationForm } from "./assistant-configuration-form";
 import { ConfirmAction } from "./confirm-action";
 import { PromptChanges } from "./prompt-changes";
@@ -26,7 +27,7 @@ const plansHead = [
   { label: "프롬프트" },
   { label: "웹 검색" },
   { label: "추론" },
-  { label: "하루 메시지", align: "end" },
+  { label: "하루 토큰", align: "end" },
   { label: "초안", align: "center" },
   { label: "작업" },
 ] as const;
@@ -78,25 +79,23 @@ function changes(active: AssistantConfiguration | null, draft: AssistantConfigur
   ].join(" · ");
 }
 
-/** A daily message limit in words: "10개", or "제한 없음". */
-function limitWords(limit: AssistantLimit | undefined): string {
-  if (limit === undefined) return "—";
-  return limit.dailyMessages === null
-    ? "제한 없음"
-    : `${limit.dailyMessages.toLocaleString("ko-KR")}개`;
+/** A daily token budget in words: "200,000", or "제한 없음". */
+function budgetWords(budget: AssistantBudget | undefined): string {
+  if (budget === undefined) return "—";
+  return budget.dailyTokens === null ? "제한 없음" : budget.dailyTokens.toLocaleString("ko-KR");
 }
 
 /**
- * 말랑이 (ADR 0190): each plan's active assistant configuration, its provider, model, prompt
- * version, web search, reasoning effort and daily message limit, read only, with its draft; the
- * chosen plan's draft against it, its prompt's lines, 테스트 끝내기 and 모두에게 적용, and the form
- * for a new draft; beside them the assistant's prompt versions, with the form for a new version
- * while [write] is open.
+ * 말랑이 (ADR 0190, ADR 0196): each plan's active assistant configuration, its provider, model,
+ * prompt version, web search, reasoning effort and daily token budget, with its draft; the chosen
+ * plan's draft against it, its prompt's lines, 테스트 끝내기 and 모두에게 적용, the form for a new
+ * draft, and its budget's form; beside them the assistant's prompt versions, with the form for a
+ * new version while [write] is open.
  */
 export function AssistantView({
   configurations,
   prompts,
-  limits,
+  budgets,
   plan,
   write,
   timeZone,
@@ -104,7 +103,7 @@ export function AssistantView({
   configurations: AssistantConfiguration[];
   /** Every assistant prompt with its text, newest first. */
   prompts: PromptDetail[];
-  limits: AssistantLimit[];
+  budgets: AssistantBudget[];
   /** The plan whose panel is shown. */
   plan: PlanId;
   /** The new version's form, from the version it starts with, or empty; null while closed. */
@@ -117,7 +116,7 @@ export function AssistantView({
     <div className="flex flex-col gap-section-gap">
       <Section
         label="요금제별 사용 중인 구성"
-        note="하루 메시지는 Asia/Seoul 날짜 기준이고, 여기서는 보기만 해요."
+        note="하루 토큰은 Asia/Seoul 날짜 기준으로, 메시지마다 입력과 출력 토큰을 더해요."
       >
         <AdminTable label="요금제별 사용 중인 구성" head={plansHead}>
           {assistantPlans.map((shown) => {
@@ -149,8 +148,8 @@ export function AssistantView({
                   {active === null ? "—" : labelOf(effortLabels, active.reasoningEffort)}
                 </td>
                 <td className={cellClass({ align: "end" })}>
-                  <CellLabel>하루 메시지</CellLabel>
-                  {limitWords(limits.find((limit) => limit.plan === shown))}
+                  <CellLabel>하루 토큰</CellLabel>
+                  {budgetWords(budgets.find((budget) => budget.plan === shown))}
                 </td>
                 <td className={cellClass({ align: "center" })}>
                   <CellLabel>초안</CellLabel>
@@ -182,6 +181,11 @@ export function AssistantView({
             active={find(plan, "active")}
             draft={find(plan, "test")}
             prompts={prompts}
+            timeZone={timeZone}
+          />
+          <Budget
+            plan={plan}
+            budget={budgets.find((budget) => budget.plan === plan)}
             timeZone={timeZone}
           />
         </div>
@@ -292,6 +296,39 @@ function Panel({
         }}
         versions={prompts.map((prompt) => prompt.id)}
       />
+    </Section>
+  );
+}
+
+/** One plan's daily token budget, who set it and when, and the form that sets it. */
+function Budget({
+  plan,
+  budget,
+  timeZone,
+}: {
+  plan: PlanId;
+  budget: AssistantBudget | undefined;
+  timeZone: string;
+}) {
+  const name = planLabels[plan] ?? plan;
+  return (
+    <Section label={`${name} · 하루 토큰 예산`} note="바꾸면 다음 메시지부터 적용돼요.">
+      <div className={group}>
+        <div className={row}>
+          <p className="text-headline">
+            {budget === undefined ? "예산이 없어요" : tokenBudgetLabel(budget.dailyTokens)}
+          </p>
+          {budget !== undefined && (
+            <p className="text-caption text-muted">
+              {formatTime(budget.setAt, timeZone)}
+              {budget.setByEmail === null ? "" : ` · ${budget.setByEmail}`}
+            </p>
+          )}
+        </div>
+      </div>
+      {budget !== undefined && (
+        <AssistantBudgetForm key={plan} plan={plan} name={name} tokens={budget.dailyTokens} />
+      )}
     </Section>
   );
 }

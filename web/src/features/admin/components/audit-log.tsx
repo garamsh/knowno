@@ -1,7 +1,14 @@
 import Link from "next/link";
 
 import { formatTime } from "../format";
-import { actionLabels, labelOf, planLabels, providerLabels, termsLabel } from "../labels";
+import {
+  actionLabels,
+  labelOf,
+  planLabels,
+  providerLabels,
+  termsLabel,
+  tokenBudgetLabel,
+} from "../labels";
 import type { AuditEntry } from "../read-admin";
 import { Empty, group } from "./admin-section";
 
@@ -71,6 +78,9 @@ export function AuditLog({ entries, timeZone }: { entries: AuditEntry[]; timeZon
               : ""}
             {typeof entry.detail.provider === "string" && typeof entry.detail.model === "string"
               ? ` · ${labelOf(providerLabels, entry.detail.provider)} · ${entry.detail.model}`
+              : ""}
+            {"daily_tokens" in entry.detail
+              ? ` · ${tokenBudgetLabel(entry.detail.daily_tokens)}`
               : ""}
             {entry.detail.applies_to_all === true ? " · 기존 사용자도 적용" : ""}
           </span>

@@ -177,11 +177,11 @@ export class FakeAdmin {
   readonly assistantPrompts: { id: number; text: string; note: string; by: string | null }[] = [
     { id: 1, text: "You are 말랑이.\nAnswer briefly.", note: "first", by: null },
   ];
-  /** Each plan's daily assistant message limit; null for none. */
-  readonly assistantLimits = new Map<string, number | null>([
-    ["free", 10],
-    ["pro", 100],
-    ["max", 300],
+  /** Each plan's daily assistant token budget, as the owner approved them; null for none. */
+  readonly assistantTokenBudgets = new Map<string, number | null>([
+    ["free", 200_000],
+    ["pro", 2_000_000],
+    ["max", 6_000_000],
     ["special", null],
   ]);
   /** Each suspended user's suspension. */
@@ -617,13 +617,27 @@ export class FakeAdmin {
         });
         return true;
       }
-      case "admin_assistant_limits":
-        return [...this.assistantLimits].map(([plan, daily]) => ({
+      case "admin_assistant_token_budgets":
+        return [...this.assistantTokenBudgets].map(([plan, daily]) => ({
           plan,
-          daily_messages: daily,
+          daily_tokens: daily,
           set_by_email: null,
-          set_at: "2026-11-04T01:00:00Z",
+          set_at: "2026-11-05T01:00:00Z",
         }));
+      case "admin_set_assistant_token_budget": {
+        const plan = String(args.plan);
+        const tokens = args.daily_tokens as number | null;
+        if (!this.assistantTokenBudgets.has(plan)) return "bad_plan";
+        if (tokens !== null && (tokens < 0 || tokens > 1_000_000_000)) return "bad_budget";
+        const before = this.assistantTokenBudgets.get(plan) ?? null;
+        if (before === tokens) return "unchanged";
+        this.assistantTokenBudgets.set(plan, tokens);
+        this.record(admin, "set_assistant_token_budget", "plan", plan, {
+          daily_tokens: tokens,
+          daily_tokens_before: before,
+        });
+        return "set";
+      }
       case "admin_remove_provider_key": {
         const provider = String(args.provider);
         if (!this.recentSignIn) return "reauth";

@@ -1,6 +1,6 @@
 # ADR 0178: Serve the admin area at admin.knowno.app from the same web app, routed by host in the proxy, in a shell and a session of its own
 
-> Status: accepted
+> Status: accepted; its six sections superseded by ADR 0196's seven
 > Date: 2026-11-04
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

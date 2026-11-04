@@ -576,17 +576,25 @@ export async function readAssistantPrompts(): Promise<AdminRead<PromptDetail[]>>
   return parsed(await call("admin_assistant_prompts"), parsePromptDetail);
 }
 
-/** A plan's daily assistant message limit in Asia/Seoul; null for none. */
-export type AssistantLimit = { plan: PlanId; dailyMessages: number | null };
+/** A plan's daily assistant token budget in Asia/Seoul, null for none, with who set it and when. */
+export type AssistantBudget = {
+  plan: PlanId;
+  dailyTokens: number | null;
+  setByEmail: string | null;
+  setAt: number;
+};
 
-/** Each plan's daily assistant message limit. */
-export async function readAssistantLimits(): Promise<AdminRead<AssistantLimit[]>> {
-  return parsed(await call("admin_assistant_limits"), (row) => {
+/** Each plan's daily assistant token budget (ADR 0195). */
+export async function readAssistantBudgets(): Promise<AdminRead<AssistantBudget[]>> {
+  return parsed(await call("admin_assistant_token_budgets"), (row) => {
     const plan = parsePlanId(field(row, "plan"));
-    const limit = field(row, "daily_messages");
-    const dailyMessages = limit === null ? null : count(limit);
-    if (plan === null || (limit !== null && dailyMessages === null)) return null;
-    return { plan, dailyMessages };
+    const budget = field(row, "daily_tokens");
+    const dailyTokens = budget === null ? null : count(budget);
+    const setBy = field(row, "set_by_email");
+    const setAt = parseTime(field(row, "set_at"));
+    if (plan === null || (budget !== null && dailyTokens === null) || setAt === null) return null;
+    if (setBy !== null && typeof setBy !== "string") return null;
+    return { plan, dailyTokens, setByEmail: setBy, setAt };
   });
 }
 

@@ -525,7 +525,7 @@ test.describe("signed in", () => {
     await context.close();
   });
 
-  test("an admin opens 말랑이 on the plan with a draft, its settings and prompt's lines against the active one's, and every edge whole", async ({
+  test("an admin opens 말랑이 on the plan with a draft, its settings and prompt's lines against the active one's, its token budget, and every edge whole", async ({
     browser,
     baseURL,
   }) => {
@@ -566,6 +566,11 @@ test.describe("signed in", () => {
     await panel.getByText(/^프롬프트 v\d+ → v\d+ 다른 점$/).click();
     await expect(
       panel.getByRole("listitem").filter({ hasText: "더함: Ask before a long list." }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole("form", { name: "프로 하루 토큰 예산", exact: true })
+        .getByRole("button", { name: "예산 저장", exact: true }),
     ).toBeVisible();
     await capture(page, "admin-assistant");
     // From 1024 px the daily messages end at their header's x and the draft chips are centred.

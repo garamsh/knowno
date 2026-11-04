@@ -15,7 +15,7 @@ import { AdminBrand } from "./admin-brand";
 import { Email, switchLink } from "./admin-section";
 
 /**
- * The admin area's seven sections on the admin host, one per job (ADR 0178, ADR 0181, ADR 0190),
+ * The admin area's seven sections on the admin host, one per job (ADR 0178, ADR 0181, ADR 0196),
  * each with the paths it is current on.
  */
 const sections = [

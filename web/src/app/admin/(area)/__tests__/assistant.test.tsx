@@ -8,6 +8,7 @@ import {
   clearAssistantTest,
   saveAssistantConfiguration,
   saveAssistantPrompt,
+  setAssistantTokenBudget,
 } from "@/features/admin/actions";
 import { FakeAdmin } from "@/testing/mocks/admin";
 import { bearerUser, otherUser, supabaseUrl, testUser } from "@/testing/mocks/handlers";
@@ -38,7 +39,7 @@ function form(fields: Record<string, string>): FormData {
 
 let admin: FakeAdmin;
 /** What the fake provider answers the assistant's check call: parsed, or why it failed. */
-let check: "parsed" | "key_refused" | "model_not_found";
+let check: "parsed" | "key_refused" | "model_not_found" | "effort_unsupported";
 /** Every request to the assistant's settings route, with its caller and body. */
 let sent: { user: string | null; body: Record<string, unknown> }[];
 
@@ -59,6 +60,9 @@ function fakeRoute() {
       sent.push({ user, body });
       if (user === null || !admin.admins.has(user)) {
         return HttpResponse.json({ error: "forbidden" }, { status: 403 });
+      }
+      if (check === "effort_unsupported") {
+        return HttpResponse.json({ error: check }, { status: 400 });
       }
       if (check !== "parsed") return HttpResponse.json({ error: check }, { status: 422 });
       if (!admin.assistantPrompts.some((prompt) => prompt.id === body.prompt_version_id)) {
@@ -132,28 +136,29 @@ beforeEach(async () => {
 });
 
 describe("말랑이's plans", () => {
-  it("lists each plan's active configuration with its web search, reasoning and daily messages, read only, and its draft", async () => {
+  it("lists each plan's active configuration with its web search, reasoning and daily token budget, and its draft", async () => {
     seedDraft();
     await assistant();
     const table = within(screen.getByRole("table", { name: "요금제별 사용 중인 구성" }));
     const rows = table.getAllByRole("row").slice(1);
     // Each row's text joins its cells, each named as below 1024 px.
-    const cells = (plan: string, search: string, limit: string, draft: string, action: string) =>
-      `${plan}제공자 OpenRouter모델 anthropic/claude-haiku-5.5프롬프트 v1웹 검색 ${search}추론 없음하루 메시지 ${limit}초안 ${draft}${action}`;
+    const cells = (plan: string, search: string, budget: string, draft: string, action: string) =>
+      `${plan}제공자 OpenRouter모델 anthropic/claude-haiku-5.5프롬프트 v1웹 검색 ${search}추론 없음하루 토큰 ${budget}초안 ${draft}${action}`;
     expect(rows.map((entry) => entry.textContent)).toEqual([
-      cells("무료", "끔", "10개", "—", "바꾸기"),
-      cells("프로", "메시지당 3회", "100개", "테스트 중", "초안 보기"),
-      cells("맥스", "메시지당 3회", "300개", "—", "바꾸기"),
+      cells("무료", "끔", "200,000", "—", "바꾸기"),
+      cells("프로", "메시지당 3회", "2,000,000", "테스트 중", "초안 보기"),
+      cells("맥스", "메시지당 3회", "6,000,000", "—", "바꾸기"),
       cells("스페셜", "메시지당 3회", "제한 없음", "—", "바꾸기"),
     ]);
     expect(table.getByRole("link", { name: "초안 보기" })).toHaveAttribute(
       "href",
       "/assistant?plan=pro",
     );
-    // The limit is read only: nothing on the page sets it.
-    expect(screen.queryByRole("spinbutton", { name: /하루/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /한도/ })).toBeNull();
-    expect(admin.calls.some((call) => call.startsWith("admin_set_assistant_limit"))).toBe(false);
+    // The message limit's functions are gone; the page reads the budgets.
+    expect(admin.calls.map((call) => call.split(" ")[0])).toContain(
+      "admin_assistant_token_budgets",
+    );
+    expect(admin.calls.some((call) => call.includes("assistant_limit"))).toBe(false);
   });
 
   it("opens the first plan with a draft, names what it changes, shows its prompt's lines, and starts the form from it", async () => {
@@ -209,6 +214,11 @@ describe("an assistant draft: saved after the assistant's check, applied to ever
       (await saveAssistantConfiguration({ message: null, reauth: false }, draftForm("pro")))
         .message,
     ).toBe("이 제공자에 없는 모델이에요. 모델 ID를 확인해 주세요.");
+    check = "effort_unsupported";
+    expect(
+      (await saveAssistantConfiguration({ message: null, reauth: false }, draftForm("pro")))
+        .message,
+    ).toBe("이 모델은 고른 추론 수준으로 쓸 수 없어요. 추론을 바꿔 주세요.");
     expect(admin.assistantConfigurations.some((entry) => entry.label === "test")).toBe(false);
 
     check = "parsed";
@@ -369,5 +379,63 @@ describe("말랑이's prompt versions", () => {
     ]);
     await render(AdminsContent, {});
     expect(screen.getByRole("link", { name: "버전 3" })).toHaveAttribute("href", "/assistant");
+  });
+});
+
+describe("a plan's daily token budget", () => {
+  it("shows the plan's budget, sets a new one or none from its form, records each, and refuses one out of range before the server", async () => {
+    const user = userEvent.setup();
+    await assistant({ plan: "pro" });
+    const section = within(screen.getByRole("region", { name: "프로 · 하루 토큰 예산" }));
+    expect(section.getByText("하루 2,000,000토큰")).toBeInTheDocument();
+    const budget = within(section.getByRole("form", { name: "프로 하루 토큰 예산" }));
+    expect(budget.getByRole("spinbutton", { name: "하루 토큰" })).toHaveValue(2_000_000);
+    expect(budget.getByRole("checkbox", { name: "제한 없음" })).not.toBeChecked();
+    await user.clear(budget.getByRole("spinbutton", { name: "하루 토큰" }));
+    await user.type(budget.getByRole("spinbutton", { name: "하루 토큰" }), "3000000");
+    await user.click(budget.getByRole("button", { name: "예산 저장" }));
+    expect(
+      await section.findByText("하루 토큰 예산을 바꿨어요. 다음 메시지부터 적용돼요."),
+    ).toBeInTheDocument();
+    expect(admin.assistantTokenBudgets.get("pro")).toBe(3_000_000);
+
+    const set = (fields: Record<string, string>) =>
+      setAssistantTokenBudget({ message: null }, form({ plan: "max", ...fields }));
+    expect(await set({ daily_tokens: "6000000" })).toEqual({ message: "지금 예산과 같아요." });
+    expect(await set({ daily_tokens: "1000000001" })).toEqual({
+      message: "토큰 수는 0에서 10억 사이로 적어 주세요.",
+    });
+    expect(await set({ daily_tokens: "-1" })).toEqual({
+      message: "토큰 수는 0에서 10억 사이로 적어 주세요.",
+    });
+    expect(
+      admin.calls.filter((call) => call.startsWith("admin_set_assistant_token_budget")),
+    ).toEqual([
+      'admin_set_assistant_token_budget {"plan":"pro","daily_tokens":3000000}',
+      'admin_set_assistant_token_budget {"plan":"max","daily_tokens":6000000}',
+    ]);
+    // Control: the largest budget, and none, reach the server.
+    expect((await set({ daily_tokens: "1000000000" })).message).toBe(
+      "하루 토큰 예산을 바꿨어요. 다음 메시지부터 적용돼요.",
+    );
+    expect((await set({ daily_tokens: "", none: "on" })).message).toBe(
+      "하루 토큰 예산을 바꿨어요. 다음 메시지부터 적용돼요.",
+    );
+    expect(admin.assistantTokenBudgets.get("max")).toBeNull();
+    await signIn(otherUser);
+    expect(await set({ daily_tokens: "5" })).toEqual({ message: "관리자만 할 수 있어요." });
+    expect(admin.assistantTokenBudgets.get("max")).toBeNull();
+
+    await signIn();
+    await render(AdminsContent, {});
+    expect(
+      within(screen.getByRole("list", { name: "작업 기록" }))
+        .getAllByRole("listitem")
+        .map((entry) => entry.firstChild?.textContent),
+    ).toEqual([
+      "말랑이 하루 토큰 예산 · 맥스 · 제한 없음",
+      "말랑이 하루 토큰 예산 · 맥스 · 하루 1,000,000,000토큰",
+      "말랑이 하루 토큰 예산 · 프로 · 하루 3,000,000토큰",
+    ]);
   });
 });

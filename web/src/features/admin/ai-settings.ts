@@ -20,6 +20,7 @@ const settingsMessages: Record<string, string> = {
   bad_output: "이 모델의 답이 카드 형식에 맞지 않았어요. 다른 모델을 골라 주세요.",
   call_failed: "제공자에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
   no_key: "이 제공자의 키가 없어요. 먼저 키를 저장해 주세요.",
+  effort_unsupported: "이 모델은 고른 추론 수준으로 쓸 수 없어요. 추론을 바꿔 주세요.",
   reauth: "보안을 위해 다시 로그인한 뒤 저장해 주세요.",
   forbidden: failureMessages.rejected,
   unauthenticated: failureMessages.rejected,

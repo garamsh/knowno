@@ -36,7 +36,7 @@ export const actionLabels: Record<string, string> = {
   activate_assistant_configuration: "말랑이 설정 적용",
   clear_assistant_test: "말랑이 설정 테스트 끝",
   save_assistant_prompt: "말랑이 프롬프트 저장",
-  set_assistant_limit: "말랑이 하루 메시지 한도",
+  set_assistant_token_budget: "말랑이 하루 토큰 예산",
 };
 
 /** Each AI provider's name (ADR 0162). */
@@ -82,6 +82,11 @@ export function termsLabel(quota: string, amount: number | null): string {
     default:
       return amount === null ? quota : `${quota} ${String(amount)}장`;
   }
+}
+
+/** A daily token budget in words, as "하루 200,000토큰", or "제한 없음" for none. */
+export function tokenBudgetLabel(tokens: unknown): string {
+  return typeof tokens === "number" ? `하루 ${tokens.toLocaleString("ko-KR")}토큰` : "제한 없음";
 }
 
 /** [labels]' word for [key], or [key] itself when it has none. */

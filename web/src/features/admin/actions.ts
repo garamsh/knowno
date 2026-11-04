@@ -23,3 +23,4 @@ export { activateAssistantConfiguration } from "./activate-assistant-configurati
 export { clearAssistantTest } from "./clear-assistant-test";
 export { saveAssistantConfiguration } from "./save-assistant-configuration";
 export { saveAssistantPrompt } from "./save-assistant-prompt";
+export { setAssistantTokenBudget, type BudgetFormState } from "./set-assistant-token-budget";

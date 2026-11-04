@@ -36,7 +36,7 @@ export {
   readNotes,
   readAiConfigurations,
   readAssistantConfigurations,
-  readAssistantLimits,
+  readAssistantBudgets,
   readAssistantPrompts,
   readOpenReports,
   readPlanVersions,
