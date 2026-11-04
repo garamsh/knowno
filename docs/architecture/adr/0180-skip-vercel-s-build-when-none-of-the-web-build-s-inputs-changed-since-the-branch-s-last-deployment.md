@@ -12,6 +12,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **What Vercel documents** (each page read 2026-11-04):
   - [Project settings §Ignored Build Step](https://vercel.com/docs/project-configuration/project-settings#ignored-build-step), updated 2026-09-21: the command runs in the Root Directory, here `web`. Exit 0 aborts the build and marks the deployment `CANCELED`. Such a cancelled build still counts toward the deployment quotas and the concurrent build slots.
   - The [Ignored Build Step guide](https://vercel.com/kb/guide/how-do-i-use-the-ignored-build-step-field-on-vercel), updated 2026-10-16: an exit of 1 or more builds. Vercel clones the last 10 commits.
+  - **What Vercel did instead.** This pull request's first preview (`dpl_HNVre9238uekJjTLfMTgZYBHVxKM`, 2026-11-04) ran the command without a fallback on the branch's first deployment. git printed `fatal: bad revision ''` and exited 128, and Vercel marked the deployment `Error` instead of building it.
   - [`vercel.json` §ignoreCommand](https://vercel.com/docs/project-configuration/vercel-json#ignorecommand), updated 2026-08-14: the key overrides the project setting.
   - [System environment variables](https://vercel.com/docs/environment-variables/system-environment-variables), updated 2026-07-15: `VERCEL_GIT_PREVIOUS_SHA` is the commit of the branch's last successful deployment. It is empty on the branch's first deployment, and set only where an Ignored Build Step is.
 - **What the build reads outside `web/`:**
@@ -28,7 +29,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 ## Decision
 
 - **Vercel builds the web only when one of its inputs changed since the branch's last successful deployment.** `web/vercel.json`'s `ignoreCommand` is `git diff --quiet "$VERCEL_GIT_PREVIOUS_SHA" HEAD --` over these inputs, named from the Root Directory: `.`, `../app/assets/fonts`, `../engine-wasm/pkg` and `../.gitignore`.
-- **Anything git cannot compare builds.** An empty previous commit (a branch's first deployment) and one outside Vercel's clone make `git diff` fail with 128, and Vercel builds on any exit above 0.
+- **Anything git cannot compare builds.** An empty previous commit (a branch's first deployment) and one outside Vercel's clone make `git diff` fail with 128. The command ends `|| false`, so every failure exits 1, the exit both Vercel pages name as a build, and not 128, which Vercel marked `Error`.
 - **`web/vercel.json` holds `regions` and `ignoreCommand`, and nothing else.** This supersedes ADR 0030's "which holds nothing else" for `ignoreCommand` only. ADR 0030's reason stands: `ignoreCommand` decides whether Vercel builds and changes nothing the app does, so Vercel and the container still run the same app.
 - **The input list is held to the build.** A test fails while a link under `web/` or an entry of `turbopackAdditionalRoots` points outside `web/` anywhere the command does not name.
 
@@ -45,4 +46,5 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - A deployment serves output older than its commit: a change the build reads, outside the four inputs, was skipped. That would mean the inputs were not complete, for example a new kind of read the test does not check, such as an `import` climbing out of `web/` or a Tailwind `@source`.
 - Most deployments still build despite the skip, because most branches are pushed once and a first deployment always builds. The saving would then come only from merges to `main`.
 - The cancelled deployments still exhaust the daily quota or storage. In that case the count, not the build, was the problem, and the skip of unaffected projects or `git.deploymentEnabled` should have been chosen instead.
+- A deployment whose command exits 1 is marked `Error` rather than built, as 128 was. Exit codes would then be no contract to build on.
 - Vercel stops exposing `VERCEL_GIT_PREVIOUS_SHA`, or starts running the command elsewhere than the Root Directory, and every build runs or none does.

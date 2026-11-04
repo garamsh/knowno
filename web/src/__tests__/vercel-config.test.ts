@@ -100,8 +100,11 @@ function ignoreStep(previous: string | undefined): number {
   return ran.status;
 }
 
-// Vercel skips the build where the command exits 0 and builds where it exits 1 or more.
+// Vercel skips the build where the command exits 0 and builds where it exits 1. A git failure's 128
+// marked this branch's first preview Error, not a build (dpl_HNVre9238uekJjTLfMTgZYBHVxKM), so a
+// build is 1 exactly.
 const SKIPS = 0;
+const BUILDS = 1;
 
 /** The paths changed between the commits, as the test's setup must have left them. */
 function changedSince(previous: string): string[] {
@@ -127,7 +130,7 @@ describe("web/vercel.json's ignoreCommand", () => {
     push(paths);
     expect(changedSince(previous)).toEqual([...paths].sort());
 
-    expect(ignoreStep(previous)).toBeGreaterThan(SKIPS);
+    expect(ignoreStep(previous)).toBe(BUILDS);
   });
 
   it.each([
@@ -145,7 +148,7 @@ describe("web/vercel.json's ignoreCommand", () => {
 
     // The control: the same push with one web input in it builds.
     push(["web/src/app/page.tsx"]);
-    expect(ignoreStep(previous)).toBeGreaterThan(SKIPS);
+    expect(ignoreStep(previous)).toBe(BUILDS);
   });
 
   it("compares with the last deployed commit, not the one before HEAD, so an earlier commit of the push counts", () => {
@@ -153,7 +156,7 @@ describe("web/vercel.json's ignoreCommand", () => {
     push(["web/src/app/page.tsx"]);
     push(["docs/architecture/web.md"]);
 
-    expect(ignoreStep(previous)).toBeGreaterThan(SKIPS);
+    expect(ignoreStep(previous)).toBe(BUILDS);
     // The control: against HEAD^, the last commit alone, the same push would skip.
     expect(ignoreStep(git("rev-parse", "HEAD^"))).toBe(SKIPS);
   });
@@ -164,15 +167,15 @@ describe("web/vercel.json's ignoreCommand", () => {
     git("commit", "-q", "-m", "moved");
     expect(changedSince(previous)).toEqual(["docs/page.tsx", "web/src/app/page.tsx"]);
 
-    expect(ignoreStep(previous)).toBeGreaterThan(SKIPS);
+    expect(ignoreStep(previous)).toBe(BUILDS);
   });
 
   it("builds a branch's first deployment, which has no previous SHA", () => {
     deployed();
     push(["docs/architecture/web.md"]);
 
-    expect(ignoreStep(undefined)).toBeGreaterThan(SKIPS);
-    expect(ignoreStep("")).toBeGreaterThan(SKIPS);
+    expect(ignoreStep(undefined)).toBe(BUILDS);
+    expect(ignoreStep("")).toBe(BUILDS);
   });
 
   it("names every place outside web/ the build reads: each link under web/, and each of next.config.ts's turbopackAdditionalRoots", () => {
@@ -180,6 +183,7 @@ describe("web/vercel.json's ignoreCommand", () => {
     const top = path.join(web, "..");
     const inputs = (config.ignoreCommand as string)
       .split(" -- ")[1]!
+      .split(" || ")[0]!
       .split(" ")
       .map((spec) => path.relative(top, path.join(web, spec)));
     const links = execFileSync("git", ["ls-files", "-s", "--", "."], { cwd: web, encoding: "utf8" })
@@ -205,6 +209,6 @@ describe("web/vercel.json's ignoreCommand", () => {
     deployed();
     push(["docs/architecture/web.md"]);
 
-    expect(ignoreStep("0123456789abcdef0123456789abcdef01234567")).toBeGreaterThan(SKIPS);
+    expect(ignoreStep("0123456789abcdef0123456789abcdef01234567")).toBe(BUILDS);
   });
 });
