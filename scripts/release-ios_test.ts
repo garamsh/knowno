@@ -134,6 +134,8 @@ const checked = (repo: string, path: string, tag = "v1.2.3") =>
     GITHUB_REPOSITORY: "o/r",
   });
 
+const PASSED = /: releasing 1\.2\.3\n$/;
+
 Deno.test("check passes a tag on main whose pull request passed CI on the same tree", async () => {
   const { repo, sha, tree } = await landed();
   await git(repo, "tag", "v1.2.3");
@@ -146,76 +148,116 @@ Deno.test("check passes a tag on main whose pull request passed CI on the same t
   );
 });
 
-Deno.test("check refuses a tag not of the form, before asking GitHub anything", async () => {
-  const { repo } = await landed();
+Deno.test("check refuses a tag not of the form before asking GitHub, and passes the form on the same commit", async () => {
+  const { repo, sha, tree } = await landed();
+  await git(repo, "tag", "v1.2.3");
   await git(repo, "tag", "v1.2.3-rc1");
-  const { path, log } = await host({ gh: RECORD });
-  const ran = await checked(repo, path, "v1.2.3-rc1");
-  assert.equal(ran.code, 1);
+  const { path, log } = await host({
+    gh: gh({ merge: sha, head: "abc" }, tree),
+  });
+  const refused = await checked(repo, path, "v1.2.3-rc1");
+  assert.equal(refused.code, 1);
   assert.equal(
-    ran.stderr,
+    refused.stderr,
     `the tag "v1.2.3-rc1" is not v<major>.<minor>.<patch>; nothing is released\n`,
   );
   assert.equal(await log(), "");
+
+  const control = await checked(repo, path);
+  assert.equal(control.code, 0, control.stderr);
+  assert.match(control.stdout, PASSED);
 });
 
-Deno.test("check refuses a tag on a commit main does not hold", async () => {
-  const { repo, tree } = await landed();
-  await write(repo, "README.md", "y\n");
-  await commit(repo, "feat: off main (#8)");
-  await git(repo, "tag", "v1.2.3");
-  const sha = await git(repo, "rev-parse", "HEAD");
-  const { path } = await host({ gh: gh({ merge: sha, head: "abc" }, tree) });
-  const ran = await checked(repo, path);
-  assert.equal(ran.code, 1);
-  assert.equal(
-    ran.stderr,
-    `v1.2.3 is ${sha}, which is not on main; nothing is released\n`,
-  );
-});
-
-Deno.test("check refuses a commit no pull request landed", async () => {
-  const { repo, sha, tree } = await landed("feat: pushed straight to main");
-  await git(repo, "tag", "v1.2.3");
-  const { path } = await host({ gh: gh({ merge: sha, head: "abc" }, tree) });
-  const ran = await checked(repo, path);
-  assert.equal(ran.code, 1);
-  assert.match(ran.stderr, /names no pull request at the end of its subject/);
-});
-
-Deno.test("check refuses where the pull request merged as another commit", async () => {
-  const { repo, tree } = await landed();
-  await git(repo, "tag", "v1.2.3");
-  const { path } = await host({ gh: gh({ merge: "f00", head: "abc" }, tree) });
-  const ran = await checked(repo, path);
-  assert.equal(ran.code, 1);
-  assert.match(ran.stderr, /^pull request #7 merged as f00, not /);
-});
-
-Deno.test("check refuses where the pull request's head holds another tree", async () => {
-  const { repo, sha } = await landed();
-  await git(repo, "tag", "v1.2.3");
-  const { path } = await host({ gh: gh({ merge: sha, head: "abc" }, "0ther") });
-  const ran = await checked(repo, path);
-  assert.equal(ran.code, 1);
-  assert.match(
-    ran.stderr,
-    /holds tree 0ther, .* so its CI run did not test what v1\.2\.3 builds\n$/,
-  );
-});
-
-Deno.test("check refuses where a required check did not pass", async () => {
+Deno.test("check refuses a tag on a commit main does not hold, and passes one on main", async () => {
   const { repo, sha, tree } = await landed();
   await git(repo, "tag", "v1.2.3");
+  await write(repo, "README.md", "y\n");
+  await commit(repo, "feat: off main (#7)");
+  await git(repo, "tag", "v1.2.4");
+  const off = await git(repo, "rev-parse", "HEAD");
+  assert.equal(await git(repo, "rev-parse", "refs/remotes/origin/main"), sha);
+  const { path } = await host({ gh: gh({ merge: sha, head: "abc" }, tree) });
+  const refused = await checked(repo, path, "v1.2.4");
+  assert.equal(refused.code, 1);
+  assert.equal(
+    refused.stderr,
+    `v1.2.4 is ${off}, which is not on main; nothing is released\n`,
+  );
+
+  const control = await checked(repo, path);
+  assert.equal(control.code, 0, control.stderr);
+  assert.match(control.stdout, PASSED);
+});
+
+Deno.test("check refuses a commit whose subject names no pull request, and passes one that does", async () => {
+  const bare = await landed("feat: pushed straight to main");
+  await git(bare.repo, "tag", "v1.2.3");
+  const named = await landed();
+  await git(named.repo, "tag", "v1.2.3");
+  assert.equal(bare.tree, named.tree);
   const { path } = await host({
+    gh: gh({ merge: named.sha, head: "abc" }, named.tree),
+  });
+  const refused = await checked(bare.repo, path);
+  assert.equal(refused.code, 1);
+  assert.match(
+    refused.stderr,
+    /names no pull request at the end of its subject/,
+  );
+
+  const control = await checked(named.repo, path);
+  assert.equal(control.code, 0, control.stderr);
+  assert.match(control.stdout, PASSED);
+});
+
+Deno.test("check refuses where the pull request merged as another commit, and passes where it merged as the tag's", async () => {
+  const { repo, sha, tree } = await landed();
+  await git(repo, "tag", "v1.2.3");
+  const other = await host({ gh: gh({ merge: "f00", head: "abc" }, tree) });
+  const refused = await checked(repo, other.path);
+  assert.equal(refused.code, 1);
+  assert.match(refused.stderr, /^pull request #7 merged as f00, not /);
+
+  const same = await host({ gh: gh({ merge: sha, head: "abc" }, tree) });
+  const control = await checked(repo, same.path);
+  assert.equal(control.code, 0, control.stderr);
+  assert.match(control.stdout, PASSED);
+});
+
+Deno.test("check refuses where the pull request's head holds another tree, and passes where it holds the tag's", async () => {
+  const { repo, sha, tree } = await landed();
+  await git(repo, "tag", "v1.2.3");
+  const other = await host({ gh: gh({ merge: sha, head: "abc" }, "0ther") });
+  const refused = await checked(repo, other.path);
+  assert.equal(refused.code, 1);
+  assert.match(
+    refused.stderr,
+    /holds tree 0ther, .* so its CI run did not test what v1\.2\.3 builds\n$/,
+  );
+
+  const same = await host({ gh: gh({ merge: sha, head: "abc" }, tree) });
+  const control = await checked(repo, same.path);
+  assert.equal(control.code, 0, control.stderr);
+  assert.match(control.stdout, PASSED);
+});
+
+Deno.test("check refuses where a required check did not pass, and passes where both did", async () => {
+  const { repo, sha, tree } = await landed();
+  await git(repo, "tag", "v1.2.3");
+  const failing = await host({
     gh: gh({ merge: sha, head: "abc" }, tree, "failure"),
   });
-  const ran = await checked(repo, path);
-  assert.equal(ran.code, 1);
+  const refused = await checked(repo, failing.path);
+  assert.equal(refused.code, 1);
   assert.equal(
-    ran.stderr,
+    refused.stderr,
     "pull request #7's CI did not pass on abc; nothing is released:\nci (macos): failure\n",
   );
+
+  const passing = await host({ gh: gh({ merge: sha, head: "abc" }, tree) });
+  const control = await checked(repo, passing.path);
+  assert.equal(control.code, 0, control.stderr);
+  assert.match(control.stdout, PASSED);
 });
 
 /** Stubs of the build's tools; the exported app holds `version` (`number`) and `entitled`. */
@@ -321,8 +363,14 @@ Deno.test("build with no tag is a dry run as 0.0.0", async () => {
   );
 });
 
-Deno.test("build fails on an ipa of another version, or signed without the app's entitlements", async () => {
+Deno.test("build fails on an ipa of another version, or signed without the app's entitlements, and passes one holding both", async () => {
   const { repo, tmp } = await appRepo();
+  const whole = await host(
+    buildTools("1.2.3", "8", "com.apple.developer.applesignin"),
+  );
+  const control = await built(repo, whole.path, tmp, "v1.2.3");
+  assert.equal(control.code, 0, control.stderr);
+
   const other = await host(
     buildTools("1.2.3", "1", "com.apple.developer.applesignin"),
   );
