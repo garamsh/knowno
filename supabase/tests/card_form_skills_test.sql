@@ -2,7 +2,7 @@
 -- serving a signed-in user the active versions and an admin a form's test version while one is
 -- set; a version saved as the form's test, applied and ended by an admin alone, each write
 -- recorded; versions append-only; no client reaching the tables; the assistant's prompt v2 as each
--- plan's draft beside its unchanged active configuration; and the revert, which runs before the
+-- 스페셜's draft beside its unchanged active configuration, and no other plan's; and the revert, which runs before the
 -- assistant's and fails after it.
 begin;
 select plan(32);
@@ -144,7 +144,7 @@ select lives_ok($$update private.card_form_skills set created_by = null
     where created_by = '00000000-0000-4000-8000-00000000000a'$$,
   'control: its author''s removal is let through');
 
--- The assistant's prompt v2, a draft of each plan beside its active configuration.
+-- The assistant's prompt v2, 스페셜's draft beside its active configuration.
 
 select results_eq(
   $$select l.plan, t.provider = c.provider and t.model = c.model and t.web_search = c.web_search
@@ -158,16 +158,9 @@ select results_eq(
     join private.assistant_prompts as pt on pt.id = t.prompt_version_id
     where l.label = 'active'
     order by array_position(array['free', 'pro', 'max', 'special'], l.plan)$$,
-  $$values
-    ('free', true, '말랑이 assistant prompt v1 (#713)',
-      '말랑이 assistant prompt v2, its working order and card forms (#751)'),
-    ('pro', true, '말랑이 assistant prompt v1 (#713)',
-      '말랑이 assistant prompt v2, its working order and card forms (#751)'),
-    ('max', true, '말랑이 assistant prompt v1 (#713)',
-      '말랑이 assistant prompt v2, its working order and card forms (#751)'),
-    ('special', true, '말랑이 assistant prompt v1 (#713)',
+  $$values ('special', true, '말랑이 assistant prompt v1 (#713)',
       '말랑이 assistant prompt v2, its working order and card forms (#751)')$$,
-  'each plan keeps its active configuration on prompt v1 and drafts the same settings on v2');
+  '스페셜 keeps its active configuration on prompt v1 and drafts the same settings on v2, and no other plan has a draft');
 select ok((select text ~ 'Understand the material' and text ~ 'Restate'
     and text ~ 'Ask only what is still unclear' and text ~ 'Build: read the guide'
     and text ~ 'Revise on request' and text ~ 'read_card_form'

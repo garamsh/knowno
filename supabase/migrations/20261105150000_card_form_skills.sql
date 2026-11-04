@@ -2,16 +2,18 @@
 -- fits and a guide to making it, saved as append-only versions as the prompts are; each form's
 -- 'active' version serves everyone and its 'test' version, while one is set, admins, as the
 -- assistant's and MCP's `card_form_skills` read them. Admins save, apply and end a test version.
--- And the assistant's prompt v2, which records its working order, as each plan's draft.
+-- And the assistant's prompt v2, which records its working order, as 스페셜's draft.
 --
 -- Not additive alone. It creates two tables in `private`, their functions and their seed, each
 -- form's first version, labelled 'active'. It also appends to existing tables, changing and
 -- deleting no row of them:
 --   - `private.assistant_prompts`: prompt v2;
---   - `private.assistant_configurations`: for each plan without an assistant draft, its active
---     configuration with prompt v2;
---   - `private.assistant_configuration_labels`: that configuration as the plan's 'test' label, so
---     admins are served it and an admin applies it per plan. A plan that has a draft keeps it.
+--   - `private.assistant_configurations`: while 스페셜, the admins' plan, has no assistant draft,
+--     its active configuration with prompt v2;
+--   - `private.assistant_configuration_labels`: that configuration as 스페셜's 'test' label, so
+--     admins are served it. A draft 스페셜 already has is kept. Another plan takes v2 by a draft an
+--     admin saves in 말랑이; no other plan gets one here, since 말랑이 opens on the first plan with
+--     a draft.
 -- What a user who is not an admin is served by the assistant stays the active configuration's.
 --
 -- Deploy. The assistant and mcp bundles of this change read `card_form_skills`, so this migration
@@ -403,8 +405,8 @@ Facts
 - Do not invent facts. When web search is available and the user asks about something you are unsure of, search, and keep to what the sources say.$prompt$,
     '말랑이 assistant prompt v2, its working order and card forms (#751)');
 
--- Each plan without an assistant draft gets one: its active configuration with prompt v2, served
--- to admins until an admin applies it.
+-- 스페셜 without an assistant draft gets one: its active configuration with prompt v2, served to
+-- admins until an admin applies it.
 with drafted as (
   insert into private.assistant_configurations
     (plan, provider, model, prompt_version_id, web_search, max_searches, reasoning_effort)
@@ -414,10 +416,9 @@ with drafted as (
     c.web_search, c.max_searches, c.reasoning_effort
   from private.assistant_configuration_labels as l
   join private.assistant_configurations as c on c.id = l.configuration_id
-  where l.label = 'active'
+  where l.plan = 'special' and l.label = 'active'
     and not exists (select from private.assistant_configuration_labels as t
       where t.plan = l.plan and t.label = 'test')
-  order by array_position(array['free', 'pro', 'max', 'special'], l.plan)
   returning id, plan
 )
 insert into private.assistant_configuration_labels (plan, label, configuration_id)
