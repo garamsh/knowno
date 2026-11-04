@@ -358,7 +358,7 @@ function Panel({
         </div>
         {lines !== null && draft !== null && active !== null && (
           <details className="px-4 py-3">
-            <summary className="cursor-pointer text-label text-ink-2 focus-visible:outline-2 focus-visible:outline-ink">
+            <summary className="min-h-tap-target cursor-pointer content-center text-label text-ink-2 focus-visible:outline-2 focus-visible:outline-ink">
               프롬프트 v{active.promptVersionId} → v{draft.promptVersionId} 다른 점
             </summary>
             {/* A details element does not lay its content out as flex items, so one block holds the gap. */}

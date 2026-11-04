@@ -168,6 +168,7 @@ describe("AI's panel", () => {
     ).toBeInTheDocument();
     const lines = screen.getByText("프롬프트 v1 → v2 다른 점").closest("details");
     expect(lines).not.toHaveAttribute("open");
+    expect(screen.getByText("프롬프트 v1 → v2 다른 점")).toHaveClass("min-h-tap-target");
     expect(
       within(lines ?? document.body)
         .getAllByRole("listitem")
