@@ -405,12 +405,11 @@ test.describe("signed in", () => {
     ).toBeVisible();
     await capture(page, "admin-user-panel-suspended");
 
-    // The user's own page.
+    // The panel's header holds 닫기 alone: the user's page has no link from it.
     await page.goto(`${admin}/users?q=${chosen}`);
     await emails.first().click();
-    await panel.getByRole("link", { name: "크게 보기", exact: true }).click();
-    await expect(page.getByRole("heading", { level: 1, name: chosen, exact: true })).toBeVisible();
-    await capture(page, "admin-user");
+    await expect(panel.getByRole("link", { name: "닫기", exact: true })).toBeVisible();
+    await expect(panel.getByRole("link", { name: "크게 보기" })).toHaveCount(0);
     await context.close();
   });
 
@@ -441,9 +440,9 @@ test.describe("signed in", () => {
       ).toBeVisible();
       await capture(page, name);
     }
-    // From 1024 px a count ends at its header's x: 노트's 카드, 가져오기 and 신고, 요금제's 가입자.
+    // From 1024 px a count ends at its header's x (노트's 카드 and 가져오기, 요금제's 가입자) and 노트's 신고 chips are centred.
     await page.goto(`${admin}/decks?q=${tag}`);
-    await expectAligned(page, "노트 목록", { end: [2, 3, 5] });
+    await expectAligned(page, "노트 목록", { centre: [5], end: [2, 3] });
     await page.goto(`${admin}/plans`);
     await expectAligned(page, "요금제 목록", { end: [3] });
 
@@ -474,6 +473,7 @@ test.describe("signed in", () => {
       page.getByRole("heading", { level: 1, name: email(4), exact: true }),
     ).toBeVisible();
     expect(page.url()).toMatch(new RegExp(`^${admin}/users/[0-9a-f-]{36}$`));
+    await capture(page, "admin-user");
     // The sheet left no entry of its own behind: the back returns to the notes.
     await page.goBack();
     await expect(page).toHaveURL(notes);

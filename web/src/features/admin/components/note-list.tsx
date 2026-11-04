@@ -18,7 +18,7 @@ const head = [
   { label: "카드", align: "end" },
   { label: "가져오기", align: "end" },
   { label: "첫 신고" },
-  { label: "신고", align: "end" },
+  { label: "신고", align: "center" },
   { label: "작업" },
 ] as const;
 
@@ -66,7 +66,7 @@ function NoteItem({ note, timeZone }: { note: NoteRow; timeZone: string }) {
         <CellLabel>첫 신고</CellLabel>
         {note.firstReportedAt === null ? "없음" : formatDate(note.firstReportedAt, timeZone)}
       </td>
-      <td className={`${cellClass({ align: "end" })} whitespace-nowrap`}>
+      <td className={`${cellClass({ align: "center" })} whitespace-nowrap`}>
         {note.reports > 0 ? (
           <Chip tone="amber">신고 {note.reports}</Chip>
         ) : (

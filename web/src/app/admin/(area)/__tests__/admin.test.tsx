@@ -915,7 +915,7 @@ describe("the users pages", () => {
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
-  it("opens a user's details beside the list from its row, with quiet icons back to the list and to its page", async () => {
+  it("opens a user's details beside the list from its row, with a quiet icon back to the list and none to its page", async () => {
     await render(UsersContent, { searchParams: Promise.resolve({ status: "active" }) });
     expect(screen.getByRole("link", { name: otherUser.email })).toHaveAttribute(
       "href",
@@ -944,9 +944,9 @@ describe("the users pages", () => {
       "href",
       "/users?status=active",
     );
-    expect(panel.getByRole("link", { name: "크게 보기" })).toHaveAttribute(
-      "href",
-      `/users/${otherUser.id}`,
+    expect(panel.queryByRole("link", { name: "크게 보기" })).not.toBeInTheDocument();
+    expect(panel.getByRole("heading", { level: 2, name: otherUser.email })).toHaveClass(
+      "text-body-strong",
     );
     // Under the email, one line: the plan and the sign-up day.
     expect(panel.getByText(/^가입 \d{4}-\d{2}-\d{2}$/)).toBeInTheDocument();

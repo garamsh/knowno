@@ -1,4 +1,4 @@
-import { Maximize2, X } from "lucide-react";
+import { X } from "lucide-react";
 import Link from "next/link";
 
 import { Chip } from "@/design/chip";
@@ -16,7 +16,7 @@ import { UserDecks } from "./user-decks";
 import { UserPlan } from "./user-plan";
 import { SuspensionSection } from "./user-suspension";
 
-/** A quiet icon link of the panel's header, a tap target, named for assistive technology. */
+/** The quiet icon link of the panel's header, a tap target, named for assistive technology. */
 const iconLink =
   "pressable flex size-tap-target shrink-0 items-center justify-center rounded-button text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
@@ -24,7 +24,7 @@ const iconLink =
  * Everything about one user: its email over its plan and sign-up day, the account's facts, the
  * plan ended by its rows, 요금제 바꾸기, whose form opens in the shared sheet, and 무료로 되돌리기
  * while a grant stands, every note, and last the suspension. On its own page it is the page; as
- * the users' side [panel] it is one column whose header holds 크게 보기 and 닫기 as quiet icons
+ * the users' side [panel] it is one column whose header holds 닫기 as a quiet icon
  * (ADR 0181). Nothing in it is a raised button but a sheet's own primary.
  */
 export function UserView({
@@ -60,7 +60,7 @@ export function UserView({
     <div className="flex flex-col gap-section-gap">
       <header className="flex items-start gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <Heading className="text-title break-words">
+          <Heading className="text-body-strong break-words">
             <Email email={user.email} />
           </Heading>
           <div className="flex flex-wrap items-center gap-2">
@@ -69,16 +69,13 @@ export function UserView({
             )}
             {user.admin && <Chip tone="brand">관리자</Chip>}
             {user.suspension !== null && <Chip tone="amber">정지됨</Chip>}
-            <span className="text-caption text-muted tabular-nums">
+            <span className="text-secondary text-muted tabular-nums">
               가입 {formatDate(user.createdAt, timeZone)}
             </span>
           </div>
         </div>
         {panel !== undefined && (
           <nav aria-label="사용자 보기" className="flex shrink-0">
-            <Link href={`/users/${user.id}`} aria-label="크게 보기" className={iconLink}>
-              <Maximize2 aria-hidden className="size-5" />
-            </Link>
             <Link href={panel.close} aria-label="닫기" className={iconLink}>
               <X aria-hidden className="size-5" />
             </Link>
