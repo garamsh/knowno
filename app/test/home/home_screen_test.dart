@@ -25,6 +25,7 @@ import 'package:knowno/study/study.dart';
 import '../contrast.dart';
 import '../media/fakes.dart';
 import '../photo_import/fakes.dart';
+import '../settle_until.dart';
 import 'home_data.dart';
 import '../study/minutes_sheet.dart';
 import '../study/study_storage.dart';
@@ -871,32 +872,26 @@ void main() {
         await list.newDeck();
         await tester.enterText(find.byType(EditableText), 'Delta');
         await list.tap('Choose from album');
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 50)),
-        );
-        await tester.pumpAndSettle();
         // The setup picked the photo: 새 노트's preview shows it.
+        await settleUntil(
+          tester,
+          'the preview to show the chosen photo',
+          () => shownText('Remove photo').evaluate().isNotEmpty,
+        );
         expect(shownText('Remove photo'), findsOneWidget);
 
         await list.tap('Save');
-        for (var step = 0; step < 10; step++) {
-          await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 20)),
-          );
-          await tester.pump();
-        }
-        await tester.pumpAndSettle();
+        // The deck and its photo are stored on the device, which takes real
+        // time, before the new deck opens.
+        await settleUntil(
+          tester,
+          'the new deck to open',
+          () => find.byType(DeckScreen).evaluate().isNotEmpty,
+        );
         expect(find.byType(DeckScreen), findsOneWidget);
         await tester.pageBack();
         await tester.pumpAndSettle();
 
-        // The tile reads the photo from the device, which takes real time.
-        for (var step = 0; step < 10; step++) {
-          await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 20)),
-          );
-          await tester.pump();
-        }
         Finder onTile(String deck, Finder finder) => find.descendant(
           of: find.ancestor(
             of: shownText(deck),
@@ -906,6 +901,12 @@ void main() {
             of: find.byType(DeckTile),
             matching: finder,
           ),
+        );
+        // The tile reads the photo from the device, which takes real time.
+        await settleUntil(
+          tester,
+          'the tile to show the photo',
+          () => onTile('Delta', find.byType(Image)).evaluate().isNotEmpty,
         );
         final image = tester.widget<Image>(onTile('Delta', find.byType(Image)));
         expect((image.image as MemoryImage).bytes, photo.bytes);
