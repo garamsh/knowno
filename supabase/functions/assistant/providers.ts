@@ -23,10 +23,14 @@ export type ToolSpec = {
   readonly inputSchema: unknown;
 };
 
-/** A turn of the conversation the client sent, its text already composed. */
+/**
+ * A turn of the conversation, its text already composed; a photo job's read sends a user turn with
+ * the https address of the photo it reads.
+ */
 export type Turn = {
   readonly role: "user" | "assistant";
   readonly text: string;
+  readonly photo?: string;
 };
 
 /** A call of one of the function's tools; `input` is null when its arguments were not JSON. */
@@ -80,6 +84,29 @@ export const NO_USAGE: CallUsage = {
   webSearchRequests: 0,
   webFetchRequests: 0,
 };
+
+/** The UTF-8 bytes of a request taken as one token, for an estimate of its input. */
+export const BYTES_PER_TOKEN = 4;
+
+/**
+ * [reported], with its input tokens estimated from [request]'s size when the provider reported
+ * none before the call broke off: the provider read the request, and bills it.
+ */
+export function withInputAtLeast(
+  reported: CallUsage,
+  request: string,
+): CallUsage {
+  if (reported.inputTokens > 0) return reported;
+  const bytes = new TextEncoder().encode(request).length;
+  return { ...reported, inputTokens: Math.ceil(bytes / BYTES_PER_TOKEN) };
+}
+
+/** Whether [error] is how `fetch` fails: a network error, or the call's signal aborting it. */
+export function fetchFailed(error: unknown): boolean {
+  return error instanceof TypeError ||
+    (error instanceof DOMException &&
+      (error.name === "AbortError" || error.name === "TimeoutError"));
+}
 
 /**
  * Raised when a provider's stream breaks off, says it failed, or ends in a form the adapter does not
@@ -403,7 +430,15 @@ const openrouter: Adapter = {
   url: OPENROUTER_URL,
   headers: bearer,
   history: (turns) =>
-    turns.map((turn) => ({ role: turn.role, content: turn.text })),
+    turns.map((turn) =>
+      turn.photo === undefined ? { role: turn.role, content: turn.text } : {
+        role: turn.role,
+        content: [
+          { type: "input_image", image_url: turn.photo, detail: "auto" },
+          { type: "input_text", text: turn.text },
+        ],
+      }
+    ),
   body: ({ configuration, system, messages, tools }) => ({
     model: configuration.model,
     instructions: system,
@@ -441,11 +476,20 @@ const openai: Adapter = {
   url: OPENAI_URL,
   headers: bearer,
   history: (turns) =>
-    turns.map((turn) => ({ role: turn.role, content: turn.text })),
+    turns.map((turn) =>
+      turn.photo === undefined ? { role: turn.role, content: turn.text } : {
+        role: turn.role,
+        content: [
+          { type: "image_url", image_url: { url: turn.photo } },
+          { type: "text", text: turn.text },
+        ],
+      }
+    ),
   body: ({ configuration, system, messages, tools }) => ({
     model: configuration.model,
     messages: [{ role: "system", content: system }, ...messages],
-    tools: chatTools(tools),
+    // OpenAI refuses an empty list of tools, as a photo's read sends.
+    ...(tools.length === 0 ? {} : { tools: chatTools(tools) }),
     ...(configuration.effort === "none"
       ? {}
       : { reasoning_effort: configuration.effort }),
@@ -647,7 +691,15 @@ const anthropic: Adapter = {
     "Content-Type": "application/json",
   }),
   history: (turns) =>
-    turns.map((turn) => ({ role: turn.role, content: turn.text })),
+    turns.map((turn) =>
+      turn.photo === undefined ? { role: turn.role, content: turn.text } : {
+        role: turn.role,
+        content: [
+          { type: "image", source: { type: "url", url: turn.photo } },
+          { type: "text", text: turn.text },
+        ],
+      }
+    ),
   body: ({ configuration, system, messages, tools }) => ({
     model: configuration.model,
     max_tokens: MAX_OUTPUT_TOKENS,

@@ -76,7 +76,8 @@ export function charged(usage: Usage): number {
   return usage.inputTokens + usage.outputTokens;
 }
 
-async function rpc(
+/** Calls the database function [name] with the service-role key; a refusal is a SupabaseError. */
+export async function rpc(
   name: string,
   body: Record<string, unknown>,
   deps: SupabaseDeps,

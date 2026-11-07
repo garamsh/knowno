@@ -1,8 +1,8 @@
 /**
- * The assistant's tools (ADR 0190, ADR 0197): the MCP read tools, called as `mcp` calls them; a
- * card form's guide; the proposal tools, which validate as `add_cards` and `update_cards` do, hold
- * each group to one form and write nothing; a group's regeneration; and a question with choices. A
- * proposal is shown to the user, who adds it.
+ * The assistant's tools (ADR 0190, ADR 0197, ADR 0198): the MCP read tools, called as `mcp` calls
+ * them; a card form's guide; the proposal tools, which validate as `add_cards` and `update_cards`
+ * do, hold each group to one form and write nothing; a group's regeneration; a question with
+ * choices; and the photo job tools. A proposal is shown to the user, who adds it.
  */
 
 import {
@@ -15,6 +15,13 @@ import { type IdSource, uuidV7 } from "../_shared/cards.ts";
 import { keptOf, readCard } from "../_shared/input.ts";
 import { deckKeys, readCards, readDeck, type Store } from "../_shared/store.ts";
 import { callTool, MAX_CARDS, type ToolDeps, TOOLS } from "../_shared/tools.ts";
+import { MAX_INSTRUCTIONS } from "./jobs.ts";
+import {
+  cancelPhotoJob,
+  type PhotoContext,
+  readPhotoJob,
+  startPhotoJob,
+} from "./photo_tools.ts";
 import type { ToolSpec } from "./providers.ts";
 
 /** A card of a proposal: its id, and the card as `add_cards` or `update_cards` takes it. */
@@ -48,10 +55,17 @@ export type Choice = {
   readonly options: readonly string[];
 };
 
+/** A photo job a tool started, which the client polls (ADR 0198). */
+export type JobShown = {
+  readonly id: string;
+  readonly photos: number;
+};
+
 /** What a tool shows the user beside its answer to the model. */
 export type Shown =
   | { readonly kind: "proposal"; readonly proposal: Proposal }
-  | { readonly kind: "choice"; readonly choice: Choice };
+  | { readonly kind: "choice"; readonly choice: Choice }
+  | { readonly kind: "job"; readonly job: JobShown };
 
 /** A tool's answer to the model, and what it shows the user, if anything. */
 export type Ran = {
@@ -220,6 +234,52 @@ export const ASSISTANT_TOOLS: readonly ToolSpec[] = [
         },
       },
       required: ["prompt", "options"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "start_photo_job",
+    description:
+      "Starts reading every photo the user attached to their latest message with photos, in the background: each photo is read in full, and the user sees the progress. Pass what the user asked of the photos, so the reading notices it. Nothing is made from them until you build it from read_photo_job's readings.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        instructions: {
+          type: "string",
+          maxLength: MAX_INSTRUCTIONS,
+          description:
+            "The user's requests for the photos, such as which part matters or how tables should be kept.",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "read_photo_job",
+    description:
+      "Reads a photo job's progress and what was read of its photos, in order, a page at a time: call again with from set to next_from for the rest.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        job_id: { type: "string", format: "uuid" },
+        from: {
+          type: "integer",
+          minimum: 1,
+          description: "The position of the first photo to read, 1 by default.",
+        },
+      },
+      required: ["job_id"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "cancel_photo_job",
+    description:
+      "Cancels a running photo job when the user asks: its photos not yet read are not read, and what was read stays.",
+    inputSchema: {
+      type: "object",
+      properties: { job_id: { type: "string", format: "uuid" } },
+      required: ["job_id"],
       additionalProperties: false,
     },
   },
@@ -656,8 +716,8 @@ function askChoice(args: Record<string, unknown>): Ran {
 }
 
 /**
- * Runs the tool [name] for the caller behind [store]; [earlier] is the conversation's proposals and
- * [skills] the card forms' guides served to the caller.
+ * Runs the tool [name] for the caller behind [store]; [earlier] is the conversation's proposals,
+ * [skills] the card forms' guides served to the caller and [photos] what the photo tools need.
  */
 export async function runTool(
   name: string,
@@ -666,6 +726,7 @@ export async function runTool(
   deps: ToolDeps,
   earlier: readonly Proposal[],
   skills: Skills,
+  photos: PhotoContext,
 ): Promise<Ran> {
   if (!isRecord(args)) return refuse("The arguments must be a JSON object.");
   switch (name) {
@@ -699,6 +760,12 @@ export async function runTool(
       return await regenerateGroup(args, store, deps, earlier);
     case "ask_choice":
       return askChoice(args);
+    case "start_photo_job":
+      return await startPhotoJob(args, photos);
+    case "read_photo_job":
+      return await readPhotoJob(args, photos);
+    case "cancel_photo_job":
+      return await cancelPhotoJob(args, photos);
     default:
       return refuse(
         `There is no tool named ${name}. The tools are ${
