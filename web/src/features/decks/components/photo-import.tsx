@@ -25,7 +25,7 @@ import {
   ReadingList,
   SingleReading,
 } from "./photo-reading";
-import { RowMenu } from "./row-menu";
+import { RowMenu } from "@/design/row-menu";
 
 /**
  * A browser-bound photo job drawn as the phone's photo import: one photo at 카드를 찾고 있어요 or

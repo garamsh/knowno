@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { RowMenu } from "../components/row-menu";
+import { RowMenu } from "../row-menu";
 
 describe("a ⋯ menu", () => {
   it("keeps each item on one line, as the phone's menu, inside a dialog that breaks between words", async () => {
