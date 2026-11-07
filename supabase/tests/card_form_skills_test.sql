@@ -170,6 +170,9 @@ select ok((select text ~ 'Understand the material' and text ~ 'Restate'
 
 -- The revert.
 
+-- The photo jobs' revert runs before the assistant's (assistant_photo_jobs_test.sql tests it).
+select private.revert_assistant_photo_jobs();
+
 select throws_ok($q$do $do$ begin
     perform private.revert_assistant_tokens();
     perform private.revert_assistant();
