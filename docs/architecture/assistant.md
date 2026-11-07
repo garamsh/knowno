@@ -1,6 +1,6 @@
 # Assistant
 
-The `assistant` Edge Function, 말랑이 as an assistant that builds notes and cards with the user in conversation: its requests, the stream, the tool loop and its limits, the tools, the card forms it reads, proposals and their commit, how each provider is called with its web search and reasoning, the per-plan configuration and daily token budget it reads, an admin's draft saved after a check call, its log and its tests. The schema behind the configuration and the budget is [`server.md`](server.md)'s; the card tools it shares are [`mcp.md`](mcp.md)'s; the clients' chat screens are not built yet (#711).
+The `assistant` Edge Function, 말랑이 as an assistant that builds notes and cards with the user in conversation: its requests, the stream, the tool loop and its limits, the tools, the card forms it reads, proposals and their commit, how each provider is called with its web search and reasoning, the per-plan configuration and daily token budget it reads, an admin's draft saved after a check call, its log and its tests. The schema behind the configuration and the budget is [`server.md`](server.md)'s; the card tools it shares are [`mcp.md`](mcp.md)'s; the web's chat is [`web-assistant.md`](web-assistant.md)'s, and the phone's is not built yet (#721).
 
 ## Current decisions
 

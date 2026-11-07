@@ -12,7 +12,7 @@ import {
 } from "../authoring";
 import { useEditing } from "./editing";
 import { chip, chipOn, type Draft, Field } from "./editor-field";
-import { RowMenu } from "./row-menu";
+import { RowMenu } from "@/design/row-menu";
 
 /** A 표: a toolbar over a grid of fields that scrolls sideways. A row of -1 is the headers. */
 export function TableGroup({

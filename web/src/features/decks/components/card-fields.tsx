@@ -6,7 +6,7 @@ import { block, type Block, type CardDraft } from "../authoring";
 import { labelShown, parseContent, type Sense } from "../card-content";
 import { buttonClass } from "@/design/button";
 import { Sheet } from "@/design/sheet";
-import { RowMenu } from "./row-menu";
+import { RowMenu } from "@/design/row-menu";
 
 const fieldClass =
   "mt-2 min-h-field w-full rounded-field border border-outline bg-surface px-4 py-3 text-body text-ink focus:outline-2 focus:outline-ink";

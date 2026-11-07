@@ -14,7 +14,7 @@ import { Confirm } from "@/design/confirm";
 import { Sheet } from "@/design/sheet";
 import { DeckAppearanceFields, type Look, lookedTile, setPhoto } from "./deck-appearance";
 import { DeckTile } from "./deck-tile";
-import { RowMenu } from "./row-menu";
+import { RowMenu } from "@/design/row-menu";
 
 /** The user's display name as the page read it, or `unread` where it could not be. */
 export type DisplayNameRead = { name: string | null } | "unread";

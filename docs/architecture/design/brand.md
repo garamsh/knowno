@@ -36,8 +36,9 @@ The brand on the phone and the web: the name, the marks and how they are generat
   | sad | a failed photo's screen, "no cards found" among its failures | 96 |
   | sleepy | study with nothing today, and an empty deck | 96 |
   | sleepy | 홈 on the hill once the day's cards are done ([ADR 0193](../adr/0193-make-home-one-screen-of-sky-over-ground-with-the-mascot-on-a-hill-the-streak-s-days-and-one-action.md)) | 140 |
+  | thinking, sleepy, sad or happy | the web's chat bar: thinking, sleepy once the day's tokens are used, sad on a failure, happy once a proposal is added ([ADR 0200](../adr/0200-chat-with-malangi-on-the-web-in-an-assistant-feature-streamed-through-a-route-handler-kept-in-the-browser-beside-the-side-menu-from-1024-px.md)) | 40 |
 
-  No other mascot is drawn while a card is studied.
+  No other mascot is drawn while a card is studied. On the web 홈's mascot is the link to 말랑이's chat ([`web-assistant.md`](../web-assistant.md)).
 - It moves the same on both clients, within its own widget or component ([ADR 0152](../adr/0152-let-the-mascot-blink-and-breathe-from-its-own-drawing-and-put-the-launcher-icon-on-cobalt.md)):
   - from 41 px, an expression with open eyes, thinking or sad, blinks every 3 to 7 s, one blink in five double: the eyes shut in 70 ms behind an ink lid, hold 110 ms, 160 ms when sad, and open in 60 ms; a thinking one sometimes glances, its pupils moving up to 22 units across and 14 up or down for 1.4 s;
   - from 128 px, 홈's 140 among them ([ADR 0193](../adr/0193-make-home-one-screen-of-sky-over-ground-with-the-mascot-on-a-hill-the-streak-s-days-and-one-action.md)), thinking and sad also breathe, 1.2% wider and 1.8% shorter about the feet on 3 s; the happy one wobbles on 1.8 s, 1.1 s of squash, stretch and settle about its feet, which stay on the ground, its arms swinging about their shoulders, while its ground ticks stay still ([ADR 0185](../adr/0185-wobble-the-happy-mascot-in-place-with-its-ground-still-instead-of-the-hop.md)); the sleepy one breathes deeper on 4.2 s, its Z's drifting up and fading;

@@ -14,7 +14,7 @@ import {
 } from "./editing";
 import { Choices, type Draft, Field, Problem } from "./editor-field";
 import { type CellChange, PhotoFields, SoundFields } from "./media-fields";
-import { RowMenu } from "./row-menu";
+import { RowMenu } from "@/design/row-menu";
 import { TableGroup } from "./table-fields";
 import { WordGroup } from "./word-fields";
 
