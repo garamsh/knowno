@@ -267,11 +267,11 @@ function Home({
           {/* The mascot is 말랑이, the assistant's entry on 홈 (#722), its bubble over its head. */}
           <Link
             href="/assistant"
-            className={`${homeMascot} rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero`}
+            className="flex flex-col items-center gap-1 rounded-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero"
           >
             <span className="sr-only">말랑이와 대화하기</span>
-            <Mascot expression={mascot} className="size-full" />
-            <ReadyBubble className="absolute bottom-full left-1/2 mb-1 w-max -translate-x-1/2 rounded-row bg-surface px-3 py-2 text-secondary break-keep text-ink" />
+            <ReadyBubble className="rounded-row bg-surface px-3 py-2 text-center text-secondary break-keep text-ink" />
+            <Mascot expression={mascot} className={homeMascot} />
           </Link>
         </div>
       </section>
