@@ -133,6 +133,13 @@ public = false
 file_size_limit = "10MiB"
 allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "audio/mp4", "audio/mpeg"]
 
+# The chat's photos 말랑이 reads in a job (ADR 0198); 20261105210000_assistant_photo_jobs.sql
+# creates the same in every project.
+[storage.buckets.assistant-photos]
+public = false
+file_size_limit = "6MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true
