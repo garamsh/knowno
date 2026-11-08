@@ -814,7 +814,7 @@ function deckIdOf(args: Args): string | null {
  * A stored card as the read tools return it, each 칸 of a `free` v2 card with its stored id; one
  * that does not parse says so by its one block.
  */
-function cardOf(card: StoredSides & { id: string }) {
+export function cardOf(card: StoredSides & { id: string }) {
   const cells = cellsOf(card);
   const ids = storedIds(card);
   return {

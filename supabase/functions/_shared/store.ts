@@ -143,6 +143,22 @@ export async function cardFormRows(
   return rowsOf(await response.json());
 }
 
+/**
+ * The caller's study record as `public.assistant_study_record` answers it, unparsed: [deckId]
+ * limits it to one deck, [periodDays] is how far back its answers count.
+ */
+export async function studyRecordRows(
+  store: Store,
+  deckId: string | null,
+  periodDays: number,
+): Promise<unknown> {
+  const response = await request(store, "rpc/assistant_study_record", {
+    method: "POST",
+    body: { deck_id: deckId, period_days: periodDays },
+  });
+  return await response.json();
+}
+
 /** A stored card's id and columns, as the read tools describe them. */
 export type StoredCard = StoredSides & {
   readonly id: string;
