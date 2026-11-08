@@ -125,6 +125,13 @@ pub fn cloze_from_v1(text: String, answers: Vec<String>) -> Option<String> {
     engine::cloze_from_v1(&text, &answers)
 }
 
+/// `text` written as markup that reads back as itself: the text of a literal 글 or cloze that
+/// is saved as markup keeps its meaning.
+#[flutter_rust_bridge::frb(sync)]
+pub fn escape_literal(text: String) -> String {
+    engine::escape_literal(&text)
+}
+
 fn blocks(document: &engine::Document) -> Vec<MarkupBlock> {
     document.blocks.iter().map(MarkupBlock::from).collect()
 }

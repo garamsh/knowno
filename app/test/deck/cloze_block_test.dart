@@ -133,16 +133,18 @@ void main() {
       expect(_blocks(tester), ['H₂O']);
       await save(screens);
       final card = await _stored(screens);
-      expect(card.front, [
-        const ClozeContent('___예요', ['H₂O']),
-      ]);
+      expect(card.front, [const ClozeContent.markup('{{c1::H₂O}}예요')]);
       expect(card.back, isEmpty, reason: 'a back is the blocks listed on it');
 
       await screens.push(
         (deck) =>
             CardEditorScreen(preview: studyPreview, deck: deck, card: card),
       );
-      expect(_blocks(tester), ['H₂O'], reason: 'opens with its blank');
+      expect(
+        _controller(tester).text,
+        '{{c1::H₂O}}예요',
+        reason: 'a version 2 cloze opens as its Anki text',
+      );
       await save(screens);
       expect((await _stored(screens)).front, card.front, reason: 'unchanged');
 
@@ -154,7 +156,7 @@ void main() {
       final cards = await screens.cards();
       expect(
         cards.map((card) => card.front.single),
-        contains(const ClozeContent('___은 한국의 수도예요', ['서울'])),
+        contains(const ClozeContent.markup('{{c1::서울}}은 한국의 수도예요')),
         reason: 'the particle stays outside',
       );
       await screens.close();
@@ -182,7 +184,7 @@ void main() {
       await typeAt(tester, '그 물은 H₂O예요', 2);
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('그 물은 ___예요', ['H₂O']),
+        const ClozeContent.markup('그 물은 {{c1::H₂O}}예요'),
       ]);
 
       await openCloze(tester, on: screens);
@@ -235,7 +237,7 @@ void main() {
       expect(_controller(tester).text, 'a cat and a dog');
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('a cat and a ___', ['dog']),
+        const ClozeContent.markup('a cat and a {{c1::dog}}'),
       ]);
       await screens.close();
     },
@@ -560,7 +562,7 @@ void main() {
         expect(_blocks(tester), ['H₂O']);
         await save(screens);
         expect((await _stored(screens)).front, [
-          const ClozeContent('물은 ___예요', ['H₂O']),
+          const ClozeContent.markup('물은 {{c1::H₂O}}예요'),
         ]);
         await screens.close();
       },
@@ -643,7 +645,7 @@ void main() {
       expect(_blocks(tester), ['a', 'dog'], reason: 'a changed blank goes');
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('one cot and ___ big ___', ['a', 'dog']),
+        const ClozeContent.markup('one cot and {{c1::a}} big {{c2::dog}}'),
       ]);
       await screens.close();
     },
@@ -670,7 +672,7 @@ void main() {
       expect(shownText('Insert at least one blank'), findsNothing);
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('The cat ___', ['sat']),
+        const ClozeContent.markup('The cat {{c1::sat}}'),
       ], reason: 'control: with a blank, it saves');
       await screens.close();
     },
@@ -705,7 +707,7 @@ void main() {
       await insertBlank(screens);
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('___ is un___able', ['It', 'believ']),
+        const ClozeContent.markup('{{c1::It}} is un{{c2::believ}}able'),
       ], reason: 'another blank added, the stored one keeps its letters');
       await screens.close();
     },
@@ -731,7 +733,9 @@ void main() {
       await typeLine(tester, '3인칭 재귀칭 : 자기, 자신, 저, 저희');
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('3인칭 재귀칭 : ___, ___, ___, ___', answers),
+        const ClozeContent.markup(
+          '3인칭 재귀칭 \\: {{c1::자기}}, {{c2::자신}}, {{c3::저}}, {{c4::저희}}',
+        ),
       ]);
       await screens.close();
     },
@@ -765,7 +769,7 @@ void main() {
       await typeLine(tester, 'capital of France Paris');
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('capital of France ___', ['Paris']),
+        const ClozeContent.markup('capital of France {{c1::Paris}}'),
       ], reason: 'control: without the underscores, it saves');
       await screens.close();
     },
@@ -797,7 +801,7 @@ void main() {
       await typeLine(tester, 'a x b c');
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('a ___ b c', ['x']),
+        const ClozeContent.markup('a {{c1::x}} b c'),
       ], reason: 'control: without the underscores, the edit saves');
       await screens.close();
     },

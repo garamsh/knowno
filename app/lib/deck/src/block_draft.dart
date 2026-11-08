@@ -139,7 +139,10 @@ final class TextBlockDraft extends BlockDraft {
     : front = TextEditingController(text: cell?.front),
       back = TextEditingController(text: cell?.back),
       markup = cell?.markup ?? markup,
+      _stored = cell,
       super(id: cell?.id);
+
+  final TextCell? _stored;
 
   /// Whether the parts are read as markup: the 글 is version 3.
   final bool markup;
@@ -164,7 +167,17 @@ final class TextBlockDraft extends BlockDraft {
         field.text.trim().isEmpty ? '' : field.text;
     final (shown, added) = (part(front), part(back));
     if (shown.isEmpty && added.isEmpty) return null;
-    return TextCell(front: shown, back: added, markup: markup, id: id);
+    final typed = TextCell(front: shown, back: added, markup: markup, id: id);
+    // A 글 stored before markup is kept as it was while it is unchanged; once
+    // edited it is written as version 3, its text through the escape so that
+    // it keeps its meaning (ADR 0208).
+    if (markup || _stored == typed) return typed;
+    return TextCell(
+      front: markupEngine.escapeLiteral(shown),
+      back: markupEngine.escapeLiteral(added),
+      markup: true,
+      id: id,
+    );
   }
 
   @override
@@ -342,10 +355,21 @@ final class ClozeBlockDraft extends BlockDraft {
     ..update(line.text)
     ..track(line.selection);
 
+  /// [content] written as version 2, its text through the escape, where the
+  /// engine converts it; as it is where it cannot.
+  ClozeContent _written(ClozeContent content) =>
+      switch (markupEngine.clozeFromV1(content.text, content.answers)) {
+        final source? => ClozeContent.markup(source),
+        null => content,
+      };
+
   @override
   Cell get cell => BlankCell(switch (_stored) {
     final stored? when !edited => stored,
-    _ => cloze.content ?? cloze.preview,
+    _ => switch (cloze.content) {
+      final content? => _written(content),
+      null => cloze.preview,
+    },
   }, id: id);
 
   @override

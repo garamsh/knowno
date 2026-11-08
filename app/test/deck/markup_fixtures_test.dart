@@ -20,12 +20,16 @@ List<Map<String, Object?>> _fixture(String name) {
 
 /// [span]'s text with the list markers `markupSpan` draws left out, so it
 /// reads as the engine's plain text does.
-String _unmarked(InlineSpan span) => span
-    .toPlainText(includeSemanticsLabels: false)
-    .replaceAllMapped(
-      RegExp(r'^( {2})?(• |◦ |\d+\. )', multiLine: true),
-      (_) => '',
-    );
+String _unmarked(InlineSpan span, List<MarkupBlock> blocks) {
+  final drawn = span.toPlainText(includeSemanticsLabels: false);
+  // A text with no list has no marker of ours to leave out: a line that
+  // reads like one is literal.
+  if (!blocks.any((block) => block is ListBlock)) return drawn;
+  return drawn.replaceAllMapped(
+    RegExp(r'^( {2})?(• |◦ |\d+\. )', multiLine: true),
+    (_) => '',
+  );
+}
 
 void main() {
   final parse = _fixture('parse');
@@ -80,9 +84,8 @@ void main() {
   group('the renderer draws the fixture\'s documents', () {
     for (final one in plain) {
       test('filled in, it reads as the plain text: ${one['name']}', () {
-        final text = _unmarked(
-          markupSpan(markupEngine.parse(one['input']! as String)),
-        );
+        final blocks = markupEngine.parse(one['input']! as String);
+        final text = _unmarked(markupSpan(blocks), blocks);
         expect(text, one['plainText']);
       });
     }

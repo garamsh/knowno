@@ -19,6 +19,9 @@ final class BridgeMarkupEngine implements deck.MarkupEngine {
   String plainText(String text) => bridge.plainText(text: text);
 
   @override
+  String escapeLiteral(String text) => bridge.escapeLiteral(text: text);
+
+  @override
   String? clozeFromV1(String text, List<String> answers) =>
       bridge.clozeFromV1(text: text, answers: answers);
 }

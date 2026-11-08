@@ -10,7 +10,7 @@ InlineSpan filledCloze(
   String Function(String) wrap = _same,
 }) => TextSpan(children: _runs(cloze.answer, wrap: wrap, cloze: null));
 
-/// [blocks] as one span, a blank line between each, a list item on a line
+/// [blocks] as one span, each block on a line after the last (ADR 0208), a list item on a line
 /// of its own after its marker, "• " or its number, and a nested item after
 /// two spaces more. A bold run is bold, an italic one italic, and a code run
 /// in [code]. [cloze] draws each cloze, as its answer filled in where it is
@@ -25,7 +25,7 @@ InlineSpan markupSpan(
   final drawn = cloze ?? (run) => filledCloze(run, wrap: wrap);
   final children = <InlineSpan>[];
   for (final (index, block) in blocks.indexed) {
-    if (index > 0) children.add(const TextSpan(text: '\n\n'));
+    if (index > 0) children.add(const TextSpan(text: '\n'));
     switch (block) {
       case ParagraphBlock(:final content):
         children.addAll(_runs(content, wrap: wrap, code: code, cloze: drawn));

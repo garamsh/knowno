@@ -461,7 +461,7 @@ void main() {
       await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).cells, const [
         WordCell(term: 'face', senses: senses, ask: WordAsk.term),
-        TextCell(back: '유의어 confront, encounter'),
+        TextCell(back: '유의어 confront, encounter', markup: true),
       ]);
       await screens.close();
     },

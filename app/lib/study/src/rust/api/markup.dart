@@ -41,6 +41,11 @@ String? clozeFromV1({required String text, required List<String> answers}) =>
       answers: answers,
     );
 
+/// `text` written as markup that reads back as itself: the text of a literal 글 or cloze that
+/// is saved as markup keeps its meaning.
+String escapeLiteral({required String text}) =>
+    RustLib.instance.api.crateApiMarkupEscapeLiteral(text: text);
+
 @freezed
 sealed class MarkupBlock with _$MarkupBlock {
   const MarkupBlock._();

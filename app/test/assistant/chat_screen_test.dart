@@ -176,7 +176,7 @@ void main() {
       expect(_text('Add 3 cards'), findsOneWidget);
 
       await tester.tap(_text('pear'));
-      await tester.tap(_text('{{c1::서울}}'));
+      await tester.tap(_text('서울'));
       await tester.pump();
       expect(_text('Add 1 card'), findsOneWidget);
       await tester.tap(_text('Add 1 card'));
