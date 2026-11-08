@@ -1,6 +1,12 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const clozeFromV1: (a: number, b: number, c: number, d: number, e: number) => void;
+export const clozeNumbers: (a: number, b: number, c: number) => void;
+export const fillCloze: (a: number, b: number, c: number) => void;
+export const hideCloze: (a: number, b: number, c: number, d: number) => void;
+export const parseMarkup: (a: number, b: number, c: number) => void;
+export const plainText: (a: number, b: number, c: number) => void;
 export const replay: (a: number, b: number, c: number) => void;
 export const retrievability: (a: number, b: number, c: bigint) => void;
 export const reviewCard: (a: number, b: number, c: number, d: bigint, e: number, f: number) => void;
