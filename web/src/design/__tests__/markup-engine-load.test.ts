@@ -35,9 +35,9 @@ describe("the markup engine before and after its module loads", () => {
 
   it("loads from a registered synchronous load on the server's first read", async () => {
     const engine = await fresh();
-    const { readFileSync } = await import("node:fs");
+    const { readEngineModule } = await import("../markup-engine-server");
     const load = vi.fn(() => {
-      engine.installMarkupModule(readFileSync("src/design/engine-wasm/knowno_engine_wasm_bg.wasm"));
+      engine.installMarkupModule(readEngineModule());
     });
     engine.setServerMarkupLoad(load);
 

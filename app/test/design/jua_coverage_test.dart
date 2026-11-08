@@ -87,7 +87,7 @@ final _blank = RegExp(r'[\s​]');
 /// The characters we write that Jua lacks, each drawn by Pretendard
 /// ExtraBold, its fallback at the weight the Jua styles ask for.
 const _allowed = {
-  '·', '⋯', '←', '→', '…', '—', '–', '−', '×', '§', '「', '」', '✓', '’', //
+  '·', '⋯', '←', '→', '…', '—', '–', '−', '×', '§', '「', '」', '✓', '’', '•', '◦', //
 };
 
 void main() {

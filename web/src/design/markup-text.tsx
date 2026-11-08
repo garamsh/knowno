@@ -38,10 +38,8 @@ function runs(content: Inline[], cloze: (span: ClozeSpan) => ReactNode): ReactNo
   });
 }
 
-// The phone's markers. They are written as escapes because `jua_coverage_test.dart` reads the
-// web's source for characters outside Jua's face, and these two are drawn by the fallback.
-const bullet = "\u2022 ";
-const nestedBullet = "\u25E6 ";
+const bullet = "• ";
+const nestedBullet = "◦ ";
 
 /** A cloze drawn as its answer, filled in. */
 function filled(span: ClozeSpan): ReactNode {
