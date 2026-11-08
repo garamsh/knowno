@@ -1,6 +1,6 @@
 # ADR 0026: Delete an account through a `delete-account` Edge Function that deletes only the token's user, then sign out and clear the device as sign-out does
 
-> Status: accepted
+> Status: accepted; its function taking no input but the bearer token and never reading the body superseded by ADR-0210
 > Date: 2026-10-15
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
