@@ -86,7 +86,7 @@ describe("MarkupText over every fixture's document", () => {
 
     const lines = [...container.querySelectorAll("[data-markup]")];
     expect(lines.map((line) => line.textContent)).toEqual(["a", "", "", "b"]);
-    expect(lines.map((line) => line.className.includes("min-h-[1lh]"))).toEqual([
+    expect(lines.map((line) => line.className.includes("min-h-lh"))).toEqual([
       true,
       true,
       true,

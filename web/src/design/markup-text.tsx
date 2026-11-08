@@ -61,7 +61,7 @@ export function MarkupText({
   return document.flatMap((block, index) => {
     if (block.type === "paragraph") {
       return [
-        <span key={index} data-markup="paragraph" className="block min-h-[1lh] whitespace-pre-wrap">
+        <span key={index} data-markup="paragraph" className="block min-h-lh whitespace-pre-wrap">
           {runs(block.content, cloze)}
         </span>,
       ];
