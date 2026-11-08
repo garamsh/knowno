@@ -741,7 +741,8 @@ function askChoice(args: Record<string, unknown>): Ran {
 
 /**
  * Runs the tool [name] for the caller behind [store]; [earlier] is the conversation's proposals,
- * [skills] the card forms' guides served to the caller and [photos] what the photo tools need.
+ * [skills] the card forms' guides served to the caller, [photos] what the photo tools need and
+ * [timeZone] the user's zone, when the message named it.
  */
 export async function runTool(
   name: string,
@@ -751,6 +752,7 @@ export async function runTool(
   earlier: readonly Proposal[],
   skills: Skills,
   photos: PhotoContext,
+  timeZone: string | null,
 ): Promise<Ran> {
   if (!isRecord(args)) return refuse("The arguments must be a JSON object.");
   switch (name) {
@@ -769,7 +771,7 @@ export async function runTool(
         : { content: result.value, isError: false, shown: null };
     }
     case "read_study_record":
-      return await readStudyRecord(args, store);
+      return await readStudyRecord(args, store, timeZone);
     case "propose_deck":
       if ("deck_id" in args) {
         return refuse(

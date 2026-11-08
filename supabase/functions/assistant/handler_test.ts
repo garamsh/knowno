@@ -2679,7 +2679,11 @@ Deno.test("read_study_record answers the caller's own record with each card as l
   assert.equal(record.most_missed[0].id, listed.id);
   assert.equal(record.most_missed[0].missed, 3);
   assert.ok(!JSON.stringify(record).includes("Grace"));
-  assert.deepEqual(fake.studyCalls, [{ deck_id: null, period_days: 30 }]);
+  assert.deepEqual(fake.studyCalls, [{
+    deck_id: null,
+    period_days: 30,
+    time_zone: "Asia/Seoul",
+  }]);
 
   // Control: the other user, sent the same call, reads her own record and none of Ada's.
   const grace = seed();
@@ -2716,8 +2720,8 @@ Deno.test("read_study_record asks for one deck and a period, and refuses an id t
   }
   // Only the first and the unknown deck's calls reached the database.
   assert.deepEqual(fake.studyCalls, [
-    { deck_id: ADA_DECK, period_days: 7 },
-    { deck_id: GRACE_DECK, period_days: 30 },
+    { deck_id: ADA_DECK, period_days: 7, time_zone: "Asia/Seoul" },
+    { deck_id: GRACE_DECK, period_days: 30, time_zone: "Asia/Seoul" },
   ]);
 });
 
@@ -2745,4 +2749,68 @@ Deno.test("read_study_record keeps its answer under a page, cutting the least mi
   const whole = JSON.parse(answered(small.requests[1]!));
   assert.equal(whole.most_missed.length, 50);
   assert.equal(whole.most_missed_cut, 0);
+});
+
+Deno.test("read_study_record counts the study day in the zone the message names, and in Asia/Seoul when it names none", async () => {
+  const named = seed();
+  named.replies.push(calls_("read_study_record", {}), says("네."));
+  const run = await send(named, {
+    body: { ...ask("틀린 것만"), context: { time_zone: "America/New_York" } },
+  });
+  assert.equal(run.status, 200);
+  assert.deepEqual(named.studyCalls.map((call) => call.time_zone), [
+    "America/New_York",
+  ]);
+
+  // Control: the same message without a zone is counted in Seoul's, with the note open as before.
+  const none = seed();
+  none.replies.push(calls_("read_study_record", {}), says("네."));
+  await send(none, {
+    body: { ...ask("틀린 것만"), context: { deck_id: ADA_DECK } },
+  });
+  assert.deepEqual(none.studyCalls.map((call) => call.time_zone), [
+    "Asia/Seoul",
+  ]);
+
+  // Both in one context, the zone spelled in another case and read as the runtime spells it.
+  const both = seed();
+  both.replies.push(calls_("read_study_record", {}), says("네."));
+  await send(both, {
+    body: {
+      ...ask("틀린 것만"),
+      context: { deck_id: ADA_DECK, time_zone: "europe/london" },
+    },
+  });
+  assert.deepEqual(both.studyCalls.map((call) => call.time_zone), [
+    "Europe/London",
+  ]);
+});
+
+Deno.test("a message whose time zone is no IANA name is refused before any count, against a valid one", async () => {
+  const fake = seed();
+  for (
+    const time_zone of [
+      "Mars/Phobos",
+      "KST",
+      "+09:00",
+      "Asia/Seoul; drop table",
+      "",
+      5,
+      null,
+    ]
+  ) {
+    const run = await send(fake, {
+      body: { ...ask("안녕"), context: { time_zone } },
+    });
+    assert.equal(run.status, 400, JSON.stringify(time_zone));
+    assert.deepEqual(run.json, { error: "bad_request" });
+  }
+  assert.equal(fake.begun, 0);
+  assert.equal(fake.requests.length, 0);
+
+  fake.replies.push(says("네"));
+  const valid = await send(fake, {
+    body: { ...ask("안녕"), context: { time_zone: "Asia/Seoul" } },
+  });
+  assert.equal(valid.status, 200);
 });
