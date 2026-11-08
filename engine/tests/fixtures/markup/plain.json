@@ -1,0 +1,57 @@
+[
+  {
+    "input": "hello",
+    "name": "a paragraph",
+    "plainText": "hello"
+  },
+  {
+    "input": "a **b** *c* _d_ `e`",
+    "name": "marks are removed",
+    "plainText": "a b c d e"
+  },
+  {
+    "input": "{{c1::Paris::city}} is {{c2::the capital}}",
+    "name": "cloze is filled",
+    "plainText": "Paris is the capital"
+  },
+  {
+    "input": "a\nb",
+    "name": "line breaks stay",
+    "plainText": "a\nb"
+  },
+  {
+    "input": "a\n\nb",
+    "name": "paragraphs are apart by a blank line",
+    "plainText": "a\n\nb"
+  },
+  {
+    "input": "- a\n  - b\n1. c\n  1. d",
+    "name": "list markers are removed",
+    "plainText": "a\nb\n\nc\nd"
+  },
+  {
+    "input": "x\n\n- a\n- b",
+    "name": "a list after a paragraph",
+    "plainText": "x\n\na\nb"
+  },
+  {
+    "input": "# a [b](c) <i>d</i>",
+    "name": "unknown markup is kept",
+    "plainText": "# a [b](c) <i>d</i>"
+  },
+  {
+    "input": "a * b and **c",
+    "name": "literal marks are kept",
+    "plainText": "a * b and **c"
+  },
+  {
+    "input": "",
+    "name": "empty",
+    "plainText": ""
+  },
+  {
+    "input": "**가나** {{c1::다}}",
+    "name": "korean",
+    "plainText": "가나 다"
+  }
+]

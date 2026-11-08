@@ -1,0 +1,584 @@
+[
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "text": "plain ",
+            "type": "text"
+          },
+          {
+            "content": [
+              {
+                "text": "text",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {},
+    "input": "plain **text**",
+    "name": "no cloze",
+    "numbers": []
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "text": "The capital is Paris.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {
+      "1": [
+        {
+          "content": [
+            {
+              "text": "The capital is ",
+              "type": "text"
+            },
+            {
+              "hint": null,
+              "type": "blank"
+            },
+            {
+              "text": ".",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ]
+    },
+    "input": "The capital is {{c1::Paris}}.",
+    "name": "one cloze",
+    "numbers": [
+      1
+    ]
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "text": "Paris",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {
+      "1": [
+        {
+          "content": [
+            {
+              "hint": "city",
+              "type": "blank"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ]
+    },
+    "input": "{{c1::Paris::city}}",
+    "name": "hint",
+    "numbers": [
+      1
+    ]
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "text": "b then a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {
+      "1": [
+        {
+          "content": [
+            {
+              "text": "b then ",
+              "type": "text"
+            },
+            {
+              "hint": null,
+              "type": "blank"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ],
+      "2": [
+        {
+          "content": [
+            {
+              "hint": null,
+              "type": "blank"
+            },
+            {
+              "text": " then a",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ]
+    },
+    "input": "{{c2::b}} then {{c1::a}}",
+    "name": "two numbers",
+    "numbers": [
+      1,
+      2
+    ]
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "text": "a b c",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {
+      "1": [
+        {
+          "content": [
+            {
+              "hint": null,
+              "type": "blank"
+            },
+            {
+              "text": " b ",
+              "type": "text"
+            },
+            {
+              "hint": "hint",
+              "type": "blank"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ],
+      "2": [
+        {
+          "content": [
+            {
+              "text": "a ",
+              "type": "text"
+            },
+            {
+              "hint": null,
+              "type": "blank"
+            },
+            {
+              "text": " c",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ]
+    },
+    "input": "{{c1::a}} {{c2::b}} {{c1::c::hint}}",
+    "name": "spans sharing a number",
+    "numbers": [
+      1,
+      2
+    ]
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          },
+          {
+            "text": " and ",
+            "type": "text"
+          },
+          {
+            "content": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "type": "italic"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {
+      "1": [
+        {
+          "content": [
+            {
+              "content": [
+                {
+                  "hint": null,
+                  "type": "blank"
+                }
+              ],
+              "type": "bold"
+            },
+            {
+              "text": " and ",
+              "type": "text"
+            },
+            {
+              "content": [
+                {
+                  "text": "b",
+                  "type": "text"
+                }
+              ],
+              "type": "italic"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ],
+      "2": [
+        {
+          "content": [
+            {
+              "content": [
+                {
+                  "text": "a",
+                  "type": "text"
+                }
+              ],
+              "type": "bold"
+            },
+            {
+              "text": " and ",
+              "type": "text"
+            },
+            {
+              "content": [
+                {
+                  "hint": null,
+                  "type": "blank"
+                }
+              ],
+              "type": "italic"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ]
+    },
+    "input": "**{{c1::a}}** and _{{c2::b}}_",
+    "name": "cloze in marks",
+    "numbers": [
+      1,
+      2
+    ]
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "text": "a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "sublists": [
+              {
+                "items": [
+                  [
+                    {
+                      "text": "c",
+                      "type": "text"
+                    }
+                  ]
+                ],
+                "ordered": false
+              }
+            ]
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      }
+    ],
+    "hidden": {
+      "1": [
+        {
+          "content": [
+            {
+              "hint": null,
+              "type": "blank"
+            }
+          ],
+          "type": "paragraph"
+        },
+        {
+          "items": [
+            {
+              "content": [
+                {
+                  "text": "b",
+                  "type": "text"
+                }
+              ],
+              "sublists": [
+                {
+                  "items": [
+                    [
+                      {
+                        "hint": null,
+                        "type": "blank"
+                      }
+                    ]
+                  ],
+                  "ordered": false
+                }
+              ]
+            }
+          ],
+          "ordered": false,
+          "type": "list"
+        }
+      ],
+      "2": [
+        {
+          "content": [
+            {
+              "text": "a",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        },
+        {
+          "items": [
+            {
+              "content": [
+                {
+                  "hint": null,
+                  "type": "blank"
+                }
+              ],
+              "sublists": [
+                {
+                  "items": [
+                    [
+                      {
+                        "text": "c",
+                        "type": "text"
+                      }
+                    ]
+                  ],
+                  "ordered": false
+                }
+              ]
+            }
+          ],
+          "ordered": false,
+          "type": "list"
+        }
+      ]
+    },
+    "input": "{{c1::a}}\n\n- {{c2::b}}\n  - {{c1::c}}",
+    "name": "cloze across lists and paragraphs",
+    "numbers": [
+      1,
+      2
+    ]
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "text": "{{c1::a}}",
+            "type": "code"
+          },
+          {
+            "text": " b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {
+      "2": [
+        {
+          "content": [
+            {
+              "text": "{{c1::a}}",
+              "type": "code"
+            },
+            {
+              "text": " ",
+              "type": "text"
+            },
+            {
+              "hint": null,
+              "type": "blank"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ]
+    },
+    "input": "`{{c1::a}}` {{c2::b}}",
+    "name": "code is not a cloze",
+    "numbers": [
+      2
+    ]
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "text": "{{c0::a}} {{c::b}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {},
+    "input": "{{c0::a}} {{c::b}}",
+    "name": "a literal cloze is not a number",
+    "numbers": []
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          },
+          {
+            "text": " b c",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {
+      "1": [
+        {
+          "content": [
+            {
+              "hint": null,
+              "type": "blank"
+            },
+            {
+              "text": " c",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ]
+    },
+    "input": "{{c1::**a** b}} c",
+    "name": "marks in an answer",
+    "numbers": [
+      1
+    ]
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "text": "ab",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {
+      "1": [
+        {
+          "content": [
+            {
+              "hint": null,
+              "type": "blank"
+            },
+            {
+              "text": "b",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ],
+      "2": [
+        {
+          "content": [
+            {
+              "text": "a",
+              "type": "text"
+            },
+            {
+              "hint": null,
+              "type": "blank"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ]
+    },
+    "input": "{{c1::a}}{{c2::b}}",
+    "name": "adjacent clozes",
+    "numbers": [
+      1,
+      2
+    ]
+  }
+]
