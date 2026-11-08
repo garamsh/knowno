@@ -39,7 +39,7 @@
       "a"
     ],
     "name": "four underscores are a blank and an underscore",
-    "source": "{{c1::a}}_",
+    "source": "{{c1::a}}\\_",
     "text": "____"
   },
   {
@@ -76,48 +76,48 @@
     "answers": [
       "std::vec"
     ],
-    "name": "an answer holding colons is refused",
-    "source": null,
+    "name": "an answer holding colons is escaped",
+    "source": "a {{c1::std\\:\\:vec}}",
     "text": "a ___"
   },
   {
     "answers": [
       "x}}y"
     ],
-    "name": "an answer holding closing braces is refused",
-    "source": null,
+    "name": "an answer holding closing braces is escaped",
+    "source": "a {{c1::x\\}\\}y}}",
     "text": "a ___"
   },
   {
     "answers": [
       "**b**"
     ],
-    "name": "an answer holding a mark is refused",
-    "source": null,
+    "name": "an answer holding a mark is escaped",
+    "source": "a {{c1::\\*\\*b\\*\\*}}",
     "text": "a ___"
   },
   {
     "answers": [
       "b"
     ],
-    "name": "a mark in the text is refused",
-    "source": null,
+    "name": "a mark in the text is escaped",
+    "source": "\\*a\\* {{c1::b}}",
     "text": "*a* ___"
   },
   {
     "answers": [
       "b"
     ],
-    "name": "a literal cloze in the text is refused",
-    "source": null,
+    "name": "a literal cloze in the text is escaped",
+    "source": "\\{\\{c2\\:\\:x\\}\\} {{c1::b}}",
     "text": "{{c2::x}} ___"
   },
   {
     "answers": [
       "b"
     ],
-    "name": "a list marker in the text is refused",
-    "source": null,
+    "name": "a list marker in the text is escaped",
+    "source": "\\- a {{c1::b}}",
     "text": "- a ___"
   },
   {
@@ -144,5 +144,101 @@
     "name": "more answers than blanks is refused",
     "source": null,
     "text": "___"
+  },
+  {
+    "answers": [
+      "a"
+    ],
+    "name": "a numbered marker in the text is escaped",
+    "source": "\\1. {{c1::a}}",
+    "text": "1. ___"
+  },
+  {
+    "answers": [
+      "b"
+    ],
+    "name": "a dash at a later line start is escaped",
+    "source": "a\n\\- {{c1::b}}",
+    "text": "a\n- ___"
+  },
+  {
+    "answers": [
+      "c"
+    ],
+    "name": "a backslash in the text is escaped",
+    "source": "a\\\\b {{c1::c}}",
+    "text": "a\\b ___"
+  },
+  {
+    "answers": [
+      "x\\"
+    ],
+    "name": "an answer ending in a backslash is escaped",
+    "source": "a {{c1::x\\\\}}",
+    "text": "a ___"
+  },
+  {
+    "answers": [
+      "x:"
+    ],
+    "name": "an answer ending in a colon is escaped",
+    "source": "a {{c1::x\\:}}",
+    "text": "a ___"
+  },
+  {
+    "answers": [
+      "x}"
+    ],
+    "name": "an answer ending in a brace is escaped",
+    "source": "a {{c1::x\\}}}",
+    "text": "a ___"
+  },
+  {
+    "answers": [
+      "x\ny"
+    ],
+    "name": "an answer of two lines keeps its line break",
+    "source": "a {{c1::x\ny}}",
+    "text": "a ___"
+  },
+  {
+    "answers": [
+      "x\n- y"
+    ],
+    "name": "a dash at a later line of an answer is escaped",
+    "source": "a {{c1::x\n\\- y}}",
+    "text": "a ___"
+  },
+  {
+    "answers": [
+      "b"
+    ],
+    "name": "crlf in the text reads as a newline",
+    "source": "a\n{{c1::b}}",
+    "text": "a\r\n___"
+  },
+  {
+    "answers": [
+      "b"
+    ],
+    "name": "blank lines in the text are kept",
+    "source": "a\n\n\n{{c1::b}}",
+    "text": "a\n\n\n___"
+  },
+  {
+    "answers": [
+      ""
+    ],
+    "name": "an empty answer is refused",
+    "source": null,
+    "text": "a ___"
+  },
+  {
+    "answers": [
+      "x\n \ny"
+    ],
+    "name": "an answer holding a line of spaces is refused",
+    "source": null,
+    "text": "a ___"
   }
 ]
