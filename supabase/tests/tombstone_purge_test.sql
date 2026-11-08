@@ -54,10 +54,11 @@ insert into public.card_states (user_id, card_id, stability, difficulty, last_re
 select '00000000-0000-4000-8000-0000000000a1', pg_temp.id('c', n), 3, 5, now(), now(), now()
 from (values (1), (7)) as v (n);
 
--- Run details of another job, past and within 30 days.
+-- Run details of another job, past and within 30 days; the run ids are above any real run's, which
+-- the every-minute `sweep-assistant-jobs` takes from 1 while the stack is up.
 insert into cron.job_run_details (jobid, runid, status, start_time, end_time) values
-  (999, 1, 'succeeded', now() - interval '40 days', now() - interval '40 days'),
-  (999, 2, 'succeeded', now() - interval '10 days', now() - interval '10 days');
+  (999, 900001, 'succeeded', now() - interval '40 days', now() - interval '40 days'),
+  (999, 900002, 'succeeded', now() - interval '10 days', now() - interval '10 days');
 
 create temp table tombstones_before as
   select (select count(*) from public.decks where deleted_at is not null)
@@ -77,7 +78,7 @@ select is((select revision from private.sync_horizon), 0::bigint,
 select is((select count(*) from private.revision_marks), 1::bigint, 'a run takes a mark');
 select is(
   (select array_agg(runid order by runid) from cron.job_run_details where jobid = 999),
-  array[2::bigint],
+  array[900002::bigint],
   'a run deletes the run details past 30 days, with those within 30 days kept as control');
 select ok(
   not exists (select from pg_locks where pid = pg_backend_pid() and mode = 'ShareRowExclusiveLock'
