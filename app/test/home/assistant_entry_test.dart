@@ -62,6 +62,13 @@ Future<_Opened> _openHome(
   addTearDown(tester.view.reset);
   final db = AppDatabase(NativeDatabase.memory());
   addTearDown(db.close);
+  // Tear-downs run last first, so a screen a failed test left mounted is
+  // unmounted before the database closes, which would otherwise hang the run
+  // on the stream queries it holds.
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+  });
   var ids = 0;
   final repository = DeckRepository(
     db,
