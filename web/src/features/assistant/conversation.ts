@@ -1,4 +1,10 @@
-import { type AssistantEvent, type Choice, type Proposal, parseProposal } from "./protocol";
+import {
+  type AssistantEvent,
+  type Choice,
+  type JobProgress,
+  type Proposal,
+  parseProposal,
+} from "./protocol";
 
 /** A web source a reply cites. */
 export type Citation = { url: string; title: string };
@@ -16,7 +22,23 @@ export type ShownProposal = {
 /** How a reply ended: whole, failed at the model, cut at the output limit, or stopped by the user. */
 export type Ending = "ok" | "model_error" | "cut" | "stopped";
 
-export type UserTurn = { role: "user"; id: string; text: string };
+/**
+ * The user's message: the ids of the [photos] it uploaded, and [auto] for the one the chat sends
+ * itself when a photo job is done, which the thread does not draw.
+ */
+export type UserTurn = {
+  role: "user";
+  id: string;
+  text: string;
+  photos: string[];
+  auto: boolean;
+};
+
+/** The line naming the note the chat was opened from: in the thread, never sent as a turn. */
+export type ContextTurn = { role: "context"; id: string; deckId: string; name: string };
+
+/** What the chat sends in the user's place when a photo job is done (the phone's, #721). */
+export const jobDoneMessage = "사진 읽기가 끝났어요. 이어서 해 주세요.";
 
 /** 말랑이's turn; its [ending] is null while it streams. */
 export type AssistantTurn = {
@@ -26,10 +48,11 @@ export type AssistantTurn = {
   citations: Citation[];
   proposals: ShownProposal[];
   choice: Choice | null;
+  job: JobProgress | null;
   ending: Ending | null;
 };
 
-export type Turn = UserTurn | AssistantTurn;
+export type Turn = UserTurn | AssistantTurn | ContextTurn;
 
 /** The one conversation, kept in this browser (#711 decision 4), and the message being written. */
 export type Conversation = { turns: Turn[]; draft: string };
@@ -93,6 +116,11 @@ export function withEvent(turn: AssistantTurn, event: AssistantEvent): Assistant
     }
     case "choice":
       return { ...turn, choice: event.choice };
+    case "job":
+      return {
+        ...turn,
+        job: { id: event.id, photos: event.photos, finished: 0, state: "running" },
+      };
     case "error":
       return { ...turn, ending: event.error };
     case "usage":
@@ -102,22 +130,47 @@ export function withEvent(turn: AssistantTurn, event: AssistantEvent): Assistant
 
 /** A turn as a message request carries it (`assistant.md` §Requests). */
 export type RequestTurn =
-  | { role: "user"; text: string }
-  | { role: "assistant"; text: string; proposals?: Proposal[]; choice?: Choice };
+  | { role: "user"; text: string; photos?: string[] }
+  | {
+      role: "assistant";
+      text: string;
+      proposals?: Proposal[];
+      choice?: Choice;
+      job?: { id: string; photos: number };
+    };
 
-/** The last [maxTurns] of [turns] as a message sends them, oldest first. */
+/**
+ * The last [maxTurns] of [turns] as a message sends them, oldest first: a user's with the photos
+ * it attached, a reply's with its proposals, question and photo job. A context line is no turn.
+ */
 export function requestTurns(turns: readonly Turn[]): RequestTurn[] {
-  return turns.slice(-maxTurns).map((turn) =>
-    turn.role === "user"
-      ? { role: "user", text: turn.text }
-      : {
-          role: "assistant",
-          text: turn.text,
-          ...(turn.proposals.length > 0 && {
-            proposals: turn.proposals.map((one) => one.proposal),
-          }),
-          ...(turn.choice && { choice: turn.choice }),
-        },
+  return turns
+    .filter((turn) => turn.role !== "context")
+    .slice(-maxTurns)
+    .map((turn) =>
+      turn.role === "user"
+        ? { role: "user", text: turn.text, ...(turn.photos.length > 0 && { photos: turn.photos }) }
+        : {
+            role: "assistant",
+            text: turn.text,
+            ...(turn.proposals.length > 0 && {
+              proposals: turn.proposals.map((one) => one.proposal),
+            }),
+            ...(turn.choice && { choice: turn.choice }),
+            ...(turn.job && { job: { id: turn.job.id, photos: turn.job.photos } }),
+          },
+    );
+}
+
+/** The last turn that is a message, not a context line. */
+export function lastMessage(turns: readonly Turn[]): UserTurn | AssistantTurn | undefined {
+  return turns.findLast((turn): turn is UserTurn | AssistantTurn => turn.role !== "context");
+}
+
+/** The reply whose photo job is still reading, the latest, or undefined. */
+export function runningJob(turns: readonly Turn[]): AssistantTurn | undefined {
+  return turns.findLast(
+    (turn): turn is AssistantTurn => turn.role === "assistant" && turn.job?.state === "running",
   );
 }
 
@@ -136,6 +189,23 @@ export function readyProposal(conversation: Conversation): ShownProposal | null 
   );
   const proposal = last?.proposals.at(-1);
   return last?.ending && proposal && proposal.added === null ? proposal : null;
+}
+
+/**
+ * [conversation] opened from [note]: its name said once in the thread, unless the thread's last
+ * line already says it (#711).
+ */
+export function enteredFrom(
+  conversation: Conversation,
+  note: { id: string; name: string },
+  id: string,
+): Conversation {
+  const last = conversation.turns.at(-1);
+  if (last?.role === "context" && last.deckId === note.id) return conversation;
+  return {
+    ...conversation,
+    turns: [...conversation.turns, { role: "context", id, deckId: note.id, name: note.name }],
+  };
 }
 
 const storageKey = "knowno.assistant";
@@ -171,9 +241,25 @@ function shownOf(value: unknown): ShownProposal | null {
   };
 }
 
+function jobOf(value: unknown): JobProgress | null {
+  if (!isFields(value) || !isText(value.id)) return null;
+  const { photos, finished, state } = value;
+  if (typeof photos !== "number" || typeof finished !== "number") return null;
+  if (state !== "running" && state !== "done" && state !== "cancelled") return null;
+  return { id: value.id, photos, finished, state };
+}
+
 function turnOf(value: unknown): Turn | null {
-  if (!isFields(value) || !isText(value.id) || !isText(value.text)) return null;
-  if (value.role === "user") return { role: "user", id: value.id, text: value.text };
+  if (!isFields(value) || !isText(value.id)) return null;
+  if (value.role === "context")
+    return isText(value.deckId) && isText(value.name)
+      ? { role: "context", id: value.id, deckId: value.deckId, name: value.name }
+      : null;
+  if (!isText(value.text)) return null;
+  if (value.role === "user") {
+    const photos = Array.isArray(value.photos) ? value.photos.filter(isText) : [];
+    return { role: "user", id: value.id, text: value.text, photos, auto: value.auto === true };
+  }
   if (value.role !== "assistant") return null;
   const citations = Array.isArray(value.citations)
     ? value.citations.filter(
@@ -197,6 +283,7 @@ function turnOf(value: unknown): Turn | null {
       choice.options.every(isText)
         ? { prompt: choice.prompt, options: choice.options }
         : null,
+    job: jobOf(value.job),
     // A reply stored mid-stream, its page closed, ended there.
     ending: ending === "model_error" || ending === "cut" || ending === "ok" ? ending : "stopped",
   };

@@ -6,11 +6,13 @@ import { deckRow, uuidOf } from "@/testing/library";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
+import { addByHand } from "@/testing/add-by-hand";
 import { render } from "@/testing/render";
 import { testRouter } from "@/testing/router";
 import { signedInCookies } from "@/testing/session";
 
-import { AuthoringButton } from "../components/authoring-button";
+import { NoteSettings } from "../components/note-settings";
+import { NotesMenu } from "../components/notes-menu";
 import { parseDeckId } from "../library";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
@@ -35,8 +37,8 @@ const onPageEntry = () => (window.history.state as { page?: string } | null)?.pa
 
 /** Opens 새 카드 from the deck's "카드 추가" sheet, as a user does. */
 async function newCard() {
-  await render(() => <AuthoringButton deck={deck} />, {});
-  await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+  await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+  await addByHand();
   await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
   expect(screen.getByRole("dialog", { name: "새 카드" })).toBeInTheDocument();
   expect(onPageEntry()).toBe(false);
@@ -56,7 +58,7 @@ describe("the browser's back on an authoring screen", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
     expect(onPageEntry()).toBe(true);
-    expect(screen.getByRole("button", { name: "카드 추가" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "노트 설정" })).toHaveFocus();
   });
 
   it("asks before leaving an edited card, and a back on the question keeps writing", async () => {
@@ -112,8 +114,8 @@ describe("the browser's back on an authoring screen", () => {
   });
 
   it("leaves 새 노트's entry before opening the note it saved, as the phone pops it first", async () => {
-    await render(() => <AuthoringButton compact />, {});
-    await userEvent.click(screen.getByRole("button", { name: "새 노트" }));
+    await render(() => <NotesMenu />, {});
+    await addByHand("노트 메뉴");
     await userEvent.type(screen.getByRole("textbox", { name: "노트 이름" }), "토익");
     let entryAtPush: boolean | undefined;
     testRouter.push.mockImplementationOnce(() => {

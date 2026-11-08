@@ -13,8 +13,9 @@ import { buttonClass } from "@/design/button";
 import { Confirm } from "@/design/confirm";
 import { Sheet } from "@/design/sheet";
 import { DeckAppearanceFields, type Look, lookedTile, setPhoto } from "./deck-appearance";
+import { AuthoringSheets, type AuthoringScreen } from "./authoring-sheets";
 import { DeckTile } from "./deck-tile";
-import { RowMenu } from "@/design/row-menu";
+import { raised, RowMenu } from "@/design/row-menu";
 
 /** The user's display name as the page read it, or `unread` where it could not be. */
 export type DisplayNameRead = { name: string | null } | "unread";
@@ -27,7 +28,8 @@ const primary = `${buttonClass("primary", "cta")} w-full`;
 const secondary = buttonClass("secondary");
 
 /**
- * The note page's ⋯, "노트 설정", as the phone's deck screen has it: "이름 바꾸기", "노트 꾸미기",
+ * The note page's ⋯, "노트 설정", as the phone's deck screen has it: "직접 추가", which opens the
+ * 카드 추가 sheet (open on arrival with [adding]), "이름 바꾸기", "노트 꾸미기",
  * "노트 공개" or "비공개로 전환", and "노트 삭제" in red, each opening the phone's sheet or, for
  * making it private, acting at once; what was done, or what failed, is said in a snack bar.
  */
@@ -35,12 +37,15 @@ export function NoteSettings({
   deck,
   cardCount,
   displayName,
+  adding = false,
 }: {
   deck: Deck;
   cardCount: number;
   displayName: DisplayNameRead;
+  adding?: boolean;
 }) {
   const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [authoring, setAuthoring] = useState<AuthoringScreen | null>(adding ? "options" : null);
   const [snack, setSnack] = useState<string | null>(null);
   const [, start] = useTransition();
   useEffect(() => {
@@ -65,8 +70,14 @@ export function NoteSettings({
     <>
       <RowMenu
         label="노트 설정"
-        trigger="pressable flex size-tap-target shrink-0 items-center justify-center rounded-chip bg-surface text-ink shadow-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        trigger={raised}
         items={[
+          {
+            label: "직접 추가",
+            pick: () => {
+              setAuthoring("options");
+            },
+          },
           {
             label: "이름 바꾸기",
             pick: () => {
@@ -105,6 +116,7 @@ export function NoteSettings({
           },
         ]}
       />
+      <AuthoringSheets deck={deck} screen={authoring} setScreen={setAuthoring} />
       {sheet === "rename" && <RenameSheet deck={deck} close={close} done={done} />}
       {sheet === "decorate" && <DecorateSheet deck={deck} close={close} done={done} />}
       {sheet === "publish" && (

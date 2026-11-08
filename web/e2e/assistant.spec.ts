@@ -293,3 +293,82 @@ test("goes from a note 말랑이 wrote back to the same chat, its scroll and dra
   ).toBeVisible();
   await capture(page, "home-bubble");
 });
+
+test("attaches photos, stores them for the function, shows the job reading them and goes on by itself once it is read", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("E2E_BASE_URL is unset");
+  test.setTimeout(60_000);
+  const { db, userId } = await signUp(context, baseURL);
+  const sent = await stubAssistant(page, [
+    {
+      events: events(
+        ["text", { delta: "사진 두 장을 읽고 있어요." }],
+        ["job", { id: "0190a7c2-3b4d-7e5f-8a9b-0c1d2e3f4a5b", photos: 2, status: "running" }],
+        usage(10000),
+      ),
+    },
+    { events: events(["text", { delta: "다 읽었어요. 카드로 만들게요." }], usage(30000)) },
+  ]);
+  // The function's poll: one photo read, then both.
+  const polls = [1, 2];
+  await page.route("**/api/assistant/jobs/*", async (route) => {
+    const finished = polls.shift() ?? 2;
+    await route.fulfill({
+      json: {
+        id: "0190a7c2-3b4d-7e5f-8a9b-0c1d2e3f4a5b",
+        status: finished === 2 ? "done" : "running",
+        photos: [0, 1].map((position) => ({
+          position,
+          photo_id: `p${String(position)}`,
+          status: position < finished ? "read" : "queued",
+        })),
+      },
+    });
+  });
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/assistant");
+  await expect(field(page)).toBeVisible();
+  const attach = page.getByLabel("사진 첨부");
+  await untilReacted(
+    () =>
+      attach.setInputFiles([
+        { name: "a.png", mimeType: "image/png", buffer: png },
+        { name: "b.png", mimeType: "image/png", buffer: png },
+      ]),
+    () => page.getByRole("list", { name: "사진 2장" }).isVisible(),
+  );
+  await capture(page, "assistant-photos-staged");
+  await field(page).fill("이 사진들로 카드 만들어 줘");
+  await page.getByRole("button", { name: "보내기" }).click();
+  await expect(page.getByText("0/2장 읽는 중")).toBeVisible();
+  await capture(page, "assistant-photo-job");
+
+  // Each photo is in the private bucket under the user's folder, named as the message names it.
+  const [first] = sent;
+  const ids = (first as { messages: { photos: string[] }[] }).messages[0]?.photos ?? [];
+  expect(ids).toHaveLength(2);
+  const stored = await db.storage.from("assistant-photos").list(userId);
+  expect(stored.data?.map((object) => object.name).sort()).toEqual([...ids].sort());
+
+  await expect(page.getByText("1/2장 읽는 중")).toBeVisible();
+  await expect(page.getByText("사진 2장을 다 읽었어요")).toBeVisible();
+  await expect(page.getByText("다 읽었어요. 카드로 만들게요.")).toBeVisible();
+  expect(sent[1]).toMatchObject({
+    messages: [
+      { role: "user", photos: ids },
+      { role: "assistant", job: { id: "0190a7c2-3b4d-7e5f-8a9b-0c1d2e3f4a5b", photos: 2 } },
+      { role: "user", text: "사진 읽기가 끝났어요. 이어서 해 주세요." },
+    ],
+  });
+  // That turn is the chat's own and is not drawn.
+  await expect(page.getByText("사진 읽기가 끝났어요. 이어서 해 주세요.")).toHaveCount(0);
+  await capture(page, "assistant-photos-done");
+});

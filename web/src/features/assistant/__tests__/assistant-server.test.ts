@@ -6,6 +6,8 @@ import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
 import { signedInCookies } from "@/testing/session";
 
+import { cancelPhotoJob } from "../cancel-job";
+import { forwardJobPoll } from "../forward-job";
 import { forwardMessage } from "../forward-message";
 import { commitProposal } from "../commit-proposal";
 
@@ -170,5 +172,98 @@ describe("adding a proposal", () => {
     expect(await commitProposal(proposal, { g1: "c1" })).toMatchObject({ kind: "failed" });
     expect(received).toHaveLength(1);
     expect(revalidated).toEqual([]);
+  });
+});
+
+const jobId = "0190a7c2-3b4d-7e5f-8a9b-0c1d2e3f4a5b";
+
+/** What the function received on a job's path: its method, path and token. */
+let asked: { method: string; path: string; authorization: string | null }[];
+
+function jobAnswers(path: string, method: "get" | "post", answer: () => Response) {
+  server.use(
+    http[method](`${supabaseUrl}/functions/v1/assistant${path}`, ({ request }) => {
+      asked.push({
+        method: request.method,
+        path,
+        authorization: request.headers.get("Authorization"),
+      });
+      return answer();
+    }),
+  );
+}
+
+describe("a photo job's poll on its way to the function", () => {
+  beforeEach(() => {
+    asked = [];
+  });
+
+  it("asks as the signed-in user and answers the function's status and body", async () => {
+    const poll = {
+      id: jobId,
+      status: "running",
+      photos: [{ position: 0, photo_id: "p", status: "queued" }],
+    };
+    jobAnswers(`/jobs/${jobId}`, "get", () => HttpResponse.json(poll));
+    const response = await forwardJobPoll(jobId);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(poll);
+    expect(asked).toEqual([
+      { method: "GET", path: `/jobs/${jobId}`, authorization: `Bearer ${testAccessToken}` },
+    ]);
+    // Control: a job that is not the user's is the function's 404, passed on.
+    jobAnswers(`/jobs/${jobId}`, "get", () =>
+      HttpResponse.json({ error: "not_found" }, { status: 404 }),
+    );
+    expect((await forwardJobPoll(jobId)).status).toBe(404);
+  });
+
+  it("refuses a visitor who is not signed in, and an id that is no uuid, without calling the function", async () => {
+    jobAnswers(`/jobs/${jobId}`, "get", () => HttpResponse.json({}));
+    setRequestCookies([]);
+    expect((await forwardJobPoll(jobId)).status).toBe(401);
+    setRequestCookies(await signedInCookies());
+    expect((await forwardJobPoll("../commit")).status).toBe(404);
+    expect(asked).toEqual([]);
+  });
+
+  it("says unavailable when the function cannot be reached", async () => {
+    server.use(
+      http.get(`${supabaseUrl}/functions/v1/assistant/jobs/${jobId}`, () => HttpResponse.error()),
+    );
+    expect((await forwardJobPoll(jobId)).status).toBe(503);
+  });
+});
+
+describe("cancelling a photo job", () => {
+  beforeEach(() => {
+    asked = [];
+  });
+
+  it("cancels as the signed-in user, and says whether the function did", async () => {
+    jobAnswers(`/jobs/${jobId}/cancel`, "post", () =>
+      HttpResponse.json({ id: jobId, status: "cancelled" }),
+    );
+    expect(await cancelPhotoJob(jobId)).toBe(true);
+    expect(asked).toEqual([
+      { method: "POST", path: `/jobs/${jobId}/cancel`, authorization: `Bearer ${testAccessToken}` },
+    ]);
+    jobAnswers(`/jobs/${jobId}/cancel`, "post", () =>
+      HttpResponse.json({ error: "not_found" }, { status: 404 }),
+    );
+    expect(await cancelPhotoJob(jobId)).toBe(false);
+  });
+
+  it("calls nothing for a visitor not signed in or an id that crossed the network as none", async () => {
+    jobAnswers(`/jobs/${jobId}/cancel`, "post", () => HttpResponse.json({}));
+    // Control: where an id of dots would lead, the function answers, so only the check refuses it.
+    jobAnswers("/commit/cancel", "post", () =>
+      HttpResponse.json({ id: jobId, status: "cancelled" }),
+    );
+    expect(await cancelPhotoJob("../commit")).toBe(false);
+    expect(await cancelPhotoJob(7)).toBe(false);
+    setRequestCookies([]);
+    expect(await cancelPhotoJob(jobId)).toBe(false);
+    expect(asked).toEqual([]);
   });
 });

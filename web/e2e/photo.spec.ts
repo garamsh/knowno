@@ -5,7 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
 import { expectScreenAtWidths } from "./authoring-screen";
-import { untilReacted } from "./until-reacted";
+import { addByHand } from "./add-by-hand";
 
 // The local stack scripts/test-web.ts starts, whose URL and publishable key the app was built with.
 const url = process.env.E2E_SUPABASE_URL;
@@ -232,10 +232,7 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
   // A first note, opened with its 카드 추가 sheet up; the photos' cards then go to a new one.
   // First-run 홈 now offers "말랑이와 첫 노트 만들기" (#711); manual creation is the 노트 page's.
   await page.goto("/decks");
-  await untilReacted(
-    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
-    () => page.getByRole("dialog").isVisible(),
-  );
+  await addByHand(page, "노트 메뉴");
   await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("임시");
   await page.getByRole("button", { name: "저장하고 카드 추가", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "카드 추가", exact: true })).toBeVisible();
@@ -373,10 +370,7 @@ test("leaves a failed photo import by the browser's back in one step, and the ne
 
   // First-run 홈 now offers "말랑이와 첫 노트 만들기" (#711); manual creation is the 노트 page's.
   await page.goto("/decks");
-  await untilReacted(
-    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
-    () => page.getByRole("dialog").isVisible(),
-  );
+  await addByHand(page, "노트 메뉴");
   await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("임시");
   await page.getByRole("button", { name: "저장하고 카드 추가", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "카드 추가", exact: true });
@@ -393,7 +387,7 @@ test("leaves a failed photo import by the browser's back in one step, and the ne
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(calls).toBe(1);
 
-  await page.getByRole("button", { name: "카드 추가", exact: true }).click();
+  await addByHand(page);
   await expect(sheet).toBeVisible();
   await page.getByLabel("앨범에서 고르기", { exact: true }).setInputFiles([photo]);
   await expect(
@@ -469,10 +463,7 @@ test("reads on while the user studies, its bar heading each page and covering no
 
   // First-run 홈 now offers "말랑이와 첫 노트 만들기" (#711); manual creation is the 노트 page's.
   await page.goto("/decks");
-  await untilReacted(
-    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
-    () => page.getByRole("dialog").isVisible(),
-  );
+  await addByHand(page, "노트 메뉴");
   await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("수도");
   await page.getByRole("button", { name: "저장하고 카드 추가", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "카드 추가", exact: true });
@@ -487,7 +478,7 @@ test("reads on while the user studies, its bar heading each page and covering no
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   // The second import, closed while it reads.
-  await page.getByRole("button", { name: "카드 추가", exact: true }).click();
+  await addByHand(page);
   await expect(sheet).toBeVisible();
   await page
     .getByLabel("앨범에서 고르기", { exact: true })

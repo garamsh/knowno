@@ -83,9 +83,9 @@ const isAdminRoute = (route: string) => route === "/admin" || route.startsWith("
 const adminRoutes = routes.filter(isAdminRoute);
 /**
  * Routes outside the proxy's matcher that refuse a signed-out visitor themselves: 말랑이's
- * messages answer 401 (`features/assistant/__tests__/assistant-server.test.ts`).
+ * messages and photo job polls answer 401 (`features/assistant/__tests__/assistant-server.test.ts`).
  */
-const selfGatedRoutes = ["/api/assistant"];
+const selfGatedRoutes = ["/api/assistant", "/api/assistant/jobs/[id]"];
 const gatedRoutes = [
   ...routes.filter(
     (route) =>

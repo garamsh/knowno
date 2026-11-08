@@ -4,6 +4,7 @@ import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
+import { addByHand } from "./add-by-hand";
 import { untilReacted } from "./until-reacted";
 
 // The local stack scripts/test-web.ts starts, whose URL and publishable key the app was built
@@ -1381,15 +1382,12 @@ test("creates a deck and a card on mobile, warns on a duplicate and keeps saved 
   await capture(page, "authoring-empty");
   // First-run 홈 now offers "말랑이와 첫 노트 만들기" (#711); manual creation is the 노트 page's.
   await page.goto("/decks");
-  await untilReacted(
-    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
-    () => page.getByRole("dialog").isVisible(),
-  );
+  await addByHand(page, "노트 메뉴");
   await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("영어 단어");
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByRole("heading", { name: "영어 단어", exact: true })).toBeVisible();
   await capture(page, "authoring-deck");
-  await page.getByRole("button", { name: "카드 추가", exact: true }).click();
+  await addByHand(page);
   await page.getByRole("button", { name: "직접 입력", exact: true }).click();
   await page.getByRole("textbox", { name: "앞면", exact: true }).fill("apple");
   await page.getByRole("textbox", { name: "뒷면", exact: true }).fill("사과");
@@ -1411,7 +1409,7 @@ test("creates a deck and a card on mobile, warns on a duplicate and keeps saved 
     card_key: "apple",
   });
   expect(Number(read.data?.[0]?.revision)).toBeGreaterThan(0);
-  await page.getByRole("button", { name: "카드 추가", exact: true }).click();
+  await addByHand(page);
   await page.getByRole("button", { name: "직접 입력", exact: true }).click();
   await page.getByRole("textbox", { name: "앞면", exact: true }).fill("ＡPPLE");
   await page.getByRole("textbox", { name: "뒷면", exact: true }).fill("different");
@@ -1422,8 +1420,8 @@ test("creates a deck and a card on mobile, warns on a duplicate and keeps saved 
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "버리기", exact: true }).click();
   expect((await client.from("cards").select("id").eq("user_id", userId)).data).toHaveLength(1);
-  await page.getByRole("button", { name: "카드 추가", exact: true }).click();
+  await addByHand(page);
   await expect(page.getByLabel("앨범에서 고르기", { exact: true })).toBeAttached();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "카드 추가", exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: "노트 설정", exact: true })).toBeFocused();
 });

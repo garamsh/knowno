@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Deck } from "../library";
-import { buttonClass } from "@/design/button";
 import { Sheet } from "@/design/sheet";
 import { CardEditor } from "./card-editor";
 import { NewNote } from "./new-note";
@@ -19,28 +17,26 @@ const choices = [
   { choice: "엑셀·CSV 파일", open: "file" },
 ] as const;
 
+/** Where the authoring flow is: the ways to add a card, a hand-made card, a file, or a new note's name. */
+export type AuthoringScreen = "options" | "manual" | "file" | "name";
+
 /**
- * With [deck], "+ 카드 추가" beside the note's name, which opens the 카드 추가 sheet of the ways to
- * add a card, open on arrival with [adding]. Without one, "새 노트 만들기" in the primary fill
- * across the column, or, with [compact], "+ 새 노트" beside the 노트 page's title, which opens
- * 새 노트. Beside a title it is the page's own action in the tonal fill, the brand tint under an
- * accent label on the edge a quiet button sits on, 44 high, as the phone's header action.
+ * The screens of adding by hand (#722), opened from a ⋯ menu's "직접 추가": with [deck], the 카드
+ * 추가 sheet of the ways to add a card (ADR 0150) and what each opens; without one, 새 노트. The
+ * menu owns [screen], and [setScreen] closes with null.
  */
-export function AuthoringButton({
+export function AuthoringSheets({
   deck,
-  compact = false,
-  adding = false,
+  screen,
+  setScreen,
 }: {
   deck?: Deck;
-  compact?: boolean;
-  adding?: boolean;
+  screen: AuthoringScreen | null;
+  setScreen: (screen: AuthoringScreen | null) => void;
 }) {
-  const [screen, setScreen] = useState<"options" | "manual" | "file" | "name" | null>(
-    deck && adding ? "options" : null,
-  );
   const imports = usePhotoImports();
   const router = useRouter();
-  // An import left reading outlives this button; its other ways open here while it is shown, else
+  // An import left reading outlives this flow; its other ways open here while it is shown, else
   // on the note's page with its 카드 추가 sheet up.
   const mounted = useRef(false);
   useEffect(() => {
@@ -49,23 +45,8 @@ export function AuthoringButton({
       mounted.current = false;
     };
   }, []);
-  const label = deck ? "카드 추가" : compact ? "새 노트" : "새 노트 만들기";
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          setScreen(deck ? "options" : "name");
-        }}
-        className={
-          deck || compact
-            ? `${buttonClass("tonal", "header")} shrink-0`
-            : `${buttonClass("primary", "cta")} w-full`
-        }
-      >
-        {(deck || compact) && <Plus aria-hidden className="size-5" strokeWidth={2.6} />}
-        {label}
-      </button>
       {screen === "options" && deck && (
         <Sheet
           title="카드 추가"
