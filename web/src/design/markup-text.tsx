@@ -38,6 +38,11 @@ function runs(content: Inline[], cloze: (span: ClozeSpan) => ReactNode): ReactNo
   });
 }
 
+// The phone's markers. They are written as escapes because `jua_coverage_test.dart` reads the
+// web's source for characters outside Jua's face, and these two are drawn by the fallback.
+const bullet = "\u2022 ";
+const nestedBullet = "\u25E6 ";
+
 /** A cloze drawn as its answer, filled in. */
 function filled(span: ClozeSpan): ReactNode {
   return runs(span.answer, filled);
@@ -45,8 +50,8 @@ function filled(span: ClozeSpan): ReactNode {
 
 /**
  * A card text's [document] as the engine read it: each block on a line after the last, with no
- * space between them (ADR 0208), a list item on a line of its own after its marker, "• " or its
- * number, and a nested item two spaces further in under "◦ " or its number. An empty paragraph is
+ * space between them (ADR 0208), a list item on a line of its own after its marker, a bullet or its
+ * number, and a nested item two spaces further in under a small bullet or its number. An empty paragraph is
  * an empty line. Marks are bold, italic and code; [cloze] draws each cloze span, its answer filled
  * in where it is not given. It is spans throughout, so a button can hold it, and it holds no
  * client code, so a server draws it.
@@ -66,7 +71,7 @@ export function MarkupText({
         </span>,
       ];
     }
-    const marker = (at: number) => (block.ordered ? `${String(at + 1)}. ` : "• ");
+    const marker = (at: number) => (block.ordered ? `${String(at + 1)}. ` : bullet);
     return block.items.flatMap((item, at) => [
       <span
         key={`${String(index)}-${String(at)}`}
@@ -84,7 +89,7 @@ export function MarkupText({
             className="block whitespace-pre-wrap"
           >
             {"  "}
-            {sub.ordered ? `${String(lineAt + 1)}. ` : "◦ "}
+            {sub.ordered ? `${String(lineAt + 1)}. ` : nestedBullet}
             {runs(line, cloze)}
           </span>
         )),
