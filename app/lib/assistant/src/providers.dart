@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'assistant_client.dart';
+import '../../photo_import/photo_import.dart';
 import 'assistant_controller.dart';
 import 'protocol.dart';
 
@@ -35,3 +38,51 @@ final assistantReadyCardsProvider = Provider<int>((ref) {
     }),
   );
 });
+
+/// Where a photo for the chat is taken or picked; null hides the chat's
+/// photo button. The composition site overrides it.
+final assistantPhotoSourceProvider = Provider<PhotoSource?>((ref) => null);
+
+/// The edge the character rests at.
+enum EdgeSide { left, right }
+
+/// Which edge the character rests at on this device, the right until the
+/// user drags it to the left.
+final assistantEdgeSideProvider = NotifierProvider<EdgeSideNotifier, EdgeSide>(
+  EdgeSideNotifier.new,
+);
+
+class EdgeSideNotifier extends Notifier<EdgeSide> {
+  @override
+  EdgeSide build() =>
+      ref.watch(assistantStorageProvider).getString(edgeSideKey) == 'left'
+      ? EdgeSide.left
+      : EdgeSide.right;
+
+  void rest(EdgeSide side) {
+    state = side;
+    unawaited(
+      ref.read(assistantStorageProvider).setString(edgeSideKey, side.name),
+    );
+  }
+}
+
+/// Whether the one-time hint beside the character has shown and gone, on
+/// this device.
+final assistantHintShownProvider = NotifierProvider<HintShownNotifier, bool>(
+  HintShownNotifier.new,
+);
+
+class HintShownNotifier extends Notifier<bool> {
+  @override
+  bool build() =>
+      ref.watch(assistantStorageProvider).getBool(edgeHintShownKey) ?? false;
+
+  void dismiss() {
+    if (state) return;
+    state = true;
+    unawaited(
+      ref.read(assistantStorageProvider).setBool(edgeHintShownKey, true),
+    );
+  }
+}

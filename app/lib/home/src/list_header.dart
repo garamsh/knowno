@@ -11,33 +11,31 @@ typedef HeaderMenu = ({String tooltip, List<Widget> items});
 
 /// The actions at the right of a list screen's title, the 노트 tab's and a
 /// deck screen's: the screen's own action, "+" and [label] in the tonal
-/// fill, and, with a [menu], its ⋯ holding the screen's other actions.
+/// fill, and, with a [menu], its ⋯ holding the screen's other actions. With
+/// no [label] there is no own action, and the ⋯ stands alone.
 class ListHeaderActions extends StatelessWidget {
-  const ListHeaderActions({
-    super.key,
-    required this.label,
-    required this.onPressed,
-    this.menu,
-  });
+  const ListHeaderActions({super.key, this.label, this.onPressed, this.menu});
 
-  final String label;
-  final VoidCallback onPressed;
+  final String? label;
+  final VoidCallback? onPressed;
   final HeaderMenu? menu;
 
   @override
   Widget build(BuildContext context) {
     final menu = this.menu;
+    final label = this.label;
     return Row(
       mainAxisSize: MainAxisSize.min,
       spacing: AppSpace.s8,
       children: [
-        AppButton(
-          label: label,
-          icon: LucideIcons.plus,
-          variant: AppButtonVariant.tonal,
-          size: AppButtonSize.header,
-          onPressed: onPressed,
-        ),
+        if (label != null)
+          AppButton(
+            label: label,
+            icon: LucideIcons.plus,
+            variant: AppButtonVariant.tonal,
+            size: AppButtonSize.header,
+            onPressed: onPressed,
+          ),
         if (menu != null)
           AppMenu(
             items: menu.items,

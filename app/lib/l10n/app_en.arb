@@ -543,5 +543,20 @@
   "assistantCommitRefused": "Could not add the cards. Ask Malangi to make them again.",
   "assistantCommitSignIn": "You were signed out, so the cards were not added. Sign in again.",
   "assistantCommitFailed": "Could not add the cards. Try again in a moment.",
-  "assistantNoteNotSynced": "The note has not loaded yet. Try again in a moment."
+  "assistantNoteNotSynced": "The note has not loaded yet. Try again in a moment.",
+  "assistantReadyShort": "{count, plural, =1{1 card ready} other{{count} cards ready}}",
+  "assistantHint": "Tap Malangi to chat any time",
+  "assistantHintClose": "Dismiss the hint",
+  "assistantFromNote": "From the note {name}",
+  "assistantAddByHand": "Add by hand",
+  "assistantPhotoAttach": "Attach photos",
+  "assistantPhotoRemove": "Remove photo",
+  "assistantPhotos": "{count, plural, =1{1 photo} other{{count} photos}}",
+  "assistantUploading": "Uploading the photos",
+  "assistantUploadFailed": "Could not upload the photos. Try again.",
+  "assistantPhotoPickFailed": "Could not get the photos. Try again.",
+  "assistantJobProgress": "Reading {done} of {total} photos",
+  "assistantJobCancel": "Cancel reading",
+  "assistantJobDone": "{count, plural, =1{Read 1 photo} other{Read all {count} photos}}",
+  "assistantJobCancelled": "Cancelled reading the photos"
 }

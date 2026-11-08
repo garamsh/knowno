@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../design/app_button.dart';
+import '../../design/app_choice.dart';
 import '../../design/app_chip.dart';
 import '../../design/app_menu.dart';
 import '../../design/app_sheet.dart';
@@ -15,6 +16,7 @@ import '../../design/mascot.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
+import '../../photo_import/photo_import.dart';
 import 'assistant_client.dart';
 import 'assistant_controller.dart';
 import 'conversation.dart';
@@ -32,9 +34,12 @@ typedef OpenNote = Future<void> Function(BuildContext context, String deckId);
 /// field. A note it added opens through [openNote] over the chat, so back
 /// returns to the same turns, scroll and draft.
 class AssistantChatScreen extends ConsumerStatefulWidget {
-  const AssistantChatScreen({super.key, required this.openNote});
+  const AssistantChatScreen({super.key, required this.openNote, this.note});
 
   final OpenNote openNote;
+
+  /// The note the chat was opened from, which its messages are tied to.
+  final ChatNote? note;
 
   @override
   ConsumerState<AssistantChatScreen> createState() =>
@@ -50,6 +55,10 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
   @override
   void initState() {
     super.initState();
+    // A provider is not changed while the tree builds.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _chat.enter(widget.note);
+    });
     unawaited(_chat.refreshAllowance());
   }
 
@@ -60,10 +69,61 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
     super.dispose();
   }
 
-  void _send(String text) {
-    _chat.send(text);
-    // A message that was not sent keeps its text in the field.
-    if (ref.read(assistantProvider).conversation.draft.isEmpty) _text.clear();
+  /// The photos waiting to go with the next message, as JPEG bytes.
+  final _staged = <Uint8List>[];
+
+  /// A message of its own: a quick reply or a remade group.
+  void _send(String text) => unawaited(_chat.send(text));
+
+  /// The message field's text with the staged photos. A message that was not
+  /// sent keeps both.
+  Future<void> _submit() async {
+    final sent = await _chat.send(_text.text, photos: [..._staged]);
+    if (!sent || !mounted) return;
+    _text.clear();
+    setState(_staged.clear);
+  }
+
+  /// Lets the user take or pick photos to stage, up to the most a job reads.
+  Future<void> _attach() async {
+    final source = ref.read(assistantPhotoSourceProvider);
+    if (source == null) return;
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final choice = await showAppChoice<PhotoOrigin>(
+      context,
+      title: l10n.assistantPhotoAttach,
+      options: [
+        (title: l10n.photoCamera, value: PhotoOrigin.camera),
+        (title: l10n.photoAlbum, value: PhotoOrigin.album),
+      ],
+    );
+    if (choice == null || !mounted) return;
+    final room = maxPhotos - _staged.length;
+    final added = <Uint8List>[];
+    try {
+      switch (choice.value) {
+        case PhotoOrigin.camera:
+          if (await source.takePhoto() case final photo?) {
+            added.add(photo.bytes);
+          }
+        case PhotoOrigin.album:
+          final picks = await source.pickFromLibrary(limit: room);
+          for (final pick in picks ?? <PickedPhoto>[]) {
+            try {
+              added.add((await pick()).bytes);
+            } on PhotoUnreadable {
+              // The others are kept.
+            }
+          }
+      }
+    } on PhotoImportFailure {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.assistantPhotoPickFailed)),
+      );
+    }
+    if (!mounted) return;
+    setState(() => _staged.addAll(added.take(room)));
   }
 
   Future<void> _clear() async {
@@ -85,7 +145,7 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
     final colors = AppColors.of(context);
     final chat = ref.watch(assistantProvider);
     final turns = chat.conversation.turns;
-    final last = turns.lastOrNull;
+    final last = chat.conversation.lastTurn;
     final lastReply = turns.whereType<AssistantTurn>().lastOrNull;
     // The open proposal: the last one shown, not yet added, once its reply
     // has ended.
@@ -93,7 +153,7 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
         ? null
         : lastReply!.proposals.where((one) => one.added == null).lastOrNull;
     final items = <Widget>[
-      if (turns.isEmpty)
+      if (last == null)
         Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpace.s40),
           child: Text(
@@ -104,6 +164,13 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
         ),
       for (final turn in turns)
         switch (turn) {
+          ContextTurn() => _Notice(
+            text: l10n.assistantFromNote(turn.text),
+            centred: true,
+          ),
+          // The message that goes when a photo job is done is not drawn: the
+          // job's own line says so.
+          UserTurn(auto: true) => const SizedBox.shrink(),
           UserTurn() => _UserBubble(turn: turn),
           AssistantTurn() => _ReplyView(
             key: ValueKey(turn.id),
@@ -115,8 +182,11 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
                 _chat.check(turn.id, proposalId, groupId, ids),
             onOpenNote: (deckId) => widget.openNote(context, deckId),
             onRetry: _chat.retry,
+            onCancelJob: _chat.cancelJob,
           ),
         },
+      if (chat.status is ChatUploading)
+        _Notice(text: l10n.assistantUploading, status: true),
       if (chat.status is ChatWaiting)
         _Notice(text: l10n.assistantWaiting, status: true),
       if (chat.status case ChatRefused(:final refusal))
@@ -186,8 +256,13 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
                     _MessageField(
                       controller: _text,
                       status: chat.status,
+                      staged: _staged,
+                      onAttach: ref.watch(assistantPhotoSourceProvider) == null
+                          ? null
+                          : _attach,
+                      onRemove: (at) => setState(() => _staged.removeAt(at)),
                       onChanged: _chat.setDraft,
-                      onSend: () => _send(_text.text),
+                      onSend: _submit,
                       onStop: _chat.stop,
                     ),
                 ],
@@ -299,7 +374,8 @@ class _UserBubble extends StatelessWidget {
         widthFactor: 0.85,
         alignment: AlignmentDirectional.centerEnd,
         child: Semantics(
-          label: '${l10n.assistantMe}: ${turn.text}',
+          label:
+              '${l10n.assistantMe}: ${[if (turn.photos.isNotEmpty) l10n.assistantPhotos(turn.photos.length), turn.text].where((part) => part.isNotEmpty).join(', ')}',
           excludeSemantics: true,
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -311,9 +387,21 @@ class _UserBubble extends StatelessWidget {
                 horizontal: AppSpace.s16,
                 vertical: AppSpace.s12,
               ),
-              child: Text(
-                keepWords(turn.text),
-                style: AppType.body.copyWith(color: colors.ink),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (turn.photos.isNotEmpty)
+                    Text(
+                      l10n.assistantPhotos(turn.photos.length),
+                      style: AppType.bodyStrong.copyWith(color: colors.ink),
+                    ),
+                  if (turn.text.isNotEmpty)
+                    Text(
+                      keepWords(turn.text),
+                      style: AppType.body.copyWith(color: colors.ink),
+                    ),
+                ],
               ),
             ),
           ),
@@ -334,6 +422,7 @@ class _ReplyView extends StatelessWidget {
     required this.onCheck,
     required this.onOpenNote,
     required this.onRetry,
+    required this.onCancelJob,
   });
 
   final AssistantTurn turn;
@@ -344,6 +433,7 @@ class _ReplyView extends StatelessWidget {
   onCheck;
   final ValueChanged<String> onOpenNote;
   final VoidCallback onRetry;
+  final VoidCallback onCancelJob;
 
   @override
   Widget build(BuildContext context) {
@@ -363,6 +453,7 @@ class _ReplyView extends StatelessWidget {
           ),
         if (ending == null && turn.text.isEmpty)
           _Notice(text: l10n.assistantThinking, status: true),
+        if (turn.job case final job?) _JobView(job: job, onCancel: onCancelJob),
         if (turn.citations.isNotEmpty)
           Semantics(
             container: true,
@@ -472,10 +563,15 @@ class _CitationLink extends StatelessWidget {
 
 /// A line of what is true under a reply, read as a status while [status].
 class _Notice extends StatelessWidget {
-  const _Notice({required this.text, this.status = false});
+  const _Notice({
+    required this.text,
+    this.status = false,
+    this.centred = false,
+  });
 
   final String text;
   final bool status;
+  final bool centred;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -483,9 +579,66 @@ class _Notice extends StatelessWidget {
     child: Text(
       keepWords(text),
       semanticsLabel: text,
+      textAlign: centred ? TextAlign.center : null,
       style: AppType.secondary.copyWith(color: AppColors.of(context).muted),
     ),
   );
+}
+
+/// A photo job's line under 말랑이's reply: how far it has read over a bar and
+/// "읽기 취소" while it runs; that it is done, or that it was cancelled.
+class _JobView extends StatelessWidget {
+  const _JobView({required this.job, required this.onCancel});
+
+  final JobProgress job;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colors = AppColors.of(context);
+    final text = switch (job.state) {
+      JobState.running => l10n.assistantJobProgress(job.finished, job.photos),
+      JobState.done => l10n.assistantJobDone(job.photos),
+      JobState.cancelled => l10n.assistantJobCancelled,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: AppSpace.s8,
+      children: [
+        Semantics(
+          liveRegion: job.state == JobState.running,
+          child: Text(
+            keepWords(text),
+            semanticsLabel: text,
+            style: AppType.bodyStrong.copyWith(color: colors.ink),
+          ),
+        ),
+        if (job.state == JobState.running) ...[
+          ExcludeSemantics(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.chip),
+              child: LinearProgressIndicator(
+                value: job.photos == 0 ? null : job.finished / job.photos,
+                minHeight: AppSize.progress,
+                color: colors.accent,
+                backgroundColor: colors.edge,
+              ),
+            ),
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: AppButton(
+              label: l10n.assistantJobCancel,
+              variant: AppButtonVariant.text,
+              size: AppButtonSize.header,
+              onPressed: onCancel,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 /// Why the last message was not answered, with "다시 시도" where sending it
@@ -507,6 +660,7 @@ class _RefusalView extends StatelessWidget {
       TooLong() => (l10n.assistantTooLong, false),
       Unavailable() => (l10n.assistantUnavailable, true),
       Unreachable() => (l10n.assistantUnreachable, true),
+      PhotoUploadFailed() => (l10n.assistantUploadFailed, false),
     };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,12 +685,15 @@ class _RefusalView extends StatelessWidget {
   }
 }
 
-/// The message field with its send button, which is "멈추기" while a reply
-/// streams in.
+/// The message field with its photo button and the staged photos above it,
+/// and its send button, which is "멈추기" while a reply streams in.
 class _MessageField extends StatelessWidget {
   const _MessageField({
     required this.controller,
     required this.status,
+    required this.staged,
+    required this.onAttach,
+    required this.onRemove,
     required this.onChanged,
     required this.onSend,
     required this.onStop,
@@ -544,51 +701,121 @@ class _MessageField extends StatelessWidget {
 
   final TextEditingController controller;
   final ChatStatus status;
+  final List<Uint8List> staged;
+
+  /// Null while the app has no way to take a photo.
+  final VoidCallback? onAttach;
+  final ValueChanged<int> onRemove;
   final ValueChanged<String> onChanged;
   final VoidCallback onSend;
   final VoidCallback onStop;
+
+  /// How wide and high a staged photo is.
+  static const _thumb = 56.0;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
     final streaming = status is ChatStreaming;
-    final busy = streaming || status is ChatWaiting;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    final busy = streaming || status is ChatWaiting || status is ChatUploading;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: AppSpace.s8,
       children: [
-        Expanded(
-          child: AppTextField(
-            controller: controller,
-            hint: l10n.assistantMessageHint,
-            minLines: 1,
-            maxLines: 5,
-            inputFormatters: [
-              LengthLimitingTextInputFormatter(maxMessageLength),
-            ],
-            onChanged: onChanged,
-          ),
-        ),
-        ListenableBuilder(
-          listenable: controller,
-          builder: (context, _) => IconButton.filled(
-            tooltip: streaming ? l10n.assistantStop : l10n.assistantSend,
-            icon: Icon(
-              streaming ? LucideIcons.square : LucideIcons.arrowUp,
-              size: AppSize.smallIcon,
+        if (staged.isNotEmpty)
+          SizedBox(
+            height: _thumb,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: staged.length,
+              separatorBuilder: (_, _) => const SizedBox(width: AppSpace.s8),
+              itemBuilder: (context, at) => Semantics(
+                button: true,
+                label: l10n.assistantPhotoRemove,
+                excludeSemantics: true,
+                onTap: () => onRemove(at),
+                child: GestureDetector(
+                  onTap: () => onRemove(at),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.chip),
+                        child: Image.memory(
+                          staged[at],
+                          width: _thumb,
+                          height: _thumb,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: AppSpace.s4,
+                        right: AppSpace.s4,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colors.ink,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            LucideIcons.x,
+                            size: AppSize.checkIcon,
+                            color: colors.onInk,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            onPressed: streaming
-                ? onStop
-                : busy || controller.text.trim().isEmpty
-                ? null
-                : onSend,
-            style: IconButton.styleFrom(
-              minimumSize: const Size.square(AppSize.field),
-              backgroundColor: colors.ink,
-              foregroundColor: colors.onInk,
-            ),
           ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          spacing: AppSpace.s8,
+          children: [
+            if (onAttach != null)
+              IconButton(
+                tooltip: l10n.assistantPhotoAttach,
+                icon: const Icon(LucideIcons.image),
+                onPressed: busy ? null : onAttach,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(AppSize.field),
+                  foregroundColor: colors.ink,
+                ),
+              ),
+            Expanded(
+              child: AppTextField(
+                controller: controller,
+                hint: l10n.assistantMessageHint,
+                minLines: 1,
+                maxLines: 5,
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(maxMessageLength),
+                ],
+                onChanged: onChanged,
+              ),
+            ),
+            ListenableBuilder(
+              listenable: controller,
+              builder: (context, _) => IconButton.filled(
+                tooltip: streaming ? l10n.assistantStop : l10n.assistantSend,
+                icon: Icon(
+                  streaming ? LucideIcons.square : LucideIcons.arrowUp,
+                  size: AppSize.smallIcon,
+                ),
+                onPressed: streaming
+                    ? onStop
+                    : busy || (controller.text.trim().isEmpty && staged.isEmpty)
+                    ? null
+                    : onSend,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(AppSize.field),
+                  backgroundColor: colors.ink,
+                  foregroundColor: colors.onInk,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

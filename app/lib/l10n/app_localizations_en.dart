@@ -2149,4 +2149,77 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get assistantNoteNotSynced =>
       'The note has not loaded yet. Try again in a moment.';
+
+  @override
+  String assistantReadyShort(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cards ready',
+      one: '1 card ready',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get assistantHint => 'Tap Malangi to chat any time';
+
+  @override
+  String get assistantHintClose => 'Dismiss the hint';
+
+  @override
+  String assistantFromNote(String name) {
+    return 'From the note $name';
+  }
+
+  @override
+  String get assistantAddByHand => 'Add by hand';
+
+  @override
+  String get assistantPhotoAttach => 'Attach photos';
+
+  @override
+  String get assistantPhotoRemove => 'Remove photo';
+
+  @override
+  String assistantPhotos(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos',
+      one: '1 photo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get assistantUploading => 'Uploading the photos';
+
+  @override
+  String get assistantUploadFailed => 'Could not upload the photos. Try again.';
+
+  @override
+  String get assistantPhotoPickFailed => 'Could not get the photos. Try again.';
+
+  @override
+  String assistantJobProgress(int done, int total) {
+    return 'Reading $done of $total photos';
+  }
+
+  @override
+  String get assistantJobCancel => 'Cancel reading';
+
+  @override
+  String assistantJobDone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Read all $count photos',
+      one: 'Read 1 photo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get assistantJobCancelled => 'Cancelled reading the photos';
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -9,9 +10,29 @@ import 'protocol.dart';
 import 'providers.dart';
 
 /// Where the turns and the draft are kept in the app's preferences.
-const assistantStorageKeys = {_turnsKey, _draftKey};
+const assistantStorageKeys = {
+  _turnsKey,
+  _draftKey,
+  edgeSideKey,
+  edgeHintShownKey,
+};
 const _turnsKey = 'assistant.conversation';
 const _draftKey = 'assistant.draft';
+
+/// Which edge the character rests at, and whether its one-time hint has
+/// shown, kept per device.
+const edgeSideKey = 'assistant.edge';
+const edgeHintShownKey = 'assistant.hintShown';
+
+/// How often a running photo job is asked how far it has read.
+const jobPollEvery = Duration(seconds: 3);
+
+/// What the chat sends in the user's place when a photo job is done; the
+/// thread draws a line of its own for it.
+const jobDoneMessage = '사진 읽기가 끝났어요. 이어서 해 주세요.';
+
+/// The note a chat was opened from, to which its messages are tied.
+typedef ChatNote = ({String id, String name});
 
 /// How long a message refused as `busy` waits before it is sent again, and
 /// how many times it is.
@@ -25,6 +46,11 @@ sealed class ChatStatus {
 
 final class ChatIdle extends ChatStatus {
   const ChatIdle();
+}
+
+/// The message's photos are being uploaded.
+final class ChatUploading extends ChatStatus {
+  const ChatUploading();
 }
 
 /// A reply is streaming in.
@@ -62,7 +88,10 @@ final class ChatState {
   final bool committing;
   final CommitFailure? commitFailure;
 
-  bool get busy => status is ChatStreaming || status is ChatWaiting;
+  bool get busy =>
+      status is ChatStreaming ||
+      status is ChatWaiting ||
+      status is ChatUploading;
 
   ChatState copyWith({
     Conversation? conversation,
@@ -83,16 +112,22 @@ final class ChatState {
 /// and its replies read.
 class AssistantController extends Notifier<ChatState> {
   Completer<void>? _abort;
+  Timer? _poll;
+
+  /// The note the chat is open from, whose id goes with each message.
+  String? _context;
 
   @override
   ChatState build() {
     final storage = ref.watch(assistantStorageProvider);
-    return ChatState(
-      conversation: Conversation.parse(
-        storage.getString(_turnsKey),
-        draft: storage.getString(_draftKey) ?? '',
-      ),
+    ref.onDispose(() => _poll?.cancel());
+    final conversation = Conversation.parse(
+      storage.getString(_turnsKey),
+      draft: storage.getString(_draftKey) ?? '',
     );
+    // A job still reading when the app closed goes on being asked about.
+    if (conversation.runningJob != null) Future.microtask(_watchJob);
+    return ChatState(conversation: conversation);
   }
 
   AssistantClient get _client => ref.read(assistantClientProvider)!;
@@ -122,37 +157,88 @@ class AssistantController extends Notifier<ChatState> {
     }
   }
 
+  /// Opens the chat from [note], or from nowhere: its id goes with each
+  /// message, and the thread names the note once, unless its last line
+  /// already does.
+  void enter(ChatNote? note) {
+    _context = note?.id;
+    if (note == null) return;
+    final last = state.conversation.turns.lastOrNull;
+    if (last is ContextTurn && last.deckId == note.id) return;
+    _set(
+      state.copyWith(
+        conversation: state.conversation.copyWith(
+          turns: [
+            ...state.conversation.turns,
+            ContextTurn(
+              id: const Uuid().v4(),
+              deckId: note.id,
+              text: note.name,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void setDraft(String draft) => _set(
     state.copyWith(conversation: state.conversation.copyWith(draft: draft)),
   );
 
-  /// Sends [text] as the user's next message, and streams the reply in.
-  void send(String text) {
+  /// Sends [text] as the user's next message, with [photos] uploaded first,
+  /// and streams the reply in. False when nothing was sent, a photo that did
+  /// not upload included: the text and the photos are then still the user's.
+  Future<bool> send(String text, {List<Uint8List> photos = const []}) async {
     final message = text.trim();
-    if (message.isEmpty || state.busy) return;
+    if ((message.isEmpty && photos.isEmpty) || state.busy) return false;
+    final ids = <String>[];
+    if (photos.isNotEmpty) {
+      _set(
+        state.copyWith(
+          status: const ChatUploading(),
+          commitFailure: () => null,
+        ),
+        store: false,
+      );
+      for (final bytes in photos) {
+        final id = const Uuid().v4();
+        if (!await _client.uploadPhoto(id, bytes)) {
+          _set(
+            state.copyWith(status: const ChatRefused(PhotoUploadFailed())),
+            store: false,
+          );
+          return false;
+        }
+        ids.add(id);
+      }
+    }
     _set(
       state.copyWith(
         conversation: Conversation(
           turns: [
             ...state.conversation.turns,
-            UserTurn(id: const Uuid().v4(), text: message),
+            UserTurn(id: const Uuid().v4(), text: message, photos: ids),
           ],
         ),
         commitFailure: () => null,
       ),
     );
     unawaited(_reply());
+    return true;
   }
 
   /// Sends the last message again, in place of the reply that failed after
   /// it.
   void retry() {
-    final turns = state.conversation.turns;
-    if (turns.isNotEmpty && turns.last is AssistantTurn) {
+    final last = state.conversation.lastTurn;
+    if (last is AssistantTurn) {
       _set(
         state.copyWith(
           conversation: state.conversation.copyWith(
-            turns: turns.sublist(0, turns.length - 1),
+            turns: [
+              for (final turn in state.conversation.turns)
+                if (turn.id != last.id) turn,
+            ],
           ),
         ),
       );
@@ -169,7 +255,7 @@ class AssistantController extends Notifier<ChatState> {
   }
 
   Future<void> _reply() async {
-    if (state.conversation.turns.lastOrNull is! UserTurn) return;
+    if (state.conversation.lastTurn is! UserTurn) return;
     final abort = Completer<void>();
     _abort = abort;
     final messages = state.conversation.requestTurns;
@@ -190,7 +276,11 @@ class AssistantController extends Notifier<ChatState> {
         _set(state.copyWith(status: const ChatIdle()), store: false);
         return;
       }
-      outcome = await _client.send(messages, abort: abort.future);
+      outcome = await _client.send(
+        messages,
+        deckId: _context,
+        abort: abort.future,
+      );
       if (outcome is! SendRefused ||
           outcome.refusal is! Busy ||
           attempt == _busyRetries) {
@@ -216,6 +306,74 @@ class AssistantController extends Notifier<ChatState> {
     }
   }
 
+  /// Asks after the running photo job every [jobPollEvery] until none runs.
+  void _watchJob() {
+    if (!ref.mounted ||
+        _poll != null ||
+        state.conversation.runningJob == null) {
+      return;
+    }
+    _poll = Timer.periodic(jobPollEvery, (_) => unawaited(_askAfterJob()));
+  }
+
+  void _stopWatching() {
+    _poll?.cancel();
+    _poll = null;
+  }
+
+  Future<void> _askAfterJob() async {
+    final reply = state.conversation.runningJob;
+    if (reply == null) return _stopWatching();
+    final job = reply.job!;
+    final outcome = await _client.pollJob(job.id);
+    if (!ref.mounted) return;
+    // The reply may have been cleared or the job cancelled meanwhile.
+    final now = state.conversation.runningJob;
+    if (now == null || now.job?.id != job.id) return;
+    switch (outcome) {
+      case JobPollFailed():
+        return;
+      case JobMissing():
+        _setJob(reply.id, job.copyWith(state: JobState.cancelled));
+      case JobPolled(:final progress):
+        // A job done while a reply still streams waits for the next ask.
+        if (progress.state == JobState.done && state.busy) return;
+        _setJob(reply.id, progress);
+        if (progress.state == JobState.done &&
+            state.conversation.lastTurn?.id == reply.id) {
+          _set(
+            state.copyWith(
+              conversation: state.conversation.copyWith(
+                turns: [
+                  ...state.conversation.turns,
+                  UserTurn(
+                    id: const Uuid().v4(),
+                    text: jobDoneMessage,
+                    auto: true,
+                  ),
+                ],
+              ),
+            ),
+          );
+          unawaited(_reply());
+        }
+    }
+    if (state.conversation.runningJob == null) _stopWatching();
+  }
+
+  void _setJob(String turnId, JobProgress job) =>
+      _change(turnId, (turn) => turn.copyWith(job: job));
+
+  /// Cancels the running photo job.
+  Future<void> cancelJob() async {
+    final reply = state.conversation.runningJob;
+    final job = reply?.job;
+    if (reply == null || job == null) return;
+    if (!await _client.cancelJob(job.id) || !ref.mounted) return;
+    _setJob(reply.id, job.copyWith(state: JobState.cancelled));
+    if (state.conversation.runningJob == null) _stopWatching();
+  }
+
   /// Draws [events] into a new reply of 말랑이's, and ends it as it ended.
   Future<void> _read(
     Stream<AssistantEvent> events,
@@ -233,6 +391,7 @@ class AssistantController extends Notifier<ChatState> {
             (turn) => turn.withEvent(event),
             store: event is! TextDelta,
           );
+          if (event is JobEvent) _watchJob();
         }
       }
       _change(
@@ -340,6 +499,7 @@ class AssistantController extends Notifier<ChatState> {
   /// Clears the conversation, and what it was doing.
   void clear() {
     stop();
+    _stopWatching();
     _set(
       const ChatState(conversation: Conversation())
           .copyWith(allowance: state.allowance),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import 'package:knowno/assistant/src/assistant_client.dart';
 import 'package:knowno/assistant/src/conversation.dart';
 import 'package:knowno/assistant/src/protocol.dart';
 import 'package:knowno/design/theme.dart';
+import 'package:knowno/photo_import/photo_import.dart';
 import 'package:knowno/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
@@ -20,6 +22,9 @@ typedef Script = SendOutcome Function(Future<void> abort);
 /// A reply that streams [events] and ends.
 Script reply(List<AssistantEvent> events) =>
     (_) => SendStarted(Stream.fromIterable(events));
+
+/// A reply of the one line [text].
+Script textReply(String text) => reply([TextDelta(text)]);
 
 /// A reply the test feeds through [controller], so it can stop mid-way; a
 /// stop ends its stream as the HTTP client's does, with an abort.
@@ -46,6 +51,19 @@ final class FakeAssistantClient implements AssistantClient {
 
   final List<Script> scripts;
   final sent = <List<Map<String, Object?>>>[];
+
+  /// The note id each message was sent with, null for none.
+  final contexts = <String?>[];
+
+  /// The photos uploaded, by id, and whether an upload is kept.
+  final uploaded = <String, Uint8List>{};
+  var uploadsWork = true;
+
+  /// What each poll of a photo job answers, in order; a failed poll once none
+  /// is left. The jobs cancelled, and whether a cancel is kept.
+  final polls = <JobPollOutcome>[];
+  final cancelled = <String>[];
+  var cancelWorks = true;
   final commits = <({Proposal proposal, Map<String, List<String>> checked})>[];
 
   /// What a commit answers.
@@ -65,10 +83,28 @@ final class FakeAssistantClient implements AssistantClient {
   @override
   Future<SendOutcome> send(
     List<Map<String, Object?>> messages, {
+    String? deckId,
     required Future<void> abort,
   }) async {
     sent.add(messages);
+    contexts.add(deckId);
     return scripts.removeAt(0)(abort);
+  }
+
+  @override
+  Future<bool> uploadPhoto(String photoId, Uint8List bytes) async {
+    if (uploadsWork) uploaded[photoId] = bytes;
+    return uploadsWork;
+  }
+
+  @override
+  Future<JobPollOutcome> pollJob(String id) async =>
+      polls.isEmpty ? const JobPollFailed() : polls.removeAt(0);
+
+  @override
+  Future<bool> cancelJob(String id) async {
+    if (cancelWorks) cancelled.add(id);
+    return cancelWorks;
   }
 
   @override
@@ -147,12 +183,15 @@ Future<ProviderContainer> pumpChat(
   SharedPreferencesWithCache storage, {
   ThemeMode themeMode = ThemeMode.light,
   double textScale = 1,
+  ChatNote? note,
+  PhotoSource? photoSource,
 }) async {
   opened.clear();
   final container = ProviderContainer(
     overrides: [
       assistantClientProvider.overrideWithValue(client),
       assistantStorageProvider.overrideWithValue(storage),
+      assistantPhotoSourceProvider.overrideWithValue(photoSource),
     ],
   );
   addTearDown(container.dispose);
@@ -176,6 +215,7 @@ Future<ProviderContainer> pumpChat(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => AssistantChatScreen(
+                  note: note,
                   openNote: (context, deckId) async {
                     opened.add(deckId);
                     await Navigator.of(context).push(
