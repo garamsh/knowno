@@ -462,15 +462,19 @@ async function handle(
 }
 
 /**
- * A message request read: the turns for the model, the proposals they hold, the note open, and the
- * photos of the latest user turn that attached any.
+ * A message request read: the turns for the model, the proposals they hold, the note open, the
+ * user's time zone, and the photos of the latest user turn that attached any.
  */
 type Incoming = {
   readonly turns: readonly Turn[];
   readonly proposals: readonly Proposal[];
   readonly deckId: string | null;
+  readonly timeZone: string | null;
   readonly attached: readonly string[];
 };
+
+/** The shape of an IANA name, Area/Location or UTC, which leaves out an offset such as +05:00. */
+const TIME_ZONE = /^(?:UTC|[A-Za-z]+(?:\/[A-Za-z0-9_+-]+){1,2})$/;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -639,14 +643,34 @@ function readMessage(body: unknown, ids: IdSource): Incoming | null {
   if (turns.at(-1)?.role !== "user") return null;
   const context = body.context;
   let deckId: string | null = null;
+  let timeZone: string | null = null;
   if (context !== undefined) {
-    const id = isRecord(context) && typeof context.deck_id === "string"
-      ? context.deck_id.toLowerCase()
-      : null;
-    if (id === null || !UUID.test(id)) return null;
-    deckId = id;
+    if (!isRecord(context)) return null;
+    if (context.deck_id !== undefined) {
+      const id = typeof context.deck_id === "string"
+        ? context.deck_id.toLowerCase()
+        : null;
+      if (id === null || !UUID.test(id)) return null;
+      deckId = id;
+    }
+    if (context.time_zone !== undefined) {
+      timeZone = readTimeZone(context.time_zone);
+      if (timeZone === null) return null;
+    }
   }
-  return { turns, proposals, deckId, attached };
+  return { turns, proposals, deckId, timeZone, attached };
+}
+
+/** An IANA zone name as the runtime spells it, or null: an offset or an abbreviation is none. */
+function readTimeZone(value: unknown): string | null {
+  if (typeof value !== "string" || !TIME_ZONE.test(value)) return null;
+  try {
+    return new Intl.DateTimeFormat(undefined, { timeZone: value })
+      .resolvedOptions().timeZone;
+  } catch (error) {
+    if (error instanceof RangeError) return null;
+    throw error;
+  }
 }
 
 /** A user turn's photo ids: 1 to `MAX_JOB_PHOTOS` distinct uuids, or null. */
@@ -916,6 +940,7 @@ async function converse(
             proposals,
             skills,
             photos,
+            incoming.timeZone,
           );
       } catch (error) {
         if (!(error instanceof SupabaseError)) throw error;

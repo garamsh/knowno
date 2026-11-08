@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/engine.dart';
+import 'api/markup.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -22,7 +23,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   });
 
   @protected
+  String dco_decode_String(dynamic raw);
+
+  @protected
   Answer dco_decode_answer(dynamic raw);
+
+  @protected
+  bool dco_decode_bool(dynamic raw);
 
   @protected
   double dco_decode_box_autoadd_f_64(dynamic raw);
@@ -46,6 +53,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<List<MarkupInline>> dco_decode_list_list_markup_inline(dynamic raw);
+
+  @protected
+  List<MarkupBlock> dco_decode_list_markup_block(dynamic raw);
+
+  @protected
+  List<MarkupInline> dco_decode_list_markup_inline(dynamic raw);
+
+  @protected
+  List<MarkupListItem> dco_decode_list_markup_list_item(dynamic raw);
+
+  @protected
+  List<MarkupSubList> dco_decode_list_markup_sub_list(dynamic raw);
+
+  @protected
+  Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
+
+  @protected
+  Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
   List<ReviewRecord> dco_decode_list_review_record(dynamic raw);
 
   @protected
@@ -55,7 +86,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<TodayCard> dco_decode_list_today_card(dynamic raw);
 
   @protected
+  MarkupBlock dco_decode_markup_block(dynamic raw);
+
+  @protected
+  MarkupInline dco_decode_markup_inline(dynamic raw);
+
+  @protected
+  MarkupListItem dco_decode_markup_list_item(dynamic raw);
+
+  @protected
+  MarkupSubList dco_decode_markup_sub_list(dynamic raw);
+
+  @protected
   MemoryStateParts dco_decode_memory_state_parts(dynamic raw);
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw);
 
   @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
@@ -82,13 +128,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   TodayCard dco_decode_today_card(dynamic raw);
 
   @protected
+  int dco_decode_u_32(dynamic raw);
+
+  @protected
   int dco_decode_u_8(dynamic raw);
 
   @protected
   void dco_decode_unit(dynamic raw);
 
   @protected
+  String sse_decode_String(SseDeserializer deserializer);
+
+  @protected
   Answer sse_decode_answer(SseDeserializer deserializer);
+
+  @protected
+  bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
@@ -114,6 +169,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<List<MarkupInline>> sse_decode_list_list_markup_inline(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<MarkupBlock> sse_decode_list_markup_block(SseDeserializer deserializer);
+
+  @protected
+  List<MarkupInline> sse_decode_list_markup_inline(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<MarkupListItem> sse_decode_list_markup_list_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<MarkupSubList> sse_decode_list_markup_sub_list(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
+
+  @protected
+  Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
   List<ReviewRecord> sse_decode_list_review_record(
     SseDeserializer deserializer,
   );
@@ -125,7 +212,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<TodayCard> sse_decode_list_today_card(SseDeserializer deserializer);
 
   @protected
+  MarkupBlock sse_decode_markup_block(SseDeserializer deserializer);
+
+  @protected
+  MarkupInline sse_decode_markup_inline(SseDeserializer deserializer);
+
+  @protected
+  MarkupListItem sse_decode_markup_list_item(SseDeserializer deserializer);
+
+  @protected
+  MarkupSubList sse_decode_markup_sub_list(SseDeserializer deserializer);
+
+  @protected
   MemoryStateParts sse_decode_memory_state_parts(SseDeserializer deserializer);
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
@@ -154,16 +256,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   TodayCard sse_decode_today_card(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_u_32(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer);
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer);
+  void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
   void sse_encode_answer(Answer self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
@@ -193,6 +301,51 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_list_markup_inline(
+    List<List<MarkupInline>> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_markup_block(
+    List<MarkupBlock> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_markup_inline(
+    List<MarkupInline> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_markup_list_item(
+    List<MarkupListItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_markup_sub_list(
+    List<MarkupSubList> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_u_32_strict(
+    Uint32List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_u_8_strict(
+    Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_review_record(
     List<ReviewRecord> self,
     SseSerializer serializer,
@@ -208,10 +361,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_markup_block(MarkupBlock self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_markup_inline(MarkupInline self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_markup_list_item(
+    MarkupListItem self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_markup_sub_list(MarkupSubList self, SseSerializer serializer);
+
+  @protected
   void sse_encode_memory_state_parts(
     MemoryStateParts self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
@@ -244,13 +415,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_today_card(TodayCard self, SseSerializer serializer);
 
   @protected
+  void sse_encode_u_32(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class

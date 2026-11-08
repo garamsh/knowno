@@ -1,3 +1,5 @@
+import '../../deck/deck.dart' show clozeAnswers, markupEngine, markupPlain;
+
 /// A proposed card in two lines: what it shows first, and what it adds at the
 /// reveal; [photo] where its first side is a photo, which has no text.
 typedef CardPreview = ({String front, String back, bool photo});
@@ -11,6 +13,24 @@ List<String> _texts(Object? value) => value is List<Object?>
       ]
     : const [];
 
+/// [value] as the engine reads it, its marks left out and its clozes filled.
+String _markup(Object? value) => switch (_text(value)) {
+  '' => '',
+  final text => markupEngine.plainText(text).trim(),
+};
+
+CardPreview _clozeMarkup(String text) {
+  final blocks = markupEngine.parse(text);
+  return (
+    front: markupPlain(
+      blocks,
+      cloze: (run) => run.hint == null ? '___' : '___(${run.hint})',
+    ).trim(),
+    back: clozeAnswers(blocks).join(', '),
+    photo: false,
+  );
+}
+
 /// A sense as every book reads it: its labels in brackets, then its meaning.
 String _sense(Object? value) {
   if (value is! Map<String, Object?>) return '';
@@ -23,8 +43,8 @@ String _sense(Object? value) {
 /// A block's part of each line, by its type as `add_cards` reads it.
 CardPreview _block(Map<String, Object?> block) => switch (block['type']) {
   'text' => (
-    front: _text(block['front']),
-    back: _text(block['back']),
+    front: _markup(block['front']),
+    back: _markup(block['back']),
     photo: false,
   ),
   'senses' => (
@@ -35,17 +55,18 @@ CardPreview _block(Map<String, Object?> block) => switch (block['type']) {
     },
     photo: false,
   ),
-  'cloze' => (
-    front: _text(block['text']),
-    back: switch (block['answers']) {
-      final List<Object?> answers =>
-        answers
-            .map((a) => a is List<Object?> ? _texts(a).join('/') : _text(a))
-            .join(', '),
-      _ => '',
-    },
-    photo: false,
-  ),
+  'cloze' => switch (block['answers']) {
+    final List<Object?> answers => (
+      front: _text(block['text']),
+      back: answers
+          .map((a) => a is List<Object?> ? _texts(a).join('/') : _text(a))
+          .join(', '),
+      photo: false,
+    ),
+    // A cloze of version 2: Anki's syntax, each cloze a blank, its hint after
+    // it, and the answers after the reveal.
+    _ => _clozeMarkup(_text(block['text'])),
+  },
   'table' => (
     front: _texts(block['columns']).join(' · '),
     back: switch (block['rows']) {

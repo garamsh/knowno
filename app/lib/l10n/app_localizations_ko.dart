@@ -2005,4 +2005,19 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get assistantJobCancelled => '사진 읽기를 취소했어요';
+
+  @override
+  String get clozeHide => '가리기';
+
+  @override
+  String get clozeHideUndo => '가리기 풀기';
+
+  @override
+  String get clozeMarkupHint => '가릴 부분을 고르고 가리기를 눌러요';
+
+  @override
+  String get markupPreview => '미리 보기';
+
+  @override
+  String get pasteImageFailed => '붙여넣은 사진을 가져오지 못했어요';
 }

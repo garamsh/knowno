@@ -13,6 +13,9 @@ import type { Ran } from "./tools.ts";
 /** The period `read_study_record` reads when it is given none, in days. */
 export const DEFAULT_PERIOD_DAYS = 30;
 
+/** The zone the study day is counted in when the message named none. */
+export const DEFAULT_TIME_ZONE = "Asia/Seoul";
+
 /** The longest period it reads, in days. */
 export const MAX_PERIOD_DAYS = 365;
 
@@ -60,6 +63,7 @@ function textAt(row: Row, key: string): string {
 export async function readStudyRecord(
   args: Record<string, unknown>,
   store: Store,
+  timeZone: string | null,
 ): Promise<Ran> {
   const id = args.deck_id === undefined
     ? null
@@ -80,7 +84,12 @@ export async function readStudyRecord(
       `period_days is a number of days from 1 to ${MAX_PERIOD_DAYS}, ${DEFAULT_PERIOD_DAYS} by default.`,
     );
   }
-  const record = await studyRecordRows(store, id, period);
+  const record = await studyRecordRows(
+    store,
+    id,
+    period,
+    timeZone ?? DEFAULT_TIME_ZONE,
+  );
   if (!isRow(record)) {
     throw new SupabaseError("the REST API answered no study record");
   }
@@ -124,7 +133,7 @@ export async function readStudyRecord(
     most_missed: shown,
     most_missed_cut: missed.length - shown.length,
     note:
-      "Labels: new has no answer yet, learning was answered and comes back within 21 days, mastered comes back in 21 days or more. due counts the answered cards due before today's study day ends, 04:00 Korea time. known is the answers of Know, and missed the answers of Don't know, within the period. most_missed holds each card's blocks as list_cards returns them; most_missed_cut counts the cards left out to keep the answer short.",
+      "Labels: new has no answer yet, learning was answered and comes back within 21 days, mastered comes back in 21 days or more. due counts the answered cards due before today's study day ends, 04:00 in the user's time zone. known is the answers of Know, and missed the answers of Don't know, within the period. most_missed holds each card's blocks as list_cards returns them; most_missed_cut counts the cards left out to keep the answer short.",
   });
   let shown = missed;
   while (shown.length > 0 && JSON.stringify(answer(shown)).length > READ_PAGE) {

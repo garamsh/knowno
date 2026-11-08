@@ -106,9 +106,9 @@ void main() {
       await typeBlock(tester, '개', 1);
       await tapVisible(screens, shownText('Save'));
       final dog = (await screens.cards()).singleWhere(
-        (card) => card.front.single == const TextContent('dog'),
+        (card) => card.front.single == const TextContent('dog', markup: true),
       );
-      expect(dog.back, [const TextContent('개')]);
+      expect(dog.back, [const TextContent('개', markup: true)]);
       await screens.close();
     },
   );
@@ -461,7 +461,7 @@ void main() {
       await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).cells, const [
         WordCell(term: 'face', senses: senses, ask: WordAsk.term),
-        TextCell(back: '유의어 confront, encounter'),
+        TextCell(back: '유의어 confront, encounter', markup: true),
       ]);
       await screens.close();
     },

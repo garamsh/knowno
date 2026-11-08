@@ -2789,6 +2789,46 @@ void main() {
       },
     );
 
+    testWidgets(
+      'a cloze of version 2 hides each of its blanks, a number\'s spans together, with its hint in the box, and is graded as one card (ADR 0207)',
+      (tester) async {
+        const markup = [
+          ClozeContent.markup(
+            'The capital of {{c1::France}} is {{c2::Paris::city}}, {{c1::France}}',
+          ),
+        ];
+        final study = await openWhole(tester, markup);
+        expect(
+          _label(tester, _cardNode),
+          'Front: The capital of blank is blank, blank',
+        );
+        expect(
+          boxedBlanksUnder(_currentCard),
+          3,
+          reason: 'every span of every number is a box',
+        );
+        expect(
+          find.descendant(of: _currentCard, matching: shownText('city')),
+          findsOneWidget,
+          reason: 'the hint is in its box',
+        );
+        expect(
+          find.descendant(of: _currentCard, matching: shownText('Paris')),
+          findsNothing,
+        );
+        expect(shownText('0/1'), findsOneWidget, reason: 'one card, as before');
+
+        await study.dontKnow();
+
+        expect(shownText('0/1'), findsOneWidget);
+        expect(hatchedBlanksUnder(_previousCard), [
+          'France',
+          'Paris',
+          'France',
+        ]);
+      },
+    );
+
     for (final (name, back, read) in [
       (
         'a new cloze card, with no back,',
