@@ -68,6 +68,10 @@ type Fake = {
   skills: Row[];
   /** Whether `card_form_skills` answers 500. */
   skillsDown: boolean;
+  /** What `assistant_study_record` reads, each row a user's; the bodies it was called with. */
+  studyDecks: Row[];
+  studyMissed: Row[];
+  studyCalls: Row[];
   /** The photo jobs, the photos uploaded as `{user}/{photo}`, the queue and the steps. */
   jobs: Map<string, FakeJob>;
   uploaded: Set<string>;
@@ -161,6 +165,9 @@ function seed(): Fake {
       text: SEED[form].text,
     })),
     skillsDown: false,
+    studyDecks: [],
+    studyMissed: [],
+    studyCalls: [],
     jobs: new Map(),
     uploaded: new Set(),
     queue: [],
@@ -457,6 +464,24 @@ function fakeFetch(fake: Fake): typeof fetch {
       return fake.skillsDown
         ? Response.json({ code: "XX000" }, { status: 500 })
         : Response.json(fake.skills);
+    }
+    if (rpc === "assistant_study_record") {
+      // Called as the user: the rows of that user alone, as row-level security leaves them.
+      assert.equal(headers.get("apikey"), "anon-key");
+      const user = TOKENS[bearer];
+      if (user === undefined) {
+        return Response.json({ code: "PGRST301" }, { status: 401 });
+      }
+      fake.studyCalls.push(body);
+      const mine = (rows: Row[]) =>
+        rows.filter((row) =>
+          row.user_id === user &&
+          (body.deck_id === null || row.deck_id === body.deck_id)
+        ).map(({ user_id: _owner, ...row }) => row);
+      return Response.json({
+        decks: mine(fake.studyDecks).map(({ deck_id: _deck, ...row }) => row),
+        missed: mine(fake.studyMissed),
+      });
     }
     if (rpc !== undefined) {
       assert.equal(bearer, "service-role-key");
@@ -2575,4 +2600,149 @@ Deno.test("read_photo_job answers a job's readings a page at a time, and cancel_
   await send(cancelling);
   assert.equal(cancelling.jobs.get(running)!.status, "cancelled");
   assert.deepEqual(cancelling.deleted, [`${ADA}/${photoOf(1)}`]);
+});
+
+/** A deck of the study record: [user]'s, with the counts the function answers. */
+function studyDeck(user: string, id: string, name: string, answers = 4): Row {
+  return {
+    user_id: user,
+    deck_id: id,
+    id,
+    name,
+    new: 2,
+    learning: 3,
+    mastered: 1,
+    due: 4,
+    answers,
+    known: answers === 0 ? 0 : 1,
+  };
+}
+
+/** A card of the study record answered "again" [misses] times, whose front reads [text]. */
+function studyCard(user: string, deck: string, n: number, text: string): Row {
+  return {
+    user_id: user,
+    id: `00000000-0000-7000-8000-${String(n).padStart(12, "0")}`,
+    deck_id: deck,
+    misses: 3,
+    answers: 5,
+    front: [{
+      type: "text",
+      v: 2,
+      id: `00000000-0000-7000-8000-0000000000${
+        String(n % 100).padStart(2, "0")
+      }`,
+      payload: { front: text, back: "뜻" },
+    }],
+    back: [],
+    template: "free",
+    template_version: 2,
+  };
+}
+
+Deno.test("read_study_record answers the caller's own record with each card as list_cards returns it, and none of another user's", async () => {
+  const fake = seed();
+  fake.studyDecks.push(
+    studyDeck(ADA, ADA_DECK, "영단어"),
+    studyDeck(ADA, "00000000-0000-7000-8000-0000000000d2", "빈 노트", 0),
+    studyDeck(GRACE, GRACE_DECK, "Grace's"),
+  );
+  fake.studyMissed.push(
+    {
+      ...studyCard(ADA, ADA_DECK, 1, "apple"),
+      id: fake.cards[0]!.id,
+      front: fake.cards[0]!.front,
+    },
+    studyCard(GRACE, GRACE_DECK, 2, "grace's card"),
+  );
+  fake.replies.push(
+    calls_("search_cards", { query: "apple" }),
+    calls_("read_study_record", {}),
+    says("정리했어요."),
+  );
+  await send(fake);
+  const listed = JSON.parse(answered(fake.requests[1]!)).cards[0];
+  assert.equal(listed.blocks[0].type, "text");
+  const record = JSON.parse(answered(fake.requests[2]!));
+  assert.deepEqual(
+    record.decks.map((deck: Row) => [deck.name, deck.known_percent]),
+    [["영단어", 25], ["빈 노트", null]],
+  );
+  assert.deepEqual(record.decks[0].cards, {
+    new: 2,
+    learning: 3,
+    mastered: 1,
+  });
+  assert.equal(record.decks[0].due, 4);
+  assert.equal(record.most_missed.length, 1);
+  assert.deepEqual(record.most_missed[0].blocks, listed.blocks);
+  assert.equal(record.most_missed[0].id, listed.id);
+  assert.equal(record.most_missed[0].missed, 3);
+  assert.ok(!JSON.stringify(record).includes("Grace"));
+  assert.deepEqual(fake.studyCalls, [{ deck_id: null, period_days: 30 }]);
+
+  // Control: the other user, sent the same call, reads her own record and none of Ada's.
+  const grace = seed();
+  grace.studyDecks.push(...fake.studyDecks);
+  grace.studyMissed.push(...fake.studyMissed);
+  grace.replies.push(calls_("read_study_record", {}), says("네."));
+  await send(grace, { token: "grace-token" });
+  const hers = JSON.parse(answered(grace.requests[1]!));
+  assert.deepEqual(hers.decks.map((deck: Row) => deck.name), ["Grace's"]);
+  assert.equal(hers.most_missed.length, 1);
+});
+
+Deno.test("read_study_record asks for one deck and a period, and refuses an id that is none, an unknown deck and a period out of bounds", async () => {
+  const fake = seed();
+  fake.studyDecks.push(studyDeck(ADA, ADA_DECK, "영단어"));
+  fake.replies.push(
+    calls_("read_study_record", { deck_id: ADA_DECK, period_days: 7 }),
+    calls_("read_study_record", { deck_id: "not-an-id" }),
+    calls_("read_study_record", { deck_id: GRACE_DECK }),
+    calls_("read_study_record", { period_days: 0 }),
+    calls_("read_study_record", { period_days: 366 }),
+    calls_("read_study_record", { period_days: 1.5 }),
+    says("끝"),
+  );
+  await send(fake);
+  assert.equal(
+    JSON.parse(answered(fake.requests[1]!)).decks[0].name,
+    "영단어",
+  );
+  assert.match(answered(fake.requests[2]!), /^deck_id must be a deck's id/);
+  assert.match(answered(fake.requests[3]!), /^No deck of the signed-in user/);
+  for (const n of [4, 5, 6]) {
+    assert.match(answered(fake.requests[n]!), /^period_days is a number/);
+  }
+  // Only the first and the unknown deck's calls reached the database.
+  assert.deepEqual(fake.studyCalls, [
+    { deck_id: ADA_DECK, period_days: 7 },
+    { deck_id: GRACE_DECK, period_days: 30 },
+  ]);
+});
+
+Deno.test("read_study_record keeps its answer under a page, cutting the least missed cards and counting them, against a record that fits", async () => {
+  const big = seed();
+  big.studyDecks.push(studyDeck(ADA, ADA_DECK, "영단어"));
+  for (let n = 1; n <= 50; n++) {
+    big.studyMissed.push(studyCard(ADA, ADA_DECK, n, `${n} `.repeat(600)));
+  }
+  big.replies.push(calls_("read_study_record", {}), says("많네요."));
+  await send(big);
+  const cut = JSON.parse(answered(big.requests[1]!));
+  assert.ok(answered(big.requests[1]!).length <= READ_PAGE);
+  assert.ok(cut.most_missed_cut > 0);
+  assert.equal(cut.most_missed.length + cut.most_missed_cut, 50);
+  assert.equal(cut.most_missed[0].id, big.studyMissed[0]!.id);
+
+  const small = seed();
+  small.studyDecks.push(studyDeck(ADA, ADA_DECK, "영단어"));
+  for (let n = 1; n <= 50; n++) {
+    small.studyMissed.push(studyCard(ADA, ADA_DECK, n, `card ${n}`));
+  }
+  small.replies.push(calls_("read_study_record", {}), says("네."));
+  await send(small);
+  const whole = JSON.parse(answered(small.requests[1]!));
+  assert.equal(whole.most_missed.length, 50);
+  assert.equal(whole.most_missed_cut, 0);
 });

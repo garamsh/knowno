@@ -2,7 +2,7 @@
  * The assistant's tools (ADR 0190, ADR 0197, ADR 0198): the MCP read tools, called as `mcp` calls
  * them; a card form's guide; the proposal tools, which validate as `add_cards` and `update_cards`
  * do, hold each group to one form and write nothing; a group's regeneration; a question with
- * choices; and the photo job tools. A proposal is shown to the user, who adds it.
+ * choices; the photo job tools; and the study record. A proposal is shown to the user, who adds it.
  */
 
 import {
@@ -23,6 +23,7 @@ import {
   startPhotoJob,
 } from "./photo_tools.ts";
 import type { ToolSpec } from "./providers.ts";
+import { MAX_PERIOD_DAYS, readStudyRecord } from "./study_record.ts";
 
 /** A card of a proposal: its id, and the card as `add_cards` or `update_cards` takes it. */
 export type ProposedCard = {
@@ -153,6 +154,29 @@ export const ASSISTANT_TOOLS: readonly ToolSpec[] = [
       type: "object",
       properties: { form: { type: "string", enum: FORMS } },
       required: ["form"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "read_study_record",
+    description:
+      "Reads the user's study record: each note's cards by progress (new, learning, mastered), its cards due, and its answers and the share answered Know in the period, and the cards answered Don't know most often in it, at most 50, with their blocks as list_cards returns them, so they can be gathered into a note or a table.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        deck_id: {
+          type: "string",
+          format: "uuid",
+          description:
+            "Only this note, as list_decks returned its id; every note when left out.",
+        },
+        period_days: {
+          type: "integer",
+          minimum: 1,
+          maximum: MAX_PERIOD_DAYS,
+          description: "How many days back the answers count, 30 by default.",
+        },
+      },
       additionalProperties: false,
     },
   },
@@ -744,6 +768,8 @@ export async function runTool(
         ? refuse(result.message)
         : { content: result.value, isError: false, shown: null };
     }
+    case "read_study_record":
+      return await readStudyRecord(args, store);
     case "propose_deck":
       if ("deck_id" in args) {
         return refuse(
