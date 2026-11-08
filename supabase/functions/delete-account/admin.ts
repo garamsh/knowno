@@ -1,4 +1,7 @@
-/** Deleting a user's media through Supabase Storage, and the user through Supabase Auth's admin API. */
+/**
+ * Deleting a user's media and chat photos through Supabase Storage, and the user through Supabase
+ * Auth's admin API.
+ */
 
 import {
   type SupabaseDeps,
@@ -32,38 +35,45 @@ export async function deleteUser(
   }
 }
 
-/** The private bucket holding each user's media under `{user id}/{media id}` (ADR 0107). */
-const MEDIA_BUCKET = "media";
+/**
+ * The private buckets holding a user's files in a folder named by its id: its media (ADR 0107) and
+ * the photos it sent 말랑이 (ADR 0198).
+ */
+const BUCKETS = ["media", "assistant-photos"] as const;
+type Bucket = (typeof BUCKETS)[number];
 /** How many objects one listing returns, and so one delete removes. */
 const MEDIA_PAGE = 1000;
 
 /**
- * Deletes every object in the user's folder of the media bucket, a page at a time, through the
- * Storage API: the database refuses a direct delete, which would leave the bytes behind. Throws
+ * Deletes every object in the user's folder of each bucket, a page at a time, through the Storage
+ * API: the database refuses a direct delete, which would leave the bytes behind. Throws
  * [SupabaseError] when Storage cannot be reached, refuses, or deletes none of a listed page.
  */
 export async function deleteMedia(
   userId: UserId,
   deps: SupabaseDeps,
 ): Promise<void> {
-  for (;;) {
-    const names = await listMedia(userId, deps);
-    if (names.length === 0) return;
-    const deleted = await storage(deps, `object/${MEDIA_BUCKET}`, "DELETE", {
-      prefixes: names.map((name) => `${userId}/${name}`),
-    });
-    if (!Array.isArray(deleted) || deleted.length === 0) {
-      throw new SupabaseError("storage deleted none of the listed media");
+  for (const bucket of BUCKETS) {
+    for (;;) {
+      const names = await listMedia(bucket, userId, deps);
+      if (names.length === 0) break;
+      const deleted = await storage(deps, `object/${bucket}`, "DELETE", {
+        prefixes: names.map((name) => `${userId}/${name}`),
+      });
+      if (!Array.isArray(deleted) || deleted.length === 0) {
+        throw new SupabaseError("storage deleted none of the listed media");
+      }
     }
   }
 }
 
-/** The names, relative to the user's folder, of up to [MEDIA_PAGE] of its objects. */
+/** The names, relative to the user's folder of [bucket], of up to [MEDIA_PAGE] of its objects. */
 async function listMedia(
+  bucket: Bucket,
   userId: UserId,
   deps: SupabaseDeps,
 ): Promise<string[]> {
-  const listed = await storage(deps, `object/list/${MEDIA_BUCKET}`, "POST", {
+  const listed = await storage(deps, `object/list/${bucket}`, "POST", {
     prefix: userId,
     limit: MEDIA_PAGE,
     offset: 0,

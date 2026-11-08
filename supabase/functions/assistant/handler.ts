@@ -1,7 +1,8 @@
 /**
- * The assistant's requests (ADR 0190, ADR 0195): a message, answered as server-sent events from a
- * tool loop over the caller's plan's model, a commit of the cards the user checked in a proposal,
- * and an admin's draft configuration (`settings.ts`).
+ * The assistant's requests (ADR 0190, ADR 0195, ADR 0198): a message, answered as server-sent
+ * events from a tool loop over the caller's plan's model, a commit of the cards the user checked in
+ * a proposal, an admin's draft configuration (`settings.ts`), a photo job's poll and cancel, and the
+ * photo jobs' worker (`worker.ts`).
  */
 
 import { authenticate, SupabaseError, type UserId } from "../_shared/auth.ts";
@@ -20,13 +21,23 @@ import type { Config } from "./config.ts";
 import {
   ADAPTERS,
   type CallUsage,
+  fetchFailed,
   MAX_OUTPUT_TOKENS,
   NO_USAGE,
   sseEvents,
   StreamError,
   type ToolResult,
   type Turn,
+  withInputAtLeast,
 } from "./providers.ts";
+import {
+  cancelJob,
+  clearJob,
+  type Job,
+  MAX_JOB_PHOTOS,
+  readJob,
+} from "./jobs.ts";
+import type { PhotoContext } from "./photo_tools.ts";
 import { saveDraft, type SettingsOutcome, settingsStatus } from "./settings.ts";
 import {
   beginMessage,
@@ -44,6 +55,7 @@ import {
   type Proposal,
   runTool,
 } from "./tools.ts";
+import { kick, work } from "./worker.ts";
 
 /** The most model calls one message makes, tool calls and pauses included. */
 export const MAX_MODEL_CALLS = 8;
@@ -71,9 +83,18 @@ export const MAX_REPLY_TEXT = MAX_MODEL_CALLS * MAX_OUTPUT_TOKENS * 4;
 export const MAX_REQUEST_BYTES = MAX_BODY_BYTES +
   MAX_TURNS * MAX_REPLY_TEXT * 3;
 
-/** How a request ended: a refusal's code, or the turn's outcome. */
+/**
+ * How long a running job may go without a read begun before its poll asks for the worker again:
+ * past the 150 s a photo's message is hidden while it is read.
+ */
+export const STALE_MS = 180_000;
+
+/** How a request ended: a refusal's code, the turn's outcome, or a photo read's. */
 export type LogOutcome =
   | Outcome
+  | "unreadable"
+  | "polled"
+  | "working"
   | "committed"
   | "bad_request"
   | "unauthenticated"
@@ -91,7 +112,14 @@ export type LogOutcome =
 
 /** The one line logged per request: never the token, a key, a message or a card. */
 export type LogEntry = {
-  readonly route: "message" | "commit" | "settings" | null;
+  readonly route:
+    | "message"
+    | "commit"
+    | "settings"
+    | "job"
+    | "cancel"
+    | "work"
+    | null;
   readonly user_id: UserId | null;
   readonly plan: string | null;
   readonly provider: string | null;
@@ -112,6 +140,10 @@ export type HandlerDeps = ToolDeps & {
   readonly log: (entry: LogEntry) => void;
   readonly keys: Keys;
   readonly skills: CardForms;
+  /** Keeps the invocation alive for [task] after its response, as `EdgeRuntime.waitUntil` does. */
+  readonly background: (task: Promise<void>) => void;
+  /** A promise that settles after [ms]. */
+  readonly wait: (ms: number) => Promise<void>;
 };
 
 type Entry = Omit<LogEntry, "latency_ms">;
@@ -170,17 +202,24 @@ async function handle(
   log: (entry: Entry) => void,
 ): Promise<{ response: Response; entry: Entry | null }> {
   const path = new URL(request.url).pathname.replace(/\/$/, "");
+  const job = path.match(/\/assistant\/jobs\/([0-9a-fA-F-]{36})(\/cancel)?$/);
+  const jobId = job?.[1]?.toLowerCase() ?? null;
   const route = path.endsWith("/assistant/commit")
     ? "commit"
     : path.endsWith("/assistant/settings/configuration")
     ? "settings"
+    : path.endsWith("/assistant/jobs/work")
+    ? "work"
+    : jobId !== null && UUID.test(jobId)
+    ? job?.[2] === undefined ? "job" : "cancel"
     : path.endsWith("/assistant")
     ? "message"
     : null;
   if (route === null) return refusal(404, "not_found", blank);
-  if (request.method !== "POST") {
+  const method = route === "job" ? "GET" : "POST";
+  if (request.method !== method) {
     return {
-      response: new Response(null, { status: 405, headers: { Allow: "POST" } }),
+      response: new Response(null, { status: 405, headers: { Allow: method } }),
       entry: { ...blank, route, outcome: "method_not_allowed" },
     };
   }
@@ -193,6 +232,32 @@ async function handle(
     serviceRoleKey: config.serviceRoleKey,
     fetch: deps.fetch,
   };
+  if (route === "work") {
+    const bearer = request.headers.get("Authorization")?.match(
+      /^Bearer (\S+)$/,
+    )?.[1];
+    if (bearer === undefined || !sameText(bearer, config.serviceRoleKey)) {
+      return refusal(401, "unauthenticated", { ...blank, route });
+    }
+    deps.background(
+      work({
+        supabase: service,
+        fetch: deps.fetch,
+        keys: deps.keys,
+        now: deps.now,
+        timeout: deps.timeout,
+        wait: deps.wait,
+        log: deps.log,
+      }, started).catch((error) => {
+        log({ ...blank, route });
+        throw error;
+      }),
+    );
+    return {
+      response: Response.json({ working: true }, { status: 202 }),
+      entry: { ...blank, route, outcome: "working" },
+    };
+  }
   if (route === "settings") {
     let outcome;
     try {
@@ -236,6 +301,10 @@ async function handle(
     return refusal(401, "unauthenticated", { ...blank, route });
   }
   const entry: Entry = { ...blank, route, user_id: userId };
+  if (route === "job" || route === "cancel") {
+    // The route was read from a job id, so it is set.
+    return await jobRequest(route, jobId ?? "", userId, service, entry, deps);
+  }
   const cap = route === "message" ? MAX_REQUEST_BYTES : MAX_BODY_BYTES;
   const declared = Number(request.headers.get("Content-Length") ?? 0);
   if (declared > cap) return refusal(413, "too_large", entry);
@@ -326,6 +395,13 @@ async function handle(
           deps,
           skills,
           start,
+          {
+            userId,
+            attached: incoming.attached,
+            supabase: service,
+            ids: deps,
+            kick: () => kick(service),
+          },
           send,
           started,
           client.signal,
@@ -385,11 +461,15 @@ async function handle(
   };
 }
 
-/** A message request read: the turns for the model, the proposals they hold, and the note open. */
+/**
+ * A message request read: the turns for the model, the proposals they hold, the note open, and the
+ * photos of the latest user turn that attached any.
+ */
 type Incoming = {
   readonly turns: readonly Turn[];
   readonly proposals: readonly Proposal[];
   readonly deckId: string | null;
+  readonly attached: readonly string[];
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -432,18 +512,18 @@ function describe(
 const FRONTS_SHOWN = [5, 1, 0] as const;
 
 /**
- * A turn as the model reads it: [text], its proposals and [asked], each proposal described in as
- * much detail as fits `MAX_DESCRIBED_TURN` and those that still do not fit counted. Null when
- * nothing is said, or when the text and the question alone are over the cap.
+ * A turn as the model reads it: [text], its proposals and [notes], such as the question it asked,
+ * each proposal described in as much detail as fits `MAX_DESCRIBED_TURN` and those that still do
+ * not fit counted. Null when nothing is said, or when the text and the notes alone are over the cap.
  */
 function describeTurn(
   text: string,
   proposals: readonly Proposal[],
-  asked: string | null,
+  notes: readonly string[],
   ids: IdSource,
 ): string | null {
   const join = (described: readonly string[]) =>
-    [text, ...described, ...(asked === null ? [] : [asked])]
+    [text, ...described, ...notes]
       .filter((part) => part.trim() !== "").join("\n\n");
   const fits = (joined: string) => [...joined].length <= MAX_DESCRIBED_TURN;
   for (const fronts of FRONTS_SHOWN) {
@@ -501,6 +581,7 @@ function readMessage(body: unknown, ids: IdSource): Incoming | null {
   if (messages.length === 0 || messages.length > MAX_TURNS) return null;
   const turns: Turn[] = [];
   const proposals: Proposal[] = [];
+  let attached: readonly string[] = [];
   for (const message of messages) {
     if (
       !isRecord(message) ||
@@ -512,7 +593,7 @@ function readMessage(body: unknown, ids: IdSource): Incoming | null {
     // An assistant turn's text is already shortened (`shortenReplies`); a user's longer is refused.
     if (text === null || [...text].length > MAX_TURN_TEXT) return null;
     const shown: Proposal[] = [];
-    let asked: string | null = null;
+    const notes: string[] = [];
     if (message.role === "assistant") {
       for (
         const value of Array.isArray(message.proposals) ? message.proposals : []
@@ -529,14 +610,28 @@ function readMessage(body: unknown, ids: IdSource): Incoming | null {
             typeof o === "string"
           )
         ) return null;
-        asked = `[asked: ${choice.prompt} (${choice.options.join(" / ")})]`;
+        notes.push(
+          `[asked: ${choice.prompt} (${choice.options.join(" / ")})]`,
+        );
       }
+      if (message.job !== undefined) {
+        const job = readJobShown(message.job);
+        if (job === null) return null;
+        notes.push(`[photo job ${job.id} started over ${job.photos} photos]`);
+      }
+      if (message.photos !== undefined) return null;
     } else if (
-      message.proposals !== undefined || message.choice !== undefined
+      message.proposals !== undefined || message.choice !== undefined ||
+      message.job !== undefined
     ) {
       return null;
+    } else if (message.photos !== undefined) {
+      const photos = readPhotos(message.photos);
+      if (photos === null) return null;
+      attached = photos;
+      notes.push(`[${photos.length} photos attached]`);
     }
-    const described = describeTurn(text, shown, asked, ids);
+    const described = describeTurn(text, shown, notes, ids);
     if (described === null) return null;
     proposals.push(...shown);
     turns.push({ role: message.role, text: described });
@@ -551,7 +646,107 @@ function readMessage(body: unknown, ids: IdSource): Incoming | null {
     if (id === null || !UUID.test(id)) return null;
     deckId = id;
   }
-  return { turns, proposals, deckId };
+  return { turns, proposals, deckId, attached };
+}
+
+/** A user turn's photo ids: 1 to `MAX_JOB_PHOTOS` distinct uuids, or null. */
+function readPhotos(value: unknown): readonly string[] | null {
+  if (
+    !Array.isArray(value) || value.length === 0 ||
+    value.length > MAX_JOB_PHOTOS
+  ) return null;
+  const ids: string[] = [];
+  for (const id of value) {
+    const read = typeof id === "string" ? id.toLowerCase() : "";
+    if (!UUID.test(read) || ids.includes(read)) return null;
+    ids.push(read);
+  }
+  return ids;
+}
+
+/** An assistant turn's job, as the `job` event sent it, or null when it is not one. */
+function readJobShown(value: unknown): { id: string; photos: number } | null {
+  if (!isRecord(value) || typeof value.id !== "string") return null;
+  const id = value.id.toLowerCase();
+  const photos = value.photos;
+  if (
+    !UUID.test(id) || typeof photos !== "number" ||
+    !Number.isSafeInteger(photos) || photos < 1 || photos > MAX_JOB_PHOTOS
+  ) return null;
+  return { id, photos };
+}
+
+/** Whether [a] and [b] are the same text, compared in a time that does not depend on where they differ. */
+function sameText(a: string, b: string): boolean {
+  const left = new TextEncoder().encode(a);
+  const right = new TextEncoder().encode(b);
+  let differ = left.length ^ right.length;
+  for (let i = 0; i < Math.max(left.length, right.length); i++) {
+    differ |= (left[i] ?? 0) ^ (right[i] ?? 0);
+  }
+  return differ === 0;
+}
+
+/** A job as its poll answers it: each photo's status, never its reading. */
+function jobBody(id: string, job: Job): Record<string, unknown> {
+  const count = (status: string) =>
+    job.photos.filter((photo) => photo.status === status).length;
+  return {
+    id,
+    status: job.status,
+    photos: job.photos.map((photo) => ({
+      position: photo.position,
+      photo_id: photo.photoId,
+      status: photo.status,
+    })),
+    read: count("read"),
+    queued: count("queued"),
+    failed: count("failed"),
+    skipped: count("skipped"),
+    cancelled: count("cancelled"),
+    created_at: job.createdAt,
+    finished_at: job.finishedAt,
+  };
+}
+
+/**
+ * A photo job's poll, which asks for the worker again when a running job has begun no read for
+ * `STALE_MS`, or its cancel, which deletes its photos.
+ */
+async function jobRequest(
+  route: "job" | "cancel",
+  jobId: string,
+  userId: UserId,
+  service: { url: string; serviceRoleKey: string; fetch: typeof fetch },
+  entry: Entry,
+  deps: HandlerDeps,
+): Promise<{ response: Response; entry: Entry }> {
+  try {
+    if (route === "cancel") {
+      const status = await cancelJob(userId, jobId, service);
+      if (status === null) return refusal(404, "not_found", entry);
+      if (status === "cancelled") await clearJob(userId, jobId, service);
+      return {
+        response: Response.json({ id: jobId, status }),
+        entry: { ...entry, outcome: "cancelled" },
+      };
+    }
+    const job = await readJob(userId, jobId, service);
+    if (job === null) return refusal(404, "not_found", entry);
+    const last = Date.parse(job.lastStepAt ?? job.createdAt);
+    if (job.status === "running" && deps.now() - last > STALE_MS) {
+      await kick(service);
+    }
+    return {
+      response: Response.json(jobBody(jobId, job)),
+      entry: { ...entry, outcome: "polled" },
+    };
+  } catch (error) {
+    if (error instanceof SupabaseError) {
+      return refusal(503, "unavailable", entry);
+    }
+    throw error;
+  }
 }
 
 const ZERO: Usage = {
@@ -561,26 +756,6 @@ const ZERO: Usage = {
   reasoningTokens: 0,
   webSearchRequests: 0,
 };
-
-/** Whether [error] is how `fetch` fails: a network error, or the call's signal aborting it. */
-function fetchFailed(error: unknown): boolean {
-  return error instanceof TypeError ||
-    (error instanceof DOMException &&
-      (error.name === "AbortError" || error.name === "TimeoutError"));
-}
-
-/** The UTF-8 bytes of a request taken as one token, for an estimate of its input. */
-export const BYTES_PER_TOKEN = 4;
-
-/**
- * [reported], with its input tokens estimated from [request]'s size when the provider reported
- * none before the call broke off: the provider read the request, and bills it.
- */
-function withInputAtLeast(reported: CallUsage, request: string): CallUsage {
-  if (reported.inputTokens > 0) return reported;
-  const bytes = new TextEncoder().encode(request).length;
-  return { ...reported, inputTokens: Math.ceil(bytes / BYTES_PER_TOKEN) };
-}
 
 function plus(usage: Usage, call: CallUsage): Usage {
   return {
@@ -606,6 +781,7 @@ async function converse(
   deps: HandlerDeps,
   skills: Skills,
   start: Extract<Start, { kind: "allowed" }>,
+  photos: PhotoContext,
   send: (event: string, data: unknown) => void,
   started: number,
   client: AbortSignal,
@@ -739,6 +915,7 @@ async function converse(
             deps,
             proposals,
             skills,
+            photos,
           );
       } catch (error) {
         if (!(error instanceof SupabaseError)) throw error;
@@ -753,6 +930,8 @@ async function converse(
       } else if (ran.shown?.kind === "choice") {
         asked = ran.shown.choice;
         send("choice", asked);
+      } else if (ran.shown?.kind === "job") {
+        send("job", { ...ran.shown.job, status: "running" });
       }
       results.push({
         call,
