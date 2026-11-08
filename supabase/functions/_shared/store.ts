@@ -145,16 +145,17 @@ export async function cardFormRows(
 
 /**
  * The caller's study record as `public.assistant_study_record` answers it, unparsed: [deckId]
- * limits it to one deck, [periodDays] is how far back its answers count.
+ * limits it to one deck, [periodDays] is how far back its answers count and [timeZone] the zone its study day is counted in.
  */
 export async function studyRecordRows(
   store: Store,
   deckId: string | null,
   periodDays: number,
+  timeZone: string,
 ): Promise<unknown> {
   const response = await request(store, "rpc/assistant_study_record", {
     method: "POST",
-    body: { deck_id: deckId, period_days: periodDays },
+    body: { deck_id: deckId, period_days: periodDays, time_zone: timeZone },
   });
   return await response.json();
 }
