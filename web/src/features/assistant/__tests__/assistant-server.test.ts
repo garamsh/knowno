@@ -67,6 +67,23 @@ describe("a message on its way to the function", () => {
     ]);
   });
 
+  it("forwards the zone and the note the browser sent in the context as they came, adding no zone of its own", async () => {
+    functionAnswers(
+      "",
+      () => new HttpResponse("", { headers: { "Content-Type": "text/event-stream" } }),
+    );
+    const context = { deck_id: "d1", time_zone: "Pacific/Auckland" };
+    await forwardMessage(
+      new Request("http://localhost:3000/api/assistant", {
+        method: "POST",
+        body: JSON.stringify({ ...message, context }),
+      }),
+    );
+    // Control: a message with no context reaches the function with none, whatever zone this process is in.
+    await send();
+    expect(received.map(({ body }) => body)).toEqual([{ ...message, context }, message]);
+  });
+
   it("passes on the function's refusals, a spent budget's tokens with it", async () => {
     functionAnswers("", () =>
       HttpResponse.json(

@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { masteredIntervalDays } from "../overview";
 import * as queue from "../queue";
 
 const root = path.join(import.meta.dirname, "../../../../..");
@@ -76,7 +77,36 @@ describe("the queue rules", () => {
     const moved = [...migrations, { name: "99999999999999_moved.sql", text: hourFunction(5) }];
     expect(serverStartHour(moved)).toBe(5);
   });
+
+  it("count a card mastered from masteredIntervalDays, as the latest migration defines public.mastered_interval()", () => {
+    expect(serverMasteredDays(migrations)).toBe(masteredIntervalDays);
+    // Control: a later migration that moves the interval is the one read.
+    const moved = [...migrations, { name: "99999999999999_moved.sql", text: intervalFunction(30) }];
+    expect(serverMasteredDays(moved)).toBe(30);
+    // Control: a later file that does not define it leaves the read as it was.
+    const other = [...migrations, { name: "99999999999999_other.sql", text: "select 1;" }];
+    expect(serverMasteredDays(other)).toBe(masteredIntervalDays);
+  });
 });
+
+/** A migration's definition of `public.mastered_interval()` returning [days] days. */
+function intervalFunction(days: number): string {
+  return `create or replace function public.mastered_interval() returns interval\nlanguage sql\nas $$\n  select interval '${String(days)} days'\n$$;`;
+}
+
+/**
+ * The days `public.mastered_interval()` returns in the last migration, in the order they are
+ * applied, that defines it; the server's study record counts a card mastered from it.
+ */
+function serverMasteredDays(files: readonly { name: string; text: string }[]): number | undefined {
+  const definition =
+    /create (?:or replace )?function public\.mastered_interval\(\)[^$]*\$\$\s*select interval '(\d+) days'\s*\$\$/g;
+  let days: number | undefined;
+  for (const file of [...files].sort((a, b) => (a.name < b.name ? -1 : 1))) {
+    for (const [, value] of file.text.matchAll(definition)) days = Number(value);
+  }
+  return days;
+}
 
 /** A migration's definition of `public.study_day_start_hour()` returning [hour]. */
 function hourFunction(hour: number): string {
