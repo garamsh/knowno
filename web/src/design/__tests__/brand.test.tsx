@@ -45,6 +45,42 @@ function show(width: number, onScreen = true) {
   });
 }
 
+/** The page's ResizeObserver stand-in: its callback, what it observes and whether it was let go. */
+const resizers: { callback: ResizeObserverCallback; observed: Element[]; disconnected: boolean }[] =
+  [];
+
+class FakeResizeObserver {
+  private readonly own: (typeof resizers)[number];
+  constructor(callback: ResizeObserverCallback) {
+    this.own = { callback, observed: [], disconnected: false };
+    resizers.push(this.own);
+  }
+  observe(element: Element) {
+    this.own.observed.push(element);
+  }
+  disconnect() {
+    this.own.disconnected = true;
+  }
+}
+
+/** Reports the mascot drawn [width] px wide now, as the browser does when its box changes size. */
+function resize(width: number) {
+  const live = resizers.filter((r) => !r.disconnected);
+  expect(live).toHaveLength(1);
+  const [observer] = live;
+  if (!observer) throw new Error("no observer watches the mascot's size");
+  act(() => {
+    observer.callback(
+      [
+        {
+          target: { getBoundingClientRect: () => ({ width }) },
+        } as unknown as ResizeObserverEntry,
+      ],
+      {} as ResizeObserver,
+    );
+  });
+}
+
 /** The system's reduce motion setting, which a test turns on and off. */
 const reduce = { on: false, changed: new Set<EventListenerOrEventListenerObject>() };
 
@@ -69,9 +105,11 @@ function mascot(expression: MascotExpression) {
 beforeEach(() => {
   vi.useFakeTimers();
   observers.length = 0;
+  resizers.length = 0;
   reduce.on = false;
   reduce.changed.clear();
   vi.stubGlobal("IntersectionObserver", FakeIntersectionObserver);
+  vi.stubGlobal("ResizeObserver", FakeResizeObserver);
   // The code under test reads `matches` and listens for changes; the deprecated addListener and
   // removeListener are left out of the stand-in.
   vi.stubGlobal(
@@ -186,11 +224,56 @@ describe("Mascot", () => {
     }
   });
 
+  it("takes the drawing of the size it is resized to while it stays on screen, across 40 and 128 px, both ways", () => {
+    mascot("thinking");
+    show(64);
+    expect(moving()?.getAttribute("data-motion")).toBe("blink");
+
+    // Across 128 up: the breath joins the blink, the drawing kept.
+    resize(140);
+    expect(moving()?.getAttribute("data-motion")).toBe("full");
+    // Down past 128, then past 40: the blink alone, then the still image.
+    resize(64);
+    expect(moving()?.getAttribute("data-motion")).toBe("blink");
+    resize(40);
+    expect(moving()).toBeNull();
+    expect(still()).not.toBeNull();
+    // And back up, from the still image to the moving drawing.
+    resize(140);
+    expect(moving()?.getAttribute("data-motion")).toBe("full");
+    expect(still()).toBeNull();
+    // Control: a width that crosses nothing changes nothing.
+    resize(150);
+    expect(moving()?.getAttribute("data-motion")).toBe("full");
+  });
+
+  it("swaps the still image and the moving drawing in a box of the same classes, so nothing shifts", () => {
+    const { container } = render(<Mascot expression="thinking" className="size-mascot-medium" />);
+    const classOf = () => (still() ?? moving())?.getAttribute("class") ?? "";
+    show(140);
+    expect(classOf()).toContain("size-mascot-medium");
+    const moved = classOf().replace("mascot ", "");
+    resize(30);
+    expect(still()?.getAttribute("class")).toBe(moved);
+    expect(container.children).toHaveLength(1);
+  });
+
+  it("keeps the still image of an expression with nothing to move at a size it is resized to", () => {
+    mascot("happy");
+    show(100);
+    expect(moving()).toBeNull();
+    resize(140);
+    expect(moving()?.getAttribute("data-motion")).toBe("full");
+    resize(100);
+    expect(moving()).toBeNull();
+  });
+
   it("under reduce motion is its still file, and nothing moves or waits to", () => {
     setReduceMotion(true);
     mascot("thinking");
     // Asked for reduced motion, it watches nothing and waits for no blink.
     expect(observers).toHaveLength(0);
+    expect(resizers).toHaveLength(0);
     act(() => {
       vi.advanceTimersByTime(8000);
     });
@@ -225,5 +308,6 @@ describe("Mascot", () => {
     unmount();
     expect(vi.getTimerCount()).toBe(0);
     expect(observers.every((o) => o.disconnected)).toBe(true);
+    expect(resizers.every((o) => o.disconnected)).toBe(true);
   });
 });
