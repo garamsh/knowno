@@ -37,7 +37,31 @@ export const actionLabels: Record<string, string> = {
   clear_assistant_test: "말랑이 설정 테스트 끝",
   save_assistant_prompt: "말랑이 프롬프트 저장",
   set_assistant_token_budget: "말랑이 하루 토큰 예산",
+  save_card_form_skill: "카드 형식 스킬 테스트로 저장",
+  activate_card_form_skill: "카드 형식 스킬 적용",
+  clear_card_form_skill_test: "카드 형식 스킬 테스트 끝",
 };
+
+/** The card forms a skill is written for, in the order the assistant lists them (ADR 0197). */
+export const cardForms = ["text", "senses", "cloze", "table", "image", "mixed"] as const;
+
+/** A card form of a skill. */
+export type CardForm = (typeof cardForms)[number];
+
+/** Each card form's name, the chat's words for it. */
+export const cardFormLabels: Record<CardForm, string> = {
+  text: "글",
+  senses: "단어",
+  cloze: "빈칸 문장",
+  table: "표",
+  image: "사진",
+  mixed: "섞어서",
+};
+
+/** [value], which crossed the network or an address, as a card form; null otherwise. */
+export function parseCardForm(value: unknown): CardForm | null {
+  return cardForms.find((form) => form === value) ?? null;
+}
 
 /** Each AI provider's name (ADR 0162). */
 export const providerLabels: Record<string, string> = {

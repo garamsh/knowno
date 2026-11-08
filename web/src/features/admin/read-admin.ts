@@ -11,6 +11,7 @@ import { field, parseTime } from "@/supabase/row";
 import { createClient } from "@/supabase/server";
 import { readUserId } from "@/supabase/session";
 
+import { type CardForm, parseCardForm } from "./labels";
 import { type OutcomeDay } from "./outcomes";
 import type { BreakdownRow } from "./usage";
 
@@ -1026,4 +1027,36 @@ function count(value: unknown): number | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** A saved version of a card form's skill (ADR 0197), as 말랑이 lists it. */
+export type SkillVersion = {
+  id: number;
+  form: CardForm;
+  summary: string;
+  text: string;
+  note: string;
+  createdByEmail: string | null;
+  createdAt: number;
+  labels: PromptLabel[];
+};
+
+/** Every saved skill version of every form, newest first. */
+export async function readCardFormSkills(): Promise<AdminRead<SkillVersion[]>> {
+  return parsed(await call("admin_card_form_skills"), (row) => {
+    const id = count(field(row, "id"));
+    const form = parseCardForm(field(row, "form"));
+    const summary = field(row, "summary");
+    const text = field(row, "text");
+    const note = field(row, "note");
+    const createdBy = field(row, "created_by_email");
+    const createdAt = parseTime(field(row, "created_at"));
+    const labels = promptLabels(field(row, "labels"));
+    if (id === null || form === null || createdAt === null || labels === null) return null;
+    if (typeof summary !== "string" || typeof text !== "string" || typeof note !== "string") {
+      return null;
+    }
+    if (createdBy !== null && typeof createdBy !== "string") return null;
+    return { id, form, summary, text, note, createdByEmail: createdBy, createdAt, labels };
+  });
 }
