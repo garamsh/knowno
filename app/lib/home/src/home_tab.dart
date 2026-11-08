@@ -9,6 +9,7 @@ import 'package:intl/intl.dart' show DateFormat;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../account/account.dart';
+import '../../assistant/assistant.dart';
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
 import '../../design/mascot.dart';
@@ -19,6 +20,7 @@ import '../../sharing/sharing.dart';
 import '../../study/study.dart';
 import 'above_menu.dart';
 import 'new_deck.dart';
+import 'open_assistant.dart';
 import 'streak_days.dart';
 
 /// 홈, one screen: the sky, with the app's name, the profile button and the
@@ -41,12 +43,19 @@ class HomeTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final assistant = ref.watch(assistantClientProvider) == null
+        ? null
+        : _Assistant(
+            onOpen: () => unawaited(openAssistant(context)),
+            ready: ref.watch(assistantReadyCardsProvider),
+          );
     return switch ((ref.watch(decksProvider), ref.watch(cardCountsProvider))) {
       (AsyncData(value: final decks), AsyncData(value: final counts)) =>
         switch (DeckSelection.of([for (final deck in decks) deck.id])) {
           null => _Home(
-            face: _firstRun(context, ref),
+            face: _firstRun(context, ref, assistant),
             cards: false,
+            assistant: assistant,
             onSettings: onSettings,
           ),
           final all => TodayOverviewReader(
@@ -58,6 +67,7 @@ class HomeTab extends ConsumerWidget {
                     ? _cardless(context, decks)
                     : _face(context, overview, all),
                 cards: !cardless,
+                assistant: assistant,
                 ground: switch (overview) {
                   _ when cardless => null,
                   TodayOverview(:final streak, :final week, :final count) =>
@@ -80,20 +90,28 @@ class HomeTab extends ConsumerWidget {
     };
   }
 
-  /// Before the first deck: "첫 노트를 만들어 볼까요?", "새 노트 만들기" and,
-  /// with sharing, the public decks.
-  _Face _firstRun(BuildContext context, WidgetRef ref) {
+  /// Before the first deck: "첫 노트를 만들어 볼까요?", "말랑이와 첫 노트
+  /// 만들기", or "새 노트 만들기" where the app has no assistant, and, with
+  /// sharing, the public decks.
+  _Face _firstRun(BuildContext context, WidgetRef ref, _Assistant? assistant) {
     final l10n = AppLocalizations.of(context);
     final sharing = ref.watch(sharingServiceProvider);
     return _Face(
       mascot: MascotExpression.thinking,
       title: l10n.emptyHomeTitle,
       actions: [
-        AppButton(
-          label: l10n.newDeckTitle,
-          size: AppButtonSize.cta,
-          onPressed: () => openNewDeck(context, onOpenDeck),
-        ),
+        if (assistant != null)
+          AppButton(
+            label: l10n.assistantFirstNote,
+            size: AppButtonSize.cta,
+            onPressed: assistant.onOpen,
+          )
+        else
+          AppButton(
+            label: l10n.newDeckTitle,
+            size: AppButtonSize.cta,
+            onPressed: () => openNewDeck(context, onOpenDeck),
+          ),
         if (sharing != null)
           AppButton(
             label: l10n.browsePublicDecks,
@@ -192,6 +210,15 @@ String _nextReview(BuildContext context, TodayOverview overview) {
   );
 }
 
+/// 말랑이's way in from 홈: [onOpen] opens the chat, and [ready] is how many
+/// cards it has ready, 0 for none.
+final class _Assistant {
+  const _Assistant({required this.onOpen, required this.ready});
+
+  final VoidCallback onOpen;
+  final int ready;
+}
+
 /// What 홈 says: the [mascot], and in the sky [eyebrow] over [title], large
 /// as a figure while [figure], over [line]; on the ground the [actions].
 final class _Face {
@@ -237,11 +264,15 @@ class _Home extends StatelessWidget {
   const _Home({
     required this.face,
     required this.cards,
+    required this.assistant,
     this.ground,
     required this.onSettings,
   });
 
   final _Face? face;
+
+  /// 말랑이's way in, or null where the app has no assistant.
+  final _Assistant? assistant;
 
   /// Whether any deck holds a card, before which the first-run step waits.
   final bool cards;
@@ -257,6 +288,7 @@ class _Home extends StatelessWidget {
     final face = this.face;
     final sky = _Sky(
       face: face,
+      assistant: assistant,
       top: [
         // The first-run step asks for the minutes once a day with cards
         // shows.
@@ -308,9 +340,10 @@ class _Home extends StatelessWidget {
 /// The sky: [top] under the status bar, then the [face]'s words centred in
 /// what the mascot leaves, the mascot on the crest of the hill at its foot.
 class _Sky extends StatelessWidget {
-  const _Sky({required this.face, required this.top});
+  const _Sky({required this.face, required this.assistant, required this.top});
 
   final _Face? face;
+  final _Assistant? assistant;
   final List<Widget> top;
 
   /// How high the hill's crest rises above the sky's foot at its sides.
@@ -326,6 +359,11 @@ class _Sky extends StatelessWidget {
     final eyebrow = face?.eyebrow;
     final title = face?.title;
     final line = face?.line;
+    final assistant = this.assistant;
+    final mascot = Mascot(
+      expression: face?.mascot ?? MascotExpression.thinking,
+      size: AppSize.mascotHero,
+    );
     Widget words(String text, TextStyle style, {bool header = false}) =>
         Semantics(
           header: header,
@@ -373,26 +411,127 @@ class _Sky extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (assistant != null && assistant.ready > 0)
+                  _ReadyBubble(count: assistant.ready, onTap: assistant.onOpen),
               ],
             ),
           ),
-          // Nothing else is drawn at its upper right, where the assistant's
-          // bubble is to go (#721).
           Positioned(
             left: 0,
             right: 0,
             bottom: _hill - _sink,
             child: Center(
-              child: Mascot(
-                expression: face?.mascot ?? MascotExpression.thinking,
-                size: AppSize.mascotHero,
-              ),
+              child: assistant == null
+                  ? mascot
+                  : _AssistantEntry(
+                      ready: assistant.ready,
+                      onTap: assistant.onOpen,
+                      child: mascot,
+                    ),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+/// The mascot as 말랑이's way in: a button named "말랑이와 대화하기", with
+/// what is ready after its name.
+class _AssistantEntry extends StatelessWidget {
+  const _AssistantEntry({
+    required this.ready,
+    required this.onTap,
+    required this.child,
+  });
+
+  final int ready;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Semantics(
+      button: true,
+      label: ready > 0
+          ? '${l10n.assistantOpen}, ${l10n.assistantReady(ready)}'
+          : l10n.assistantOpen,
+      excludeSemantics: true,
+      onTap: onTap,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: child,
+      ),
+    );
+  }
+}
+
+/// The speech bubble over the mascot's head while 말랑이 has [count] cards
+/// ready, which opens the chat as the mascot does; its words are read with
+/// the mascot's name.
+class _ReadyBubble extends StatelessWidget {
+  const _ReadyBubble({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return ExcludeSemantics(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.row),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.s16,
+                  vertical: AppSpace.s8,
+                ),
+                child: Text(
+                  keepWords(AppLocalizations.of(context).assistantReady(count)),
+                  textAlign: TextAlign.center,
+                  style: AppType.label.copyWith(color: colors.ink),
+                ),
+              ),
+            ),
+            CustomPaint(
+              size: const Size(AppSpace.s16, AppSpace.s8),
+              painter: _BubbleTail(colors.surface),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The small triangle under a speech bubble, pointing down at its speaker.
+class _BubbleTail extends CustomPainter {
+  const _BubbleTail(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) => canvas.drawPath(
+    Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..close(),
+    Paint()..color = color,
+  );
+
+  @override
+  bool shouldRepaint(_BubbleTail oldDelegate) => oldDelegate.color != color;
 }
 
 /// The sky's shape: a box whose foot is a hill [hill] high at its centre, a

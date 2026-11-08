@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'account/account.dart';
+import 'assistant/assistant.dart';
 import 'database/database.dart';
 import 'deck/deck.dart';
 import 'design/keyboard_dismissal.dart';
@@ -40,6 +41,7 @@ Future<void> main() async {
         ...photoImportStorageKeys,
         ...studyStorageKeys,
         ...deckStorageKeys,
+        ...assistantStorageKeys,
       },
     ),
   );
@@ -71,6 +73,15 @@ Future<void> main() async {
       },
       Directory('${support.path}/media'),
       package.version,
+      assistant: switch (account.client) {
+        final client? => HttpAssistantClient(
+          http.Client(),
+          functionUrl: assistantUrl(client.rest.url),
+          accessToken: () async => client.auth.currentSession?.accessToken,
+          readAllowance: () => client.rpc<Object?>('assistant_allowance'),
+        ),
+        null => null,
+      },
     ),
   );
 }
@@ -84,7 +95,9 @@ Future<void> main() async {
 /// decks through [sharing] while [reachability] says the device is online;
 /// without [sharing] the app offers no sharing. Decks' images are kept in
 /// [mediaDirectory] and stored through [mediaServer]. The account screen names
-/// the app's [version]. Sync starts at once.
+/// the app's [version]. Chats with 말랑이 go through [assistant], whose
+/// absence hides every way into the chat, and are kept in [preferences]. Sync
+/// starts at once.
 Widget composeApp(
   QueryExecutor executor,
   Scheduler scheduler,
@@ -97,8 +110,9 @@ Widget composeApp(
   Reachability reachability,
   MediaServer mediaServer,
   Directory mediaDirectory,
-  String version,
-) {
+  String version, {
+  AssistantClient? assistant,
+}) {
   final database = AppDatabase(executor);
   const uuid = Uuid();
   final media = MediaStore(
@@ -181,6 +195,8 @@ Widget composeApp(
       syncControllerProvider.overrideWithValue(sync),
       themeStorageProvider.overrideWithValue(preferences),
       deckStorageProvider.overrideWithValue(preferences),
+      assistantClientProvider.overrideWithValue(assistant),
+      assistantStorageProvider.overrideWithValue(preferences),
     ],
     child: const KnownoApp(),
   );

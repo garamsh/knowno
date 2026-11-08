@@ -1951,4 +1951,202 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$day: $_temp0';
   }
+
+  @override
+  String get assistantOpen => 'Chat with Malangi';
+
+  @override
+  String get assistantFirstNote => 'Make your first note with Malangi';
+
+  @override
+  String assistantReady(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cards ready',
+      one: '1 card ready',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get assistantName => 'Malangi';
+
+  @override
+  String get assistantEmpty => 'What shall we memorise?';
+
+  @override
+  String assistantShareLeft(int percent) {
+    return '$percent% left today';
+  }
+
+  @override
+  String get assistantMenu => 'Chat menu';
+
+  @override
+  String get assistantClear => 'Clear chat';
+
+  @override
+  String get assistantClearTitle => 'Clear the chat?';
+
+  @override
+  String get assistantClearBody => 'A cleared chat cannot be brought back.';
+
+  @override
+  String get assistantClearConfirm => 'Clear';
+
+  @override
+  String get assistantMessageHint => 'Ask Malangi';
+
+  @override
+  String get assistantSend => 'Send';
+
+  @override
+  String get assistantStop => 'Stop';
+
+  @override
+  String get assistantThinking => 'Malangi is thinking';
+
+  @override
+  String get assistantMe => 'Me';
+
+  @override
+  String get assistantSources => 'Sources';
+
+  @override
+  String assistantNewNote(String name) {
+    return 'New note · $name';
+  }
+
+  @override
+  String assistantSelectAll(String title) {
+    return 'Select all of $title';
+  }
+
+  @override
+  String get assistantOtherForm => 'In another form';
+
+  @override
+  String get assistantFormText => 'Text';
+
+  @override
+  String get assistantFormSenses => 'Word';
+
+  @override
+  String get assistantFormCloze => 'Fill in the blank';
+
+  @override
+  String get assistantFormTable => 'Table';
+
+  @override
+  String get assistantFormImage => 'Photo';
+
+  @override
+  String get assistantFormMixed => 'Mixed';
+
+  @override
+  String assistantGroupCount(int count, String form) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cards',
+      one: '1 card',
+    );
+    return '$_temp0 · $form';
+  }
+
+  @override
+  String assistantRemake(String title, String form) {
+    return 'Make $title again as $form';
+  }
+
+  @override
+  String assistantAdd(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Add $count cards',
+      one: 'Add 1 card',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String assistantChange(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Change $count cards',
+      one: 'Change 1 card',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String assistantNoteCards(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cards',
+      one: '1 card',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get assistantStopped => 'Stopped.';
+
+  @override
+  String get assistantModelError => 'Malangi could not answer. Try again.';
+
+  @override
+  String get assistantCut =>
+      'The reply was long and stopped midway. Ask Malangi to go on.';
+
+  @override
+  String get assistantWaiting =>
+      'Still finishing the last message. Sending again in a moment.';
+
+  @override
+  String get assistantRateLimited =>
+      'You have used today\'s share with Malangi. Talk again tomorrow.';
+
+  @override
+  String get assistantBusy =>
+      'Still finishing the last message. Try again in a moment.';
+
+  @override
+  String get assistantSignIn => 'You were signed out. Sign in again.';
+
+  @override
+  String get assistantSuspended =>
+      'This account cannot talk with Malangi right now.';
+
+  @override
+  String get assistantTooLong =>
+      'The chat is too long. Clear it and start again.';
+
+  @override
+  String get assistantUnavailable =>
+      'Malangi cannot answer now. Try again in a moment.';
+
+  @override
+  String get assistantUnreachable =>
+      'Could not connect. Check the connection and try again.';
+
+  @override
+  String get assistantCommitRefused =>
+      'Could not add the cards. Ask Malangi to make them again.';
+
+  @override
+  String get assistantCommitSignIn =>
+      'You were signed out, so the cards were not added. Sign in again.';
+
+  @override
+  String get assistantCommitFailed =>
+      'Could not add the cards. Try again in a moment.';
+
+  @override
+  String get assistantNoteNotSynced =>
+      'The note has not loaded yet. Try again in a moment.';
 }
