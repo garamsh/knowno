@@ -1314,6 +1314,9 @@ test("the shell's menu sits at the side from 1024 px and at the foot below it, a
   await expect(skip).toBeVisible();
   await page.keyboard.press("Enter");
   await expect(page.locator("main")).toBeFocused();
+  // 홈's mascot is 말랑이's link (#722), the first stop in the content; 시작 follows.
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "말랑이와 대화하기", exact: true })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "시작", exact: true })).toBeFocused();
   // The landmarks: the menu, the content.
@@ -1376,8 +1379,10 @@ test("creates a deck and a card on mobile, warns on a duplicate and keeps saved 
     page.getByRole("heading", { name: "첫 노트를 만들어 볼까요?", exact: true }),
   ).toBeVisible();
   await capture(page, "authoring-empty");
+  // First-run 홈 now offers "말랑이와 첫 노트 만들기" (#711); manual creation is the 노트 page's.
+  await page.goto("/decks");
   await untilReacted(
-    () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
+    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
   await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("영어 단어");

@@ -84,8 +84,10 @@ test("adds a deck's cards from a small .xlsx after review, and the server holds 
   ]);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  // First-run 홈 now offers "말랑이와 첫 노트 만들기" (#711); manual creation is the 노트 page's.
+  await page.goto("/decks");
   await untilReacted(
-    () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
+    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
   await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("엑셀 단어");
