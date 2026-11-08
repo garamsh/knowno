@@ -10,13 +10,15 @@ import '../../sync/sync.dart';
 import 'above_menu.dart';
 import 'deck_screen.dart';
 
-/// Opens 말랑이's chat over the menu. A note it added opens over the chat,
-/// so back returns to the same conversation.
-Future<void> openAssistant(BuildContext context) =>
+/// Opens 말랑이's chat over the menu, from [note] when it is opened inside
+/// one. A note it added opens over the chat, so back returns to the same
+/// conversation.
+Future<void> openAssistant(BuildContext context, {ChatNote? note}) =>
     Navigator.of(aboveMenu(context)).push(
       MaterialPageRoute<void>(
         builder: (_) => Consumer(
           builder: (context, ref, _) => AssistantChatScreen(
+            note: note,
             openNote: (context, deckId) => _openNote(context, ref, deckId),
           ),
         ),
@@ -55,6 +57,8 @@ Future<void> _openNote(
   }
   final opened = deck;
   await navigator.push(
-    MaterialPageRoute<void>(builder: (_) => DeckScreen(deck: opened)),
+    MaterialPageRoute<void>(
+      builder: (_) => DeckScreen(deck: opened, assistantEdge: false),
+    ),
   );
 }

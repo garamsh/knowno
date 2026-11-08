@@ -9,6 +9,11 @@ select plan(53);
 
 delete from private.assistant_configuration_labels where label = 'test';
 
+-- The sweeper's revert runs first: its functions are named for the jobs too, and
+-- assistant_job_sweeper_test.sql tests them.
+select private.revert_assistant_job_sweeper();
+drop function private.revert_assistant_job_sweeper();
+
 -- A is an admin, B is on Free.
 insert into auth.users (id, email, created_at) values
   ('00000000-0000-4000-8000-00000000000a', 'admin@example.com', now() - interval '90 days'),

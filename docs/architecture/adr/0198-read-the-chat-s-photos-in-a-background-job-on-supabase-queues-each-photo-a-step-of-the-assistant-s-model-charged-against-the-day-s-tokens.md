@@ -1,6 +1,6 @@
 # ADR 0198: Read the chat's photos in a background job on Supabase Queues, each photo a step of the assistant's model charged against the day's tokens
 
-> Status: accepted
+> Status: accepted; its alternative "pg_cron with pg_net calling the worker every minute", rejected for now, superseded by ADR-0203
 > Date: 2026-11-07
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

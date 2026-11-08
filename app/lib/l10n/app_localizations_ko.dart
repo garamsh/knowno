@@ -1950,4 +1950,59 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get assistantNoteNotSynced => '노트를 아직 불러오지 못했어요. 잠시 후 다시 눌러 주세요.';
+
+  @override
+  String assistantReadyShort(int count) {
+    return '$count장 만들어 뒀어요';
+  }
+
+  @override
+  String get assistantHint => '말랑이를 누르면 언제든 대화할 수 있어요';
+
+  @override
+  String get assistantHintClose => '안내 닫기';
+
+  @override
+  String assistantFromNote(String name) {
+    return '$name 노트에서';
+  }
+
+  @override
+  String get assistantAddByHand => '직접 추가';
+
+  @override
+  String get assistantPhotoAttach => '사진 첨부';
+
+  @override
+  String get assistantPhotoRemove => '사진 삭제';
+
+  @override
+  String assistantPhotos(int count) {
+    return '사진 $count장';
+  }
+
+  @override
+  String get assistantUploading => '사진을 올리는 중이에요';
+
+  @override
+  String get assistantUploadFailed => '사진을 올리지 못했어요. 다시 시도해 주세요.';
+
+  @override
+  String get assistantPhotoPickFailed => '사진을 가져오지 못했어요. 다시 시도해 주세요.';
+
+  @override
+  String assistantJobProgress(int done, int total) {
+    return '$done/$total장 읽는 중';
+  }
+
+  @override
+  String get assistantJobCancel => '읽기 취소';
+
+  @override
+  String assistantJobDone(int count) {
+    return '사진 $count장을 다 읽었어요';
+  }
+
+  @override
+  String get assistantJobCancelled => '사진 읽기를 취소했어요';
 }
