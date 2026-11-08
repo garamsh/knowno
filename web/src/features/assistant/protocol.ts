@@ -26,12 +26,19 @@ export type Choice = { prompt: string; options: string[] };
 /** The day's tokens after a message: the plan's budget, null for none, and those charged. */
 export type Allowance = { tokenBudget: number | null; tokensUsed: number };
 
+/** How a photo job stands: reading, every photo read, or cancelled (`assistant.md` §Photo jobs). */
+export type JobState = "running" | "done" | "cancelled";
+
+/** A photo job the chat started: its [photos], the [finished] among them (read, failed or skipped). */
+export type JobProgress = { id: string; photos: number; finished: number; state: JobState };
+
 /** One event of a message's stream. */
 export type AssistantEvent =
   | { type: "text"; delta: string }
   | { type: "citation"; url: string; title: string }
   | { type: "proposal"; proposal: Proposal }
   | { type: "choice"; choice: Choice }
+  | { type: "job"; id: string; photos: number }
   | { type: "error"; error: "model_error" | "cut" }
   | { type: "usage"; allowance: Allowance };
 
@@ -99,7 +106,7 @@ function allowanceOf(value: Fields): Allowance | null {
  * not draw, or `malformed` for a known name whose data is not its form.
  */
 export function parseEvent(name: string, data: string): AssistantEvent | "unknown" | "malformed" {
-  const known = ["text", "citation", "proposal", "choice", "error", "usage"];
+  const known = ["text", "citation", "proposal", "choice", "job", "error", "usage"];
   if (!known.includes(name)) return "unknown";
   let value: unknown;
   try {
@@ -125,6 +132,10 @@ export function parseEvent(name: string, data: string): AssistantEvent | "unknow
         ? { type: "choice", choice: { prompt, options } }
         : "malformed";
     }
+    case "job":
+      return isText(value.id) && typeof value.photos === "number"
+        ? { type: "job", id: value.id, photos: value.photos }
+        : "malformed";
     case "error":
       return value.error === "model_error" || value.error === "cut"
         ? { type: "error", error: value.error }
@@ -134,6 +145,26 @@ export function parseEvent(name: string, data: string): AssistantEvent | "unknow
       return allowance ? { type: "usage", allowance } : "malformed";
     }
   }
+}
+
+/**
+ * The progress a job's poll answers [body] says (`assistant.md` §Photo jobs), or null when it is
+ * not one: its photos counted, those no longer queued finished.
+ */
+export function parsePoll(body: unknown): JobProgress | null {
+  if (!isFields(body) || !isText(body.id) || !Array.isArray(body.photos)) return null;
+  const state = body.status;
+  if (state !== "running" && state !== "done" && state !== "cancelled") return null;
+  const photos = body.photos.map((photo): string | null =>
+    isFields(photo) && isText(photo.status) ? photo.status : null,
+  );
+  if (photos.some((status) => status === null)) return null;
+  return {
+    id: body.id,
+    photos: photos.length,
+    finished: photos.filter((status) => status !== "queued").length,
+    state,
+  };
 }
 
 /** The refusal a message's [status] and JSON [body] mean (`assistant.md` §Requests). */

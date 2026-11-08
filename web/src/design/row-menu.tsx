@@ -7,6 +7,10 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 const quiet =
   "pressable flex size-tap-target items-center justify-center rounded-button text-muted focus-visible:outline-2 focus-visible:outline-ink";
 
+/** A page header's ⋯: on a raised surface of its own, as the phone's header action. */
+export const raised =
+  "pressable flex size-tap-target shrink-0 items-center justify-center rounded-chip bg-surface text-ink shadow-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
 /**
  * A pull-down menu behind ⋯, named [label], as the deck's section menu: Escape closes it alone.
  * [trigger] draws the button where it is not a 칸's, and [face] what it shows in place of ⋯. A

@@ -10,11 +10,12 @@ import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { server } from "@/testing/mocks/server";
 import { FakeStorage } from "@/testing/mocks/storage";
 import { setRequestCookies } from "@/testing/next-headers";
+import { addByHand } from "@/testing/add-by-hand";
 import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 
 import { parseCardContent, parseCells } from "../card-content";
-import { AuthoringButton } from "../components/authoring-button";
+import { NoteSettings } from "../components/note-settings";
 import { CardEditor } from "../components/card-editor";
 import { type Card, parseCardId, parseDeckId } from "../library";
 import { prepareImage } from "../prepare-image";
@@ -75,8 +76,8 @@ function microphone(getUserMedia: () => Promise<unknown>) {
 
 /** Opens direct entry and adds a 칸 of [name] after its 글 of both sides. */
 async function newCardWith(name: string) {
-  await render(() => <AuthoringButton deck={deck} />, {});
-  await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+  await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+  await addByHand();
   await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
   await userEvent.type(screen.getByRole("textbox", { name: "앞면" }), "dog");
   await userEvent.type(screen.getByRole("textbox", { name: "뒷면" }), "개");

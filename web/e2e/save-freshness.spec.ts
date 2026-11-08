@@ -4,6 +4,7 @@ import { type BrowserContext, expect, type Locator, type Page, test } from "@pla
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
+import { addByHand } from "./add-by-hand";
 import { untilReacted } from "./until-reacted";
 
 // The local stack scripts/test-web.ts starts, whose URL and publishable key the app was built with.
@@ -130,10 +131,7 @@ test("shows a note 새 노트 makes on the 노트 page a back returns to", async
 }) => {
   if (!baseURL) throw new Error("skipped without local stack");
   const { notes, row } = await seeded(page, context, baseURL);
-  await untilReacted(
-    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
-    () => page.getByRole("dialog", { name: "새 노트" }).isVisible(),
-  );
+  await addByHand(page, "노트 메뉴");
   await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("Fresh");
   await page.getByRole("button", { name: "저장", exact: true }).click();
   const fresh = page.getByRole("heading", { level: 1, name: "Fresh", exact: true });
@@ -157,10 +155,7 @@ test("shows a card added and edited on the note, the 노트 page and 홈, and on
   await expect(fresh).toBeVisible();
 
   // A card added stays on the note, which lists it; the 노트 page counts it and 홈 offers 시작.
-  await untilReacted(
-    () => page.getByRole("button", { name: "카드 추가", exact: true }).click(),
-    () => page.getByRole("dialog", { name: "카드 추가" }).isVisible(),
-  );
+  await addByHand(page);
   await page.getByRole("button", { name: "직접 입력", exact: true }).click();
   const editor = page.getByRole("dialog", { name: "새 카드" });
   await editor.getByRole("textbox", { name: "앞면", exact: true }).fill("apple");

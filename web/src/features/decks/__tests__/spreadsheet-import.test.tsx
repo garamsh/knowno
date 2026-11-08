@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { addByHand } from "@/testing/add-by-hand";
 import { render } from "@/testing/render";
 import { cardRow, deckRow, uuidOf } from "@/testing/library";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
@@ -8,7 +9,7 @@ import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
 import { signedInCookies } from "@/testing/session";
 import { xlsxOf } from "@/testing/xlsx";
-import { AuthoringButton } from "../components/authoring-button";
+import { NoteSettings } from "../components/note-settings";
 import { parseCells, sidesOf } from "../card-content";
 import { parseDeckId } from "../library";
 
@@ -27,8 +28,8 @@ if (!deckId) throw new Error("fixture deck id");
 const deck = { id: deckId, name: "단어장", public: false };
 
 async function openFile(file: File) {
-  await render(() => <AuthoringButton deck={deck} />, {});
-  await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+  await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+  await addByHand();
   await userEvent.click(screen.getByRole("button", { name: "엑셀·CSV 파일" }));
   // The body's second sentence names both limits; the paragraph holds more, so this is presence.
   expect(screen.getByText(/파일은 5MB, 1,000행까지 읽어요\./u)).toBeVisible();
@@ -45,8 +46,8 @@ const fronts = () =>
 
 describe("cards from a file", () => {
   it("heads 카드 확인 at the top of its content under a bar of 닫기 alone, the file's name under it, as the phone does", async () => {
-    await render(() => <AuthoringButton deck={deck} />, {});
-    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+    await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+    await addByHand();
     await userEvent.click(screen.getByRole("button", { name: "엑셀·CSV 파일" }));
     // Control: the sheet before it holds its title beside 닫기.
     const sheet = within(screen.getByRole("dialog", { name: "파일에서 카드 추가" }));
@@ -197,8 +198,8 @@ describe("cards from a file", () => {
   });
 
   it("states a refused file and asks before discarding read cards", async () => {
-    await render(() => <AuthoringButton deck={deck} />, {});
-    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+    await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+    await addByHand();
     await userEvent.click(screen.getByRole("button", { name: "엑셀·CSV 파일" }));
     fireEvent.change(screen.getByLabelText("파일 고르기", { selector: "input" }), {
       target: { files: [new File(["x"], "words.xls")] },

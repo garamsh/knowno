@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { leftShare, parseEvent, parseRefusal } from "../protocol";
+import { leftShare, parseEvent, parsePoll, parseRefusal } from "../protocol";
 
 export const proposalData = {
   id: "p1",
@@ -28,6 +28,11 @@ describe("reading the assistant's events", () => {
       type: "choice",
       choice: { prompt: "형식은?", options: ["단어", "표"] },
     });
+    expect(parseEvent("job", '{"id":"j1","photos":3,"status":"running"}')).toEqual({
+      type: "job",
+      id: "j1",
+      photos: 3,
+    });
     expect(parseEvent("error", '{"error":"cut"}')).toEqual({ type: "error", error: "cut" });
     expect(
       parseEvent(
@@ -48,6 +53,7 @@ describe("reading the assistant's events", () => {
     expect(parseEvent("text", "not json")).toBe("malformed");
     expect(parseEvent("text", '{"delta":3}')).toBe("malformed");
     expect(parseEvent("error", '{"error":"other"}')).toBe("malformed");
+    expect(parseEvent("job", '{"id":"j1"}')).toBe("malformed");
     // A group in a form no card takes, and a card without its card.
     const badFormat = { ...proposalData, groups: [{ ...proposalData.groups[0], format: "csv" }] };
     expect(parseEvent("proposal", JSON.stringify(badFormat))).toBe("malformed");
@@ -56,6 +62,36 @@ describe("reading the assistant's events", () => {
       groups: [{ ...proposalData.groups[0], cards: [{ id: "c1" }] }],
     };
     expect(parseEvent("proposal", JSON.stringify(badCard))).toBe("malformed");
+  });
+});
+
+describe("reading a photo job's poll", () => {
+  const poll = (status: string, photos: string[]) => ({
+    id: "j1",
+    status,
+    photos: photos.map((photo, position) => ({
+      position,
+      photo_id: `p${String(position)}`,
+      status: photo,
+    })),
+    queued: photos.filter((photo) => photo === "queued").length,
+  });
+
+  it("counts the photos no longer queued as finished, whether read, failed or skipped", () => {
+    expect(parsePoll(poll("running", ["read", "failed", "skipped", "queued", "queued"]))).toEqual({
+      id: "j1",
+      photos: 5,
+      finished: 3,
+      state: "running",
+    });
+    expect(parsePoll(poll("done", ["read", "read"]))?.state).toBe("done");
+    expect(parsePoll(poll("cancelled", ["cancelled", "read"]))?.state).toBe("cancelled");
+  });
+
+  it("reads a body that is no poll as none", () => {
+    expect(parsePoll({ ...poll("running", ["read"]), status: "lost" })).toBeNull();
+    expect(parsePoll({ id: "j1", status: "running", photos: [{}] })).toBeNull();
+    expect(parsePoll(null)).toBeNull();
   });
 });
 

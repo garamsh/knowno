@@ -466,15 +466,17 @@ describe("홈 and the 노트 page", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("heads the 노트 page with + 새 노트 in the tonal fill beside its title, which holds no primary fill", async () => {
+  it("heads the 노트 page with ⋯ 노트 메뉴 on a raised surface beside its title, which holds no primary fill", async () => {
     postgrest.seed("decks", deckRow("d-fr", "French"));
     await renderNotes();
 
     const header = screen.getByRole("heading", { level: 1, name: "노트" }).closest("header");
-    const add = screen.getByRole("button", { name: "새 노트" });
-    expect(add.closest("header")).toBe(header);
-    expect(add).toHaveClass("rounded-button", "bg-brand-tint", "text-accent", "text-label");
-    expect(add.querySelector("svg")).not.toBeNull();
+    const menu = screen.getByRole("button", { name: "노트 메뉴" });
+    expect(menu.closest("header")).toBe(header);
+    expect(menu).toHaveClass("rounded-chip", "bg-surface", "size-tap-target");
+    expect(menu.querySelector("svg")).not.toBeNull();
+    // Making a note by hand is its one item, where 새 노트 was a button (#722).
+    expect(screen.queryByRole("button", { name: "새 노트" })).not.toBeInTheDocument();
     expect(document.querySelector(".bg-primary")).toBeNull();
     // Control: the selector finds a primary fill where the page draws one, 홈's first run.
     cleanup();
@@ -916,8 +918,9 @@ describe("홈 and the 노트 page", () => {
       await renderNotes();
       expect({ state, notes: typeSizesOf(document.body) }).toEqual({
         state,
-        // With no note, the title and + 새 노트 alone.
-        notes: state === "첫 노트를 만들어 볼까요?" ? [16, 28] : [13, 16, 28],
+        // With no note, the title alone: ⋯ and 말랑이 at the edge draw no words, and the
+        // one-time hint waits for a first note.
+        notes: state === "첫 노트를 만들어 볼까요?" ? [28] : [13, 16, 28],
       });
       cleanup();
     }
