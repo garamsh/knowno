@@ -1,0 +1,148 @@
+[
+  {
+    "answers": [
+      "Paris"
+    ],
+    "name": "one blank",
+    "source": "The capital is {{c1::Paris}}.",
+    "text": "The capital is ___."
+  },
+  {
+    "answers": [
+      "Paris",
+      "France"
+    ],
+    "name": "two blanks",
+    "source": "{{c1::Paris}} is the capital of {{c2::France}}",
+    "text": "___ is the capital of ___"
+  },
+  {
+    "answers": [
+      "a",
+      "b"
+    ],
+    "name": "a blank at each end",
+    "source": "{{c1::a}} middle {{c2::b}}",
+    "text": "___ middle ___"
+  },
+  {
+    "answers": [
+      "a",
+      "b"
+    ],
+    "name": "adjacent blanks",
+    "source": "{{c1::a}}{{c2::b}}",
+    "text": "______"
+  },
+  {
+    "answers": [
+      "a"
+    ],
+    "name": "four underscores are a blank and an underscore",
+    "source": "{{c1::a}}_",
+    "text": "____"
+  },
+  {
+    "answers": [],
+    "name": "no blank and no answer",
+    "source": "plain",
+    "text": "plain"
+  },
+  {
+    "answers": [
+      "한국"
+    ],
+    "name": "korean",
+    "source": "서울은 {{c1::한국}}의 수도다",
+    "text": "서울은 ___의 수도다"
+  },
+  {
+    "answers": [
+      "x y"
+    ],
+    "name": "an answer with spaces",
+    "source": "a {{c1::x y}} b",
+    "text": "a ___ b"
+  },
+  {
+    "answers": [
+      "c"
+    ],
+    "name": "a line break in the text",
+    "source": "a\n{{c1::c}}\nb",
+    "text": "a\n___\nb"
+  },
+  {
+    "answers": [
+      "std::vec"
+    ],
+    "name": "an answer holding colons is refused",
+    "source": null,
+    "text": "a ___"
+  },
+  {
+    "answers": [
+      "x}}y"
+    ],
+    "name": "an answer holding closing braces is refused",
+    "source": null,
+    "text": "a ___"
+  },
+  {
+    "answers": [
+      "**b**"
+    ],
+    "name": "an answer holding a mark is refused",
+    "source": null,
+    "text": "a ___"
+  },
+  {
+    "answers": [
+      "b"
+    ],
+    "name": "a mark in the text is refused",
+    "source": null,
+    "text": "*a* ___"
+  },
+  {
+    "answers": [
+      "b"
+    ],
+    "name": "a literal cloze in the text is refused",
+    "source": null,
+    "text": "{{c2::x}} ___"
+  },
+  {
+    "answers": [
+      "b"
+    ],
+    "name": "a list marker in the text is refused",
+    "source": null,
+    "text": "- a ___"
+  },
+  {
+    "answers": [
+      " "
+    ],
+    "name": "an answer of spaces is refused",
+    "source": null,
+    "text": "a ___"
+  },
+  {
+    "answers": [
+      "a"
+    ],
+    "name": "fewer answers than blanks is refused",
+    "source": null,
+    "text": "___ ___"
+  },
+  {
+    "answers": [
+      "a",
+      "b"
+    ],
+    "name": "more answers than blanks is refused",
+    "source": null,
+    "text": "___"
+  }
+]
