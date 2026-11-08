@@ -35,6 +35,7 @@ A screen draws each job through the component named here, not from Material widg
 | A read failure with "다시 시도" | `ListMessage` (`sharing`), in place of browse's decks and a public deck's cards | `ReadFailureMessage`, a sentence over "다시 시도" (`RetryButton`), a way to sign in, or nothing more |
 | A skeleton while content loads | `AppRowSurface` rows (photo import) | `Skeleton`, `SkeletonLine` |
 | A figure or label fitted to a narrow column | `FittedBox` with `BoxFit.scaleDown` | `FittedLine` |
+| A card text the engine read, its marks, lists and clozes | `markupSpan` | `MarkupText` |
 | The keyboard's dismissal | `KeyboardDismissal`, wrapping every route from `KnownoApp` | the browser's |
 | The mascot | `Mascot` | `Mascot` |
 | A card side's text | `CardText` (`deck`) | `decks`' card blocks |

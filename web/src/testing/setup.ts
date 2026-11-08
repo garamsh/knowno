@@ -3,6 +3,10 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, configure, getConfig } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from "vitest";
 
+// A test has the engine's module loaded from its file, as the server loads it on its first read.
+import { installMarkupModule } from "@/design/markup-engine";
+import { readEngineModule } from "@/design/markup-engine-server";
+
 import { server } from "./mocks/server";
 import { testRouter } from "./router";
 import { assertTestRunning, endTest, enterTest } from "./running-test";
@@ -21,6 +25,8 @@ vi.mock("next/navigation", async (importOriginal) => {
     useRouter: () => testRouter,
   };
 });
+
+installMarkupModule(readEngineModule());
 
 beforeAll(() => {
   server.listen({ onUnhandledFrame: "error" });

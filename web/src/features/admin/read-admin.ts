@@ -1,5 +1,7 @@
 import "server-only";
 
+// Importing this lets the server read card text through the engine (ADR 0209).
+import "@/design/markup-engine-server";
 import { cookies } from "next/headers";
 
 import { describeContent, parseCells, parseContent, sidesOf } from "@/features/decks";

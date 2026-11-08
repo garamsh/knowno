@@ -1,3 +1,5 @@
+import { documentText, type Marked, markedOf, clozeNumbers } from "@/design/markup-engine";
+
 /**
  * One block of a card side, as the phone stores it: a `{type, v, id, payload}` object in the
  * side's JSON array (`deck.md`), its kind the `type` and its version the `v`, read as 1 when
@@ -10,10 +12,15 @@
  * card a later version wrote is shown, not lost. A block keeps the id it was stored with, and a
  * photo or a sound the payload fields this build does not know, so a save writes them back. A
  * photo's or a sound's `url` is the signed URL a read drew it from (ADR 0163), never stored.
+ *
+ * A text that is markup, a 글 of version 3, and a cloze of version 2, whose text is Anki's syntax
+ * and which holds no answers, carry what the engine read of their text in `markup`, read once as
+ * the block is parsed, so a screen draws it and a card key is made of it without the engine
+ * (ADR 0209).
  */
 export type Content = (
-  | { kind: "text"; text: string }
-  | { kind: "cloze"; text: string; answers: string[] }
+  | { kind: "text"; text: string; markup?: Marked }
+  | { kind: "cloze"; text: string; answers: string[]; markup?: Marked }
   | {
       kind: "table";
       columns: string[];
@@ -115,7 +122,7 @@ type KnownType = "text" | "cloze" | "table" | "senses" | "image" | "audio";
 /**
  * The steps that upgrade each known type's payload, one per version: the first turns a v1
  * payload into a v2 one, and so on, as the app's `blockUpcasters` does. The version a type is
- * read at is one more than its steps: a table at v2, every other type at v1.
+ * read at is one more than its steps: a table and a cloze at v2, every other type at v1.
  */
 /**
  * A v1 table's payload as v2's: its blanks stay whole cells, and it holds no span (ADR 0110).
@@ -127,7 +134,8 @@ function tableWithSpans(payload: unknown): unknown {
 
 export const blockUpcasters: Record<KnownType, ((payload: unknown) => unknown)[]> = {
   text: [],
-  cloze: [],
+  // A cloze of version 2 is read by its version, not upgraded from version 1.
+  cloze: [(payload) => payload],
   table: [tableWithSpans],
   senses: [],
   image: [],
@@ -184,6 +192,16 @@ function parseCloze(payload: Record<string, unknown>): Content | null {
   if (answers.some((answer) => answer.trim() === "")) return null;
   if (text.split(clozeBlank).length - 1 !== answers.length) return null;
   return { kind: "cloze", text, answers };
+}
+
+/**
+ * A cloze of version 2: a text in Anki's syntax holding at least one cloze, read by the engine; null
+ * otherwise, which the caller keeps as a block this build cannot read (ADR 0209).
+ */
+function parseClozeMarkup(payload: Record<string, unknown>): Content | null {
+  const { text } = payload;
+  if (typeof text !== "string" || clozeNumbers(text).length === 0) return null;
+  return { kind: "cloze", text, answers: [], markup: markedOf(text) };
 }
 
 /**
@@ -384,7 +402,9 @@ function parseStoredBlocks(value: unknown): Content[] | null {
           ? ({ kind: "text", text: payload.text } as const)
           : null
         : type === "cloze"
-          ? parseCloze(payload)
+          ? (version as number) >= 2
+            ? parseClozeMarkup(payload)
+            : parseCloze(payload)
           : type === "table"
             ? parseTable(payload)
             : type === "senses"
@@ -392,6 +412,11 @@ function parseStoredBlocks(value: unknown): Content[] | null {
               : type === "image"
                 ? parseImage(payload)
                 : parseAudio(payload);
+    // A cloze of version 2 with no cloze in it is kept as read, as a block of a later version is.
+    if (!parsed && type === "cloze" && (version as number) >= 2) {
+      blocks.push({ kind: "unsupported", type, ...idOf(id) });
+      continue;
+    }
     if (!parsed) return null;
     blocks.push({ ...parsed, ...idOf(id) });
   }
@@ -441,6 +466,16 @@ export function cellRuns(
   return runs;
 }
 
+/** A cloze block's text with each blank as [fill] gives it, in order; a version 2 one through its document. */
+function filledCloze(
+  block: Extract<Content, { kind: "cloze" }>,
+  fill: (answer: string) => string,
+): string {
+  return block.markup
+    ? documentText(block.markup.document, fill)
+    : fillCloze(block.text, block.answers, fill);
+}
+
 /** A cloze's text with each blank as [fill] gives it, in order. */
 function fillCloze(text: string, answers: string[], fill: (answer: string) => string): string {
   return text
@@ -458,9 +493,9 @@ export function describeContent(blocks: Content[]): string {
     .map((block) => {
       switch (block.kind) {
         case "text":
-          return block.text;
+          return block.markup?.plain ?? block.text;
         case "cloze":
-          return fillCloze(block.text, block.answers, (answer) => answer);
+          return block.markup?.plain ?? filledCloze(block, (answer) => answer);
         case "table":
           return [block.columns, ...block.rows].map((cells) => cells.join(" | ")).join("\n");
         case "senses":
@@ -509,7 +544,7 @@ export function spokenContent(blocks: Content[], revealed: boolean): string {
     .map((block) => {
       switch (block.kind) {
         case "cloze":
-          return fillCloze(block.text, block.answers, blank);
+          return filledCloze(block, blank);
         case "table":
           return [
             block.columns.join(", "),
@@ -563,18 +598,31 @@ export type WordAsk = "term" | "meaning";
  * before the reveal and its back added by it, either empty; a 단어, its word and meanings, [ask]
  * naming the one shown first; a 칸 whose blanks are the question and whose filling is the answer;
  * a 사진 without a box or a 소리 on one side; or a 칸 this build does not know, kept as read. A 글
- * or a 단어 keeps its stored block's [id], as every other 칸's block does.
+ * or a 단어 keeps its stored block's [id], as every other 칸's block does. A 글 whose parts are
+ * markup, stored as version 3, holds what the engine read of each in [marks]; one of version 2
+ * reads them as written (ADR 0209).
  */
 export type Cell =
-  | { kind: "text"; front: string; back: string; id?: string }
+  | { kind: "text"; front: string; back: string; marks?: TextMarks; id?: string }
   | { kind: "word"; term: string; senses: Sense[]; ask: WordAsk; id?: string }
   | { kind: "blank"; block: Content }
   | { kind: "placed"; block: Content; side: CellSide }
   | { kind: "unknown"; block: Content };
 
+/** What the engine read of a markup 글's two parts. */
+export type TextMarks = { front: Marked; back: Marked };
+
+/** [front] and [back] read by the engine, as a 글 of version 3 holds them. */
+export function marksOf(front: string, back: string): TextMarks {
+  return { front: markedOf(front), back: markedOf(back) };
+}
+
 function isUnknown(block: Content): boolean {
   return block.kind === "unsupported";
 }
+
+/** The version of a 글 whose parts are markup (ADR 0208); version 2 is read as written. */
+export const markupTextVersion = 3;
 
 /** The version of each type a 칸 list stores with fields of its own, as the phone's `_frameVersions`. */
 export const frameVersions = new Map([
@@ -603,11 +651,21 @@ function frontCell(block: Content): Cell {
   }
 }
 
-function parseTextCell(payload: Record<string, unknown>, id: unknown): Cell | null {
+function parseTextCell(
+  payload: Record<string, unknown>,
+  id: unknown,
+  markup: boolean,
+): Cell | null {
   const { front, back } = payload;
   if (typeof front !== "string" || typeof back !== "string") return null;
   if (front.trim() === "" && back.trim() === "") return null;
-  return { kind: "text", front, back, ...idOf(id) };
+  return {
+    kind: "text",
+    front,
+    back,
+    ...(markup && { marks: marksOf(front, back) }),
+    ...idOf(id),
+  };
 }
 
 function parseWordCell(payload: Record<string, unknown>, id: unknown): Cell | null {
@@ -632,11 +690,11 @@ function parseCell(block: unknown): Cell | null {
   if (
     typeof type === "string" &&
     v !== undefined &&
-    v === frameVersions.get(type) &&
+    (v === frameVersions.get(type) || (type === "text" && v === markupTextVersion)) &&
     isRecord(payload)
   ) {
     if (id !== undefined && id !== null && typeof id !== "string") return null;
-    if (type === "text") return parseTextCell(payload, id);
+    if (type === "text") return parseTextCell(payload, id, v === markupTextVersion);
     if (type === "senses") return parseWordCell(payload, id);
     return parsePlacedCell(type, payload, id);
   }
@@ -776,9 +834,12 @@ export type CellPart = { block: Content; added: boolean };
 function partsOf(cell: Cell): CellPart[] {
   switch (cell.kind) {
     case "text": {
-      const part = (text: string, added: boolean): CellPart[] =>
-        text === "" ? [] : [{ block: { kind: "text", text }, added }];
-      return [...part(cell.front, false), ...part(cell.back, true)];
+      const part = (text: string, added: boolean, markup?: Marked): CellPart[] =>
+        text === "" ? [] : [{ block: { kind: "text", text, ...(markup && { markup }) }, added }];
+      return [
+        ...part(cell.front, false, cell.marks?.front),
+        ...part(cell.back, true, cell.marks?.back),
+      ];
     }
     case "word": {
       const term: Content[] = cell.term === "" ? [] : [{ kind: "text", text: cell.term }];

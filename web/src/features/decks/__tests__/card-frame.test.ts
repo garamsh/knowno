@@ -107,7 +107,7 @@ describe("parseCells", () => {
   });
 
   it("keeps a 칸 of a later version, which counts as a question", () => {
-    const cells = parseCells([{ type: "text", v: 3, payload: { front: "a" } }]);
+    const cells = parseCells([{ type: "text", v: 4, payload: { front: "a", back: "" } }]);
     expect(cells).toEqual([{ kind: "unknown", block: { kind: "unsupported", type: "text" } }]);
     expect(frameProblem(cells ?? [])).toBeNull();
   });
