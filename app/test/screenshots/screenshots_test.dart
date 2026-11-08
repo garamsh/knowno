@@ -403,6 +403,7 @@ void main() {
       await showNotes(tester);
       final scroll = await tester.startGesture(const Offset(200, 500));
       await scroll.moveBy(const Offset(0, -120));
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       await shot(tester, 'assistant-05-notes-tucked');
       await scroll.up();
