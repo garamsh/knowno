@@ -3,6 +3,7 @@ import Link from "next/link";
 import { formatTime } from "../format";
 import {
   actionLabels,
+  cardFormLabels,
   labelOf,
   planLabels,
   providerLabels,
@@ -27,7 +28,9 @@ function Target({ entry }: { entry: AuditEntry }) {
             ? `버전 ${entry.targetId}`
             : entry.targetKind === "provider"
               ? labelOf(providerLabels, entry.targetId)
-              : entry.targetId;
+              : entry.targetKind === "card_form"
+                ? labelOf(cardFormLabels, entry.targetId)
+                : entry.targetId;
   const href =
     entry.targetKind === "deck"
       ? `/decks/${entry.targetId}`
@@ -41,7 +44,9 @@ function Target({ entry }: { entry: AuditEntry }) {
               ? "/ai"
               : entry.targetKind === "assistant_prompt"
                 ? "/assistant"
-                : null;
+                : entry.targetKind === "card_form"
+                  ? `/assistant?${new URLSearchParams({ skill: entry.targetId }).toString()}`
+                  : null;
   return href === null ? (
     <span>{words}</span>
   ) : (

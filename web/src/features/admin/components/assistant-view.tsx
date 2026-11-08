@@ -6,8 +6,21 @@ import { Section } from "@/design/section";
 import { activateAssistantConfiguration } from "../activate-assistant-configuration";
 import { clearAssistantTest } from "../clear-assistant-test";
 import { formatTime } from "../format";
-import { effortLabels, labelOf, planLabels, providerLabels, tokenBudgetLabel } from "../labels";
-import type { AssistantBudget, AssistantConfiguration, PlanId, PromptDetail } from "../read-admin";
+import {
+  type CardForm,
+  effortLabels,
+  labelOf,
+  planLabels,
+  providerLabels,
+  tokenBudgetLabel,
+} from "../labels";
+import type {
+  AssistantBudget,
+  AssistantConfiguration,
+  PlanId,
+  PromptDetail,
+  SkillVersion,
+} from "../read-admin";
 import { saveAssistantPrompt } from "../save-assistant-prompt";
 import { button, group, Parts, row } from "./admin-section";
 import { AdminTable, CellLabel, cellClass, rowClass } from "./admin-table";
@@ -17,6 +30,7 @@ import { ConfirmAction } from "./confirm-action";
 import { PromptChanges } from "./prompt-changes";
 import { PromptForm } from "./prompt-form";
 import { PromptVersions } from "./prompt-versions";
+import { SkillList, SkillPanel } from "./skills";
 
 const assistantPlans: readonly PlanId[] = ["free", "pro", "max", "special"];
 
@@ -36,6 +50,13 @@ const plansHead = [
 function assistantHref(plan: PlanId, write?: number | "active"): string {
   const params = new URLSearchParams({ plan });
   if (write !== undefined) params.set("write", write === "active" ? "" : String(write));
+  return `/assistant?${params.toString()}`;
+}
+
+/** 말랑이's address with [plan]'s panel open and [form]'s skill panel, from version [from] of it. */
+function skillHref(plan: PlanId, form: CardForm, from?: number): string {
+  const params = new URLSearchParams({ plan, skill: form });
+  if (from !== undefined) params.set("from", String(from));
   return `/assistant?${params.toString()}`;
 }
 
@@ -90,7 +111,8 @@ function budgetWords(budget: AssistantBudget | undefined): string {
  * prompt version, web search, reasoning effort and daily token budget, with its draft; the chosen
  * plan's draft against it, its prompt's lines, 테스트 끝내기 and 모두에게 적용, the form for a new
  * draft, and its budget's form; beside them the assistant's prompt versions, with the form for a
- * new version while [write] is open.
+ * new version while [write] is open, and the card forms' skills (ADR 0212), with a form's panel
+ * above the plan's while [skill] names it.
  */
 export function AssistantView({
   configurations,
@@ -98,6 +120,8 @@ export function AssistantView({
   budgets,
   plan,
   write,
+  skills,
+  skill,
   timeZone,
 }: {
   configurations: AssistantConfiguration[];
@@ -108,6 +132,10 @@ export function AssistantView({
   plan: PlanId;
   /** The new version's form, from the version it starts with, or empty; null while closed. */
   write: { from: PromptDetail | null } | null;
+  /** Every saved card-form skill version, newest first. */
+  skills: SkillVersion[];
+  /** The card form whose skill panel is open, from the version it starts with or none; null while closed. */
+  skill: { form: CardForm; from: SkillVersion | null } | null;
   timeZone: string;
 }) {
   const find = (of: PlanId, label: "active" | "test") =>
@@ -176,6 +204,15 @@ export function AssistantView({
               save={saveAssistantPrompt}
             />
           )}
+          {skill !== null && (
+            <SkillPanel
+              form={skill.form}
+              skills={skills}
+              from={skill.from}
+              fromHref={(id) => skillHref(plan, skill.form, id)}
+              timeZone={timeZone}
+            />
+          )}
           <Panel
             plan={plan}
             active={find(plan, "active")}
@@ -189,11 +226,14 @@ export function AssistantView({
             timeZone={timeZone}
           />
         </div>
-        <PromptVersions
-          versions={prompts}
-          writeHref={(from) => assistantHref(plan, from)}
-          timeZone={timeZone}
-        />
+        <div className="flex min-w-0 flex-col gap-section-gap">
+          <PromptVersions
+            versions={prompts}
+            writeHref={(from) => assistantHref(plan, from)}
+            timeZone={timeZone}
+          />
+          <SkillList skills={skills} href={(form) => skillHref(plan, form)} />
+        </div>
       </div>
     </div>
   );
