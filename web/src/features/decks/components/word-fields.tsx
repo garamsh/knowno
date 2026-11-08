@@ -4,7 +4,7 @@ import { emptySense, type CellDraft, type SenseDraft, senseRequired } from "../a
 import type { WordAsk } from "../card-content";
 import { firstField, useEditing } from "./editing";
 import { Choices, type Draft, Field, Problem } from "./editor-field";
-import { RowMenu } from "./row-menu";
+import { RowMenu } from "@/design/row-menu";
 
 /** The row of meaning [key]. */
 const senseRow = (key: string | undefined) =>

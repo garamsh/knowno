@@ -81,8 +81,16 @@ const routes = appRoutes();
 /** The admin area's routes, which the service's host does not serve (ADR 0178). */
 const isAdminRoute = (route: string) => route === "/admin" || route.startsWith("/admin/");
 const adminRoutes = routes.filter(isAdminRoute);
+/**
+ * Routes outside the proxy's matcher that refuse a signed-out visitor themselves: 말랑이's
+ * messages answer 401 (`features/assistant/__tests__/assistant-server.test.ts`).
+ */
+const selfGatedRoutes = ["/api/assistant"];
 const gatedRoutes = [
-  ...routes.filter((route) => !publicRoutes.includes(route) && !isAdminRoute(route)),
+  ...routes.filter(
+    (route) =>
+      !publicRoutes.includes(route) && !selfGatedRoutes.includes(route) && !isAdminRoute(route),
+  ),
   "/no-such-page",
 ];
 /** Each admin route by its path on the admin host: `/admin/users` is `/users` there. */
@@ -95,7 +103,7 @@ describe("the sign-in gate", () => {
   });
 
   it("finds every route the app serves", () => {
-    expect(routes).toEqual(expect.arrayContaining(["/", ...publicRoutes]));
+    expect(routes).toEqual(expect.arrayContaining(["/", ...publicRoutes, ...selfGatedRoutes]));
     expect(adminRoutes).toEqual(expect.arrayContaining(["/admin", "/admin/login", "/admin/users"]));
   });
 

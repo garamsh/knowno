@@ -230,8 +230,10 @@ test("normalises each photo, shows a 502 on its row, retries it in place, and sa
   });
 
   // A first note, opened with its 카드 추가 sheet up; the photos' cards then go to a new one.
+  // First-run 홈 now offers "말랑이와 첫 노트 만들기" (#711); manual creation is the 노트 page's.
+  await page.goto("/decks");
   await untilReacted(
-    () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
+    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
   await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("임시");
@@ -369,8 +371,10 @@ test("leaves a failed photo import by the browser's back in one step, and the ne
     await route.fulfill({ response, body });
   });
 
+  // First-run 홈 now offers "말랑이와 첫 노트 만들기" (#711); manual creation is the 노트 page's.
+  await page.goto("/decks");
   await untilReacted(
-    () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
+    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
   await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("임시");
@@ -463,8 +467,10 @@ test("reads on while the user studies, its bar heading each page and covering no
     await route.fulfill({ response, body });
   });
 
+  // First-run 홈 now offers "말랑이와 첫 노트 만들기" (#711); manual creation is the 노트 page's.
+  await page.goto("/decks");
   await untilReacted(
-    () => page.getByRole("button", { name: "새 노트 만들기", exact: true }).click(),
+    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
     () => page.getByRole("dialog").isVisible(),
   );
   await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("수도");

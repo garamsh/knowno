@@ -19,13 +19,14 @@ export const homeWords = "flex flex-1 flex-col items-center justify-center gap-1
 
 /**
  * The mascot's room at the sky's foot: `mascot-hero` and the hill's 32 px, less the 8 its feet
- * stand below the crest, so its box ends 24 px over the sky's foot.
+ * stand below the crest, so the mascot ends 24 px over the sky's foot; on the web what it says
+ * stands over its head in the room, which grows by it, so the sky gives way rather than cover.
  */
 export const homeMascotRoom =
-  "relative h-[calc(var(--spacing-mascot-hero)+6*var(--spacing))] shrink-0";
+  "relative flex min-h-[calc(var(--spacing-mascot-hero)+6*var(--spacing))] shrink-0 flex-col items-center justify-end pb-6";
 
 /** The mascot on the crest, centred; nothing else is drawn at its upper right (#721). */
-export const homeMascot = "absolute bottom-6 left-1/2 size-mascot-hero -translate-x-1/2";
+export const homeMascot = "size-mascot-hero";
 
 /**
  * The ground: what it shows centred over the actions, clear of a side's inset, at least the
