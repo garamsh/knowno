@@ -79,6 +79,7 @@ Future<void> main() async {
           functionUrl: assistantUrl(client.rest.url),
           accessToken: () async => client.auth.currentSession?.accessToken,
           readAllowance: () => client.rpc<Object?>('assistant_allowance'),
+          storePhoto: SupabasePhotoStore(client).store,
         ),
         null => null,
       },
@@ -197,6 +198,7 @@ Widget composeApp(
       deckStorageProvider.overrideWithValue(preferences),
       assistantClientProvider.overrideWithValue(assistant),
       assistantStorageProvider.overrideWithValue(preferences),
+      assistantPhotoSourceProvider.overrideWithValue(const DevicePhotoSource()),
     ],
     child: const KnownoApp(),
   );

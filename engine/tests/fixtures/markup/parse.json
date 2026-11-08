@@ -26,6 +26,10 @@
         "type": "paragraph"
       },
       {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
         "content": [
           {
             "text": "two",
@@ -36,7 +40,7 @@
       }
     ],
     "input": "one\n\ntwo",
-    "name": "two paragraphs"
+    "name": "a blank line is an empty line between two paragraphs"
   },
   {
     "document": [
@@ -50,6 +54,18 @@
         "type": "paragraph"
       },
       {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
         "content": [
           {
             "text": "two",
@@ -60,7 +76,7 @@
       }
     ],
     "input": "one\n\n\n\ntwo",
-    "name": "several blank lines make one break"
+    "name": "a run of blank lines is kept line by line"
   },
   {
     "document": [
@@ -98,6 +114,15 @@
       {
         "content": [
           {
+            "text": "  ",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
             "text": "two",
             "type": "text"
           }
@@ -106,7 +131,7 @@
       }
     ],
     "input": "one\n  \ntwo",
-    "name": "a blank line of spaces separates paragraphs"
+    "name": "a line of spaces is kept with its spaces"
   },
   {
     "document": [
@@ -140,10 +165,14 @@
           }
         ],
         "type": "paragraph"
+      },
+      {
+        "content": [],
+        "type": "paragraph"
       }
     ],
     "input": "one\n",
-    "name": "a trailing newline adds nothing"
+    "name": "a trailing newline is an empty line"
   },
   {
     "document": [],
@@ -151,9 +180,32 @@
     "name": "empty text has no block"
   },
   {
-    "document": [],
+    "document": [
+      {
+        "content": [
+          {
+            "text": " ",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "\t",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [],
+        "type": "paragraph"
+      }
+    ],
     "input": " \n\t\n",
-    "name": "only whitespace has no block"
+    "name": "a text of whitespace lines is those lines"
   },
   {
     "document": [
@@ -1120,6 +1172,10 @@
         "type": "paragraph"
       },
       {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
         "content": [
           {
             "text": "b}}",
@@ -1130,7 +1186,7 @@
       }
     ],
     "input": "{{c1::a\n\nb}}",
-    "name": "cloze across paragraphs is literal"
+    "name": "cloze across a blank line is literal"
   },
   {
     "document": [
@@ -1548,6 +1604,10 @@
         "type": "list"
       },
       {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
         "items": [
           {
             "content": [
@@ -1911,24 +1971,15 @@
       {
         "content": [
           {
-            "text": "\\",
+            "text": "*a*",
             "type": "text"
-          },
-          {
-            "content": [
-              {
-                "text": "a\\",
-                "type": "text"
-              }
-            ],
-            "type": "italic"
           }
         ],
         "type": "paragraph"
       }
     ],
     "input": "\\*a\\*",
-    "name": "a backslash does not escape a mark"
+    "name": "an escaped mark is literal"
   },
   {
     "document": [
@@ -1988,5 +2039,734 @@
     ],
     "input": "a 😀 **b 😀**",
     "name": "emoji"
+  },
+  {
+    "document": [
+      {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\na",
+    "name": "a leading newline is an empty line"
+  },
+  {
+    "document": [
+      {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
+        "content": [],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\n",
+    "name": "a lone newline is two empty lines"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
+        "content": [],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a\n\n",
+    "name": "two trailing newlines are two empty lines"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a\rb",
+    "name": "a lone carriage return reads as a newline"
+  },
+  {
+    "document": [
+      {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
+        "content": [],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\r",
+    "name": "a carriage return alone is two empty lines"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a\r\n\r\nb",
+    "name": "crlf blank lines read as empty lines"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "*a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": " ",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "b*",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "*a\n \nb*",
+    "name": "a mark does not cross a line of spaces"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a\\b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a\\\\b",
+    "name": "an escaped backslash is one backslash"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "_a_",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\\_a\\_",
+    "name": "an escaped underscore is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "`a`",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\\`a\\`",
+    "name": "an escaped backtick is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\\{a",
+    "name": "an escaped opening brace is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a\\}",
+    "name": "an escaped closing brace is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a:b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a\\:b",
+    "name": "an escaped colon is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{{c1::a}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\\{\\{c1\\:\\:a\\}\\}",
+    "name": "an escaped cloze is literal text"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{{c1::a}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\\{{c1::a}}",
+    "name": "an escaped opening brace keeps a cloze from opening"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{{c1::a}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1\\::a}}",
+    "name": "an escaped colon keeps a cloze from opening"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "- a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\\- a",
+    "name": "an escaped dash at a line start is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "12. a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\\12. a",
+    "name": "an escaped number at a line start is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "- b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a\n\\- b",
+    "name": "an escaped dash on a later line is literal"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      },
+      {
+        "content": [
+          {
+            "text": "- b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "- a\n\\- b",
+    "name": "an escaped dash after a list ends the list"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a \\- b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a \\- b",
+    "name": "a backslash before a dash inside a line is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a \\1. b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a \\1. b",
+    "name": "a backslash before a number inside a line is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "\\1 a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\\1 a",
+    "name": "a backslash before digits without a point is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a\\bc",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a\\bc",
+    "name": "a backslash before an ordinary character is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "\\가",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\\가",
+    "name": "a backslash before a korean character is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a\\",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a\\",
+    "name": "a trailing backslash is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a\\",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a\\\nb",
+    "name": "a backslash before a newline is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a\\\\",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a\\\\\\",
+    "name": "an escaped backslash then a trailing backslash"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "*a*",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "*a\\*",
+    "name": "an escaped asterisk does not close a mark"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "a*b",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "**a\\*b**",
+    "name": "an escaped asterisk sits inside a bold"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "a_b",
+                "type": "text"
+              }
+            ],
+            "type": "italic"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "_a\\_b_",
+    "name": "an escaped underscore sits inside an italic"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a*b",
+            "type": "code"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "`a\\*b`",
+    "name": "an escape sits inside code"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a`b",
+            "type": "code"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "`a\\`b`",
+    "name": "an escaped backtick sits inside code"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a}}b",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a\\}\\}b}}",
+    "name": "escaped braces sit inside a cloze answer"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a::b",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a\\:\\:b}}",
+    "name": "escaped colons sit inside a cloze answer"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "hint": "b::c",
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a::b\\:\\:c}}",
+    "name": "escaped colons sit inside a cloze hint"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "*a*",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::\\*a\\*}}",
+    "name": "escaped marks sit inside a cloze answer"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a",
+                "type": "text"
+              },
+              {
+                "type": "lineBreak"
+              },
+              {
+                "text": "- b",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a\n\\- b}}",
+    "name": "an escaped dash on a later line of a cloze answer does not start a list"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "*",
+            "type": "text"
+          },
+          {
+            "answer": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          },
+          {
+            "text": "*",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\\*{{c1::a}}\\*",
+    "name": "escaped marks around a cloze"
   }
 ]

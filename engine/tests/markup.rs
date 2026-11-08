@@ -1,7 +1,9 @@
 //! Card text markup and cloze: the conformance fixtures in `tests/fixtures/markup/`, the cloze
-//! API, the version 1 conversion, and the parser's totality over generated input.
+//! API, the version 1 conversion, the escape, and the parser's totality over generated input.
 
-use knowno_engine::{Block, Document, Inline, SubList, cloze_from_v1, parse_markup};
+use knowno_engine::{
+    Block, Document, Inline, SubList, cloze_from_v1, escape_literal, parse_markup,
+};
 use serde_json::{Map, Value, json};
 
 fn inlines_json(inlines: &[Inline]) -> Value {
@@ -125,21 +127,29 @@ fn every_plain_text_fixture_reads_as_its_card_key_text() {
     }
 }
 
+fn normalize_newlines(text: &str) -> String {
+    text.replace("\r\n", "\n").replace('\r', "\n")
+}
+
 /// The version 1 text with blank `hidden` kept and every other blank its answer; none hidden
 /// when `hidden` is zero.
 fn v1_with_blank(text: &str, answers: &[&str], hidden: usize) -> String {
     let mut out = String::new();
-    for (index, part) in text.split("___").enumerate() {
+    for (index, part) in normalize_newlines(text).split("___").enumerate() {
         out.push_str(part);
         if let Some(answer) = answers.get(index) {
-            out.push_str(if index + 1 == hidden { "___" } else { answer });
+            if index + 1 == hidden {
+                out.push_str("___");
+            } else {
+                out.push_str(&normalize_newlines(answer));
+            }
         }
     }
     out
 }
 
 #[test]
-fn every_version_1_fixture_converts_and_reads_back_or_is_refused() {
+fn every_version_1_fixture_converts_and_reads_back_or_is_refused_when_malformed() {
     let (mut converted, mut refused) = (0, 0);
     for case in &fixture("v1.json") {
         let text = str_of(case, "text");
@@ -178,22 +188,21 @@ fn every_version_1_fixture_converts_and_reads_back_or_is_refused() {
         }
     }
     assert!(
-        converted >= 8 && refused >= 8,
+        converted >= 20 && refused >= 5,
         "converted {converted}, refused {refused}"
     );
 }
 
 #[test]
-fn an_answer_that_would_not_read_back_is_refused_where_a_plain_one_converts() {
-    assert_eq!(cloze_from_v1("a ___", &["std::vec"]), None);
+fn only_a_malformed_version_1_block_is_refused() {
+    assert_eq!(cloze_from_v1("a ___", &[]), None);
+    assert_eq!(cloze_from_v1("a ___ ___", &["b"]), None);
+    assert_eq!(cloze_from_v1("a ___", &[""]), None);
+    assert_eq!(cloze_from_v1("a ___", &["x\n \ny"]), None);
+    // Control: the same text with a well-formed answer converts.
     assert_eq!(
-        cloze_from_v1("a ___", &["vec"]).as_deref(),
-        Some("a {{c1::vec}}")
-    );
-    assert_eq!(cloze_from_v1("*a* ___", &["b"]), None);
-    assert_eq!(
-        cloze_from_v1("a ___", &["b"]).as_deref(),
-        Some("a {{c1::b}}")
+        cloze_from_v1("a ___", &["x\ny"]).as_deref(),
+        Some("a {{c1::x\ny}}")
     );
 }
 
@@ -209,6 +218,13 @@ impl Stream {
     }
 }
 
+fn generated(stream: &mut Stream, pieces: &[&str], most: u64) -> String {
+    let length = stream.next() % most;
+    (0..length)
+        .map(|_| pieces[usize::try_from(stream.next()).expect("fits") % pieces.len()])
+        .collect()
+}
+
 fn no_adjacent_text(inlines: &[Inline]) -> bool {
     inlines
         .windows(2)
@@ -220,19 +236,17 @@ fn no_adjacent_text(inlines: &[Inline]) -> bool {
         })
 }
 
+const PIECES: &[&str] = &[
+    "*", "**", "_", "`", "{{c1::", "{{c2::", "}}", "::", "{{", "}", ":", "\n", "\n\n", "- ", "1. ",
+    "  - ", "\t", " ", "a", "b", "가", "😀", "\r", "\\", "#", "[", "_",
+];
+
 #[test]
 fn any_generated_text_parses_and_keeps_the_cloze_api_consistent() {
-    const PIECES: &[&str] = &[
-        "*", "**", "_", "`", "{{c1::", "{{c2::", "}}", "::", "{{", "}", ":", "\n", "\n\n", "- ",
-        "1. ", "  - ", "\t", " ", "a", "b", "가", "😀", "\r", "\\", "#", "[", "_",
-    ];
     let mut stream = Stream(0x9E37_79B9_7F4A_7C15);
     let mut clozed = 0;
     for _ in 0..20_000 {
-        let length = stream.next() % 24;
-        let text: String = (0..length)
-            .map(|_| PIECES[usize::try_from(stream.next()).expect("fits") % PIECES.len()])
-            .collect();
+        let text = generated(&mut stream, PIECES, 24);
         let document = parse_markup(&text);
         let filled = document.filled();
         assert!(
@@ -269,4 +283,113 @@ fn a_long_text_of_unclosed_marks_is_parsed() {
         parse_markup("*a*").blocks.as_slice(),
         [Block::Paragraph(content)] if matches!(content.as_slice(), [Inline::Italic(_)])
     ));
+}
+
+/// Whether the document holds only literal text, one paragraph per line.
+fn is_literal(document: &Document) -> bool {
+    document.blocks.iter().all(|block| match block {
+        Block::Paragraph(content) => content
+            .iter()
+            .all(|inline| matches!(inline, Inline::Text(_) | Inline::LineBreak)),
+        Block::List(_) => false,
+    })
+}
+
+/// Every piece the syntax gives meaning to, and the line starts and whitespace it reads.
+const DENSE_PIECES: &[&str] = &[
+    "*", "**", "_", "`", "{{c1::", "}}", "{", "}", "::", ":", "\\", "\\\\", "\\*", "\n", "\n\n",
+    "\r\n", "\r", "- ", "-", "1.", "1. ", "12", ".", " ", "  ", "\t", "\u{a0}", "\u{2028}", "a",
+    "b", "가", "😀", "#", "[", "]",
+];
+
+#[test]
+fn every_escape_fixture_is_written_as_its_markup_and_reads_back_as_the_text() {
+    let cases = fixture("escape.json");
+    assert!(cases.len() >= 20);
+    for case in &cases {
+        let text = str_of(case, "text");
+        let escaped = escape_literal(text);
+        assert_eq!(escaped, str_of(case, "escaped"), "{}", case["name"]);
+        let document = parse_markup(&escaped);
+        assert_eq!(
+            document.plain_text(),
+            normalize_newlines(text),
+            "{}",
+            case["name"]
+        );
+        assert!(is_literal(&document), "{}", case["name"]);
+    }
+}
+
+#[test]
+fn any_generated_text_escaped_reads_back_as_itself_with_no_mark_or_cloze() {
+    let mut stream = Stream(0xD1B5_4A32_D192_ED03);
+    let mut lines = 0;
+    for _ in 0..20_000 {
+        let text = generated(&mut stream, DENSE_PIECES, 30);
+        let document = parse_markup(&escape_literal(&text));
+        assert_eq!(document.plain_text(), normalize_newlines(&text), "{text:?}");
+        assert!(is_literal(&document), "{text:?}");
+        assert!(document.cloze_numbers().is_empty(), "{text:?}");
+        lines += text.matches('\n').count();
+    }
+    assert!(lines > 10_000, "the generator reached {lines} newlines");
+    // Control: unescaped, the same kind of text is read as markup.
+    assert!(!is_literal(&parse_markup("*a*\n- b")));
+}
+
+#[test]
+fn any_generated_version_1_block_converts_and_reads_back() {
+    const ANSWERS: &[&str] = &[
+        "*", "_", "`", "{{c1::", "}}", "::", ":", "\\", "\n", "\r\n", "- ", "1. ", " ", "a", "b",
+        "가",
+    ];
+    let mut stream = Stream(0x2545_F491_4F6C_DD1D);
+    let mut converted = 0;
+    for _ in 0..10_000 {
+        let blanks = usize::try_from(stream.next() % 4).expect("small");
+        let answers: Vec<String> = (0..blanks)
+            .map(|_| format!("x{}", generated(&mut stream, ANSWERS, 8)))
+            .collect();
+        let mut text = generated(&mut stream, DENSE_PIECES, 6);
+        for _ in 0..blanks {
+            text.push_str("___");
+            text.push_str(&generated(&mut stream, DENSE_PIECES, 6));
+        }
+
+        let borrowed: Vec<&str> = answers.iter().map(String::as_str).collect();
+        let clean = answers.iter().all(|answer| {
+            normalize_newlines(answer)
+                .split('\n')
+                .all(|l| !l.trim().is_empty())
+        });
+        let got = cloze_from_v1(&text, &borrowed);
+        if text.matches("___").count() != blanks || !clean {
+            continue;
+        }
+        let source = got.unwrap_or_else(|| panic!("{text:?} {answers:?}: refused"));
+        converted += 1;
+        let document = parse_markup(&source);
+        let numbers: Vec<u32> = (1..=blanks)
+            .map(|n| u32::try_from(n).expect("small"))
+            .collect();
+        assert_eq!(document.cloze_numbers(), numbers, "{text:?} {answers:?}");
+        assert_eq!(
+            document.plain_text(),
+            v1_with_blank(&text, &borrowed, 0),
+            "{text:?} {answers:?}"
+        );
+        for blank in 1..=blanks {
+            let number = u32::try_from(blank).expect("small");
+            assert_eq!(
+                document.hidden(number).plain_text(),
+                v1_with_blank(&text, &borrowed, blank),
+                "{text:?} {answers:?}: blank {blank}"
+            );
+        }
+    }
+    assert!(
+        converted > 2_000,
+        "the generator reached {converted} blocks"
+    );
 }

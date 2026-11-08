@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../assistant/assistant.dart';
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
 import '../../design/app_choice.dart';
@@ -14,6 +15,7 @@ import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import 'above_menu.dart';
 import 'list_header.dart';
+import 'open_assistant.dart';
 import '../../l10n/app_localizations.dart';
 import '../../photo_import/photo_import.dart';
 import '../../sharing/sharing.dart';
@@ -27,9 +29,18 @@ import '../../study/study.dart';
 /// renames, decorates, publishes or deletes the deck. While the deck holds no
 /// card there is nothing to study.
 class DeckScreen extends ConsumerStatefulWidget {
-  const DeckScreen({super.key, required this.deck, this.addingCard = false});
+  const DeckScreen({
+    super.key,
+    required this.deck,
+    this.addingCard = false,
+    this.assistantEdge = true,
+  });
 
   final Deck deck;
+
+  /// Whether the assistant's character is drawn on the screen: not where the
+  /// screen was opened from the chat itself.
+  final bool assistantEdge;
 
   /// Whether the screen opens on adding a card, as when the 오늘 tab's
   /// "카드 추가" opened it.
@@ -66,6 +77,8 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
       AsyncData(:final value) => value,
       _ => false,
     };
+    // With an assistant, adding a card by hand is in the ⋯, behind 말랑이.
+    final assistant = ref.watch(assistantClientProvider) != null;
     final current = _stored(ref.watch(deckProvider(widget.deck.id)));
     final public = current.visibility is PublicDeck;
     final empty = switch (cards) {
@@ -79,11 +92,16 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
           Padding(
             padding: const EdgeInsets.only(right: AppSpace.gutter),
             child: ListHeaderActions(
-              label: l10n.newCard,
-              onPressed: _addCard,
+              label: assistant ? null : l10n.newCard,
+              onPressed: assistant ? null : _addCard,
               menu: (
                 tooltip: l10n.deckActions,
                 items: [
+                  if (assistant)
+                    MenuItemButton(
+                      onPressed: _addCard,
+                      child: Text(l10n.assistantAddByHand),
+                    ),
                   MenuItemButton(onPressed: _rename, child: Text(l10n.rename)),
                   MenuItemButton(
                     onPressed: () => _customize(current),
@@ -124,122 +142,145 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
           ),
         ],
       ),
-      body: CustomScrollView(
-        slivers: [
-          // The name has a line of its own, so every name stays readable
-          // beside a labelled action at every text size.
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpace.gutter,
-              0,
-              AppSpace.gutter,
-              AppSpace.s8,
-            ),
-            sliver: SliverToBoxAdapter(
-              child: Semantics(
-                header: true,
-                child: Text(
-                  keepWords(current.name),
-                  semanticsLabel: current.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppType.deckName.copyWith(color: colors.ink),
+      body: _edge(
+        assistant,
+        CustomScrollView(
+          slivers: [
+            // The name has a line of its own, so every name stays readable
+            // beside a labelled action at every text size.
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.gutter,
+                0,
+                AppSpace.gutter,
+                AppSpace.s8,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    keepWords(current.name),
+                    semanticsLabel: current.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppType.deckName.copyWith(color: colors.ink),
+                  ),
                 ),
               ),
             ),
-          ),
-          ...switch (cards) {
-            AsyncData(:final value) => [
-              if (!empty)
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpace.gutter,
-                    AppSpace.s8,
-                    AppSpace.gutter,
-                    0,
-                  ),
-                  sliver: SliverToBoxAdapter(
-                    child: AppSearchField(
-                      hint: l10n.searchCards,
-                      onChanged: (query) => setState(() => _query = query),
+            ...switch (cards) {
+              AsyncData(:final value) => [
+                if (!empty)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpace.gutter,
+                      AppSpace.s8,
+                      AppSpace.gutter,
+                      0,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: AppSearchField(
+                        hint: l10n.searchCards,
+                        onChanged: (query) => setState(() => _query = query),
+                      ),
                     ),
                   ),
-                ),
-              // While searching, the matches start under the search field;
-              // with no card, the empty line is the screen's content.
-              if (_query.trim().isEmpty && !empty)
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpace.gutter,
-                    AppSpace.s8,
-                    AppSpace.gutter,
-                    AppSpace.s16,
+                // While searching, the matches start under the search field;
+                // with no card, the empty line is the screen's content.
+                if (_query.trim().isEmpty && !empty)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpace.gutter,
+                      AppSpace.s8,
+                      AppSpace.gutter,
+                      AppSpace.s16,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: TodayCounter(
+                        decks: DeckSelection(widget.deck.id),
+                        builder: (context, count) => AppButton(
+                          label: switch (count) {
+                            TodayCounted(:final total) => l10n.studyThisDeck(
+                              total,
+                            ),
+                            _ => l10n.studyThisDeckPlain,
+                          },
+                          size: AppButtonSize.cta,
+                          onPressed: _study,
+                        ),
+                      ),
+                    ),
                   ),
-                  sliver: SliverToBoxAdapter(
-                    child: TodayCounter(
-                      decks: DeckSelection(widget.deck.id),
-                      builder: (context, count) => AppButton(
-                        label: switch (count) {
-                          TodayCounted(:final total) => l10n.studyThisDeck(
-                            total,
+                if (value.isEmpty)
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpace.gutter,
+                      vertical: AppSpace.s40,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        spacing: AppSpace.s16,
+                        children: [
+                          const Mascot(
+                            expression: MascotExpression.sleepy,
+                            size: AppSize.mascotMedium,
                           ),
-                          _ => l10n.studyThisDeckPlain,
-                        },
-                        size: AppButtonSize.cta,
-                        onPressed: _study,
+                          Text(
+                            keepWords(l10n.noCards),
+                            semanticsLabel: l10n.noCards,
+                            textAlign: TextAlign.center,
+                            style: AppType.body.copyWith(color: colors.muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  ..._cardList(l10n, value, public: public),
+              ],
+              AsyncError(:final error, :final stackTrace) => [
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpace.gutter),
+                      child: Text(
+                        describeProviderError(l10n, error, stackTrace),
                       ),
                     ),
                   ),
                 ),
-              if (value.isEmpty)
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpace.gutter,
-                    vertical: AppSpace.s40,
-                  ),
-                  sliver: SliverToBoxAdapter(
-                    child: Column(
-                      spacing: AppSpace.s16,
-                      children: [
-                        const Mascot(
-                          expression: MascotExpression.sleepy,
-                          size: AppSize.mascotMedium,
-                        ),
-                        Text(
-                          keepWords(l10n.noCards),
-                          semanticsLabel: l10n.noCards,
-                          textAlign: TextAlign.center,
-                          style: AppType.body.copyWith(color: colors.muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                ..._cardList(l10n, value, public: public),
-            ],
-            AsyncError(:final error, :final stackTrace) => [
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpace.gutter),
-                    child: Text(describeProviderError(l10n, error, stackTrace)),
-                  ),
+              ],
+              _ => [
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()),
                 ),
-              ),
-            ],
-            _ => [
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ],
-          },
-        ],
+              ],
+            },
+            if (assistant && widget.assistantEdge)
+              const SliverToBoxAdapter(child: SizedBox(height: edgeReserve)),
+          ],
+        ),
       ),
     );
   }
+
+  /// [body] with the assistant's character at the screen's edge, in this
+  /// note's name, where the app has an assistant and the screen draws it.
+  Widget _edge(bool assistant, Widget body) =>
+      !assistant || !widget.assistantEdge
+      ? body
+      : EdgeAssistant(
+          onOpen: () => unawaited(
+            openAssistant(
+              context,
+              note: (id: widget.deck.id.value, name: _name),
+            ),
+          ),
+          hint: true,
+          child: body,
+        );
 
   /// The pinned row of the cards' count and how many are mastered, then, as
   /// one group, a row for each card whose studied text holds the search,

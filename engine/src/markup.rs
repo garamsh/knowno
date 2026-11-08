@@ -1,15 +1,20 @@
 //! Card text markup: a Markdown subset and Anki's cloze syntax, parsed into a typed document.
 //!
 //! The parser is total: every text yields a [`Document`], and markup it cannot close or does
-//! not know is kept as literal text. `engine/tests/fixtures/markup/` holds the conformance
+//! not know is kept as literal text. A backslash before a character the syntax gives meaning to
+//! makes it literal, and [`escape_literal`] writes any text so that it reads back as itself. `engine/tests/fixtures/markup/` holds the conformance
 //! fixtures any other reader of this syntax is tested against.
 
 use std::collections::BTreeSet;
 
+/// The characters a backslash makes literal wherever it stands.
+const ESCAPABLE: [char; 7] = ['\\', '*', '_', '`', '{', '}', ':'];
+
 /// The longest run of digits a cloze number may have.
 const MAX_NUMBER_DIGITS: usize = 9;
 
-/// A parsed text: blocks in order.
+/// A parsed text: blocks in order. Every newline of the text ends a line, and a block is one
+/// or more lines: two blocks are apart by exactly one newline.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Document {
     /// The blocks, paragraphs and lists, in order.
@@ -19,7 +24,8 @@ pub struct Document {
 /// A block of a document.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Block {
-    /// Lines of text up to a blank line or a list; a single newline is an [`Inline::LineBreak`].
+    /// The lines of text up to a blank line or a list, apart by an [`Inline::LineBreak`]; or one
+    /// blank line, empty or holding only its whitespace as a [`Inline::Text`].
     Paragraph(Vec<Inline>),
     /// A run of list items of one kind.
     List(List),
@@ -85,14 +91,21 @@ pub struct Cloze {
     pub hint: Option<String>,
 }
 
-/// Parses `text` into a document. Total: no input is refused.
+/// Parses `text` into a document. Total: no input is refused. `\r\n` and a lone `\r` read as
+/// `\n`, and an empty text has no block.
 pub fn parse_markup(text: &str) -> Document {
-    let text = text.replace("\r\n", "\n");
+    let text = normalize_newlines(text);
     let mut blocks = Blocks::default();
-    for line in text.split('\n') {
-        blocks.line(line);
+    if !text.is_empty() {
+        for line in text.split('\n') {
+            blocks.line(line);
+        }
     }
     blocks.finish()
+}
+
+fn normalize_newlines(text: &str) -> String {
+    text.replace("\r\n", "\n").replace('\r', "\n")
 }
 
 impl Document {
@@ -122,8 +135,8 @@ impl Document {
         self.map_clozes(&|cloze| cloze.answer.clone())
     }
 
-    /// The text without marks, clozes filled, for the card key: blocks apart by a blank line,
-    /// list items and line breaks by a newline, a [`Inline::Blank`] as `___`.
+    /// The text without marks, clozes filled, for the card key: blocks, list items and line
+    /// breaks apart by a newline, a [`Inline::Blank`] as `___`.
     pub fn plain_text(&self) -> String {
         let blocks: Vec<String> = self
             .blocks
@@ -142,7 +155,7 @@ impl Document {
                 }
             })
             .collect();
-        blocks.join("\n\n")
+        blocks.join("\n")
     }
 
     fn each_inlines(&self, visit: &mut dyn FnMut(&[Inline])) {
@@ -196,31 +209,70 @@ impl Document {
 }
 
 /// A version 1 cloze block, its text with `___` for each blank and its answers in order, as a
-/// text of this syntax: blank k becomes `{{ck::answer_k}}`.
+/// text of this syntax: blank k becomes `{{ck::answer_k}}`, the text and the answers written
+/// through [`escape_literal`] so that they read back as themselves.
 ///
-/// `None` when the number of blanks differs from the number of answers, or when the result
-/// would not read back as the same text with the same answers, as when an answer holds `::`
-/// or `}}` or the text holds a mark: the caller keeps the version 1 block.
+/// `None` when the number of blanks differs from the number of answers, or when an answer is
+/// empty or has a line of only whitespace, which a cloze answer cannot hold: the caller keeps
+/// the version 1 block.
 pub fn cloze_from_v1(text: &str, answers: &[&str]) -> Option<String> {
+    let text = normalize_newlines(text);
     let parts: Vec<&str> = text.split("___").collect();
     if parts.len() != answers.len() + 1 {
         return None;
     }
     let mut source = String::new();
-    let mut filled = String::new();
     for (index, part) in parts.iter().enumerate() {
-        source.push_str(part);
-        filled.push_str(part);
+        source.push_str(&escape(part, index == 0));
         if let Some(answer) = answers.get(index) {
-            source.push_str(&format!("{{{{c{}::{answer}}}}}", index + 1));
-            filled.push_str(answer);
+            let answer = normalize_newlines(answer);
+            if answer.split('\n').any(|line| line.trim().is_empty()) {
+                return None;
+            }
+            source.push_str(&format!(
+                "{{{{c{}::{}}}}}",
+                index + 1,
+                escape(&answer, false)
+            ));
         }
     }
-    let read_back = parse_markup(&source);
-    let numbers: Vec<u32> = (1..=answers.len())
-        .filter_map(|n| u32::try_from(n).ok())
-        .collect();
-    (read_back.cloze_numbers() == numbers && read_back.plain_text() == filled).then_some(source)
+    Some(source)
+}
+
+/// `text` written as markup that reads back as exactly that text, with `\r\n` and `\r` as `\n`:
+/// each character the syntax gives meaning to is preceded by a backslash, and so is a line's
+/// first `-` or digit run followed by `.`. The parsed result holds no mark, list or cloze.
+pub fn escape_literal(text: &str) -> String {
+    escape(&normalize_newlines(text), true)
+}
+
+/// `text`, already normalised, escaped; `line_start` says whether its first character begins
+/// a line.
+fn escape(text: &str, line_start: bool) -> String {
+    let mut out = String::new();
+    for (index, line) in text.split('\n').enumerate() {
+        if index > 0 {
+            out.push('\n');
+        }
+        if (index > 0 || line_start) && starts_list(line) {
+            out.push('\\');
+        }
+        for ch in line.chars() {
+            if ESCAPABLE.contains(&ch) {
+                out.push('\\');
+            }
+            out.push(ch);
+        }
+    }
+    out
+}
+
+/// Whether `line` starts with `-`, or with digits followed by `.`: what an escape at a line's
+/// start makes literal.
+fn starts_list(line: &str) -> bool {
+    let digits = line.chars().take_while(char::is_ascii_digit).count();
+    line.starts_with('-')
+        || (digits > 0 && line.get(digits..).is_some_and(|rest| rest.starts_with('.')))
 }
 
 fn plain(inlines: &[Inline]) -> String {
@@ -297,6 +349,16 @@ impl Blocks {
         if line.trim().is_empty() {
             self.flush_paragraph();
             self.flush_list();
+            self.done.push(Block::Paragraph(if line.is_empty() {
+                Vec::new()
+            } else {
+                vec![Inline::Text(line.to_owned())]
+            }));
+            return;
+        }
+        if let Some(literal) = escaped_start(line) {
+            self.flush_list();
+            self.paragraph.push(literal.to_owned());
             return;
         }
         match marker(line) {
@@ -374,6 +436,13 @@ impl Blocks {
     }
 }
 
+/// The rest of a line that starts with a backslash before `-` or digits and `.`: the escape
+/// at a line's start, which keeps the line from being a list item.
+fn escaped_start(line: &str) -> Option<&str> {
+    let rest = line.strip_prefix('\\')?;
+    starts_list(rest).then_some(rest)
+}
+
 /// The marker a line starts with, if any: `- ` or digits and `. `, followed by text, indented
 /// by a tab or two spaces or more for a nested item.
 fn marker(line: &str) -> Option<Marker<'_>> {
@@ -402,40 +471,70 @@ fn marker(line: &str) -> Option<Marker<'_>> {
     })
 }
 
-fn parse_inlines(text: &str) -> Vec<Inline> {
-    let chars: Vec<char> = text.chars().collect();
-    inlines(&chars, true)
+/// A character of a text: `Lit` when a backslash made it literal, so that no rule sees it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Tok {
+    Plain(char),
+    Lit(char),
 }
 
-fn string(chars: &[char]) -> String {
-    chars.iter().collect()
+impl Tok {
+    fn ch(self) -> char {
+        match self {
+            Tok::Plain(ch) | Tok::Lit(ch) => ch,
+        }
+    }
+}
+
+fn is(tok: Option<&Tok>, ch: char) -> bool {
+    tok == Some(&Tok::Plain(ch))
+}
+
+fn tokens(text: &str) -> Vec<Tok> {
+    let mut out = Vec::new();
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        match chars.next_if(|next| ch == '\\' && ESCAPABLE.contains(next)) {
+            Some(next) => out.push(Tok::Lit(next)),
+            None => out.push(Tok::Plain(ch)),
+        }
+    }
+    out
+}
+
+fn parse_inlines(text: &str) -> Vec<Inline> {
+    inlines(&tokens(text), true)
+}
+
+fn string(chars: &[Tok]) -> String {
+    chars.iter().map(|tok| tok.ch()).collect()
 }
 
 /// Recursion is bounded: a mark's closer is the first valid one, so a mark never holds another
 /// of its kind, and a cloze's answer holds no cloze.
-fn inlines(chars: &[char], cloze_allowed: bool) -> Vec<Inline> {
+fn inlines(chars: &[Tok], cloze_allowed: bool) -> Vec<Inline> {
     let mut out = Vec::new();
     let mut text = String::new();
     let mut at = 0;
-    while let Some(&ch) = chars.get(at) {
-        match ch {
-            '\n' => {
+    while let Some(&tok) = chars.get(at) {
+        match tok {
+            Tok::Plain('\n') => {
                 flush(&mut out, &mut text);
                 out.push(Inline::LineBreak);
                 at += 1;
             }
-            '`' => match code_end(chars, at) {
+            Tok::Plain('`') => match code_end(chars, at) {
                 Some(end) => {
                     flush(&mut out, &mut text);
                     out.push(Inline::Code(string(slice(chars, at + 1, end))));
                     at = end + 1;
                 }
                 None => {
-                    text.push(ch);
+                    text.push('`');
                     at += 1;
                 }
             },
-            '{' => match cloze_span(chars, at).filter(|_| cloze_allowed) {
+            Tok::Plain('{') => match cloze_span(chars, at).filter(|_| cloze_allowed) {
                 Some(span) => {
                     flush(&mut out, &mut text);
                     out.push(Inline::Cloze(Cloze {
@@ -446,11 +545,11 @@ fn inlines(chars: &[char], cloze_allowed: bool) -> Vec<Inline> {
                     at = span.end;
                 }
                 None => {
-                    text.push(ch);
+                    text.push('{');
                     at += 1;
                 }
             },
-            '*' | '_' => {
+            Tok::Plain(ch @ ('*' | '_')) => {
                 let run = run_length(chars, at);
                 let can_mark = (run == 1 || (ch == '*' && run == 2)) && opens(chars, at, run, ch);
                 let marked = if can_mark {
@@ -475,8 +574,8 @@ fn inlines(chars: &[char], cloze_allowed: bool) -> Vec<Inline> {
                     }
                 }
             }
-            _ => {
-                text.push(ch);
+            other => {
+                text.push(other.ch());
                 at += 1;
             }
         }
@@ -493,38 +592,40 @@ fn flush(out: &mut Vec<Inline>, text: &mut String) {
     }
 }
 
-fn slice(chars: &[char], from: usize, to: usize) -> &[char] {
+fn slice(chars: &[Tok], from: usize, to: usize) -> &[Tok] {
     chars.get(from..to).unwrap_or_default()
 }
 
-fn run_length(chars: &[char], at: usize) -> usize {
-    let Some(&ch) = chars.get(at) else { return 0 };
+fn run_length(chars: &[Tok], at: usize) -> usize {
+    let Some(first) = chars.get(at) else { return 0 };
     chars
         .get(at..)
         .unwrap_or_default()
         .iter()
-        .take_while(|&&next| next == ch)
+        .take_while(|&next| next == first)
         .count()
 }
 
 /// The index of the backtick closing the code span opened at `open`, on the same line.
-fn code_end(chars: &[char], open: usize) -> Option<usize> {
+fn code_end(chars: &[Tok], open: usize) -> Option<usize> {
     let rest = chars.get(open + 1..)?;
-    let length = rest.iter().position(|&ch| ch == '`' || ch == '\n')?;
-    (rest.get(length) == Some(&'`') && length > 0).then_some(open + 1 + length)
+    let length = rest
+        .iter()
+        .position(|&tok| tok == Tok::Plain('`') || tok == Tok::Plain('\n'))?;
+    (is(rest.get(length), '`') && length > 0).then_some(open + 1 + length)
 }
 
-fn is_word(ch: Option<&char>) -> bool {
-    ch.is_some_and(|ch| ch.is_alphanumeric())
+fn is_word(tok: Option<&Tok>) -> bool {
+    tok.is_some_and(|tok| tok.ch().is_alphanumeric())
 }
 
-fn is_space(ch: Option<&char>) -> bool {
-    ch.is_some_and(|ch| ch.is_whitespace())
+fn is_space(tok: Option<&Tok>) -> bool {
+    tok.is_some_and(|tok| tok.ch().is_whitespace())
 }
 
 /// Whether the run at `at` can open a mark: text that is not a space follows, and an
 /// underscore does not follow a letter or digit.
-fn opens(chars: &[char], at: usize, run: usize, ch: char) -> bool {
+fn opens(chars: &[Tok], at: usize, run: usize, ch: char) -> bool {
     let next = chars.get(at + run);
     next.is_some() && !is_space(next) && !(ch == '_' && at > 0 && is_word(chars.get(at - 1)))
 }
@@ -532,20 +633,20 @@ fn opens(chars: &[char], at: usize, run: usize, ch: char) -> bool {
 /// The index of the run closing a mark whose content starts at `from`: a run of exactly
 /// `run` of `ch`, after a character that is not a space and, for an underscore, before one
 /// that is not a letter or digit. Code spans and clozes are skipped whole.
-fn closer(chars: &[char], from: usize, ch: char, run: usize, cloze_allowed: bool) -> Option<usize> {
+fn closer(chars: &[Tok], from: usize, ch: char, run: usize, cloze_allowed: bool) -> Option<usize> {
     let mut at = from;
     while let Some(&here) = chars.get(at) {
-        if here == '`' {
+        if here == Tok::Plain('`') {
             if let Some(end) = code_end(chars, at) {
                 at = end + 1;
                 continue;
             }
-        } else if here == '{' && cloze_allowed {
+        } else if here == Tok::Plain('{') && cloze_allowed {
             if let Some(span) = cloze_span(chars, at) {
                 at = span.end;
                 continue;
             }
-        } else if here == ch {
+        } else if here == Tok::Plain(ch) {
             let length = run_length(chars, at);
             let closes = length == run
                 && at > from
@@ -573,13 +674,16 @@ struct ClozeSpan {
 /// The cloze span starting at `open`, if one does: `{{c`, a number from 1 of up to nine
 /// digits, `::`, then an answer holding a character that is not a space, up to the first
 /// `}}`, and, after the first `::` inside, a hint.
-fn cloze_span(chars: &[char], open: usize) -> Option<ClozeSpan> {
+fn cloze_span(chars: &[Tok], open: usize) -> Option<ClozeSpan> {
     let digits_at = open + 3;
-    if slice(chars, open, digits_at) != ['{', '{', 'c'] {
+    if slice(chars, open, digits_at) != [Tok::Plain('{'), Tok::Plain('{'), Tok::Plain('c')] {
         return None;
     }
     let rest = chars.get(digits_at..)?;
-    let digits = rest.iter().take_while(|ch| ch.is_ascii_digit()).count();
+    let digits = rest
+        .iter()
+        .take_while(|tok| matches!(tok, Tok::Plain(ch) if ch.is_ascii_digit()))
+        .count();
     if digits == 0 || digits > MAX_NUMBER_DIGITS {
         return None;
     }
@@ -587,20 +691,23 @@ fn cloze_span(chars: &[char], open: usize) -> Option<ClozeSpan> {
         .parse()
         .ok()?;
     let start = digits_at + digits + 2;
-    if number == 0 || slice(chars, digits_at + digits, start) != [':', ':'] {
+    let colons = [Tok::Plain(':'), Tok::Plain(':')];
+    if number == 0 || slice(chars, digits_at + digits, start) != colons {
         return None;
     }
     let body = chars.get(start..)?;
-    let length = body.windows(2).position(|pair| pair == ['}', '}'])?;
+    let length = body
+        .windows(2)
+        .position(|pair| pair == [Tok::Plain('}'), Tok::Plain('}')])?;
     let end = start + length;
     let split = slice(chars, start, end)
         .windows(2)
-        .position(|pair| pair == [':', ':'])
+        .position(|pair| pair == colons)
         .map(|offset| start + offset);
     let answer_end = split.unwrap_or(end);
     if slice(chars, start, answer_end)
         .iter()
-        .all(|ch| ch.is_whitespace())
+        .all(|tok| tok.ch().is_whitespace())
     {
         return None;
     }

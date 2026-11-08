@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../assistant/assistant.dart';
 import '../../deck/deck.dart';
 import '../../design/app_chip.dart';
 import '../../design/app_search_field.dart';
@@ -14,6 +17,7 @@ import 'above_menu.dart';
 import 'deck_screen.dart';
 import 'list_header.dart';
 import 'new_deck.dart';
+import 'open_assistant.dart';
 import 'progress_bar.dart';
 
 /// The 노트 tab, the first screen of its own navigator: "노트" with "새 노트"
@@ -50,88 +54,103 @@ class _NotesTabState extends ConsumerState<NotesTab> {
       for (final deck in decks)
         if (deck.name.toLowerCase().contains(query)) deck,
     ];
+    // With an assistant, writing a note by hand is in the ⋯, behind 말랑이.
+    final assistant = ref.watch(assistantClientProvider) != null;
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpace.gutter,
-            AppSpace.s16,
-            AppSpace.gutter,
-            AppSpace.s24,
-          ),
-          children: [
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: AppSpace.s8,
-              runSpacing: AppSpace.s8,
-              children: [
-                Semantics(
-                  header: true,
-                  child: Text(
-                    l10n.tabNotes,
-                    style: AppType.deckTitle.copyWith(color: colors.ink),
+      body: EdgeAssistant(
+        onOpen: () => unawaited(openAssistant(context)),
+        hint: decks.isNotEmpty,
+        child: SafeArea(
+          bottom: false,
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              AppSpace.gutter,
+              AppSpace.s16,
+              AppSpace.gutter,
+              AppSpace.s24 + (assistant ? edgeReserve : 0),
+            ),
+            children: [
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: AppSpace.s8,
+                runSpacing: AppSpace.s8,
+                children: [
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      l10n.tabNotes,
+                      style: AppType.deckTitle.copyWith(color: colors.ink),
+                    ),
                   ),
-                ),
-                ListHeaderActions(
-                  label: l10n.newDeck,
-                  onPressed: () => openNewDeck(context, _open),
-                  menu: sharing == null
-                      ? null
-                      : (
-                          tooltip: l10n.notesActions,
-                          items: [
-                            MenuItemButton(
-                              onPressed: () => Navigator.of(aboveMenu(context))
-                                  .push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => sharing.browseScreen(),
-                                    ),
-                                  ),
-                              child: Text(l10n.browsePublicDecks),
-                            ),
-                          ],
-                        ),
+                  ListHeaderActions(
+                    label: assistant ? null : l10n.newDeck,
+                    onPressed: assistant
+                        ? null
+                        : () => openNewDeck(context, _open),
+                    menu: sharing == null && !assistant
+                        ? null
+                        : (
+                            tooltip: l10n.notesActions,
+                            items: [
+                              if (assistant)
+                                MenuItemButton(
+                                  onPressed: () => openNewDeck(context, _open),
+                                  child: Text(l10n.assistantAddByHand),
+                                ),
+                              if (sharing != null)
+                                MenuItemButton(
+                                  onPressed: () =>
+                                      Navigator.of(aboveMenu(context)).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) =>
+                                              sharing.browseScreen(),
+                                        ),
+                                      ),
+                                  child: Text(l10n.browsePublicDecks),
+                                ),
+                            ],
+                          ),
+                  ),
+                ],
+              ),
+              if (decks.isNotEmpty) ...[
+                const SizedBox(height: AppSpace.s16),
+                AppSearchField(
+                  hint: l10n.searchDecks,
+                  onChanged: (query) => setState(() => _query = query),
                 ),
               ],
-            ),
-            if (decks.isNotEmpty) ...[
               const SizedBox(height: AppSpace.s16),
-              AppSearchField(
-                hint: l10n.searchDecks,
-                onChanged: (query) => setState(() => _query = query),
-              ),
-            ],
-            const SizedBox(height: AppSpace.s16),
-            if (shown.isEmpty && query.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpace.s32),
-                child: Text(
-                  keepWords(l10n.noDeckMatches),
-                  semanticsLabel: l10n.noDeckMatches,
-                  textAlign: TextAlign.center,
-                  style: AppType.body.copyWith(color: colors.muted),
-                ),
-              ),
-            for (final deck in shown)
-              DeckRow(
-                deck: deck,
-                cardCount: counts[deck.id] ?? 0,
-                onOpen: () => _open(deck),
-                today: TodayCounter(
-                  decks: DeckSelection(deck.id),
-                  builder: (context, count) => TodayChip(count: count),
-                ),
-                progress: ProgressCounter(
-                  decks: DeckSelection(deck.id),
-                  builder: (context, progress) => _DeckProgress(
-                    progress: progress,
-                    cardCount: counts[deck.id] ?? 0,
+              if (shown.isEmpty && query.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpace.s32),
+                  child: Text(
+                    keepWords(l10n.noDeckMatches),
+                    semanticsLabel: l10n.noDeckMatches,
+                    textAlign: TextAlign.center,
+                    style: AppType.body.copyWith(color: colors.muted),
                   ),
                 ),
-              ),
-          ],
+              for (final deck in shown)
+                DeckRow(
+                  deck: deck,
+                  cardCount: counts[deck.id] ?? 0,
+                  onOpen: () => _open(deck),
+                  today: TodayCounter(
+                    decks: DeckSelection(deck.id),
+                    builder: (context, count) => TodayChip(count: count),
+                  ),
+                  progress: ProgressCounter(
+                    decks: DeckSelection(deck.id),
+                    builder: (context, progress) => _DeckProgress(
+                      progress: progress,
+                      cardCount: counts[deck.id] ?? 0,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

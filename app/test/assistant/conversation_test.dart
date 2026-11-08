@@ -172,4 +172,107 @@ void main() {
       );
     },
   );
+
+  test(
+    'sends a message\'s photos and a reply\'s job, and no context marker',
+    () {
+      const job = JobProgress(id: 'j1', photos: 3, finished: 1);
+      final conversation = Conversation(
+        turns: [
+          const ContextTurn(id: 'c', deckId: 'd1', text: '영단어'),
+          const UserTurn(id: 'u', text: '', photos: ['p1', 'p2', 'p3']),
+          const AssistantTurn(
+            id: 'a',
+            text: '읽을게요',
+            job: job,
+            ending: Ending.ok,
+          ),
+          const UserTurn(id: 'u2', text: '다 읽었어요', auto: true),
+        ],
+      );
+      expect(conversation.requestTurns, [
+        {
+          'role': 'user',
+          'text': '',
+          'photos': ['p1', 'p2', 'p3'],
+        },
+        {
+          'role': 'assistant',
+          'text': '읽을게요',
+          'job': {'id': 'j1', 'photos': 3},
+        },
+        {'role': 'user', 'text': '다 읽었어요'},
+      ]);
+      expect(conversation.lastTurn?.id, 'u2');
+      expect(
+        Conversation(
+          turns: [
+            ...conversation.turns,
+            const ContextTurn(id: 'c2', deckId: 'd', text: 'N'),
+          ],
+        ).lastTurn?.id,
+        'u2',
+        reason: 'a marker after it is not the last message',
+      );
+    },
+  );
+
+  test('counts only messages toward the 40 turns a message sends', () {
+    final turns = <Turn>[
+      for (var i = 0; i < 40; i++)
+        if (i.isEven)
+          UserTurn(id: 'u$i', text: 'q$i')
+        else
+          AssistantTurn(id: 'a$i', text: 'r$i', ending: Ending.ok),
+      const ContextTurn(id: 'c', deckId: 'd', text: 'N'),
+    ];
+    final sent = Conversation(turns: turns).requestTurns;
+    expect(sent, hasLength(40));
+    expect(sent.first['text'], 'q0', reason: 'the marker pushed none out');
+  });
+
+  test(
+    'starts a job on the reply that showed it, and finds the one reading',
+    () {
+      var turn = const AssistantTurn(id: 'a')
+          .withEvent(const JobEvent(id: 'j', photos: 12));
+      expect(turn.job?.photos, 12);
+      expect(turn.job?.state, JobState.running);
+      final conversation = Conversation(turns: [turn]);
+      expect(conversation.runningJob?.id, 'a');
+      turn = turn.copyWith(job: turn.job!.copyWith(state: JobState.done));
+      expect(Conversation(turns: [turn]).runningJob, isNull);
+    },
+  );
+
+  test('stores a context marker, a message\'s photos and a reply\'s job', () {
+    final conversation = Conversation(
+      turns: [
+        const ContextTurn(id: 'c', deckId: 'd1', text: '영단어'),
+        const UserTurn(id: 'u', text: 'hi', photos: ['p1']),
+        const UserTurn(id: 'u2', text: 'done', auto: true),
+        const AssistantTurn(
+          id: 'a',
+          text: 'ok',
+          ending: Ending.ok,
+          job: JobProgress(
+            id: 'j',
+            photos: 5,
+            finished: 2,
+            state: JobState.running,
+          ),
+        ),
+      ],
+    );
+    final read = Conversation.parse(conversation.encode());
+    expect((read.turns[0] as ContextTurn).deckId, 'd1');
+    expect((read.turns[0] as ContextTurn).text, '영단어');
+    expect((read.turns[1] as UserTurn).photos, ['p1']);
+    expect((read.turns[2] as UserTurn).auto, isTrue);
+    final job = (read.turns[3] as AssistantTurn).job!;
+    expect(
+      (job.id, job.photos, job.finished, job.state),
+      ('j', 5, 2, JobState.running),
+    );
+  });
 }

@@ -26,9 +26,17 @@ import 'stats_style.dart';
 /// It is read again when [decks] changes and whenever the route that shows
 /// it comes back on top.
 class StatsView extends ConsumerStatefulWidget {
-  const StatsView({super.key, required this.decks, required this.title});
+  const StatsView({
+    super.key,
+    required this.decks,
+    required this.title,
+    this.bottomInset = 0,
+  });
 
   final DeckSelection decks;
+
+  /// Room kept under the last chart, for what floats over the screen's foot.
+  final double bottomInset;
   final Widget title;
 
   @override
@@ -76,11 +84,11 @@ class _StatsViewState extends ConsumerState<StatsView> {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpace.gutter,
         AppSpace.s8,
         AppSpace.gutter,
-        AppSpace.s28,
+        AppSpace.s28 + widget.bottomInset,
       ),
       children: [
         widget.title,
