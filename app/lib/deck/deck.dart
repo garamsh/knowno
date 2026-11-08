@@ -37,6 +37,8 @@ export 'src/card_frame.dart'
         frameProblem,
         sidesOf;
 export 'src/card_key.dart' show CardKey;
+export 'src/markup_span.dart'
+    show answerText, clozeAnswers, markupPlain, markupSpan;
 export 'src/markup.dart'
     show
         BlankRun,

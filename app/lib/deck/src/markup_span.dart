@@ -89,6 +89,20 @@ List<InlineSpan> _runs(
     },
 ];
 
+/// The answers of the clozes in [blocks], in the order of the text, each as
+/// plain text.
+List<String> clozeAnswers(List<MarkupBlock> blocks) {
+  final answers = <String>[];
+  markupSpan(
+    blocks,
+    cloze: (run) {
+      answers.add(answerText(run));
+      return const TextSpan();
+    },
+  );
+  return answers;
+}
+
 /// A cloze's answer as plain text, its marks left out.
 String answerText(ClozeRun cloze) =>
     markupPlain([ParagraphBlock(cloze.answer)]);

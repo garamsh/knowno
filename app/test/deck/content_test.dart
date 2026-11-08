@@ -435,10 +435,11 @@ void main() {
       expect(upcastPayload('text', 3, {'body': 'cat'}, steps: steps), {
         'body': 'cat',
       }, reason: 'the current version takes none');
-      // Today a table is written at v2, after one step, and every other
-      // type this build knows at v1, with none.
+      // Today a table and a cloze are written at v2, and every other type this
+      // build knows at v1, with none.
       expect(blockVersion('table'), 2);
-      for (final type in ['text', 'cloze', 'senses', 'image']) {
+      expect(blockVersion('cloze'), 2);
+      for (final type in ['text', 'senses', 'image']) {
         expect(blockVersion(type), 1, reason: type);
       }
     });

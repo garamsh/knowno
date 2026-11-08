@@ -159,7 +159,10 @@ void main() {
 
       await save(screens);
       final card = await _stored(screens);
-      expect(card.front, [const TextContent('Capitals'), _capitals]);
+      expect(card.front, [
+        const TextContent('Capitals', markup: true),
+        _capitals,
+      ]);
       expect(card.back, isEmpty, reason: 'a back is the blocks listed on it');
 
       await screens.push(
@@ -597,7 +600,7 @@ void main() {
         ),
       );
       expect(
-        encodeContent(card.front),
+        encodeContent(card.front.whereType<TableContent>().toList()),
         contains('"type":"table","v":2,'),
         reason: 'written at v2',
       );

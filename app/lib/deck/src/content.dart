@@ -672,6 +672,14 @@ Content decodeBlock(Object? block, String source) {
     return UnsupportedContent(type, block['payload'], stored: block);
   }
   final payload = upcastPayload(type, version, block['payload']);
+  // A version 2 cloze that is not Anki's syntax, such as a version 1 payload
+  // marked 2, is a block this build cannot read, kept as stored.
+  if (type == _clozeType &&
+      version >= 2 &&
+      payload is Map<String, Object?> &&
+      _decodeClozeMarkup(payload) == null) {
+    return UnsupportedContent(type, block['payload'], stored: block);
+  }
   final decoded = switch ((type, payload)) {
     (_textType, {'text': final String text}) => TextContent(text),
     (_clozeType, final Map<String, Object?> fields) =>

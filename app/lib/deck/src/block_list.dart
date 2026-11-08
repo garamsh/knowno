@@ -13,8 +13,12 @@ import 'audio_block.dart';
 import 'block_draft.dart';
 import 'card_frame.dart';
 import 'cloze_block.dart';
+import 'content.dart';
 import 'editor_group.dart';
 import 'image_block.dart';
+import 'markdown_paste.dart';
+import 'markup_editing.dart';
+import 'markup_span.dart';
 import 'senses_block.dart';
 import 'table_block.dart';
 
@@ -31,6 +35,7 @@ class BlockList extends StatelessWidget {
     required this.showErrors,
     required this.onChanged,
     required this.onMediaStored,
+    required this.onPasteImage,
     this.error,
     this.errorKey,
   });
@@ -48,6 +53,49 @@ class BlockList extends StatelessWidget {
   /// Called with each photo a 사진 block and each sound a 소리 block stores,
   /// so the editor can let go of one the card is not saved with.
   final ValueChanged<MediaId> onMediaStored;
+
+  /// Called with the new 사진 a pasted image link made and the link, whose
+  /// picture the editor fetches into it.
+  final void Function(ImageBlockDraft draft, Uri url) onPasteImage;
+
+  /// Makes 칸 of the [parts] a text 글 was pasted: a table a 표, an image
+  /// link a 사진 and the rest a 글, after [block], or in its place where
+  /// it holds nothing.
+  void _paste(BlockDraft block, List<PastePart> parts) {
+    final made = <BlockDraft>[];
+    for (final part in parts) {
+      switch (part) {
+        case PasteText(:final text):
+          made.add(TextBlockDraft(TextCell(front: text, markup: true)));
+        case PasteTable(:final columns, :final rows):
+          made.add(
+            TableBlockDraft(
+              TableContent(
+                columns: columns,
+                rows: rows,
+                blanks: const <TableBlank>[],
+              ),
+            ),
+          );
+        case PasteImage(:final url):
+          final image = ImageBlockDraft();
+          made.add(image);
+          onPasteImage(image, url);
+      }
+    }
+    final index = blocks.indexOf(block);
+    if (index < 0) return;
+    final empty =
+        block is TextBlockDraft &&
+        block.front.text.trim().isEmpty &&
+        block.back.text.trim().isEmpty;
+    if (empty) {
+      blocks.removeAt(index);
+      block.dispose();
+    }
+    blocks.insertAll(empty ? index : index + 1, made);
+    onChanged();
+  }
 
   void _act(BuildContext context, int index, RowAction action) {
     switch (action) {
@@ -116,6 +164,7 @@ class BlockList extends StatelessWidget {
             showErrors: showErrors,
             onChanged: onChanged,
             onMediaStored: onMediaStored,
+            onPaste: (parts) => _paste(block, parts),
             onAction: (action) => _act(context, index, action),
             canMoveUp: index > 0,
             canMoveDown: index < blocks.length - 1,
@@ -178,6 +227,7 @@ class _Block extends StatelessWidget {
     required this.showErrors,
     required this.onChanged,
     required this.onMediaStored,
+    required this.onPaste,
     required this.onAction,
     required this.canMoveUp,
     required this.canMoveDown,
@@ -185,6 +235,7 @@ class _Block extends StatelessWidget {
 
   final BlockDraft block;
   final ValueChanged<MediaId> onMediaStored;
+  final ValueChanged<List<PastePart>> onPaste;
   final String menuLabel;
   final bool showErrors;
   final VoidCallback onChanged;
@@ -231,6 +282,7 @@ class _Block extends StatelessWidget {
       SensesBlockDraft(:final type) ||
       TableBlockDraft(:final type) ||
       ClozeBlockDraft(:final type) ||
+      ClozeMarkupBlockDraft(:final type) ||
       ImageBlockDraft(:final type) ||
       AudioBlockDraft(:final type) => type.title(l10n),
     };
@@ -242,18 +294,22 @@ class _Block extends StatelessWidget {
     );
     final rows = switch (block) {
       KeptBlockDraft() => const <Widget>[],
-      TextBlockDraft() => [
+      TextBlockDraft(:final markup) => [
         _NamedField(
           name: l10n.cardFront,
           controller: block.front,
           focusNode: block.focus,
           multiline: true,
+          markup: markup,
+          onPaste: onPaste,
           onChanged: _edited,
         ),
         _NamedField(
           name: l10n.cardBack,
           controller: block.back,
           multiline: true,
+          markup: markup,
+          onPaste: onPaste,
           onChanged: _edited,
         ),
       ],
@@ -303,6 +359,14 @@ class _Block extends StatelessWidget {
       ],
       ClozeBlockDraft() => [
         _ClozeFields(draft: block, showErrors: showErrors, onChanged: _edited),
+      ],
+      ClozeMarkupBlockDraft() => [
+        _ClozeMarkupFields(
+          draft: block,
+          showErrors: showErrors,
+          onChanged: _edited,
+          onPaste: onPaste,
+        ),
       ],
       ImageBlockDraft(:final image, :final side) => [
         Padding(
@@ -380,12 +444,20 @@ class _NamedField extends StatelessWidget {
     this.focusNode,
     this.multiline = false,
     this.onNext,
+    this.markup = false,
+    this.onPaste,
   });
 
   final String name;
   final TextEditingController controller;
   final FocusNode? focusNode;
   final bool multiline;
+
+  /// Whether the field's text is markup: a list goes on as a line is
+  /// broken, a pasted table or image becomes 칸 through [onPaste], and the
+  /// text is shown formatted under the field.
+  final bool markup;
+  final ValueChanged<List<PastePart>>? onPaste;
   final VoidCallback onChanged;
 
   /// Where a single-line field's action key goes on to, as "next"; without
@@ -416,16 +488,25 @@ class _NamedField extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Semantics(
-            label: name,
-            child: AppTextField(
-              controller: controller,
-              focusNode: focusNode,
-              maxLines: multiline ? null : 1,
-              textInputAction: onNext == null ? null : TextInputAction.next,
-              onSubmitted: onNext == null ? null : (_) => onNext?.call(),
-              onChanged: (_) => onChanged(),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Semantics(
+                label: name,
+                child: AppTextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  maxLines: multiline ? null : 1,
+                  textInputAction: onNext == null ? null : TextInputAction.next,
+                  inputFormatters: markup
+                      ? [const ListContinuation(), PasteToBlocks(onPaste)]
+                      : null,
+                  onSubmitted: onNext == null ? null : (_) => onNext?.call(),
+                  onChanged: (_) => onChanged(),
+                ),
+              ),
+              if (markup) MarkupPreview(controller),
+            ],
           ),
         ),
       ],
@@ -544,6 +625,93 @@ class _ClozeFields extends StatelessWidget {
               showError: showErrors && !draft.isComplete,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A 빈칸 문장 of version 2: its text in Anki's syntax, borderless in its
+/// group, and under it, while the text has focus, its one action as a small
+/// outlined chip that follows the caret, "가리기" or, in a cloze, "가리기 풀기";
+/// then the text as study draws it, each cloze a blank with its hint, and what
+/// keeps it from being saved, with [showErrors].
+class _ClozeMarkupFields extends StatelessWidget {
+  const _ClozeMarkupFields({
+    required this.draft,
+    required this.showErrors,
+    required this.onChanged,
+    required this.onPaste,
+  });
+
+  final ClozeMarkupBlockDraft draft;
+  final bool showErrors;
+  final VoidCallback onChanged;
+  final ValueChanged<List<PastePart>> onPaste;
+
+  void _set(TextEditingValue value) {
+    draft.source.value = value;
+    onChanged();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colors = AppColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(groupInset, 0, groupInset, groupInset),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            controller: draft.source,
+            focusNode: draft.focus,
+            hint: l10n.clozeMarkupHint,
+            minLines: 2,
+            maxLines: null,
+            inputFormatters: [const ListContinuation(), PasteToBlocks(onPaste)],
+            onChanged: (_) => onChanged(),
+          ),
+          ListenableBuilder(
+            listenable: Listenable.merge([draft.focus, draft.source]),
+            builder: (context, _) {
+              if (!draft.focus.hasFocus) return const SizedBox.shrink();
+              final value = draft.source.value;
+              final inside = clozeAt(value.text, value.selection);
+              return Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.s12),
+                  child: AppChip.action(
+                    label: inside == null ? l10n.clozeHide : l10n.clozeHideUndo,
+                    onPressed: () => _set(
+                      inside == null
+                          ? hideSelection(value)
+                          : removeCloze(value, inside),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          MarkupPreview(
+            draft.source,
+            cloze: (run) => TextSpan(
+              text: ' ${run.hint ?? answerText(run)} ',
+              style: TextStyle(
+                backgroundColor: colors.brandTint,
+                color: run.hint == null ? colors.ink : colors.ink2,
+              ),
+            ),
+          ),
+          if (showErrors && !draft.isComplete)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.s16),
+              child: Text(
+                l10n.clozeBlankRequired,
+                style: AppType.caption.copyWith(color: colors.dontKnowText),
+              ),
+            ),
         ],
       ),
     );

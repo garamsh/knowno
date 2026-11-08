@@ -54,16 +54,35 @@ final _phones = TargetPlatformVariant(const {
 /// The bar's one action while it reads [label].
 Finder _action(String label) => widgetWithShownText(AppChip, label);
 
+/// How many version 1 clozes the tests have stored to open, so no two are
+/// the same card.
+var _opened = 0;
+
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
-  /// A new card's editor whose one 칸 is a Cloze sentence.
+  /// The editor of a card stored with a version 1 cloze, the one a new
+  /// Cloze sentence no longer is (ADR 0207): the line is cleared, so it is
+  /// written as a new one is, with its blanks marked by "Insert blank".
   Future<DeckScreens> openCloze(WidgetTester tester, {DeckScreens? on}) async {
     final screens = on ?? await DeckScreens.open(tester);
-    await screens.push(
-      (deck) => CardEditorScreen(preview: studyPreview, deck: deck),
+    final stored = await tester.runAsync(
+      () => screens.repository.addCard(
+        screens.deck.id,
+        front: [
+          ClozeContent('${'old $_opened'} ___', const ['x']),
+        ],
+        back: const [],
+      ),
     );
-    await replaceFirstBlock(screens, 'Cloze sentence');
+    _opened++;
+    final card = switch (stored!) {
+      CardSaved(:final card) => card,
+      DuplicateFront() => throw StateError('the opening card was a duplicate'),
+    };
+    await screens.push(
+      (deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card),
+    );
     return screens;
   }
 
@@ -644,7 +663,7 @@ void main() {
       expect(message.data, keepWords('Insert at least one blank'));
       expect(message.semanticsLabel, 'Insert at least one blank');
       expect(find.byType(SnackBar), findsNothing);
-      expect(await screens.cards(), isEmpty);
+      expect(await screens.cards(), hasLength(1), reason: 'the opening card');
 
       await select(tester, 8, 11);
       await insertBlank(screens);
@@ -719,24 +738,6 @@ void main() {
   );
 
   testWidgets(
-    'a cloze whose filled line is already a card opens the duplicate sheet',
-    (tester) async {
-      final screens = await DeckScreens.open(
-        tester,
-        cards: {'The cat sat': '고양이가 앉았다'},
-      );
-      await openCloze(tester, on: screens);
-      await typeLine(tester, ' the cat sat ');
-      await select(tester, 5, 8);
-      await insertBlank(screens);
-      await save(screens);
-      expect(shownText('Add anyway'), findsOneWidget);
-      expect((await screens.cards()).length, 1);
-      await screens.close();
-    },
-  );
-
-  testWidgets(
     'a new line holding ___ or a longer run of underscores is refused with a message under it, and the deck still lists',
     (tester) async {
       final screens = await openCloze(tester);
@@ -754,7 +755,11 @@ void main() {
           reason: line,
         );
         expect(find.byType(SnackBar), findsNothing);
-        expect(await screens.cards(), isEmpty, reason: 'it lists, empty');
+        expect(
+          await screens.cards(),
+          hasLength(1),
+          reason: 'it lists, as stored',
+        );
       }
 
       await typeLine(tester, 'capital of France Paris');
@@ -819,7 +824,7 @@ void main() {
         expect(_action(action), findsOneWidget, reason: action);
         expect(
           [for (final button in primaries()) button.label],
-          ['Save and next card'],
+          ['Save'],
           reason: action,
         );
         // Right under the line, not in a bar over the keyboard.
