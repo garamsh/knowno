@@ -21,13 +21,13 @@
   },
   {
     "input": "a\n\nb",
-    "name": "paragraphs are apart by a blank line",
+    "name": "a blank line is kept",
     "plainText": "a\n\nb"
   },
   {
     "input": "- a\n  - b\n1. c\n  1. d",
     "name": "list markers are removed",
-    "plainText": "a\nb\n\nc\nd"
+    "plainText": "a\nb\nc\nd"
   },
   {
     "input": "x\n\n- a\n- b",
@@ -53,5 +53,35 @@
     "input": "**가나** {{c1::다}}",
     "name": "korean",
     "plainText": "가나 다"
+  },
+  {
+    "input": "a\n\n\nb",
+    "name": "a run of blank lines is kept",
+    "plainText": "a\n\n\nb"
+  },
+  {
+    "input": "\n",
+    "name": "a lone newline is kept",
+    "plainText": "\n"
+  },
+  {
+    "input": "a\n  \nb",
+    "name": "a line of spaces is kept",
+    "plainText": "a\n  \nb"
+  },
+  {
+    "input": "a\r\nb\rc",
+    "name": "carriage returns read as newlines",
+    "plainText": "a\nb\nc"
+  },
+  {
+    "input": "\\*a\\* \\- \\\\ \\{\\}\\:\\_\\`",
+    "name": "escapes are removed",
+    "plainText": "*a* \\- \\ {}:_`"
+  },
+  {
+    "input": "\\- a\n\\1. b",
+    "name": "an escaped line start is literal",
+    "plainText": "- a\n1. b"
   }
 ]

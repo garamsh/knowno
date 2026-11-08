@@ -3,7 +3,7 @@
 
 use knowno_engine_wasm::Block;
 use knowno_engine_wasm::{
-    cloze_from_v1, cloze_numbers, fill_cloze, hide_cloze, parse_markup, plain_text,
+    cloze_from_v1, cloze_numbers, escape_literal, fill_cloze, hide_cloze, parse_markup, plain_text,
 };
 use serde_json::Value;
 use tsify::Ts;
@@ -13,6 +13,7 @@ use wasm_bindgen_test::wasm_bindgen_test;
 const PARSE: &str = include_str!("../../engine/tests/fixtures/markup/parse.json");
 const CLOZE: &str = include_str!("../../engine/tests/fixtures/markup/cloze.json");
 const PLAIN: &str = include_str!("../../engine/tests/fixtures/markup/plain.json");
+const ESCAPE: &str = include_str!("../../engine/tests/fixtures/markup/escape.json");
 const V1: &str = include_str!("../../engine/tests/fixtures/markup/v1.json");
 
 #[wasm_bindgen(inline_js = r#"
@@ -109,5 +110,19 @@ fn cloze_from_v1_returns_each_fixture_s_source_or_nothing() {
             refused += 1;
         }
     }
-    assert!(converted >= 8 && refused >= 8);
+    assert!(converted >= 20 && refused >= 5);
+}
+
+#[wasm_bindgen_test]
+fn escape_literal_returns_each_fixture_s_markup() {
+    let cases = cases(ESCAPE);
+    assert!(cases.len() >= 20);
+    for case in &cases {
+        assert_eq!(
+            escape_literal(&text(case, "text")),
+            text(case, "escaped"),
+            "{}",
+            case["name"]
+        );
+    }
 }

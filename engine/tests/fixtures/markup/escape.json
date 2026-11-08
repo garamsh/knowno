@@ -1,0 +1,122 @@
+[
+  {
+    "escaped": "",
+    "name": "empty text",
+    "text": ""
+  },
+  {
+    "escaped": "plain 가 #a [b](c)",
+    "name": "plain text is unchanged",
+    "text": "plain 가 #a [b](c)"
+  },
+  {
+    "escaped": "a\\\\b",
+    "name": "a backslash",
+    "text": "a\\b"
+  },
+  {
+    "escaped": "a\\\\",
+    "name": "a trailing backslash",
+    "text": "a\\"
+  },
+  {
+    "escaped": "\\*a\\* \\*\\*b\\*\\*",
+    "name": "asterisks",
+    "text": "*a* **b**"
+  },
+  {
+    "escaped": "\\_a\\_ snake\\_case",
+    "name": "underscores",
+    "text": "_a_ snake_case"
+  },
+  {
+    "escaped": "\\`a\\`",
+    "name": "backticks",
+    "text": "`a`"
+  },
+  {
+    "escaped": "\\{a\\}",
+    "name": "braces",
+    "text": "{a}"
+  },
+  {
+    "escaped": "a\\:b\\:\\:c",
+    "name": "colons",
+    "text": "a:b::c"
+  },
+  {
+    "escaped": "\\{\\{c1\\:\\:x\\:\\:y\\}\\}",
+    "name": "a cloze",
+    "text": "{{c1::x::y}}"
+  },
+  {
+    "escaped": "\\- a",
+    "name": "a dash at the start",
+    "text": "- a"
+  },
+  {
+    "escaped": "\\-",
+    "name": "a lone dash",
+    "text": "-"
+  },
+  {
+    "escaped": "a\n\\- b",
+    "name": "a dash at a later line start",
+    "text": "a\n- b"
+  },
+  {
+    "escaped": "a - b",
+    "name": "a dash inside a line",
+    "text": "a - b"
+  },
+  {
+    "escaped": "\\1. a",
+    "name": "a number and a point at the start",
+    "text": "1. a"
+  },
+  {
+    "escaped": "\\12.5",
+    "name": "a longer number and a point",
+    "text": "12.5"
+  },
+  {
+    "escaped": "1 a",
+    "name": "a number without a point",
+    "text": "1 a"
+  },
+  {
+    "escaped": "a 1. b",
+    "name": "a number inside a line",
+    "text": "a 1. b"
+  },
+  {
+    "escaped": "  - a",
+    "name": "an indented dash",
+    "text": "  - a"
+  },
+  {
+    "escaped": "a\n\n\nb",
+    "name": "blank lines are kept",
+    "text": "a\n\n\nb"
+  },
+  {
+    "escaped": "\n",
+    "name": "a lone newline",
+    "text": "\n"
+  },
+  {
+    "escaped": "a\n  \nb",
+    "name": "a line of spaces",
+    "text": "a\n  \nb"
+  },
+  {
+    "escaped": "a\nb\nc",
+    "name": "crlf and a lone carriage return are newlines",
+    "text": "a\r\nb\rc"
+  },
+  {
+    "escaped": "\\\\- a",
+    "name": "a backslash then a dash at a line start",
+    "text": "\\- a"
+  }
+]
