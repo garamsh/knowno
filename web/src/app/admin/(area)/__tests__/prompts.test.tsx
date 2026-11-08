@@ -66,6 +66,16 @@ describe("saving a version", () => {
     expect(admin.audit.map((entry) => entry.action)).toEqual(["save_prompt"]);
   });
 
+  it("stores the text a browser posts with CRLF as LF, and an LF text as it is", async () => {
+    await redirected(
+      savePrompt({ message: null }, form({ text: "One.\r\nTwo.\rThree.", note: "" })),
+    );
+    expect(admin.prompts.at(-1)?.text).toBe("One.\nTwo.\nThree.");
+    // Control: a text with LF is stored as sent.
+    await redirected(savePrompt({ message: null }, form({ text: "One.\nTwo.", note: "" })));
+    expect(admin.prompts.at(-1)?.text).toBe("One.\nTwo.");
+  });
+
   it("refuses a blank text, one over 20,000 characters and a long note without asking the server", async () => {
     for (const fields of [
       { text: " \n ", note: "" },
