@@ -11,6 +11,8 @@ import 'content.dart';
 import 'content_view.dart';
 import 'hatched_box.dart';
 import 'image_block.dart';
+import 'markup.dart';
+import 'markup_span.dart';
 import 'model.dart';
 
 /// Whether a card of [cells] is drawn whole, each 칸 in place, rather than
@@ -157,9 +159,9 @@ class WholeCardView extends StatelessWidget {
       children: [
         for (final (:block, :added) in parts)
           switch (block) {
-            TextContent(:final text) when listed => _listedText(
+            final TextContent text when listed => _listedText(
               context,
-              TextSpan(text: keepWords(text)),
+              textSpan(text, wrap: keepWords),
               added: added,
             ),
             SensesContent() when listed => _listedText(
@@ -168,6 +170,11 @@ class WholeCardView extends StatelessWidget {
               added: added,
             ),
             ImageContent() when listed => _listedImage(context, block),
+            final TextContent text when text.markup => Text.rich(
+              textSpan(text, wrap: keepWords),
+              textAlign: textAlign,
+              style: added ? _addedStyle(context) : _titleStyle,
+            ),
             TextContent(:final text) => Text(
               text,
               textAlign: textAlign,
@@ -324,26 +331,35 @@ class WholeCardView extends StatelessWidget {
   bool get _boxed => _look == _Look.studied && !revealed;
 
   Widget _cloze(BuildContext context, ClozeContent cloze) {
-    final parts = cloze.text.split(clozeBlank);
-    final span = TextSpan(
-      children: [
-        for (final (index, part) in parts.indexed) ...[
-          // Korean breaks only between words (#454); a box keeps to the
-          // word it is written against.
-          TextSpan(
-            text: _boxed
-                ? _joined(
-                    part,
-                    before: index > 0,
-                    after: index < cloze.answers.length,
-                  )
-                : keepWords(part),
-          ),
-          if (index < cloze.answers.length)
-            _blank(context, cloze.answers[index], style),
-        ],
-      ],
-    );
+    final parts = cloze.markup
+        ? const <String>[]
+        : cloze.text.split(clozeBlank);
+    final span = cloze.markup
+        ? markupSpan(
+            markupEngine.parse(cloze.text),
+            wrap: keepWords,
+            cloze: (run) =>
+                _blank(context, answerText(run), style, hint: run.hint),
+          )
+        : TextSpan(
+            children: [
+              for (final (index, part) in parts.indexed) ...[
+                // Korean breaks only between words (#454); a box keeps to the
+                // word it is written against.
+                TextSpan(
+                  text: _boxed
+                      ? _joined(
+                          part,
+                          before: index > 0,
+                          after: index < cloze.answers.length,
+                        )
+                      : keepWords(part),
+                ),
+                if (index < cloze.answers.length)
+                  _blank(context, cloze.answers[index], style),
+              ],
+            ],
+          );
     final width = this.width;
     final minFontSize = this.minFontSize;
     if (listed) {
@@ -441,7 +457,12 @@ class WholeCardView extends StatelessWidget {
   /// on the brand tint; in a card list's row, filled on [AppHatch]; on
   /// study's cards, a box on [AppHatch] [blankEms] wide at the line's
   /// height, or filled on [AppHatch] (#635).
-  InlineSpan _blank(BuildContext context, String answer, TextStyle style) {
+  InlineSpan _blank(
+    BuildContext context,
+    String answer,
+    TextStyle style, {
+    String? hint,
+  }) {
     final colors = AppColors.of(context);
     if (_boxed) {
       final textScaler = MediaQuery.textScalerOf(context);
@@ -457,7 +478,28 @@ class WholeCardView extends StatelessWidget {
               colors,
               borderRadius: BorderRadius.circular(AppSpace.s4),
             ),
+            child: hint == null
+                ? null
+                : Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        hint,
+                        style: AppType.caption.copyWith(color: colors.ink2),
+                      ),
+                    ),
+                  ),
           ),
+        ),
+      );
+    }
+    if (hint != null && !revealed && _look == _Look.card) {
+      return TextSpan(
+        text: ' ${keepWords(hint)} ',
+        style: TextStyle(
+          color: colors.muted,
+          decoration: TextDecoration.underline,
+          decorationColor: colors.muted,
         ),
       );
     }
@@ -572,8 +614,12 @@ String _joined(String part, {required bool before, required bool after}) {
 int faceLength(List<Cell> cells) => [
   for (final (:block, added: _) in partsOf(cells, revealed: false))
     switch (block) {
-      TextContent(:final text) => text.length,
+      TextContent(:final plain) => plain.length,
       SensesContent(:final lines) => lines.length,
+      ClozeContent(markup: true, :final text) => markupPlain(
+        markupEngine.parse(text),
+        cloze: (_) => List.filled(blankEms, 'x').join(),
+      ).length,
       ClozeContent(:final text, :final answers) =>
         text.replaceAll(clozeBlank, '').length + answers.length * blankEms,
       TableContent() => [
@@ -589,6 +635,12 @@ int faceLength(List<Cell> cells) => [
 
 /// [cloze]'s text with each blank a box, as study's cards measure it.
 String boxedText(ClozeContent cloze) {
+  if (cloze.markup) {
+    return markupPlain(
+      markupEngine.parse(cloze.text),
+      cloze: (_) => _boxMeasure,
+    );
+  }
   final parts = cloze.text.split(clozeBlank);
   return [
     for (final (index, part) in parts.indexed) ...[

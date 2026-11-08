@@ -6,6 +6,8 @@ import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'card_frame.dart';
 import 'content.dart';
+import 'markup.dart';
+import 'markup_span.dart';
 import 'content_view.dart';
 import 'hatched_box.dart';
 import 'whole_card_view.dart';
@@ -114,7 +116,7 @@ String spokenCells(
 String describeContent(AppLocalizations l10n, List<Content> blocks) => blocks
     .map(
       (block) => switch (block) {
-        TextContent(:final text) => text,
+        TextContent(:final plain) => plain,
         ClozeContent(:final filled) || TableContent(:final filled) => filled,
         SensesContent(:final lines) => lines,
         ImageContent() => l10n.blockImage,
@@ -137,6 +139,10 @@ String spokenContent(
   return blocks
       .map(
         (block) => switch (block) {
+          ClozeContent(markup: true, :final text) => markupPlain(
+            markupEngine.parse(text),
+            cloze: (run) => blank(answerText(run)),
+          ),
           ClozeContent(:final text, :final answers) => [
             for (final (index, part) in text.split(clozeBlank).indexed) ...[
               part,

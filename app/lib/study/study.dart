@@ -5,6 +5,7 @@ library;
 export 'src/autoplay.dart' show AutoplayAudioRow;
 export 'src/card_preview_screen.dart' show CardPreviewScreen;
 export 'src/daily_minutes_sheet.dart' show DailyMinutesRow, FirstDailyMinutes;
+export 'src/markup_engine.dart' show BridgeMarkupEngine;
 export 'src/model.dart' show CardState, FuzzFactor, Review;
 export 'src/providers.dart'
     show

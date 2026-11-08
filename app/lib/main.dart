@@ -31,6 +31,8 @@ import 'sync/sync.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final scheduler = await Scheduler.load();
+  // After the engine library, which the parser is in too.
+  installMarkupEngine(const BridgeMarkupEngine());
   final account = await connectAccount(accountDefines());
   final package = await PackageInfo.fromPlatform();
   final support = await getApplicationSupportDirectory();

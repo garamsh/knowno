@@ -37,6 +37,24 @@ export 'src/card_frame.dart'
         frameProblem,
         sidesOf;
 export 'src/card_key.dart' show CardKey;
+export 'src/markup.dart'
+    show
+        BlankRun,
+        BoldRun,
+        ClozeRun,
+        CodeRun,
+        ItalicRun,
+        LineBreakRun,
+        ListBlock,
+        MarkupBlock,
+        MarkupEngine,
+        MarkupInline,
+        MarkupItem,
+        MarkupSubList,
+        ParagraphBlock,
+        TextRun,
+        installMarkupEngine,
+        markupEngine;
 export 'src/card_list.dart'
     show CardBackRow, describeContent, spokenCells, spokenContent;
 export 'src/card_template.dart' show isFramed;

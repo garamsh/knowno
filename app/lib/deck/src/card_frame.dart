@@ -24,18 +24,33 @@ sealed class Cell {
 
 /// A 글: its [front] shows before the reveal and its [back] is added by it.
 /// Either may be empty.
+///
+/// A 글 of version 3 reads its parts as markup, a Markdown subset the engine
+/// parses (ADR 0202); one of version 2, or drawn from a side block, reads
+/// them as written.
 final class TextCell extends Cell {
-  const TextCell({this.front = '', this.back = '', super.id});
+  const TextCell({
+    this.front = '',
+    this.back = '',
+    this.markup = false,
+    super.id,
+  });
 
   final String front;
   final String back;
 
-  @override
-  bool operator ==(Object other) =>
-      other is TextCell && other.front == front && other.back == back;
+  /// Whether [front] and [back] are read as markup: the 글 is version 3.
+  final bool markup;
 
   @override
-  int get hashCode => Object.hash(front, back);
+  bool operator ==(Object other) =>
+      other is TextCell &&
+      other.front == front &&
+      other.back == back &&
+      other.markup == markup;
+
+  @override
+  int get hashCode => Object.hash(front, back, markup);
 }
 
 /// A 단어: a word and its meanings, [ask] naming the one shown first.
@@ -107,6 +122,9 @@ final class UnknownCell extends Cell {
 
 const _frameVersions = {'text': 2, 'senses': 2, 'image': 2, 'audio': 2};
 
+/// The version of a 글 whose text is markup.
+const _markupTextVersion = 3;
+
 /// Decodes a stored 칸 list. A block of the frame's versions reads its own
 /// fields, and one of an earlier version reads as it was drawn on a front;
 /// an unknown type or version is kept. Throws [FormatException] for a block
@@ -126,13 +144,18 @@ Cell _decodeCell(Object? block, String source) {
         'v': final int version,
         'payload': final Map<String, Object?> payload,
       }
-      when version == _frameVersions[type]) {
+      when version == _frameVersions[type] ||
+          type == 'text' && version == _markupTextVersion) {
     final id = block['id'];
     if (id != null && id is! String) {
       throw FormatException('a $type block has an id that is not text', source);
     }
     final cell = switch (type) {
-      'text' => _decodeText(payload, id as String?),
+      'text' => _decodeText(
+        payload,
+        id as String?,
+        markup: version == _markupTextVersion,
+      ),
       'senses' => _decodeWord(payload, id as String?),
       _ => _decodePlaced(type, payload, block, source),
     };
@@ -147,13 +170,16 @@ Cell _decodeCell(Object? block, String source) {
   };
 }
 
-TextCell? _decodeText(Map<String, Object?> payload, String? id) =>
-    switch (payload) {
-      {'front': final String front, 'back': final String back}
-          when front.trim().isNotEmpty || back.trim().isNotEmpty =>
-        TextCell(front: front, back: back, id: id),
-      _ => null,
-    };
+TextCell? _decodeText(
+  Map<String, Object?> payload,
+  String? id, {
+  required bool markup,
+}) => switch (payload) {
+  {'front': final String front, 'back': final String back}
+      when front.trim().isNotEmpty || back.trim().isNotEmpty =>
+    TextCell(front: front, back: back, markup: markup, id: id),
+  _ => null,
+};
 
 WordCell? _decodeWord(Map<String, Object?> payload, String? id) {
   if (payload
@@ -238,9 +264,9 @@ String encodeCells(List<Cell> cells, {required String Function() newId}) =>
     jsonEncode([
       for (final cell in cells)
         switch (cell) {
-          TextCell(:final front, :final back) => {
+          TextCell(:final front, :final back, :final markup) => {
             'type': 'text',
-            'v': _frameVersions['text'],
+            'v': markup ? _markupTextVersion : _frameVersions['text'],
             'id': cell.id ?? newId(),
             'payload': {'front': front, 'back': back},
           },
@@ -399,9 +425,9 @@ List<Cell>? cellsOf(Card card) =>
   final back = <Content>[];
   for (final cell in cells) {
     switch (cell) {
-      case TextCell(front: final text, back: final added):
-        if (text.isNotEmpty) front.add(TextContent(text));
-        if (added.isNotEmpty) back.add(TextContent(added));
+      case TextCell(front: final text, back: final added, :final markup):
+        if (text.isNotEmpty) front.add(TextContent(text, markup: markup));
+        if (added.isNotEmpty) back.add(TextContent(added, markup: markup));
       case WordCell(:final term, :final senses, :final ask):
         final word = [if (term.isNotEmpty) TextContent(term)];
         final meanings = [SensesContent(senses)];
