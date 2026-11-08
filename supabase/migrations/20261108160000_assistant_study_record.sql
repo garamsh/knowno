@@ -1,4 +1,4 @@
--- 말랑이 reads the user's study record (#761, ADR 0206): `public.assistant_study_record` answers,
+-- 말랑이 reads the user's study record (#761, `assistant.md` §Tools): `public.assistant_study_record` answers,
 -- from the caller's reviews and card states, each deck's cards by progress label, its cards due
 -- and its answers and share answered "good" in a period, and the cards most often answered "again"
 -- in it, with the columns the card tools read cards by.

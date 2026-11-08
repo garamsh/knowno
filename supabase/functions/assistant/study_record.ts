@@ -1,5 +1,5 @@
 /**
- * The study record tool (ADR 0206): each deck's cards by progress label, its cards due and its
+ * The study record tool (#761, `assistant.md` §Tools): each deck's cards by progress label, its cards due and its
  * answers in a period, and the cards the user answered "모른다" most often, read as the caller by
  * `public.assistant_study_record`, which holds the progress label, the due rule and the study day.
  */

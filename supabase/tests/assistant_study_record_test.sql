@@ -1,4 +1,4 @@
--- The assistant's study record (#761, ADR 0206): a deck's cards by progress label, the interval
+-- The assistant's study record (#761, `assistant.md` §Tools): a deck's cards by progress label, the interval
 -- 21 days exactly mastered and a second less learning, a card without a state new; its cards due
 -- when they fall due before the study day ends, 04:00 in the zone, at 03:59 against 04:00; its
 -- answers and share "good" within the period and none outside it; the cards most often answered
