@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -51,15 +52,48 @@ final class CommitFailed extends CommitOutcome {
   final CommitFailure failure;
 }
 
+/// What a photo job's poll came to.
+sealed class JobPollOutcome {
+  const JobPollOutcome();
+}
+
+final class JobPolled extends JobPollOutcome {
+  const JobPolled(this.progress);
+
+  final JobProgress progress;
+}
+
+/// The server holds no such job of the user's (`404`).
+final class JobMissing extends JobPollOutcome {
+  const JobMissing();
+}
+
+/// The poll did not get an answer; it is tried again.
+final class JobPollFailed extends JobPollOutcome {
+  const JobPollFailed();
+}
+
 /// What the chat asks of the assistant: a seam, so its tests stand a fake in
 /// for the function.
 abstract interface class AssistantClient {
-  /// Sends [messages], oldest first, the last the user's; [abort] completing
-  /// stops the message and the stream it started.
+  /// Sends [messages], oldest first, the last the user's, with the note
+  /// [deckId] the chat was opened in; [abort] completing stops the message
+  /// and the stream it started.
   Future<SendOutcome> send(
     List<Map<String, Object?>> messages, {
+    String? deckId,
     required Future<void> abort,
   });
+
+  /// Uploads the JPEG [bytes] of the photo [photoId] to the user's folder of
+  /// `assistant-photos`; whether it was kept.
+  Future<bool> uploadPhoto(String photoId, Uint8List bytes);
+
+  /// Where the photo job [id] stands.
+  Future<JobPollOutcome> pollJob(String id);
+
+  /// Cancels the photo job [id]; whether the server did.
+  Future<bool> cancelJob(String id);
 
   /// Writes the cards of [proposal] that [checked] names under their group.
   Future<CommitOutcome> commit(
@@ -83,6 +117,7 @@ final class HttpAssistantClient implements AssistantClient {
     required this.functionUrl,
     required this.accessToken,
     required this.readAllowance,
+    required this.storePhoto,
   });
 
   final http.Client _http;
@@ -97,9 +132,14 @@ final class HttpAssistantClient implements AssistantClient {
   /// PostgREST answers them.
   final Future<Object?> Function() readAllowance;
 
+  /// Stores [bytes] in `assistant-photos` at `{user id}/{photoId}` as a
+  /// JPEG, as the signed-in user.
+  final Future<void> Function(String photoId, Uint8List bytes) storePhoto;
+
   @override
   Future<SendOutcome> send(
     List<Map<String, Object?>> messages, {
+    String? deckId,
     required Future<void> abort,
   }) async {
     final token = await accessToken();
@@ -111,7 +151,10 @@ final class HttpAssistantClient implements AssistantClient {
     );
     request.headers['authorization'] = 'Bearer $token';
     request.headers['content-type'] = 'application/json';
-    request.body = jsonEncode({'messages': messages});
+    request.body = jsonEncode({
+      'messages': messages,
+      if (deckId != null) 'context': {'deck_id': deckId},
+    });
     final http.StreamedResponse response;
     try {
       response = await _http.send(request);
@@ -130,6 +173,47 @@ final class HttpAssistantClient implements AssistantClient {
       return const SendRefused(Unreachable());
     }
     return SendRefused(parseRefusal(response.statusCode, body));
+  }
+
+  @override
+  Future<bool> uploadPhoto(String photoId, Uint8List bytes) async {
+    try {
+      await storePhoto(photoId, bytes);
+      return true;
+    } on Exception {
+      return false;
+    }
+  }
+
+  @override
+  Future<JobPollOutcome> pollJob(String id) async {
+    final token = await accessToken();
+    if (token == null) return const JobPollFailed();
+    final http.Response response;
+    try {
+      response = await _http.get(
+        Uri.parse('$functionUrl/jobs/$id'),
+        headers: {'authorization': 'Bearer $token'},
+      );
+    } on http.ClientException {
+      return const JobPollFailed();
+    }
+    return parsePoll(response.statusCode, response.body);
+  }
+
+  @override
+  Future<bool> cancelJob(String id) async {
+    final token = await accessToken();
+    if (token == null) return false;
+    try {
+      final response = await _http.post(
+        Uri.parse('$functionUrl/jobs/$id/cancel'),
+        headers: {'authorization': 'Bearer $token'},
+      );
+      return response.statusCode == 200;
+    } on http.ClientException {
+      return false;
+    }
   }
 
   @override
@@ -213,6 +297,22 @@ CommitOutcome parseCommit(int status, String body) {
     }
   }
   return const CommitFailed(CommitFailure.failed);
+}
+
+/// What a job poll's [status] and [body] mean (`assistant.md` §Photo jobs).
+JobPollOutcome parsePoll(int status, String body) {
+  if (status == 404) return const JobMissing();
+  if (status != 200) return const JobPollFailed();
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(body);
+  } on FormatException {
+    return const JobPollFailed();
+  }
+  return switch (JobProgress.parsePoll(decoded)) {
+    final progress? => JobPolled(progress),
+    null => const JobPollFailed(),
+  };
 }
 
 /// The URL of `assistant` for the project whose PostgREST URL is [restUrl].

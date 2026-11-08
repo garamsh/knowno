@@ -58,14 +58,25 @@ enum _Motion {
 /// or less, under reduce motion, and where its expression has nothing to move
 /// at its size, it is the still image.
 class Mascot extends StatelessWidget {
-  const Mascot({super.key, required this.expression, required this.size});
+  const Mascot({
+    super.key,
+    required this.expression,
+    required this.size,
+    this.breathes = false,
+  });
 
   final MascotExpression expression;
   final double size;
 
+  /// Whether it breathes though it is under 128 across, as the character at
+  /// a screen's edge does at 72.
+  final bool breathes;
+
   @override
   Widget build(BuildContext context) {
-    final motion = _Motion.of(expression, size);
+    final motion = breathes && size > 40
+        ? _Motion.full
+        : _Motion.of(expression, size);
     return ExcludeSemantics(
       child:
           motion == null ||

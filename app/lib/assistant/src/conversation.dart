@@ -5,6 +5,9 @@ import 'protocol.dart';
 /// The most turns a message carries, as the function's `MAX_TURNS`.
 const maxTurns = 40;
 
+/// The most photos a message attaches, as the function's `MAX_JOB_PHOTOS`.
+const maxPhotos = 50;
+
 /// The longest a user's message may be, as the function's `MAX_TURN_TEXT`.
 const maxMessageLength = 4000;
 
@@ -124,8 +127,30 @@ sealed class Turn {
   final String text;
 }
 
+/// The user's message. [photos] are the ids of the photos it attached, and
+/// [auto] marks the message the chat sends itself when a photo job is done.
 final class UserTurn extends Turn {
-  const UserTurn({required super.id, required super.text});
+  const UserTurn({
+    required super.id,
+    required super.text,
+    this.photos = const [],
+    this.auto = false,
+  });
+
+  final List<String> photos;
+  final bool auto;
+}
+
+/// Where the chat was opened from: the note [deckId] named [text], shown
+/// in the thread and sent with each message as its context, never as a turn.
+final class ContextTurn extends Turn {
+  const ContextTurn({
+    required super.id,
+    required this.deckId,
+    required super.text,
+  });
+
+  final String deckId;
 }
 
 /// 말랑이's turn; its [ending] is null while it streams.
@@ -137,6 +162,7 @@ final class AssistantTurn extends Turn {
     this.proposals = const [],
     this.choice,
     this.ending,
+    this.job,
   });
 
   final List<Citation> citations;
@@ -144,12 +170,16 @@ final class AssistantTurn extends Turn {
   final Choice? choice;
   final Ending? ending;
 
+  /// The photo job this reply started, with how far it has read.
+  final JobProgress? job;
+
   AssistantTurn copyWith({
     String? text,
     List<Citation>? citations,
     List<ShownProposal>? proposals,
     Choice? choice,
     Ending? ending,
+    JobProgress? job,
   }) => AssistantTurn(
     id: id,
     text: text ?? this.text,
@@ -157,10 +187,10 @@ final class AssistantTurn extends Turn {
     proposals: proposals ?? this.proposals,
     choice: choice ?? this.choice,
     ending: ending ?? this.ending,
+    job: job ?? this.job,
   );
 
-  /// This turn with [event] of its stream applied; `usage` and `job` change
-  /// nothing.
+  /// This turn with [event] of its stream applied; `usage` changes nothing.
   AssistantTurn withEvent(AssistantEvent event) => switch (event) {
     TextDelta(:final delta) => copyWith(text: text + delta),
     CitationEvent(:final url, :final title) =>
@@ -185,7 +215,10 @@ final class AssistantTurn extends Turn {
         ReplyError.cut => Ending.cut,
       },
     ),
-    UsageEvent() || JobEvent() => this,
+    JobEvent(:final id, :final photos) => copyWith(
+      job: JobProgress(id: id, photos: photos),
+    ),
+    UsageEvent() => this,
     MalformedEvent() => copyWith(ending: Ending.modelError),
   };
 }
@@ -198,6 +231,9 @@ final class Conversation {
   final String draft;
 
   bool get isEmpty => turns.isEmpty && draft.isEmpty;
+
+  /// The last turn that is a message, not a context marker.
+  Turn? get lastTurn => turns.where((turn) => turn is! ContextTurn).lastOrNull;
 
   Conversation copyWith({List<Turn>? turns, String? draft}) =>
       Conversation(turns: turns ?? this.turns, draft: draft ?? this.draft);
@@ -215,26 +251,43 @@ final class Conversation {
         : null;
   }
 
+  /// The reply that started a photo job still reading, the latest one.
+  AssistantTurn? get runningJob => turns
+      .whereType<AssistantTurn>()
+      .where((turn) => turn.job?.state == JobState.running)
+      .lastOrNull;
+
   /// The last [maxTurns] turns as a message sends them, oldest first, each
-  /// reply with its proposals and question (`assistant.md` §Requests).
-  List<Map<String, Object?>> get requestTurns => [
-    for (final turn
-        in turns.length > maxTurns
-            ? turns.sublist(turns.length - maxTurns)
-            : turns)
-      switch (turn) {
-        UserTurn() => {'role': 'user', 'text': turn.text},
-        AssistantTurn() => {
-          'role': 'assistant',
-          'text': turn.text,
-          if (turn.proposals.isNotEmpty)
-            'proposals': [
-              for (final one in turn.proposals) one.proposal.toJson(),
-            ],
-          if (turn.choice case final choice?) 'choice': choice.toJson(),
+  /// reply with its proposals, question and photo job, each message with its
+  /// photos (`assistant.md` §Requests). A context marker is not a turn.
+  List<Map<String, Object?>> get requestTurns {
+    final sent = turns.where((turn) => turn is! ContextTurn).toList();
+    return [
+      for (final turn
+          in sent.length > maxTurns
+              ? sent.sublist(sent.length - maxTurns)
+              : sent)
+        ?switch (turn) {
+          ContextTurn() => null,
+          UserTurn() => {
+            'role': 'user',
+            'text': turn.text,
+            if (turn.photos.isNotEmpty) 'photos': turn.photos,
+          },
+          AssistantTurn() => {
+            'role': 'assistant',
+            'text': turn.text,
+            if (turn.proposals.isNotEmpty)
+              'proposals': [
+                for (final one in turn.proposals) one.proposal.toJson(),
+              ],
+            if (turn.choice case final choice?) 'choice': choice.toJson(),
+            if (turn.job case final job?)
+              'job': {'id': job.id, 'photos': job.photos},
+          },
         },
-      },
-  ];
+    ];
+  }
 
   /// The turns as stored; the draft is stored apart, so typing rewrites no
   /// turn.
@@ -243,7 +296,19 @@ final class Conversation {
     'turns': [
       for (final turn in turns)
         switch (turn) {
-          UserTurn() => {'role': 'user', 'id': turn.id, 'text': turn.text},
+          ContextTurn() => {
+            'role': 'context',
+            'id': turn.id,
+            'text': turn.text,
+            'deck_id': turn.deckId,
+          },
+          UserTurn() => {
+            'role': 'user',
+            'id': turn.id,
+            'text': turn.text,
+            'photos': turn.photos,
+            'auto': turn.auto,
+          },
           AssistantTurn() => {
             'role': 'assistant',
             'id': turn.id,
@@ -254,6 +319,7 @@ final class Conversation {
             'proposals': [for (final one in turn.proposals) one.toJson()],
             'choice': turn.choice?.toJson(),
             'ending': turn.ending?.name,
+            'job': turn.job?.toJson(),
           },
         },
     ],
@@ -286,8 +352,25 @@ Turn? _parseTurn(Object? value) {
   if (value is! Map<String, Object?>) return null;
   if (value case {'id': final String id, 'text': final String text}) {
     switch (value['role']) {
+      case 'context':
+        return switch (value['deck_id']) {
+          final String deckId => ContextTurn(
+            id: id,
+            deckId: deckId,
+            text: text,
+          ),
+          _ => null,
+        };
       case 'user':
-        return UserTurn(id: id, text: text);
+        return UserTurn(
+          id: id,
+          text: text,
+          photos: switch (value['photos']) {
+            final List<Object?> ids => [...ids.whereType<String>()],
+            _ => const [],
+          },
+          auto: value['auto'] == true,
+        );
       case 'assistant':
         final citations = switch (value['citations']) {
           final List<Object?> list => [
@@ -317,6 +400,7 @@ Turn? _parseTurn(Object? value) {
           proposals: [...shown.nonNulls],
           choice: Choice.parse(value['choice']),
           ending: ending ?? Ending.stopped,
+          job: JobProgress.parse(value['job']),
         );
     }
   }

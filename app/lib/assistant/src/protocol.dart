@@ -210,6 +210,86 @@ final class UsageEvent extends AssistantEvent {
   final Allowance allowance;
 }
 
+/// Whether a photo job still reads, or ended: all its photos done, or the
+/// user's cancel.
+enum JobState { running, done, cancelled }
+
+/// A photo job as the chat shows it: how many of its [photos] are [read]
+/// through, and its [state].
+final class JobProgress {
+  const JobProgress({
+    required this.id,
+    required this.photos,
+    this.finished = 0,
+    this.state = JobState.running,
+  });
+
+  final String id;
+  final int photos;
+
+  /// The photos no longer queued: read, failed or skipped.
+  final int finished;
+  final JobState state;
+
+  JobProgress copyWith({int? finished, JobState? state}) => JobProgress(
+    id: id,
+    photos: photos,
+    finished: finished ?? this.finished,
+    state: state ?? this.state,
+  );
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'photos': photos,
+    'finished': finished,
+    'state': state.name,
+  };
+
+  static JobProgress? parse(Object? value) => switch (value) {
+    {
+      'id': final String id,
+      'photos': final int photos,
+      'finished': final int finished,
+      'state': final String state,
+    } =>
+      JobProgress(
+        id: id,
+        photos: photos,
+        finished: finished,
+        state:
+            JobState.values.where((s) => s.name == state).firstOrNull ??
+            JobState.cancelled,
+      ),
+    _ => null,
+  };
+
+  /// The progress a job's poll [body] answers (`assistant.md` §Photo jobs),
+  /// or null when it is not one.
+  static JobProgress? parsePoll(Object? body) {
+    if (body case {
+      'id': final String id,
+      'status': final String status,
+      'photos': final List<Object?> photos,
+      'queued': final int queued,
+    }) {
+      final state = switch (status) {
+        'running' => JobState.running,
+        'done' => JobState.done,
+        'cancelled' => JobState.cancelled,
+        _ => null,
+      };
+      if (state == null) return null;
+      return JobProgress(
+        id: id,
+        photos: photos.length,
+        finished: photos.length - queued,
+        state: state,
+      );
+    }
+    return null;
+  }
+}
+
 /// A known event whose data is not its form.
 final class MalformedEvent extends AssistantEvent {
   const MalformedEvent();
@@ -311,6 +391,11 @@ final class Unavailable extends MessageRefusal {
 
 final class Unreachable extends MessageRefusal {
   const Unreachable();
+}
+
+/// A photo of the message did not reach the server; nothing was sent.
+final class PhotoUploadFailed extends MessageRefusal {
+  const PhotoUploadFailed();
 }
 
 /// The refusal a message's [status] and [body] mean (`assistant.md`

@@ -3371,6 +3371,96 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'노트를 아직 불러오지 못했어요. 잠시 후 다시 눌러 주세요.'**
   String get assistantNoteNotSynced;
+
+  /// The short bubble beside the edge character while 말랑이 has new cards ready.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}장 만들어 뒀어요'**
+  String assistantReadyShort(int count);
+
+  /// The one-time hint beside the edge character once a first note exists.
+  ///
+  /// In ko, this message translates to:
+  /// **'말랑이를 누르면 언제든 대화할 수 있어요'**
+  String get assistantHint;
+
+  /// Screen reader name of the hint's close button.
+  ///
+  /// In ko, this message translates to:
+  /// **'안내 닫기'**
+  String get assistantHintClose;
+
+  /// The thread's line naming the note the chat was opened from.
+  ///
+  /// In ko, this message translates to:
+  /// **'{name} 노트에서'**
+  String assistantFromNote(String name);
+
+  /// The ⋯ item that adds a card by hand on a note, or makes a note by hand on the 노트 tab.
+  ///
+  /// In ko, this message translates to:
+  /// **'직접 추가'**
+  String get assistantAddByHand;
+
+  /// The photo button beside the message field.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 첨부'**
+  String get assistantPhotoAttach;
+
+  /// Screen reader name of a staged photo's remove button.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 삭제'**
+  String get assistantPhotoRemove;
+
+  /// A message's attached photos, and the staged photos' label.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 {count}장'**
+  String assistantPhotos(int count);
+
+  /// While a message's photos upload.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진을 올리는 중이에요'**
+  String get assistantUploading;
+
+  /// A photo did not upload; nothing was sent.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진을 올리지 못했어요. 다시 시도해 주세요.'**
+  String get assistantUploadFailed;
+
+  /// A photo could not be taken or picked.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진을 가져오지 못했어요. 다시 시도해 주세요.'**
+  String get assistantPhotoPickFailed;
+
+  /// A photo job's progress under 말랑이's reply.
+  ///
+  /// In ko, this message translates to:
+  /// **'{done}/{total}장 읽는 중'**
+  String assistantJobProgress(int done, int total);
+
+  /// Cancels the running photo job.
+  ///
+  /// In ko, this message translates to:
+  /// **'읽기 취소'**
+  String get assistantJobCancel;
+
+  /// A finished photo job.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 {count}장을 다 읽었어요'**
+  String assistantJobDone(int count);
+
+  /// A cancelled photo job.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 읽기를 취소했어요'**
+  String get assistantJobCancelled;
 }
 
 class _AppLocalizationsDelegate
