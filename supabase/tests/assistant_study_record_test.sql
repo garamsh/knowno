@@ -5,7 +5,7 @@
 -- "again", at most 50; a deleted card or deck, and another user's record, never read, with the
 -- owner's as control; no client role short of authenticated reaching it; and the revert.
 begin;
-select plan(18);
+select plan(20);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'a@example.com'),
@@ -62,7 +62,7 @@ $$;
 -- The record [who], signed in, reads, as json.
 create function pg_temp.record(
   who uuid, deck int default null, days int default 30,
-  at timestamptz default '2026-11-08 12:00Z'
+  at timestamptz default '2026-11-08 12:00Z', time_zone text default 'Asia/Seoul'
 ) returns jsonb language plpgsql as $$
 declare
   result jsonb;
@@ -71,7 +71,7 @@ begin
     json_build_object('sub', who, 'role', 'authenticated')::text, true);
   set local role authenticated;
   select public.assistant_study_record(
-    case when deck is null then null else pg_temp.id('d', deck) end, days, 'Asia/Seoul', at)
+    case when deck is null then null else pg_temp.id('d', deck) end, days, time_zone, at)
     into result;
   reset role;
   return result;
@@ -169,6 +169,16 @@ select is(
       (r -> 'missed' -> 0 ->> 'id' = pg_temp.id('c', 100)::text)::int]
     from (select pg_temp.record(pg_temp.a(), 4) as r) as q),
   array[50, 3, 1], 'at most 50 cards missed, the most often first, of the 52');
+
+-- The zone the study day is counted in: a card due 03:00 on the 9th in Los Angeles (11:00Z, PST) is
+-- due before the day holding 04:00 on the 8th there ends, and not before Seoul's day ends at 19:00Z.
+select pg_temp.deck(pg_temp.a(), 5);
+select pg_temp.card(pg_temp.a(), 200, 5, false, '2026-11-09 10:00Z', interval '1 hour');
+select is(pg_temp.record(pg_temp.a(), 5, 30, '2026-11-08 12:00Z', 'America/Los_Angeles')
+    -> 'decks' -> 0 -> 'due',
+  '1'::jsonb, 'in Los Angeles at 04:00 on the 8th the card due at 03:00 on the 9th is due, the day ending at 04:00');
+select is(pg_temp.record(pg_temp.a(), 5, 30, '2026-11-08 12:00Z', 'Asia/Seoul') -> 'decks' -> 0 -> 'due',
+  '0'::jsonb, 'control: at the same instant in Seoul it is 21:00, the day ends at 04:00 on the 9th there, and the card is not due');
 
 select is(public.mastered_interval(), interval '21 days', 'the mastered interval is 21 days');
 select results_eq($$select has_function_privilege('anon', 'public.assistant_study_record(uuid, integer, text, timestamptz)', 'execute'),
