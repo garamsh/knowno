@@ -27,4 +27,18 @@ describe("a prompt's line diff", () => {
       { kind: "added", text: "x" },
     ]);
   });
+
+  it("treats CRLF and LF as the same line ending, so a stored CRLF version diffs as it reads", () => {
+    const crlf = "intro\r\nold rule\r\nend";
+    expect(lineDiff(crlf, "intro\nnew rule\nend")).toEqual([
+      { kind: "same", text: "intro" },
+      { kind: "removed", text: "old rule" },
+      { kind: "added", text: "new rule" },
+      { kind: "same", text: "end" },
+    ]);
+    // Control: a version that differs by its line endings alone has no change.
+    expect(lineDiff(crlf, "intro\nold rule\nend").every((line) => line.kind === "same")).toBe(true);
+    expect(lineDiff("a\rb", "a\nb").every((line) => line.kind === "same")).toBe(true);
+    expect(lineDiff("a\nb", "a\r\nb").every((line) => line.kind === "same")).toBe(true);
+  });
 });

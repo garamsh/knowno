@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { call, failureMessages } from "./action-call";
 import { parseCardForm } from "./labels";
+import { lfOf } from "./line-breaks";
 import { skillRefusal } from "./skill-limits";
 
 /** What the skill form shows after an attempt that did not save. */
@@ -32,8 +33,7 @@ export async function saveCardFormSkill(
   ) {
     return { message: failureMessages.malformed };
   }
-  // A browser submits a textarea's line breaks as CRLF, which would make every line a change.
-  const guide = text.replace(/\r\n?/g, "\n");
+  const guide = lfOf(text);
   const refusal = skillRefusal(summary, guide, note);
   if (refusal !== null) return { message: refusal };
   const result = await call("admin_save_card_form_skill", {
