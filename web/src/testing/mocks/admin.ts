@@ -177,6 +177,26 @@ export class FakeAdmin {
   readonly assistantPrompts: { id: number; text: string; note: string; by: string | null }[] = [
     { id: 1, text: "You are 말랑이.\nAnswer briefly.", note: "first", by: null },
   ];
+  /** The saved card-form skill versions, oldest first; each form's first is its seed. */
+  readonly cardFormSkills: {
+    id: number;
+    form: string;
+    summary: string;
+    text: string;
+    note: string;
+    by: string | null;
+  }[] = ["text", "senses", "cloze", "table", "image", "mixed"].map((form, index) => ({
+    id: index + 1,
+    form,
+    summary: `${form} summary`,
+    text: `# ${form}\nUse it for ${form}.\nRule one.`,
+    note: "seed (#751)",
+    by: null,
+  }));
+  /** The version each card form's 'active' and 'test' labels name; the seeds are active. */
+  readonly cardFormSkillLabels = new Map<string, number>(
+    this.cardFormSkills.map((skill) => [`${skill.form} active`, skill.id]),
+  );
   /** Each plan's daily assistant token budget, as the owner approved them; null for none. */
   readonly assistantTokenBudgets = new Map<string, number | null>([
     ["free", 200_000],
@@ -616,6 +636,59 @@ export class FakeAdmin {
         this.assistantConfigurations.splice(draft, 1);
         this.record(admin, "clear_assistant_test", "plan", String(args.plan), {
           configuration_id: cleared,
+        });
+        return true;
+      }
+      case "admin_card_form_skills":
+        return this.cardFormSkills.toReversed().map((skill) => ({
+          id: skill.id,
+          form: skill.form,
+          summary: skill.summary,
+          text: skill.text,
+          note: skill.note,
+          created_by_email: this.users.find((user) => user.id === skill.by)?.email ?? null,
+          created_at: "2026-11-05T01:00:00Z",
+          labels: (["active", "test"] as const).filter(
+            (label) => this.cardFormSkillLabels.get(`${skill.form} ${label}`) === skill.id,
+          ),
+        }));
+      case "admin_save_card_form_skill": {
+        const form = String(args.form);
+        const id = (this.cardFormSkills.at(-1)?.id ?? 0) + 1;
+        const note = String(args.note).trim();
+        const text = String(args.text);
+        this.cardFormSkills.push({
+          id,
+          form,
+          summary: String(args.summary).trim(),
+          text,
+          note,
+          by: admin,
+        });
+        this.cardFormSkillLabels.set(`${form} test`, id);
+        this.record(admin, "save_card_form_skill", "card_form", form, {
+          version_id: id,
+          note,
+          length: text.length,
+        });
+        return id;
+      }
+      case "admin_activate_card_form_skill": {
+        const form = String(args.form);
+        const tested = this.cardFormSkillLabels.get(`${form} test`);
+        if (tested === undefined) return "no_test";
+        this.cardFormSkillLabels.set(`${form} active`, tested);
+        this.cardFormSkillLabels.delete(`${form} test`);
+        this.record(admin, "activate_card_form_skill", "card_form", form, { version_id: tested });
+        return "activated";
+      }
+      case "admin_clear_card_form_skill_test": {
+        const form = String(args.form);
+        const cleared = this.cardFormSkillLabels.get(`${form} test`);
+        if (cleared === undefined) return false;
+        this.cardFormSkillLabels.delete(`${form} test`);
+        this.record(admin, "clear_card_form_skill_test", "card_form", form, {
+          version_id: cleared,
         });
         return true;
       }

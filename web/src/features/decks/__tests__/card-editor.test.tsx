@@ -114,7 +114,7 @@ describe("a new card", () => {
     expect(screen.getByRole("textbox", { name: "1열 머리글" })).toHaveFocus();
   });
 
-  it("saves a 글 as free v2 and starts the next card empty under 저장하고 다음 카드", async () => {
+  it("saves a new 글 as markup, version 3, and starts the next card empty under 저장하고 다음 카드", async () => {
     await newCard();
     await userEvent.type(screen.getByRole("textbox", { name: "앞면" }), "apple");
     await userEvent.type(screen.getByRole("textbox", { name: "뒷면" }), "사과");
@@ -125,7 +125,7 @@ describe("a new card", () => {
     expect(db.rows.cards[0]).toMatchObject({
       template_version: 2,
       back: [],
-      front: [{ type: "text", v: 2, payload: { front: "apple", back: "사과" } }],
+      front: [{ type: "text", v: 3, payload: { front: "apple", back: "사과" } }],
     });
     expect(screen.getByRole("textbox", { name: "앞면" })).toHaveFocus();
     // A second card is one of its own, not the first saved again.
@@ -231,12 +231,15 @@ describe("a new card", () => {
     }
   });
 
-  it("makes a selection a blank through the line's one action, and turns it back", async () => {
-    await newCard();
-    await removeFirst();
-    await add("빈칸 문장");
+  /** The editor over a stored version 1 cloze, [text] with its [answers], which a new card no longer makes. */
+  const v1Cloze = (text: string, answers: string[]) =>
+    editing([{ type: "cloze", v: 1, id: "c", payload: { text, answers } }], [], "free", 2);
+
+  it("makes a selection of a stored version 1 line a blank through the line's one action, and turns it back", async () => {
+    await v1Cloze("Rose is ___", ["red"]);
     const line = screen.getByRole("textbox", { name: "문장" });
-    await userEvent.type(line, "Rose is red");
+    select(line, 9, 9);
+    await userEvent.click(screen.getByRole("button", { name: "빈칸 풀기, red" }));
     await userEvent.click(screen.getByRole("button", { name: "저장" }));
     expect(screen.getByRole("alert")).toHaveTextContent("빈칸을 하나 이상 넣어 주세요");
     select(line, 0, 4);
@@ -246,27 +249,35 @@ describe("a new card", () => {
     expect(screen.getByRole("button", { name: "빈칸 풀기, Rose" })).toHaveTextContent("빈칸 풀기");
     await userEvent.click(screen.getByRole("button", { name: "빈칸 풀기, Rose" }));
     expect(screen.getByRole("alert")).toHaveTextContent("빈칸을 하나 이상 넣어 주세요");
-    select(line, 8, 11);
+    select(line, 0, 4);
     await userEvent.click(screen.getByRole("button", { name: "빈칸 넣기" }));
     await userEvent.click(screen.getByRole("button", { name: "저장" }));
     await waitFor(() => {
-      expect(db.rows.cards).toHaveLength(1);
+      expect(db.rows.cards[0]?.front).toMatchObject([
+        { type: "cloze", v: 2, payload: { text: "{{c1::Rose}} is red" } },
+      ]);
+    });
+  });
+
+  it("saves a stored version 1 cloze nobody edited as it was, version 1", async () => {
+    await v1Cloze("Rose is ___", ["red"]);
+    await userEvent.click(screen.getByRole("button", { name: "저장" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "저장" })).not.toBeInTheDocument();
     });
     expect(db.rows.cards[0]?.front).toMatchObject([
       { type: "cloze", v: 1, payload: { text: "Rose is ___", answers: ["red"] } },
     ]);
   });
 
-  it("tints a blank's words in the line, and draws an empty blank as an underline where the caret stands", async () => {
-    await newCard();
-    await removeFirst();
-    await add("빈칸 문장");
+  it("tints a stored line's blank words in the line, and draws an empty blank as an underline where the caret stands", async () => {
+    await v1Cloze("Rose ___ red", ["is"]);
     const line = screen.getByRole("textbox", { name: "문장" });
     // The copy under the line that draws its marks; the line's own text is transparent over it.
     const copy = line.previousElementSibling;
     if (!(copy instanceof HTMLElement)) throw new Error("the line's marks are not drawn");
-    await userEvent.type(line, "Rose is red");
     expect(within(copy).queryByText("Rose"), "control: no mark before a blank").toBeNull();
+    expect(within(copy).getByText("is")).toHaveClass("bg-brand-tint");
     select(line, 0, 4);
     await userEvent.click(screen.getByRole("button", { name: "빈칸 넣기" }));
     expect(within(copy).getByText("Rose")).toHaveClass("bg-brand-tint");
@@ -277,28 +288,22 @@ describe("a new card", () => {
   });
 
   it("types an opened blank's answer, and drops one left empty", async () => {
-    await newCard();
-    await removeFirst();
-    await add("빈칸 문장");
+    await v1Cloze("is ___", ["red"]);
     const line = screen.getByRole("textbox", { name: "문장" });
-    await userEvent.type(line, "is red");
     select(line, 0, 0);
     await userEvent.click(screen.getByRole("button", { name: "빈칸 넣기" }));
     await userEvent.keyboard("Rose");
     select(line, 9, 9);
     await userEvent.click(screen.getByRole("button", { name: "저장" }));
     await waitFor(() => {
-      expect(db.rows.cards).toHaveLength(1);
+      expect(db.rows.cards[0]?.front).toMatchObject([
+        { v: 2, payload: { text: "{{c1::Rose}}is {{c2::red}}" } },
+      ]);
     });
-    expect(db.rows.cards[0]?.front).toMatchObject([
-      { payload: { text: "___is red", answers: ["Rose"] } },
-    ]);
   });
 
   it("keeps the line's action under a press elsewhere until it ends, so the control pressed stays put", async () => {
-    await newCard();
-    await removeFirst();
-    await add("빈칸 문장");
+    await v1Cloze("Rose ___ red", ["is"]);
     await userEvent.click(screen.getByRole("textbox", { name: "문장" }));
     const more = screen.getByRole("button", { name: "+ 칸 추가" });
     // One session, so the release ends the press begun by the first call.
@@ -501,12 +506,12 @@ describe("a new card", () => {
     expect(screen.getByRole("button", { name: "+ 칸 추가" })).toHaveFocus();
   });
 
-  it("takes the phone's hints: the line's over two rows, and 예문's label and hint", async () => {
+  it("takes the phone's hints: the cloze's text, and 예문's label and hint", async () => {
     await newCard();
     await add("빈칸 문장");
     expect(screen.getByRole("textbox", { name: "문장" })).toHaveAttribute(
       "placeholder",
-      "문장 속 단어를 가려요",
+      "가릴 부분을 고르고 가리기를 눌러요",
     );
     cleanup();
     await editing(

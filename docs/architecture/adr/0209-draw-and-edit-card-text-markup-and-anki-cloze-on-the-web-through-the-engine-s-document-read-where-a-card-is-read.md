@@ -1,0 +1,47 @@
+# ADR 0209: Draw and edit card text markup and Anki cloze on the web through the engine's document, read where a card is read
+
+> Status: accepted
+> Date: 2026-11-09
+
+Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
+
+## Context
+
+- [ADR 0202](0202-parse-card-text-markup-and-anki-cloze-in-one-rust-parser-with-json-conformance-fixtures.md) and [ADR 0208](0208-escape-card-text-with-a-backslash-keep-its-lines-and-store-the-markup-as-text-version-3.md) decided that one Rust parser reads a card's text for every client, that the markup 글 is `text` version 3 `{front, back}` with versions 1 and 2 literal, that a cloze of version 2 is `{text}` in Anki's syntax, and that an editor writes every literal run through `escape_literal`. #765 draws and edits both on the web, and the chat's card preview with them. The phone's version, [ADR 0207](0207-render-and-edit-card-text-markup-and-cloze-in-the-app-through-the-engine-behind-a-deck-owned-seam-and-write-text-version-3.md), was decided first; the two should agree wherever the decision is not the platform's.
+- The web reaches the parser only through `engine-wasm`. The module is asynchronous to load in the browser, and the web reads a card in three places that cannot share a composition site: a Server Component reads and parses it, a client component draws or edits what that server sent, and a Server Action parses a card it is asked to save and writes its card key. The three features that touch card text are `decks`, `study` and `assistant`, of which `assistant` depends on no feature and `decks` on none, so none may import another's engine; the engine's module is linked under `features/study/` only.
+- Study, the note's list, the chat and the editor all draw a text. A renderer that needed the engine would draw nothing until the browser had loaded it, and a screen reader's label, a card key and a face length are strings computed in many places, synchronously.
+
+## Decision
+
+- **One reader, below the features.** `web/src/design/markup-engine.ts` is the web's only reader of the markup, a thin synchronous seam over the module: `parse`, `clozeNumbers`, `plainText`, `escapeLiteral`, `clozeFromV1` and `markedOf`. `design/` holds the one link to the module (`design/engine-wasm`), and the study feature's scheduler loads the module through it, so a page instantiates it once; a feature may import the foundation, and a second link for `study` would be two modules for one file and two links to change together. No TypeScript parses a markup. In the browser it loads the module as a page imports it; on the server `markup-engine-server.ts` instantiates it from its file on the first read (`initSync`), which `next.config.ts` traces into every route with one `outputFileTracingIncludes` entry, `/**`, so no route is listed by hand. The study feature's server engine reads the same bytes (`readEngineModule`), and the `/record` entry and its `wasmPath` are gone. A read before either is a programming error and throws, as the phone's does without an installed engine.
+- **A card's text is read once, where the card is read, and carries what was read.** `card-content.ts` calls the engine as it parses a block and keeps a `Marked`, the engine's blocks and its `plain_text`, on a markup 글's `Cell` (`marks`) and on a text or cloze `Content` (`markup`). The server's read reaches the client with it, JSON as the engine returns it. `describeContent`, `plainText`, `faceLength`, `spokenContent` and the card key therefore stay synchronous and need no module in the browser, and a page is drawn complete by the server.
+- **Drawn by one renderer.** `MarkupText` (`design/markup-text.tsx`) draws a document as spans, each block a line after the last with no space between (ADR 0208), an empty paragraph a line high, list items after "• " or their number, a nested one after two spaces and "◦ ", and bold, italic and code. Every cloze span of a version 2 text is a blank of one card, whatever its number, as the phone draws it: the card's blanks are the spans, graded and scheduled as one card, and a card key is the filled text. A blank is a table's span's blank: empty with its hint drawn in it on a card, a box on the hatch holding its hint in study, filled once revealed. The note's list row, `WholeCells`, `SideText`, study's `CardSide` and the editor's preview draw through it.
+- **The same decisions as the phone.** An old 글 or a v1 cloze is stored as read until edited; once edited, a 글 is written as version 3 with each part through `escape_literal`, and a v1 cloze as version 2 through `cloze_from_v1` where it converts, and as it was where it does not. A v2 cloze with no cloze is read as `unsupported` and kept as read, so its card opens read-only. A new 글 is markup, typed as it is. A new 빈칸 문장 is Anki's text in one field; "가리기" wraps the selection in the smallest number the text does not hold, and with the caret in a cloze "가리기 풀기" gives the answer back; a save needs a cloze. The formatting shows as a preview drawn from the engine's document under the field while the text holds a mark, a list, a line break or a cloze, and a line break typed in a list item goes on with the list and ends it in an empty one. A paste of a Markdown table makes a 표 and an https image line a 사진, and the rest a 글.
+- **Where this differs from the phone.**
+  - The phone's seam is an injected `MarkupEngine` installed at its composition site; the web has none (`structure.md`), so the seam is a module in the foundation and the server loads it by importing its server file.
+  - The phone parses at draw; the web parses at read and carries the document, for the reasons above. The client reads a text itself only in the editor and the chat's preview, which draw nothing until the module has loaded (`useMarkupReady`).
+  - A pasted image is fetched by the browser, which a site without CORS refuses, where the phone's HTTP client does not. The 사진 is then left empty with "붙여넣은 사진을 가져오지 못했어요", as the phone words a failure. A fetch through the server would reach any address a user names from the server's network, so it is not taken here.
+  - #765 asks that typing `**`, `- ` or `1. ` takes effect. The web does as the phone does: the formatting is shown by the preview as it is typed and a list continues, and the field stays the text; a field that renders marks in place is a different editor, and the phone's does not have it.
+
+## Consequences
+
+- A text the server reads reaches every screen already read, and the three readers the fixtures name (Rust, the module, and the server's validator of #763) are the only ones; the web adds none. Its tests read `engine/tests/fixtures/markup/` from the repository: the seam over every case, `MarkupText` over every parse case, the blanks of every cloze case, the escape and v1 cases through the editor's saves.
+- A card's JSON on the wire to the browser is larger by its document; card text is short.
+- The module is one link and one module instance: a page fetches and instantiates it once, for scheduling and for card text.
+- Every serverless function carries the 137 KB file, as the standalone output does; a route that reads card text or the engine later needs no entry. The nft list of each route in `.next/server/app` names it, which the PR shows.
+- A client that parses a card of a markup block itself, as the photo review does with a candidate the server wrote, needs the module loaded: it throws before then. The browser starts loading as a page imports the seam, and a candidate takes a round trip to arrive.
+- The server's reads and actions that parse a card import `markup-engine-server`; one that parses without it throws at the first markup block and passes every test that reads no markup.
+- The editor draws nothing for the moment the module loads, on a page whose JavaScript has just arrived.
+
+## Alternatives considered
+
+- **A second link under `design/` beside the study feature's.** Rejected in review: two module instances and two links to keep together, for a rule that runs one way only.
+- **Tracing by import.** `new URL("./engine-wasm/…wasm", import.meta.url)` is compiled by Turbopack into a client asset URL, so the server reads no file from it, and a literal path under `process.cwd()` traces the real file into `next_additional_roots/` without the link path the server reads. Neither carries the file to where it is read.
+- **A route list with a test.** A test would have to walk each route's imports; a glob needs none.
+
+## Signs the decision was wrong
+
+- A page draws a markup card as plain text or throws on a read that no test reached: the load on the server or the browser has a path the tests do not, and the read-once seam wants an explicit load at each entry.
+- Pasted images fail for most of the hosts users paste from: the browser's fetch is not enough, and a server fetch with its address checks is the way, in its own decision.
+- The size of a card list's response is noticed: carry the text and read it on the client instead, with the module loaded before the page is drawn.
+- The file is wanted by a route that the bundler does not trace: a build whose nft lists omit it for a route (`/**` stops matching nested routes in a Next.js release) throws at that route's first card read, and a build of the standalone output shows it.

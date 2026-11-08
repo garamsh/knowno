@@ -352,6 +352,18 @@ describe("말랑이's prompt versions", () => {
     expect(screen.getByText(/^버전 1에서 시작해요/)).toBeInTheDocument();
   });
 
+  it("stores the text a browser posts with CRLF as LF, and an LF text as it is", async () => {
+    await redirectTarget(
+      saveAssistantPrompt({ message: null }, form({ text: "One.\r\nTwo.\rThree.", note: "" })),
+    );
+    expect(admin.assistantPrompts.at(-1)?.text).toBe("One.\nTwo.\nThree.");
+    // Control: a text with LF is stored as sent.
+    await redirectTarget(
+      saveAssistantPrompt({ message: null }, form({ text: "One.\nTwo.", note: "" })),
+    );
+    expect(admin.assistantPrompts.at(-1)?.text).toBe("One.\nTwo.");
+  });
+
   it("saves a version that serves no one, records it and returns to 말랑이, refusing a blank text and a user who is not an admin", async () => {
     expect(
       (await saveAssistantPrompt({ message: null }, form({ text: " \n ", note: "" }))).message,

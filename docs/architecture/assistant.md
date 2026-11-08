@@ -165,7 +165,6 @@ The `assistant` Edge Function, 말랑이 as an assistant that builds notes and c
 
 - Whether the PM's defaults hold once the owner prices them: web search on for paid plans, no reasoning, Haiku 5.5 for every plan (#713's PR).
 - Whether tokens should be weighted by price once a plan's spend shows plain tokens do not track it.
-- The admin pages for the card-form skills are #751's next pull request.
 - A photo attached in the chat is read by a photo job (§Photo jobs), not through `extract-cards`.
 - Whether to cap a job below 50 photos, or a photo's reading below 8,192 output tokens, once its cost against Free's budget is seen (#750's pull request proposes the caps to the owner).
 - Photos uploaded and never named by a job stay in the bucket until the account is deleted.

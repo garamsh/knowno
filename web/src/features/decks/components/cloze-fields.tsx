@@ -5,7 +5,7 @@ import { type CellDraft, movedSpans, type Span, spanAt, withSpan } from "../auth
 import { chip, type Draft, Field } from "./editor-field";
 
 /** Whether a pointer is pressed anywhere on the page, read as a blur its press caused happens. */
-function usePressing() {
+export function usePressing() {
   const pressing = useRef(false);
   useEffect(() => {
     const down = () => {

@@ -1,5 +1,7 @@
 import "server-only";
 
+// Importing this lets the server read card text through the engine (ADR 0209).
+import "@/design/markup-engine-server";
 import { requestTimeoutMs, type ServerFailure } from "@/supabase/failure";
 import { selectAll } from "@/supabase/select-all";
 import { field, parseTime } from "@/supabase/row";

@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { v7 } from "uuid";
 import { type CellDraft, cellProblem, type MediaFile } from "../authoring";
 import type { CellSide } from "../card-content";
+import type { PastePart } from "../markdown-paste";
+import { prepareImage } from "../prepare-image";
 import { ClozeGroup } from "./cloze-fields";
 import {
   cellSection,
@@ -13,12 +16,21 @@ import {
   UndoSnack,
 } from "./editing";
 import { Choices, type Draft, Field, Problem } from "./editor-field";
+import { AnkiGroup, MarkupField } from "./markup-fields";
 import { type CellChange, PhotoFields, SoundFields } from "./media-fields";
 import { RowMenu } from "@/design/row-menu";
 import { TableGroup } from "./table-fields";
 import { WordGroup } from "./word-fields";
 
-function TextGroup({ draft, change }: { draft: Draft<"text">; change: (next: CellDraft) => void }) {
+function TextGroup({
+  draft,
+  change,
+  paste,
+}: {
+  draft: Draft<"text">;
+  change: (next: CellDraft) => void;
+  paste: (parts: PastePart[]) => void;
+}) {
   return (
     <div className="divide-y divide-hairline">
       {(["front", "back"] as const).map((side) => (
@@ -26,13 +38,24 @@ function TextGroup({ draft, change }: { draft: Draft<"text">; change: (next: Cel
           <span aria-hidden className="w-10 shrink-0 px-1 py-2 text-body text-muted">
             {side === "front" ? "앞면" : "뒷면"}
           </span>
-          <Field
-            label={side === "front" ? "앞면" : "뒷면"}
-            value={draft[side]}
-            change={(value) => {
-              change({ ...draft, [side]: value });
-            }}
-          />
+          {draft.markup ? (
+            <MarkupField
+              label={side === "front" ? "앞면" : "뒷면"}
+              value={draft[side]}
+              paste={paste}
+              change={(value) => {
+                change({ ...draft, [side]: value });
+              }}
+            />
+          ) : (
+            <Field
+              label={side === "front" ? "앞면" : "뒷면"}
+              value={draft[side]}
+              change={(value) => {
+                change({ ...draft, [side]: value });
+              }}
+            />
+          )}
         </div>
       ))}
     </div>
@@ -46,6 +69,7 @@ function kindName(draft: CellDraft): string {
     case "word":
       return "단어";
     case "cloze":
+    case "anki":
       return "빈칸 문장";
     case "table":
       return "표";
@@ -87,6 +111,7 @@ function CellGroup({
   showErrors,
   recorder,
   change,
+  paste,
   move,
   remove,
 }: {
@@ -96,6 +121,7 @@ function CellGroup({
   showErrors: boolean;
   recorder: { taken: boolean; hold: (holding: boolean) => void };
   change: CellChange;
+  paste: (parts: PastePart[]) => void;
   move: (by: number) => void;
   remove: () => void;
 }) {
@@ -129,10 +155,11 @@ function CellGroup({
             ]}
           />
         </div>
-        {draft.kind === "text" && <TextGroup draft={draft} change={change} />}
+        {draft.kind === "text" && <TextGroup draft={draft} change={change} paste={paste} />}
         {draft.kind === "word" && (
           <WordGroup draft={draft} showErrors={showErrors} change={change} />
         )}
+        {draft.kind === "anki" && <AnkiGroup draft={draft} change={change} paste={paste} />}
         {draft.kind === "cloze" && <ClozeGroup draft={draft} change={change} />}
         {draft.kind === "table" && (
           <TableGroup draft={draft} showErrors={showErrors} change={change} />
@@ -205,6 +232,8 @@ export function CellFields({
   const [recording, setRecording] = useState<string | null>(null);
   const [offer, setOffer] = useState<{ key: number; offer: Offer } | null>(null);
   const [focusing, setFocusing] = useState<{ find: Find } | null>(null);
+  // Whether a pasted image's picture could not be fetched, told once in a live region.
+  const [pasteFailed, setPasteFailed] = useState(false);
   const addButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const field = focusing?.find();
@@ -235,6 +264,75 @@ export function CellFields({
       setFocusing({ find });
     },
   };
+  /**
+   * A paste into a 글 or a 빈칸 문장 that held a table or an image: each part becomes a 칸 after
+   * the one pasted into, or in its place where that holds nothing, a table a 표, an image link a
+   * 사진 whose picture is fetched into it, and the rest a 글.
+   */
+  function paste(id: string, parts: PastePart[]) {
+    const images: { id: string; url: string }[] = [];
+    const made = parts.map((part): CellDraft => {
+      switch (part.kind) {
+        case "text":
+          return { kind: "text", id: v7(), front: part.text, back: "", markup: true };
+        case "table":
+          return {
+            kind: "table",
+            id: v7(),
+            columns: part.columns,
+            rows: part.rows,
+            blanks: [],
+            spans: [],
+          };
+        case "image": {
+          const draft: CellDraft = {
+            kind: "image",
+            id: v7(),
+            side: "front",
+            photo: null,
+            boxes: [],
+          };
+          images.push({ id: draft.id, url: part.url });
+          return draft;
+        }
+      }
+    });
+    setPasteFailed(false);
+    change((current) => {
+      const at = current.findIndex((item) => item.id === id);
+      const source = current[at];
+      if (!source) return current;
+      const empty =
+        source.kind === "text" && source.front.trim() === "" && source.back.trim() === "";
+      const next = [...current];
+      next.splice(empty ? at : at + 1, empty ? 1 : 0, ...made);
+      return next;
+    });
+    for (const image of images) void fetchPhoto(image.id, image.url);
+  }
+  async function fetchPhoto(id: string, url: string) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`the picture answered ${String(response.status)}`);
+      const prepared = await prepareImage(await response.blob(), "whole");
+      if (!prepared) throw new Error("the picture cannot be read");
+      const { jpeg, sha256, width, height } = prepared;
+      const photo = {
+        media: v7(),
+        url: URL.createObjectURL(jpeg),
+        upload: { file: jpeg, sha256 },
+        width,
+        height,
+      };
+      change((current) =>
+        current.map((item) =>
+          item.id === id && item.kind === "image" ? { ...item, photo } : item,
+        ),
+      );
+    } catch {
+      setPasteFailed(true);
+    }
+  }
   const shown = offer?.offer.valid(drafts) ? offer : null;
   return (
     <EditingContext value={editing}>
@@ -253,6 +351,9 @@ export function CellFields({
                   holding ? draft.id : holder === draft.id ? null : holder,
                 );
               },
+            }}
+            paste={(parts) => {
+              paste(draft.id, parts);
             }}
             change={(next) => {
               change((current) =>
@@ -309,6 +410,11 @@ export function CellFields({
         >
           + 칸 추가
         </button>
+        {pasteFailed && (
+          <p role="status" className="px-1 text-caption text-dont-know-text">
+            붙여넣은 사진을 가져오지 못했어요
+          </p>
+        )}
         {shown && (
           <UndoSnack
             key={shown.key}

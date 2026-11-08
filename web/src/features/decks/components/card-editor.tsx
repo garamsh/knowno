@@ -17,6 +17,7 @@ import type { Card, Deck } from "../library";
 import { buttonClass } from "@/design/button";
 import { Confirm } from "@/design/confirm";
 import { Sheet } from "@/design/sheet";
+import { useMarkupReady } from "@/design/use-markup-ready";
 import { AuthoringScreen, pairClass } from "./authoring-sheet";
 import { CellFields } from "./cell-fields";
 import { cellSection, firstField } from "./editing";
@@ -41,6 +42,9 @@ function openingCells(card: Card | undefined): CellDraft[] {
 
 /** The phone's editor on the web: a new card, or [card] when it names one this build can edit. */
 export function CardEditor({ deck, card, close }: { deck: Deck; card?: Card; close: () => void }) {
+  // The editor reads and writes card text through the engine, so it opens once the module has loaded.
+  const ready = useMarkupReady();
+  if (!ready) return null;
   if (card?.readOnly) return <ReadOnlyCard card={card} close={close} />;
   return <EditableCard deck={deck} card={card} close={close} />;
 }

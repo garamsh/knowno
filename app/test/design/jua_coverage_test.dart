@@ -88,6 +88,7 @@ final _blank = RegExp(r'[\s​]');
 /// ExtraBold, its fallback at the weight the Jua styles ask for.
 const _allowed = {
   '·', '⋯', '←', '→', '…', '—', '–', '−', '×', '§', '「', '」', '✓', '’', //
+  '•', '◦', //
 };
 
 void main() {

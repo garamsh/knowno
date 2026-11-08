@@ -25,6 +25,7 @@ import {
   type PreparedPhoto,
   type SendResult,
 } from "../assistant-client";
+import { browserTimeZone } from "../browser-time-zone";
 import {
   type AssistantTurn,
   checkedCount,
@@ -216,8 +217,16 @@ export function AssistantChat({
         return;
       }
       try {
+        const timeZone = browserTimeZone();
+        const context = {
+          ...(note && { deck_id: note.id }),
+          ...(timeZone !== null && { time_zone: timeZone }),
+        };
         result = await client.send(
-          { messages: requestTurns(turns), ...(note && { context: { deck_id: note.id } }) },
+          {
+            messages: requestTurns(turns),
+            ...(Object.keys(context).length > 0 && { context }),
+          },
           controller.signal,
         );
       } catch {

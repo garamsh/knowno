@@ -18,6 +18,7 @@ import {
   type NoteView,
   listUsers,
   parsePlanFilter,
+  parseCardForm,
   parsePlanId,
   parseProvider,
   parseStatusFilter,
@@ -28,6 +29,7 @@ import {
   readAssistantConfigurations,
   readAssistantBudgets,
   readAssistantPrompts,
+  readCardFormSkills,
   readAuditLog,
   readConfigurationResults,
   readDeck,
@@ -336,16 +338,20 @@ export async function AiContent({ searchParams }: { searchParams: SearchParams }
  */
 export async function AssistantContent({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const [configurations, prompts, budgets, timeZone] = await Promise.all([
+  const [configurations, prompts, budgets, skills, timeZone] = await Promise.all([
     readAssistantConfigurations(),
     readAssistantPrompts(),
     readAssistantBudgets(),
+    readCardFormSkills(),
     adminTimeZone(),
   ]);
   const failed = (failure: AdminFailure) => <AdminFailureMessage failure={failure} />;
   if ("failure" in configurations) return failed(configurations.failure);
   if ("failure" in prompts) return failed(prompts.failure);
   if ("failure" in budgets) return failed(budgets.failure);
+  if ("failure" in skills) return failed(skills.failure);
+  const form = parseCardForm(params.skill);
+  const skillFrom = versionId(params.from);
   // The server lists the configurations in the plans' order, so the first draft is the first plan's.
   const plan =
     parsePlanId(params.plan) ?? configurations.data.find((c) => c.label === "test")?.plan ?? "free";
@@ -362,6 +368,15 @@ export async function AssistantContent({ searchParams }: { searchParams: SearchP
         typeof params.write === "string"
           ? { from: prompts.data.find((prompt) => prompt.id === from) ?? null }
           : null
+      }
+      skills={skills.data}
+      skill={
+        form === null
+          ? null
+          : {
+              form,
+              from: skills.data.find((s) => s.id === skillFrom && s.form === form) ?? null,
+            }
       }
       timeZone={timeZone}
     />

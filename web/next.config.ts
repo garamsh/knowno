@@ -9,15 +9,16 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // next dev would write web/AGENTS.md; the repository's AGENTS.md is the one contributors read.
   agentRules: false,
-  // The 기록 page runs the engine on the server from its WebAssembly file (ADR 0047), read at
-  // src/features/study/engine-server.ts's wasmPath, which no import names.
+  // The engine's module is read by file at src/design/markup-engine-server.ts's readEngineModule,
+  // which no import names, for card text (ADR 0209) and for the 기록 page's recall (ADR 0047). Every
+  // route carries it, so no route that later reads either has to be listed.
   outputFileTracingIncludes: {
-    "/record": ["./src/features/study/engine-wasm/knowno_engine_wasm_bg.wasm"],
+    "/**": ["./src/design/engine-wasm/knowno_engine_wasm_bg.wasm"],
   },
   experimental: {
     serverActions: { bodySizeLimit: "6mb" },
-    // src/styles/fonts is a link to the app's bundled fonts, and src/features/study/engine-wasm
-    // one to the engine's WebAssembly module, both outside this project.
+    // src/styles/fonts is a link to the app's bundled fonts, and src/design/engine-wasm one to the
+    // engine's WebAssembly module, both outside this project.
     turbopackAdditionalRoots: {
       fonts: { path: path.join(import.meta.dirname, "../app/assets/fonts") },
       engine: { path: path.join(import.meta.dirname, "../engine-wasm/pkg") },

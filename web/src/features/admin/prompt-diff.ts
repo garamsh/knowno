@@ -1,13 +1,16 @@
+import { lfOf } from "./line-breaks";
+
 /** One line of a diff: kept in both texts, or only in the version before or after. */
 export type DiffLine = { kind: "same" | "removed" | "added"; text: string };
 
 /**
  * The lines of [after] against [before], in order: each line both keep once, by the longest
- * common subsequence of lines, and each other line as removed or added, removals first.
+ * common subsequence of lines, and each other line as removed or added, removals first. A CRLF
+ * and an LF end a line alike, so a version stored with CRLF diffs as it reads.
  */
 export function lineDiff(before: string, after: string): DiffLine[] {
-  const a = before.split("\n");
-  const b = after.split("\n");
+  const a = lfOf(before).split("\n");
+  const b = lfOf(after).split("\n");
   // common[i][j]: the longest common subsequence of a from i and b from j.
   const common = Array.from({ length: a.length + 1 }, () =>
     new Array<number>(b.length + 1).fill(0),
