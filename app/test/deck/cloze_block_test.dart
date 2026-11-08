@@ -54,16 +54,35 @@ final _phones = TargetPlatformVariant(const {
 /// The bar's one action while it reads [label].
 Finder _action(String label) => widgetWithShownText(AppChip, label);
 
+/// How many version 1 clozes the tests have stored to open, so no two are
+/// the same card.
+var _opened = 0;
+
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
-  /// A new card's editor whose one 칸 is a Cloze sentence.
+  /// The editor of a card stored with a version 1 cloze, the one a new
+  /// Cloze sentence no longer is (ADR 0207): the line is cleared, so it is
+  /// written as a new one is, with its blanks marked by "Insert blank".
   Future<DeckScreens> openCloze(WidgetTester tester, {DeckScreens? on}) async {
     final screens = on ?? await DeckScreens.open(tester);
-    await screens.push(
-      (deck) => CardEditorScreen(preview: studyPreview, deck: deck),
+    final stored = await tester.runAsync(
+      () => screens.repository.addCard(
+        screens.deck.id,
+        front: [
+          ClozeContent('${'old $_opened'} ___', const ['x']),
+        ],
+        back: const [],
+      ),
     );
-    await replaceFirstBlock(screens, 'Cloze sentence');
+    _opened++;
+    final card = switch (stored!) {
+      CardSaved(:final card) => card,
+      DuplicateFront() => throw StateError('the opening card was a duplicate'),
+    };
+    await screens.push(
+      (deck) => CardEditorScreen(preview: studyPreview, deck: deck, card: card),
+    );
     return screens;
   }
 
@@ -114,16 +133,18 @@ void main() {
       expect(_blocks(tester), ['H₂O']);
       await save(screens);
       final card = await _stored(screens);
-      expect(card.front, [
-        const ClozeContent('___예요', ['H₂O']),
-      ]);
+      expect(card.front, [const ClozeContent.markup('{{c1::H₂O}}예요')]);
       expect(card.back, isEmpty, reason: 'a back is the blocks listed on it');
 
       await screens.push(
         (deck) =>
             CardEditorScreen(preview: studyPreview, deck: deck, card: card),
       );
-      expect(_blocks(tester), ['H₂O'], reason: 'opens with its blank');
+      expect(
+        _controller(tester).text,
+        '{{c1::H₂O}}예요',
+        reason: 'a version 2 cloze opens as its Anki text',
+      );
       await save(screens);
       expect((await _stored(screens)).front, card.front, reason: 'unchanged');
 
@@ -135,7 +156,7 @@ void main() {
       final cards = await screens.cards();
       expect(
         cards.map((card) => card.front.single),
-        contains(const ClozeContent('___은 한국의 수도예요', ['서울'])),
+        contains(const ClozeContent.markup('{{c1::서울}}은 한국의 수도예요')),
         reason: 'the particle stays outside',
       );
       await screens.close();
@@ -163,7 +184,7 @@ void main() {
       await typeAt(tester, '그 물은 H₂O예요', 2);
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('그 물은 ___예요', ['H₂O']),
+        const ClozeContent.markup('그 물은 {{c1::H₂O}}예요'),
       ]);
 
       await openCloze(tester, on: screens);
@@ -216,7 +237,7 @@ void main() {
       expect(_controller(tester).text, 'a cat and a dog');
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('a cat and a ___', ['dog']),
+        const ClozeContent.markup('a cat and a {{c1::dog}}'),
       ]);
       await screens.close();
     },
@@ -541,7 +562,7 @@ void main() {
         expect(_blocks(tester), ['H₂O']);
         await save(screens);
         expect((await _stored(screens)).front, [
-          const ClozeContent('물은 ___예요', ['H₂O']),
+          const ClozeContent.markup('물은 {{c1::H₂O}}예요'),
         ]);
         await screens.close();
       },
@@ -624,7 +645,7 @@ void main() {
       expect(_blocks(tester), ['a', 'dog'], reason: 'a changed blank goes');
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('one cot and ___ big ___', ['a', 'dog']),
+        const ClozeContent.markup('one cot and {{c1::a}} big {{c2::dog}}'),
       ]);
       await screens.close();
     },
@@ -644,14 +665,14 @@ void main() {
       expect(message.data, keepWords('Insert at least one blank'));
       expect(message.semanticsLabel, 'Insert at least one blank');
       expect(find.byType(SnackBar), findsNothing);
-      expect(await screens.cards(), isEmpty);
+      expect(await screens.cards(), hasLength(1), reason: 'the opening card');
 
       await select(tester, 8, 11);
       await insertBlank(screens);
       expect(shownText('Insert at least one blank'), findsNothing);
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('The cat ___', ['sat']),
+        const ClozeContent.markup('The cat {{c1::sat}}'),
       ], reason: 'control: with a blank, it saves');
       await screens.close();
     },
@@ -686,7 +707,7 @@ void main() {
       await insertBlank(screens);
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('___ is un___able', ['It', 'believ']),
+        const ClozeContent.markup('{{c1::It}} is un{{c2::believ}}able'),
       ], reason: 'another blank added, the stored one keeps its letters');
       await screens.close();
     },
@@ -712,26 +733,10 @@ void main() {
       await typeLine(tester, '3인칭 재귀칭 : 자기, 자신, 저, 저희');
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('3인칭 재귀칭 : ___, ___, ___, ___', answers),
+        const ClozeContent.markup(
+          '3인칭 재귀칭 \\: {{c1::자기}}, {{c2::자신}}, {{c3::저}}, {{c4::저희}}',
+        ),
       ]);
-      await screens.close();
-    },
-  );
-
-  testWidgets(
-    'a cloze whose filled line is already a card opens the duplicate sheet',
-    (tester) async {
-      final screens = await DeckScreens.open(
-        tester,
-        cards: {'The cat sat': '고양이가 앉았다'},
-      );
-      await openCloze(tester, on: screens);
-      await typeLine(tester, ' the cat sat ');
-      await select(tester, 5, 8);
-      await insertBlank(screens);
-      await save(screens);
-      expect(shownText('Add anyway'), findsOneWidget);
-      expect((await screens.cards()).length, 1);
       await screens.close();
     },
   );
@@ -754,13 +759,17 @@ void main() {
           reason: line,
         );
         expect(find.byType(SnackBar), findsNothing);
-        expect(await screens.cards(), isEmpty, reason: 'it lists, empty');
+        expect(
+          await screens.cards(),
+          hasLength(1),
+          reason: 'it lists, as stored',
+        );
       }
 
       await typeLine(tester, 'capital of France Paris');
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('capital of France ___', ['Paris']),
+        const ClozeContent.markup('capital of France {{c1::Paris}}'),
       ], reason: 'control: without the underscores, it saves');
       await screens.close();
     },
@@ -792,7 +801,7 @@ void main() {
       await typeLine(tester, 'a x b c');
       await save(screens);
       expect((await _stored(screens)).front, [
-        const ClozeContent('a ___ b c', ['x']),
+        const ClozeContent.markup('a {{c1::x}} b c'),
       ], reason: 'control: without the underscores, the edit saves');
       await screens.close();
     },
@@ -819,7 +828,7 @@ void main() {
         expect(_action(action), findsOneWidget, reason: action);
         expect(
           [for (final button in primaries()) button.label],
-          ['Save and next card'],
+          ['Save'],
           reason: action,
         );
         // Right under the line, not in a bar over the keyboard.

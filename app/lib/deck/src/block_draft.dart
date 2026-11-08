@@ -8,6 +8,7 @@ import 'cloze_block.dart';
 import 'content.dart';
 import 'editor_group.dart';
 import 'image_block.dart';
+import 'markup.dart';
 import 'senses_block.dart';
 import 'table_block.dart';
 
@@ -25,9 +26,9 @@ enum BlockType {
   /// meaning, a line with no blank, a table of two rows of two cells, a 사진
   /// with no photo yet, or a 소리 with no sound yet.
   BlockDraft draft() => switch (this) {
-    text => TextBlockDraft(),
+    text => TextBlockDraft(null, true),
     senses => SensesBlockDraft(),
-    cloze => ClozeBlockDraft(),
+    cloze => ClozeMarkupBlockDraft(),
     table => TableBlockDraft(),
     image => ImageBlockDraft(),
     audio => AudioBlockDraft(),
@@ -83,6 +84,7 @@ sealed class BlockDraft {
   static BlockDraft _ofBlock(Content block, CellSide side, String? id) =>
       switch (block) {
         TableContent() => TableBlockDraft(block, id),
+        ClozeContent(markup: true) => ClozeMarkupBlockDraft(block, id),
         ClozeContent() => ClozeBlockDraft(block, id),
         ImageContent() => ImageBlockDraft(block, side, id),
         AudioContent() => AudioBlockDraft(block, side, id),
@@ -128,12 +130,22 @@ sealed class BlockDraft {
   void dispose() => edits.dispose();
 }
 
-/// A 글: its front and its back as typed.
+/// A 글: its front and its back as typed. A new one is [markup], read as
+/// the Markdown subset the engine parses (ADR 0202); one opened from a card
+/// stored before keeps the version it has, so what it holds does not change
+/// meaning.
 final class TextBlockDraft extends BlockDraft {
-  TextBlockDraft([TextCell? cell])
+  TextBlockDraft([TextCell? cell, bool markup = false])
     : front = TextEditingController(text: cell?.front),
       back = TextEditingController(text: cell?.back),
+      markup = cell?.markup ?? markup,
+      _stored = cell,
       super(id: cell?.id);
+
+  final TextCell? _stored;
+
+  /// Whether the parts are read as markup: the 글 is version 3.
+  final bool markup;
 
   final TextEditingController front;
   final TextEditingController back;
@@ -155,7 +167,17 @@ final class TextBlockDraft extends BlockDraft {
         field.text.trim().isEmpty ? '' : field.text;
     final (shown, added) = (part(front), part(back));
     if (shown.isEmpty && added.isEmpty) return null;
-    return TextCell(front: shown, back: added, id: id);
+    final typed = TextCell(front: shown, back: added, markup: markup, id: id);
+    // A 글 stored before markup is kept as it was while it is unchanged; once
+    // edited it is written as version 3, its text through the escape so that
+    // it keeps its meaning (ADR 0208).
+    if (markup || _stored == typed) return typed;
+    return TextCell(
+      front: markupEngine.escapeLiteral(shown),
+      back: markupEngine.escapeLiteral(added),
+      markup: true,
+      id: id,
+    );
   }
 
   @override
@@ -252,6 +274,49 @@ final class TableBlockDraft extends BlockDraft {
   }
 }
 
+/// A 빈칸 문장 of version 2: its text in Anki's syntax, `{{c1::answer}}`,
+/// as typed (ADR 0202). A new one is this; one stored at version 1 opens as
+/// [ClozeBlockDraft] and is written as it was.
+final class ClozeMarkupBlockDraft extends BlockDraft {
+  ClozeMarkupBlockDraft([ClozeContent? stored, String? id])
+    : source = TextEditingController(text: stored?.text),
+      super(id: id);
+
+  final TextEditingController source;
+
+  /// The text's focus, which shows "가리기" above the keyboard.
+  final focus = FocusNode();
+
+  @override
+  BlockType get type => BlockType.cloze;
+
+  @override
+  FocusNode get entry => focus;
+
+  @override
+  FocusNode get problem => focus;
+
+  /// The cloze numbers the text holds now.
+  List<int> get numbers => markupEngine.clozeNumbers(source.text);
+
+  @override
+  Cell? get cell =>
+      isComplete ? BlankCell(ClozeContent.markup(source.text), id: id) : null;
+
+  @override
+  Cell get preview => BlankCell(ClozeContent.markup(source.text), id: id);
+
+  @override
+  bool get isComplete => numbers.isNotEmpty;
+
+  @override
+  void dispose() {
+    source.dispose();
+    focus.dispose();
+    super.dispose();
+  }
+}
+
 /// A 빈칸 문장: its line and blanks, kept as stored until either is edited, so
 /// a blank inside a word survives an unchanged save.
 final class ClozeBlockDraft extends BlockDraft {
@@ -290,10 +355,21 @@ final class ClozeBlockDraft extends BlockDraft {
     ..update(line.text)
     ..track(line.selection);
 
+  /// [content] written as version 2, its text through the escape, where the
+  /// engine converts it; as it is where it cannot.
+  ClozeContent _written(ClozeContent content) =>
+      switch (markupEngine.clozeFromV1(content.text, content.answers)) {
+        final source? => ClozeContent.markup(source),
+        null => content,
+      };
+
   @override
   Cell get cell => BlankCell(switch (_stored) {
     final stored? when !edited => stored,
-    _ => cloze.content ?? cloze.preview,
+    _ => switch (cloze.content) {
+      final content? => _written(content),
+      null => cloze.preview,
+    },
   }, id: id);
 
   @override

@@ -558,5 +558,10 @@
   "assistantJobProgress": "Reading {done} of {total} photos",
   "assistantJobCancel": "Cancel reading",
   "assistantJobDone": "{count, plural, =1{Read 1 photo} other{Read all {count} photos}}",
-  "assistantJobCancelled": "Cancelled reading the photos"
+  "assistantJobCancelled": "Cancelled reading the photos",
+  "clozeHide": "Hide",
+  "clozeHideUndo": "Show again",
+  "clozeMarkupHint": "Select a part and tap Hide",
+  "markupPreview": "Preview",
+  "pasteImageFailed": "Could not get the pasted photo"
 }

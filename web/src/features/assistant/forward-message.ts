@@ -19,6 +19,19 @@ export function assistantUrl(path = ""): string {
 }
 
 /**
+ * The signed-in user's access token, read as `commitProposal` and every call to the function does,
+ * or the status a refusal is answered with: 401 for a session that is none or was rejected, 503
+ * where Supabase could not say.
+ */
+export async function readUserToken(): Promise<{ token: string } | { status: 401 | 503 }> {
+  const client = await createClient();
+  const user = await readUserId(client);
+  if ("failure" in user) return { status: user.failure === "rejected" ? 401 : 503 };
+  const token = (await client.auth.getSession()).data.session?.access_token;
+  return token ? { token } : { status: 401 };
+}
+
+/**
  * Sends a message's [request] body to the assistant function as the verified user, without a
  * browser CORS request, and answers with the function's own status and body, its stream passed on
  * as it arrives. The browser going away aborts the call, which the function records as cancelled.
@@ -27,14 +40,10 @@ export function assistantUrl(path = ""): string {
 export async function forwardMessage(request: Request): Promise<Response> {
   const body = await request.arrayBuffer();
   if (body.byteLength > maxBodyBytes) return refusal(413, "too_large");
-  const client = await createClient();
-  const user = await readUserId(client);
-  if ("failure" in user)
-    return user.failure === "rejected"
-      ? refusal(401, "unauthenticated")
-      : refusal(503, "unavailable");
-  const token = (await client.auth.getSession()).data.session?.access_token;
-  if (!token) return refusal(401, "unauthenticated");
+  const session = await readUserToken();
+  if ("status" in session)
+    return session.status === 401 ? refusal(401, "unauthenticated") : refusal(503, "unavailable");
+  const { token } = session;
   const started = Date.now();
   let upstream: Response;
   try {

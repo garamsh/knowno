@@ -19,6 +19,7 @@ import 'card_preview.dart';
 import 'content.dart';
 import 'deck_repository.dart';
 import 'failure_message.dart';
+import 'image_download.dart';
 import 'label_presets.dart';
 import 'label_presets_screen.dart';
 import 'model.dart';
@@ -62,7 +63,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   /// editor shows read-only and never writes (ADR 0106).
   late final _opened = switch (widget.card) {
     final card? => cellsOf(card),
-    null => const <Cell>[TextCell()],
+    null => const <Cell>[TextCell(markup: true)],
   };
 
   /// The card's 칸.
@@ -156,6 +157,31 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   void _mediaStored(MediaId image) {
     _media ??= ref.read(mediaStoreProvider);
     _picked.add(image);
+  }
+
+  /// Fetches the picture of an image link that was pasted into [draft], and
+  /// stores it as a photo is picked; the 사진 stays empty, to be picked, where
+  /// it cannot be had.
+  Future<void> _pasteImage(ImageBlockDraft draft, Uri url) async {
+    // Read before the waits: the fetch can end after the editor is left.
+    final store = ref.read(mediaStoreProvider);
+    final download = ref.read(imageDownloadProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    final failed = AppLocalizations.of(context).pasteImageFailed;
+    try {
+      final bytes = await download(url);
+      if (bytes == null) throw const MediaUnreadable('not an image');
+      final picked = await prepareImage(bytes, ImageShape.whole);
+      final media = await store.addImage(picked);
+      if (!mounted) {
+        await store.release(media);
+        return;
+      }
+      _mediaStored(media);
+      setState(() => draft.image.choose(media, picked));
+    } on MediaUnreadable {
+      messenger.showSnackBar(SnackBar(content: Text(failed)));
+    }
   }
 
   /// Lets go of the files stored since the last save that [saved] does not
@@ -400,6 +426,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                             errorKey: _cardProblemKey,
                             onChanged: _change,
                             onMediaStored: _mediaStored,
+                            onPasteImage: _pasteImage,
                           ),
                           if (card != null) ...[
                             const SizedBox(height: AppSpace.sectionGap),

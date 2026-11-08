@@ -23,7 +23,7 @@ A screen draws each job through the component named here, not from Material widg
 | A row choosing one of several options, and its sheet | `AppChoiceRow`, opening `showAppChoice`, whose rows are `AppListRow`s, the current one checked | none yet |
 | A row marked as chosen in a list | `RoundCheck` | none yet |
 | A modal | `AppSheet` opened with `showAppSheet`; no dialog | `Sheet` (`sheet.tsx`), a native modal `<dialog>` at the foot below 1024 px and centred from 1024 px, its title beside "닫기" over an optional one or two sentences of body; `decks`' full-screen authoring screens open through its `useModalDialog` |
-| A pull-down menu | `AppMenu`, held `AppSpace.gutter` inside the screen's sides | `RowMenu` (`row-menu.tsx`), behind ⋯: a 칸's, the note's settings, photo import's and the chat's |
+| A pull-down menu | `AppMenu`, held `AppSpace.gutter` inside the screen's sides | `RowMenu` (`row-menu.tsx`), behind ⋯: a 칸's, the note's settings, the 노트 page's, photo import's and the chat's; `raised`, its trigger on a page's header |
 | A confirmation of what cannot be undone | `showAppConfirm` | `Confirm` |
 | A screen's bottom bar | `BottomActions` | none yet |
 | A list row | `AppListRow`, or `AppRowSurface` for a row with its own layout (a card row, a skeleton row) | none yet |

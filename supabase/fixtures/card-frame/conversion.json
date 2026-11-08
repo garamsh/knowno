@@ -225,7 +225,7 @@
     "name": "a block of a later version leaves the card as it is",
     "source": "manual",
     "front": [{"type": "text", "v": 1, "payload": {"text": "one"}}],
-    "back": [{"type": "cloze", "v": 2, "payload": {"text": "___", "answers": ["x"]}}],
+    "back": [{"type": "cloze", "v": 3, "payload": {"text": "___", "answers": ["x"]}}],
     "cells": null
   }
 ]

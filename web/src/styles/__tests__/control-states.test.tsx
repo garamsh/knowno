@@ -7,9 +7,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EnterLink } from "@/app/(shell)/_components/enter-link";
 import { SideMenuAt, TabBarAt } from "@/app/(shell)/_components/shell-menu";
 import {
-  AuthoringButton,
   CardGrid,
   DeckList,
+  NoteSettings,
   parseCardId,
   parseDeckId,
   PhotoImports,
@@ -163,9 +163,11 @@ describe("the controls' pointer, hover and pressed states", () => {
         />
         <CardGrid
           deck={{ id: idOf(parseDeckId, "d-fr"), name: "French", public: false }}
-          add={
-            <AuthoringButton
+          settings={
+            <NoteSettings
               deck={{ id: idOf(parseDeckId, "d-fr"), name: "French", public: false }}
+              cardCount={1}
+              displayName={{ name: null }}
             />
           }
           cards={[
@@ -191,7 +193,7 @@ describe("the controls' pointer, hover and pressed states", () => {
     expect(pressable(screen.getByRole("link", { name: "모두 학습" }))).toBe(true);
     expect(pressable(screen.getByRole("link", { name: /^French/ }))).toBe(true);
     expect(pressable(screen.getByRole("button", { name: "chat, 뒷면 cat" }))).toBe(true);
-    expect(pressable(screen.getByRole("button", { name: "카드 추가" }))).toBe(true);
+    expect(pressable(screen.getByRole("button", { name: "노트 설정" }))).toBe(true);
     // Control: the note's name, a heading, takes no button state.
     expect(pressable(screen.getByRole("heading", { level: 1, name: "French" }))).toBe(false);
   });

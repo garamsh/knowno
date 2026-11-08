@@ -159,7 +159,10 @@ void main() {
 
       await save(screens);
       final card = await _stored(screens);
-      expect(card.front, [const TextContent('Capitals'), _capitals]);
+      expect(card.front, [
+        const TextContent('Capitals', markup: true),
+        _capitals,
+      ]);
       expect(card.back, isEmpty, reason: 'a back is the blocks listed on it');
 
       await screens.push(
@@ -490,8 +493,15 @@ void main() {
       final renamed = (await screens.cards()).singleWhere(
         (saved) => saved.id == card.id,
       );
-      expect(renamed.front, [const TextContent('New capitals'), _capitals]);
-      expect(renamed.back, oldEditor.back);
+      expect(renamed.front, [
+        const TextContent('New capitals', markup: true),
+        _capitals,
+      ]);
+      // The 글 holding the name was edited, so it and its back are version 3,
+      // the back's text written through the escape.
+      expect(renamed.back, [
+        TextContent(markupEngine.escapeLiteral(_capitals.filled), markup: true),
+      ]);
       await screens.close();
     },
   );
@@ -597,7 +607,7 @@ void main() {
         ),
       );
       expect(
-        encodeContent(card.front),
+        encodeContent(card.front.whereType<TableContent>().toList()),
         contains('"type":"table","v":2,'),
         reason: 'written at v2',
       );

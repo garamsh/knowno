@@ -1218,5 +1218,15 @@
   "assistantJobDone": "사진 {count}장을 다 읽었어요",
   "@assistantJobDone": {"description": "A finished photo job.", "placeholders": {"count": {"type": "int"}}},
   "assistantJobCancelled": "사진 읽기를 취소했어요",
-  "@assistantJobCancelled": {"description": "A cancelled photo job."}
+  "@assistantJobCancelled": {"description": "A cancelled photo job."},
+  "clozeHide": "가리기",
+  "@clozeHide": {"description": "The cloze 칸's action that wraps the selected text in the next free cloze number."},
+  "clozeHideUndo": "가리기 풀기",
+  "@clozeHideUndo": {"description": "The cloze 칸's action, offered where the cursor is in a cloze, that turns it back into its text."},
+  "clozeMarkupHint": "가릴 부분을 고르고 가리기를 눌러요",
+  "@clozeMarkupHint": {"description": "The hint in a cloze 칸's text field."},
+  "markupPreview": "미리 보기",
+  "@markupPreview": {"description": "Screen reader name of the formatted text shown under a 칸's field."},
+  "pasteImageFailed": "붙여넣은 사진을 가져오지 못했어요",
+  "@pasteImageFailed": {"description": "A pasted image link whose picture could not be fetched."}
 }

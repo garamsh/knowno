@@ -1,28 +1,37 @@
 # Web assistant
 
-The web's `assistant` feature: 말랑이's chat at `/assistant`, the conversation kept in the browser, the route and the action it reaches the `assistant` function through, its states, and its entry on 홈. The function itself is [`assistant.md`](assistant.md)'s; the shell and the server reads every feature makes are [`web.md`](web.md)'s.
+The web's `assistant` feature: 말랑이's chat at `/assistant`, the conversation kept in the browser, the routes and the actions it reaches the `assistant` function through, its states, its photos and their job, and its entries: 홈's mascot and the character at the edge of the 노트 page, a note and 기록. The function itself is [`assistant.md`](assistant.md)'s; the shell and the server reads every feature makes are [`web.md`](web.md)'s.
 
 ## Current decisions
 
 ### Page and layout
 
-- `/assistant`, in the `(shell)` route group and titled "말랑이 · 알아몰라", reads only `assistant_allowance()`, the day's tokens left, and draws `AssistantChat` ([ADR 0200](adr/0200-chat-with-malangi-on-the-web-in-an-assistant-feature-streamed-through-a-route-handler-kept-in-the-browser-beside-the-side-menu-from-1024-px.md)); while it reads, a skeleton of the chat's bar and field says "말랑이를 불러오는 중이에요.".
+- `/assistant`, in the `(shell)` route group and titled "말랑이 · 알아몰라", reads `assistant_allowance()`, the day's tokens left, and, where `?note=` names the user's live note, that note's id and name (`readNote`), and draws `AssistantChat` ([ADR 0200](adr/0200-chat-with-malangi-on-the-web-in-an-assistant-feature-streamed-through-a-route-handler-kept-in-the-browser-beside-the-side-menu-from-1024-px.md)); while it reads, a skeleton of the chat's bar and field says "말랑이를 불러오는 중이에요.".
 - Below 1024 px the chat covers the screen, the tab bar included, as the phone's pushed chat; from 1024 px it fills the space beside the side menu, which stays. Its turns and field sit in the 720 px `study` column, below a photo import's bar where one shows.
 - Its bar: "뒤로", the browser's back or 홈 where there is no history; the mascot at 40 px, still, thinking, sleepy once the day's tokens are used, sad on a failure, happy once a proposal is added; "말랑이" over "오늘 n% 남았어요", the share of the plan's budget left, none without a budget; and ⋯ ("대화 메뉴", `design`'s `RowMenu`) with "대화 지우기", which asks "대화를 지울까요?" before clearing.
 - The chat draws no other mascot: the empty chat says "무엇을 외워 볼까요?".
+- Opened from a note, the thread names it once, "{name} 노트에서", a line in the stored conversation unless its last line already names that note, which is never sent as a turn; each message then carries `context: {deck_id}` ([ADR 0205](adr/0205-draw-malangi-at-the-edge-of-the-notes-a-note-and-the-record-on-the-web-name-the-note-a-chat-opens-from-add-by-hand-from-the-menu-and-attach-photos-to-a-message.md)).
 
 ### Conversation
 
 - One conversation, kept in this browser's `localStorage` under `knowno.assistant` with the draft (#711 decision 4); the message list's scroll is kept in `sessionStorage`, so back from a note lands on the same turns, place and draft. A reply stored while it streamed reads back as stopped. Storage that cannot be read starts an empty chat.
-- A message sends the last 40 turns, each reply with the proposals it showed and the question it asked (`assistant.md` §Requests). Enter sends and Shift+Enter breaks the line, a syllable being composed keeping its Enter; a message is at most 4,000 characters.
+- A message sends the last 40 turns, each reply with the proposals it showed, the question it asked and the photo job it started, each user turn with the photos it attached (`assistant.md` §Requests). Enter sends and Shift+Enter breaks the line, a syllable being composed keeping its Enter; a message is at most 4,000 characters.
 - 말랑이's text streams in as it arrives, its sources listed under it once each. A `choice` draws its prompt and its options as buttons on the last reply; a pick is sent as the next message.
 - A proposal draws its note ("새 노트 · name" for a new one) and its groups on one surface: each group its check over its cards, its title, its form's chip (글, 단어, 빈칸 문장, 표, 사진, 섞어서), "다른 형식으로", which offers the other forms and sends "title 부분은 form 형식으로 다시 만들어 줘", and its cards, each a check over its first-shown text and what it adds; a group of six or more starts collapsed to "카드 n장 · form". A proposal sent again under its id keeps the checks of the groups it kept.
 - At the foot, the last proposal not yet added offers "n장 추가", or "n장 바꾸기" for changes, the cards checked. Once added, its checks go and a shortcut to the note, its name and "카드 n장", opens it.
+
+### Photos
+
+- The field's "사진 첨부" takes JPEG, PNG or WebP, up to 50 a message. Each is prepared by `downscalePhoto` (`web/src/design/prepare-photo.ts`, photo import's own: upright, 2048 px on its long side, a JPEG under 3 MiB), staged above the field as thumbnails with "사진 삭제" under "사진 n장", and a file the browser cannot decode says "사진을 가져오지 못했어요. 다시 시도해 주세요." The send button is on for words or photos.
+- A message with photos first says "사진을 올리는 중이에요" and uploads each, with the Supabase browser client as the user, to `assistant-photos` at `{user id}/{uuid}`; only when every one is stored does the message go, the ids in `photos`. One that fails sends nothing and says "사진을 올리지 못했어요. 다시 시도해 주세요.", the words and photos kept. The user's turn shows "사진 n장".
+- The `job` event is kept on the reply and drawn as "n/m장 읽는 중", the photos not queued over those attached, over a bar, with "읽기 취소". The chat asks `GET /api/assistant/jobs/{id}`, a Route Handler that verifies the user and passes the function's status and body on, every 3 s while a job reads, and the Server Action `cancelPhotoJob` calls the function's cancel; a job the function no longer has, or whose cancel it accepted, reads "사진 읽기를 취소했어요", and one done "사진 n장을 다 읽었어요".
+- Done while no message has followed the reply, the chat sends "사진 읽기가 끝났어요. 이어서 해 주세요." as the user's next turn, undrawn; done while a message is under way, the answer waits for the next ask. A stored running job is asked after again when the chat opens.
 
 ### Requests
 
 - A message is `POST /api/assistant`, a Route Handler, since its answer is a stream (stack-nextjs §3): it verifies the session, forwards the body with the user's token to the function and passes its status and stream back as they arrive; the browser going away aborts the call. A visitor not signed in is answered `401` without calling.
 - The commit is the Server Action `commitProposal`, which reads the proposal and the checks, sends them to `/assistant/commit` as the user, answers the note and the cards written, and revalidates the pages; a refused commit says "카드를 추가하지 못했어요. 말랑이에게 다시 만들어 달라고 해 주세요.".
+- The upload, the poll and the cancel sit behind the same seam. `/api/assistant/jobs/[id]` refuses a visitor not signed in and an id that is no uuid without calling the function, and `cancelPhotoJob` reads its id before it sends it.
 - Both sit behind `AssistantClient`, the seam the tests fill with a fake. The events are read at the boundary: an event of a name the chat does not draw is passed over, and a known one that is not its form ends the reply as failed.
 
 ### States
@@ -31,6 +40,13 @@ The web's `assistant` feature: 말랑이's chat at `/assistant`, the conversatio
 - `rate_limited`: "오늘 말랑이와 이야기할 수 있는 만큼 다 썼어요. 내일 다시 이야기해요.", the field removed and the share at its figure.
 - A failed reply, `model_error`, says so with "다시 시도", which sends the message again in its place; a cut one says to ask for the rest; "멈추기" stops a streaming reply, marked "멈췄어요.".
 - A refusal before the start says what happened in one sentence, with "다시 시도" where sending again can help and "로그인" when the session ended.
+
+### The edge character
+
+- `EdgeAssistant` is drawn by the 노트 page, a note and 기록, each in its own page, and by no other: not 홈, study or its completion, the editor, photo import or 설정 ([ADR 0205](adr/0205-draw-malangi-at-the-edge-of-the-notes-a-note-and-the-record-on-the-web-name-the-note-a-chat-opens-from-add-by-hand-from-the-menu-and-attach-photos-to-a-message.md)). It is a button "말랑이와 대화하기" 72 px, `fixed` above the tab bar and 12 px in from the window's right edge, beside the side menu's edge from 1024 px when at the left, that opens `/assistant`, or `/assistant?note={id}` from a note.
+- It breathes and blinks (`Mascot`'s `breathes`) and is the still image under `prefers-reduced-motion`. It tucks 36 px into its edge while the window scrolls and returns 400 ms after it stops; a drag past 8 px, or an arrow key, moves it to the other edge, kept in `localStorage` as `knowno.assistant.edge` and, where storage refuses, for the page. It leaves the page while a modal dialog is open, so the editor, photo import and every sheet draw none.
+- A spacer after the page's content, as high as what the character draws and 24 px, keeps the last row clear of it; over a long page it floats over the rows it scrolls past, which is why it tucks.
+- While a proposal not yet added is ready, "n장 만들어 뒀어요" is drawn in the button beside the mascot and read after its name. Where a first note exists (the 노트 page when it lists a note, and a note; never 기록) and no cards are ready, the hint "말랑이를 누르면 언제든 대화할 수 있어요" is drawn with "안내 닫기" until the character is tapped or the hint closed, once, kept as `knowno.assistant.hint`.
 
 ### Entry
 
@@ -41,18 +57,21 @@ The web's `assistant` feature: 말랑이's chat at `/assistant`, the conversatio
 Each line names a file and what it covers; the file holds the cases.
 
 - `web/src/features/assistant/__tests__/event-stream.test.ts` — events yielded whatever chunks split them, a CRLF split across chunks, data lines joined, comments skipped, a cut-off event dropped.
-- `protocol.test.ts` — each event read into its form, an unknown name passed over and a malformed one marked; each refusal, `busy` told from `rate_limited`; the share left.
-- `conversation.test.ts` — a reply's events applied, a remade proposal keeping its kept groups' checks; the last 40 turns with their proposals and question; the stored conversation read back and garbage read as empty; a proposal ready until added.
-- `assistant-chat.test.tsx` — with a fake client: streaming, the share, and the conversation and draft kept across a remount; a choice's pick sent after its question; the checks by card and group, "n장 추가", the commit and the shortcut; a failed commit; a group remade in a form; a large group collapsed; the day used; `busy` resent; "다시 시도"; "멈추기"; clearing behind its confirmation.
-- `assistant-server.test.ts` — a message forwarded as the user with its stream and refusals passed on, a signed-out visitor refused uncalled against a signed-in one, Supabase unreachable; a commit's cards written, a changes commit counted, a refused one and input that is not a proposal.
+- `protocol.test.ts` — each event, `job` included, read into its form, a poll's photos counted, an unknown name passed over and a malformed one marked; each refusal, `busy` told from `rate_limited`; the share left.
+- `conversation.test.ts` — the photos and job a message sends, a context line never sent and named once, read back; a reply's events applied, a remade proposal keeping its kept groups' checks; the last 40 turns with their proposals and question; the stored conversation read back and garbage read as empty; a proposal ready until added.
+- `assistant-chat.test.tsx` — with a fake client: the note named once and its id sent, and none from nowhere; photos staged, removed, uploaded and sent with the message, and a failed upload sending nothing; a job's progress, the poll, the turn that goes on by itself, the one that waits for a streaming reply, a cancel and a refused one, a job the function lost; streaming, the share, and the conversation and draft kept across a remount; a choice's pick sent after its question; the checks by card and group, "n장 추가", the commit and the shortcut; a failed commit; a group remade in a form; a large group collapsed; the day used; `busy` resent; "다시 시도"; "멈추기"; clearing behind its confirmation.
+- `assistant-server.test.ts` — a job's poll and cancel as the user, a visitor not signed in or an id that is none refused uncalled; a message forwarded as the user with its stream and refusals passed on, a signed-out visitor refused uncalled against a signed-in one, Supabase unreachable; a commit's cards written, a changes commit counted, a refused one and input that is not a proposal.
 - `web/src/app/(shell)/__tests__/today.test.tsx` — 홈's mascot and first-run action ([`web-study.md`](web-study.md)).
-- `web/e2e/assistant.spec.ts` — against a local stack with `/api/assistant` stubbed in the browser: 홈's first run to the chat, a streamed reply, a choice, a grouped proposal with its checks and collapsed group, the share, the day used; a shortcut to a note and back to the same scroll and draft; 홈's bubble; each at 390 and 1280 px in both themes and at 200%, nothing reaching past the right edge.
+- `web/src/features/assistant/__tests__/edge-assistant.test.tsx` — the button's name and where it opens the chat from; the short bubble joining its name; the room under the page's last row; leaving the page while a dialog is open; the tuck and its return; a drag, and a tap that is not one, and the arrow keys moving it between edges, kept and read back; the hint closed, tapped, none without a first note, giving way to the bubble, and kept for the page where storage refuses.
+- `web/src/features/assistant/__tests__/read-note.test.ts` — the user's live note by its id and name; none for a deleted, another's or absent note, an id that is none, with no read made for it, or a read that failed.
+- `web/e2e/edge.spec.ts` — against a local stack: the character on the 노트 page, a note and 기록, at least 44 px and clear of every control at the foot of each page at 390, 1280 and 390 at 200%, and at the top of the short ones, nothing past the right edge, in both themes; absent from 홈, 설정 and study, and from a note while its editor is open; the hint closed for good across a reload; a drag to the left kept across a reload and the tuck on scrolling; its breathing and the still image under reduced motion; the short bubble and the chat opened from the note, naming it and sending its id.
+- `web/e2e/assistant.spec.ts` — also photos attached, stored in the bucket under the user's folder, the job's progress, the turn that goes on once it is read and is not drawn; and against a local stack with `/api/assistant` stubbed in the browser: 홈's first run to the chat, a streamed reply, a choice, a grouped proposal with its checks and collapsed group, the share, the day used; a shortcut to a note and back to the same scroll and draft; 홈's bubble; each at 390 and 1280 px in both themes and at 200%, nothing reaching past the right edge.
 
 ## Rationale
 
+- [ADR 0205](adr/0205-draw-malangi-at-the-edge-of-the-notes-a-note-and-the-record-on-the-web-name-the-note-a-chat-opens-from-add-by-hand-from-the-menu-and-attach-photos-to-a-message.md) records the edge character, the note a chat opens from, "직접 추가" in ⋯, the photos and their job, and what the web settled beside the phone's [ADR 0204](adr/0204-draw-malangi-at-a-screen-s-edge-name-the-note-a-chat-opens-from-attach-photos-to-a-message-and-follow-their-job-from-the-phone.md).
 - [ADR 0200](adr/0200-chat-with-malangi-on-the-web-in-an-assistant-feature-streamed-through-a-route-handler-kept-in-the-browser-beside-the-side-menu-from-1024-px.md) records the feature, why messages stream through a Route Handler and the commit is a Server Action, why the conversation is the browser's, and the place beside the side menu from 1024 px; epic #711 and issue #722 record the owner's and the PM's decisions.
 
 ## Open questions
 
-- #722's second pull request: the edge character on the 노트 tab, inside a note and 기록, the context marker of the note the chat is opened from, photo attach against #750, and "직접 추가" in a note's ⋯.
 - Whether a shortcut's "카드 n장" should count the cards written, as now, or the note's cards; the phone's chat (#721) and this one are to agree.

@@ -3,11 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   type AssistantTurn,
   type Conversation,
+  enteredFrom,
+  lastMessage,
   parseConversation,
   readyProposal,
   requestTurns,
+  runningJob,
   shown,
   type Turn,
+  type UserTurn,
   withEvent,
 } from "../conversation";
 import type { Proposal } from "../protocol";
@@ -37,6 +41,15 @@ const proposal: Proposal = {
   ],
 };
 
+const said = (id: string, text: string, edit: Partial<UserTurn> = {}): UserTurn => ({
+  role: "user",
+  id,
+  text,
+  photos: [],
+  auto: false,
+  ...edit,
+});
+
 const reply = (edit: Partial<AssistantTurn> = {}): AssistantTurn => ({
   role: "assistant",
   id: "a1",
@@ -44,6 +57,7 @@ const reply = (edit: Partial<AssistantTurn> = {}): AssistantTurn => ({
   citations: [],
   proposals: [],
   choice: null,
+  job: null,
   ending: null,
   ...edit,
 });
@@ -81,18 +95,16 @@ describe("a reply as its events arrive", () => {
 
 describe("the turns a message sends", () => {
   it("sends the last 40, each reply with the proposals and question it showed", () => {
-    const turns: Turn[] = Array.from({ length: 45 }, (_, index) => ({
-      role: "user",
-      id: String(index),
-      text: String(index),
-    }));
+    const turns: Turn[] = Array.from({ length: 45 }, (_, index) =>
+      said(String(index), String(index)),
+    );
     const asked = reply({
       text: "어떤 형식?",
       proposals: [shown(proposal)],
       choice: { prompt: "형식은?", options: ["단어", "표"] },
       ending: "ok",
     });
-    const sent = requestTurns([...turns, asked, { role: "user", id: "u", text: "단어" }]);
+    const sent = requestTurns([...turns, asked, said("u", "단어")]);
     expect(sent).toHaveLength(40);
     expect(sent.at(-2)).toEqual({
       role: "assistant",
@@ -111,7 +123,7 @@ describe("the conversation kept in the browser", () => {
   it("reads back what it stored, a reply cut off mid-stream ended as stopped", () => {
     const conversation: Conversation = {
       turns: [
-        { role: "user", id: "u1", text: "영단어 카드 만들어 줘" },
+        said("u1", "영단어 카드 만들어 줘"),
         reply({ text: "네", proposals: [shown(proposal)], ending: "ok" }),
         reply({ id: "a2", text: "그리고" }),
       ],
@@ -135,5 +147,71 @@ describe("the conversation kept in the browser", () => {
     expect(readyProposal(at(reply({ proposals: [open] })))).toBeNull();
     const added = { ...open, added: { deck: { id: "d1", name: "영단어" }, count: 3 } };
     expect(readyProposal(at(reply({ proposals: [added], ending: "ok" })))).toBeNull();
+  });
+});
+
+describe("photos, the photo job and the note a chat opens from", () => {
+  const job = { id: "j1", photos: 3, finished: 1, state: "running" } as const;
+
+  it("sends a user turn's photos and a reply's job, and no context line", () => {
+    const sent = requestTurns([
+      { role: "context", id: "x", deckId: "d1", name: "영단어" },
+      said("u1", "읽어 줘", { photos: ["p1", "p2"] }),
+      reply({ text: "읽는 중이에요", job, ending: "ok" }),
+      said("u2", "다 읽었어요", { auto: true }),
+    ]);
+    expect(sent).toEqual([
+      { role: "user", text: "읽어 줘", photos: ["p1", "p2"] },
+      { role: "assistant", text: "읽는 중이에요", job: { id: "j1", photos: 3 } },
+      { role: "user", text: "다 읽었어요" },
+    ]);
+  });
+
+  it("shows a job event as a running job with nothing finished", () => {
+    expect(withEvent(reply(), { type: "job", id: "j1", photos: 3 }).job).toEqual({
+      id: "j1",
+      photos: 3,
+      finished: 0,
+      state: "running",
+    });
+  });
+
+  it("finds the reply whose job still reads, and the last message past a context line", () => {
+    const turns: Turn[] = [
+      reply({ id: "old", job: { ...job, state: "done" } }),
+      reply({ id: "now", job }),
+      { role: "context", id: "x", deckId: "d1", name: "영단어" },
+    ];
+    expect(runningJob(turns)?.id).toBe("now");
+    expect(lastMessage(turns)?.id).toBe("now");
+    // Control: a job done or cancelled is none that reads.
+    expect(runningJob([reply({ job: { ...job, state: "cancelled" } })])).toBeUndefined();
+  });
+
+  it("names a note once, unless the last line already does, and reads the line back", () => {
+    const note = { id: "d1", name: "영단어" };
+    const first = enteredFrom({ turns: [said("u1", "안녕")], draft: "" }, note, "c1");
+    expect(first.turns.at(-1)).toEqual({ role: "context", id: "c1", deckId: "d1", name: "영단어" });
+    expect(enteredFrom(first, note, "c2")).toBe(first);
+    // Control: another note, or the same one after a message, is named again.
+    expect(enteredFrom(first, { id: "d2", name: "표" }, "c3").turns).toHaveLength(3);
+    const after = { ...first, turns: [...first.turns, said("u2", "더")] };
+    expect(enteredFrom(after, note, "c4").turns).toHaveLength(4);
+    const read = parseConversation(JSON.stringify({ version: 1, ...first }));
+    expect(read.turns.at(-1)).toEqual(first.turns.at(-1));
+  });
+
+  it("reads back a user turn's photos and a reply's job, and drops a job that is not one", () => {
+    const conversation: Conversation = {
+      turns: [said("u1", "", { photos: ["p1"] }), reply({ job, ending: "ok" })],
+      draft: "",
+    };
+    const read = parseConversation(JSON.stringify({ version: 1, ...conversation }));
+    expect(read.turns).toEqual(conversation.turns);
+    const broken = JSON.parse(JSON.stringify({ version: 1, ...conversation })) as {
+      turns: { job?: unknown }[];
+    };
+    broken.turns[1] = { ...broken.turns[1], job: { id: "j1", state: "lost" } };
+    expect((parseConversation(JSON.stringify(broken)).turns[1] as AssistantTurn).job).toBeNull();
   });
 });

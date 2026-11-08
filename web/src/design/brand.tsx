@@ -61,9 +61,12 @@ type Motion = "blink" | "full";
 /** Whether [expression]'s eyes are open in the drawing, so it can blink. */
 const blinks = (expression: MascotExpression) => mascotDrawings[expression].includes('class="eye"');
 
-/** What a mascot of [expression] [width] px across does, or null where it holds still. */
-function motionOf(expression: MascotExpression, width: number): Motion | null {
-  if (width >= 128) return "full";
+/**
+ * What a mascot of [expression] [width] px across does, or null where it holds still; with
+ * [breathes] it breathes though it is under 128 across, if it is over 40.
+ */
+function motionOf(expression: MascotExpression, width: number, breathes: boolean): Motion | null {
+  if (width >= 128 || (breathes && width > 40)) return "full";
   if (width > 40 && blinks(expression)) return "blink";
   return null;
 }
@@ -94,15 +97,17 @@ const ahead: { shut: boolean; glance: [number, number] | null } = { shut: false,
  *
  * On screen it moves, drawn inline from the parts `make brand` writes (ADR 0152): at 128 px and
  * more it blinks and breathes, the happy one wobbles and the sleepy one dozes; from 41 to 127 px it
- * only blinks. At 40 px or less, under reduce motion, off screen, and where its expression has
+ * only blinks, unless it [breathes], as the character at a screen's edge does at 72 px (#722). At 40 px or less, under reduce motion, off screen, and where its expression has
  * nothing to move at its size, it is the still image.
  */
 export function Mascot({
   expression,
   className,
+  breathes = false,
 }: {
   expression: MascotExpression;
   className: string;
+  breathes?: boolean;
 }) {
   const reduced = useReducedMotion();
   const [element, setElement] = useState<Element | null>(null);
@@ -117,14 +122,16 @@ export function Mascot({
       const entry = entries.at(-1);
       if (!entry) return;
       setOnScreen(
-        entry.isIntersecting ? motionOf(expression, entry.boundingClientRect.width) : null,
+        entry.isIntersecting
+          ? motionOf(expression, entry.boundingClientRect.width, breathes)
+          : null,
       );
     });
     observer.observe(element);
     return () => {
       observer.disconnect();
     };
-  }, [element, reduced, expression]);
+  }, [element, reduced, expression, breathes]);
 
   // A blink or a glance every 3 to 7 s while it moves, as the app's mascot makes them.
   useEffect(() => {

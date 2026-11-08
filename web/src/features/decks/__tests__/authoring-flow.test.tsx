@@ -2,6 +2,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/re
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { delay, http, HttpResponse } from "msw";
+import { addByHand } from "@/testing/add-by-hand";
 import { render } from "@/testing/render";
 import { cardRow, deckRow, side, uuidOf } from "@/testing/library";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
@@ -10,7 +11,7 @@ import { supabaseUrl, testAccessToken } from "@/testing/mocks/handlers";
 import { setRequestCookies } from "@/testing/next-headers";
 import { signedInCookies } from "@/testing/session";
 import { testRouter } from "@/testing/router";
-import { AuthoringButton } from "../components/authoring-button";
+import { NoteSettings } from "../components/note-settings";
 import { PhotoImports } from "../components/photo-imports";
 import { preparePhoto } from "../extract-photo";
 import { describeFailure } from "../photo-failure";
@@ -38,12 +39,12 @@ const deck = { id: deckId, name: "단어장", public: false };
 
 describe("authoring from the page", () => {
   it("closes a pristine draft directly and confirms dirty dismissal without losing a kept draft", async () => {
-    await render(() => <AuthoringButton deck={deck} />, {});
-    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+    await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+    await addByHand();
     await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
     await userEvent.click(screen.getByRole("button", { name: "닫기" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+    await addByHand();
     await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
     await userEvent.type(screen.getByRole("textbox", { name: "앞면" }), "draft");
     fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
@@ -57,8 +58,8 @@ describe("authoring from the page", () => {
   });
 
   it("keeps a manual draft after a failed save, then saves meanings and labels once", async () => {
-    await render(() => <AuthoringButton deck={deck} />, {});
-    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+    await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+    await addByHand();
     await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
     await userEvent.click(screen.getByRole("button", { name: "1번째 칸 메뉴" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "삭제" }));
@@ -98,8 +99,8 @@ describe("authoring from the page", () => {
     );
   });
   it("opens nothing when the picker is cancelled, and keeps the choices usable", async () => {
-    await render(() => <AuthoringButton deck={deck} />, {});
-    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+    await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+    await addByHand();
     const picker = screen.getByLabelText("앨범에서 고르기", { selector: "input" });
     fireEvent.change(picker, { target: { files: [] } });
     expect(screen.getByRole("heading", { name: "카드 추가" })).toBeInTheDocument();
@@ -455,8 +456,11 @@ describe("photo import", () => {
   /** Picks [count] photos from the album on the deck's 카드 추가 sheet. */
   async function choose(count: number) {
     const files = Array.from({ length: count }, (_, at) => new File([], `${String(at)}.jpg`));
-    const view = await render(() => <AuthoringButton deck={deck} />, {});
-    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+    const view = await render(
+      () => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />,
+      {},
+    );
+    await addByHand();
     const picker = screen.getByLabelText("앨범에서 고르기", { selector: "input" });
     fireEvent.change(picker, { target: { files } });
     return view;
@@ -517,7 +521,7 @@ describe("photo import", () => {
       expect(sent.count).toBe(1);
 
       answer(read);
-      await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+      await addByHand();
       fireEvent.change(screen.getByLabelText("앨범에서 고르기", { selector: "input" }), {
         target: { files: [new File([], "again.jpg")] },
       });
@@ -652,7 +656,7 @@ describe("photo import", () => {
       await screen.findByRole("heading", { name: "사진 2장 중 0장 읽음" }),
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "닫기" }));
-    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+    await addByHand();
     expect(
       screen.queryByLabelText("앨범에서 고르기", { selector: "input" }),
       "no picker while one reads",
@@ -676,13 +680,13 @@ describe("photo import", () => {
     const view = await choose(1);
     expect(await screen.findByRole("heading", { name: "카드를 찾고 있어요" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "닫기" }));
-    // Another page in the same root layout: the note's button is gone.
+    // Another page in the same root layout: the note's ⋯ is gone.
     view.rerender(
       <PhotoImports>
         <p>다른 페이지</p>
       </PhotoImports>,
     );
-    expect(screen.queryByRole("button", { name: "카드 추가" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "노트 설정" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "사진 읽는 중 0/1" })).toBeInTheDocument();
     release();
     await userEvent.click(await screen.findByRole("button", { name: "카드 1장 확인하기" }));
