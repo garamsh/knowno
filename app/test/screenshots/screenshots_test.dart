@@ -17,6 +17,7 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_chip.dart';
 import 'package:knowno/design/app_text_field.dart';
 import 'package:knowno/design/keyboard_dismissal.dart';
+import 'package:knowno/design/mascot.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/design/theme_choice.dart';
 import 'package:knowno/home/home.dart';
@@ -29,7 +30,9 @@ import 'package:knowno/study/study.dart';
 import 'package:knowno/sync/sync.dart';
 
 import '../account/fake_account_service.dart';
+import '../assistant/fakes.dart';
 import '../app_fonts.dart';
+import '../home/assistant_home.dart';
 import '../home/hero_states.dart';
 import '../home/home_data.dart';
 import '../photo_import/fakes.dart';
@@ -322,6 +325,182 @@ void main() {
 
     Future<void> dismissSheet(WidgetTester tester) =>
         tap(tester, find.byType(ModalBarrier).last);
+
+    testWidgets('the assistant in $mode', skip: !_capture, (tester) async {
+      final theme = mode == 'dark' ? ThemeMode.dark : ThemeMode.light;
+      // The edge character: the one mascot that breathes at its size.
+      final edge = find.byWidgetPredicate(
+        (widget) => widget is Mascot && widget.breathes,
+      );
+
+      /// 홈 over [decks] and the assistant, drawn as a phone draws it.
+      Future<OpenedHome> open({
+        List<String> decks = const [],
+        int cards = 0,
+        FakeAssistantClient? client,
+        Map<String, Object> stored = const {},
+        PhotoSource? photos,
+      }) async {
+        // The banner is off before the app is built, the phone's size after.
+        phone(tester);
+        final opened = await openHome(
+          tester,
+          decks: decks,
+          cardsPerDeck: cards,
+          client: client ?? FakeAssistantClient(),
+          stored: stored,
+          themeMode: theme,
+          locale: const Locale('ko'),
+          photoSource: photos,
+        );
+        phone(tester);
+        await tester.pumpAndSettle();
+        return opened;
+      }
+
+      /// A shot at the text size it is, then at the largest, and the screen
+      /// taken down.
+      Future<void> take(String name) async {
+        await shot(tester, 'assistant-$name');
+        await largest(tester, 'assistant-$name');
+      }
+
+      Future<void> send(String text) async {
+        await tester.enterText(find.byType(EditableText).last, text);
+        await tester.pump();
+        await tap(tester, find.byTooltip(ko.assistantSend));
+      }
+
+      // 홈: the first run's way in, and the bubble over the mascot.
+      await open();
+      await take('01-home-first-run');
+      await tap(tester, shownText(ko.assistantFirstNote));
+      await take('08-chat-empty');
+      await unmount(tester);
+      await open(decks: ['영단어 기본'], cards: 5, stored: storedChatShowcase());
+      await take('02-home-bubble');
+      await unmount(tester);
+
+      // The edge character on the 노트 tab with its hint, with cards ready, and
+      // tucked while the list scrolls; inside a note; on 기록.
+      await open(decks: ['영단어 기본', '일본어 N3 한자', '회화 표현'], cards: 3);
+      await showNotes(tester);
+      await take('03-notes-hint');
+      await unmount(tester);
+      await open(
+        decks: ['영단어 기본', '일본어 N3 한자', '회화 표현'],
+        cards: 3,
+        stored: storedChatShowcase(),
+      );
+      await showNotes(tester);
+      await take('04-notes-ready');
+      await unmount(tester);
+      await open(
+        decks: [for (var i = 1; i <= 9; i++) '노트 $i'],
+        cards: 3,
+        stored: {'assistant.hintShown': true},
+      );
+      await showNotes(tester);
+      final scroll = await tester.startGesture(const Offset(200, 500));
+      await scroll.moveBy(const Offset(0, -120));
+      await tester.pump(const Duration(milliseconds: 300));
+      await shot(tester, 'assistant-05-notes-tucked');
+      await scroll.up();
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+      await unmount(tester);
+      await open(decks: ['영단어 기본'], cards: 12);
+      await showNotes(tester);
+      await tap(tester, shownText('영단어 기본'));
+      await take('06-note-hint');
+      await tap(tester, edge);
+      await take('16-chat-from-note');
+      await unmount(tester);
+      await open(decks: ['영단어 기본'], cards: 3);
+      await tester.tap(shownText(ko.tabRecord));
+      await tester.pumpAndSettle();
+      await take('07-record');
+      await unmount(tester);
+
+      // The chat: streaming, a question, a proposal, added notes, the
+      // refusals and an error.
+      final live = LiveReply();
+      await open(client: FakeAssistantClient(scripts: [live.script]));
+      await tap(tester, shownText(ko.assistantFirstNote));
+      await send('토익 단어를 만들어 줘');
+      live.text('좋아요. 토익에 자주 나오는 단어를 ');
+      live.text('단원별로 나눠서 만들어 볼게요.');
+      await tester.pump();
+      await tester.pump();
+      await take('09-chat-streaming');
+      await live.end();
+      await tester.pumpAndSettle();
+      await unmount(tester);
+      await open(
+        client: FakeAssistantClient(
+          scripts: [
+            questionReply('어떤 형식으로 만들까요?', '카드의 형식을 골라 주세요', [
+              '단어',
+              '빈칸 문장',
+              '표',
+              '알아서 섞어서',
+            ]),
+          ],
+        ),
+      );
+      await tap(tester, shownText(ko.assistantFirstNote));
+      await send('영단어 카드 만들어 줘');
+      await take('10-chat-choice');
+      await unmount(tester);
+      await open(stored: storedChatShowcase());
+      await tap(tester, shownText(ko.assistantFirstNote));
+      await take('11-chat-proposal');
+      await unmount(tester);
+      await open(
+        stored: storedChatShowcase(
+          added: (id: 'elsewhere', name: '영단어 기본'),
+          ask: true,
+        ),
+      );
+      await tap(tester, shownText(ko.assistantFirstNote));
+      await take('12-chat-added');
+      await unmount(tester);
+      await open(client: FakeAssistantClient(scripts: [spentRefusal()]));
+      await tap(tester, shownText(ko.assistantFirstNote));
+      await send('안녕');
+      await take('13-chat-rate-limited');
+      await unmount(tester);
+      await open(client: FakeAssistantClient(scripts: [busyRefusal()]));
+      await tap(tester, shownText(ko.assistantFirstNote));
+      await tester.enterText(find.byType(EditableText).last, '안녕');
+      await tester.pump();
+      await tester.tap(find.byTooltip(ko.assistantSend));
+      await tester.pump();
+      await tester.pump();
+      await take('14-chat-busy-waiting');
+      await unmount(tester);
+      await open(client: FakeAssistantClient(scripts: [failedReply('음…')]));
+      await tap(tester, shownText(ko.assistantFirstNote));
+      await send('안녕');
+      await take('15-chat-error');
+      await unmount(tester);
+
+      // Photos: staged for a message, and a job reading.
+      final library = FakePhotoSource()
+        ..libraryPhotos = [
+          for (final width in [30, 40, 50]) Future.value(photoOfWidth(width)),
+        ];
+      await open(photos: library);
+      await tap(tester, shownText(ko.assistantFirstNote));
+      await tap(tester, find.byTooltip(ko.assistantPhotoAttach));
+      await tap(tester, shownText(ko.photoAlbum));
+      await loadImages(tester);
+      await take('17-chat-photos');
+      await unmount(tester);
+      await open(stored: storedChatShowcase(job: (finished: 4, photos: 12)));
+      await tap(tester, shownText(ko.assistantFirstNote));
+      await take('18-chat-job');
+      await unmount(tester);
+    });
 
     testWidgets('the app in $mode', skip: !_capture, (tester) async {
       phone(tester);

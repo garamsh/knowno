@@ -272,6 +272,7 @@ class AssistantController extends Notifier<ChatState> {
       if (attempt > 0) {
         await Future.any([Future<void>.delayed(busyRetryDelay), abort.future]);
       }
+      if (!ref.mounted) return;
       if (abort.isCompleted) {
         _set(state.copyWith(status: const ChatIdle()), store: false);
         return;
@@ -281,6 +282,7 @@ class AssistantController extends Notifier<ChatState> {
         deckId: _context,
         abort: abort.future,
       );
+      if (!ref.mounted) return;
       if (outcome is! SendRefused ||
           outcome.refusal is! Busy ||
           attempt == _busyRetries) {
@@ -383,6 +385,7 @@ class AssistantController extends Notifier<ChatState> {
     _change(id, (turn) => turn, add: true);
     try {
       await for (final event in events) {
+        if (!ref.mounted) return;
         if (event is UsageEvent) {
           state = state.copyWith(allowance: event.allowance);
         } else {
@@ -394,11 +397,13 @@ class AssistantController extends Notifier<ChatState> {
           if (event is JobEvent) _watchJob();
         }
       }
+      if (!ref.mounted) return;
       _change(
         id,
         (turn) => turn.ending == null ? turn.copyWith(ending: Ending.ok) : turn,
       );
     } on Exception {
+      if (!ref.mounted) return;
       _change(
         id,
         (turn) => turn.ending != null

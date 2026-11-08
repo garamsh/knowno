@@ -617,7 +617,7 @@ class _JobView extends StatelessWidget {
         if (job.state == JobState.running) ...[
           ExcludeSemantics(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.chip),
+              borderRadius: BorderRadius.circular(AppRadius.field),
               child: LinearProgressIndicator(
                 value: job.photos == 0 ? null : job.finished / job.photos,
                 minHeight: AppSize.progress,
@@ -740,7 +740,7 @@ class _MessageField extends StatelessWidget {
                   child: Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(AppRadius.chip),
+                        borderRadius: BorderRadius.circular(AppRadius.field),
                         child: Image.memory(
                           staged[at],
                           width: _thumb,

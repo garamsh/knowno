@@ -11,6 +11,7 @@ import 'package:knowno/design/theme.dart';
 import 'package:knowno/design/theme_choice.dart';
 import 'package:knowno/home/src/home_screen.dart';
 import 'package:knowno/l10n/app_localizations.dart';
+import 'package:knowno/photo_import/photo_import.dart' show PhotoSource;
 import 'package:knowno/sync/sync.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -70,6 +71,7 @@ Future<OpenedHome> openHome(
   ThemeMode themeMode = ThemeMode.light,
   bool semantics = false,
   int cardsPerDeck = 0,
+  PhotoSource? photoSource,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -120,6 +122,7 @@ Future<OpenedHome> openHome(
         themeStorageProvider.overrideWithValue(themePreferences),
         assistantClientProvider.overrideWithValue(client),
         assistantStorageProvider.overrideWithValue(assistantStorage),
+        assistantPhotoSourceProvider.overrideWithValue(photoSource),
       ],
       child: MaterialApp(
         theme: lightTheme,
@@ -128,11 +131,14 @@ Future<OpenedHome> openHome(
         locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
-        ),
+        // A scale of 1 leaves the platform's, which a screenshot sets.
+        builder: (context, child) => textScale == 1
+            ? child!
+            : MediaQuery(
+                data: MediaQuery.of(context)
+                    .copyWith(textScaler: TextScaler.linear(textScale)),
+                child: child!,
+              ),
         home: const HomeScreen(),
       ),
     ),
