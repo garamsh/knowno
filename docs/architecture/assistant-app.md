@@ -16,7 +16,7 @@ The app's `assistant` domain: the chat with 말랑이 on the phone, its client o
   - `chat_screen.dart` — the chat; `proposal_view.dart` — a proposal's groups and cards; `card_preview.dart` — a proposed card in two lines, a text of version 3 as its plain text and a cloze of version 2 as `___` with its hint on the front and its answers on the back, read through `deck`'s `markupEngine` ([ADR 0207](adr/0207-render-and-edit-card-text-markup-and-cloze-in-the-app-through-the-engine-behind-a-deck-owned-seam-and-write-text-version-3.md));
   - `edge_assistant.dart` — `EdgeAssistant`, the character at a screen's edge;
   - `supabase_photo_store.dart` — `SupabasePhotoStore`, the private `assistant-photos` bucket through Supabase Storage.
-- The domain imports `photo_import` through its surface, for the camera, the library and the JPEG a photo is prepared as, and `supabase_flutter` for the storage adapter, and no other domain ([ADR 0204](adr/0204-draw-malangi-at-a-screen-s-edge-name-the-note-a-chat-opens-from-attach-photos-to-a-message-and-follow-their-job-from-the-phone.md)). `home/` opens it ([`home.md`](home.md)); the composition site builds `HttpAssistantClient` from the Supabase project and passes it to `composeApp` as `assistant`, which hides every way into the chat when it is null.
+- The domain imports `photo_import` through its surface, for the camera, the library and the JPEG a photo is prepared as, and `supabase_flutter` for the storage adapter, `flutter_timezone` for the zone name, `deck`'s surface for the markup engine its card preview reads a card's text through ([ADR 0207](adr/0207-render-and-edit-card-text-markup-and-cloze-in-the-app-through-the-engine-behind-a-deck-owned-seam-and-write-text-version-3.md)), and no other domain ([ADR 0204](adr/0204-draw-malangi-at-a-screen-s-edge-name-the-note-a-chat-opens-from-attach-photos-to-a-message-and-follow-their-job-from-the-phone.md)). `home/` opens it ([`home.md`](home.md)); the composition site builds `HttpAssistantClient` from the Supabase project and passes it to `composeApp` as `assistant`, which hides every way into the chat when it is null.
 
 ### The conversation
 
@@ -42,7 +42,7 @@ The app's `assistant` domain: the chat with 말랑이 on the phone, its client o
 
 ### The context
 
-- A chat opened from a note, `AssistantChatScreen`'s `note`, adds the line "name 노트에서" to the thread once it is built, unless its last line already names that note, and sends `context: {deck_id}` with each message while it is open there; opened from 홈 or the 노트 tab it sends none. The line is a `ContextTurn`: stored with the thread, never sent as a turn, and not counted in the 40.
+- A chat opened from a note, `AssistantChatScreen`'s `note`, adds the line "name 노트에서" to the thread once it is built, unless its last line already names that note, and sends `context: {deck_id}` with each message while it is open there; opened from 홈 or the 노트 tab it sends no `deck_id`. Every message's `context` also carries `time_zone`, the device's IANA zone name, which `deviceTimeZone` reads through `flutter_timezone` and `HttpAssistantClient`'s `timeZone` supplies, so the server counts the study day in it ([`assistant.md`](assistant.md) §Requests); where the platform gives no name the `time_zone` is left out, and the server counts the day in `Asia/Seoul`, as for a message that names none. The line is a `ContextTurn`: stored with the thread, never sent as a turn, and not counted in the 40.
 
 ### Photos and their job
 
