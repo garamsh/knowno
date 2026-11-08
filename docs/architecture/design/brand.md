@@ -25,6 +25,7 @@ The brand on the phone and the web: the name, the marks and how they are generat
 ### Mascot
 
 - The mascot is `Mascot` in `app/lib/design/mascot.dart` and in `web/src/design/brand.tsx`, one of four `MascotExpression`s, on no ground of its own, hidden from screen readers, carrying no badge ([ADR 0141](../adr/0141-polish-the-coral-mascot-make-coral-the-primary-action-and-place-its-expressions-on-both-clients.md), [ADR 0116](../adr/0116-draw-an-icon-only-where-it-says-what-the-words-beside-it-do-not-or-follows-the-platform.md)).
+- 홈's mascot is the way into the chat on the phone, a button named "말랑이와 대화하기", with a speech bubble over it while cards are ready ([`home.md`](../home.md)).
 - A screen draws at most one, never inside a study card and never beside an error's red, sized so the words stay the hero.
 - Each expression's moments, the same on both clients:
 
@@ -36,6 +37,7 @@ The brand on the phone and the web: the name, the marks and how they are generat
   | sad | a failed photo's screen, "no cards found" among its failures | 96 |
   | sleepy | study with nothing today, and an empty deck | 96 |
   | sleepy | 홈 on the hill once the day's cards are done ([ADR 0193](../adr/0193-make-home-one-screen-of-sky-over-ground-with-the-mascot-on-a-hill-the-streak-s-days-and-one-action.md)) | 140 |
+  | thinking, sleepy, sad or happy | the phone's chat with 말랑이, in its top bar beside its name: sleepy once the day's tokens are used, sad on a failure, happy once cards were added ([`assistant-app.md`](../assistant-app.md)) | 40 |
 
   No other mascot is drawn while a card is studied.
 - It moves the same on both clients, within its own widget or component ([ADR 0152](../adr/0152-let-the-mascot-blink-and-breathe-from-its-own-drawing-and-put-the-launcher-icon-on-cobalt.md)):
