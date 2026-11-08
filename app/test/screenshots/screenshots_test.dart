@@ -840,6 +840,131 @@ void main() {
       await unmount(tester);
     });
 
+    testWidgets('card text markup in $mode', skip: !_capture, (tester) async {
+      phone(tester);
+      Widget app(Widget body) => MaterialApp(
+        theme: lightTheme,
+        darkTheme: darkTheme,
+        themeMode: ThemeMode.values.byName(mode),
+        locale: const Locale('ko'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SafeArea(
+            child: Padding(padding: const EdgeInsets.all(16), child: body),
+          ),
+        ),
+      );
+      const written = '**사과**는 *과일*이에요\n- 빨강\n- 초록';
+      // Before: what a card holding this text showed, its marks as typed.
+      await tester.pumpWidget(
+        app(
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              WholeCardView(
+                [TextContent(written)],
+                revealed: true,
+                style: AppType.back,
+              ),
+              SizedBox(height: 24),
+              WholeCardView(
+                [
+                  ClozeContent('서울은 ___의 수도예요', ['한국']),
+                ],
+                revealed: false,
+                style: AppType.back,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await shot(tester, 'markup-1-before-card');
+      await largest(tester, 'markup-1-before-card');
+      // After: the same text as markup, a cloze of two numbers with a hint.
+      for (final revealed in [false, true]) {
+        await tester.pumpWidget(
+          app(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const WholeCardView(
+                  [TextContent(written, markup: true)],
+                  revealed: true,
+                  style: AppType.back,
+                ),
+                const SizedBox(height: 24),
+                WholeCardView(
+                  const [
+                    ClozeContent.markup('{{c1::서울::도시}}은 {{c2::한국}}의 수도예요'),
+                  ],
+                  revealed: revealed,
+                  style: AppType.back,
+                ),
+              ],
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final name = revealed
+            ? 'markup-2-after-card-revealed'
+            : 'markup-2-after-card';
+        await shot(tester, name);
+        await largest(tester, name);
+      }
+      await unmount(tester);
+    });
+
+    testWidgets('the card editor with markup in $mode', skip: !_capture, (
+      tester,
+    ) async {
+      phone(tester);
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      var ids = 0;
+      final repository = DeckRepository(
+        db,
+        clock: () => homeNow,
+        newId: () => 'id${ids++}',
+      );
+      final deck = (await tester.runAsync(
+        () => repository.createDeck('영단어 기본'),
+      ))!;
+      final storage = await openStudyStorage(tester);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            deckRepositoryProvider.overrideWithValue(repository),
+            deckStorageProvider.overrideWithValue(storage),
+          ],
+          child: MaterialApp(
+            theme: lightTheme,
+            darkTheme: darkTheme,
+            themeMode: ThemeMode.values.byName(mode),
+            locale: const Locale('ko'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: CardEditorScreen(preview: _preview, deck: deck),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField).first,
+        '**사과**는 *과일*이에요\n- 빨강',
+      );
+      await tester.pump();
+      await tester.enterText(
+        find.byType(TextField).first,
+        '**사과**는 *과일*이에요\n- 빨강\n',
+      );
+      await tester.pumpAndSettle();
+      await shot(tester, 'markup-3-editor-text');
+      await largest(tester, 'markup-3-editor-text');
+      await unmount(tester);
+    });
+
     testWidgets('the today tab in a backlog in $mode', skip: !_capture, (
       tester,
     ) async {
@@ -1774,25 +1899,25 @@ void main() {
       await tester.showKeyboard(line);
       final controller = tester.widget<TextField>(line).controller!;
       // "a" and "present", each selected and made a blank.
-      for (final (start, end) in [(12, 13), (14, 21)]) {
+      for (final (start, end) in [(12, 13), (23, 30)]) {
         controller.selection = TextSelection(
           baseOffset: start,
           extentOffset: end,
         );
         await tester.pump();
-        await tap(tester, shownText(ko.clozeInsertBlank));
+        await tap(tester, shownText(ko.clozeHide));
       }
       await tester.ensureVisible(shownText('영단어 기본'));
       await tester.pumpAndSettle();
       await shot(tester, '05g-card-editor-cloze');
       // The caret in "present": the one action turns it back into text.
-      controller.selection = const TextSelection.collapsed(offset: 17);
+      controller.selection = const TextSelection.collapsed(offset: 31);
       await tester.pumpAndSettle();
       await shot(tester, '05q-card-editor-cloze-undo');
       // An empty blank at the cursor, over a phone keyboard 336 points high.
       controller.selection = const TextSelection.collapsed(offset: 4);
       await tester.pump();
-      await tap(tester, shownText(ko.clozeInsertBlank));
+      await tap(tester, shownText(ko.clozeHide));
       tester.view.viewInsets = const FakeViewPadding(bottom: 336 * _density);
       addTearDown(tester.view.resetViewInsets);
       await tester.pumpAndSettle();

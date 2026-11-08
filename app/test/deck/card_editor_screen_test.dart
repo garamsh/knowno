@@ -677,7 +677,10 @@ void main() {
       final saved = (await screens.cards()).firstWhere(
         (stored) => stored.id == framed.id,
       );
-      expect(saved.cells!.first, const TextCell(front: 'pears', back: '배'));
+      expect(
+        saved.cells!.first,
+        const TextCell(front: 'pears', back: '배', markup: true),
+      );
       expect(
         encodeContent([(saved.cells!.last as UnknownCell).block]),
         encodeContent([unknown]),

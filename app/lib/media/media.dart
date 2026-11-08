@@ -24,6 +24,7 @@ export 'src/model.dart'
         PreparedImage,
         maxAudioBytes,
         maxAudioDuration;
+export 'src/image.dart' show prepareImage;
 export 'src/picker.dart' show ImageOrigin, ImagePick;
 export 'src/providers.dart'
     show

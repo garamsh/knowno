@@ -2222,4 +2222,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantJobCancelled => 'Cancelled reading the photos';
+
+  @override
+  String get clozeHide => 'Hide';
+
+  @override
+  String get clozeHideUndo => 'Show again';
+
+  @override
+  String get clozeMarkupHint => 'Select a part and tap Hide';
+
+  @override
+  String get markupPreview => 'Preview';
+
+  @override
+  String get pasteImageFailed => 'Could not get the pasted photo';
 }

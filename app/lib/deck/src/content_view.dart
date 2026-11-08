@@ -8,6 +8,8 @@ import 'audio_block.dart';
 import 'card_text.dart';
 import 'content.dart';
 import 'image_block.dart';
+import 'markup.dart';
+import 'markup_span.dart';
 import 'whole_card_view.dart';
 
 /// How a card side's text is fitted to the box [width] wide and [height]
@@ -127,15 +129,19 @@ class ContentView extends StatelessWidget {
       children: [
         for (final block in blocks)
           switch (block) {
-            TextContent(:final text)
+            final TextContent text
                 when fit != null && style != null && minFontSize != null =>
               CardText(
-                text,
-                span: TextSpan(text: keepWords(text)),
+                text.plain,
+                span: textSpan(text, wrap: keepWords),
                 style: style,
                 minFontSize: minFontSize,
                 width: fit.width,
               ),
+            final TextContent text when text.markup => Text.rich(
+              textSpan(text, wrap: keepWords),
+              style: style,
+            ),
             TextContent(:final text) => Text(text, style: style),
             SensesContent(:final lines)
                 when fit != null && style != null && minFontSize != null =>
@@ -175,7 +181,7 @@ class ContentView extends StatelessWidget {
   }
 
   String _plain(AppLocalizations l10n, Content block) => switch (block) {
-    TextContent(:final text) => text,
+    TextContent(:final plain) => plain,
     ClozeContent(:final filled) || TableContent(:final filled) => filled,
     SensesContent(:final lines) => lines,
     ImageContent() => l10n.blockImage,
@@ -185,6 +191,15 @@ class ContentView extends StatelessWidget {
 }
 
 String _same(String text) => text;
+
+/// A text block as a span: its words as written, or, for markup, its marks
+/// drawn, as [markupSpan] has them.
+InlineSpan textSpan(
+  TextContent block, {
+  String Function(String text) wrap = _same,
+}) => block.markup
+    ? markupSpan(markupEngine.parse(block.text), wrap: wrap)
+    : TextSpan(text: wrap(block.text));
 
 /// [blocks] run together as one paragraph, a line apart: a text block as
 /// written, a cloze or a table filled, a senses block as [sensesSpan] draws
@@ -200,7 +215,11 @@ InlineSpan contentSpan(
     for (final (index, block) in blocks.indexed) ...[
       if (index > 0) const TextSpan(text: '\n'),
       switch (block) {
-        TextContent(:final text) => TextSpan(text: wrap(text)),
+        final TextContent text => textSpan(text, wrap: wrap),
+        ClozeContent(markup: true, :final text) => markupSpan(
+          markupEngine.parse(text),
+          wrap: wrap,
+        ),
         ClozeContent(:final filled) ||
         TableContent(:final filled) => TextSpan(text: wrap(filled)),
         SensesContent() => sensesSpan(block, wrap: wrap),

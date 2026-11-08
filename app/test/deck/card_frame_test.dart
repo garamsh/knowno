@@ -194,7 +194,7 @@ void main() {
         jsonEncode([
           {
             'type': 'text',
-            'v': 3,
+            'v': 4,
             'payload': {'front': 'a'},
           },
         ]),

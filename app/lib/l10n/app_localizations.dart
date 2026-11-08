@@ -3461,6 +3461,36 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'사진 읽기를 취소했어요'**
   String get assistantJobCancelled;
+
+  /// The cloze 칸's action that wraps the selected text in the next free cloze number.
+  ///
+  /// In ko, this message translates to:
+  /// **'가리기'**
+  String get clozeHide;
+
+  /// The cloze 칸's action, offered where the cursor is in a cloze, that turns it back into its text.
+  ///
+  /// In ko, this message translates to:
+  /// **'가리기 풀기'**
+  String get clozeHideUndo;
+
+  /// The hint in a cloze 칸's text field.
+  ///
+  /// In ko, this message translates to:
+  /// **'가릴 부분을 고르고 가리기를 눌러요'**
+  String get clozeMarkupHint;
+
+  /// Screen reader name of the formatted text shown under a 칸's field.
+  ///
+  /// In ko, this message translates to:
+  /// **'미리 보기'**
+  String get markupPreview;
+
+  /// A pasted image link whose picture could not be fetched.
+  ///
+  /// In ko, this message translates to:
+  /// **'붙여넣은 사진을 가져오지 못했어요'**
+  String get pasteImageFailed;
 }
 
 class _AppLocalizationsDelegate

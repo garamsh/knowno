@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/mascot.dart';
 import 'package:knowno/study/study.dart';
 
@@ -8,6 +9,7 @@ import 'package:knowno/study/study.dart';
 /// engine's today's list, a synchronous call.
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   await Scheduler.load();
+  installMarkupEngine(const BridgeMarkupEngine());
   mascotsMove = false;
   await testMain();
 }
