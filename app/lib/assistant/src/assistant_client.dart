@@ -118,6 +118,7 @@ final class HttpAssistantClient implements AssistantClient {
     required this.accessToken,
     required this.readAllowance,
     required this.storePhoto,
+    required this.timeZone,
   });
 
   final http.Client _http;
@@ -136,6 +137,10 @@ final class HttpAssistantClient implements AssistantClient {
   /// JPEG, as the signed-in user.
   final Future<void> Function(String photoId, Uint8List bytes) storePhoto;
 
+  /// The device's IANA time zone name, or null where it is not known; a
+  /// message names it so the study record counts the study day in it.
+  final Future<String?> Function() timeZone;
+
   @override
   Future<SendOutcome> send(
     List<Map<String, Object?>> messages, {
@@ -151,9 +156,11 @@ final class HttpAssistantClient implements AssistantClient {
     );
     request.headers['authorization'] = 'Bearer $token';
     request.headers['content-type'] = 'application/json';
+    final zone = await timeZone();
     request.body = jsonEncode({
       'messages': messages,
-      if (deckId != null) 'context': {'deck_id': deckId},
+      if (deckId != null || zone != null)
+        'context': {'deck_id': ?deckId, 'time_zone': ?zone},
     });
     final http.StreamedResponse response;
     try {

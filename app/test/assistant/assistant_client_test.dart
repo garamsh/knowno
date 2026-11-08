@@ -17,12 +17,14 @@ HttpAssistantClient _client(
   String? token = 'jwt',
   Future<Object?> Function()? allowance,
   Future<void> Function(String photoId, Uint8List bytes)? storePhoto,
+  Future<String?> Function()? timeZone,
 }) => HttpAssistantClient(
   inner,
   functionUrl: _url,
   accessToken: () async => token,
   readAllowance: allowance ?? () async => <Object?>[],
   storePhoto: storePhoto ?? (_, _) async {},
+  timeZone: timeZone ?? () async => null,
 );
 
 http.StreamedResponse _stream(int status, Stream<List<int>> body) =>
@@ -210,6 +212,38 @@ void main() {
       expect(jsonDecode(body), isNot(contains('context')));
     },
   );
+
+  test('sends the device\'s time zone in the context, with the note when the chat was opened in one', () async {
+    late String body;
+    final inner = MockClient.streaming((request, bodyStream) async {
+      body = await bodyStream.bytesToString();
+      return _stream(200, const Stream.empty());
+    });
+    final client = _client(inner, timeZone: () async => 'America/New_York');
+    await client.send(
+      const [],
+      deckId: 'deck-1',
+      abort: Completer<void>().future,
+    );
+    expect(
+      jsonDecode(body),
+      containsPair('context', {
+        'deck_id': 'deck-1',
+        'time_zone': 'America/New_York',
+      }),
+    );
+    await client.send(const [], abort: Completer<void>().future);
+    expect(
+      jsonDecode(body),
+      containsPair('context', {'time_zone': 'America/New_York'}),
+      reason: 'a chat opened from nowhere still names its zone',
+    );
+    // Control: a zone the platform cannot name sends none, and the server
+    // counts the day as it does for a message that names no zone.
+    final unknown = _client(inner, timeZone: () async => null);
+    await unknown.send(const [], abort: Completer<void>().future);
+    expect(jsonDecode(body), isNot(contains('context')));
+  });
 
   test('stores a photo and says whether it was kept', () async {
     final inner = MockClient((_) async => http.Response('', 500));
