@@ -314,6 +314,10 @@
         "type": "paragraph"
       },
       {
+        "content": [],
+        "type": "paragraph"
+      },
+      {
         "items": [
           {
             "content": [
@@ -353,6 +357,10 @@
           "type": "paragraph"
         },
         {
+          "content": [],
+          "type": "paragraph"
+        },
+        {
           "items": [
             {
               "content": [
@@ -388,6 +396,10 @@
               "type": "text"
             }
           ],
+          "type": "paragraph"
+        },
+        {
+          "content": [],
           "type": "paragraph"
         },
         {
@@ -579,6 +591,72 @@
     "numbers": [
       1,
       2
+    ]
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "text": "a}}b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {
+      "1": [
+        {
+          "content": [
+            {
+              "hint": "h:i",
+              "type": "blank"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ]
+    },
+    "input": "{{c1::a\\}\\}b::h\\:i}}",
+    "name": "escaped braces and colons in an answer and a hint",
+    "numbers": [
+      1
+    ]
+  },
+  {
+    "filled": [
+      {
+        "content": [
+          {
+            "text": "*a* b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "hidden": {
+      "1": [
+        {
+          "content": [
+            {
+              "hint": null,
+              "type": "blank"
+            },
+            {
+              "text": " b",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ]
+    },
+    "input": "{{c1::\\*a\\*}} b",
+    "name": "escaped marks in an answer",
+    "numbers": [
+      1
     ]
   }
 ]
