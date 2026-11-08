@@ -7,6 +7,11 @@
 begin;
 select plan(96);
 
+-- The study record's functions run as the caller, which the checks of the assistant's functions
+-- below do not allow; assistant_study_record_test.sql tests them and their revert.
+select private.revert_assistant_study_record();
+drop function private.revert_assistant_study_record();
+
 delete from private.admin_audit;
 -- The card-form skills' migration gives each plan a draft sending prompt v2, which
 -- card_form_skills_test.sql tests; this file tests the assistant without them.
