@@ -403,6 +403,57 @@ void main() {
     expect(find.byTooltip('Send'), findsOneWidget);
   });
 
+  testWidgets('lists the sources a reply cites, a web address as a link', (
+    tester,
+  ) async {
+    final client = FakeAssistantClient(
+      scripts: [
+        reply([
+          const TextDelta('찾아봤어요'),
+          const CitationEvent(url: 'https://example.com/a', title: '예시 문서'),
+          const CitationEvent(url: 'javascript:alert(1)', title: '위험한 주소'),
+          const CitationEvent(url: 'https://example.com/a', title: '또 같은 주소'),
+        ]),
+      ],
+    );
+    await pumpChat(tester, client, await openAssistantStorage(tester));
+    await _send(tester, '찾아 줘');
+    expect(_text('예시 문서'), findsOneWidget, reason: 'once, though cited twice');
+    expect(_text('또 같은 주소'), findsNothing);
+    expect(
+      find.ancestor(of: _text('예시 문서'), matching: find.byType(TextButton)),
+      findsOneWidget,
+      reason: 'a web address is a link',
+    );
+    expect(_text('위험한 주소'), findsOneWidget);
+    expect(
+      find.ancestor(of: _text('위험한 주소'), matching: find.byType(TextButton)),
+      findsNothing,
+      reason: 'another scheme is text, never opened',
+    );
+  });
+
+  testWidgets('keeps a message to the 4,000 characters the function takes', (
+    tester,
+  ) async {
+    await pumpChat(
+      tester,
+      FakeAssistantClient(),
+      await openAssistantStorage(tester),
+    );
+    await _type(tester, '가' * 4001);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      hasLength(4000),
+    );
+    // Control: a message of the limit is kept whole.
+    await _type(tester, '나' * 4000);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      hasLength(4000),
+    );
+  });
+
   testWidgets('stops a reply streaming in when the chat is left', (
     tester,
   ) async {
