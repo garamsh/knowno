@@ -51,8 +51,6 @@ const character = () => screen.getByRole("button", { name: /^말랑이와 대화
 beforeEach(() => {
   window.localStorage.clear();
   testRouter.push.mockClear();
-  // jsdom has no pointer capture; a browser gives the press's pointer to the character.
-  HTMLElement.prototype.setPointerCapture = vi.fn();
 });
 afterEach(() => {
   cleanup();
