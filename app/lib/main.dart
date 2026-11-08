@@ -82,6 +82,7 @@ Future<void> main() async {
           accessToken: () async => client.auth.currentSession?.accessToken,
           readAllowance: () => client.rpc<Object?>('assistant_allowance'),
           storePhoto: SupabasePhotoStore(client).store,
+          timeZone: deviceTimeZone,
         ),
         null => null,
       },
