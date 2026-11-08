@@ -1,6 +1,11 @@
 "use client";
 
-import { type KeyboardEvent, type ReactNode, type SyntheticEvent } from "react";
+import {
+  type ClipboardEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  type SyntheticEvent,
+} from "react";
 import type { CellDraft, Span } from "../authoring";
 
 /** The draft of a 칸 of kind [K]. */
@@ -38,6 +43,7 @@ export function Field({
   select,
   input,
   keyDown,
+  paste,
   shape = "field",
   lines = 1,
 }: {
@@ -51,6 +57,7 @@ export function Field({
   select?: (selection: Span) => void;
   input?: React.Ref<HTMLTextAreaElement>;
   keyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  paste?: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
 }) {
   const read = (event: SyntheticEvent<HTMLTextAreaElement>) => {
     const { selectionStart: start, selectionEnd: end } = event.currentTarget;
@@ -94,6 +101,7 @@ export function Field({
         onFocus={read}
         onSelect={read}
         onKeyDown={keyDown}
+        onPaste={paste}
         className={`absolute inset-0 size-full resize-none overflow-hidden rounded-field bg-transparent ${box} placeholder:text-muted focus:outline-2 focus:-outline-offset-2 focus:outline-ink`}
       />
     </div>

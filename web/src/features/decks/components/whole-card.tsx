@@ -11,6 +11,8 @@ import {
   shownParts,
   spokenContent,
 } from "../card-content";
+import { documentText } from "@/design/markup-engine";
+import { MarkupRuns, MarkupText } from "@/design/markup-text";
 import { PhotoFrame } from "./photo-frame";
 import { SensesText } from "./side-text";
 
@@ -94,10 +96,13 @@ export function faceLength(blocks: Content[]): number {
   return blocks.reduce((sum, block) => {
     switch (block.kind) {
       case "text":
-        return sum + block.text.length;
+        return sum + (block.markup?.plain ?? block.text).length;
       case "senses":
         return sum + describeContent([block]).length;
       case "cloze":
+        if (block.markup) {
+          return sum + documentText(block.markup.document, () => "x".repeat(blankEms)).length;
+        }
         return sum + block.text.split(clozeBlank).join("").length + block.answers.length * blankEms;
       case "table":
         return (
@@ -161,7 +166,13 @@ function WholeParts({
       className={`flex w-full flex-col ${listed ? "gap-2" : "gap-3"} break-words whitespace-pre-wrap ${inRow ? "text-left text-body-strong" : "text-center"}`}
     >
       {parts.map(({ block, added }, index) => {
-        if (listed && block.kind === "text") return listedPart(index, added, block.text);
+        if (listed && block.kind === "text") {
+          return listedPart(
+            index,
+            added,
+            block.markup ? <MarkupText document={block.markup.document} /> : block.text,
+          );
+        }
         if (listed && block.kind === "senses") {
           return listedPart(index, added, <SensesText senses={block.senses} />);
         }
@@ -188,22 +199,36 @@ function WholeParts({
                 aria-hidden
                 className={added ? addedStyle : inRow ? "" : "text-whole-front"}
               >
-                {block.text}
+                {block.markup ? <MarkupText document={block.markup.document} /> : block.text}
               </span>
             );
           case "cloze":
             return (
               <span key={index} aria-hidden className={listed ? "line-clamp-2 break-keep" : ""}>
-                {look === "studied" && !revealed
-                  ? boxedWords(block.text.split(clozeBlank))
-                  : block.text.split(clozeBlank).map((part, at) => (
-                      <span key={at}>
-                        {part}
-                        {at < block.answers.length && (
-                          <Blank answer={block.answers[at] ?? ""} revealed={revealed} look={look} />
-                        )}
-                      </span>
-                    ))}
+                {block.markup ? (
+                  <MarkupText
+                    document={block.markup.document}
+                    cloze={(span) => (
+                      <Blank
+                        answer={<MarkupRuns content={span.answer} />}
+                        hint={span.hint}
+                        revealed={revealed}
+                        look={look}
+                      />
+                    )}
+                  />
+                ) : look === "studied" && !revealed ? (
+                  boxedWords(block.text.split(clozeBlank))
+                ) : (
+                  block.text.split(clozeBlank).map((part, at) => (
+                    <span key={at}>
+                      {part}
+                      {at < block.answers.length && (
+                        <Blank answer={block.answers[at] ?? ""} revealed={revealed} look={look} />
+                      )}
+                    </span>
+                  ))
+                )}
               </span>
             );
           case "table": {
@@ -336,19 +361,33 @@ function boxedWords(parts: string[]): ReactNode[] {
 
 /**
  * A blank: an empty gap of its answer's width over a muted underline, its answer not drawn, so
- * hidden content shows as nothing (ADR 0119); or its answer filled on the brand tint. In a card
- * list's row it is filled on the hatch (#629). On study's cards it is a box on the hatch
- * [blankEms] wide at its line's height, its answer not in it, or its answer filled on the hatch
- * (#635).
+ * hidden content shows as nothing (ADR 0119), a [hint] drawn in it; or its answer filled on the
+ * brand tint. In a card list's row it is filled on the hatch (#629). On study's cards it is a box
+ * on the hatch [blankEms] wide at its line's height, its answer not in it but its hint, or its
+ * answer filled on the hatch (#635).
  */
-function Blank({ answer, revealed, look }: { answer: string; revealed: boolean; look: Look }) {
+function Blank({
+  answer,
+  hint = null,
+  revealed,
+  look,
+}: {
+  answer: ReactNode;
+  hint?: string | null;
+  revealed: boolean;
+  look: Look;
+}) {
   if (look === "studied" && !revealed) {
     return (
       <span
         data-blank="boxed"
-        className="hatch inline-block h-[calc(1lh-var(--spacing))] rounded-sm align-middle"
-        style={{ width: `${String(blankEms)}em` }}
-      />
+        className="hatch inline-block h-[calc(1lh-var(--spacing))] rounded-sm px-1 align-middle text-secondary text-muted"
+        style={
+          hint === null ? { width: `${String(blankEms)}em` } : { minWidth: `${String(blankEms)}em` }
+        }
+      >
+        {hint}
+      </span>
     );
   }
   return (
@@ -356,7 +395,11 @@ function Blank({ answer, revealed, look }: { answer: string; revealed: boolean; 
       data-blank={look === "card" ? (revealed ? "filled" : "empty") : "marked"}
       className={`rounded-sm px-1 ${look === "card" ? (revealed ? "bg-brand-tint" : "text-transparent underline decoration-muted") : "hatch"}`}
     >
-      {answer}
+      {!revealed && look === "card" && hint !== null ? (
+        <span className="text-muted">{hint}</span>
+      ) : (
+        answer
+      )}
     </span>
   );
 }

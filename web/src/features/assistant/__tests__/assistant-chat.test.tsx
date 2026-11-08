@@ -231,6 +231,38 @@ describe("말랑이's chat", () => {
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
+  it("draws a proposed 글 and a cloze of version 2 as the card reads, never as their markup", async () => {
+    const markup: Proposal = {
+      ...proposal,
+      groups: [
+        {
+          id: "g1",
+          title: "1단원",
+          format: "mixed",
+          cards: [
+            { id: "c1", card: { blocks: [{ type: "text", front: "**apple**", back: "- 사과" }] } },
+            {
+              id: "c2",
+              card: { blocks: [{ type: "cloze", text: "{{c1::Paris::city}} is {{c2::big}}" }] },
+            },
+          ],
+        },
+      ],
+    };
+    const { client } = fakeClient([[{ type: "proposal", proposal: markup }]]);
+    render(<AssistantChat allowance={null} client={client} />);
+    await say("카드 만들어 줘");
+
+    expect(await screen.findByRole("checkbox", { name: /apple/ })).toHaveAccessibleName(
+      "apple사과",
+    );
+    expect(screen.getByRole("checkbox", { name: /___\(city\)/ })).toHaveAccessibleName(
+      "___(city) is ___Paris, big",
+    );
+    expect(document.body).not.toHaveTextContent("{{");
+    expect(document.body).not.toHaveTextContent("**");
+  });
+
   it("says why a commit failed and keeps the proposal to add again", async () => {
     const { client } = fakeClient([[{ type: "proposal", proposal }]], {
       kind: "failed",

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { buttonClass } from "@/design/button";
 import { Chip } from "@/design/chip";
+import { useMarkupReady } from "@/design/use-markup-ready";
 
 import { previewOf } from "../card-preview";
 import type { ShownProposal } from "../conversation";
@@ -77,6 +78,8 @@ function GroupView({
   onCheck: (ids: string[]) => void;
   onRemake: (format: Format) => void;
 }) {
+  // A card's lines are read by the engine, so they are drawn once its module has loaded.
+  const ready = useMarkupReady();
   const [open, setOpen] = useState(group.cards.length < collapsedFrom);
   const [remaking, setRemaking] = useState(false);
   const all = group.cards.map((card) => card.id);
@@ -132,7 +135,7 @@ function GroupView({
       {open ? (
         <ul className="flex flex-col divide-y divide-hairline">
           {group.cards.map((card) => {
-            const { front, back } = previewOf(card.card);
+            const { front, back } = ready ? previewOf(card.card) : { front: "", back: "" };
             const on = checked.includes(card.id);
             const lines = (
               <span className="flex min-w-0 flex-1 flex-col">

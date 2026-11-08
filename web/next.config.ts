@@ -13,11 +13,19 @@ const nextConfig: NextConfig = {
   // src/features/study/engine-server.ts's wasmPath, which no import names.
   outputFileTracingIncludes: {
     "/record": ["./src/features/study/engine-wasm/knowno_engine_wasm_bg.wasm"],
+    // The routes that read a card's text on the server, or save a card, read the module at
+    // src/design/markup-engine-server.ts's markupWasmPath, which no import names (ADR 0209).
+    ...Object.fromEntries(
+      ["/decks", "/decks/[id]", "/study", "/admin/decks/[id]"].map((route) => [
+        route,
+        ["./src/design/engine-wasm/knowno_engine_wasm_bg.wasm"],
+      ]),
+    ),
   },
   experimental: {
     serverActions: { bodySizeLimit: "6mb" },
-    // src/styles/fonts is a link to the app's bundled fonts, and src/features/study/engine-wasm
-    // one to the engine's WebAssembly module, both outside this project.
+    // src/styles/fonts is a link to the app's bundled fonts, and src/features/study/engine-wasm and
+    // src/design/engine-wasm each one to the engine's WebAssembly module, all outside this project.
     turbopackAdditionalRoots: {
       fonts: { path: path.join(import.meta.dirname, "../app/assets/fonts") },
       engine: { path: path.join(import.meta.dirname, "../engine-wasm/pkg") },

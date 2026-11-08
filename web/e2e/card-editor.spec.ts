@@ -216,7 +216,7 @@ test("writes every 칸 type as free v2, and opens and saves a stored card over i
     field.focus();
     field.setSelectionRange(25, 30);
   });
-  await page.getByRole("button", { name: "빈칸 넣기" }).click();
+  await page.getByRole("button", { name: "가리기" }).click();
   await addCell("표");
   await page.getByRole("textbox", { name: "1열 머리글" }).fill("나라");
   await page.getByRole("textbox", { name: "2열 머리글" }).fill("수도");
@@ -289,12 +289,20 @@ test("writes every 칸 type as free v2, and opens and saves a stored card over i
   const card = written.data?.[0];
   expect(card).toMatchObject({ template: "free", template_version: 2, back: [] });
   expect((card?.front as { type: string; v: number }[]).map(({ type, v }) => [type, v])).toEqual([
-    ["text", 2],
+    ["text", 3],
     ["senses", 2],
-    ["cloze", 1],
+    ["cloze", 2],
     ["table", 2],
   ]);
   expect(card?.card_key).toContain("the capital of france is paris");
+  // The new 글 is markup, version 3, and the 빈칸 문장 holds Anki's syntax alone.
+  const stored = card?.front as { type: string; v: number; payload: Record<string, unknown> }[];
+  expect(stored[0]).toMatchObject({
+    type: "text",
+    v: 3,
+    payload: { front: "Capitals", back: "수도" },
+  });
+  expect(stored[2]?.payload).toEqual({ text: "The capital of France is {{c1::Paris}}" });
 
   // A stored card opens from its row, its photo and sound kept, and its side changed.
   await page.getByRole("button", { name: /^A photo card/ }).click();
@@ -570,7 +578,7 @@ test("adds a 사진 칸 with its boxes and a 소리 칸, which study draws and p
   expect(await rows()).toEqual([{ id: photoId, kind: "image", mime_type: "image/jpeg" }]);
 });
 
-test("keeps a 빈칸 문장's selection and its 빈칸 넣기 while the editor scrolls, by touch and by the wheel", async ({
+test("keeps a 빈칸 문장's selection and its 가리기 while the editor scrolls, by touch and by the wheel", async ({
   browser,
   baseURL,
 }) => {
@@ -614,7 +622,7 @@ test("keeps a 빈칸 문장's selection and its 빈칸 넣기 while the editor s
     field.focus();
     field.setSelectionRange(4, 11);
   });
-  const insert = page.getByRole("button", { name: "빈칸 넣기", exact: true });
+  const insert = page.getByRole("button", { name: "가리기", exact: true });
   await expect(insert, "setup: the action shows").toBeVisible();
   const scroller = dialog.locator(".overflow-y-auto");
   const offset = () => scroller.evaluate((element) => element.scrollTop);
@@ -663,6 +671,6 @@ test("keeps a 빈칸 문장's selection and its 빈칸 넣기 while the editor s
   await kept("by the wheel");
 
   await insert.click();
-  await expect(page.getByRole("button", { name: "빈칸 풀기, capital", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "가리기 풀기", exact: true })).toBeVisible();
   await context.close();
 });

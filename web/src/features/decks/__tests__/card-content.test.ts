@@ -284,9 +284,10 @@ describe("a block's version and id", () => {
     expect(upcastPayload("text", 1, { text: " cat " }, steps)).toEqual({ body: "cat" });
     expect(upcastPayload("text", 2, { body: " cat " }, steps)).toEqual({ body: "cat" });
     expect(upcastPayload("text", 3, { body: "cat" }, steps)).toEqual({ body: "cat" });
-    // Today a table is read at v2, after one step, and every other type at v1, with none.
+    // Today a table and a cloze are read at v2, after one step, and every other type at v1, with none.
     expect(blockVersion("table")).toBe(2);
-    for (const type of ["text", "cloze", "senses", "image", "audio"] as const) {
+    expect(blockVersion("cloze")).toBe(2);
+    for (const type of ["text", "senses", "image", "audio"] as const) {
       expect(blockVersion(type), type).toBe(1);
     }
   });
