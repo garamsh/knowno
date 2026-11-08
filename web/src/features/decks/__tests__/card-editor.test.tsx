@@ -6,11 +6,12 @@ import { cardRow, deckRow, uuidOf } from "@/testing/library";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
+import { addByHand } from "@/testing/add-by-hand";
 import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 
 import { parseCardContent } from "../card-content";
-import { AuthoringButton } from "../components/authoring-button";
+import { NoteSettings } from "../components/note-settings";
 import { CardEditor } from "../components/card-editor";
 import { parseDeckId, parseCardId, type Card } from "../library";
 
@@ -31,8 +32,8 @@ beforeEach(async () => {
 
 /** Opens direct entry from the deck's "카드 추가". */
 async function newCard() {
-  await render(() => <AuthoringButton deck={deck} />, {});
-  await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+  await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+  await addByHand();
   await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
 }
 

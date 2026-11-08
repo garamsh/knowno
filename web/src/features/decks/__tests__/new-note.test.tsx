@@ -9,11 +9,12 @@ import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { server } from "@/testing/mocks/server";
 import { FakeStorage } from "@/testing/mocks/storage";
 import { setRequestCookies } from "@/testing/next-headers";
+import { addByHand } from "@/testing/add-by-hand";
 import { render } from "@/testing/render";
 import { testRouter } from "@/testing/router";
 import { signedInCookies } from "@/testing/session";
 
-import { AuthoringButton } from "../components/authoring-button";
+import { NotesMenu } from "../components/notes-menu";
 import { DeckList } from "../components/deck-list";
 import { prepareImage } from "../prepare-image";
 import { readDeckList } from "../read-library";
@@ -46,8 +47,8 @@ beforeEach(async () => {
 
 /** Opens 새 노트 from the 노트 page's "새 노트" and names the note [name]. */
 async function newNote(name: string) {
-  await render(() => <AuthoringButton compact />, {});
-  await userEvent.click(screen.getByRole("button", { name: "새 노트" }));
+  await render(() => <NotesMenu />, {});
+  await addByHand("노트 메뉴");
   const sheet = within(screen.getByRole("dialog", { name: "새 노트" }));
   await userEvent.type(sheet.getByRole("textbox", { name: "노트 이름" }), name);
   return sheet;
@@ -59,8 +60,8 @@ const tilePhoto = (element: HTMLElement) =>
 
 describe("새 노트", () => {
   it("opens on the tile it will make, then 노트 이름 in its group with its hint, then 노트 꾸미기's choices with blue chosen", async () => {
-    await render(() => <AuthoringButton compact />, {});
-    await userEvent.click(screen.getByRole("button", { name: "새 노트" }));
+    await render(() => <NotesMenu />, {});
+    await addByHand("노트 메뉴");
     const dialog = screen.getByRole("dialog", { name: "새 노트" });
     const sheet = within(dialog);
 

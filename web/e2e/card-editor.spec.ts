@@ -5,7 +5,7 @@ import { type BrowserContext, expect, type Locator, type Page, test } from "@pla
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
-import { untilReacted } from "./until-reacted";
+import { addByHand } from "./add-by-hand";
 
 // The local stack scripts/test-web.ts starts, whose URL and publishable key the app was built with.
 const url = process.env.E2E_SUPABASE_URL;
@@ -151,10 +151,7 @@ test("writes every 칸 type as free v2, and opens and saves a stored card over i
 
   // A new card holding one 칸 of each type the web can start.
   const manual = page.getByRole("button", { name: "직접 입력" });
-  await untilReacted(
-    () => page.getByRole("button", { name: "카드 추가" }).click(),
-    () => manual.isVisible(),
-  );
+  await addByHand(page);
   await manual.click();
   await expect(page.getByRole("textbox", { name: "앞면", exact: true })).toBeFocused();
   await capture(page, "new");
@@ -421,10 +418,7 @@ test("adds a 사진 칸 with its boxes and a 소리 칸, which study draws and p
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/decks/${deckId}`);
   const manual = page.getByRole("button", { name: "직접 입력" });
-  await untilReacted(
-    () => page.getByRole("button", { name: "카드 추가" }).click(),
-    () => manual.isVisible(),
-  );
+  await addByHand(page);
   await manual.click();
   const dialog = page.getByRole("dialog", { name: "새 카드" });
   await dialog.getByRole("textbox", { name: "앞면", exact: true }).fill("Name the city");
@@ -602,10 +596,7 @@ test("keeps a 빈칸 문장's selection and its 빈칸 넣기 while the editor s
   expect(deck.error).toBeNull();
   await page.goto(`/decks/${deckId}`);
   const manual = page.getByRole("button", { name: "직접 입력" });
-  await untilReacted(
-    () => page.getByRole("button", { name: "카드 추가" }).click(),
-    () => manual.isVisible(),
-  );
+  await addByHand(page);
   await manual.click();
   const dialog = page.getByRole("dialog", { name: "새 카드" });
   // Enough 칸 after the line that the editor scrolls.

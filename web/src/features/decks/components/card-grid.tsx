@@ -11,8 +11,7 @@ import { SearchField } from "@/design/search-field";
 import { HatchedBox, ListedCells } from "./whole-card";
 
 /**
- * A note's page, as the final screens draw it (ADR 0150): [add], its "+ 카드 추가", and
- * [settings], its ⋯, over its name, on a line of its own, two lines at most; while it holds a card, the "카드 검색" field, always shown;
+ * A note's page, as the final screens draw it (ADR 0150): [settings], its ⋯, over its name, on a line of its own, two lines at most; while it holds a card, the "카드 검색" field, always shown;
  * [study]; then its cards as one group of rows under that search, which keeps the cards whose 칸 hold it, revealed, ignoring case (ADR 0118,
  * ADR 0137), under a row pinned above the group of "카드 n" and the [mastered] count. Each row
  * shows the whole card, and what study hides until the reveal on the hatch (#629): a split card
@@ -25,14 +24,12 @@ export function CardGrid({
   cards,
   mastered = 0,
   study,
-  add,
   settings,
 }: {
   deck: Deck;
   cards: Card[];
   mastered?: number;
   study?: ReactNode;
-  add?: ReactNode;
   settings?: ReactNode;
 }) {
   const [search, setSearch] = useState("");
@@ -59,10 +56,7 @@ export function CardGrid({
   // The name has a line of its own under the actions, so every name stays readable beside them.
   const header = (
     <header className="flex flex-col gap-2">
-      <span className="flex items-center justify-end gap-2">
-        {add}
-        {settings}
-      </span>
+      <span className="flex items-center justify-end gap-2">{settings}</span>
       <h1 className="line-clamp-2 text-deck-name break-words break-keep">{deck.name}</h1>
     </header>
   );

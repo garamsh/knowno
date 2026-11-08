@@ -3,9 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { uuidOf } from "@/testing/library";
+import { addByHand } from "@/testing/add-by-hand";
 import { render } from "@/testing/render";
 
-import { AuthoringButton } from "../components/authoring-button";
+import { NoteSettings } from "../components/note-settings";
 import { parseDeckId } from "../library";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
@@ -44,8 +45,8 @@ const placeOf = (dialog: HTMLElement) => ({
 
 describe("an authoring screen and sheet over an on-screen keyboard", () => {
   it("keep their foot in the part of the page shown, which the keyboard shrinks, as the phone's sit above it", async () => {
-    await render(() => <AuthoringButton deck={deck} />, {});
-    await userEvent.click(screen.getByRole("button", { name: "카드 추가" }));
+    await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+    await addByHand();
     const sheet = screen.getByRole("dialog", { name: "카드 추가" });
     // Control: with no keyboard, the whole page.
     expect(placeOf(sheet)).toEqual({ top: "0px", height: "844px" });

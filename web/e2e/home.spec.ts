@@ -5,6 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
 import { expectScreenAtWidths } from "./authoring-screen";
+import { addByHand } from "./add-by-hand";
 import { untilReacted } from "./until-reacted";
 
 // The local stack scripts/test-web.ts starts, whose URL and publishable key the app was built with.
@@ -297,10 +298,7 @@ test("draws the first-run home, 홈 with its streak, the 노트 page, a note, it
   await expectEdge(page, page.getByRole("link", { name: /^이 노트 학습/ }), "--color-primary-edge");
   await capture(page, "note");
 
-  await untilReacted(
-    () => page.getByRole("button", { name: "카드 추가", exact: true }).click(),
-    () => page.getByRole("dialog", { name: "카드 추가" }).isVisible(),
-  );
+  await addByHand(page);
   await capture(page, "add-sheet");
   await page.getByRole("button", { name: "직접 입력", exact: true }).click();
   const editor = page.getByRole("dialog", { name: "새 카드" });
@@ -317,10 +315,7 @@ test("draws the first-run home, 홈 with its streak, the 노트 page, a note, it
   }
 
   await page.goto("/decks");
-  await untilReacted(
-    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
-    () => page.getByRole("dialog", { name: "새 노트" }).isVisible(),
-  );
+  await addByHand(page, "노트 메뉴");
   const note = page.getByRole("dialog", { name: "새 노트" });
   // The name field opens focused, as the phone's.
   await expect(note.getByRole("textbox", { name: "노트 이름", exact: true })).toBeFocused();
@@ -373,20 +368,17 @@ test("answers the browser's back on an authoring screen as the phone's back, and
   const editor = page.getByRole("dialog", { name: "새 카드" });
   const question = page.getByRole("dialog", { name: "작성 중인 카드를 버릴까요?" });
   const openEditor = async () => {
-    await untilReacted(
-      () => page.getByRole("button", { name: "카드 추가", exact: true }).click(),
-      () => page.getByRole("dialog", { name: "카드 추가" }).isVisible(),
-    );
+    await addByHand(page);
     await page.getByRole("button", { name: "직접 입력", exact: true }).click();
     await expect(editor).toBeVisible();
   };
 
-  // Untouched, the back closes the screen and stays on the note, focus back on 카드 추가.
+  // Untouched, the back closes the screen and stays on the note, focus back on 노트 설정.
   await openEditor();
   await page.goBack();
   await expect(editor).toBeHidden();
   expect(new URL(page.url()).pathname).toBe(`/decks/${deckId}`);
-  await expect(page.getByRole("button", { name: "카드 추가", exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: "노트 설정", exact: true })).toBeFocused();
 
   // Over the screen, the back closes a sheet alone; the next asks about the 칸 added, and 버리기
   // leaves nothing behind.
@@ -431,10 +423,7 @@ test("answers the browser's back on an authoring screen as the phone's back, and
 
   // 새 노트 is left before its note opens, so a back from that note returns to the 노트 page.
   await page.goto("/decks");
-  await untilReacted(
-    () => page.getByRole("button", { name: "새 노트", exact: true }).click(),
-    () => page.getByRole("dialog", { name: "새 노트" }).isVisible(),
-  );
+  await addByHand(page, "노트 메뉴");
   await page.getByRole("textbox", { name: "노트 이름", exact: true }).fill("토익");
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: "토익" })).toBeVisible();

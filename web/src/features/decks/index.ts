@@ -18,7 +18,7 @@ export { faceLength, WholeCells } from "./components/whole-card";
 export type { Card, CardId, Deck, DeckId } from "./library";
 export { parseCardId, parseDeckId } from "./library";
 export { type LibraryFailure, readDeckList, readLibrary } from "./read-library";
-export { AuthoringButton } from "./components/authoring-button";
+export { NotesMenu } from "./components/notes-menu";
 export { NoteSettings } from "./components/note-settings";
 export { PhotoImports } from "./components/photo-imports";
 export { readDisplayName } from "./read-display-name";

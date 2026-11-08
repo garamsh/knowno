@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, ChevronLeft, Square } from "lucide-react";
+import { ArrowUp, ChevronLeft, ImagePlus, Square, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -17,22 +17,32 @@ import { Mascot, type MascotExpression } from "@/design/brand";
 import { buttonClass } from "@/design/button";
 import { Confirm } from "@/design/confirm";
 import { RowMenu } from "@/design/row-menu";
+import { downscalePhoto } from "@/design/prepare-photo";
 
-import { type AssistantClient, httpAssistantClient, type SendResult } from "../assistant-client";
+import {
+  type AssistantClient,
+  httpAssistantClient,
+  type PreparedPhoto,
+  type SendResult,
+} from "../assistant-client";
 import {
   type AssistantTurn,
   checkedCount,
   type Conversation,
   emptyConversation,
+  enteredFrom,
+  jobDoneMessage,
+  lastMessage,
   loadConversation,
   maxMessageLength,
   requestTurns,
+  runningJob,
   type ShownProposal,
   storeConversation,
   type Turn,
   withEvent,
 } from "../conversation";
-import { type Allowance, leftShare, type SendRefusal } from "../protocol";
+import { type Allowance, type JobProgress, leftShare, type SendRefusal } from "../protocol";
 import { formatNames, ProposalView } from "./proposal-view";
 
 /** Where the message list's scroll is kept while the chat is left for a note (#711). */
@@ -42,9 +52,20 @@ const scrollKey = "knowno.assistant.scroll";
 export const busyRetryMs = 3000;
 const busyRetries = 3;
 
-/** What the chat is doing: nothing, a reply streaming, waiting to resend, or refused. */
+/** How often a running photo job is asked how far it has read. */
+export const jobPollMs = 3000;
+
+/** The most photos a message attaches, as the function's `MAX_JOB_PHOTOS`. */
+const maxPhotos = 50;
+
+/** A photo staged for the next message: prepared as a JPEG, with the address its thumbnail shows. */
+type StagedPhoto = PreparedPhoto & { url: string };
+
+/** What the chat is doing: nothing, photos uploading, a reply streaming, waiting to resend, or refused. */
 type Status =
   | { kind: "idle" }
+  | { kind: "uploading" }
+  | { kind: "uploadFailed" }
   | { kind: "streaming" }
   | { kind: "waiting" }
   | { kind: "refused"; refusal: SendRefusal };
@@ -97,9 +118,12 @@ function faceOf(status: Status, last: Turn | undefined): MascotExpression {
  */
 export function AssistantChat({
   allowance: readAllowance,
+  note = null,
   client = httpAssistantClient,
 }: {
   allowance: Allowance | null;
+  /** The note the chat was opened from, named once in the thread and sent with each message. */
+  note?: { id: string; name: string } | null;
   client?: AssistantClient;
 }) {
   const router = useRouter();
@@ -117,6 +141,8 @@ export function AssistantChat({
   const [clearing, setClearing] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [commitFailure, setCommitFailure] = useState<string | null>(null);
+  const [staged, setStaged] = useState<StagedPhoto[]>([]);
+  const [pickFailed, setPickFailed] = useState(false);
   const list = useRef<HTMLDivElement>(null);
   const following = useRef(true);
   const abort = useRef<AbortController | null>(null);
@@ -137,6 +163,14 @@ export function AssistantChat({
     },
     [],
   );
+
+  // What a poll that outlives a render reads: whether a message is under way.
+  const working = useRef(false);
+
+  // Opened from a note, the thread names it once, unless its last line already does.
+  useEffect(() => {
+    if (hydrated && note) update((before) => enteredFrom(before, note, newId()));
+  }, [hydrated, note, update]);
 
   useEffect(() => {
     if (hydrated) storeConversation(conversation);
@@ -168,7 +202,7 @@ export function AssistantChat({
 
   const replyTo = useCallback(async () => {
     const turns = latest.current.turns;
-    if (turns.at(-1)?.role !== "user") return;
+    if (lastMessage(turns)?.role !== "user") return;
     const controller = new AbortController();
     abort.current = controller;
     following.current = true;
@@ -182,7 +216,10 @@ export function AssistantChat({
         return;
       }
       try {
-        result = await client.send({ messages: requestTurns(turns) }, controller.signal);
+        result = await client.send(
+          { messages: requestTurns(turns), ...(note && { context: { deck_id: note.id } }) },
+          controller.signal,
+        );
       } catch {
         setStatus({ kind: "idle" });
         return;
@@ -204,6 +241,7 @@ export function AssistantChat({
       citations: [],
       proposals: [],
       choice: null,
+      job: null,
       ending: null,
     };
     update((before) => ({ ...before, turns: [...before.turns, reply] }));
@@ -230,32 +268,141 @@ export function AssistantChat({
       );
     }
     setStatus({ kind: "idle" });
-  }, [client, update]);
+  }, [client, note, update]);
 
-  const busy = status.kind === "streaming" || status.kind === "waiting";
+  const busy =
+    status.kind === "uploading" || status.kind === "streaming" || status.kind === "waiting";
+  // After every commit, not when [busy] changes: a send that ends one busy state and starts the
+  // next in one batch leaves [busy] as it was.
+  useLayoutEffect(() => {
+    working.current = busy;
+  });
 
-  const send = useCallback(
-    (text: string) => {
+  /** Sends [text], with the ids of the [photos] it attached, as the user's next message. */
+  const sendMessage = useCallback(
+    (text: string, photos: string[] = [], auto = false) => {
       const message = text.trim();
-      if (!message || busy) return;
+      if ((!message && photos.length === 0) || working.current) return;
       setCommitFailure(null);
       update((before) => ({
         draft: "",
-        turns: [...before.turns, { role: "user", id: newId(), text: message }],
+        turns: [...before.turns, { role: "user", id: newId(), text: message, photos, auto }],
       }));
       void replyTo();
     },
-    [busy, replyTo, update],
+    [replyTo, update],
+  );
+  const send = useCallback(
+    (text: string) => {
+      sendMessage(text);
+    },
+    [sendMessage],
+  );
+
+  /** Uploads the staged photos, then sends the draft with them; a photo that does not upload sends nothing. */
+  const submit = useCallback(async () => {
+    if (working.current) return;
+    const { draft: text } = latest.current;
+    if (staged.length === 0) {
+      sendMessage(text);
+      return;
+    }
+    working.current = true;
+    setStatus({ kind: "uploading" });
+    const stored = await client.upload(staged.map(({ id, jpeg }) => ({ id, jpeg })));
+    working.current = false;
+    if (!stored) {
+      setStatus({ kind: "uploadFailed" });
+      return;
+    }
+    setStatus({ kind: "idle" });
+    for (const photo of staged) URL.revokeObjectURL(photo.url);
+    setStaged([]);
+    sendMessage(
+      text,
+      staged.map(({ id }) => id),
+    );
+  }, [client, sendMessage, staged]);
+
+  /** Prepares the photos picked as JPEGs and stages them, as many as one message takes. */
+  const attach = useCallback(
+    async (files: File[]) => {
+      setPickFailed(false);
+      const room = maxPhotos - staged.length;
+      const added: StagedPhoto[] = [];
+      for (const file of files.slice(0, room)) {
+        const prepared = await downscalePhoto(file);
+        if (typeof prepared === "string") {
+          setPickFailed(true);
+          continue;
+        }
+        added.push({ id: newId(), jpeg: prepared, url: URL.createObjectURL(prepared) });
+      }
+      setStaged((before) => [...before, ...added].slice(0, maxPhotos));
+    },
+    [staged.length],
   );
 
   /** Sends the last message again, in place of the reply that failed after it. */
   const retry = useCallback(() => {
     update((before) => {
-      const last = before.turns.at(-1);
-      return last?.role === "assistant" ? { ...before, turns: before.turns.slice(0, -1) } : before;
+      const last = lastMessage(before.turns);
+      return last?.role === "assistant"
+        ? { ...before, turns: before.turns.filter((turn) => turn.id !== last.id) }
+        : before;
     });
     void replyTo();
   }, [replyTo, update]);
+
+  const setJob = useCallback(
+    (turnId: string, job: JobProgress) => {
+      update((before) => ({
+        ...before,
+        turns: before.turns.map((turn) =>
+          turn.id === turnId && turn.role === "assistant" ? { ...turn, job } : turn,
+        ),
+      }));
+    },
+    [update],
+  );
+
+  /** Asks how far the photo job [id] has read, and sends the turn that goes on once it is done. */
+  const askAfterJob = useCallback(
+    async (id: string) => {
+      const poll = await client.pollJob(id);
+      const reply = runningJob(latest.current.turns);
+      // The conversation may have been cleared or the job cancelled meanwhile.
+      if (!reply?.job || reply.job.id !== id || poll.kind === "failed") return;
+      if (poll.kind === "missing") {
+        setJob(reply.id, { ...reply.job, state: "cancelled" });
+        return;
+      }
+      // A job done while a message is under way is told at the next ask.
+      if (poll.progress.state === "done" && working.current) return;
+      setJob(reply.id, poll.progress);
+      if (poll.progress.state === "done" && lastMessage(latest.current.turns)?.id === reply.id)
+        sendMessage(jobDoneMessage, [], true);
+    },
+    [client, sendMessage, setJob],
+  );
+
+  const runningId = runningJob(conversation.turns)?.job?.id;
+  useEffect(() => {
+    if (!hydrated || !runningId) return;
+    const timer = window.setInterval(() => {
+      void askAfterJob(runningId);
+    }, jobPollMs);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [hydrated, runningId, askAfterJob]);
+
+  const cancelJob = useCallback(async () => {
+    const reply = runningJob(latest.current.turns);
+    if (!reply?.job) return;
+    if (await client.cancelJob(reply.job.id))
+      setJob(reply.id, { ...reply.job, state: "cancelled" });
+  }, [client, setJob]);
 
   const editProposal = useCallback(
     (turnId: string, proposalId: string, edit: (one: ShownProposal) => ShownProposal) => {
@@ -279,11 +426,12 @@ export function AssistantChat({
   if (!hydrated) return <ChatFrame face="thinking" allowance={allowance} />;
 
   const { turns, draft } = conversation;
-  const last = turns.at(-1);
+  const last = lastMessage(turns);
   // The open proposal: the last one shown, not yet added, once its reply has ended.
   const lastReply = turns.findLast((turn): turn is AssistantTurn => turn.role === "assistant");
   const open = lastReply?.ending ? lastReply.proposals.findLast((one) => !one.added) : undefined;
   const openCount = open ? checkedCount(open) : 0;
+  const canSend = (draft.trim() !== "" || staged.length > 0) && !busy;
 
   const commit = async () => {
     if (!open || !lastReply || openCount === 0) return;
@@ -310,7 +458,7 @@ export function AssistantChat({
         else router.push("/");
       }}
       onClear={
-        turns.length > 0 && !busy
+        last && !busy
           ? () => {
               setClearing(true);
             }
@@ -336,19 +484,29 @@ export function AssistantChat({
           aria-label="대화"
           className="mx-auto flex w-full max-w-study flex-col gap-4 px-gutter py-4"
         >
-          {turns.length === 0 && (
+          {last === undefined && (
             <li className="py-12 text-center">
               <p className="text-body-strong break-keep">무엇을 외워 볼까요?</p>
             </li>
           )}
           {turns.map((turn) =>
-            turn.role === "user" ? (
-              <li key={turn.id} className="flex justify-end">
-                <p className="max-w-[85%] rounded-row bg-brand-tint px-4 py-3 text-body break-keep whitespace-pre-wrap">
-                  <span className="sr-only">나: </span>
-                  {turn.text}
-                </p>
+            turn.role === "context" ? (
+              <li key={turn.id} className="text-secondary text-center break-keep text-muted">
+                {turn.name} 노트에서
               </li>
+            ) : turn.role === "user" ? (
+              // The turn the chat sends itself when a photo job is done is not drawn.
+              turn.auto ? null : (
+                <li key={turn.id} className="flex justify-end">
+                  <p className="flex max-w-[85%] flex-col gap-1 rounded-row bg-brand-tint px-4 py-3 text-body break-keep whitespace-pre-wrap">
+                    <span className="sr-only">나: </span>
+                    {turn.photos.length > 0 && (
+                      <span className="text-secondary text-muted">사진 {turn.photos.length}장</span>
+                    )}
+                    {turn.text}
+                  </p>
+                </li>
+              )
             ) : (
               <li key={turn.id} className="flex flex-col gap-3">
                 <span className="sr-only">말랑이: </span>
@@ -376,6 +534,7 @@ export function AssistantChat({
                     ))}
                   </ul>
                 )}
+                {turn.job && <JobLine job={turn.job} onCancel={() => void cancelJob()} />}
                 {turn.proposals.map((one) => (
                   <ProposalView
                     key={one.proposal.id}
@@ -436,6 +595,18 @@ export function AssistantChat({
               </li>
             ),
           )}
+          {status.kind === "uploading" && (
+            <li role="status" className="text-secondary text-muted">
+              사진을 올리는 중이에요
+            </li>
+          )}
+          {status.kind === "uploadFailed" && (
+            <li>
+              <p role="alert" className="text-body break-keep">
+                사진을 올리지 못했어요. 다시 시도해 주세요.
+              </p>
+            </li>
+          )}
           {status.kind === "waiting" && (
             <li role="status" className="text-secondary text-muted">
               앞의 메시지를 마무리하고 있어요. 잠시 후 다시 보낼게요.
@@ -492,53 +663,109 @@ export function AssistantChat({
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              send(draft);
+              void submit();
             }}
-            className="flex items-end gap-2 rounded-field bg-surface p-1 pl-4"
+            className="flex flex-col gap-1 rounded-field bg-surface p-1 pl-4"
           >
-            <label htmlFor="assistant-message" className="sr-only">
-              말랑이에게 보낼 메시지
-            </label>
-            <textarea
-              id="assistant-message"
-              rows={1}
-              value={draft}
-              maxLength={maxMessageLength}
-              placeholder="말랑이에게 부탁해 보세요"
-              onChange={(event) => {
-                const text = event.target.value;
-                update((before) => ({ ...before, draft: text }));
-              }}
-              onKeyDown={(event) => {
-                // Enter sends, Shift+Enter breaks the line; a Korean syllable being composed keeps its Enter.
-                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                  event.preventDefault();
-                  send(draft);
-                }
-              }}
-              className="max-h-40 min-h-tap-target flex-1 resize-none bg-transparent py-2.5 text-body outline-none placeholder:text-muted"
-            />
-            {status.kind === "streaming" ? (
-              <button
-                type="button"
-                aria-label="멈추기"
-                onClick={() => {
-                  abort.current?.abort();
-                }}
-                className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-button bg-ink text-on-ink"
-              >
-                <Square aria-hidden className="size-4" />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                aria-label="보내기"
-                disabled={busy || !draft.trim()}
-                className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-button bg-primary text-on-primary disabled:opacity-50"
-              >
-                <ArrowUp aria-hidden className="size-5" />
-              </button>
+            {(staged.length > 0 || pickFailed) && (
+              <div className="flex flex-col gap-1 pt-2 pr-3">
+                {pickFailed && (
+                  <p role="alert" className="text-secondary break-keep text-dont-know-text">
+                    사진을 가져오지 못했어요. 다시 시도해 주세요.
+                  </p>
+                )}
+                {staged.length > 0 && (
+                  <ul
+                    aria-label={`사진 ${String(staged.length)}장`}
+                    className="flex flex-wrap gap-2"
+                  >
+                    {staged.map((photo) => (
+                      <li key={photo.id} className="relative">
+                        <span
+                          aria-hidden
+                          style={{ backgroundImage: `url("${photo.url}")` }}
+                          className="block size-14 rounded-row bg-cover bg-center"
+                        />
+                        <button
+                          type="button"
+                          aria-label="사진 삭제"
+                          onClick={() => {
+                            URL.revokeObjectURL(photo.url);
+                            setStaged((before) => before.filter((one) => one.id !== photo.id));
+                          }}
+                          className="pressable absolute -top-3 -right-3 flex size-tap-target items-center justify-center"
+                        >
+                          <span className="flex size-6 items-center justify-center rounded-full bg-ink text-on-ink">
+                            <X aria-hidden className="size-4" />
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
+            <div className="flex items-end gap-2">
+              <label className="pressable flex size-tap-target shrink-0 cursor-pointer items-center justify-center rounded-button text-ink focus-within:outline-2 focus-within:outline-ink">
+                <ImagePlus aria-hidden className="size-5" />
+                <input
+                  type="file"
+                  aria-label="사진 첨부"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  disabled={busy || staged.length >= maxPhotos}
+                  onChange={(event) => {
+                    const chosen = Array.from(event.currentTarget.files ?? []);
+                    event.currentTarget.value = "";
+                    if (chosen.length > 0) void attach(chosen);
+                  }}
+                  className="sr-only"
+                />
+              </label>
+              <label htmlFor="assistant-message" className="sr-only">
+                말랑이에게 보낼 메시지
+              </label>
+              <textarea
+                id="assistant-message"
+                rows={1}
+                value={draft}
+                maxLength={maxMessageLength}
+                placeholder="말랑이에게 부탁해 보세요"
+                onChange={(event) => {
+                  const text = event.target.value;
+                  update((before) => ({ ...before, draft: text }));
+                }}
+                onKeyDown={(event) => {
+                  // Enter sends, Shift+Enter breaks the line; a Korean syllable being composed keeps its Enter.
+                  if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    void submit();
+                  }
+                }}
+                className="max-h-40 min-h-tap-target flex-1 resize-none bg-transparent py-2.5 text-body outline-none placeholder:text-muted"
+              />
+              {status.kind === "streaming" ? (
+                <button
+                  type="button"
+                  aria-label="멈추기"
+                  onClick={() => {
+                    abort.current?.abort();
+                  }}
+                  className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-button bg-ink text-on-ink"
+                >
+                  <Square aria-hidden className="size-4" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  aria-label="보내기"
+                  disabled={!canSend}
+                  className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-button bg-primary text-on-primary disabled:opacity-50"
+                >
+                  <ArrowUp aria-hidden className="size-5" />
+                </button>
+              )}
+            </div>
           </form>
         )}
       </div>
@@ -611,6 +838,35 @@ function ChatFrame({
         />
       </header>
       {children}
+    </div>
+  );
+}
+
+/**
+ * A photo job's line under 말랑이's reply: "n/m장 읽는 중" over a bar with "읽기 취소" while it
+ * reads, then that it was read whole or cancelled.
+ */
+function JobLine({ job, onCancel }: { job: JobProgress; onCancel: () => void }) {
+  if (job.state === "done")
+    return (
+      <p className="text-secondary break-keep text-muted">사진 {job.photos}장을 다 읽었어요</p>
+    );
+  if (job.state === "cancelled")
+    return <p className="text-secondary break-keep text-muted">사진 읽기를 취소했어요</p>;
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <p role="status" className="text-secondary break-keep text-muted">
+        {job.finished}/{job.photos}장 읽는 중
+      </p>
+      <progress
+        max={Math.max(job.photos, 1)}
+        value={job.finished}
+        aria-label="사진 읽기"
+        className="h-1.5 w-full max-w-60 accent-primary"
+      />
+      <button type="button" onClick={onCancel} className={buttonClass("text", "header")}>
+        읽기 취소
+      </button>
     </div>
   );
 }
