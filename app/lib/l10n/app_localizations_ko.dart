@@ -1794,4 +1794,160 @@ class AppLocalizationsKo extends AppLocalizations {
   String weekDayCards(String day, int count) {
     return '$day $count장';
   }
+
+  @override
+  String get assistantOpen => '말랑이와 대화하기';
+
+  @override
+  String get assistantFirstNote => '말랑이와 첫 노트 만들기';
+
+  @override
+  String assistantReady(int count) {
+    return '카드 $count장 만들어 뒀어요';
+  }
+
+  @override
+  String get assistantName => '말랑이';
+
+  @override
+  String get assistantEmpty => '무엇을 외워 볼까요?';
+
+  @override
+  String assistantShareLeft(int percent) {
+    return '오늘 $percent% 남았어요';
+  }
+
+  @override
+  String get assistantMenu => '대화 메뉴';
+
+  @override
+  String get assistantClear => '대화 지우기';
+
+  @override
+  String get assistantClearTitle => '대화를 지울까요?';
+
+  @override
+  String get assistantClearBody => '지운 대화는 되돌릴 수 없어요.';
+
+  @override
+  String get assistantClearConfirm => '지우기';
+
+  @override
+  String get assistantMessageHint => '말랑이에게 부탁해 보세요';
+
+  @override
+  String get assistantSend => '보내기';
+
+  @override
+  String get assistantStop => '멈추기';
+
+  @override
+  String get assistantThinking => '말랑이가 생각하는 중이에요';
+
+  @override
+  String get assistantMe => '나';
+
+  @override
+  String get assistantSources => '출처';
+
+  @override
+  String assistantNewNote(String name) {
+    return '새 노트 · $name';
+  }
+
+  @override
+  String assistantSelectAll(String title) {
+    return '$title 모두 선택';
+  }
+
+  @override
+  String get assistantOtherForm => '다른 형식으로';
+
+  @override
+  String get assistantFormText => '글';
+
+  @override
+  String get assistantFormSenses => '단어';
+
+  @override
+  String get assistantFormCloze => '빈칸 문장';
+
+  @override
+  String get assistantFormTable => '표';
+
+  @override
+  String get assistantFormImage => '사진';
+
+  @override
+  String get assistantFormMixed => '섞어서';
+
+  @override
+  String assistantGroupCount(int count, String form) {
+    return '카드 $count장 · $form';
+  }
+
+  @override
+  String assistantRemake(String title, String form) {
+    return '$title 부분은 $form 형식으로 다시 만들어 줘';
+  }
+
+  @override
+  String assistantAdd(int count) {
+    return '$count장 추가';
+  }
+
+  @override
+  String assistantChange(int count) {
+    return '$count장 바꾸기';
+  }
+
+  @override
+  String assistantNoteCards(int count) {
+    return '카드 $count장';
+  }
+
+  @override
+  String get assistantStopped => '멈췄어요.';
+
+  @override
+  String get assistantModelError => '말랑이가 답하지 못했어요. 다시 시도해 주세요.';
+
+  @override
+  String get assistantCut => '답이 길어 중간에 멈췄어요. 이어서 해 달라고 해 보세요.';
+
+  @override
+  String get assistantWaiting => '앞의 메시지를 마무리하고 있어요. 잠시 후 다시 보낼게요.';
+
+  @override
+  String get assistantRateLimited => '오늘 말랑이와 이야기할 수 있는 만큼 다 썼어요. 내일 다시 이야기해요.';
+
+  @override
+  String get assistantBusy => '앞의 메시지를 아직 마무리하고 있어요. 잠시 후 다시 시도해 주세요.';
+
+  @override
+  String get assistantSignIn => '로그인이 끝났어요. 다시 로그인해 주세요.';
+
+  @override
+  String get assistantSuspended => '이 계정은 지금 말랑이와 이야기할 수 없어요.';
+
+  @override
+  String get assistantTooLong => '대화가 너무 길어요. 대화를 지우고 다시 시작해 주세요.';
+
+  @override
+  String get assistantUnavailable => '말랑이가 지금 답할 수 없어요. 잠시 후 다시 시도해 주세요.';
+
+  @override
+  String get assistantUnreachable => '연결하지 못했어요. 연결을 확인하고 다시 시도해 주세요.';
+
+  @override
+  String get assistantCommitRefused => '카드를 추가하지 못했어요. 말랑이에게 다시 만들어 달라고 해 주세요.';
+
+  @override
+  String get assistantCommitSignIn => '로그인이 끝나 카드를 추가하지 못했어요. 다시 로그인해 주세요.';
+
+  @override
+  String get assistantCommitFailed => '카드를 추가하지 못했어요. 잠시 후 다시 시도해 주세요.';
+
+  @override
+  String get assistantNoteNotSynced => '노트를 아직 불러오지 못했어요. 잠시 후 다시 눌러 주세요.';
 }

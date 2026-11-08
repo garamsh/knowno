@@ -1,6 +1,6 @@
 # Assistant
 
-The `assistant` Edge Function, 말랑이 as an assistant that builds notes and cards with the user in conversation: its requests, the stream, the tool loop and its limits, the tools, the card forms it reads, proposals and their commit, the photo jobs that read the chat's photos in the background, how each provider is called with its web search and reasoning, the per-plan configuration and daily token budget it reads, an admin's draft saved after a check call, its log and its tests. The schema behind the configuration and the budget is [`server.md`](server.md)'s; the card tools it shares are [`mcp.md`](mcp.md)'s; the clients' chat screens are not built yet (#711).
+The `assistant` Edge Function, 말랑이 as an assistant that builds notes and cards with the user in conversation: its requests, the stream, the tool loop and its limits, the tools, the card forms it reads, proposals and their commit, the photo jobs that read the chat's photos in the background, how each provider is called with its web search and reasoning, the per-plan configuration and daily token budget it reads, an admin's draft saved after a check call, its log and its tests. The schema behind the configuration and the budget is [`server.md`](server.md)'s; the card tools it shares are [`mcp.md`](mcp.md)'s; the app's chat screen is [`assistant-app.md`](assistant-app.md)'s, and the web's is not built yet (#722).
 
 ## Current decisions
 
@@ -106,7 +106,7 @@ The `assistant` Edge Function, 말랑이 as an assistant that builds notes and c
 - **The end.** Once a read leaves the job with no queued photo, or a cancel ends it, the worker or the cancel deletes the job's photos from the bucket through the Storage API; the readings stay with the job.
 - **Poll.** `GET /assistant/jobs/{id}` answers `{id, status, photos: [{position, photo_id, status}], read, queued, failed, skipped, cancelled, created_at, finished_at}`, `status` `running`, `done` or `cancelled` and a photo's `queued`, `read`, `failed`, `skipped` (the day's tokens ran out) or `cancelled`; never a reading. A running job whose last read began more than 3 minutes ago (`STALE_MS`), or none since it started, asks for the worker again. `POST /assistant/jobs/{id}/cancel` answers `{id, status}`. Either answers `404` for a job that is not the caller's and `503` `unavailable` when Supabase did not answer.
 - **Composing.** When the job is done, the client sends the next user turn, the user's own or one it writes, with the job on its assistant turn; the model reads the readings with `read_photo_job` and builds proposals with the proposal tools, from the whole conversation, so instructions given before and during the job both apply.
-- **Clients** (#721, #722): upload, send `photos`, keep `job` on the turn, poll every few seconds while it runs, offer cancel, and send a turn when it is done.
+- **Clients** (#721, #722): the app's chat reads the `job` event and draws nothing for it yet; photos are the next pull request's. Upload, send `photos`, keep `job` on the turn, poll every few seconds while it runs, offer cancel, and send a turn when it is done.
 
 ### Providers
 

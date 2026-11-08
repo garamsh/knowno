@@ -14,6 +14,7 @@ const allowedEntries = {
   'sync',
   'sharing',
   'photo_import',
+  'assistant',
   'media',
   'design',
   'database',
