@@ -211,6 +211,11 @@ void main() {
     testWidgets(
       'shows how far the job has read and asks again every few seconds',
       (tester) async {
+        expect(
+          jobPollEvery.inSeconds,
+          inInclusiveRange(2, 5),
+          reason: 'every few seconds',
+        );
         final client = FakeAssistantClient(scripts: [_started])
           ..polls.addAll([_polled(1), const JobPollFailed(), _polled(2)]);
         final container = await pumpChat(

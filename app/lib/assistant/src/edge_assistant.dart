@@ -95,8 +95,7 @@ class _EdgeAssistantState extends ConsumerState<EdgeAssistant> {
     final colors = AppColors.of(context);
     final side = ref.watch(assistantEdgeSideProvider);
     final ready = ref.watch(assistantReadyCardsProvider);
-    final hint =
-        widget.hint && !ref.watch(assistantHintShownProvider) && ready == 0;
+    final hint = widget.hint && !ref.watch(assistantHintShownProvider);
     final still = MediaQuery.disableAnimationsOf(context);
     final slide = still ? Duration.zero : const Duration(milliseconds: 200);
     final right = side == EdgeSide.right;

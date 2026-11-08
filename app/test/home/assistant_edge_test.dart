@@ -52,8 +52,8 @@ Future<void> _scrollToEnd(WidgetTester tester) async {
   await tester.pumpAndSettle(edgeReturnDelay * 4);
 }
 
-/// Where every control on screen is, but the hint's own close button: what
-/// the user presses.
+/// Where every control and every line of text on screen is, but the hint's
+/// own close button: what the user presses and reads.
 List<Rect> _controls(WidgetTester tester) {
   final own = find.byTooltip('Dismiss the hint');
   final ownRect = own.evaluate().isEmpty ? null : tester.getRect(own);
@@ -63,6 +63,8 @@ List<Rect> _controls(WidgetTester tester) {
       find.byType(IconButton),
       find.byType(ButtonStyleButton),
       find.byType(TextField),
+      // What the user reads: the character never covers a line either.
+      find.byType(RichText),
     ])
       for (final element in finder.evaluate())
         if (tester.getRect(find.byWidget(element.widget)) case final rect

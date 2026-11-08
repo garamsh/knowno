@@ -215,19 +215,31 @@ void main() {
     await _pump(
       tester,
       storage: await openAssistantStorage(tester),
-      child: SizedBox(
-        height: 100,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            for (var i = 0; i < 20; i++)
-              SizedBox(width: 200, child: Text('c$i')),
-          ],
-        ),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 100,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (var i = 0; i < 20; i++)
+                  SizedBox(width: 200, child: Text('c$i')),
+              ],
+            ),
+          ),
+          const Expanded(child: SizedBox.expand()),
+        ],
       ),
     );
     final rest = _character(tester);
-    await tester.drag(find.text('c0'), const Offset(-200, 0));
+    final before = tester.getTopLeft(find.text('c1'));
+    await tester.drag(find.byType(ListView), const Offset(-200, 0));
+    await tester.pump();
+    expect(
+      tester.getTopLeft(find.text('c1')).dx,
+      lessThan(before.dx),
+      reason: 'the list scrolled',
+    );
     await tester.pump(const Duration(milliseconds: 300));
     expect(_character(tester), rest);
   });
