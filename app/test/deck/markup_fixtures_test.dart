@@ -36,6 +36,7 @@ void main() {
   final cloze = _fixture('cloze');
   final plain = _fixture('plain');
   final v1 = _fixture('v1');
+  final escape = _fixture('escape');
 
   test('the fixtures are read from the repository, and there are some', () {
     expect(parse.length, greaterThan(20));
@@ -129,5 +130,25 @@ void main() {
         expect(drawn, expected);
       });
     }
+  });
+
+  group('the escape the bridge writes is the fixture\'s', () {
+    test('every text is escaped as it says, and reads back as the text', () {
+      expect(escape, isNotEmpty);
+      for (final one in escape) {
+        final text = one['text']! as String;
+        final escaped = one['escaped']! as String;
+        expect(
+          markupEngine.escapeLiteral(text),
+          escaped,
+          reason: '${one['name']}',
+        );
+        expect(
+          markupEngine.plainText(escaped),
+          text.replaceAll('\r\n', '\n').replaceAll('\r', '\n'),
+          reason: '${one['name']}: it means what was typed',
+        );
+      }
+    });
   });
 }
