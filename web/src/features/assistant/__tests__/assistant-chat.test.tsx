@@ -119,7 +119,13 @@ async function say(text: string) {
   await userEvent.click(screen.getByRole("button", { name: "보내기" }));
 }
 
+/** The zone the browser names in every test but the ones that say another. */
+const browserZone = "America/New_York";
+
 beforeEach(() => {
+  vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+    timeZone: browserZone,
+  } as Intl.ResolvedDateTimeFormatOptions);
   vi.stubGlobal(
     "URL",
     Object.assign(URL, { createObjectURL: () => "blob:photo", revokeObjectURL: () => undefined }),
@@ -130,6 +136,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("말랑이's chat", () => {
@@ -165,7 +172,12 @@ describe("말랑이's chat", () => {
     open();
     expect(await screen.findByText("좋아요, 만들어 볼게요")).toBeInTheDocument();
     expect(screen.getByText("오늘 64% 남았어요")).toBeInTheDocument();
-    expect(requests).toEqual([{ messages: [{ role: "user", text: "영단어 카드 만들어 줘" }] }]);
+    expect(requests).toEqual([
+      {
+        messages: [{ role: "user", text: "영단어 카드 만들어 줘" }],
+        context: { time_zone: browserZone },
+      },
+    ]);
 
     await userEvent.type(screen.getByRole("textbox", { name: "말랑이에게 보낼 메시지" }), "다음엔");
     cleanup();
@@ -372,7 +384,10 @@ describe("말랑이's chat", () => {
     expect(container.querySelector('img[src*="knowno-sad"]')).not.toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "다시 시도" }));
     expect(await screen.findByText("이번엔 됐어요")).toBeInTheDocument();
-    expect(requests[1]).toEqual({ messages: [{ role: "user", text: "안녕" }] });
+    expect(requests[1]).toEqual({
+      messages: [{ role: "user", text: "안녕" }],
+      context: { time_zone: browserZone },
+    });
     expect(
       screen.queryByText("말랑이가 답하지 못했어요. 다시 시도해 주세요."),
     ).not.toBeInTheDocument();
@@ -441,17 +456,42 @@ describe("the note a chat opens from", () => {
     await say("카드 더 만들어 줘");
     await screen.findByText("네");
     expect(requests).toEqual([
-      { messages: [{ role: "user", text: "카드 더 만들어 줘" }], context: { deck_id: "d1" } },
+      {
+        messages: [{ role: "user", text: "카드 더 만들어 줘" }],
+        context: { deck_id: "d1", time_zone: browserZone },
+      },
     ]);
   });
 
-  it("sends no context when it is opened from nowhere, and says no note's name", async () => {
+  it("sends only the time zone when it is opened from nowhere, and says no note's name", async () => {
+    const { client, requests } = fakeClient([[{ type: "text", delta: "네" }]]);
+    render(<AssistantChat allowance={null} client={client} />);
+    await say("안녕");
+    await screen.findByText("네");
+    expect(requests[0]?.context).toEqual({ time_zone: browserZone });
+    expect(screen.queryByText(/노트에서$/)).not.toBeInTheDocument();
+  });
+
+  it("sends no context when it is opened from nowhere and the browser names no zone", async () => {
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue(
+      {} as Intl.ResolvedDateTimeFormatOptions,
+    );
     const { client, requests } = fakeClient([[{ type: "text", delta: "네" }]]);
     render(<AssistantChat allowance={null} client={client} />);
     await say("안녕");
     await screen.findByText("네");
     expect(requests[0]).not.toHaveProperty("context");
-    expect(screen.queryByText(/노트에서$/)).not.toBeInTheDocument();
+  });
+
+  it("sends the zone the browser names, not the zone the test process runs in", async () => {
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      timeZone: "Pacific/Auckland",
+    } as Intl.ResolvedDateTimeFormatOptions);
+    const { client, requests } = fakeClient([[{ type: "text", delta: "네" }]]);
+    render(<AssistantChat allowance={null} note={{ id: "d1", name: "영단어" }} client={client} />);
+    await say("안녕");
+    await screen.findByText("네");
+    expect(requests[0]?.context).toEqual({ deck_id: "d1", time_zone: "Pacific/Auckland" });
   });
 });
 

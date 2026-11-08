@@ -378,5 +378,7 @@ test("shows the cards ready in a short bubble, and opens the chat from the note,
   await page.getByRole("button", { name: "보내기" }).click();
   await expect(page.getByText("네", { exact: true })).toBeVisible();
   expect(sent).toHaveLength(1);
-  expect((sent[0] as { context: unknown }).context).toEqual({ deck_id: first });
+  // The context carries the zone the browser names, beside the note.
+  const zone = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
+  expect((sent[0] as { context: unknown }).context).toEqual({ deck_id: first, time_zone: zone });
 });
