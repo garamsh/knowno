@@ -15,6 +15,9 @@ test.skip(
   "needs a throwaway local Supabase stack, which sets E2E_SUPABASE_URL and E2E_SUPABASE_KEY",
 );
 
+/** Whether [path] at [size] is a page the screen holds with the room for 말랑이: not a note's cards at any size, nor anything at 200%. */
+const short = (path: string, size: string) => size !== "200%" && !path.startsWith("/decks/");
+
 const sizes = [
   { width: 390, height: 844, name: "390" },
   { width: 1280, height: 900, name: "1280" },
@@ -214,9 +217,11 @@ test("draws 말랑이 on the 노트 page, a note and 기록 at 44 px or more, ne
       expect(box?.height, `${path} at ${size}`).toBeGreaterThanOrEqual(44);
       // At its end, the room under the last row clears it at every size. At its top, a page
       // longer than the screen has the character float over the rows it scrolls past, which is
-      // why it tucks while the page scrolls, so the end is what must hold.
+      // why it tucks while the page scrolls; a short page is checked there too.
       await roomKept(page);
-      expect(await covered(page, "end"), `${path} at ${size}`).toEqual([]);
+      expect(await covered(page, "end"), `${path} at ${size}, end`).toEqual([]);
+      if (short(path, size))
+        expect(await covered(page, "top"), `${path} at ${size}, top`).toEqual([]);
     }
     await page.setViewportSize({ width: 390, height: 844 });
     await capture(page, name);

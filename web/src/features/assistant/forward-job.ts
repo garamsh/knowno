@@ -3,10 +3,7 @@ import "server-only";
 import { env } from "@/env";
 
 import { assistantUrl, readUserToken } from "./forward-message";
-
-/** Whether [id] is a uuid, as a job's id is, before it joins a path. */
-export const isJobId = (id: string) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(id);
+import { isUuid } from "./uuid";
 
 /** How long the function may take to answer a poll or a cancel. */
 export const jobTimeoutMs = 15_000;
@@ -20,7 +17,7 @@ const refusal = (status: number, error: string) =>
  * and an id that is no uuid `404`, neither calling the function.
  */
 export async function forwardJobPoll(id: string): Promise<Response> {
-  if (!isJobId(id)) return refusal(404, "not_found");
+  if (!isUuid(id)) return refusal(404, "not_found");
   const session = await readUserToken();
   if ("status" in session)
     return session.status === 401 ? refusal(401, "unauthenticated") : refusal(503, "unavailable");

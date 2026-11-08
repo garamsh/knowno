@@ -1,9 +1,10 @@
 import "server-only";
 
-import { parseDeckId } from "@/features/decks";
 import { requestTimeoutMs } from "@/supabase/failure";
 import { createClient } from "@/supabase/server";
 import { readUserId } from "@/supabase/session";
+
+import { isUuid } from "./uuid";
 
 /**
  * The note [value] names, an address's `note`, when it is the signed-in user's live note: its id
@@ -11,8 +12,8 @@ import { readUserId } from "@/supabase/session";
  * that is not the user's or was deleted, and a read that failed: the chat then opens from nowhere.
  */
 export async function readNote(value: unknown): Promise<{ id: string; name: string } | null> {
-  const id = parseDeckId(value);
-  if (!id) return null;
+  if (typeof value !== "string" || !isUuid(value)) return null;
+  const id = value;
   const supabase = await createClient();
   const session = await readUserId(supabase);
   if ("failure" in session) return null;
