@@ -144,7 +144,7 @@ Each line names a file and what it covers; the file holds the cases. 홈's notes
 - [ADR 0137](adr/0137-frame-a-card-by-its-blocks-each-block-type-deciding-whether-it-has-a-front-and-a-back.md) frames a card by its 칸, and [ADR 0140](adr/0140-keep-every-back-that-differs-from-the-filled-text-show-a-back-blank-beside-a-front-blank-after-the-answer-and-keep-a-front-word-s-meanings-first.md) narrows the back it drops to one exactly equal to the filled text, so what study draws, and search and a row read, is every 칸.
 - [ADR 0109](adr/0109-store-an-image-block-s-boxes-in-fractions-of-the-image-and-draw-them-with-the-image-s-one-transform.md) records the image block and the transform the web shares with the phone.
 
-- [ADR 0209](adr/0209-draw-and-edit-card-text-markup-and-anki-cloze-on-the-web-through-the-engine-s-document-read-where-a-card-is-read.md) records why a card's text is read once, where the card is read, and its document carried with it; why the module is linked a second time under `design/`; the editor's decisions, matched to the phone's ADR 0207, and where this one differs.
+- [ADR 0209](adr/0209-draw-and-edit-card-text-markup-and-anki-cloze-on-the-web-through-the-engine-s-document-read-where-a-card-is-read.md) records why a card's text is read once, where the card is read, and its document carried with it; why the module is linked a second time under `design/`; the editor's decisions, matched to the phone's [ADR 0207](adr/0207-render-and-edit-card-text-markup-and-cloze-in-the-app-through-the-engine-behind-a-deck-owned-seam-and-write-text-version-3.md), and where this one differs.
 
 ## Open questions
 
