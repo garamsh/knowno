@@ -52,6 +52,7 @@ class SyncController implements AccountData {
   var _failures = 0;
   Future<void>? _current;
   var _again = false;
+  var _disposed = false;
 
   /// Where sync stands now, kept current.
   ValueListenable<SyncStatus> get status => _status;
@@ -66,7 +67,10 @@ class SyncController implements AccountData {
     _onAccount(_account.state);
   }
 
+  /// Stops following; a run under way ends without touching [status].
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }
@@ -98,9 +102,9 @@ class SyncController implements AccountData {
   Future<void> _syncIfUnsynced() async {
     if (_account.state is! SignedIn) return;
     try {
-      if (!await _store.hasUnsynced()) return;
+      if (!await _store.hasUnsynced() || _disposed) return;
     } on SyncFailure catch (failure) {
-      _status.value = SyncInterrupted(failure);
+      _set(SyncInterrupted(failure));
       return;
     }
     await sync();
@@ -128,11 +132,11 @@ class SyncController implements AccountData {
   Future<void> _runOnce() async {
     final state = _account.state;
     if (state is! SignedIn) {
-      _status.value = const SyncIdle();
+      _set(const SyncIdle());
       return;
     }
     _retryTimer?.cancel();
-    _status.value = const Syncing();
+    _set(const Syncing());
     try {
       await _synchronizer.run(state.userId);
       // After the rows, so a deck's image is named on the server before its
@@ -143,20 +147,25 @@ class SyncController implements AccountData {
       } else {
         _scheduleRetry();
       }
-      _status.value = const Synced();
+      _set(const Synced());
     } on SyncFailure catch (failure) {
-      _status.value = SyncInterrupted(failure);
+      _set(SyncInterrupted(failure));
       _scheduleRetry();
     }
   }
 
   void _scheduleRetry() {
+    if (_disposed) return;
     final delay = firstRetry * pow(2, min(_failures, 16)).toInt();
     _failures++;
     _retryTimer = Timer(
       delay < maxRetry ? delay : maxRetry,
       () => unawaited(sync()),
     );
+  }
+
+  void _set(SyncStatus status) {
+    if (!_disposed) _status.value = status;
   }
 
   /// Runs sync at once, as the account screen's retry does, restarting the
