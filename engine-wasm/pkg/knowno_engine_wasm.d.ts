@@ -1,6 +1,11 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
+ * A block of a parsed text: a paragraph or a list.
+ */
+export type Block = { type: "paragraph"; content: Inline[] } | { type: "list"; ordered: boolean; items: ListItem[] };
+
+/**
  * A card as today's list reads it: when it is due, absent for a card never reviewed, and its
  * reviews, in any order, those outside the study day included or not.
  */
@@ -35,6 +40,34 @@ export interface Scheduled {
 export type Quantity = "stability" | "difficulty" | "fuzzFactor";
 
 /**
+ * A list one level down; its items hold no list.
+ */
+export interface SubList {
+    /**
+     * Numbered, counted from 1, rather than bulleted.
+     */
+    ordered: boolean;
+    /**
+     * The items' lines, at least one.
+     */
+    items: Inline[][];
+}
+
+/**
+ * An item of a list, with the lists nested under it.
+ */
+export interface ListItem {
+    /**
+     * The item's line.
+     */
+    content: Inline[];
+    /**
+     * The indented lists under the item.
+     */
+    sublists: SubList[];
+}
+
+/**
  * One review in a card's history.
  */
 export interface ReviewRecord {
@@ -47,6 +80,11 @@ export interface ReviewRecord {
      */
     at: bigint;
 }
+
+/**
+ * Text inside a block.
+ */
+export type Inline = { type: "text"; text: string } | { type: "lineBreak" } | { type: "bold"; content: Inline[] } | { type: "italic"; content: Inline[] } | { type: "code"; text: string } | { type: "cloze"; number: number; answer: Inline[]; hint: string | null } | { type: "blank"; hint: string | null };
 
 /**
  * The app's two answer buttons.
@@ -88,6 +126,40 @@ export type EngineError = { kind: "reviewBeforeLastReview"; lastReview: bigint; 
 
 
 /**
+ * A version 1 cloze block as a text of this syntax, blank k as `{{ck::answer_k}}`; absent
+ * when the blanks and answers differ in number or the result would not read back as the same
+ * text, and the block stays version 1.
+ */
+export function clozeFromV1(text: string, answers: string[]): string | undefined;
+
+/**
+ * The cloze numbers a card text holds, ascending, each once.
+ */
+export function clozeNumbers(text: string): Uint32Array;
+
+/**
+ * A card text with every cloze shown as its answer.
+ */
+export function fillCloze(text: string): Block[];
+
+/**
+ * A card text with each span of cloze `number` a `blank` carrying its hint, and every other
+ * cloze shown as its answer.
+ */
+export function hideCloze(text: string, number: number): Block[];
+
+/**
+ * Parses a card text into its blocks. Every text parses: markup that is not closed, or not in
+ * the subset, is literal text.
+ */
+export function parseMarkup(text: string): Block[];
+
+/**
+ * A card text without marks, clozes filled, for the card key.
+ */
+export function plainText(text: string): string;
+
+/**
  * Replays a history, in the order the reviews happened, into the card's state; `null` when empty.
  */
 export function replay(history: ReviewRecord[]): Outcome<MemoryStateParts | null>;
@@ -119,6 +191,12 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly clozeFromV1: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly clozeNumbers: (a: number, b: number, c: number) => void;
+    readonly fillCloze: (a: number, b: number, c: number) => void;
+    readonly hideCloze: (a: number, b: number, c: number, d: number) => void;
+    readonly parseMarkup: (a: number, b: number, c: number) => void;
+    readonly plainText: (a: number, b: number, c: number) => void;
     readonly replay: (a: number, b: number, c: number) => void;
     readonly retrievability: (a: number, b: number, c: bigint) => void;
     readonly reviewCard: (a: number, b: number, c: number, d: bigint, e: number, f: number) => void;

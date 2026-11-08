@@ -1,4 +1,5 @@
-//! The engine's operations as a WebAssembly module, for the web app.
+//! The engine's operations as a WebAssembly module, for the web app: scheduling, today's list,
+//! and the card text markup and cloze parser.
 //!
 //! Times are whole seconds since the Unix epoch (UTC), as the engine's `Timestamp` holds
 //! them, and `bigint` in TypeScript. Every engine refusal is returned as an [`EngineError`]
@@ -223,6 +224,193 @@ pub fn todays_list(
             Ok(Today::from(today).into_ts()?)
         })
         .collect()
+}
+
+/// A block of a parsed text: a paragraph or a list.
+#[derive(Tsify, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "camelCase")]
+#[tsify(missing_as_null)]
+pub enum Block {
+    /// Lines of text up to a blank line or a list.
+    Paragraph {
+        /// The paragraph's text.
+        content: Vec<Inline>,
+    },
+    /// A run of list items of one kind.
+    List {
+        /// Numbered, counted from 1, rather than bulleted.
+        ordered: bool,
+        /// The items, at least one.
+        items: Vec<ListItem>,
+    },
+}
+
+/// An item of a list, with the lists nested under it.
+#[derive(Tsify, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[tsify(missing_as_null)]
+pub struct ListItem {
+    /// The item's line.
+    pub content: Vec<Inline>,
+    /// The indented lists under the item.
+    pub sublists: Vec<SubList>,
+}
+
+/// A list one level down; its items hold no list.
+#[derive(Tsify, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[tsify(missing_as_null)]
+pub struct SubList {
+    /// Numbered, counted from 1, rather than bulleted.
+    pub ordered: bool,
+    /// The items' lines, at least one.
+    pub items: Vec<Vec<Inline>>,
+}
+
+/// Text inside a block.
+#[derive(Tsify, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "camelCase")]
+#[tsify(missing_as_null)]
+pub enum Inline {
+    /// Literal text.
+    Text {
+        /// The text.
+        text: String,
+    },
+    /// A newline inside a paragraph.
+    LineBreak,
+    /// `**...**`.
+    Bold {
+        /// The bold text.
+        content: Vec<Inline>,
+    },
+    /// `*...*` or `_..._`.
+    Italic {
+        /// The italic text.
+        content: Vec<Inline>,
+    },
+    /// `` `...` ``.
+    Code {
+        /// The literal text.
+        text: String,
+    },
+    /// `{{cN::answer}}` or `{{cN::answer::hint}}`.
+    Cloze {
+        /// The cloze number, from 1.
+        number: u32,
+        /// The answer.
+        answer: Vec<Inline>,
+        /// The hint, `null` when none.
+        hint: Option<String>,
+    },
+    /// A cloze hidden by `hideCloze`.
+    Blank {
+        /// The hint of the hidden cloze, `null` when none.
+        hint: Option<String>,
+    },
+}
+
+/// Parses a card text into its blocks. Every text parses: markup that is not closed, or not in
+/// the subset, is literal text.
+#[wasm_bindgen(js_name = parseMarkup, unchecked_return_type = "Block[]")]
+pub fn parse_markup(text: &str) -> Result<Vec<Ts<Block>>, JsError> {
+    blocks(&engine::parse_markup(text))
+}
+
+/// The cloze numbers a card text holds, ascending, each once.
+#[wasm_bindgen(js_name = clozeNumbers)]
+pub fn cloze_numbers(text: &str) -> Vec<u32> {
+    engine::parse_markup(text).cloze_numbers()
+}
+
+/// A card text with each span of cloze `number` a `blank` carrying its hint, and every other
+/// cloze shown as its answer.
+#[wasm_bindgen(js_name = hideCloze, unchecked_return_type = "Block[]")]
+pub fn hide_cloze(text: &str, number: u32) -> Result<Vec<Ts<Block>>, JsError> {
+    blocks(&engine::parse_markup(text).hidden(number))
+}
+
+/// A card text with every cloze shown as its answer.
+#[wasm_bindgen(js_name = fillCloze, unchecked_return_type = "Block[]")]
+pub fn fill_cloze(text: &str) -> Result<Vec<Ts<Block>>, JsError> {
+    blocks(&engine::parse_markup(text).filled())
+}
+
+/// A card text without marks, clozes filled, for the card key.
+#[wasm_bindgen(js_name = plainText)]
+pub fn plain_text(text: &str) -> String {
+    engine::parse_markup(text).plain_text()
+}
+
+/// A version 1 cloze block as a text of this syntax, blank k as `{{ck::answer_k}}`; absent
+/// when the blanks and answers differ in number or the result would not read back as the same
+/// text, and the block stays version 1.
+#[wasm_bindgen(js_name = clozeFromV1)]
+pub fn cloze_from_v1(text: &str, answers: Vec<String>) -> Option<String> {
+    let answers: Vec<&str> = answers.iter().map(String::as_str).collect();
+    engine::cloze_from_v1(text, &answers)
+}
+
+fn blocks(document: &engine::Document) -> Result<Vec<Ts<Block>>, JsError> {
+    document
+        .blocks
+        .iter()
+        .map(|block| Ok(Block::from(block).into_ts()?))
+        .collect()
+}
+
+impl From<&engine::Block> for Block {
+    fn from(block: &engine::Block) -> Self {
+        match block {
+            engine::Block::Paragraph(content) => Block::Paragraph {
+                content: inlines(content),
+            },
+            engine::Block::List(list) => Block::List {
+                ordered: list.ordered,
+                items: list
+                    .items
+                    .iter()
+                    .map(|item| ListItem {
+                        content: inlines(&item.content),
+                        sublists: item
+                            .sublists
+                            .iter()
+                            .map(|sublist| SubList {
+                                ordered: sublist.ordered,
+                                items: sublist.items.iter().map(|line| inlines(line)).collect(),
+                            })
+                            .collect(),
+                    })
+                    .collect(),
+            },
+        }
+    }
+}
+
+fn inlines(content: &[engine::Inline]) -> Vec<Inline> {
+    content.iter().map(Inline::from).collect()
+}
+
+impl From<&engine::Inline> for Inline {
+    fn from(inline: &engine::Inline) -> Self {
+        match inline {
+            engine::Inline::Text(text) => Inline::Text { text: text.clone() },
+            engine::Inline::LineBreak => Inline::LineBreak,
+            engine::Inline::Bold(content) => Inline::Bold {
+                content: inlines(content),
+            },
+            engine::Inline::Italic(content) => Inline::Italic {
+                content: inlines(content),
+            },
+            engine::Inline::Code(text) => Inline::Code { text: text.clone() },
+            engine::Inline::Cloze(cloze) => Inline::Cloze {
+                number: cloze.number,
+                answer: inlines(&cloze.answer),
+                hint: cloze.hint.clone(),
+            },
+            engine::Inline::Blank { hint } => Inline::Blank { hint: hint.clone() },
+        }
+    }
 }
 
 fn outcome<T>(result: Result<T, engine::Error>) -> Outcome<T> {

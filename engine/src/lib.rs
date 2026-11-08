@@ -1,6 +1,8 @@
 //! FSRS-6 scheduling: a card's memory state and next due time from its review history, and
 //! today's list: the cards a study day still holds, from its reviews.
 //!
+//! Card text markup, a Markdown subset and Anki's cloze syntax, is parsed by [`parse_markup`].
+//!
 //! Every function is pure. The engine reads no clock and stores nothing: the caller
 //! passes the time of each review and keeps either the history or the state's parts.
 //! Invalid input is returned as an [`Error`], never a panic.
@@ -10,8 +12,12 @@
 use std::fmt;
 
 mod fsrs;
+mod markup;
 mod today;
 
+pub use markup::{
+    Block, Cloze, Document, Inline, List, ListItem, SubList, cloze_from_v1, parse_markup,
+};
 pub use today::{StudyDay, Today, today};
 
 const SECONDS_PER_DAY: i64 = 86_400;

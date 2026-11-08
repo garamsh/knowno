@@ -748,12 +748,78 @@ describe("홈 and the 노트 page", () => {
     expect(sky).toHaveClass("bg-hero");
     expect(sky.querySelector('img[src*="knowno-thinking"]')).not.toBeNull();
     expect(screen.queryByRole("region", { name: /일 연속$/ })).not.toBeInTheDocument();
-    // The one link is the profile button, which opens 설정.
+    // The links are the profile button, which opens 설정, the mascot and the one action, both
+    // 말랑이's chat (#722).
     expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/account",
+      "/assistant",
+      "/assistant",
     ]);
-    // The first note is the page's one way on, in the primary fill.
-    expect(screen.getByRole("button", { name: "새 노트 만들기" })).toHaveClass("bg-primary");
+    // The first note is made with 말랑이, the page's one way on, in the primary fill.
+    expect(screen.getByRole("link", { name: "말랑이와 첫 노트 만들기" })).toHaveClass("bg-primary");
+    expect(screen.queryByRole("button", { name: "새 노트 만들기" })).not.toBeInTheDocument();
+  });
+
+  it("makes the mascot 말랑이's entry, its bubble saying how many cards it has ready while a proposal waits", async () => {
+    postgrest.seed("decks", deckRow("d-fr", "French"));
+    postgrest.seed("cards", cardRow("c-chat", "d-fr", "chat"));
+    postgrest.seed("card_states", stateRow("c-chat", due));
+    await render(Today, {});
+    // Nothing by default: the link is named for the chat alone.
+    expect(screen.getByRole("link", { name: "말랑이와 대화하기" })).toHaveAttribute(
+      "href",
+      "/assistant",
+    );
+    cleanup();
+
+    const cards = Array.from({ length: 12 }, (_, index) => ({
+      id: `c${String(index)}`,
+      card: { front: String(index), back: "뜻" },
+    }));
+    const store = (added: object | null) => {
+      window.localStorage.setItem(
+        "knowno.assistant",
+        JSON.stringify({
+          version: 1,
+          draft: "",
+          turns: [
+            {
+              role: "assistant",
+              id: "a1",
+              text: "",
+              citations: [],
+              choice: null,
+              ending: "ok",
+              proposals: [
+                {
+                  proposal: {
+                    id: "p1",
+                    kind: "cards",
+                    deck: { id: null, name: "영단어" },
+                    groups: [{ id: "g1", title: "1단원", format: "text", cards }],
+                  },
+                  checked: { g1: cards.map((card) => card.id) },
+                  added,
+                },
+              ],
+            },
+          ],
+        }),
+      );
+    };
+    store(null);
+    await render(Today, {});
+    // A substring: the link reads its own name, then the bubble's words.
+    expect(
+      screen.getByRole("link", { name: /^말랑이와 대화하기.*카드 12장 만들어 뒀어요$/ }),
+    ).toBeInTheDocument();
+    cleanup();
+
+    // Control: once added, nothing is ready.
+    store({ deck: { id: "d1", name: "영단어" }, count: 12 });
+    await render(Today, {});
+    expect(screen.getByRole("link", { name: "말랑이와 대화하기" })).toBeInTheDocument();
+    window.localStorage.clear();
   });
 
   it("shows how to start in the sky when the notes hold no card, leading to the one note's 카드 추가 or to the notes", async () => {

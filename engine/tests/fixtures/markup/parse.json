@@ -1,0 +1,1992 @@
+[
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "hello world",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "hello world",
+    "name": "a paragraph"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "one",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "two",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "one\n\ntwo",
+    "name": "two paragraphs"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "one",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "two",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "one\n\n\n\ntwo",
+    "name": "several blank lines make one break"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "one",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "two",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "one\ntwo",
+    "name": "a newline is a line break"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "one",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "two",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "one\n  \ntwo",
+    "name": "a blank line of spaces separates paragraphs"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "one",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "two",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "one\r\ntwo",
+    "name": "crlf reads as a newline"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "one",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "one\n",
+    "name": "a trailing newline adds nothing"
+  },
+  {
+    "document": [],
+    "input": "",
+    "name": "empty text has no block"
+  },
+  {
+    "document": [],
+    "input": " \n\t\n",
+    "name": "only whitespace has no block"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a ",
+            "type": "text"
+          },
+          {
+            "content": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          },
+          {
+            "text": " c",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a **b** c",
+    "name": "bold"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a ",
+            "type": "text"
+          },
+          {
+            "content": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "type": "italic"
+          },
+          {
+            "text": " c",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a *b* c",
+    "name": "italic with stars"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a ",
+            "type": "text"
+          },
+          {
+            "content": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "type": "italic"
+          },
+          {
+            "text": " c",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a _b_ c",
+    "name": "italic with underscores"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a ",
+            "type": "text"
+          },
+          {
+            "text": "b",
+            "type": "code"
+          },
+          {
+            "text": " c",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a `b` c",
+    "name": "inline code"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "a ",
+                "type": "text"
+              },
+              {
+                "content": [
+                  {
+                    "text": "b",
+                    "type": "text"
+                  }
+                ],
+                "type": "italic"
+              },
+              {
+                "text": " c",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "**a *b* c**",
+    "name": "italic inside bold"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "a ",
+                "type": "text"
+              },
+              {
+                "content": [
+                  {
+                    "text": "b",
+                    "type": "text"
+                  }
+                ],
+                "type": "bold"
+              },
+              {
+                "text": " c",
+                "type": "text"
+              }
+            ],
+            "type": "italic"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "*a **b** c*",
+    "name": "bold inside italic"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "a ",
+                "type": "text"
+              },
+              {
+                "content": [
+                  {
+                    "text": "b",
+                    "type": "text"
+                  }
+                ],
+                "type": "italic"
+              },
+              {
+                "text": " c",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "**a _b_ c**",
+    "name": "underscore italic inside bold"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              },
+              {
+                "type": "lineBreak"
+              },
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "**a\nb**",
+    "name": "marks across a line break"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "**a** {{c1::b}}",
+            "type": "code"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "`**a** {{c1::b}}`",
+    "name": "code keeps its marks literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a **b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a **b",
+    "name": "an unclosed bold is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a *b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a *b",
+    "name": "an unclosed italic is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a `b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a `b",
+    "name": "an unclosed code is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a `` b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a `` b",
+    "name": "empty code is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "`a",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "b`",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "`a\nb`",
+    "name": "code does not cross a line"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a * b * c",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a * b * c",
+    "name": "a star before a space does not open"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "*a *",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "*a *",
+    "name": "a closer after a space does not close"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "snake_case_name",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "snake_case_name",
+    "name": "snake_case is not italic"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "(",
+            "type": "text"
+          },
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "type": "italic"
+          },
+          {
+            "text": ")",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "(_a_)",
+    "name": "an underscore after punctuation opens"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "***a***",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "***a***",
+    "name": "three stars are literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "__a__",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "__a__",
+    "name": "double underscores are literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "a ",
+                "type": "text"
+              },
+              {
+                "text": "*",
+                "type": "code"
+              },
+              {
+                "text": " b",
+                "type": "text"
+              }
+            ],
+            "type": "italic"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "*a `*` b*",
+    "name": "a closer inside code is skipped"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "a ",
+                "type": "text"
+              },
+              {
+                "answer": [
+                  {
+                    "text": "b**",
+                    "type": "text"
+                  }
+                ],
+                "hint": null,
+                "number": 1,
+                "type": "cloze"
+              },
+              {
+                "text": " c",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "**a {{c1::b**}} c**",
+    "name": "a closer inside a cloze is skipped"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "answer",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::answer}}",
+    "name": "cloze"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "answer",
+                "type": "text"
+              }
+            ],
+            "hint": "hint",
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::answer::hint}}",
+    "name": "cloze with a hint"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "The capital of France is ",
+            "type": "text"
+          },
+          {
+            "answer": [
+              {
+                "text": "Paris",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          },
+          {
+            "text": ".",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "The capital of France is {{c1::Paris}}.",
+    "name": "cloze in a sentence"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          },
+          {
+            "text": " and ",
+            "type": "text"
+          },
+          {
+            "answer": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a}} and {{c1::b}}",
+    "name": "two spans of one number"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          },
+          {
+            "text": " and ",
+            "type": "text"
+          },
+          {
+            "answer": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 2,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a}} and {{c2::b}}",
+    "name": "two numbers"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 12,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c12::a}}",
+    "name": "cloze number of several digits"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c01::a}}",
+    "name": "cloze number with a leading zero"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{{c0::a}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c0::a}}",
+    "name": "cloze number zero is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{{c1234567890::a}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1234567890::a}}",
+    "name": "cloze number too long is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{{c::a}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c::a}}",
+    "name": "cloze without a number is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{{C1::a}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{C1::a}}",
+    "name": "cloze with a capital C is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{{c1::}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::}}",
+    "name": "cloze with an empty answer is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{{c1:: }}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1:: }}",
+    "name": "cloze with a blank answer is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a::}}",
+    "name": "cloze with an empty hint has no hint"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "hint": "b::c",
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a::b::c}}",
+    "name": "a hint holds later colons"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "content": [
+                  {
+                    "text": "a",
+                    "type": "text"
+                  }
+                ],
+                "type": "bold"
+              },
+              {
+                "text": " and ",
+                "type": "text"
+              },
+              {
+                "content": [
+                  {
+                    "text": "b",
+                    "type": "text"
+                  }
+                ],
+                "type": "italic"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::**a** and *b*}}",
+    "name": "an answer holds marks"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "answer": [
+                  {
+                    "text": "a",
+                    "type": "text"
+                  }
+                ],
+                "hint": null,
+                "number": 1,
+                "type": "cloze"
+              },
+              {
+                "text": " b",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "**{{c1::a}} b**",
+    "name": "cloze in bold"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "a ",
+                "type": "text"
+              },
+              {
+                "answer": [
+                  {
+                    "text": "b",
+                    "type": "text"
+                  }
+                ],
+                "hint": null,
+                "number": 1,
+                "type": "cloze"
+              }
+            ],
+            "type": "italic"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "_a {{c1::b}}_",
+    "name": "cloze in italic"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a",
+                "type": "text"
+              },
+              {
+                "type": "lineBreak"
+              },
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "hint": null,
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a\nb}}",
+    "name": "cloze across a line break"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{{c1::a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "b}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a\n\nb}}",
+    "name": "cloze across paragraphs is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "{{c1::a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a",
+    "name": "unclosed cloze is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "answer": [
+              {
+                "text": "a {{c2",
+                "type": "text"
+              }
+            ],
+            "hint": "b",
+            "number": 1,
+            "type": "cloze"
+          },
+          {
+            "text": " c}}",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "{{c1::a {{c2::b}} c}}",
+    "name": "nested cloze is not supported"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "answer": [
+                  {
+                    "text": "a",
+                    "type": "text"
+                  }
+                ],
+                "hint": null,
+                "number": 1,
+                "type": "cloze"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      }
+    ],
+    "input": "- {{c1::a}}",
+    "name": "cloze in a list item"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          },
+          {
+            "content": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      }
+    ],
+    "input": "- a\n- b",
+    "name": "bulleted list"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          },
+          {
+            "content": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": true,
+        "type": "list"
+      }
+    ],
+    "input": "1. a\n2. b",
+    "name": "numbered list"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          },
+          {
+            "content": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": true,
+        "type": "list"
+      }
+    ],
+    "input": "3. a\n7. b",
+    "name": "numbering is not kept"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": [
+              {
+                "items": [
+                  [
+                    {
+                      "text": "b",
+                      "type": "text"
+                    }
+                  ],
+                  [
+                    {
+                      "text": "c",
+                      "type": "text"
+                    }
+                  ]
+                ],
+                "ordered": false
+              }
+            ]
+          },
+          {
+            "content": [
+              {
+                "text": "d",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      }
+    ],
+    "input": "- a\n  - b\n  - c\n- d",
+    "name": "nested bullets"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": [
+              {
+                "items": [
+                  [
+                    {
+                      "text": "b",
+                      "type": "text"
+                    }
+                  ],
+                  [
+                    {
+                      "text": "c",
+                      "type": "text"
+                    }
+                  ]
+                ],
+                "ordered": true
+              }
+            ]
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      }
+    ],
+    "input": "- a\n  1. b\n  2. c",
+    "name": "nested numbers under a bullet"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": [
+              {
+                "items": [
+                  [
+                    {
+                      "text": "b",
+                      "type": "text"
+                    }
+                  ]
+                ],
+                "ordered": false
+              },
+              {
+                "items": [
+                  [
+                    {
+                      "text": "c",
+                      "type": "text"
+                    }
+                  ]
+                ],
+                "ordered": true
+              }
+            ]
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      }
+    ],
+    "input": "- a\n  - b\n  1. c",
+    "name": "a nested marker of another kind starts a sublist"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": [
+              {
+                "items": [
+                  [
+                    {
+                      "text": "b",
+                      "type": "text"
+                    }
+                  ]
+                ],
+                "ordered": false
+              }
+            ]
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      }
+    ],
+    "input": "- a\n\t- b",
+    "name": "a tab nests"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": [
+              {
+                "items": [
+                  [
+                    {
+                      "text": "b",
+                      "type": "text"
+                    }
+                  ],
+                  [
+                    {
+                      "text": "c",
+                      "type": "text"
+                    }
+                  ]
+                ],
+                "ordered": false
+              }
+            ]
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      }
+    ],
+    "input": "- a\n  - b\n    - c",
+    "name": "a third level is another item of the sublist"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      },
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": true,
+        "type": "list"
+      }
+    ],
+    "input": "- a\n1. b",
+    "name": "a marker of another kind starts a list"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      },
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "b",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      }
+    ],
+    "input": "- a\n\n- b",
+    "name": "a blank line ends a list"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      },
+      {
+        "content": [
+          {
+            "text": "text",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "- a\ntext",
+    "name": "a text line ends a list"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "text",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      }
+    ],
+    "input": "text\n- a",
+    "name": "a list interrupts a paragraph"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "a",
+                    "type": "text"
+                  }
+                ],
+                "type": "bold"
+              }
+            ],
+            "sublists": [
+              {
+                "items": [
+                  [
+                    {
+                      "content": [
+                        {
+                          "text": "b",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "italic"
+                    }
+                  ]
+                ],
+                "ordered": false
+              }
+            ]
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      }
+    ],
+    "input": "- **a**\n  - *b*",
+    "name": "marks in list items"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "  - a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "  - a",
+    "name": "a nested marker with no list is text"
+  },
+  {
+    "document": [
+      {
+        "items": [
+          {
+            "content": [
+              {
+                "text": "a",
+                "type": "text"
+              }
+            ],
+            "sublists": []
+          }
+        ],
+        "ordered": false,
+        "type": "list"
+      },
+      {
+        "content": [
+          {
+            "text": " - b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "- a\n - b",
+    "name": "one space is not a nesting"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "-",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "- ",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "1. ",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "-\n- \n1. ",
+    "name": "a marker without text is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "-a",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "1.a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "-a\n1.a",
+    "name": "a marker needs its space"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "1234567890. a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "1234567890. a",
+    "name": "a number of ten digits is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a - b",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a - b",
+    "name": "a dash in text is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "# Title",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "## Sub",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "# Title\n## Sub",
+    "name": "heading is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "[a](https://example.com)",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "[a](https://example.com)",
+    "name": "link is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "![a](b.png)",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "![a](b.png)",
+    "name": "image is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "<b>a</b>",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "<b>a</b>",
+    "name": "html is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "| a | b |",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "|---|---|",
+            "type": "text"
+          },
+          {
+            "type": "lineBreak"
+          },
+          {
+            "text": "| 1 | 2 |",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "| a | b |\n|---|---|\n| 1 | 2 |",
+    "name": "table is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "> a",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "> a",
+    "name": "block quote is literal"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "\\",
+            "type": "text"
+          },
+          {
+            "content": [
+              {
+                "text": "a\\",
+                "type": "text"
+              }
+            ],
+            "type": "italic"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "\\*a\\*",
+    "name": "a backslash does not escape a mark"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "가나",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          },
+          {
+            "text": " 다 ",
+            "type": "text"
+          },
+          {
+            "answer": [
+              {
+                "text": "라마",
+                "type": "text"
+              }
+            ],
+            "hint": "바",
+            "number": 1,
+            "type": "cloze"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "**가나** 다 {{c1::라마::바}}",
+    "name": "korean text"
+  },
+  {
+    "document": [
+      {
+        "content": [
+          {
+            "text": "a 😀 ",
+            "type": "text"
+          },
+          {
+            "content": [
+              {
+                "text": "b 😀",
+                "type": "text"
+              }
+            ],
+            "type": "bold"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "input": "a 😀 **b 😀**",
+    "name": "emoji"
+  }
+]

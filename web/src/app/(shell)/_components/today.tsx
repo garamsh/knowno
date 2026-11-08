@@ -1,13 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import {
-  AuthoringButton,
-  type Deck,
-  type LibraryFailure,
-  ReadFailure,
-  readDeckList,
-} from "@/features/decks";
+import { ReadyBubble } from "@/features/assistant";
+import { type Deck, type LibraryFailure, ReadFailure, readDeckList } from "@/features/decks";
 import {
   countDay,
   dayPlanOf,
@@ -44,7 +39,7 @@ const noon = (start: number) => start + 12 * 3_600_000;
  * left, "오늘", their count and minutes and 시작 under the thinking mascot; in a backlog, the
  * backlog's words and 시작; with the day done, "오늘", "다 했어요" and the cards done today, or the
  * next review where none was due, under the sleepy mascot, and 학습하기; with notes but no card, how
- * to start, and no streak; with no note, how to start. A day that cannot be counted puts why in
+ * to start, and no streak; with no note, how to start with 말랑이. A day that cannot be counted puts why in
  * the streak's place over 시작. With a failed read of the notes, why. From 1024 px the side
  * menu's lockup draws the app's name, so 홈's is read and not drawn.
  */
@@ -69,7 +64,11 @@ export async function Today() {
         initial={initial}
         mascot="thinking"
         words={<Title>첫 노트를 만들어 볼까요?</Title>}
-        actions={<AuthoringButton />}
+        actions={
+          <Link href="/assistant" className={`${buttonClass("primary", "cta")} w-full`}>
+            말랑이와 첫 노트 만들기
+          </Link>
+        }
       />
     );
   }
@@ -236,8 +235,8 @@ function Hill() {
 /**
  * 홈's one screen (`home-frame.ts`): the sky, under "알아몰라" and, below 1024 px, the profile
  * button with the account's [initial], holding [words] over the hill, the [mascot] in that
- * expression on its crest; on the ground [ground], the streak or why the day cannot be read,
- * centred over the [actions].
+ * expression on its crest, the link to 말랑이's chat with what it has ready beside it; on the
+ * ground [ground], the streak or why the day cannot be read, centred over the [actions].
  */
 function Home({
   initial,
@@ -265,7 +264,15 @@ function Home({
         <div className={homeWords}>{words}</div>
         <Hill />
         <div className={homeMascotRoom}>
-          <Mascot expression={mascot} className={homeMascot} />
+          {/* The mascot is 말랑이, the assistant's entry on 홈 (#722), its bubble over its head. */}
+          <Link
+            href="/assistant"
+            className="flex flex-col items-center gap-1 rounded-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero"
+          >
+            <span className="sr-only">말랑이와 대화하기</span>
+            <ReadyBubble className="rounded-row bg-surface px-3 py-2 text-center text-secondary break-keep text-ink" />
+            <Mascot expression={mascot} className={homeMascot} />
+          </Link>
         </div>
       </section>
       <div className={homeGround}>
