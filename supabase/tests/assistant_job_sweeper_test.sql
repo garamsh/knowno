@@ -15,7 +15,7 @@ $$;
 create function pg_temp.sweep() returns bigint language plpgsql as $$
 begin
   delete from net.http_request_queue;
-  perform private.sweep_photo_jobs();
+  perform private.sweep_assistant_jobs();
   return pg_temp.queued();
 end;
 $$;
@@ -82,21 +82,24 @@ update private.assistant_jobs set status = 'running', finished_at = null;
 select is(pg_temp.sweep(), 1::bigint, 'running with a queued photo again: requested');
 
 -- The schedule and the grants.
-select results_eq($$select schedule, command from cron.job where jobname = 'sweep-photo-jobs'$$,
-  $$values ('* * * * *', 'select private.sweep_photo_jobs()')$$, 'cron runs the sweep each minute');
-select is((select count(*) from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
-    where n.nspname = 'private' and p.proname in ('sweep_photo_jobs', 'request_photo_worker')
-      and (has_function_privilege('anon', p.oid, 'execute')
-        or has_function_privilege('authenticated', p.oid, 'execute')
-        or has_function_privilege('service_role', p.oid, 'execute'))),
-  0::bigint, 'no client role executes either function');
+select results_eq($$select schedule, command from cron.job where jobname = 'sweep-assistant-jobs'$$,
+  $$values ('* * * * *', 'select private.sweep_assistant_jobs()')$$, 'cron runs the sweep each minute');
+select results_eq($$select count(*), count(*) filter (where has_function_privilege('postgres', p.oid, 'execute')),
+    count(*) filter (where has_function_privilege('anon', p.oid, 'execute')
+      or has_function_privilege('authenticated', p.oid, 'execute')
+      or has_function_privilege('service_role', p.oid, 'execute'))
+  from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
+  where n.nspname = 'private'
+    and p.proname in ('sweep_assistant_jobs', 'request_assistant_job_worker')$$,
+  $$values (2::bigint, 2::bigint, 0::bigint)$$,
+  'both functions are found and the owner executes them, and no client role does');
 
 -- The revert.
-select lives_ok($$select private.revert_photo_job_sweeper()$$, 'the revert runs');
+select lives_ok($$select private.revert_assistant_job_sweeper()$$, 'the revert runs');
 select results_eq(
-  $$select (select count(*) from cron.job where jobname = 'sweep-photo-jobs'),
+  $$select (select count(*) from cron.job where jobname = 'sweep-assistant-jobs'),
     (select count(*) from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
-      where n.nspname = 'private' and p.proname in ('sweep_photo_jobs', 'request_photo_worker'))$$,
+      where n.nspname = 'private' and p.proname in ('sweep_assistant_jobs', 'request_assistant_job_worker'))$$,
   $$values (0::bigint, 0::bigint)$$, 'the cron job and the functions are gone');
 
 select * from finish();

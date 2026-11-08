@@ -17,8 +17,8 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 
 ## Decision
 
-- **The sweep.** A `pg_cron` job, `sweep-photo-jobs`, runs `private.sweep_photo_jobs()` every minute. It requests the worker once when some running job has a queued photo and has begun no read for 3 minutes, or, with none begun, was started over 3 minutes ago: the judgement of the job's poll, `STALE_MS`. Otherwise it does nothing.
-- **The request.** `private.request_photo_worker(function_url, service_role_key)` queues, through `net.http_post`, a POST of `{function_url}/jobs/work` with the service-role key as `apikey` and bearer token, as the worker's own request for itself sends it. pg_net sends it after the transaction commits and the sweep reads no response.
+- **The sweep.** A `pg_cron` job, `sweep-assistant-jobs`, runs `private.sweep_assistant_jobs()` every minute. It requests the worker once when some running job has a queued photo and has begun no read for 3 minutes, or, with none begun, was started over 3 minutes ago: the judgement of the job's poll, `STALE_MS`. Otherwise it does nothing.
+- **The request.** `private.request_assistant_job_worker(function_url, service_role_key)` queues, through `net.http_post`, a POST of `{function_url}/jobs/work` with the service-role key as `apikey` and bearer token, as the worker's own request for itself sends it. pg_net sends it after the transaction commits and the sweep reads no response.
 - **The secrets.** The function's URL, the assistant function's address `https://<project ref>.supabase.co/functions/v1/assistant`, is the Vault secret `assistant_function_url`, and the service-role key `assistant_service_role_key`. The sweep reads both by name; with either missing it does nothing and raises nothing, so local stacks, previews and CI need no secret and production sweeps once the owner has created them.
 - pg_net is enabled by the migration where it is not yet.
 
