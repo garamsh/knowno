@@ -19,6 +19,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
   - **One character in `HomeScreen`, over the whole tab area.** The notes navigator's other routes and the editor would show it, and it would need a rule for each; each screen that draws it wraps its own body instead, and what covers a screen covers its character.
   - **Lower the breathing threshold to 72.** Every 72 to 127 mascot would breathe, and nothing else is meant to; `Mascot` takes a `breathes` flag the edge character sets.
   - **A strip under every list for the character.** It would cost 96 px of every screen to keep a button clear that is tucked while the list moves.
+  - **The upload as a closure written in `main.dart`.** The composition site would then decide a bucket and a path, which `structure.md` §Composition leaves to the units it builds.
   - **Photos through `media`'s upload queue.** That queue names a deck's own images by media id into the `media` bucket and survives restarts; a chat photo is uploaded once, just before its message, into `assistant-photos` and deleted by the server when its job ends.
   - **Poll the job from the chat screen.** A job outlives the screen, and the message after it should go whether or not the chat is open.
 
@@ -30,7 +31,7 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **The context:** a chat opened from a note adds the line "name 노트에서" to the thread unless its last line already names that note, and sends `context: {deck_id}` with each message while it is open there. The marker is not a turn and is never sent.
 - **Photos:** the chat offers 사진 찍기 and 앨범에서 고르기, stages up to 50 photos as JPEGs `photo_import` prepares, and uploads each to `assistant-photos` at `{user id}/{uuid}` before the message that names them in `photos`; an upload that fails sends nothing and keeps the text and the photos.
 - **The job:** the `job` event is kept on the reply, and the chat asks `GET /assistant/jobs/{id}` every 3 s while it reads, drawing "n/m장 읽는 중" over a bar and "읽기 취소", which calls `POST …/cancel`. When it is done and no message has followed the reply, the chat sends one itself, the job on the reply that started it, and the cards made from it become ready like any others. The poll belongs to the app-level notifier, so it goes on with the chat closed and after a restart.
-- **`assistant` depends on `photo_import`** through its surface for the camera, the library and the JPEG.
+- **`assistant` depends on `photo_import`** through its surface for the camera, the library and the JPEG, and **imports `supabase_flutter`** for `SupabasePhotoStore`, the adapter it owns for the `assistant-photos` bucket, as `media`'s `SupabaseMediaServer` does for its own: the bucket, the `{user id}/{photo id}` path and the refusal where nobody is signed in are decided there, and the composition site only constructs it over the client and passes it. A fifth domain imports the package ([ADR 0020](0020-public-decks-in-a-sharing-domain.md) recorded the third).
 
 ## Consequences
 

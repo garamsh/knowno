@@ -10,8 +10,6 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'
-    show AuthException, FileOptions;
 import 'package:uuid/uuid.dart';
 
 import 'account/account.dart';
@@ -81,17 +79,7 @@ Future<void> main() async {
           functionUrl: assistantUrl(client.rest.url),
           accessToken: () async => client.auth.currentSession?.accessToken,
           readAllowance: () => client.rpc<Object?>('assistant_allowance'),
-          storePhoto: (photoId, bytes) async {
-            final user = client.auth.currentUser;
-            if (user == null) throw const AuthException('not signed in');
-            await client.storage
-                .from('assistant-photos')
-                .uploadBinary(
-                  '${user.id}/$photoId',
-                  bytes,
-                  fileOptions: const FileOptions(contentType: 'image/jpeg'),
-                );
-          },
+          storePhoto: SupabasePhotoStore(client).store,
         ),
         null => null,
       },
