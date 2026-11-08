@@ -178,4 +178,51 @@ void main() {
     expect(await device.db.select(device.db.decks).get(), isEmpty);
     expect(await device.store.owner(), isNull);
   });
+
+  group('a run under way as the controller is disposed', () {
+    /// Starts a run, holds it at its first push, and returns once the
+    /// controller has ended it with a failure: [disposed] says whether the
+    /// controller was disposed while the run was held.
+    Future<void> failRun({required bool disposed}) async {
+      await account.signInWithGoogle();
+      await until(controller.status, (status) => status is Synced);
+      final entered = Completer<void>();
+      final gate = Completer<void>();
+      server.beforePush = (_) async {
+        if (!entered.isCompleted) entered.complete();
+        await gate.future;
+      };
+      await device.deck.createDeck('French');
+      await entered.future;
+      expect(controller.status.value, isA<Syncing>());
+
+      final ended = controller.sync();
+      if (disposed) controller.dispose();
+      server.failure = const SyncOffline('lost');
+      gate.complete();
+      await ended;
+    }
+
+    test('ends without touching its status or scheduling a retry', () async {
+      await failRun(disposed: true);
+
+      expect(controller.status.value, isA<Syncing>());
+      // The retry the failure would have scheduled must not run.
+      server.failure = null;
+      server.requests.clear();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(server.requests, isEmpty);
+    });
+
+    test(
+      'control: a controller not disposed shows the failure and retries',
+      () async {
+        await failRun(disposed: false);
+
+        expect(controller.status.value, isA<SyncInterrupted>());
+        server.failure = null;
+        await until(controller.status, (status) => status is Synced);
+      },
+    );
+  });
 }
