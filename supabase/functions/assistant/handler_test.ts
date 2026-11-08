@@ -1,10 +1,9 @@
-// The assistant end to end, with Supabase Auth, PostgREST, its functions, Vault and the providers
-// replaced by an in-memory fake that applies row-level security's owner rule. No network.
+// The assistant end to end, with Supabase Auth, PostgREST, its functions, Storage, Vault and the
+// providers replaced by an in-memory fake that applies row-level security's owner rule. No network.
 import assert from "node:assert/strict";
 import { cardFormSkills, FORMS } from "../_shared/card_forms.ts";
 import { SEED } from "../_shared/card_forms_seed.ts";
 import {
-  BYTES_PER_TOKEN,
   createHandler,
   type LogEntry,
   MAX_BODY_BYTES,
@@ -14,12 +13,16 @@ import {
   MAX_REQUEST_BYTES,
   MAX_TURN_TEXT,
   MAX_TURNS,
+  STALE_MS,
   TURN_LIMIT_MS,
 } from "./handler.ts";
+import { READ_PAGE } from "./photo_tools.ts";
+import { READING_PROMPT, STEP_LIMIT_MS, WORK_LIMIT_MS } from "./worker.ts";
 import { readConfig } from "./config.ts";
 import {
   ADAPTERS,
   ANTHROPIC_URL,
+  BYTES_PER_TOKEN,
   MAX_OUTPUT_TOKENS,
   OPENROUTER_URL,
 } from "./providers.ts";
@@ -65,6 +68,32 @@ type Fake = {
   skills: Row[];
   /** Whether `card_form_skills` answers 500. */
   skillsDown: boolean;
+  /** The photo jobs, the photos uploaded as `{user}/{photo}`, the queue and the steps. */
+  jobs: Map<string, FakeJob>;
+  uploaded: Set<string>;
+  queue: { job: string; position: number; visible: boolean }[];
+  steps: Row[];
+  /** The prefixes Storage was asked to delete, and the times the worker was asked for. */
+  deleted: string[];
+  kicks: number;
+  /** The background tasks the handler started. */
+  tasks: Promise<void>[];
+};
+
+type FakeJob = {
+  user: string;
+  status: "running" | "done" | "cancelled";
+  instructions: string;
+  createdAt: string;
+  lastStepAt: string | null;
+  photos: {
+    position: number;
+    photo_id: string;
+    status: string;
+    attempts: number;
+    cut: boolean | null;
+    reading: string | null;
+  }[];
 };
 
 function seed(): Fake {
@@ -132,7 +161,186 @@ function seed(): Fake {
       text: SEED[form].text,
     })),
     skillsDown: false,
+    jobs: new Map(),
+    uploaded: new Set(),
+    queue: [],
+    steps: [],
+    deleted: [],
+    kicks: 0,
+    tasks: [],
   };
+}
+
+/** Ends [job] as done once none of its photos is queued, as the database does. */
+function endIfRead(job: FakeJob) {
+  if (
+    job.status === "running" &&
+    job.photos.every((photo) => photo.status !== "queued")
+  ) job.status = "done";
+}
+
+/** The photo-job functions, as the database answers them for the worker and the tools. */
+function jobRpc(fake: Fake, rpc: string, body: Row): Response | null {
+  switch (rpc) {
+    case "start_assistant_job": {
+      const user = String(body.user_id);
+      const photos = body.photo_ids as string[];
+      const outcome = !fake.keyed
+        ? "unavailable"
+        : fake.budget !== null && fake.charged >= fake.budget
+        ? "rate_limited"
+        : [...fake.jobs.values()].some((job) =>
+            job.user === user && job.status === "running"
+          )
+        ? "busy"
+        : photos.some((photo) => !fake.uploaded.has(`${user}/${photo}`))
+        ? "missing_photos"
+        : "started";
+      if (outcome === "started") {
+        const id = String(body.job_id);
+        fake.jobs.set(id, {
+          user,
+          status: "running",
+          instructions: String(body.instructions),
+          createdAt: new Date(clock).toISOString(),
+          lastStepAt: null,
+          photos: photos.map((photo_id, index) => ({
+            position: index + 1,
+            photo_id,
+            status: "queued",
+            attempts: 0,
+            cut: null,
+            reading: null,
+          })),
+        });
+        fake.queue.push(
+          ...photos.map((_, index) => ({
+            job: id,
+            position: index + 1,
+            visible: true,
+          })),
+        );
+      }
+      return Response.json([{
+        outcome,
+        plan: "free",
+        token_budget: fake.budget,
+        tokens_used: fake.charged,
+      }]);
+    }
+    case "next_assistant_job_step": {
+      const message = fake.queue.find((one) => one.visible);
+      if (message === undefined) {
+        return Response.json([{
+          outcome: "empty",
+          pending: fake.queue.length,
+        }]);
+      }
+      message.visible = false;
+      const job = fake.jobs.get(message.job)!;
+      const photo = job.photos[message.position - 1]!;
+      photo.attempts++;
+      job.lastStepAt = new Date(clock).toISOString();
+      fake.steps.push({
+        id: fake.steps.length + 1,
+        job_id: message.job,
+        position: message.position,
+        outcome: null,
+      });
+      return Response.json([{
+        outcome: "step",
+        pending: null,
+        step_id: fake.steps.length,
+        job_id: message.job,
+        user_id: job.user,
+        photo_id: photo.photo_id,
+        photo_position: photo.position,
+        attempt: photo.attempts,
+        plan: "free",
+        ...fake.configuration,
+        instructions: job.instructions,
+      }]);
+    }
+    case "finish_assistant_job_step": {
+      const step = fake.steps[Number(body.step_id) - 1]!;
+      Object.assign(step, body);
+      fake.charged += Number(body.input_tokens) + Number(body.output_tokens);
+      const job = fake.jobs.get(String(step.job_id))!;
+      const photo = job.photos[Number(step.position) - 1]!;
+      const at = fake.queue.findIndex((one) =>
+        one.job === step.job_id && one.position === step.position
+      );
+      if (photo.status === "queued") {
+        if (body.outcome === "ok" || body.outcome === "cut") {
+          photo.status = "read";
+          photo.reading = String(body.reading);
+          photo.cut = body.outcome === "cut";
+          fake.queue.splice(at, 1);
+        } else if (body.outcome === "unreadable" || photo.attempts >= 3) {
+          photo.status = "failed";
+          fake.queue.splice(at, 1);
+        } else fake.queue[at]!.visible = true;
+        endIfRead(job);
+      }
+      return Response.json([{
+        photo_status: photo.status,
+        job_status: job.status,
+      }]);
+    }
+    case "cancel_assistant_job": {
+      const job = fake.jobs.get(String(body.job_id));
+      if (job === undefined || job.user !== body.user_id) {
+        return Response.json(null);
+      }
+      if (job.status !== "running") return Response.json(job.status);
+      for (const photo of job.photos) {
+        if (photo.status === "queued") photo.status = "cancelled";
+      }
+      fake.queue = fake.queue.filter((one) => one.job !== body.job_id);
+      job.status = "cancelled";
+      return Response.json("cancelled");
+    }
+    case "assistant_job": {
+      const job = fake.jobs.get(String(body.job_id));
+      if (job === undefined || job.user !== body.user_id) {
+        return Response.json([]);
+      }
+      return Response.json([{
+        status: job.status,
+        created_at: job.createdAt,
+        finished_at: job.status === "running" ? null : job.createdAt,
+        last_step_at: job.lastStepAt,
+        photos: job.photos,
+      }]);
+    }
+  }
+  return null;
+}
+
+/** Storage's signing and deleting of the chat's photos, and the function's worker route. */
+function photoStorage(fake: Fake, url: URL, method: string, body: Row) {
+  const signed = url.pathname.match(
+    /^\/storage\/v1\/object\/sign\/assistant-photos\/(.+)$/,
+  )?.[1];
+  if (signed !== undefined && method === "POST") {
+    return fake.uploaded.has(signed)
+      ? Response.json({
+        signedURL: `/object/sign/assistant-photos/${signed}?token=t`,
+      })
+      : Response.json({ error: "not_found" }, { status: 400 });
+  }
+  if (
+    url.pathname === "/storage/v1/object/assistant-photos" &&
+    method === "DELETE"
+  ) {
+    fake.deleted.push(...(body.prefixes as string[]));
+    return Response.json([]);
+  }
+  if (url.pathname === "/functions/v1/assistant/jobs/work") {
+    fake.kicks++;
+    return Response.json({ working: true }, { status: 202 });
+  }
+  return null;
 }
 
 function matches(row: Row, params: URLSearchParams): boolean {
@@ -227,6 +435,11 @@ function fakeFetch(fake: Fake): typeof fetch {
         ? Response.json({ error_code: "bad_jwt" }, { status: 403 })
         : Response.json({ id: user });
     }
+    const stored = photoStorage(fake, url, method, body);
+    if (stored !== null) {
+      assert.equal(bearer, "service-role-key");
+      return stored;
+    }
     const rpc = url.pathname.match(/^\/rest\/v1\/rpc\/(.+)$/)?.[1];
     if (rpc === "admin_ai_session") {
       // Called as the user, refused to one who is not an admin.
@@ -247,6 +460,8 @@ function fakeFetch(fake: Fake): typeof fetch {
     }
     if (rpc !== undefined) {
       assert.equal(bearer, "service-role-key");
+      const job = jobRpc(fake, rpc, body);
+      if (job !== null) return job;
       switch (rpc) {
         case "save_assistant_configuration":
           fake.saved.push(body);
@@ -384,7 +599,10 @@ function parseEvents(text: string): Event[] {
 
 let clock = Date.UTC(2026, 10, 4);
 
-/** The handler over [fake], logging into [logs]; [now] and [timeout] replace the clock's. */
+/**
+ * The handler over [fake], logging into [logs]; [now] and [timeout] replace the clock's. Waiting
+ * moves the clock on, and background tasks are kept in the fake.
+ */
 function handlerOf(
   fake: Fake,
   logs: LogEntry[],
@@ -409,6 +627,11 @@ function handlerOf(
     resolve: () => Promise.resolve(["93.184.216.34"]),
     timeout: clocks.timeout ?? (() => new AbortController().signal),
     skills: cardFormSkills(() => clock),
+    background: (task) => fake.tasks.push(task),
+    wait: (ms) => {
+      clock += ms;
+      return Promise.resolve();
+    },
   });
 }
 
@@ -1960,4 +2183,396 @@ Deno.test("a history of the longest replies at every turn is never refused for i
   });
   assert.equal(refused.status, 413);
   assert.equal(over.begun, 0);
+});
+
+// Photo jobs (ADR 0198).
+
+const photoOf = (n: number) => `e0000000-0000-7000-8000-0000000000${10 + n}`;
+
+/** Starts a job of [user]'s over [photos] in the fake, as `start_assistant_job` would. */
+function jobOf(
+  fake: Fake,
+  user: string,
+  photos: readonly string[],
+  instructions = "1단원만",
+): string {
+  for (const photo of photos) fake.uploaded.add(`${user}/${photo}`);
+  const id = `f0000000-0000-7000-8000-0000000000${10 + fake.jobs.size}`;
+  jobRpc(fake, "start_assistant_job", {
+    user_id: user,
+    job_id: id,
+    photo_ids: photos,
+    instructions,
+  });
+  assert.equal(fake.jobs.get(id)?.status, "running", "setup: the job runs");
+  return id;
+}
+
+/** A reading of whichever photo the request names, as `# photo <n>`. */
+const reads = (body: Row) => {
+  const n = JSON.stringify(body.input).match(/This is photo (\d+)/)?.[1];
+  return says(`# photo ${n}`)();
+};
+
+/** Runs the worker route as the function asks for it, and waits for its work. */
+async function runWorker(
+  fake: Fake,
+  options: { token?: string; now?: () => number } = {},
+) {
+  const run = await send(fake, {
+    path: "/assistant/jobs/work",
+    token: options.token ?? "service-role-key",
+    body: {},
+    now: options.now,
+  });
+  await Promise.all(fake.tasks.splice(0));
+  return run;
+}
+
+Deno.test("a photo job starts over the photos the latest message attached, with the user's instructions, and the client is sent it, against a message with none", async () => {
+  const fake = seed();
+  const photos = [photoOf(1), photoOf(2)];
+  for (const photo of photos) fake.uploaded.add(`${ADA}/${photo}`);
+  fake.replies.push(
+    calls_("start_photo_job", { instructions: "1단원만, 표는 표로" }),
+    says("사진을 읽고 있어요."),
+  );
+  const run = await send(fake, {
+    body: {
+      messages: [{
+        role: "user",
+        text: "이 사진들로 노트 만들어 줘",
+        photos: photos.map((photo) => photo.toUpperCase()),
+      }],
+    },
+  });
+  assert.equal(run.status, 200);
+  const [id, job] = [...fake.jobs.entries()][0]!;
+  assert.equal(job.user, ADA);
+  assert.equal(job.instructions, "1단원만, 표는 표로");
+  assert.deepEqual(job.photos.map((photo) => photo.photo_id), photos);
+  assert.equal(fake.kicks, 1, "the worker is asked for");
+  assert.deepEqual(run.events.find((e) => e.event === "job")?.data, {
+    id,
+    photos: 2,
+    status: "running",
+  });
+  assert.match(
+    String(input(fake.requests[0]!)[0]!.content),
+    /\[2 photos attached\]$/,
+  );
+  assert.equal(JSON.parse(answered(fake.requests[1]!)).job_id, id);
+
+  const none = seed();
+  none.replies.push(calls_("start_photo_job", {}), says("사진을 보내 주세요."));
+  const without = await send(none);
+  assert.equal(without.status, 200);
+  assert.equal(none.jobs.size, 0);
+  assert.equal(none.kicks, 0);
+  assert.ok(!without.events.some((e) => e.event === "job"));
+  assert.match(answered(none.requests[1]!), /No photos are attached/);
+});
+
+Deno.test("a photo job is refused while another runs or the day's tokens are spent, against one that starts", async () => {
+  const body = {
+    messages: [{ role: "user", text: "읽어 줘", photos: [photoOf(3)] }],
+  };
+  const busy = seed();
+  jobOf(busy, ADA, [photoOf(1)]);
+  busy.uploaded.add(`${ADA}/${photoOf(3)}`);
+  busy.replies.push(calls_("start_photo_job", {}), says("잠시만요."));
+  await send(busy, { body });
+  assert.equal(busy.jobs.size, 1);
+  assert.match(answered(busy.requests[1]!), /Another photo job/);
+
+  const spent = seed();
+  spent.uploaded.add(`${ADA}/${photoOf(3)}`);
+  // The message starts under the budget, and a read of another job spends the rest meanwhile.
+  spent.replies.push(() => {
+    spent.charged = 200_000;
+    return calls_("start_photo_job", {})();
+  }, says("내일 다시 해요."));
+  await send(spent, { body });
+  assert.equal(spent.jobs.size, 0);
+  assert.match(answered(spent.requests[1]!), /tokens for today are spent/);
+
+  const control = seed();
+  control.uploaded.add(`${ADA}/${photoOf(3)}`);
+  control.replies.push(calls_("start_photo_job", {}), says("읽을게요."));
+  await send(control, { body });
+  assert.equal(control.jobs.size, 1);
+});
+
+Deno.test("a turn's photos are 1 to 50 distinct ids, and an assistant turn's job is described to the model", async () => {
+  const many = Array.from(
+    { length: 51 },
+    (_, n) => `e0000000-0000-7000-8000-${String(n).padStart(12, "0")}`,
+  );
+  const turn = (photos: unknown) => ({
+    messages: [{ role: "user", text: "읽어 줘", photos }],
+  });
+  for (const photos of [many, [photoOf(1), photoOf(1)], ["page.jpg"], []]) {
+    const fake = seed();
+    assert.equal((await send(fake, { body: turn(photos) })).status, 400);
+    assert.equal(fake.begun, 0);
+  }
+  const fifty = seed();
+  fifty.replies.push(says("네"));
+  assert.equal(
+    (await send(fifty, { body: turn(many.slice(0, 50)) })).status,
+    200,
+  );
+  assert.match(
+    String(input(fifty.requests[0]!)[0]!.content),
+    /\[50 photos attached\]/,
+  );
+
+  const job = "f0000000-0000-7000-8000-000000000010";
+  const described = seed();
+  described.replies.push(says("네"));
+  await send(described, {
+    body: {
+      messages: [
+        { role: "user", text: "읽어 줘", photos: [photoOf(1)] },
+        {
+          role: "assistant",
+          text: "읽고 있어요.",
+          job: { id: job, photos: 3 },
+        },
+        { role: "user", text: "다 됐어?" },
+      ],
+    },
+  });
+  assert.equal(
+    input(described.requests[0]!)[1]!.content,
+    `읽고 있어요.\n\n[photo job ${job} started over 3 photos]`,
+  );
+  const misplaced = seed();
+  assert.equal(
+    (await send(misplaced, {
+      body: {
+        messages: [
+          { role: "assistant", text: "네", photos: [photoOf(1)] },
+          { role: "user", text: "읽어 줘" },
+        ],
+      },
+    })).status,
+    400,
+  );
+});
+
+Deno.test("the worker reads each queued photo with one call of the job's model, records and charges its reading, and deletes the photos once the job is done", async () => {
+  const fake = seed();
+  const photos = [photoOf(1), photoOf(2)];
+  const id = jobOf(fake, ADA, photos);
+  fake.replies.push(reads, reads);
+  const run = await runWorker(fake);
+  assert.equal(run.status, 202);
+  const job = fake.jobs.get(id)!;
+  assert.equal(job.status, "done");
+  assert.deepEqual(job.photos.map((photo) => [photo.status, photo.reading]), [
+    ["read", "# photo 1"],
+    ["read", "# photo 2"],
+  ]);
+  assert.equal(fake.requests.length, 2, "one call a photo");
+  for (const request of fake.requests) {
+    assert.equal(request.model, fake.configuration.model);
+    assert.equal(request.instructions, READING_PROMPT);
+    assert.deepEqual(request.tools, []);
+    const [image, text] = input(request)[0]!.content as Row[];
+    const n = String(text!.text).match(/This is photo (\d+)/)![1];
+    assert.equal(
+      image!.image_url,
+      `${SUPABASE_URL}/storage/v1/object/sign/assistant-photos/${ADA}/${
+        photos[Number(n) - 1]
+      }?token=t`,
+    );
+    assert.match(String(text!.text), /1단원만/);
+  }
+  assert.equal(fake.charged, 240, "each read is charged what it used");
+  assert.deepEqual(
+    [...fake.deleted].sort(),
+    photos.map((p) => `${ADA}/${p}`).sort(),
+  );
+  assert.equal(fake.kicks, 0, "an emptied queue asks for no further work");
+  const steps = run.logs.filter((entry) =>
+    entry.route === "work" && entry.user_id !== null
+  );
+  assert.deepEqual(
+    steps.map((entry) => [entry.outcome, entry.outcome_recorded]),
+    [["ok", true], ["ok", true]],
+  );
+
+  const refused = seed();
+  jobOf(refused, ADA, [photoOf(1)]);
+  const user = await runWorker(refused, { token: "ada-token" });
+  assert.equal(user.status, 401);
+  assert.equal(refused.requests.length, 0, "a user's token runs no work");
+});
+
+Deno.test("a read that fails is charged its request's estimated input and retried, the photo failed on its third, and a photo Storage lacks fails unread", async () => {
+  const fake = seed();
+  const id = jobOf(fake, ADA, [photoOf(1)]);
+  const down = (): Response => {
+    throw new TypeError("the network is down");
+  };
+  fake.replies.push(down, down, down);
+  const job = fake.jobs.get(id)!;
+  // Each invocation that runs out of time asks for the next, as the function's chain does.
+  for (let run = 0; run < 5 && job.status === "running"; run++) {
+    await runWorker(fake);
+  }
+  assert.deepEqual(
+    job.photos.map((photo) => [photo.status, photo.attempts]),
+    [["failed", 3]],
+  );
+  assert.equal(job.status, "done");
+  assert.deepEqual(fake.steps.map((step) => step.outcome), [
+    "model_error",
+    "model_error",
+    "model_error",
+  ]);
+  assert.ok(
+    fake.steps.every((step) => Number(step.input_tokens) > 0),
+    "each failed read is charged its input as an estimate",
+  );
+
+  const lacking = seed();
+  const gone = jobOf(lacking, ADA, [photoOf(1)]);
+  lacking.uploaded.clear();
+  await runWorker(lacking);
+  assert.equal(
+    lacking.requests.length,
+    0,
+    "no model call for a photo Storage lacks",
+  );
+  assert.deepEqual(lacking.steps.map((step) => step.outcome), ["unreadable"]);
+  assert.equal(lacking.jobs.get(gone)!.photos[0]!.status, "failed");
+});
+
+Deno.test("the worker starts no read its time cannot hold and asks for a fresh invocation", async () => {
+  const fake = seed();
+  const id = jobOf(fake, ADA, [photoOf(1)]);
+  let first = true;
+  // The work starts at 0, and every later reading of the clock leaves no room for a read.
+  const now = () => {
+    if (first) {
+      first = false;
+      return 0;
+    }
+    return WORK_LIMIT_MS - STEP_LIMIT_MS + 1;
+  };
+  await runWorker(fake, { now });
+  assert.equal(fake.requests.length, 0);
+  assert.equal(fake.jobs.get(id)!.photos[0]!.status, "queued");
+  assert.equal(fake.kicks, 1);
+});
+
+Deno.test("a job's poll answers each photo's status without its reading, asks for the worker when no read began for 3 minutes, and answers another user's 404", async () => {
+  const fake = seed();
+  const id = jobOf(fake, ADA, [photoOf(1), photoOf(2)]);
+  const job = fake.jobs.get(id)!;
+  job.photos[0]!.status = "read";
+  job.photos[0]!.reading = "# 1단원";
+  const created = Date.parse(job.createdAt);
+  const fresh = await send(fake, {
+    path: `/assistant/jobs/${id}`,
+    method: "GET",
+    now: () => created + 1000,
+  });
+  assert.equal(fresh.status, 200);
+  assert.deepEqual(fresh.json, {
+    id,
+    status: "running",
+    photos: [
+      { position: 1, photo_id: photoOf(1), status: "read" },
+      { position: 2, photo_id: photoOf(2), status: "queued" },
+    ],
+    read: 1,
+    queued: 1,
+    failed: 0,
+    skipped: 0,
+    cancelled: 0,
+    created_at: job.createdAt,
+    finished_at: null,
+  });
+  assert.equal(fake.kicks, 0, "a job read recently needs no worker asked for");
+  await send(fake, {
+    path: `/assistant/jobs/${id}`,
+    method: "GET",
+    now: () => created + STALE_MS + 1,
+  });
+  assert.equal(fake.kicks, 1, "a stale job asks for the worker");
+  const other = await send(fake, {
+    path: `/assistant/jobs/${id}`,
+    method: "GET",
+    token: "grace-token",
+  });
+  assert.equal(other.status, 404);
+  const posted = await send(fake, { path: `/assistant/jobs/${id}` });
+  assert.equal(posted.status, 405);
+});
+
+Deno.test("a job's cancel stops its photos not yet read and deletes its photos, and answers another user's 404", async () => {
+  const fake = seed();
+  const id = jobOf(fake, ADA, [photoOf(1), photoOf(2)]);
+  const other = await send(fake, {
+    path: `/assistant/jobs/${id}/cancel`,
+    token: "grace-token",
+    body: {},
+  });
+  assert.equal(other.status, 404);
+  assert.equal(fake.jobs.get(id)!.status, "running");
+  const run = await send(fake, {
+    path: `/assistant/jobs/${id}/cancel`,
+    body: {},
+  });
+  assert.equal(run.status, 200);
+  assert.deepEqual(run.json, { id, status: "cancelled" });
+  assert.deepEqual(fake.jobs.get(id)!.photos.map((photo) => photo.status), [
+    "cancelled",
+    "cancelled",
+  ]);
+  assert.equal(fake.queue.length, 0);
+  assert.deepEqual(fake.deleted, [
+    `${ADA}/${photoOf(1)}`,
+    `${ADA}/${photoOf(2)}`,
+  ]);
+});
+
+Deno.test("read_photo_job answers a job's readings a page at a time, and cancel_photo_job cancels one, each refusing a job that is none", async () => {
+  const fake = seed();
+  const id = jobOf(fake, ADA, [photoOf(1), photoOf(2)]);
+  const job = fake.jobs.get(id)!;
+  for (const photo of job.photos) {
+    photo.status = "read";
+    photo.cut = false;
+    photo.reading = `${photo.position}`.repeat(READ_PAGE - 10);
+  }
+  job.status = "done";
+  fake.replies.push(
+    calls_("read_photo_job", { job_id: id }),
+    calls_("read_photo_job", { job_id: id, from: 2 }),
+    calls_("read_photo_job", { job_id: GRACE_DECK }),
+    says("다 읽었어요."),
+  );
+  await send(fake);
+  const page = (n: number) =>
+    JSON.parse(String(input(fake.requests[n]!).at(-1)!.output));
+  assert.deepEqual(page(1).readings.map((r: Row) => r.photo), [1]);
+  assert.equal(page(1).next_from, 2);
+  assert.equal(page(1).read, 2);
+  assert.deepEqual(page(2).readings.map((r: Row) => r.photo), [2]);
+  assert.equal(page(2).next_from, null);
+  assert.match(answered(fake.requests[3]!), /no photo job/i);
+
+  const cancelling = seed();
+  const running = jobOf(cancelling, ADA, [photoOf(1)]);
+  cancelling.replies.push(
+    calls_("cancel_photo_job", { job_id: running }),
+    says("멈췄어요."),
+  );
+  await send(cancelling);
+  assert.equal(cancelling.jobs.get(running)!.status, "cancelled");
+  assert.deepEqual(cancelling.deleted, [`${ADA}/${photoOf(1)}`]);
 });

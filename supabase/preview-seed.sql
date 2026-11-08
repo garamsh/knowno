@@ -177,6 +177,36 @@ insert into private.assistant_messages (user_id, plan, configuration_id, created
 select '5eed0000-0000-4000-8000-0000000000a1', 'free', l.configuration_id, now() - interval '30 minutes'
 from private.assistant_configuration_labels as l where l.plan = 'free' and l.label = 'active';
 
+-- Two photo jobs of the Free user: one done, a photo read and one failed, and one running, a photo
+-- queued on the queue; a step recorded for each read and one in flight.
+insert into private.assistant_jobs (id, user_id, plan, configuration_id, instructions, status,
+  created_at, finished_at)
+select j.id::uuid, '5eed0000-0000-4000-8000-0000000000a1', 'free', l.configuration_id, j.instructions,
+  j.status, now() - j.age, case when j.status = 'done' then now() - j.age + interval '2 minutes' end
+from private.assistant_configuration_labels as l,
+  (values ('5eed0000-0000-4000-8000-0000000000f1', '단원별로 나눠줘', 'done', interval '2 hours'),
+    ('5eed0000-0000-4000-8000-0000000000f2', '', 'running', interval '1 minute'))
+    as j (id, instructions, status, age)
+where l.plan = 'free' and l.label = 'active';
+insert into private.assistant_job_photos (job_id, position, photo_id, message_id, status, attempts,
+  reading, cut) values
+  ('5eed0000-0000-4000-8000-0000000000f1', 1, '5eed0000-0000-4000-8000-0000000000e1', null, 'read',
+    1, E'# 1단원\n\n| 단어 | 뜻 |\n|---|---|\n| run | 달리다 |', false),
+  ('5eed0000-0000-4000-8000-0000000000f1', 2, '5eed0000-0000-4000-8000-0000000000e2', null, 'failed',
+    3, null, null),
+  ('5eed0000-0000-4000-8000-0000000000f2', 1, '5eed0000-0000-4000-8000-0000000000e3',
+    (select pgmq.send('assistant_photo_reads',
+      '{"job_id": "5eed0000-0000-4000-8000-0000000000f2", "position": 1}')), 'queued', 1, null, null);
+insert into private.assistant_job_steps (user_id, job_id, position, plan, configuration_id,
+  created_at, outcome, input_tokens, output_tokens, reasoning_tokens, latency_ms)
+select '5eed0000-0000-4000-8000-0000000000a1', s.job_id::uuid, s.position, 'free', l.configuration_id,
+  now() - s.age, s.outcome, s.input_tokens, s.output_tokens, s.reasoning_tokens, s.latency_ms
+from private.assistant_configuration_labels as l,
+  (values ('5eed0000-0000-4000-8000-0000000000f1', 1, interval '2 hours', 'ok', 1900, 640, 0, 14000),
+    ('5eed0000-0000-4000-8000-0000000000f2', 1, interval '30 seconds', null, null, null, null, null))
+    as s (job_id, position, age, outcome, input_tokens, output_tokens, reasoning_tokens, latency_ms)
+where l.plan = 'free' and l.label = 'active';
+
 insert into private.revision_marks (taken_at, revision)
 select now() - interval '1 day', coalesce(max(revision), 0) from public.cards;
 

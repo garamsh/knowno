@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'theme.dart';
 import 'word_break.dart';
@@ -20,6 +21,7 @@ class AppTextField extends StatelessWidget {
     this.maxLines = 1,
     this.textInputAction,
     this.prefixIcon,
+    this.inputFormatters,
     this.style,
     this.textAlign = TextAlign.start,
     this.height = AppSize.field,
@@ -41,6 +43,9 @@ class AppTextField extends StatelessWidget {
 
   final TextInputAction? textInputAction;
   final Widget? prefixIcon;
+
+  /// Limits or reshapes what is typed.
+  final List<TextInputFormatter>? inputFormatters;
 
   /// The text's style; [AppType.body] when null.
   final TextStyle? style;
@@ -71,6 +76,7 @@ class AppTextField extends StatelessWidget {
         maxLines: maxLines,
         maxLength: maxLength,
         textInputAction: textInputAction,
+        inputFormatters: inputFormatters,
         style: style ?? AppType.body,
         textAlign: textAlign,
         onChanged: onChanged,

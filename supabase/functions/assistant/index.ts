@@ -35,4 +35,15 @@ Deno.serve(createHandler({
   },
   timeout: (ms) => AbortSignal.timeout(ms),
   skills: cardFormSkills(() => Date.now()),
+  background: (task) => {
+    // Supabase's runtime keeps the invocation alive until a task given to waitUntil settles, up to
+    // the wall clock; a runtime without it, such as plain Deno, runs the task while it serves.
+    const runtime: unknown = Reflect.get(globalThis, "EdgeRuntime");
+    const waitUntil: unknown = typeof runtime === "object" && runtime !== null
+      ? Reflect.get(runtime, "waitUntil")
+      : undefined;
+    if (typeof waitUntil === "function") waitUntil.call(runtime, task);
+    else task.catch((error) => console.error(error));
+  },
+  wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 }));

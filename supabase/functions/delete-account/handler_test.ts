@@ -28,8 +28,9 @@ type Fake = {
   lookup: number | null;
   /** Storage's answer to a listing or a delete, or "offline" for a request that never arrives. */
   storage: number | "offline";
-  /** The names of the objects in the media bucket. */
+  /** The names of the objects in the media bucket, and in the chat photos' bucket. */
   objects: Set<string>;
+  photos: Set<string>;
   calls: { url: string; method: string; headers: Headers }[];
 };
 
@@ -43,20 +44,26 @@ async function fakeStorage(
   if (fake.storage === "offline") throw new TypeError("error sending request");
   if (fake.storage !== 200) return Response.json({}, { status: fake.storage });
   const request = JSON.parse(await new Response(body).text());
+  const bucket = url.match(/\/storage\/v1\/object\/(?:list\/)?([^/]+)$/)?.[1];
+  const objects = bucket === "assistant-photos" ? fake.photos : fake.objects;
+  if (bucket !== "media" && bucket !== "assistant-photos") {
+    throw new Error(`unexpected bucket in ${url}`);
+  }
   if (
-    method === "POST" && url === `${SUPABASE_URL}/storage/v1/object/list/media`
+    method === "POST" &&
+    url === `${SUPABASE_URL}/storage/v1/object/list/${bucket}`
   ) {
-    const names = [...fake.objects]
+    const names = [...objects]
       .filter((name) => name.startsWith(`${request.prefix}/`))
       .slice(request.offset, request.offset + request.limit)
       .map((name) => ({ name: name.slice(request.prefix.length + 1) }));
     return Response.json(names);
   }
   if (
-    method === "DELETE" && url === `${SUPABASE_URL}/storage/v1/object/media`
+    method === "DELETE" && url === `${SUPABASE_URL}/storage/v1/object/${bucket}`
   ) {
     const gone: string[] = request.prefixes.filter((name: string) =>
-      fake.objects.delete(name)
+      objects.delete(name)
     );
     return Response.json(gone.map((name) => ({ name })));
   }
@@ -111,6 +118,7 @@ async function run(
     lookup?: number;
     storage?: number | "offline";
     objects?: string[];
+    photos?: string[];
     env?: Record<string, string | undefined>;
   } = {},
 ): Promise<Run> {
@@ -119,6 +127,7 @@ async function run(
     lookup: options.lookup ?? null,
     storage: options.storage ?? 200,
     objects: new Set(options.objects ?? []),
+    photos: new Set(options.photos ?? []),
     calls: [],
   };
   const env = { ...ENV, ...options.env };
@@ -260,6 +269,22 @@ Deno.test("the user's media objects are deleted page by page before the user, an
     storageDeletes.every(({ i }) => i < userDelete),
     "the objects go before the user",
   );
+});
+
+Deno.test("the user's chat photos are deleted before the user, and no one else's", async () => {
+  const own = `${ADA}/e0000000-0000-4000-8000-000000000001`;
+  const other = `${GRACE}/e0000000-0000-4000-8000-000000000002`;
+  const r = await run({ photos: [own, other] });
+  assert.equal(r.status, 204);
+  assert.deepEqual([...r.fake.photos], [other], "only Grace's photo is left");
+  const photoDelete = r.fake.calls.findIndex((c) =>
+    c.method === "DELETE" &&
+    c.url.endsWith("/storage/v1/object/assistant-photos")
+  );
+  const userDelete = r.fake.calls.findIndex((c) =>
+    c.url.includes("/auth/v1/admin/users/")
+  );
+  assert.ok(photoDelete !== -1 && photoDelete < userDelete);
 });
 
 Deno.test("a media deletion Storage refuses or never receives answers 502 and deletes no user", async () => {

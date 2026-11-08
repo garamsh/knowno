@@ -135,8 +135,10 @@ select results_eq(
     ('admin_assistant_prompts', true), ('admin_assistant_token_budgets', true),
     ('admin_clear_assistant_test', true), ('admin_save_assistant_prompt', true),
     ('admin_set_assistant_token_budget', true), ('assistant_allowance', true), ('assistant_effort_fits', true),
-    ('begin_assistant_message', true), ('finish_assistant_message', true),
-    ('save_assistant_configuration', true)$$,
+    ('assistant_job', true), ('begin_assistant_message', true), ('cancel_assistant_job', true),
+    ('finish_assistant_job_step', true), ('finish_assistant_message', true),
+    ('next_assistant_job_step', true), ('save_assistant_configuration', true),
+    ('start_assistant_job', true)$$,
   'every assistant function runs as its owner with an empty search_path');
 
 -- Starting and charging messages.
@@ -465,6 +467,10 @@ select results_eq(
 
 -- The reverts: the token budget's puts the message limit back, and then the assistant's leaves
 -- nothing the two migrations made but the reverts.
+
+-- The photo jobs' revert runs before them (assistant_photo_jobs_test.sql tests it).
+select private.revert_assistant_photo_jobs();
+drop function private.revert_assistant_photo_jobs();
 
 create function pg_temp.made_tables() returns text[] language sql stable as $$
   select coalesce(array_agg(c.relname::text order by c.relname), '{}')

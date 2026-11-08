@@ -586,3 +586,52 @@ Deno.test("a stream read stopped at [DONE], an error event or a break cancels th
   assert.deepEqual(read, [{ event: "message", data: "one" }]);
   assert.equal(whole.cancelled, false);
 });
+
+Deno.test("a turn with a photo sends its address in each provider's image form beside its text, against a turn of text alone", () => {
+  const url = "https://example.supabase.co/storage/v1/object/sign/p?token=t";
+  const turns = [
+    { role: "user" as const, text: "This is photo 1.", photo: url },
+    { role: "user" as const, text: "hi" },
+  ];
+  assert.deepEqual(ADAPTERS.openrouter.history(turns), [
+    {
+      role: "user",
+      content: [
+        { type: "input_image", image_url: url, detail: "auto" },
+        { type: "input_text", text: "This is photo 1." },
+      ],
+    },
+    { role: "user", content: "hi" },
+  ]);
+  assert.deepEqual(ADAPTERS.openai.history(turns), [
+    {
+      role: "user",
+      content: [
+        { type: "image_url", image_url: { url } },
+        { type: "text", text: "This is photo 1." },
+      ],
+    },
+    { role: "user", content: "hi" },
+  ]);
+  assert.deepEqual(ADAPTERS.anthropic.history(turns), [
+    {
+      role: "user",
+      content: [
+        { type: "image", source: { type: "url", url } },
+        { type: "text", text: "This is photo 1." },
+      ],
+    },
+    { role: "user", content: "hi" },
+  ]);
+});
+
+Deno.test("OpenAI is sent no tools field for a call of no tools, against one with tools", () => {
+  const none = ADAPTERS.openai.body({
+    configuration: configuration({ provider: "openai" }),
+    system: "Read the photo.",
+    messages: [],
+    tools: [],
+  }) as Record<string, unknown>;
+  assert.ok(!("tools" in none));
+  assert.equal((body("openai").tools as unknown[]).length, 1);
+});

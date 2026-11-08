@@ -3095,6 +3095,282 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'{day} {count}장'**
   String weekDayCards(String day, int count);
+
+  /// 홈's mascot and the chat's name for a screen reader: opens the chat.
+  ///
+  /// In ko, this message translates to:
+  /// **'말랑이와 대화하기'**
+  String get assistantOpen;
+
+  /// The first-run 홈's primary: opens the chat.
+  ///
+  /// In ko, this message translates to:
+  /// **'말랑이와 첫 노트 만들기'**
+  String get assistantFirstNote;
+
+  /// The bubble over 홈's mascot while 말랑이 has new cards ready to add.
+  ///
+  /// In ko, this message translates to:
+  /// **'카드 {count}장 만들어 뒀어요'**
+  String assistantReady(int count);
+
+  /// The chat's title, beside the mascot.
+  ///
+  /// In ko, this message translates to:
+  /// **'말랑이'**
+  String get assistantName;
+
+  /// The empty chat's line.
+  ///
+  /// In ko, this message translates to:
+  /// **'무엇을 외워 볼까요?'**
+  String get assistantEmpty;
+
+  /// The share of the day's tokens left, under the chat's title.
+  ///
+  /// In ko, this message translates to:
+  /// **'오늘 {percent}% 남았어요'**
+  String assistantShareLeft(int percent);
+
+  /// Screen reader name of the chat's ⋯.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화 메뉴'**
+  String get assistantMenu;
+
+  /// The chat's ⋯ item that clears the conversation.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화 지우기'**
+  String get assistantClear;
+
+  /// Title of the confirm before the conversation is cleared.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화를 지울까요?'**
+  String get assistantClearTitle;
+
+  /// Consequence in the confirm before the conversation is cleared.
+  ///
+  /// In ko, this message translates to:
+  /// **'지운 대화는 되돌릴 수 없어요.'**
+  String get assistantClearBody;
+
+  /// The confirm's final button.
+  ///
+  /// In ko, this message translates to:
+  /// **'지우기'**
+  String get assistantClearConfirm;
+
+  /// The message field's hint.
+  ///
+  /// In ko, this message translates to:
+  /// **'말랑이에게 부탁해 보세요'**
+  String get assistantMessageHint;
+
+  /// Sends the message.
+  ///
+  /// In ko, this message translates to:
+  /// **'보내기'**
+  String get assistantSend;
+
+  /// Stops the reply streaming in.
+  ///
+  /// In ko, this message translates to:
+  /// **'멈추기'**
+  String get assistantStop;
+
+  /// Under a reply that has not begun.
+  ///
+  /// In ko, this message translates to:
+  /// **'말랑이가 생각하는 중이에요'**
+  String get assistantThinking;
+
+  /// Screen reader prefix of the user's message.
+  ///
+  /// In ko, this message translates to:
+  /// **'나'**
+  String get assistantMe;
+
+  /// Label of a reply's web sources.
+  ///
+  /// In ko, this message translates to:
+  /// **'출처'**
+  String get assistantSources;
+
+  /// The head of a proposal that makes a new note.
+  ///
+  /// In ko, this message translates to:
+  /// **'새 노트 · {name}'**
+  String assistantNewNote(String name);
+
+  /// Screen reader name of a group's check.
+  ///
+  /// In ko, this message translates to:
+  /// **'{title} 모두 선택'**
+  String assistantSelectAll(String title);
+
+  /// A group's button that offers the other card forms.
+  ///
+  /// In ko, this message translates to:
+  /// **'다른 형식으로'**
+  String get assistantOtherForm;
+
+  /// A card form's name.
+  ///
+  /// In ko, this message translates to:
+  /// **'글'**
+  String get assistantFormText;
+
+  /// A card form's name.
+  ///
+  /// In ko, this message translates to:
+  /// **'단어'**
+  String get assistantFormSenses;
+
+  /// A card form's name.
+  ///
+  /// In ko, this message translates to:
+  /// **'빈칸 문장'**
+  String get assistantFormCloze;
+
+  /// A card form's name.
+  ///
+  /// In ko, this message translates to:
+  /// **'표'**
+  String get assistantFormTable;
+
+  /// A card form's name.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진'**
+  String get assistantFormImage;
+
+  /// A card form's name.
+  ///
+  /// In ko, this message translates to:
+  /// **'섞어서'**
+  String get assistantFormMixed;
+
+  /// A collapsed group's row.
+  ///
+  /// In ko, this message translates to:
+  /// **'카드 {count}장 · {form}'**
+  String assistantGroupCount(int count, String form);
+
+  /// The message that asks 말랑이 to remake a group in another form.
+  ///
+  /// In ko, this message translates to:
+  /// **'{title} 부분은 {form} 형식으로 다시 만들어 줘'**
+  String assistantRemake(String title, String form);
+
+  /// The sticky action that adds the checked cards.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}장 추가'**
+  String assistantAdd(int count);
+
+  /// The sticky action of a proposal that changes cards.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}장 바꾸기'**
+  String assistantChange(int count);
+
+  /// A note shortcut's line: the cards written.
+  ///
+  /// In ko, this message translates to:
+  /// **'카드 {count}장'**
+  String assistantNoteCards(int count);
+
+  /// Under a reply the user stopped.
+  ///
+  /// In ko, this message translates to:
+  /// **'멈췄어요.'**
+  String get assistantStopped;
+
+  /// Under a reply that failed.
+  ///
+  /// In ko, this message translates to:
+  /// **'말랑이가 답하지 못했어요. 다시 시도해 주세요.'**
+  String get assistantModelError;
+
+  /// Under a reply cut at the output limit.
+  ///
+  /// In ko, this message translates to:
+  /// **'답이 길어 중간에 멈췄어요. 이어서 해 달라고 해 보세요.'**
+  String get assistantCut;
+
+  /// While a message refused as busy waits.
+  ///
+  /// In ko, this message translates to:
+  /// **'앞의 메시지를 마무리하고 있어요. 잠시 후 다시 보낼게요.'**
+  String get assistantWaiting;
+
+  /// The day's tokens are used.
+  ///
+  /// In ko, this message translates to:
+  /// **'오늘 말랑이와 이야기할 수 있는 만큼 다 썼어요. 내일 다시 이야기해요.'**
+  String get assistantRateLimited;
+
+  /// A message refused as busy, after its retries.
+  ///
+  /// In ko, this message translates to:
+  /// **'앞의 메시지를 아직 마무리하고 있어요. 잠시 후 다시 시도해 주세요.'**
+  String get assistantBusy;
+
+  /// The session ended.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그인이 끝났어요. 다시 로그인해 주세요.'**
+  String get assistantSignIn;
+
+  /// The account is suspended.
+  ///
+  /// In ko, this message translates to:
+  /// **'이 계정은 지금 말랑이와 이야기할 수 없어요.'**
+  String get assistantSuspended;
+
+  /// The request is over the size limit.
+  ///
+  /// In ko, this message translates to:
+  /// **'대화가 너무 길어요. 대화를 지우고 다시 시작해 주세요.'**
+  String get assistantTooLong;
+
+  /// The function or the model is unavailable.
+  ///
+  /// In ko, this message translates to:
+  /// **'말랑이가 지금 답할 수 없어요. 잠시 후 다시 시도해 주세요.'**
+  String get assistantUnavailable;
+
+  /// The message did not reach the function.
+  ///
+  /// In ko, this message translates to:
+  /// **'연결하지 못했어요. 연결을 확인하고 다시 시도해 주세요.'**
+  String get assistantUnreachable;
+
+  /// The commit was refused.
+  ///
+  /// In ko, this message translates to:
+  /// **'카드를 추가하지 못했어요. 말랑이에게 다시 만들어 달라고 해 주세요.'**
+  String get assistantCommitRefused;
+
+  /// The commit found the session ended.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그인이 끝나 카드를 추가하지 못했어요. 다시 로그인해 주세요.'**
+  String get assistantCommitSignIn;
+
+  /// The commit failed.
+  ///
+  /// In ko, this message translates to:
+  /// **'카드를 추가하지 못했어요. 잠시 후 다시 시도해 주세요.'**
+  String get assistantCommitFailed;
+
+  /// Shown when a note the chat added has not reached this device yet.
+  ///
+  /// In ko, this message translates to:
+  /// **'노트를 아직 불러오지 못했어요. 잠시 후 다시 눌러 주세요.'**
+  String get assistantNoteNotSynced;
 }
 
 class _AppLocalizationsDelegate
