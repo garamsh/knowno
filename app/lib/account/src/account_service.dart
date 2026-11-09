@@ -31,6 +31,15 @@ abstract interface class AccountService {
   /// [AccountFailure] otherwise. Offered on iOS alone.
   Future<void> signInWithApple();
 
+  /// Asks Supabase Auth to email a 6-digit sign-in code to [email], creating
+  /// the account on its first use. Throws an [AccountFailure] when no code
+  /// was sent.
+  Future<void> sendEmailCode(String email);
+
+  /// Starts a session for [email] with the [code] it was sent. Throws an
+  /// [AccountFailure] when the code is refused or the session did not start.
+  Future<void> verifyEmailCode(String email, String code);
+
   /// Ends the session on this device, then tells the server. Throws an
   /// [AccountFailure] when the server cannot be told; the device is signed
   /// out either way.
@@ -243,6 +252,24 @@ final class NativeAccountService implements AccountService {
   }
 
   @override
+  Future<void> sendEmailCode(String email) async {
+    try {
+      await _auth.signInWithOtp(email: email, shouldCreateUser: true);
+    } on Exception catch (error) {
+      throw classifyAuthError(error);
+    }
+  }
+
+  @override
+  Future<void> verifyEmailCode(String email, String code) async {
+    try {
+      await _auth.verifyOTP(email: email, token: code, type: OtpType.email);
+    } on Exception catch (error) {
+      throw classifyAuthError(error);
+    }
+  }
+
+  @override
   Future<void> signOut() async {
     try {
       await _auth.signOut();
@@ -295,6 +322,13 @@ final class UnavailableAccountService implements AccountService {
 
   @override
   Future<void> signInWithApple() async => throw failure;
+
+  @override
+  Future<void> sendEmailCode(String email) async => throw failure;
+
+  @override
+  Future<void> verifyEmailCode(String email, String code) async =>
+      throw failure;
 
   @override
   Future<void> signOut() async {}
@@ -381,10 +415,33 @@ AccountFailure? classifyAppleError(SignInWithAppleException error) =>
 
 /// The failure a Supabase Auth [error] means. The client wraps a request that
 /// never reached the server, or that it failed with a 5xx, in
-/// [AuthRetryableFetchException].
+/// [AuthRetryableFetchException]. A refusal for coming too often is
+/// [AccountRateLimited], with the wait its message names; a code refused,
+/// wrong or expired alike, [AccountCodeRefused]; an address Auth will not
+/// send to, [AccountAddressRefused].
 AccountFailure classifyAuthError(Exception error) => switch (error) {
   AuthRetryableFetchException() => AccountOffline(error),
-  AuthApiException(code: 'provider_disabled') => AccountMisconfigured(error),
+  AuthApiException(code: 'provider_disabled') ||
+  AuthApiException(code: 'email_provider_disabled') ||
+  AuthApiException(code: 'signup_disabled') => AccountMisconfigured(error),
   AuthApiException(code: 'user_banned') => AccountSuspended(error),
+  AuthApiException(code: 'over_email_send_rate_limit') ||
+  AuthApiException(code: 'over_request_rate_limit') ||
+  AuthApiException(
+    statusCode: '429',
+  ) => AccountRateLimited(error, retryAfter: _waitNamedBy(error)),
+  AuthApiException(code: 'otp_expired') => AccountCodeRefused(error),
+  AuthApiException(code: 'validation_failed') ||
+  AuthApiException(code: 'email_address_invalid') ||
+  AuthApiException(
+    code: 'email_address_not_authorized',
+  ) => AccountAddressRefused(error),
   _ => AccountRejected(error),
 };
+
+/// The seconds a rate limit's message names, as "after 49 seconds", or null
+/// where it names none.
+Duration? _waitNamedBy(AuthApiException error) {
+  final seconds = RegExp(r'(\d+) seconds?').firstMatch(error.message)?.group(1);
+  return seconds == null ? null : Duration(seconds: int.parse(seconds));
+}

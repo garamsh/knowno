@@ -8,6 +8,8 @@ import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
 import 'account_state.dart';
 import 'apple_button.dart';
+import 'email_button.dart';
+import 'email_sign_in_screen.dart';
 import 'failure.dart';
 import 'failure_message.dart';
 import 'google_button.dart';
@@ -16,7 +18,7 @@ import 'providers.dart';
 
 /// The app's welcome while no account is signed in: its stacked logo on the
 /// ground's panel, what it does, Google sign-in and, on iOS, Apple sign-in,
-/// and the terms the user agrees to; or, when this build cannot sign anyone
+/// and then email sign-in, and the terms the user agrees to; or, when this build cannot sign anyone
 /// in, why.
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
@@ -124,8 +126,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                 height: offersApple
                                     ? GoogleButtonStyle.height +
                                           AppSpace.s8 +
+                                          GoogleButtonStyle.height +
+                                          AppSpace.s8 +
                                           GoogleButtonStyle.height
-                                    : GoogleButtonStyle.height,
+                                    : GoogleButtonStyle.height +
+                                          AppSpace.s8 +
+                                          GoogleButtonStyle.height,
                                 child: Center(
                                   child: CircularProgressIndicator(
                                     semanticsLabel: l10n.signingIn,
@@ -164,6 +170,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                   ),
                                 ),
                               ],
+                              const SizedBox(height: AppSpace.s8),
+                              EmailSignInButton(
+                                label: l10n.signInWithEmail,
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const EmailSignInScreen(),
+                                  ),
+                                ),
+                              ),
                             ],
                           },
                           const SizedBox(height: AppSpace.s16),

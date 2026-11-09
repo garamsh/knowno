@@ -34,6 +34,21 @@ Map<String, Object?> _session({String email = 'ada@example.com'}) => {
   },
 };
 
+/// Keeps what the client stores in memory.
+class _MemoryStorage extends GotrueAsyncStorage {
+  final _items = <String, String>{};
+
+  @override
+  Future<String?> getItem({required String key}) async => _items[key];
+
+  @override
+  Future<void> removeItem({required String key}) async => _items.remove(key);
+
+  @override
+  Future<void> setItem({required String key, required String value}) async =>
+      _items[key] = value;
+}
+
 void main() {
   late FakeGoogleSignIn google;
   late FakeAppleSignIn apple;
@@ -87,7 +102,13 @@ void main() {
       return respond(request);
     });
     return start(
-      GoTrueClient(url: _url, autoRefreshToken: false, httpClient: server),
+      GoTrueClient(
+        url: _url,
+        autoRefreshToken: false,
+        httpClient: server,
+        // The PKCE flow Supabase.initialize sets keeps its verifier here.
+        asyncStorage: _MemoryStorage(),
+      ),
       functionsHttp: server,
     );
   }
@@ -548,6 +569,197 @@ void main() {
     });
   });
 
+  group('signing in with an email code', () {
+    http.Response refusal(int status, String code, String message) =>
+        http.Response(
+          jsonEncode({'code': status, 'error_code': code, 'msg': message}),
+          status,
+        );
+
+    test(
+      'asks Supabase to email a code and to create the account on first use',
+      () async {
+        final service = await serviceAnswering(
+          (_) async => http.Response('{}', 200),
+        );
+
+        await service.sendEmailCode('ada@example.com');
+
+        final request = requests.single;
+        expect(request.url.path, '/auth/v1/otp');
+        expect(
+          jsonDecode(request.body),
+          allOf(
+            containsPair('email', 'ada@example.com'),
+            containsPair('create_user', true),
+          ),
+        );
+        expect(service.state, isA<SignedOut>(), reason: 'a code is no session');
+      },
+    );
+
+    test('verifies the code as an email code and starts the session it answers with', () async {
+      final service = await serviceAnswering(grant);
+      expect(service.state, isA<SignedOut>());
+
+      await service.verifyEmailCode('ada@example.com', '123456');
+
+      final request = requests.single;
+      expect(request.url.path, '/auth/v1/verify');
+      expect(
+        jsonDecode(request.body),
+        allOf(
+          containsPair('email', 'ada@example.com'),
+          containsPair('token', '123456'),
+          containsPair('type', 'email'),
+        ),
+      );
+      expect(
+        service.state,
+        isA<SignedIn>().having((s) => s.email, 'email', 'ada@example.com'),
+      );
+    });
+
+    test(
+      'signs out as any account does, though Google was never used',
+      () async {
+        final service = await serviceAnswering(
+          (request) async => request.url.path.endsWith('/logout')
+              ? http.Response('', 204)
+              : grant(request),
+        );
+        await service.verifyEmailCode('ada@example.com', '123456');
+        expect(service.state, isA<SignedIn>());
+
+        await service.signOut();
+
+        expect(service.state, isA<SignedOut>());
+        expect(requests.last.url.path, '/auth/v1/logout');
+      },
+    );
+
+    final failures =
+        <
+          (
+            String,
+            Future<http.Response> Function(http.Request),
+            bool,
+            Matcher,
+            String?,
+          )
+        >[
+          (
+            'a server that cannot be reached is offline',
+            (_) async => throw http.ClientException('no route to host'),
+            true,
+            isA<AccountOffline>(),
+            '서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.',
+          ),
+          (
+            'a refusal for coming too often names the wait the message gives',
+            (_) async => refusal(
+              429,
+              'over_email_send_rate_limit',
+              'For security purposes, you can only request this after 49 seconds.',
+            ),
+            true,
+            isA<AccountRateLimited>().having(
+              (f) => f.retryAfter,
+              'retryAfter',
+              const Duration(seconds: 49),
+            ),
+            '요청이 너무 많아요. 49초 뒤에 다시 시도해 주세요.',
+          ),
+          (
+            'a refusal for coming too often that names no wait says to try later',
+            (_) async =>
+                refusal(429, 'over_request_rate_limit', 'Too many requests'),
+            true,
+            isA<AccountRateLimited>().having(
+              (f) => f.retryAfter,
+              'retryAfter',
+              isNull,
+            ),
+            '요청이 너무 많아요. 잠시 뒤에 다시 시도해 주세요.',
+          ),
+          (
+            'a refusal with no code but the status 429 is a rate limit too',
+            (_) async => http.Response('{"msg": "slow down"}', 429),
+            true,
+            isA<AccountRateLimited>(),
+            null,
+          ),
+          (
+            'an address Auth will not send to is refused',
+            (_) async => refusal(
+              400,
+              'email_address_invalid',
+              'Email address is invalid',
+            ),
+            true,
+            isA<AccountAddressRefused>(),
+            '이 주소로는 코드를 보낼 수 없어요. 이메일 주소를 확인해 주세요.',
+          ),
+          (
+            'a malformed address is refused as an address',
+            (_) async => refusal(
+              422,
+              'validation_failed',
+              'Unable to validate email address',
+            ),
+            true,
+            isA<AccountAddressRefused>(),
+            null,
+          ),
+          (
+            'signups switched off is a configuration problem',
+            (_) async => refusal(422, 'signup_disabled', 'Signups not allowed'),
+            true,
+            isA<AccountMisconfigured>(),
+            null,
+          ),
+          (
+            'a wrong or an expired code is refused alike',
+            (_) async =>
+                refusal(403, 'otp_expired', 'Token has expired or is invalid'),
+            false,
+            isA<AccountCodeRefused>(),
+            '코드가 맞지 않거나 만료됐어요. 다시 확인하거나 새 코드를 받아 주세요.',
+          ),
+          (
+            'a banned account is suspended',
+            (_) async => refusal(403, 'user_banned', 'User is banned'),
+            false,
+            isA<AccountSuspended>(),
+            null,
+          ),
+          (
+            'any other refusal is a rejection',
+            (_) async => refusal(400, 'some_other_error', 'Something else'),
+            false,
+            isA<AccountRejected>(),
+            '로그인이 거부됐어요. 다시 시도해 주세요.',
+          ),
+        ];
+    for (final (name, respond, onSend, matcher, korean) in failures) {
+      test(name, () async {
+        final service = await serviceAnswering(respond);
+        final failure = await failureOf(
+          () => onSend
+              ? service.sendEmailCode('ada@example.com')
+              : service.verifyEmailCode('ada@example.com', '123456'),
+        );
+
+        expect(failure, matcher);
+        expect(service.state, isA<SignedOut>());
+        if (korean != null) {
+          final l10n = await AppLocalizations.delegate.load(const Locale('ko'));
+          expect(describeAccountFailure(l10n, failure!), korean);
+        }
+      });
+    }
+  });
+
   test('a build without configuration is unavailable, not a crash', () async {
     final (:service, :client) = await connectAccount(const {});
 
@@ -569,5 +781,13 @@ void main() {
       isA<AccountMisconfigured>(),
     );
     expect(await failureOf(service.deleteAccount), isA<AccountMisconfigured>());
+    expect(
+      await failureOf(() => service.sendEmailCode('ada@example.com')),
+      isA<AccountMisconfigured>(),
+    );
+    expect(
+      await failureOf(() => service.verifyEmailCode('ada@example.com', '1')),
+      isA<AccountMisconfigured>(),
+    );
   });
 }

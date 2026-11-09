@@ -25,6 +25,21 @@ class FakeAccountService implements AccountService {
   var googleSignIns = 0;
   var appleSignIns = 0;
 
+  /// The addresses [sendEmailCode] was asked to send to, in order, and the
+  /// codes [verifyEmailCode] was given with theirs.
+  final emailsSentTo = <String>[];
+  final verified = <({String email, String code})>[];
+
+  /// The one code [verifyEmailCode] accepts.
+  String emailCode = '123456';
+
+  /// What [sendEmailCode] and [verifyEmailCode] throw when set.
+  AccountFailure? sendFailure;
+  AccountFailure? verifyFailure;
+
+  /// Holds [verifyEmailCode] until it completes.
+  Completer<void>? pendingVerify;
+
   @override
   AccountState get state => _state;
 
@@ -48,6 +63,21 @@ class FakeAccountService implements AccountService {
     await _signIn();
   }
 
+  @override
+  Future<void> sendEmailCode(String email) async {
+    emailsSentTo.add(email);
+    if (sendFailure case final failure?) throw failure;
+  }
+
+  @override
+  Future<void> verifyEmailCode(String email, String code) async {
+    verified.add((email: email, code: code));
+    await pendingVerify?.future;
+    if (verifyFailure case final failure?) throw failure;
+    if (code != emailCode) throw const AccountCodeRefused(_WrongCode());
+    _set(SignedIn(userId: userId, email: email));
+  }
+
   Future<void> _signIn() async {
     await pendingSignIn?.future;
     if (failure case final failure?) throw failure;
@@ -66,4 +96,8 @@ class FakeAccountService implements AccountService {
     if (deletionFailure case final failure?) throw failure;
     deletions++;
   }
+}
+
+class _WrongCode implements Exception {
+  const _WrongCode();
 }

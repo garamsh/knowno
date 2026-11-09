@@ -46,3 +46,41 @@ final class AccountRejected extends AccountFailure {
   @override
   String toString() => 'AccountRejected: $cause';
 }
+
+/// Supabase Auth refused a request for coming too often: a code was asked for
+/// again before the interval between codes, or past the hourly limit.
+final class AccountRateLimited extends AccountFailure {
+  const AccountRateLimited(this.cause, {this.retryAfter});
+
+  final Exception cause;
+
+  /// How long to wait before asking again, where the refusal says; null where
+  /// it does not.
+  final Duration? retryAfter;
+
+  @override
+  String toString() => 'AccountRateLimited: $cause';
+}
+
+/// The email code was refused. Supabase Auth answers a code that is wrong and
+/// one that has expired the same way (`otp_expired`), so the two are one
+/// failure.
+final class AccountCodeRefused extends AccountFailure {
+  const AccountCodeRefused(this.cause);
+
+  final Exception cause;
+
+  @override
+  String toString() => 'AccountCodeRefused: $cause';
+}
+
+/// Supabase Auth refused the email address a code was asked for: it is not an
+/// address, or it is one the project may not send to.
+final class AccountAddressRefused extends AccountFailure {
+  const AccountAddressRefused(this.cause);
+
+  final Exception cause;
+
+  @override
+  String toString() => 'AccountAddressRefused: $cause';
+}

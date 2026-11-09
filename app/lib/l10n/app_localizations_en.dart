@@ -679,6 +679,67 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signInWithApple => 'Continue with Apple';
 
   @override
+  String get signInWithEmail => 'Continue with email';
+
+  @override
+  String get emailSignInBody =>
+      'We email you a 6-digit code. A first sign-in creates your account.';
+
+  @override
+  String get emailAddress => 'Email';
+
+  @override
+  String get emailAddressHint => 'name@example.com';
+
+  @override
+  String get emailAddressInvalid => 'Check the email address.';
+
+  @override
+  String get sendEmailCode => 'Send code';
+
+  @override
+  String get sendingEmailCode => 'Sending the code';
+
+  @override
+  String emailCodeBody(String email) {
+    return 'Enter the 6-digit code sent to $email.';
+  }
+
+  @override
+  String get emailCode => '6-digit code';
+
+  @override
+  String get verifyEmailCode => 'Sign in';
+
+  @override
+  String get resendEmailCode => 'Send a new code';
+
+  @override
+  String resendEmailCodeIn(int seconds) {
+    return 'You can ask for a new code in $seconds s';
+  }
+
+  @override
+  String get changeEmailAddress => 'Change email address';
+
+  @override
+  String accountRateLimited(int seconds) {
+    return 'Too many requests. Try again in $seconds s.';
+  }
+
+  @override
+  String get accountRateLimitedLater =>
+      'Too many requests. Try again in a moment.';
+
+  @override
+  String get accountCodeRefused =>
+      'The code is wrong or has expired. Check it or ask for a new one.';
+
+  @override
+  String get accountAddressRefused =>
+      'We cannot send a code to this address. Check the email address.';
+
+  @override
   String get signingIn => 'Signing in';
 
   @override
