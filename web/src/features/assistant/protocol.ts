@@ -32,7 +32,7 @@ export type JobState = "running" | "done" | "cancelled";
 /** A photo job the chat started: its [photos], the [finished] among them (read, failed or skipped). */
 export type JobProgress = { id: string; photos: number; finished: number; state: JobState };
 
-/** One event of a message's stream. */
+/** One event of a message's stream; `usage` says by [atLimit] that the turn stopped at its depth or time limit. */
 export type AssistantEvent =
   | { type: "text"; delta: string }
   | { type: "interim" }
@@ -41,7 +41,7 @@ export type AssistantEvent =
   | { type: "choice"; choice: Choice }
   | { type: "job"; id: string; photos: number }
   | { type: "error"; error: "model_error" | "cut" }
-  | { type: "usage"; allowance: Allowance };
+  | { type: "usage"; allowance: Allowance; atLimit: boolean };
 
 /** Why a message was not started, or did not reach the function. */
 export type SendRefusal =
@@ -145,7 +145,8 @@ export function parseEvent(name: string, data: string): AssistantEvent | "unknow
         : "malformed";
     default: {
       const allowance = allowanceOf(value);
-      return allowance ? { type: "usage", allowance } : "malformed";
+      const atLimit = value.outcome === "depth_limit" || value.outcome === "time_limit";
+      return allowance ? { type: "usage", allowance, atLimit } : "malformed";
     }
   }
 }

@@ -9,9 +9,18 @@ import { readUserId } from "@/supabase/session";
 import { assistantUrl } from "./forward-message";
 import { parseProposal } from "./protocol";
 
-/** What adding a proposal returns: the note and how many cards were written, or why not. */
+/**
+ * What adding a proposal returns: the note and how many cards were written, how many were left
+ * out as the note's already ([skipped]) or refused, or why not.
+ */
 export type CommitResult =
-  | { kind: "added"; deck: { id: string; name: string }; count: number }
+  | {
+      kind: "added";
+      deck: { id: string; name: string };
+      count: number;
+      skipped: number;
+      refused: number;
+    }
   | { kind: "failed"; message: string };
 
 const messages = {
@@ -79,8 +88,8 @@ export async function commitProposal(proposal: unknown, checked: unknown): Promi
   return { kind: "added", ...written };
 }
 
-/** The note and the count of cards a commit's answer says it wrote, or null when it is not one. */
-function writtenOf(body: unknown): { deck: { id: string; name: string }; count: number } | null {
+/** The note, the cards a commit's answer says it wrote and those it left out, or null when it is not one. */
+function writtenOf(body: unknown): Omit<Extract<CommitResult, { kind: "added" }>, "kind"> | null {
   if (typeof body !== "object" || body === null || !("deck" in body)) return null;
   const deck: unknown = body.deck;
   if (typeof deck !== "object" || deck === null || !("id" in deck) || !("name" in deck))
@@ -89,5 +98,14 @@ function writtenOf(body: unknown): { deck: { id: string; name: string }; count: 
   if (typeof id !== "string" || typeof name !== "string") return null;
   const list: unknown = "added" in body ? body.added : "updated" in body ? body.updated : null;
   if (!Array.isArray(list)) return null;
-  return { deck: { id, name }, count: list.length };
+  const left = (key: "skipped" | "refused") => {
+    const cards: unknown = Object.entries(body).find(([name]) => name === key)?.[1];
+    return Array.isArray(cards) ? cards.length : 0;
+  };
+  return {
+    deck: { id, name },
+    count: list.length,
+    skipped: left("skipped"),
+    refused: left("refused"),
+  };
 }

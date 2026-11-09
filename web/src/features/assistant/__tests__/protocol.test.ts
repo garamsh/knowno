@@ -40,10 +40,19 @@ describe("reading the assistant's events", () => {
         "usage",
         '{"outcome":"ok","token_budget":200000,"tokens_used":5000,"input_tokens":1}',
       ),
-    ).toEqual({ type: "usage", allowance: { tokenBudget: 200000, tokensUsed: 5000 } });
+    ).toEqual({
+      type: "usage",
+      allowance: { tokenBudget: 200000, tokensUsed: 5000 },
+      atLimit: false,
+    });
+    for (const outcome of ["depth_limit", "time_limit"])
+      expect(
+        parseEvent("usage", `{"outcome":"${outcome}","token_budget":null,"tokens_used":5}`),
+      ).toMatchObject({ type: "usage", atLimit: true });
     expect(parseEvent("usage", '{"token_budget":null,"tokens_used":5}')).toEqual({
       type: "usage",
       allowance: { tokenBudget: null, tokensUsed: 5 },
+      atLimit: false,
     });
     const proposal = parseEvent("proposal", JSON.stringify(proposalData));
     expect(proposal).toEqual({ type: "proposal", proposal: proposalData });

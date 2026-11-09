@@ -152,6 +152,8 @@ describe("adding a proposal", () => {
       kind: "added",
       deck: { id: "d1", name: "영단어" },
       count: 1,
+      skipped: 0,
+      refused: 0,
     });
     expect(received).toEqual([
       {
@@ -161,6 +163,23 @@ describe("adding a proposal", () => {
       },
     ]);
     expect(revalidated).toEqual(["/"]);
+  });
+
+  it("counts the cards a commit skipped or refused beside those it wrote", async () => {
+    functionAnswers("/commit", () =>
+      HttpResponse.json({
+        deck: { id: "d1", name: "영단어" },
+        added: [{ index: 0, id: "x", front: "apple" }],
+        skipped: [{ index: 1 }, { index: 2 }],
+        refused: [{ index: 3 }],
+        files_not_released: [],
+      }),
+    );
+    expect(await commitProposal(proposal, { g1: ["c1", "c2"] })).toMatchObject({
+      count: 1,
+      skipped: 2,
+      refused: 1,
+    });
   });
 
   it("counts the cards a commit of changes updated", async () => {

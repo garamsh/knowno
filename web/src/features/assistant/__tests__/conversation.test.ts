@@ -148,8 +148,57 @@ describe("the conversation kept in the browser", () => {
     const at = (turn: AssistantTurn): Conversation => ({ turns: [turn], draft: "" });
     expect(readyProposal(at(reply({ proposals: [open], ending: "ok" })))).toEqual(open);
     expect(readyProposal(at(reply({ proposals: [open] })))).toBeNull();
-    const added = { ...open, added: { deck: { id: "d1", name: "영단어" }, count: 3 } };
+    const added = {
+      ...open,
+      added: { deck: { id: "d1", name: "영단어" }, count: 3, skipped: 0, refused: 0 },
+    };
     expect(readyProposal(at(reply({ proposals: [added], ending: "ok" })))).toBeNull();
+  });
+});
+
+describe("a turn at its limit and a commit that left cards out", () => {
+  const atLimit = {
+    type: "usage",
+    allowance: { tokenBudget: null, tokensUsed: 1 },
+    atLimit: true,
+  } as const;
+
+  it("ends only a turn with nothing to draw and no ending as limit", () => {
+    expect(withEvent(reply({ interim: "찾는 중" }), atLimit)).toEqual(
+      reply({ ending: "limit", interim: null }),
+    );
+    // Controls: a reply, a proposal, a question, a job, an ending, and a turn not at a limit.
+    for (const held of [
+      reply({ text: "네" }),
+      reply({ proposals: [shown(proposal)] }),
+      reply({ choice: { prompt: "?", options: ["가", "나"] } }),
+      reply({ job: { id: "j1", photos: 1, finished: 0, state: "running" } }),
+      reply({ ending: "cut" }),
+    ])
+      expect(withEvent(held, atLimit)).toEqual(held);
+    expect(withEvent(reply(), { ...atLimit, atLimit: false })).toEqual(reply());
+  });
+
+  it("reads a stored limit ending, and a stored commit without the counts as 0", () => {
+    const old = { deck: { id: "d1", name: "영단어" }, count: 3 };
+    const text = JSON.stringify({
+      version: 1,
+      draft: "",
+      turns: [
+        {
+          ...reply({ proposals: [shown(proposal)], ending: "ok" }),
+          proposals: [{ ...shown(proposal), added: old }],
+        },
+        reply({ id: "a2", ending: "limit" }),
+      ],
+    });
+    const read = parseConversation(text);
+    expect((read.turns[0] as AssistantTurn).proposals[0]?.added).toEqual({
+      ...old,
+      skipped: 0,
+      refused: 0,
+    });
+    expect((read.turns[1] as AssistantTurn).ending).toBe("limit");
   });
 });
 
