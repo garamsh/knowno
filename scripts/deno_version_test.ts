@@ -5,11 +5,14 @@ import { host, program, repository, write } from "./testing.ts";
 
 const VERSION = "2.9.7";
 
-const STUB_MATCH = `if [ "$1" = --version ]; then echo "deno ${VERSION} (release, linux x86_64)"; exit 0; fi`;
+const STUB_MATCH =
+  `if [ "$1" = --version ]; then echo "deno ${VERSION} (release, linux x86_64)"; exit 0; fi`;
 
-const STUB_DIFFER = `if [ "$1" = --version ]; then echo "deno 2.4.5 (release, linux x86_64)"; exit 0; fi`;
+const STUB_DIFFER =
+  `if [ "$1" = --version ]; then echo "deno 2.4.5 (release, linux x86_64)"; exit 0; fi`;
 
-const GRANT_LINE = `deno: --allow-read=scripts --allow-write=/tmp --allow-run=env --allow-net=127.0.0.1`;
+const GRANT_LINE =
+  `deno: --allow-read=scripts --allow-write=/tmp --allow-run=env --allow-net=127.0.0.1`;
 
 Deno.test("deno version check passes when host matches scripts/.deno-version", async () => {
   const { path } = await host({ deno: STUB_MATCH });
