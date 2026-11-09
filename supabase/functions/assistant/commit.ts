@@ -15,7 +15,12 @@ export type Committed =
     readonly result: Record<string, unknown>;
   }
   | { readonly kind: "bad_request"; readonly message: string }
-  | { readonly kind: "refused"; readonly message: string };
+  | {
+    readonly kind: "refused";
+    readonly message: string;
+    /** A note this commit made and could not delete, with the delete tool's reason. */
+    readonly left?: { readonly deckId: string; readonly reason: string };
+  };
 
 /**
  * The cards of [proposal] whose ids [checked] names under their group, or why the selection is not
@@ -63,13 +68,16 @@ export async function commit(
       return { kind: "bad_request", message: "changes name their note." };
     }
     const changed = await callTool("update_cards", { cards }, store, deps);
-    return changed.kind === "refused"
-      ? { kind: "refused", message: changed.message }
-      : {
+    if (changed.kind === "refused") {
+      return { kind: "refused", message: changed.message };
+    }
+    return wrote(changed.value, "updated")
+      ? {
         kind: "written",
         deck: { id: deckId, name: proposal.deck.name },
         result: changed.value,
-      };
+      }
+      : { kind: "refused", message: reasons(changed.value) };
   }
   let deck = deckId === null ? null : { id: deckId, name: proposal.deck.name };
   if (deck === null) {
@@ -96,7 +104,43 @@ export async function commit(
     store,
     deps,
   );
-  return added.kind === "refused"
-    ? { kind: "refused", message: added.message }
-    : { kind: "written", deck, result: added.value };
+  if (added.kind === "result" && wrote(added.value, "added")) {
+    return { kind: "written", deck, result: added.value };
+  }
+  const message = added.kind === "refused"
+    ? added.message
+    : reasons(added.value);
+  // A note this commit made is not left empty, so a retry makes no second one.
+  if (deckId === null) {
+    const deleted = await callTool(
+      "delete_deck",
+      { deck_id: deck.id },
+      store,
+      deps,
+    );
+    if (deleted.kind === "refused") {
+      return {
+        kind: "refused",
+        message,
+        left: { deckId: deck.id, reason: deleted.message },
+      };
+    }
+  }
+  return { kind: "refused", message };
+}
+
+/** Whether [answer], a write tool's answer, wrote a card: its [key] list is not empty. */
+function wrote(answer: Record<string, unknown>, key: string): boolean {
+  const list = answer[key];
+  return Array.isArray(list) && list.length > 0;
+}
+
+/** Why [answer] wrote no card, each card's reason by its index; one skipped or refused is not written. */
+function reasons(answer: Record<string, unknown>): string {
+  const list = (key: string): Record<string, unknown>[] =>
+    Array.isArray(answer[key]) ? answer[key] : [];
+  const each = [...list("skipped"), ...list("refused")]
+    .sort((a, b) => Number(a.index) - Number(b.index))
+    .map((one) => `Card ${String(one.index)}: ${String(one.reason)}`);
+  return `No card was written. ${each.join(" ")}`;
 }
