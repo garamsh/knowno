@@ -93,7 +93,8 @@ async function stubAssistant(
 
 /**
  * Saves [page] at 390 and 1280 px in both themes, and at 390 px shown at 200%, when E2E_SCREENSHOTS
- * names a directory; at every size nothing reaches past the viewport's right edge.
+ * names a directory; at every size nothing reaches past the viewport's right edge, a table or code block
+ * wider than its bubble scrolling inside it.
  */
 async function capture(page: Page, name: string) {
   const directory = process.env.E2E_SCREENSHOTS;
@@ -111,6 +112,8 @@ async function capture(page: Page, name: string) {
       expect(
         await page.evaluate(() =>
           [...document.querySelectorAll<HTMLElement>("body *")]
+            // A table or a code block wider than its bubble scrolls inside it, and its cells are clipped there.
+            .filter((element) => element.closest('[role="region"][aria-label="표"], pre') === null)
             .filter((element) => element.getBoundingClientRect().right > window.innerWidth + 0.5)
             .map((element) => `${element.tagName} ${element.className}`),
         ),
@@ -371,4 +374,85 @@ test("attaches photos, stores them for the function, shows the job reading them 
   // That turn is the chat's own and is not drawn.
   await expect(page.getByText("사진 읽기가 끝났어요. 이어서 해 주세요.")).toHaveCount(0);
   await capture(page, "assistant-photos-done");
+});
+
+test("draws a Markdown reply in a bubble in both themes, its wide table scrolling inside it and its link opening a new tab", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("E2E_BASE_URL is unset");
+  await signUp(context, baseURL);
+  const wide = `| ${Array.from({ length: 12 }, (_, index) => `열 ${String(index)} 아주 긴 제목`).join(" | ")} |`;
+  const rule = `| ${Array.from({ length: 12 }, () => "---").join(" | ")} |`;
+  const row = `| ${Array.from({ length: 12 }, (_, index) => `값 ${String(index)}`).join(" | ")} |`;
+  await stubAssistant(page, [
+    {
+      events: events(
+        [
+          "text",
+          {
+            delta: [
+              "## 정리",
+              "",
+              "**굵게** 그리고 `코드`, [문서](https://example.com/doc)",
+              "",
+              "- 하나",
+              "  - 안쪽",
+              "",
+              wide,
+              rule,
+              row,
+            ].join("\n"),
+          },
+        ],
+        usage(20000),
+      ),
+    },
+  ]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/assistant");
+  await expect(field(page)).toBeVisible();
+  await say(page, "정리해 줘");
+  await expect(page.getByRole("columnheader", { name: "열 0 아주 긴 제목" })).toBeAttached();
+  const link = page.getByRole("link", { name: "문서" });
+  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+
+  const region = page.getByRole("region", { name: "표" });
+  const bubble = page.locator("li", { has: region }).locator("> div").first();
+  // The table is wider than its bubble and scrolls there, the page not at all.
+  const sizes = await region.evaluate((element) => ({
+    scroll: element.scrollWidth,
+    client: element.clientWidth,
+    overflowX: getComputedStyle(element).overflowX,
+    regionRight: element.getBoundingClientRect().right,
+    bubbleRight: element.parentElement?.getBoundingClientRect().right ?? Infinity,
+    window: window.innerWidth,
+  }));
+  expect(sizes.scroll).toBeGreaterThan(sizes.client);
+  expect(sizes.overflowX).toBe("auto");
+  expect(sizes.regionRight).toBeLessThanOrEqual(sizes.bubbleRight);
+  expect(sizes.bubbleRight).toBeLessThanOrEqual(sizes.window);
+
+  // The bubble is the surface under the hairline, in each theme, and not the ground behind it.
+  const paint = (colorScheme: "light" | "dark") =>
+    page.emulateMedia({ colorScheme }).then(() =>
+      bubble.evaluate((element) => ({
+        bubble: getComputedStyle(element).backgroundColor,
+        ground: getComputedStyle(document.body).backgroundColor,
+        text: getComputedStyle(element).color,
+      })),
+    );
+  const light = await paint("light");
+  const dark = await paint("dark");
+  // theme.md's surface: #FFFFFF light, #232F4E dark.
+  expect(light.bubble).toBe("rgb(255, 255, 255)");
+  expect(dark.bubble).toBe("rgb(35, 47, 78)");
+  expect(light.bubble).not.toBe(light.ground);
+  expect(dark.bubble).not.toBe(dark.ground);
+  expect(light.bubble).not.toBe(dark.bubble);
+  expect(light.text).not.toBe(dark.text);
+  await capture(page, "assistant-markdown");
 });
