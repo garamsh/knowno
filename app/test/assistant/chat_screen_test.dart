@@ -79,7 +79,7 @@ void main() {
     // A stream's event is delivered in a microtask, drawn by the next frame.
     await tester.pump();
     await tester.pump();
-    expect(_text('좋아요, '), findsOneWidget);
+    expect(_text('좋아요,'), findsOneWidget);
     expect(find.byTooltip('Stop'), findsOneWidget);
     feed.add(const TextDelta('만들게요'));
     feed.add(const UsageEvent(Allowance(budget: 200000, used: 100000)));
