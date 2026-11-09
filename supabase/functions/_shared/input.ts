@@ -15,6 +15,7 @@ import {
   parseCells,
   shownFirst,
   type StoredSides,
+  tableReason,
 } from "./frame.ts";
 import {
   clozeFromV1,
@@ -205,65 +206,12 @@ function isStrings(value: unknown): value is string[] {
     value.every((item) => typeof item === "string");
 }
 
-const TABLE_FORM =
-  '{"type":"table","columns":["구분","A"],"rows":[["수도","평양"]],"blanks":[{"row":0,"column":1}]}';
-
-/**
- * Why a table's columns, rows or blanks are refused, naming the field and the cell, or null when
- * they hold: the frame's reader says only that a table is wrong, and a photo's table has many cells.
- */
-function tableProblem(
-  { columns, rows, blanks = [], spans = [] }: Args,
-): string | null {
-  if (!isStrings(columns) || columns.length === 0) {
-    return `a table needs columns: a list of the column headings as text, such as ["구분","A"]. The form is ${TABLE_FORM}.`;
-  }
-  if (!Array.isArray(rows) || rows.length === 0) {
-    return `a table needs rows: a list of rows, each a list of text with one cell per column. The form is ${TABLE_FORM}.`;
-  }
-  for (const [index, row] of rows.entries()) {
-    if (!isStrings(row) || row.length !== columns.length) {
-      return `a table needs every row to be a list of ${columns.length} texts, one per column, and rows[${index}] is ${
-        isStrings(row) ? `${row.length} texts` : "not a list of texts"
-      }; write a cell with nothing as "-".`;
-    }
-  }
-  if (!Array.isArray(blanks) || !Array.isArray(spans)) {
-    return `a table needs blanks and spans to be lists. The form is ${TABLE_FORM}.`;
-  }
-  if (blanks.length === 0 && spans.length === 0) {
-    return `a table needs blanks, the cells to recall, or spans: none was given. Add blanks, counting row and column from 0, such as ${TABLE_FORM}.`;
-  }
-  for (const [index, blank] of blanks.entries()) {
-    const { row, column } = isRecord(blank) ? blank : ({} as Args);
-    const cell = Number.isInteger(row) && Number.isInteger(column)
-      ? (rows as string[][])[row as number]?.[column as number]
-      : undefined;
-    if (cell === undefined || cell.trim() === "") {
-      return `a table needs each blank to be the row and column of a cell holding text, counted from 0, and blanks[${index}] is ${
-        cell === undefined
-          ? "outside the table's " + rows.length + " rows and " +
-            columns.length + " columns"
-          : "an empty cell"
-      }.`;
-    }
-    if (
-      blanks.slice(0, index).some((seen) =>
-        isRecord(seen) && seen.row === row && seen.column === column
-      )
-    ) {
-      return `a table needs each blank to be a distinct cell, and blanks[${index}] repeats row ${row}, column ${column}.`;
-    }
-  }
-  return null;
-}
-
 function tableBlock(value: Args): Built {
   const { columns, rows, blanks = [], spans = [] } = value;
   if (!withinLimit(columns) || !withinLimit(rows)) {
     return `each column and cell must be at most ${MAX_TEXT} characters.`;
   }
-  const problem = tableProblem(value);
+  const problem = tableReason({ columns, rows, blanks, spans });
   if (problem !== null) return problem;
   return { payload: { columns, rows, blanks, spans } };
 }

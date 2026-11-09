@@ -3289,7 +3289,7 @@ Deno.test("a table read from a photo is shown as one table group, and an invalid
     [
       "a blank outside the table",
       group(tableCard({ blanks: [{ row: 7, column: 1 }] })),
-      /blanks\[0\] is outside the table's 7 rows and 4 columns/,
+      /inside the table's 7 rows and 4 columns, and blanks\[0\] \(row 7, column 1\) is outside/,
     ],
     [
       "a blank on an empty cell",
@@ -3299,7 +3299,20 @@ Deno.test("a table read from a photo is shown as one table group, and an invalid
         ),
         blanks: [{ row: 4, column: 1 }],
       })),
-      /blanks\[0\] is an empty cell/,
+      /blanks\[0\] \(row 4, column 1\) is an empty cell/,
+    ],
+    [
+      "a span past its cell's text",
+      group(tableCard({ spans: [{ row: 0, column: 1, start: 0, end: 9 }] })),
+      /groups\[0\]\.cards\[0\]: block 0: a table needs each span to run from start to end inside its cell's text of 2 units, and spans\[0\] runs 0 to 9/,
+    ],
+    [
+      "a span in a blank cell",
+      group(tableCard({
+        blanks: [{ row: 0, column: 1 }],
+        spans: [{ row: 0, column: 1, start: 0, end: 1 }],
+      })),
+      /spans\[0\] is in the blank at row 0, column 1/,
     ],
     [
       "groups as a JSON string",
