@@ -6,9 +6,17 @@ The layouts screens are built from on the phone and the web: each frame's parts 
 
 Values are [`theme.md`](theme.md)'s tokens and components [`components.md`](components.md)'s. A screen that needs a layout no frame gives proposes one here first.
 
+Each frame's image is drawn from the phone's components in light at 390 wide by `app/test/screenshots/design_shots_test.dart`, written by `make design-shots` and checked by `make test-app` ([`checks.md`](checks.md) §Frame images). The web's table has none, since the phone draws no table.
+
 ### Screen skeleton
 
 The frame of a screen the user lands on: the 노트 tab, the deck screen, 설정.
+
+![Screen skeleton on a pushed screen: the back arrow and the screen's tonal action in the bar, the name the user wrote under it, the always-shown search, a section label over a group of rows, and the pair of bottom actions at the foot with the primary last.](images/screen-skeleton.png)
+![Screen skeleton on a tab's first screen: no back bar, the title and the tonal action on one line, then the search and the group.](images/screen-skeleton-top-level.png)
+![Screen skeleton at the largest text size: the bar grows to the action's line, the title, search and rows grow, and the bottom pair stacks with the primary last.](images/screen-skeleton-largest-text.png)
+
+The images show the own action alone: the ⋯ is `ListHeaderActions`, which belongs to `home/`.
 
 1. Header: the title (`deckTitle` for a tab, `deckName` for a name the user wrote), and at its end the screen's own action, `AppButton` tonal at size `header`, then ⋯ holding the other actions (`ListHeaderActions`); where the app has an assistant, adding by hand is "직접 추가" in the ⋯ and the screen has no action of its own ([ADR 0204](../adr/0204-draw-malangi-at-a-screen-s-edge-name-the-note-a-chat-opens-from-attach-photos-to-a-message-and-follow-their-job-from-the-phone.md)). The bar grows to the action's line at a large text size.
 2. Search, where the screen lists what a user made: always shown under the header, `AppSize.search` high (`AppSearchField`).
@@ -32,6 +40,8 @@ Horizontal edges are `AppSpace.gutter` throughout. The 노트 tab and the deck s
 
 One row of a list or a group: `AppListRow`.
 
+![List row: a title with a leading icon, a second line and a chevron; a title alone; and a destructive row in red, each its own surface a row gap apart.](images/list-row.png)
+
 1. Leading widget, optional, only where [`brand.md`](brand.md) §Icons allows one.
 2. Title in `bodyStrong`, `ink` (red for a destructive row).
 3. Second line, optional, in `caption`, `muted`, only where the title alone does not say what happens ([`copy.md`](copy.md) §Forms).
@@ -42,6 +52,8 @@ Inset `AppSpace.s16` at the start and `AppSpace.s12` elsewhere, `AppSpace.s12` b
 ### Group and section
 
 Rows that share one meaning: a settings section, a note's cards, one 칸 of a card.
+
+![Group and section: two groups, each under its own section label, on one surface with a hairline between rows and a switch and a value as trailing widgets, a section gap apart.](images/group-and-section.png)
 
 1. Section label, optional: `AppSectionLabel`, in `section`, `muted`, read as a heading, inset `AppSpace.s4` with `AppSpace.s8` below it.
 2. Group: `AppGroup` (`SliverAppGroup` for a long list), one `surface` on the `group` radius over `edgeCard`; its rows split by a `hairline` 1 px high, indented `AppSpace.s16`, under all but the first. A row inside draws no surface and no gap of its own.
@@ -63,6 +75,9 @@ Below 1024 px the header row goes, and each row is a card of its own, as a row a
 
 Every modal on the phone: `AppSheet` opened by `showAppSheet`; the web's dialogs follow the same parts.
 
+![Sheet: a drag handle, a title, one sentence of body, a group of rows as content and one full-width primary action pinned at the foot, with no cancel.](images/sheet.png)
+![Confirmation: a question title, the consequence in one sentence, then cancel and, last, the red final button.](images/sheet-confirm.png)
+
 1. Drag handle, `AppSize.handle`.
 2. Title in `title` (`deckName` when it holds a name the user wrote), named by [`copy.md`](copy.md) §Forms.
 3. Body, optional: one or two sentences in `secondary`.
@@ -75,6 +90,8 @@ Insets `AppSpace.gutter` at the sides, `AppSpace.s12` above and `AppSpace.s16` b
 
 A field the user types in: `AppTextField`.
 
+![Form field: a label above the field and a counter below it; and a second field with its error in a line below it.](images/form-field.png)
+
 1. Label in `section`, `ink2`, once, above the field, starting on its left edge.
 2. Field, `AppSize.field` high (`AppSize.search` for a search), its text in `body` inset `AppSpace.s16`, a hint inside.
 3. Error in `caption` below, as [`copy.md`](copy.md) §Forms writes it; a counter below where a limit exists.
@@ -84,6 +101,9 @@ A field the user types in: `AppTextField`.
 ### Empty and failure state
 
 What a screen shows in place of content it has none of, or could not read.
+
+![Empty state: the mascot, one sentence and the primary that leads out.](images/empty-state.png)
+![Failure state: one sentence over 다시 시도, with no mascot.](images/failure-state.png)
 
 1. Mascot, where [`brand.md`](brand.md) §Mascot names the moment: one, never beside an error's red.
 2. One sentence, [`copy.md`](copy.md) §Forms's empty state or screen's error, wrapped between words.
@@ -101,4 +121,4 @@ A search with no match is one `muted` line saying to try other words, with no ac
 
 ## Open questions
 
-- Each frame's generated image, once the PM approves the paths of its generator and check (#647).
+None.

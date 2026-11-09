@@ -18,7 +18,7 @@ concurrency:
 # format, test and build. `ios` runs make build BUILD=ios, which needs macOS. The required checks,
 # ci (ubuntu) and ci (macos), are the jobs `ubuntu` and `macos`: each waits on its jobs and fails
 # when one of them failed, was cancelled or was skipped without cause. A pull request that touches
-# only docs/ or *.md files skips `checks`, `stack-tests` and `ios`; lint-repo, which reads those
+# only *.md files skips `checks`, `stack-tests` and `ios`; lint-repo, which reads those
 # files, still runs.
 #
 # Each job installs only the tools its targets run. The scripts in scripts/ skip a step whose tool
@@ -54,7 +54,6 @@ jobs:
           filters: |
             code:
               - '**'
-              - '!docs/**'
               - '!**/*.md'
       # On a push the filter compares with the commit main held before it, through git.
       - if: github.event_name == 'push'
@@ -257,7 +256,7 @@ jobs:
     if: ${{ always() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-24.04
     steps:
-      # A job passes when it succeeded. It may be skipped only as the docs-only filter skips it:
+      # A job passes when it succeeded. It may be skipped only as the filter skips it:
       # any job but lint-repo when no code changed.
       - &verdict
         env:
@@ -265,7 +264,7 @@ jobs:
           CODE: ${{ needs.changes.outputs.code == 'true' }}
         run: |
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
-          [ "$CODE" = true ] || echo "no file outside docs/ and *.md changed, so only lint-repo ran"
+          [ "$CODE" = true ] || echo "no file but *.md changed, so only lint-repo ran"
           failed=$(echo "$NEEDS" | jq -r --argjson code "$CODE" '
             to_entries[]
             | select(.value.result != "success")
