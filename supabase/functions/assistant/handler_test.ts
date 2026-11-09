@@ -1526,6 +1526,73 @@ Deno.test("the open note is named to the model", async () => {
   );
 });
 
+Deno.test("an assistant turn that said nothing is left out of the history and its user turns meet as one, against a user turn that said nothing refused", async () => {
+  const fake = seed();
+  fake.replies.push(says("네"));
+  const run = await send(fake, {
+    body: {
+      messages: [
+        { role: "user", text: "안녕" },
+        { role: "assistant", text: "" },
+        { role: "user", text: "다시" },
+      ],
+    },
+  });
+  assert.equal(run.status, 200);
+  const sent = input(fake.requests[0]!);
+  assert.deepEqual(sent.map((m) => m.role), ["user"]);
+  assert.equal(sent[0]!.content, "안녕\n\n다시");
+  // Control: an empty user turn is still refused, and an empty turn between replies is left out.
+  const refused = await send(seed(), {
+    body: {
+      messages: [
+        { role: "user", text: "" },
+        { role: "assistant", text: "응" },
+        { role: "user", text: "다시" },
+      ],
+    },
+  });
+  assert.equal(refused.status, 400);
+  const kept = seed();
+  kept.replies.push(says("네"));
+  assert.equal(
+    (await send(kept, {
+      body: {
+        messages: [
+          { role: "user", text: "하나" },
+          { role: "assistant", text: "응" },
+          { role: "user", text: "둘" },
+          { role: "assistant", text: "" },
+          { role: "user", text: "셋" },
+        ],
+      },
+    })).status,
+    200,
+  );
+  assert.deepEqual(
+    input(kept.requests[0]!).map((m) => m.role),
+    ["user", "assistant", "user"],
+  );
+});
+
+Deno.test("a history that starts with an assistant turn is sent from its first user turn, against one that starts with a user", async () => {
+  const fake = seed();
+  fake.replies.push(says("네"));
+  const run = await send(fake, {
+    body: {
+      messages: [
+        { role: "assistant", text: "앞의 답" },
+        { role: "user", text: "물어봄" },
+      ],
+    },
+  });
+  assert.equal(run.status, 200);
+  assert.deepEqual(
+    input(fake.requests[0]!).map((m) => m.role),
+    ["user"],
+  );
+});
+
 Deno.test("requests are refused before any count: no token, a suspended user, a malformed body", async () => {
   const fake = seed();
   assert.equal((await send(fake, { token: null })).status, 401);
@@ -2352,7 +2419,8 @@ Deno.test("a history of the longest replies at every turn is never refused for i
   // Every turn but the last a longest reply of three-byte characters, as the server streams it.
   const reply = "가".repeat(MAX_REPLY_TEXT);
   const messages = [
-    ...Array.from({ length: MAX_TURNS - 1 }, () => ({
+    { role: "user", text: "시작" },
+    ...Array.from({ length: MAX_TURNS - 2 }, () => ({
       role: "assistant",
       text: reply,
     })),

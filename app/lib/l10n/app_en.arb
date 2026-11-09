@@ -218,7 +218,7 @@
   "cardCount": "{count, plural, =1{1 card} other{{count} cards}}",
   "todayChip": "Today {count}",
   "backlogPaused": "New cards wait until you catch up on your reviews.",
-  "searchCards": "Search",
+  "searchCards": "Search cards",
   "noMatches": "No card matches. Try other words.",
   "saveAndNext": "Save and next card",
   "deleteCardTitle": "Delete this card?",

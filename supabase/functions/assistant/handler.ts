@@ -646,8 +646,29 @@ function readMessage(body: unknown, ids: IdSource): Incoming | null {
       notes.push(`[${photos.length} photos attached]`);
     }
     const described = describeTurn(text, shown, notes, ids);
-    if (described === null) return null;
+    if (described === null) {
+      // An assistant turn that said nothing, as one does when its user left or its model failed
+      // before any text, is no turn: clients send it back. A user turn that said nothing, and a
+      // turn over the cap, are refused.
+      const empty = text.trim() === "" && shown.length === 0 &&
+        notes.length === 0;
+      if (message.role === "user" || !empty) return null;
+      continue;
+    }
     proposals.push(...shown);
+    const last = turns.at(-1);
+    if (message.role === "assistant" && last === undefined) {
+      // Anthropic requires a history that does not start with an assistant turn, as a window of the last 40 can.
+      continue;
+    }
+    if (message.role === "user" && last?.role === "user") {
+      // The turns dropped between two user turns leave them adjacent; the providers take alternation.
+      turns[turns.length - 1] = {
+        ...last,
+        text: `${last.text}\n\n${described}`,
+      };
+      continue;
+    }
     turns.push({ role: message.role, text: described });
   }
   if (turns.at(-1)?.role !== "user") return null;

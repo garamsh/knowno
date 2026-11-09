@@ -1414,7 +1414,7 @@ abstract class AppLocalizations {
   /// Hint of the card list search field.
   ///
   /// In ko, this message translates to:
-  /// **'검색'**
+  /// **'카드 검색'**
   String get searchCards;
 
   /// Shown when no card matches the card list search.

@@ -44,6 +44,9 @@ class AppTextField extends StatelessWidget {
   final int? maxLines;
 
   final TextInputAction? textInputAction;
+
+  /// Drawn before the text at its own size, with the room around it its own:
+  /// Material's 48 square box is not kept.
   final Widget? prefixIcon;
 
   /// Limits or reshapes what is typed.
@@ -103,6 +106,7 @@ class AppTextField extends StatelessWidget {
           // A message is a sentence, which wraps rather than being cut.
           errorMaxLines: 5,
           prefixIcon: prefixIcon,
+          prefixIconConstraints: const BoxConstraints(),
         ),
       ),
     );
