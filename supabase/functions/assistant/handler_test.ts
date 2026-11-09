@@ -460,13 +460,15 @@ function rest(
     return new Response(null, { status: 201 });
   }
   if (method === "PATCH") {
+    const hit: Row[] = [];
     fake.writes.push({ method, table, body });
     for (const row of rows) {
       if (row.user_id === user && matches(row, url.searchParams)) {
         Object.assign(row, body);
+        hit.push({ id: row.id });
       }
     }
-    return Response.json([]);
+    return Response.json(hit);
   }
   if (method !== "GET") {
     fake.writes.push({ method, table, body });
@@ -1451,6 +1453,53 @@ Deno.test("a commit of a new note whose add_cards is refused whole leaves no not
   assert.match(run.json.message, /No deck of the signed-in user/);
   assert.equal(fake.decks.some((d) => d.name === "사라진 노트"), true);
   assert.equal(live(fake, "사라진 노트").length, 0);
+  assert.equal(run.logs[0]!.left_deck_id, undefined);
+  // A note whose deletion is refused too is logged by id and reason, and the answer is the same.
+  const stuck = seed();
+  stuck.unreadDecks = 2;
+  const left = await commitOf(stuck, { id: null, name: "남은 노트" }, [
+    PROPOSAL.groups[0]!.cards[0]!,
+  ]);
+  assert.equal(left.status, 422);
+  assert.match(left.json.message, /No deck of the signed-in user/);
+  assert.equal(live(stuck, "남은 노트").length, 1);
+  assert.equal(left.logs.length, 1);
+  assert.equal(left.logs[0]!.left_deck_id, live(stuck, "남은 노트")[0]!.id);
+  assert.match(left.logs[0]!.left_reason!, /No deck of the signed-in user/);
+  assert.equal(JSON.stringify(left.logs[0]).includes("dog"), false);
+});
+
+Deno.test("a changes commit that updates no card answers a refusal with each reason, against one that updates a card", async () => {
+  const APPLE = "00000000-0000-7000-8000-000000000c01";
+  const change = (id: string) => ({
+    id: "00000000-0000-7000-8000-0000000000d1",
+    card: {
+      id,
+      blocks: [{ type: "text", front: "apple", back: "사과 (과일)" }],
+    },
+  });
+  const changes = (fake: Fake, id: string) => {
+    const group = { ...PROPOSAL.groups[0]!, cards: [change(id)] };
+    return send(fake, {
+      path: "/assistant/commit",
+      body: {
+        proposal: { ...PROPOSAL, kind: "changes", groups: [group] },
+        checked: { [group.id]: [change(id).id] },
+      },
+    });
+  };
+  const missing = await changes(
+    seed(),
+    "00000000-0000-7000-8000-000000000c99",
+  );
+  assert.equal(missing.status, 422);
+  assert.equal(missing.json.error, "refused");
+  assert.match(missing.json.message, /^No card was written\. Card 0: /);
+  const fake = seed();
+  const ok = await changes(fake, APPLE);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.json.updated.length, 1);
+  assert.equal(live(fake, "영단어").length, 1);
 });
 
 Deno.test("a commit refuses a card its group lacks and another user's note, against its own", async () => {
