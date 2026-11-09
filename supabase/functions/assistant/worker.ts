@@ -17,6 +17,7 @@ import {
   type Step,
   type StepOutcome,
   type StepUsage,
+  unclearedJobs,
 } from "./jobs.ts";
 import {
   ADAPTERS,
@@ -194,11 +195,54 @@ async function read(step: Step, deps: WorkerDeps): Promise<Read> {
   };
 }
 
+/** Logs the line of a call to Supabase that failed, one the queue and the sweep outlive. */
+function unavailable(deps: WorkerDeps, started: number): void {
+  deps.log({
+    route: "work",
+    user_id: null,
+    plan: null,
+    provider: null,
+    model: null,
+    model_calls: null,
+    input_tokens: null,
+    output_tokens: null,
+    reasoning_tokens: null,
+    web_search_requests: null,
+    latency_ms: Math.round(deps.now() - started),
+    outcome_recorded: null,
+    outcome: "unavailable",
+  });
+}
+
+/**
+ * Deletes the photos of every job that ended and still has them, which a job ending in SQL leaves
+ * and a failed deletion left before; one that fails is logged and the others go on.
+ */
+async function clearEnded(deps: WorkerDeps, started: number): Promise<void> {
+  let ended;
+  try {
+    ended = await unclearedJobs(deps.supabase);
+  } catch (error) {
+    if (!(error instanceof SupabaseError)) throw error;
+    unavailable(deps, started);
+    return;
+  }
+  for (const job of ended) {
+    try {
+      await clearJob(job.userId, job.jobId, deps.supabase);
+    } catch (error) {
+      if (!(error instanceof SupabaseError)) throw error;
+      unavailable(deps, started);
+    }
+  }
+}
+
 /** Reads [step]'s photo and records it, which charges it; logs one line. */
 async function take(step: Step, deps: WorkerDeps): Promise<void> {
   const started = deps.now();
   const done = await read(step, deps);
   let recorded = true;
+  let ended = false;
   try {
     const after = await finishStep(
       step.stepId,
@@ -208,12 +252,18 @@ async function take(step: Step, deps: WorkerDeps): Promise<void> {
       done.outcome === "ok" || done.outcome === "cut" ? done.reading : null,
       deps.supabase,
     );
-    if (after.job !== "running") {
-      await clearJob(step.userId, step.jobId, deps.supabase);
-    }
+    ended = after.job !== "running";
   } catch (error) {
     if (!(error instanceof SupabaseError)) throw error;
     recorded = false;
+  }
+  if (ended) {
+    try {
+      await clearJob(step.userId, step.jobId, deps.supabase);
+    } catch (error) {
+      if (!(error instanceof SupabaseError)) throw error;
+      unavailable(deps, started);
+    }
   }
   deps.log({
     route: "work",
@@ -234,7 +284,8 @@ async function take(step: Step, deps: WorkerDeps): Promise<void> {
 
 /**
  * Reads photos off the queue from [started] until none is queued or the work's time leaves no room
- * for a whole read, and then, with photos still queued, asks for a fresh invocation.
+ * for a whole read, deletes the photos of the jobs that ended, and then, with photos still queued,
+ * asks for a fresh invocation.
  */
 export async function work(deps: WorkerDeps, started: number): Promise<void> {
   let outOfTime = false;
@@ -254,10 +305,11 @@ export async function work(deps: WorkerDeps, started: number): Promise<void> {
     Array.from({ length: LANES }, lane),
   );
   for (const ended of lanes) {
-    if (
-      ended.status === "rejected" && !(ended.reason instanceof SupabaseError)
-    ) throw ended.reason;
+    if (ended.status !== "rejected") continue;
+    if (!(ended.reason instanceof SupabaseError)) throw ended.reason;
+    unavailable(deps, started);
   }
+  await clearEnded(deps, started);
   // When Supabase did not answer, the queue keeps every photo and the next poll of a job asks again.
   if (outOfTime && lanes.every((ended) => ended.status === "fulfilled")) {
     await kick(deps.supabase);

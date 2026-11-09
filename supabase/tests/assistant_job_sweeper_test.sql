@@ -1,11 +1,12 @@
 -- The sweep of stalled photo jobs (#760, ADR 0203): it requests the worker once for a running job
--- with a queued photo and no read begun for 3 minutes, and nothing for a job that is fresh, that
+-- with a queued photo and no read begun for 3 minutes, or one that ended over a minute ago with its
+-- photos still in the bucket (#800), and nothing for a job that is fresh, that
 -- has begun a read lately, that has no queued photo or that is not running, nor while either Vault
 -- secret is missing; the request carries the service-role key; cron schedules it each minute; no
 -- client reaches it; and the revert. pg_net is not sent to: its queue is read inside the
 -- transaction, which rolls back before the background worker sees a row.
 begin;
-select plan(17);
+select plan(19);
 
 create function pg_temp.queued() returns bigint language sql as $$
   select count(*) from net.http_request_queue;
@@ -78,6 +79,15 @@ update private.assistant_job_photos set status = 'queued',
   message_id = (select pgmq.send('assistant_photo_reads', '{}'));
 update private.assistant_jobs set status = 'cancelled', finished_at = now();
 select is(pg_temp.sweep(), 0::bigint, 'a job not running: nothing requested');
+
+-- A job that ended with its photos still in the bucket is requested a minute after it ended, and
+-- not once they are deleted.
+update private.assistant_jobs set finished_at = now() - interval '2 minutes';
+select is(pg_temp.sweep(), 1::bigint,
+  'a job that ended 2 minutes ago with its photos in the bucket: requested');
+update private.assistant_jobs set photos_cleared_at = now();
+select is(pg_temp.sweep(), 0::bigint, 'its photos deleted: nothing requested');
+update private.assistant_jobs set photos_cleared_at = null;
 update private.assistant_jobs set status = 'running', finished_at = null;
 select is(pg_temp.sweep(), 1::bigint, 'running with a queued photo again: requested');
 
