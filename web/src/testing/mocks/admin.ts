@@ -199,9 +199,13 @@ export class FakeAdmin {
   readonly cardFormSkillLabels = new Map<string, number>(
     this.cardFormSkills.map((skill) => [`${skill.form} active`, skill.id]),
   );
-  /** The card markup switch, off, and who set it and when once an admin has. */
-  cardMarkup: { enabled: boolean; by: string | null; at: string } = {
+  /**
+   * The card markup switch, off, and who set it and when once an admin has; `everSet` stays true
+   * when `by` names an account that is gone, as the server's `ever_set` does.
+   */
+  cardMarkup: { enabled: boolean; everSet: boolean; by: string | null; at: string } = {
     enabled: false,
+    everSet: false,
     by: null,
     at: "2026-11-09T01:00:00Z",
   };
@@ -704,6 +708,7 @@ export class FakeAdmin {
         return [
           {
             enabled: this.cardMarkup.enabled,
+            ever_set: this.cardMarkup.everSet,
             set_by_email: this.users.find((user) => user.id === this.cardMarkup.by)?.email ?? null,
             set_at: this.cardMarkup.at,
           },
@@ -713,7 +718,7 @@ export class FakeAdmin {
         if (typeof enabled !== "boolean") return "bad_value";
         if (this.cardMarkup.enabled === enabled) return "unchanged";
         const before = this.cardMarkup.enabled;
-        this.cardMarkup = { enabled, by: admin, at: "2026-11-09T11:00:00Z" };
+        this.cardMarkup = { enabled, everSet: true, by: admin, at: "2026-11-09T11:00:00Z" };
         this.record(admin, "set_card_markup", "switch", "card_markup", {
           enabled,
           enabled_before: before,

@@ -22,9 +22,9 @@ export function MarkupSwitch({ markup, timeZone }: { markup: CardMarkup; timeZon
         <div className={row}>
           <p className="text-body-strong">{markup.enabled ? "켜짐" : "꺼짐"}</p>
           <p className="text-caption text-muted">
-            {markup.setByEmail === null
-              ? "아직 바꾼 적 없어요"
-              : `${formatTime(markup.setAt, timeZone)} · ${markup.setByEmail}`}
+            {markup.everSet
+              ? `${formatTime(markup.setAt, timeZone)} · ${markup.setByEmail ?? "삭제된 계정"}`
+              : "아직 바꾼 적 없어요"}
           </p>
           <p className="text-caption text-muted break-words">
             켜기 전에: 글 버전 3과 빈칸 버전 2를 읽는 앱이 TestFlight에 있어야 해요. 이 페이지는
