@@ -9,6 +9,7 @@ export function DeckSkeleton() {
   return (
     <Skeleton status="노트를 불러오는 중이에요." className="flex flex-1 flex-col">
       <ScreenSkeleton
+        placeholder
         title={<SkeletonLine text="text-deck-name" width="w-1/3" />}
         actions={<span className="size-tap-target shrink-0 rounded-chip bg-surface" />}
         search={<span className="block h-search rounded-field bg-surface" />}

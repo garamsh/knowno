@@ -7,11 +7,13 @@ import type { ReactNode } from "react";
  * gutters every slot sits on. A [topLevel] screen, one the menu opens, shares one line between the
  * title and the actions, wrapping the actions under a long title; any other screen has a bar of
  * the actions above its title. [userTitle] draws a name the user wrote, two lines at most.
+ * [placeholder] draws the title in a `div`, for a loading placeholder, which has no heading.
  */
 export function ScreenSkeleton({
   title,
   topLevel = false,
   userTitle = false,
+  placeholder = false,
   actions,
   search,
   children,
@@ -19,18 +21,20 @@ export function ScreenSkeleton({
   title: ReactNode;
   topLevel?: boolean;
   userTitle?: boolean;
+  placeholder?: boolean;
   actions?: ReactNode;
   search?: ReactNode;
   children: ReactNode;
 }) {
+  const Title = placeholder ? "div" : "h1";
   const name = (
-    <h1
+    <Title
       className={
         userTitle ? "line-clamp-2 text-deck-name break-words break-keep" : "text-deck-title"
       }
     >
       {title}
-    </h1>
+    </Title>
   );
   return (
     <div className="flex flex-1 flex-col gap-4">

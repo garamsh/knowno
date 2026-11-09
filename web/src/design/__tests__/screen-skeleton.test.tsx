@@ -57,4 +57,15 @@ describe("the screen skeleton", () => {
     expect(slot(container, "header")?.children).toHaveLength(1);
     expect(slot(container, "body")).toHaveClass("gap-section-gap");
   });
+
+  it("draws a placeholder's title without a heading", () => {
+    render(
+      <ScreenSkeleton title={<span>line</span>} placeholder>
+        <p>rows</p>
+      </ScreenSkeleton>,
+    );
+
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getByText("line").parentElement).toHaveClass("text-deck-title");
+  });
 });

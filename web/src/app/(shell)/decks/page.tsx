@@ -16,6 +16,7 @@ export default function NotesPage() {
       fallback={
         <Skeleton status="노트를 불러오는 중이에요." className="flex flex-1 flex-col">
           <ScreenSkeleton
+            placeholder
             title={<SkeletonLine text="text-deck-title" width="w-20" />}
             topLevel
             actions={<span className="size-tap-target shrink-0 rounded-chip bg-surface" />}
