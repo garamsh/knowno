@@ -482,6 +482,11 @@ class _ReplyView extends StatelessWidget {
     final colors = AppColors.of(context);
     final ending = turn.ending;
     final choice = turn.choice;
+    // A remark of marks alone has no words to show.
+    final line = switch (turn.interim) {
+      final interim? => plainLine(interim),
+      null => '',
+    };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: AppSpace.s12,
@@ -496,9 +501,9 @@ class _ReplyView extends StatelessWidget {
           ),
         if (ending == null && turn.text.isEmpty)
           _Notice(
-            text: turn.interim ?? l10n.assistantThinking,
+            text: line.isEmpty ? l10n.assistantThinking : line,
             status: true,
-            oneLine: turn.interim != null,
+            oneLine: line.isNotEmpty,
           ),
         if (turn.job case final job?) _JobView(job: job, onCancel: onCancelJob),
         if (turn.citations.isNotEmpty)
