@@ -197,12 +197,21 @@ async function main(args: string[]): Promise<void> {
   const work = await Deno.makeTempDir({ prefix: "migration-preview." });
   stack.onStop(() => Deno.remove(work, { recursive: true }));
   await stack.run(async () => {
-    // main's supabase/ as the stack's project: its config and migrations, and its empty seed.sql.
+    // main's supabase/ as the stack's project: its config, the email templates the config names,
+    // when it has any, its migrations, and its empty seed.sql.
+    const templates = (await captured("git", [
+        "cat-file",
+        "-e",
+        `${base.commit}:supabase/templates`,
+      ], { quiet: true })).code === 0
+      ? ["supabase/templates"]
+      : [];
     await attached("git", [
       "archive",
       `--output=${work}/main.tar`,
       base.commit,
       "supabase/config.toml",
+      ...templates,
       "supabase/seed.sql",
       MIGRATIONS,
     ]);

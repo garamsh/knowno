@@ -1,0 +1,54 @@
+# ADR 0213: Sign in by email with a six-digit code sent in Korean, and set the production project's Auth by hand, since its `config.toml` section is not applied
+
+> Status: accepted
+> Date: 2026-11-09
+
+Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
+
+## Context
+
+- **Issue #792**, the owner's request of 2026-11-09, "email 로그인 방식도 추가해줘": a person signs in to the phone app and the web with an email address alone, beside Google and Apple. The PM's decisions in it bind: a 6-digit code, no password and no magic link; Korean mail; custom SMTP in production; resends rate-limited. This server half is issue #793; the app's is #794 and the web's #795.
+- **Sources**, read 2026-11-09 from `supabase/supabase` at `156738417b699a499d1a1504b86fcc0459ec5a8c`, committed 2026-11-08T23:23:06Z, under `apps/docs/content/`, except the Management API's schema:
+  - `guides/auth/auth-email-passwordless.mdx`: "Though the method is labelled "OTP", it sends a Magic Link by default"; "Email OTPs share an implementation with Magic Links. To send an OTP instead of a Magic Link, alter the **Magic Link** email template", to include `{{ .Token }}`; the code expires by the setting "Email OTP expiration", "An expiry duration of more than 86,400 seconds (one day) is strongly discouraged", and that setting "also governs the validity of Magic Links and other email links, including confirmation, password recovery, email change, and invitation links"; `verifyOtp` takes the email, the code and a type of `email`.
+  - `guides/auth/auth-email-templates.mdx`: `{{ .Token }}` is "a 6-digit One-Time-Password (OTP) that can be used instead of the `{{ .ConfirmationURL }}`".
+  - `guides/deployment/branching/github-integration.mdx`, "Deploying changes to production": the integration deploys new migrations, the Edge Functions and the Storage buckets declared in `config.toml`, and "All other configurations, including API, Auth, and seed files, are ignored by default"; and under "Configuration", "On a persistent branch, including your production branch, the step runs only when a `[remotes]` block names that branch's project ID", the step comparing the `[db]`, `[api]`, `[auth]`, `[storage]` and `[experimental]` sections "with the branch's current settings and updating the ones that differ".
+  - `guides/auth/auth-smtp.mdx`: the built-in server "is not meant for production use" and is limited to a number of messages an hour that "can change without notice"; with custom SMTP "a low rate-limit of 30 messages per hour is imposed", adjustable on the Rate Limits page; any SMTP service works, given the host, port, user, password and a From address; set up "DKIM, DMARC and SPF" for the sending domain, and use "a separate sending domain for authentication".
+  - `guides/auth/testing-auth-flows.mdx`: "Email confirmation is off by default in local development and on by default for hosted projects"; the local stack sends every email to Mailpit.
+  - The Management API's OpenAPI document, `https://api.supabase.com/api/v1-json`, `UpdateAuthConfigBody`, has the fields `mailer_otp_exp`, `mailer_otp_length`, `mailer_autoconfirm`, `smtp_max_frequency`, `rate_limit_email_sent`, `rate_limit_otp`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_pass`, `smtp_admin_email`, `smtp_sender_name`, and for the two templates `mailer_subjects_magic_link`, `mailer_templates_magic_link_content`, `mailer_subjects_confirmation` and `mailer_templates_confirmation_content`.
+- **Measured on the local stack**, 2026-11-09 (stack `knowno_otp_793`, Auth, the gateway and Mailpit, built from this change's `config.toml`, stopped after):
+  - `POST /auth/v1/otp` for a new address answered 200 and Mailpit held one email to it, subject "알아몰라 로그인 코드 584764" and the template's body, no link; `POST /auth/v1/verify` with `{email, token: "584764", type: "email"}` answered with a session (`access_token`, `refresh_token`, the user with that email); with `000000` it answered 403; a second request for the address within the minute answered 429 `over_email_send_rate_limit`, "you can only request this after 57 seconds".
+  - With the two templates given different subjects: a new address was sent the magic link template with email confirmation off and the confirmation template with it on, the setting a hosted project has by default; an address that has an account was sent the magic link template either way. So both templates carry the code.
+- **The repository** had no template and left `[auth.email]` at its defaults: `otp_expiry` 3600 s, `max_frequency` 1 s. It has no `[remotes]` block, and `[auth]` there holds local values (the site URL `http://127.0.0.1:3000`, `[auth.external.apple]` disabled and empty).
+- **Alternatives considered:**
+  - **Applying `config.toml`'s auth section to production** with a `[remotes.<name>]` block naming the project: the Auth settings would then follow the repository. Rejected: the step would compare the whole `[auth]` section and update every value that differs, including the local site URL and Apple's provider, which the file holds disabled and empty, so a merge would change production settings no one asked to change. The owner sets the few that matter, by hand.
+  - **A password**, **a magic link**: rejected by #792 (reset and strength rules and credential stuffing; the link opening in another browser or app than the one that asked).
+  - **A longer expiry** (the 3600 s default): rejected, below.
+
+## Decision
+
+- **The flow.** `signInWithOtp({email})`, then `verifyOtp({email, token, type: 'email'})`, a 6-digit code (`otp_length` 6). Supabase creates the account on first use and signs an address already verified on a Google or Apple account into that account.
+- **The email.** One Korean template, `supabase/templates/sign_in_code.html`, shows `{{ .Token }}` and "이 코드는 10분 동안만 쓸 수 있어요", with no link to follow; its subject is "알아몰라 로그인 코드 {{ .Token }}". It is wired in `config.toml` for the magic link type, which an address with an account is sent, and for the confirmation type, which a new address is sent while email confirmation is on.
+- **The expiry** is 600 s (`otp_expiry`). A person leaves the app for their mail and comes back within minutes, so the default's hour is far more than needed, and a 6-digit code is one of a million, so every minute it stays valid is a minute it can be guessed at; 10 minutes is the time to read a mail and type the code with room for a late delivery. The template says 10 minutes, so the two change together. The setting also governs the other email links, which this project does not send.
+- **The limits.** Resends to one address wait 60 s (`max_frequency`, `smtp_max_frequency` in production); the client shows when the next is allowed. The project's emails are limited by the hour: 30 with custom SMTP until raised (`rate_limit_email_sent`). A wrong code is refused 403; the attempts left are Supabase's, which this project sets nothing for.
+- **Production gets none of this from the repository.** `config.toml`'s `[auth]` is the local stack's alone, and says so. The owner sets the values below on the production project, by dashboard or Management API; a merge changes no remote setting. The owner's steps:
+  1. **Email provider.** Choose any SMTP service; create the account and an SMTP credential; choose a sender address on a domain the project owns, preferably a subdomain for authentication alone, such as `no-reply@auth.<domain>`.
+  2. **The sender domain's DNS**, from the provider's instructions: SPF (a TXT record authorizing the provider), DKIM (the provider's CNAME or TXT records) and DMARC (a TXT record at `_dmarc.<domain>`, starting with `p=none` and a report address).
+  3. **Custom SMTP** on the project (Authentication, SMTP settings, or `smtp_host`, `smtp_port`, `smtp_user`, `smtp_pass`, `smtp_admin_email`, `smtp_sender_name`): the provider's host, port and user, its password, the sender address and the name 알아몰라. The password is typed there and nowhere else.
+  4. **Email OTP expiration** 600 seconds (`mailer_otp_exp`), the email provider enabled (`external_email_enabled`), sign-up allowed (`disable_signup` false), and the email OTP length 6 (`mailer_otp_length`).
+  5. **The two templates**, "Magic link" and "Confirm signup": the subject "알아몰라 로그인 코드 {{ .Token }}" and the body of `supabase/templates/sign_in_code.html` in both.
+  6. **Rate limits**: the minimum interval between emails to one address 60 seconds (`smtp_max_frequency`) and the project's emails per hour (`rate_limit_email_sent`), 30 until the Auth logs show `over_email_send_rate_limit` at a real load.
+  7. **Check**: from the production web or a TestFlight build, request a code for an address of the owner's, read the mail's sender, subject and body, and sign in with the code.
+
+## Consequences
+
+- Email sign-in works locally at once and in production once the owner's steps are done; until then production's built-in sender allows a handful of emails an hour, so the owner does them before the clients ship.
+- The repository and the dashboard can drift: a change to the template, the expiry or the interval is made in both. The migration-free merge of this change touches production not at all.
+- Email codes make an account's address the credential: whoever reads the mailbox signs in, as with a password reset today.
+- Not verified here: a real email through an SMTP service, its deliverability and its DNS; the dashboard's labels for the settings, which were not read beyond the paths the documentation names.
+
+## Signs the decision was wrong
+
+- Users report that the code does not arrive or lands in spam: the SMTP provider's reputation or the DNS records are at fault.
+- `over_email_send_rate_limit` in the Auth logs at ordinary load: 30 an hour is too low.
+- Users find 10 minutes too short, or Auth logs show a guessing run against `/auth/v1/verify`.
+- The dashboard's settings and `config.toml`'s differ for a while without anyone noticing.
