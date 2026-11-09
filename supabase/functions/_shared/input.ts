@@ -15,6 +15,7 @@ import {
   parseCells,
   shownFirst,
   type StoredSides,
+  tableReason,
 } from "./frame.ts";
 import {
   clozeFromV1,
@@ -210,6 +211,8 @@ function tableBlock(value: Args): Built {
   if (!withinLimit(columns) || !withinLimit(rows)) {
     return `each column and cell must be at most ${MAX_TEXT} characters.`;
   }
+  const problem = tableReason({ columns, rows, blanks, spans });
+  if (problem !== null) return problem;
   return { payload: { columns, rows, blanks, spans } };
 }
 
@@ -432,6 +435,9 @@ export function readCard(
     return "front" in value || "back" in value
       ? "give a card blocks, or front and back, not both."
       : readBlocks(value.blocks, ids, kept, writes);
+  }
+  if (typeof value.type === "string") {
+    return `a card is {"blocks":[...]}, a list of blocks, and this is a block of type ${value.type}: send {"blocks":[{"type":"${value.type}", ...}]}.`;
   }
   return readPlain(value, ids, kept, writes);
 }
