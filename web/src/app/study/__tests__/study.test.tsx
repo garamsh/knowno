@@ -2368,6 +2368,14 @@ describe("the study page", () => {
       back: "Capitals\nCapital | Country\nParis | France\nBerlin | Germany",
     };
 
+    /** Answers the card on screen "안다" and waits for its write, which no later test may meet. */
+    async function answerKnow() {
+      await userEvent.setup().keyboard("{ArrowRight}");
+      await waitFor(() => {
+        expect(postgrest.rows.card_states).toHaveLength(1);
+      });
+    }
+
     /** Seeds deck d1 with one card of [card]'s blocks and back. */
     function seedWhole(card: { front: unknown[]; back: string }) {
       postgrest.seed("decks", deckRow("d1", "d1"));
@@ -2399,6 +2407,67 @@ describe("the study page", () => {
       const detail = screen.getByRole("dialog", { name: "카드" });
       expect(hatchedBlanksUnder(detail)).toEqual(["Paris"]);
       expect(within(detail).queryByText("뒷면")).not.toBeInTheDocument();
+    });
+
+    it("studies a cloze of version 2 as one card, every span a box on the hatch with its hint, and once answered fills each in place", async () => {
+      postgrest.seed("decks", deckRow("d1", "d1"));
+      postgrest.seed("cards", {
+        ...cardRow("d1-0", "d1", "markup"),
+        front: [
+          {
+            type: "cloze",
+            v: 2,
+            payload: { text: "The capital of {{c1::France::country}} is {{c2::Paris}}" },
+          },
+        ],
+        back: side("The capital of France is Paris"),
+      });
+      await open("d1");
+
+      const current = screen.getByRole("group", { name: "The capital of 빈칸 is 빈칸" });
+      const boxes = [...current.querySelectorAll('[data-blank="boxed"]')];
+      expect(boxes.map((box) => box.textContent)).toEqual(["country", ""]);
+      expect(current.textContent).not.toContain("France");
+      expect(current.textContent).not.toContain("Paris");
+      expect(screen.getByText("0/1")).toBeInTheDocument();
+
+      await answerKnow();
+
+      // One card whatever the numbers it holds: one answer, one state.
+      expect(screen.getByText("1/1")).toBeInTheDocument();
+      expect(hatchedBlanksUnder(within(cards()).getByRole("article"))).toEqual(["France", "Paris"]);
+      expect(postgrest.rows.card_states).toHaveLength(1);
+    });
+
+    it("studies a 글 of version 3 formatted, its back added by the answer, and a version 2 one as written", async () => {
+      postgrest.seed("decks", deckRow("d1", "d1"));
+      postgrest.seed("cards", {
+        ...cardRow("d1-0", "d1", "markup"),
+        front: [
+          { type: "text", v: 3, id: "t", payload: { front: "**apple**", back: "- 사과\n- 과일" } },
+          { type: "text", v: 2, id: "u", payload: { front: "*literal*", back: "" } },
+        ],
+        back: [],
+        template: "free",
+        template_version: 2,
+      });
+      await open("d1");
+
+      const current = screen.getByText("*literal*").parentElement;
+      expect(current?.querySelector("strong")).toHaveTextContent("apple");
+      expect(current?.querySelector("em")).toBeNull();
+      expect(current).not.toHaveTextContent("사과");
+
+      await answerKnow();
+
+      const previous = within(cards()).getByRole("article");
+      await userEvent.click(within(previous).getByRole("button", { name: "카드 전체 보기" }));
+      const detail = screen.getByRole("dialog", { name: "카드" });
+      expect(detail.querySelector("strong")).toHaveTextContent("apple");
+      expect([...detail.querySelectorAll("[data-markup]")].map((line) => line.textContent)).toEqual(
+        ["apple", "• 사과", "• 과일"],
+      );
+      expect(detail).toHaveTextContent("*literal*");
     });
 
     it("shows a table card whole with its headers and its cells to recall empty, and once answered, as one card, fills every one", async () => {

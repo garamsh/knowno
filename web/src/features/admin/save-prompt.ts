@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { call, failureMessages } from "./action-call";
+import { lfOf } from "./line-breaks";
 import { promptRefusal } from "./prompt-limits";
 
 /** What the prompt form shows after an attempt that did not save. */
@@ -23,9 +24,10 @@ export async function savePrompt(
   if (typeof text !== "string" || typeof note !== "string") {
     return { message: failureMessages.malformed };
   }
-  const refusal = promptRefusal(text, note);
+  const prompt = lfOf(text);
+  const refusal = promptRefusal(prompt, note);
   if (refusal !== null) return { message: refusal };
-  const result = await call("admin_save_prompt", { text, note: note.trim() });
+  const result = await call("admin_save_prompt", { text: prompt, note: note.trim() });
   if ("failure" in result) return { message: failureMessages[result.failure] };
   if (typeof result.data !== "number" || !Number.isSafeInteger(result.data)) {
     return { message: failureMessages.unreadable };

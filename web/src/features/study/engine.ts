@@ -5,7 +5,7 @@ import init, {
   reviewCard,
   reviewNewCard,
   type Scheduled,
-} from "./engine-wasm/knowno_engine_wasm.js";
+} from "@/design/engine-wasm/knowno_engine_wasm.js";
 import type { Answer } from "./answer-write";
 import type { CardState } from "./queue";
 
@@ -29,7 +29,7 @@ export function engineLoaded(): boolean {
 }
 
 /**
- * Loads the engine's WebAssembly module once per page. engine-wasm is a link to the
+ * Loads the engine's WebAssembly module once per page. `design/engine-wasm` is a link to the
  * repository's engine-wasm/pkg/, the module `scripts/run.sh wasm-bindgen generate` writes; its glue names
  * the `.wasm` beside it, which the build serves as a static file and the glue fetches.
  */

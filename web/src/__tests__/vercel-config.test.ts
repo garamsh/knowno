@@ -117,7 +117,7 @@ describe("web/vercel.json's ignoreCommand", () => {
     ["web/'s own package files", ["web/package.json"]],
     ["the fonts web/src/styles/fonts links to", ["app/assets/fonts/Jua-Regular.ttf"]],
     [
-      "the engine module web/src/features/study/engine-wasm links to",
+      "the engine module web/src/design/engine-wasm links to",
       ["engine-wasm/pkg/knowno_engine_wasm.js"],
     ],
     ["the root .gitignore, which Tailwind's source scan honours", [".gitignore"]],

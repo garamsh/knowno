@@ -1,8 +1,6 @@
 import "server-only";
 
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-
+import { readEngineModule } from "@/design/markup-engine-server";
 import init, {
   type EngineError,
   type MemoryStateParts,
@@ -11,7 +9,7 @@ import init, {
   reviewCard,
   reviewNewCard,
   type Scheduled,
-} from "./engine-wasm/knowno_engine_wasm.js";
+} from "@/design/engine-wasm/knowno_engine_wasm.js";
 import type { CardState } from "./queue";
 
 // The engine on the server, for the 기록 page's recall and mastered weeks (ADR 0047): the same
@@ -21,19 +19,12 @@ import type { CardState } from "./queue";
 /** One stored answer, as the engine folds it: "안다" or not, its time and its fuzz factor, null for none. */
 export type FoldedAnswer = { know: boolean; reviewedAt: number; fuzzFactor: number | null };
 
-/**
- * The module's file, from the project's root, where every server runs: next dev and next start in
- * web/, and the standalone server in its own copy of it. next.config.ts traces this file into the
- * standalone output and into every serverless function by `outputFileTracingIncludes`.
- */
-export const wasmPath = "src/features/study/engine-wasm/knowno_engine_wasm_bg.wasm";
-
 let loaded: Promise<void> | undefined;
 
 /** Loads the engine once per server process; a failed load is tried again by the next call. */
 export function loadServerEngine(): Promise<void> {
-  loaded ??= readFile(path.join(process.cwd(), wasmPath))
-    .then((bytes) => init({ module_or_path: bytes }))
+  loaded ??= Promise.resolve()
+    .then(() => init({ module_or_path: readEngineModule() }))
     .then(
       () => undefined,
       (error: unknown) => {

@@ -1,7 +1,7 @@
 import { lineDiff } from "../prompt-diff";
 
 /**
- * The lines prompt [to] changes against [from], collapsed under "프롬프트 v<from> → v<to> 다른 점",
+ * The lines version [to] changes against [from], collapsed under "<subject> v<from> → v<to> 다른 점",
  * each changed line marked − or + and named for a screen reader, a removed line on the amber tint.
  */
 export function PromptChanges({
@@ -9,7 +9,10 @@ export function PromptChanges({
   to,
   before,
   after,
+  subject = "프롬프트",
 }: {
+  /** What the versions are of: the prompt, or a card form's skill. */
+  subject?: string;
   from: number;
   to: number;
   before: string;
@@ -20,7 +23,7 @@ export function PromptChanges({
   return (
     <details className="px-4 py-3">
       <summary className="min-h-tap-target cursor-pointer content-center text-label text-ink-2 focus-visible:outline-2 focus-visible:outline-ink">
-        프롬프트 v{from} → v{to} 다른 점
+        {subject} v{from} → v{to} 다른 점
       </summary>
       {/* A details element does not lay its content out as flex items, so one block holds the gap. */}
       <div className="mt-3 flex flex-col gap-2">

@@ -664,8 +664,8 @@ describe("editCard", () => {
 
 describe("the editor's drafts", () => {
   const cloze = (line: string, blanks: { start: number; end: number }[]): CellDraft => ({
-    ...emptyCell("cloze"),
     kind: "cloze",
+    id: emptyCell("text").id,
     line,
     blanks,
   });
@@ -673,7 +673,7 @@ describe("the editor's drafts", () => {
 
   it("does not save a 글 left empty, which keeps nothing from saving", () => {
     const empty = emptyCell("text");
-    const full: CellDraft = { ...emptyCell("text"), kind: "text", front: "a", back: "b" };
+    const full: CellDraft = { kind: "text", id: "g", front: "a", back: "b", markup: true };
     expect(builtCells([empty, full]).cells).toHaveLength(1);
     // Control: alone, the card has nothing to show.
     expect(builtCells([empty])).toEqual({

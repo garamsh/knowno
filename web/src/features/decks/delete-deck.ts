@@ -1,5 +1,7 @@
 "use server";
 
+// Importing this lets the server read card text through the engine (ADR 0209).
+import "@/design/markup-engine-server";
 import { revalidatePath } from "next/cache";
 
 import { requestTimeoutMs } from "@/supabase/failure";

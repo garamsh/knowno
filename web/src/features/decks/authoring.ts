@@ -1,5 +1,7 @@
 import { v7 } from "uuid";
 
+import { clozeFromV1, clozeNumbers, escapeLiteral, markedOf } from "@/design/markup-engine";
+
 import {
   type Cell,
   type CellSide,
@@ -13,6 +15,8 @@ import {
   isEarlier,
   isFramed,
   labelShown,
+  marksOf,
+  markupTextVersion,
   parseCardContent,
   parseCells,
   parseContent,
@@ -182,7 +186,8 @@ export type WrittenCell = Exclude<Cell, { kind: "unknown" }>;
 function storedPayload(block: Content): Record<string, unknown> {
   switch (block.kind) {
     case "cloze":
-      return { text: block.text, answers: block.answers };
+      // A cloze of version 2 is its text in Anki's syntax alone (ADR 0209).
+      return block.markup ? { text: block.text } : { text: block.text, answers: block.answers };
     case "table":
       return {
         columns: block.columns,
@@ -226,7 +231,7 @@ export function encodeCells(cells: WrittenCell[], newId: () => string = v7): Blo
       case "text":
         return {
           type: "text",
-          v: versioned("text"),
+          v: cell.marks ? markupTextVersion : versioned("text"),
           id: cell.id ?? newId(),
           payload: { front: cell.front, back: cell.back },
         };
@@ -241,7 +246,7 @@ export function encodeCells(cells: WrittenCell[], newId: () => string = v7): Blo
       case "placed":
         return {
           type: cell.block.kind,
-          v: versioned(cell.block.kind),
+          v: cell.block.kind === "cloze" ? (cell.block.markup ? 2 : 1) : versioned(cell.block.kind),
           id: cell.block.id ?? newId(),
           payload: {
             ...storedPayload(cell.block),
@@ -289,11 +294,31 @@ export type PhotoDraft = MediaFile & { width: number; height: number; rest?: Res
 /** A sound as the editor holds it: its file, its length and its stored fields it does not know. */
 export type SoundDraft = MediaFile & { durationMs: number; rest?: Rest };
 
-/** One 칸 in the editor. */
+/**
+ * One 칸 in the editor. A 글 is [markup], read by the engine, when it is new or stored as version
+ * 3; one stored before keeps what it opened with in [stored], written as it was until edited
+ * (ADR 0209). A 빈칸 문장 is `anki`, its text in Anki's syntax, when it is new or stored as version
+ * 2, and `cloze`, its line with its blanks as spans, when stored as version 1, which keeps the
+ * block it opened with in [stored] for the same reason.
+ */
 export type CellDraft =
-  | { kind: "text"; id: string; front: string; back: string }
+  | {
+      kind: "text";
+      id: string;
+      front: string;
+      back: string;
+      markup: boolean;
+      stored?: { front: string; back: string };
+    }
   | { kind: "word"; id: string; term: string; ask: WordAsk; senses: SenseDraft[] }
-  | { kind: "cloze"; id: string; line: string; blanks: Span[] }
+  | { kind: "anki"; id: string; source: string }
+  | {
+      kind: "cloze";
+      id: string;
+      line: string;
+      blanks: Span[];
+      stored?: { text: string; answers: string[] };
+    }
   | {
       kind: "table";
       id: string;
@@ -335,14 +360,15 @@ export function emptyCell(kind: CellDraft["kind"]): CellDraft {
     case "audio":
       return { kind, id, side: "front", sound: null };
     case "text":
-      return { kind, id, front: "", back: "" };
+      return { kind, id, front: "", back: "", markup: true };
     case "word":
       return { kind, id, term: "", ask: "term", senses: [emptySense()] };
     case "cloze":
-      return { kind, id, line: "", blanks: [] };
+    case "anki":
+      return { kind: "anki", id, source: "" };
     case "table":
       return {
-        kind,
+        kind: "table",
         id,
         columns: ["", ""],
         rows: [
@@ -374,7 +400,14 @@ function clozeLine(text: string, answers: string[]): { line: string; blanks: Spa
 export function cellDraft(cell: WrittenCell): CellDraft {
   switch (cell.kind) {
     case "text":
-      return { kind: "text", id: cell.id ?? v7(), front: cell.front, back: cell.back };
+      return {
+        kind: "text",
+        id: cell.id ?? v7(),
+        front: cell.front,
+        back: cell.back,
+        markup: !!cell.marks,
+        ...(!cell.marks && { stored: { front: cell.front, back: cell.back } }),
+      };
     case "word":
       return {
         kind: "word",
@@ -387,8 +420,15 @@ export function cellDraft(cell: WrittenCell): CellDraft {
     case "placed": {
       const { block: stored } = cell;
       const id = stored.id ?? v7();
+      if (stored.kind === "cloze" && stored.markup)
+        return { kind: "anki", id, source: stored.text };
       if (stored.kind === "cloze")
-        return { kind: "cloze", id, ...clozeLine(stored.text, stored.answers) };
+        return {
+          kind: "cloze",
+          id,
+          ...clozeLine(stored.text, stored.answers),
+          stored: { text: stored.text, answers: stored.answers },
+        };
       if (stored.kind === "table")
         return {
           kind: "table",
@@ -434,6 +474,8 @@ export function cellProblem(draft: CellDraft): string | null {
   switch (draft.kind) {
     case "text":
       return null;
+    case "anki":
+      return clozeNumbers(draft.source).length === 0 ? "빈칸을 하나 이상 넣어 주세요" : null;
     case "image":
       return draft.photo ? null : "사진을 골라 주세요";
     case "audio":
@@ -498,7 +540,20 @@ function builtCell(draft: CellDraft): WrittenCell | null {
     case "text": {
       const part = (text: string) => (text.trim() === "" ? "" : text);
       const [front, back] = [part(draft.front), part(draft.back)];
-      return front === "" && back === "" ? null : { kind: "text", front, back, id: draft.id };
+      if (front === "" && back === "") return null;
+      const { id, stored } = draft;
+      if (draft.markup) return { kind: "text", front, back, marks: marksOf(front, back), id };
+      // A 글 stored before markup is written as it was while it is unchanged; once edited it is
+      // written as version 3, each part through the escape so its meaning does not change.
+      if (stored?.front === front && stored.back === back) return { kind: "text", front, back, id };
+      const [escapedFront, escapedBack] = [escapeLiteral(front), escapeLiteral(back)];
+      return {
+        kind: "text",
+        front: escapedFront,
+        back: escapedBack,
+        marks: marksOf(escapedFront, escapedBack),
+        id,
+      };
     }
     case "word":
       return {
@@ -516,11 +571,40 @@ function builtCell(draft: CellDraft): WrittenCell | null {
             .filter(Boolean),
         })),
       };
-    case "cloze":
+    case "anki":
       return {
         kind: "blank",
-        block: { kind: "cloze", ...builtCloze(draft), ...blockId(draft.id) },
+        block: {
+          kind: "cloze",
+          text: draft.source,
+          answers: [],
+          markup: markedOf(draft.source),
+          ...blockId(draft.id),
+        },
       };
+    case "cloze": {
+      const built = builtCloze(draft);
+      const { stored } = draft;
+      const unchanged =
+        stored?.text === built.text &&
+        stored.answers.length === built.answers.length &&
+        stored.answers.every((answer, at) => answer === built.answers[at]);
+      // Edited, a version 1 cloze is written as version 2 where the engine converts it.
+      const source = unchanged ? null : clozeFromV1(built.text, built.answers);
+      return {
+        kind: "blank",
+        block:
+          source === null
+            ? { kind: "cloze", ...built, ...blockId(draft.id) }
+            : {
+                kind: "cloze",
+                text: source,
+                answers: [],
+                markup: markedOf(source),
+                ...blockId(draft.id),
+              },
+      };
+    }
     case "table":
       return {
         kind: "blank",

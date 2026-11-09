@@ -1,3 +1,4 @@
+import { MarkupText } from "@/design/markup-text";
 import type { Content } from "@/features/decks";
 
 /**
@@ -18,7 +19,9 @@ export function CardSide({ blocks, size }: { blocks: Content[]; size?: "front" |
     >
       {blocks.map((block, index) =>
         block.kind === "text" ? (
-          <p key={index}>{block.text}</p>
+          <p key={index}>
+            {block.markup ? <MarkupText document={block.markup.document} /> : block.text}
+          </p>
         ) : block.kind === "unsupported" ? (
           <p key={index} className="text-body text-muted italic">
             [이 버전에서 표시할 수 없는 내용: {block.type}]
