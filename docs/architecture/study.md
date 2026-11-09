@@ -184,6 +184,8 @@ How the setting the day's new cards fill is changed: in the first-run step, and 
 ### Build and generated code
 
 - `flutter build` builds the crate through the hook in `app/hook/build.dart`, with the Rust release pinned in `app/rust/rust-toolchain.toml`, for every target Flutter asks for. No Android or iOS build file names the crate.
+- SQLite is compiled, not downloaded: `hooks: user_defines: sqlite3:` in `app/pubspec.yaml` has the `sqlite3` package's hook compile `app/third_party/sqlite/sqlite3.c`, the SQLite 3.54.1 amalgamation, with its default compile options, so no build fetches it from GitHub and every build ships the same version ([ADR 0220](adr/0220-compile-the-app-s-sqlite-from-a-committed-amalgamation-so-no-build-downloads-it-from-github.md)). The PM moves it by replacing the file and the version in `app/test/drift/app_database/sqlite_version_test.dart`, which fails when the hook stops using the file.
+- `make build-apk` fails with Flutter's own error when `flutter build apk` fails, and checks the APK for the bridge library only after it succeeded.
 - `app/flutter_rust_bridge.yaml` configures the codegen. Its output is committed: `app/rust/src/frb_generated.rs` and `app/lib/study/src/rust/`, including the `freezed` part file of `EngineError`. `scripts/check-generated.ts` reruns the codegen, at the release `app/rust/Cargo.lock` pins, and fails when the output differs.
 - To change the surface: edit `app/rust/src/api/`, run `flutter_rust_bridge_codegen generate` in `app/`, and commit what it writes.
 
@@ -260,6 +262,7 @@ How the setting the day's new cards fill is changed: in the first-run step, and 
 - [ADR 0109](adr/0109-store-an-image-block-s-boxes-in-fractions-of-the-image-and-draw-them-with-the-image-s-one-transform.md): why a photo's box is a blank, hidden on the current card and revealed in place once answered, at the same part of the photo at every size.
 - [ADR 0110](adr/0110-blank-a-span-of-a-table-cell-s-text-stored-at-table-block-v2-beside-whole-cell-blanks.md): why a table blank can be a span of a cell's text, drawn empty inside the cell and filled in place, the rest of the cell the cue; issue #413 records the owner's request.
 - [ADR 0176](adr/0176-start-study-s-front-at-a-size-its-length-gives-and-draw-what-study-hides-on-the-hatch.md): why the current card's front starts at a size its length gives before the fit check, why a blank counts as its box, why the previous card takes the same rule, and why study draws what it hides on the card list's hatch, each blank a fixed 2 em box; issue #635 records the owner's request.
+- [ADR 0220](adr/0220-compile-the-app-s-sqlite-from-a-committed-amalgamation-so-no-build-downloads-it-from-github.md): why SQLite is compiled from a committed amalgamation through the `sqlite3` hook's `source: source` and not downloaded, taken from the system or cached, and why the package stays at 3.5.2.
 
 ## Open questions
 

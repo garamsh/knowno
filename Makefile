@@ -146,7 +146,7 @@ build-ios:
 	fi
 
 build-apk:
-	cd app && flutter build apk --debug $(APP_CONFIG) && \
+	cd app && flutter build apk --debug $(APP_CONFIG) || exit 1; \
 	libs=$$(unzip -Z1 $(APK) 'lib/*/lib$(BRIDGE_LIB).so'); \
 	if [ -z "$$libs" ]; then echo "app/$(APK) holds no lib$(BRIDGE_LIB).so" >&2; exit 1; fi; \
 	echo "built the debug APK app/$(APK), holding the bridge library for $$(echo "$$libs" | wc -l | tr -d ' ') ABIs:"; \
