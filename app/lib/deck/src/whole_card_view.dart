@@ -234,10 +234,12 @@ class WholeCardView extends StatelessWidget {
       ? style.copyWith(fontWeight: FontWeight.w700)
       : AppType.wholeFront.copyWith(color: style.color);
 
-  /// A part the reveal added: the back's size in `ink2` on a card, or, in a
-  /// style such as a list row's, that style at regular weight in `ink2`.
+  /// A part the reveal added: the back's size in `ink2` on a card, in a card
+  /// list's row [AppType.secondary] in `ink2`, or, in another style such as a
+  /// row's, that style at regular weight in `ink2`.
   TextStyle _addedStyle(BuildContext context) {
     final ink2 = AppColors.of(context).ink2;
+    if (listed) return AppType.secondary.copyWith(color: ink2);
     return _inRow
         ? style.copyWith(color: ink2, fontWeight: FontWeight.w400)
         : AppType.wholeAdded.copyWith(color: ink2);

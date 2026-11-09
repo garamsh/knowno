@@ -299,6 +299,29 @@ void main() {
       expect(styleOf(tester, 'Added').fontWeight, FontWeight.w400);
     });
 
+    testWidgets('in a card list\'s row an added part is secondary, the shown '
+        'part keeping the row\'s size', (tester) async {
+      await pumpComponent(
+        tester,
+        const WholeCardView.listed([glue, blank], style: AppType.label),
+      );
+      TextStyle rich(String text) => tester
+          .widgetList<Text>(find.byType(Text))
+          .firstWhere(
+            (t) =>
+                (t.textSpan?.toPlainText() ?? t.data ?? '')
+                    .replaceAll('\u2060', '')
+                    .trim() ==
+                text,
+          )
+          .style!;
+      expect(rich('Added').fontSize, AppType.secondary.fontSize);
+      expect(rich('Added').color, AppColors.light.ink2);
+      expect(rich('Added').fontWeight, FontWeight.w400);
+      // Control: the shown part keeps the row's size.
+      expect(rich('Title').fontSize, AppType.label.fontSize);
+    });
+
     testWidgets('a card list\'s table starts its header and cells at their '
         'left, and a card\'s keeps them centred', (tester) async {
       const table = BlankCell(
