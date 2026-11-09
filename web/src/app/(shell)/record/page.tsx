@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { ScreenSkeleton } from "@/design/screen-skeleton";
 import { EdgeAssistant } from "@/features/assistant";
 import { StudyStateRead } from "@/features/study";
 
@@ -16,12 +17,13 @@ export const metadata: Metadata = { title: "기록 · 알아몰라" };
 export default function RecordPage() {
   return (
     <>
-      <h1 className="text-display">기록</h1>
-      <Suspense fallback={<RecordSkeleton />}>
-        <StudyStateRead>
-          <RecordContent />
-        </StudyStateRead>
-      </Suspense>
+      <ScreenSkeleton title="기록" topLevel>
+        <Suspense fallback={<RecordSkeleton />}>
+          <StudyStateRead>
+            <RecordContent />
+          </StudyStateRead>
+        </Suspense>
+      </ScreenSkeleton>
       <EdgeAssistant />
     </>
   );

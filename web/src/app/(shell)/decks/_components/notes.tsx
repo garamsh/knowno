@@ -1,3 +1,4 @@
+import { ScreenSkeleton } from "@/design/screen-skeleton";
 import { EdgeAssistant } from "@/features/assistant";
 import { DeckList, NotesMenu, ReadFailure, readDeckList } from "@/features/decks";
 import { countDay, dayPlanOf, deckProgress, readToday, readyServerEngine } from "@/features/study";
@@ -10,18 +11,12 @@ import { countDay, dayPlanOf, deckProgress, readToday, readyServerEngine } from 
  */
 export async function Notes() {
   const [read, today] = await Promise.all([readDeckList(), readToday()]);
-  const title = (
-    <header className="flex items-center justify-between gap-3">
-      <h1 className="text-deck-title">노트</h1>
-      <NotesMenu />
-    </header>
-  );
+  const actions = <NotesMenu />;
   if ("failure" in read) {
     return (
-      <>
-        {title}
+      <ScreenSkeleton title="노트" topLevel actions={actions}>
         <ReadFailure failure={read.failure} />
-      </>
+      </ScreenSkeleton>
     );
   }
   const { decks, cards } = read.library;
@@ -35,8 +30,11 @@ export async function Notes() {
   if ("failure" in today) {
     return (
       <>
-        {title}
-        <DeckList rows={uncounted} notice={<ReadFailure failure={today.failure} />} />
+        <DeckList
+          rows={uncounted}
+          notice={<ReadFailure failure={today.failure} />}
+          actions={actions}
+        />
         {edge}
       </>
     );
@@ -46,8 +44,11 @@ export async function Notes() {
   if ("failure" in engine) {
     return (
       <>
-        {title}
-        <DeckList rows={uncounted} notice={<ReadFailure failure={engine.failure} />} />
+        <DeckList
+          rows={uncounted}
+          notice={<ReadFailure failure={engine.failure} />}
+          actions={actions}
+        />
         {edge}
       </>
     );
@@ -61,8 +62,7 @@ export async function Notes() {
   });
   return (
     <>
-      {title}
-      <DeckList rows={rows} />
+      <DeckList rows={rows} actions={actions} />
       {edge}
     </>
   );

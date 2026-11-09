@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { ScreenSkeleton } from "@/design/screen-skeleton";
 import { EdgeAssistant } from "@/features/assistant";
 import {
   CardGrid,
@@ -83,9 +84,8 @@ export async function Deck({
 /** A failed read under a heading saying the note could not be read. */
 function Failure({ failure }: { failure: LibraryFailure }) {
   return (
-    <>
-      <h1 className="text-deck-title lg:text-display">노트를 불러오지 못했어요</h1>
+    <ScreenSkeleton title="노트를 불러오지 못했어요">
       <ReadFailure failure={failure} />
-    </>
+    </ScreenSkeleton>
   );
 }
