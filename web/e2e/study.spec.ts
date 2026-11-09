@@ -5,6 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
 import { addByHand } from "./add-by-hand";
+import { database, runSql } from "./database";
 import { untilReacted } from "./until-reacted";
 
 // The local stack scripts/test-web.ts starts, whose URL and publishable key the app was built
@@ -13,8 +14,8 @@ const supabaseUrl = process.env.E2E_SUPABASE_URL;
 const supabaseKey = process.env.E2E_SUPABASE_KEY;
 
 test.skip(
-  !supabaseUrl || !supabaseKey,
-  "needs the local Supabase stack scripts/test-web.ts starts, which sets E2E_SUPABASE_URL and E2E_SUPABASE_KEY",
+  !supabaseUrl || !supabaseKey || !database,
+  "needs the local Supabase stack scripts/test-web.ts starts, which sets E2E_SUPABASE_URL, E2E_SUPABASE_KEY and E2E_DB_CONTAINER",
 );
 
 // Where to save screenshots of each screen in both themes, for review; none are taken unless it
@@ -136,7 +137,8 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   const deckId = randomUUID();
   const now = new Date().toISOString();
   const side = (text: string) => [{ type: "text", payload: { text } }];
-  // Two new cards, so the second is shown under the first one's answer; the deck is published.
+  // Two new cards, so the second is shown under the first one's answer; the deck is published. No
+  // client write publishes a deck, so it is pushed private and published in the database after its cards.
   const backs = new Map([
     ["chat", "cat"],
     ["chien", "dog"],
@@ -148,8 +150,7 @@ test("a signed-in user studies two cards, and the server holds their reviews and
         id: deckId,
         user_id: userId,
         name: "French",
-        visibility: "public",
-        published_at: now,
+        visibility: "private",
         created_at: now,
         updated_at: now,
       })
@@ -172,6 +173,10 @@ test("a signed-in user studies two cards, and the server holds their reviews and
       )
     ).error,
   ).toBeNull();
+  // After the cards: a client's insert into a public deck sends it back to be checked.
+  runSql(
+    `update public.decks set visibility = 'public', published_at = now() where id = '${deckId}'`,
+  );
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "오늘 2장", exact: true })).toBeVisible();
