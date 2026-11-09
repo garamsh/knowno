@@ -24,7 +24,7 @@ The phone draws it as `ScreenSkeleton` (`app/lib/design/screen_skeleton.dart`), 
 - The daily-minutes screen (`daily_minutes_sheet.dart`): the picker, a sheet or a screen with its two buttons, whose title the picker draws.
 - Sign-in and sign-in by email: shown before the user is signed in.
 
-The web's component is named beside it by #857.
+The web draws it as `ScreenSkeleton` (`web/src/design/screen-skeleton.tsx`) with the same slots but the foot's: `title` (with `userTitle`), `actions`, `search` and the body as children. The shell's `main` holds the gutters, `AppSpace.gutter` below 1024 px, so a slot sets none of its own; the slots are `AppSpace.s16` apart and the body's groups `AppSpace.sectionGap`. The web has no back bar, so a `topLevel` screen is one a menu opens, 기록, 노트 and 설정, and the 노트 page, whose actions make the bar above its name, is not. A tab bar sits at the web's foot, and no web screen has a primary there, so the component has no `bottom` slot until one does; a note's study button stays at the top of its body. These keep their own layout on the web, for the phone's reasons or because the web has no such screen: 홈, the chat with 말랑이 and study, and 새 노트 and the authoring screens, which open over the page as full-screen dialogs (`web-decks.md`).
 
 Horizontal edges are `AppSpace.gutter` throughout. The 노트 tab and the deck screen use it ([ADR 0172](../adr/0172-make-a-note-with-the-choices-of-its-customization-head-the-notes-and-a-note-with-a-tonal-action-and-a-menu-over-an-always-shown-search.md)).
 

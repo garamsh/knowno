@@ -4,10 +4,11 @@ import Link from "next/link";
 import { type ReactNode, useState } from "react";
 
 import { Chip } from "@/design/chip";
+import { ScreenSkeleton } from "@/design/screen-skeleton";
+import { SearchField } from "@/design/search-field";
 
 import type { Deck } from "../library";
 import { DeckTile } from "./deck-tile";
-import { SearchField } from "@/design/search-field";
 
 /**
  * A deck as its row shows it: its card count, what a session over it would study now, and how
@@ -23,31 +24,30 @@ export type DeckRow = {
 };
 
 /**
- * The 노트 page's notes, as the phone's 노트 tab lists them (ADR 0165): the "노트 검색" field,
- * keeping the decks whose name holds it, ignoring case, while there is any deck; then [notice],
+ * The 노트 page, as the phone's 노트 tab draws it (ADR 0165): "노트" with [actions], the "노트 검색"
+ * field under it, keeping the decks whose name holds it, ignoring case, while there is any deck; then [notice],
  * and a row per deck that opens it: its tile, its name with "공개" when it is published and a brand
  * "오늘 n" chip when a session over it would study now (ADR 0096, #845), "n장 중 m장 익힘" under it
  * and its progress bar under that, running to the row's inner end under the chips, or "0장" and no
  * bar for a deck with no card. The row's name ends with the bar's
  * mastered, learning and new counts, the one place a screen reader hears the learning cards.
  */
-export function DeckList({ rows, notice }: { rows: DeckRow[]; notice?: ReactNode }) {
+export function DeckList({
+  rows,
+  notice,
+  actions,
+}: {
+  rows: DeckRow[];
+  notice?: ReactNode;
+  actions?: ReactNode;
+}) {
   const [search, setSearch] = useState("");
   const needle = search.trim().toLocaleLowerCase();
   const shown = needle
     ? rows.filter((row) => row.deck.name.toLocaleLowerCase().includes(needle))
     : rows;
-  return (
+  const list = (
     <section aria-label="노트 목록" className="flex flex-col gap-3">
-      {rows.length > 0 && (
-        <SearchField
-          label="노트 검색"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-          }}
-        />
-      )}
       {notice}
       {shown.length === 0 && needle ? (
         <p role="status" className="text-muted">
@@ -98,6 +98,26 @@ export function DeckList({ rows, notice }: { rows: DeckRow[]; notice?: ReactNode
         </ul>
       )}
     </section>
+  );
+  return (
+    <ScreenSkeleton
+      title="노트"
+      topLevel
+      actions={actions}
+      search={
+        rows.length > 0 && (
+          <SearchField
+            label="노트 검색"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+            }}
+          />
+        )
+      }
+    >
+      {list}
+    </ScreenSkeleton>
   );
 }
 

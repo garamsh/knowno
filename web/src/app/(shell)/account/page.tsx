@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { ScreenSkeleton } from "@/design/screen-skeleton";
 import { LegalLinks } from "@/features/legal";
 
 import { Profile } from "./_components/profile";
@@ -14,14 +15,15 @@ export const metadata: Metadata = { title: "설정 · 알아몰라" };
  */
 export default function AccountPage() {
   return (
-    <div className="flex w-full max-w-list flex-1 flex-col gap-section-gap">
-      <h1 className="text-display">설정</h1>
-      <Suspense fallback={<ProfileSkeleton />}>
-        <Profile />
-      </Suspense>
-      <footer className="mt-auto pt-8">
-        <LegalLinks />
-      </footer>
+    <div className="flex w-full max-w-list flex-1 flex-col">
+      <ScreenSkeleton title="설정" topLevel>
+        <Suspense fallback={<ProfileSkeleton />}>
+          <Profile />
+        </Suspense>
+        <footer className="mt-auto pt-8">
+          <LegalLinks />
+        </footer>
+      </ScreenSkeleton>
     </div>
   );
 }
