@@ -93,6 +93,20 @@ export async function savePhotoCards(deckId: string, input: unknown): Promise<Sa
 }
 
 /**
+ * Saves an Anki package's reviewed cards as manual adding writes them, the photos each names stored
+ * first by `storeCardMedia`: a duplicate key is refused unless [allowDuplicate], and a card refused
+ * releases the files stored for its batch (ADR 0222).
+ */
+export async function saveAnkiCards(
+  deckId: string,
+  input: unknown,
+  allowDuplicate = false,
+): Promise<SaveCardsResult> {
+  if (typeof allowDuplicate !== "boolean") return malformed;
+  return writeCards(deckId, input, "import", allowDuplicate ? "add" : "refuse", true);
+}
+
+/**
  * Inserts direct entry's card of 칸, its id stable across retries, in `free` v2. Each photo and
  * sound it names is one the user stored under its kind (`storeCardMedia`, ADR 0163); a card
  * refused releases them, so a file stored for it is not left behind.
