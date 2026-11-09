@@ -14,6 +14,7 @@ DeckRow _deck(
   id: 'deck',
   name: name,
   visibility: 'private',
+  publication: 'private',
   createdAt: _t0,
   updatedAt: updatedAt,
   deletedAt: deletedAt,

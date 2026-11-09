@@ -1188,6 +1188,62 @@ class AppLocalizationsKo extends AppLocalizations {
   String get unpublished => '노트를 비공개로 전환했어요';
 
   @override
+  String get publicationChecking => '확인 중';
+
+  @override
+  String get publicationHeld => '검토 중';
+
+  @override
+  String get publicationRefused => '공개 못 함';
+
+  @override
+  String get publicationCheckingWhy => '노트를 확인하고 있어요';
+
+  @override
+  String get publicationHeldWhy => '관리자가 검토한 뒤에 공개돼요';
+
+  @override
+  String get publicationRefusedWhy => '공개할 수 없는 내용이 있어 고친 뒤에 다시 공개할 수 있어요';
+
+  @override
+  String findingPlace(String place) {
+    String _temp0 = intl.Intl.selectLogic(place, {
+      'name': '노트 이름',
+      'description': '설명',
+      'front': '앞면',
+      'back': '뒷면',
+      'other': '노트',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String findingCategory(String category) {
+    String _temp0 = intl.Intl.selectLogic(category, {
+      'resident_number': '주민등록번호처럼 보여요',
+      'account': '계좌번호처럼 보여요',
+      'phone': '전화번호처럼 보여요',
+      'link': '링크나 주소가 있어요',
+      'kakao_id': '메신저 아이디가 있어요',
+      'contact': '연락을 유도하는 말이 있어요',
+      'repeat': '같은 홍보 문구가 반복돼요',
+      'term': '공개할 수 없는 말이 있어요',
+      'other': '공개할 수 없는 내용이에요',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String findingLine(String category, String place) {
+    return '$place: $category';
+  }
+
+  @override
+  String findingLinePassage(String category, String passage, String place) {
+    return '$place: \"$passage\", $category';
+  }
+
+  @override
   String get noCardsTitle => '첫 카드를 만들어 볼까요?';
 
   @override

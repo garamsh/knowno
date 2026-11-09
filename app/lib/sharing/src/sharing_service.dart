@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Card;
 
 import '../../account/account.dart';
 import '../../deck/deck.dart';
@@ -62,9 +62,16 @@ class SharingService {
   Widget browseScreen() => BrowseScreen(sharing: this);
 
   /// Asks for what publishing [deck] needs and publishes it, reporting a
-  /// failure to the user itself.
-  Future<void> publish(BuildContext context, Deck deck) =>
-      showPublishSheet(context, sharing: this, deck: deck);
+  /// failure to the user itself. [openCard] opens a card a finding names.
+  Future<void> publish(
+    BuildContext context,
+    Deck deck, {
+    required void Function(CardId card) openCard,
+  }) =>
+      showPublishSheet(context, sharing: this, deck: deck, openCard: openCard);
+
+  /// The cards of [deck], which a finding names by id.
+  Future<List<Card>> cardsOf(DeckId deck) => decks.listCards(deck);
 
   /// Makes [deck] private again, reporting a failure to the user itself.
   Future<void> unpublish(BuildContext context, Deck deck) async {
@@ -118,10 +125,11 @@ class SharingService {
 
   Future<DisplayName?> displayName() => server.displayName();
 
-  /// Publishes the deck [id] on the server, then on the device, so a publish
-  /// the server did not take is not left on the device for sync to push.
-  /// Sets the user's display name first when [name] is given.
-  Future<void> makePublic(
+  /// Publishes the deck [id] on the server, then on the device as the
+  /// server's screening answered: public, or still checking or held, which
+  /// sync then keeps as the server has it, or refused, which leaves the deck
+  /// private. Sets the user's display name first when [name] is given.
+  Future<Screening> makePublic(
     DeckId id, {
     DisplayName? name,
     String? description,
@@ -130,13 +138,28 @@ class SharingService {
     final deck = await decks.getDeck(id);
     final at = clock();
     final visibility = PublicDeck(at);
-    await server.writeVisibility(
+    final screening = await server.writeVisibility(
       deck,
       visibility,
       description: description,
       at: at,
     );
-    await decks.setVisibility(id, visibility, description: description);
+    switch (screening.state) {
+      case DeckPublication.public:
+        await decks.setVisibility(id, visibility, description: description);
+      case DeckPublication.checking || DeckPublication.held:
+        await decks.setVisibility(
+          id,
+          visibility,
+          description: description,
+          publication: screening.state,
+        );
+      case DeckPublication.refused:
+        await decks.setPublication(id, DeckPublication.refused);
+      case DeckPublication.private:
+        break;
+    }
+    return screening;
   }
 
   /// Makes the deck [id] private on the server, then on the device.

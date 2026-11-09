@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/deck/deck.dart';
@@ -177,6 +179,176 @@ void main() {
       await app.close();
     },
   );
+
+  Finder inSheet(String text) =>
+      find.descendant(of: find.byType(BottomSheet), matching: shownText(text));
+
+  Future<void> publishNow(SharingApp app) async {
+    await app.tap(
+      shownText("I won't publish inappropriate or copyrighted content"),
+    );
+    await app.tap(widgetWithShownText(FilledButton, 'Publish'));
+  }
+
+  testWidgets(
+    'while the check runs the sheet says it is checking, and the answer ends the wait',
+    (tester) async {
+      final server = FakeSharingServer(name: DisplayName.tryParse('Ada'))
+        ..hold = Completer<void>();
+      final app = await _openFrench(tester, server: server);
+      await app.deckMenu('Publish');
+      await app.tap(
+        shownText("I won't publish inappropriate or copyrighted content"),
+      );
+      expect(shownText("We're checking this note"), findsNothing);
+
+      await tester.tap(widgetWithShownText(FilledButton, 'Publish'));
+      await tester.pump();
+
+      expect(shownText("We're checking this note"), findsOneWidget);
+      expect(shownText('Note published'), findsNothing);
+      server.hold!.complete();
+      await tester.pumpAndSettle();
+      expect(shownText("We're checking this note"), findsNothing);
+      expect(shownText('Note published'), findsOneWidget);
+      await app.close();
+    },
+  );
+
+  testWidgets(
+    'a note held for an admin says why in the sheet and on the note, and stays under review on the device',
+    (tester) async {
+      final server = FakeSharingServer(name: DisplayName.tryParse('Ada'))
+        ..screening = const Screening(DeckPublication.held);
+      final app = await _openFrench(tester, server: server);
+      await app.deckMenu('Publish');
+      await publishNow(app);
+
+      const why = 'An admin reviews this note before it goes public';
+      expect(inSheet(why), findsOneWidget);
+      expect(shownText('Note published'), findsNothing);
+      final stored = await _stored(app);
+      expect(stored.publication, DeckPublication.held);
+      expect(stored.visibility, isA<PublicDeck>());
+      await app.tap(widgetWithShownText(FilledButton, 'Close'));
+
+      // The note shows the state and the sentence, not "Public".
+      expect(shownText('0 learned · In review'), findsOneWidget);
+      expect(shownText(why), findsOneWidget);
+      expect(shownText('Public'), findsNothing);
+      await app.close();
+    },
+  );
+
+  testWidgets(
+    'a refused note names each card and passage found, opens that card, and publishes again once fixed',
+    (tester) async {
+      final server = FakeSharingServer(name: DisplayName.tryParse('Ada'))
+        ..screening = const Screening(
+          DeckPublication.refused,
+          refusal: 'rules',
+          findings: [
+            ScreeningFinding(
+              place: FindingPlace.front,
+              category: FindingCategory.phone,
+              card: CardId('id1'),
+              block: 0,
+              start: 0,
+              end: 4,
+            ),
+            ScreeningFinding(
+              place: FindingPlace.description,
+              category: FindingCategory.link,
+              start: 0,
+              end: 3,
+            ),
+          ],
+        );
+      final app = await SharingApp.open(
+        tester,
+        server: server,
+        myDecks: {
+          'French': {'chat': ''},
+        },
+      );
+      await app.tapText('French');
+      await app.deckMenu('Publish');
+      await publishNow(app);
+
+      const why =
+          "This note has content that can't be public, so fix it and publish again";
+      expect(inSheet(why), findsOneWidget);
+      expect(
+        shownText('Front: "chat", Looks like a phone number'),
+        findsOneWidget,
+      );
+      expect(
+        shownText('Description: Has a link or an address'),
+        findsOneWidget,
+      );
+      final stored = await _stored(app);
+      expect(stored.publication, DeckPublication.refused);
+      expect(stored.visibility, isA<PrivateDeck>());
+
+      // The row of the card opens it.
+      await app.tap(shownText('Front: "chat", Looks like a phone number'));
+      expect(shownText('Edit card'), findsOneWidget);
+      await app.tap(find.byTooltip('Close'));
+      expect(shownTextContaining('Not published'), findsOneWidget);
+
+      // Fixed: the sheet says why it was refused last time, and publishes.
+      server.screening = const Screening(DeckPublication.public);
+      await app.deckMenu('Publish');
+      expect(inSheet(why), findsOneWidget);
+      await publishNow(app);
+      expect(shownText('Note published'), findsOneWidget);
+      final published = await _stored(app);
+      expect(published.publication, DeckPublication.public);
+      expect(published.visibility, isA<PublicDeck>());
+      await app.close();
+    },
+  );
+
+  testWidgets('the 노트 tab shows each state of the screening as its chip', (
+    tester,
+  ) async {
+    final app = await SharingApp.open(
+      tester,
+      myDecks: {'French': {}, 'German': {}, 'Latin': {}},
+    );
+    Future<void> write(int at, Future<void> Function(DeckId) change) async {
+      await tester.runAsync(() async {
+        final decks = await app.decks.watchDecks().first;
+        await change(decks[at].id);
+      });
+      await tester.pumpAndSettle();
+    }
+
+    final since = PublicDeck(DateTime.utc(2026, 10, 15));
+    await write(
+      0,
+      (id) => app.decks.setVisibility(
+        id,
+        since,
+        publication: DeckPublication.checking,
+      ),
+    );
+    await write(
+      1,
+      (id) =>
+          app.decks.setVisibility(id, since, publication: DeckPublication.held),
+    );
+    await write(
+      2,
+      (id) => app.decks.setPublication(id, DeckPublication.refused),
+    );
+
+    expect(shownText('Checking'), findsOneWidget);
+    expect(shownText('In review'), findsOneWidget);
+    expect(shownText('Not published'), findsOneWidget);
+    expect(shownText('Public'), findsNothing);
+    await app.close();
+  });
 
   testWidgets('unpublishing makes the deck private and removes the chip', (
     tester,

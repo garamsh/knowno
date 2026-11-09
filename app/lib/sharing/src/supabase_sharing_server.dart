@@ -142,12 +142,12 @@ final class SupabaseSharingServer implements SharingServer {
   );
 
   @override
-  Future<void> writeVisibility(
+  Future<Screening> writeVisibility(
     Deck deck,
     DeckVisibility visibility, {
     String? description,
     required DateTime at,
-  }) => _request(() async {
+  }) => _request<Screening>(() async {
     // user_id defaults to the caller, and deleted_at is left as the server
     // has it, so a deck deleted on another device stays deleted.
     final row = {
@@ -163,19 +163,19 @@ final class SupabaseSharingServer implements SharingServer {
           'visibility': 'private',
           'published_at': null,
         });
+        return const Screening(DeckPublication.private);
       case PublicDeck():
         // No client write makes a deck public, so the row is made as the
         // server defaults it (private) or left as it is, and `publish-note`
         // makes it public once its rules have read it.
         await _client.from('decks').upsert(row);
-        await _publish(deck.id, description);
+        return _publish(deck.id, description);
     }
   });
 
   /// Asks `publish-note` to publish [deck], which answers once it has
-  /// screened the note. Returns when the note is public; any other state
-  /// throws, so the device is not left showing a note the server does not.
-  Future<void> _publish(DeckId deck, String? description) async {
+  /// screened the note, with where it has the note.
+  Future<Screening> _publish(DeckId deck, String? description) async {
     final FunctionResponse response;
     try {
       response = await _functions.invoke(
@@ -185,16 +185,7 @@ final class SupabaseSharingServer implements SharingServer {
     } on FunctionException catch (error) {
       throw classifyPublishError(error);
     }
-    switch (response.data) {
-      case {'state': 'public'}:
-        return;
-      case {'state': final String state}:
-        throw SharingRejected(NotPublic(state));
-      default:
-        throw SharingFailed(
-          const FormatException('publish-note answered no state'),
-        );
-    }
+    return _decodeScreening(response.data);
   }
 
   /// Runs [request] within [timeout], mapping each expected failure to its
@@ -231,17 +222,6 @@ SharingFailure classifyPublishError(FunctionException error) =>
       _ => SharingFailed(error),
     };
 
-/// `publish-note` answered that the note is not public: it is still
-/// `checking`, `held` for an admin or `refused`.
-final class NotPublic implements Exception {
-  const NotPublic(this.state);
-
-  final String state;
-
-  @override
-  String toString() => 'the note is $state, not public';
-}
-
 /// The failure a PostgREST [error] means, read as sync reads it: a refused
 /// privilege or session, an unreachable database or gateway, or anything
 /// else the server refused.
@@ -269,6 +249,56 @@ final class _NoSession implements Exception {
   @override
   String toString() => 'no session';
 }
+
+/// The answer of `publish-note`; anything but a state a publish can end in,
+/// or a finding of an unknown shape, is a [FormatException].
+Screening _decodeScreening(Object? data) {
+  if (data is! Map<String, dynamic>) {
+    throw const FormatException('publish-note answered no object');
+  }
+  final fields = _Fields(data);
+  final state = switch (fields.string('state')) {
+    'checking' => DeckPublication.checking,
+    'held' => DeckPublication.held,
+    'refused' => DeckPublication.refused,
+    'public' => DeckPublication.public,
+    final other => throw FormatException('publish-note answered state $other'),
+  };
+  final findings = switch (data['findings']) {
+    null => const <Object?>[],
+    final List<dynamic> list => list,
+    _ => throw const FormatException('findings is not a list'),
+  };
+  return Screening(
+    state,
+    refusal: fields.stringOrNull('refusal'),
+    findings: [
+      for (final finding in findings)
+        if (finding case final Map<String, dynamic> finding)
+          _decodeFinding(_Fields(finding))
+        else
+          throw const FormatException('a finding is not an object'),
+    ],
+  );
+}
+
+ScreeningFinding _decodeFinding(_Fields row) => ScreeningFinding(
+  place: switch (row.string('where')) {
+    'name' => FindingPlace.name,
+    'description' => FindingPlace.description,
+    'front' => FindingPlace.front,
+    'back' => FindingPlace.back,
+    final other => throw FormatException('a finding is at $other'),
+  },
+  category: FindingCategory.fromKey(row.string('category')),
+  card: switch (row.stringOrNull('card_id')) {
+    final id? => CardId(id),
+    null => null,
+  },
+  block: row.integerOrNull('block'),
+  start: row.integerOrNull('start'),
+  end: row.integerOrNull('end'),
+);
 
 String _time(DateTime time) => storedTime(time).toIso8601String();
 

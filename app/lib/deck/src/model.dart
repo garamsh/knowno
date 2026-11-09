@@ -39,6 +39,25 @@ final class PublicDeck extends DeckVisibility {
   final DateTime publishedAt;
 }
 
+/// Where the server's screening has a deck (ADR 0238), which the device
+/// learns when it publishes and on each pull. Only [public] is shown to
+/// others.
+enum DeckPublication {
+  private,
+  checking,
+  held,
+  refused,
+  public;
+
+  /// The state stored as [name]; [private] for one this build does not know.
+  static DeckPublication fromName(String name) {
+    for (final state in values) {
+      if (state.name == name) return state;
+    }
+    return private;
+  }
+}
+
 /// The icons a deck's tile can hold, each stored under its [key].
 enum DeckIcon {
   layers('layers'),
@@ -110,6 +129,7 @@ final class Deck {
     required this.createdAt,
     required this.updatedAt,
     this.visibility = const PrivateDeck(),
+    this.publication = DeckPublication.private,
     this.description,
     this.icon,
     this.color,
@@ -121,6 +141,11 @@ final class Deck {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DeckVisibility visibility;
+
+  /// Where the server's screening has the deck; a [visibility] of
+  /// [PublicDeck] with a state short of [DeckPublication.public] is a note
+  /// still being checked or waiting for an admin.
+  final DeckPublication publication;
 
   /// What the owner wrote about the deck when publishing it, if anything.
   final String? description;

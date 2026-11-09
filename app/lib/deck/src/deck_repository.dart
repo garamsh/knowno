@@ -83,6 +83,7 @@ class DeckRepository {
       color: color?.key,
       imageMediaId: image?.value,
       visibility: _visibilityName(const PrivateDeck()),
+      publication: DeckPublication.private.name,
       createdAt: now,
       updatedAt: now,
       dirty: true,
@@ -141,11 +142,14 @@ class DeckRepository {
 
   /// Publishes the deck as [visibility] says, with [description] when it is
   /// public; a private deck keeps the description it had, for the next
-  /// publish. Refused with [DeckDeleted] once the deck is deleted.
+  /// publish. [publication] is where the server has the deck, [public] or
+  /// [private] as [visibility] says unless given. Refused with [DeckDeleted]
+  /// once the deck is deleted.
   Future<Deck> setVisibility(
     DeckId id,
     DeckVisibility visibility, {
     String? description,
+    DeckPublication? publication,
   }) => _guard(
     () => _db.transaction(() async {
       await getDeck(id);
@@ -154,6 +158,14 @@ class DeckRepository {
       )..where((deck) => deck.id.equals(id.value))).write(
         DecksCompanion(
           visibility: Value(_visibilityName(visibility)),
+          publication: Value(
+            (publication ??
+                    switch (visibility) {
+                      PublicDeck() => DeckPublication.public,
+                      PrivateDeck() => DeckPublication.private,
+                    })
+                .name,
+          ),
           publishedAt: Value(switch (visibility) {
             PublicDeck(:final publishedAt) => publishedAt,
             PrivateDeck() => null,
@@ -169,6 +181,16 @@ class DeckRepository {
       return getDeck(id);
     }),
   );
+
+  /// Records that the server holds the deck as [publication], which sync
+  /// reads back on the next pull. A write the server made, so the deck is not
+  /// marked unsynced.
+  Future<void> setPublication(DeckId id, DeckPublication publication) =>
+      _guard(() async {
+        await getDeck(id);
+        await (_db.update(_db.decks)..where((deck) => deck.id.equals(id.value)))
+            .write(DecksCompanion(publication: Value(publication.name)));
+      });
 
   /// The deck, re-emitted on each change; null once it is deleted.
   Stream<Deck?> watchDeck(DeckId id) {
@@ -713,6 +735,7 @@ class DeckRepository {
       ('public', final publishedAt?) => PublicDeck(publishedAt),
       _ => const PrivateDeck(),
     },
+    publication: DeckPublication.fromName(row.publication),
     description: row.description,
     icon: DeckIcon.fromKey(row.icon),
     color: DeckColor.fromKey(row.color),

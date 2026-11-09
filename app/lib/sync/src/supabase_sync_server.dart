@@ -282,6 +282,7 @@ DeckRow _decodeDeck(_Fields row) => DeckRow(
   name: row.string('name'),
   visibility: row.string('visibility'),
   publishedAt: row.timeOrNull('published_at'),
+  publication: row.string('publication'),
   description: row.stringOrNull('description'),
   icon: row.stringOrNull('icon'),
   color: row.stringOrNull('color'),

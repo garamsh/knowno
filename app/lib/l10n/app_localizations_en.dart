@@ -1289,6 +1289,64 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unpublished => 'Note is private again';
 
   @override
+  String get publicationChecking => 'Checking';
+
+  @override
+  String get publicationHeld => 'In review';
+
+  @override
+  String get publicationRefused => 'Not published';
+
+  @override
+  String get publicationCheckingWhy => 'We\'re checking this note';
+
+  @override
+  String get publicationHeldWhy =>
+      'An admin reviews this note before it goes public';
+
+  @override
+  String get publicationRefusedWhy =>
+      'This note has content that can\'t be public, so fix it and publish again';
+
+  @override
+  String findingPlace(String place) {
+    String _temp0 = intl.Intl.selectLogic(place, {
+      'name': 'Note name',
+      'description': 'Description',
+      'front': 'Front',
+      'back': 'Back',
+      'other': 'Note',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String findingCategory(String category) {
+    String _temp0 = intl.Intl.selectLogic(category, {
+      'resident_number': 'Looks like a resident registration number',
+      'account': 'Looks like an account number',
+      'phone': 'Looks like a phone number',
+      'link': 'Has a link or an address',
+      'kakao_id': 'Has a messenger ID',
+      'contact': 'Asks people to get in touch',
+      'repeat': 'Repeats the same promotion',
+      'term': 'Has a word that can\'t be public',
+      'other': 'Can\'t be public',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String findingLine(String category, String place) {
+    return '$place: $category';
+  }
+
+  @override
+  String findingLinePassage(String category, String passage, String place) {
+    return '$place: \"$passage\", $category';
+  }
+
+  @override
   String get noCardsTitle => 'Make your first card?';
 
   @override

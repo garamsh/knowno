@@ -112,7 +112,11 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
                 onPressed: online
                     ? () => public
                           ? sharing.unpublish(aboveMenu(context), current)
-                          : sharing.publish(aboveMenu(context), current)
+                          : sharing.publish(
+                              aboveMenu(context),
+                              current,
+                              openCard: _openCard,
+                            )
                     : null,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,7 +190,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
               ),
             )
           else
-            ..._cardList(l10n, value, public: public),
+            ..._cardList(l10n, value, publication: current.publication),
         ],
         AsyncError(:final error, :final stackTrace) => [
           SliverToBoxAdapter(
@@ -233,7 +237,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
   List<Widget> _cardList(
     AppLocalizations l10n,
     List<Card> cards, {
-    required bool public,
+    required DeckPublication publication,
   }) {
     final query = _query.trim().toLowerCase();
     final rows = [
@@ -248,7 +252,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
         child: _CardListHeader(
           deck: widget.deck.id,
           cards: cards.length,
-          public: public,
+          publication: publication,
         ),
       ),
       SliverPadding(
@@ -350,6 +354,12 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     _ => widget.deck,
   };
 
+  void _openCard(CardId id) {
+    final cards = ref.read(cardsProvider(widget.deck.id)).value ?? const [];
+    final card = cards.where((card) => card.id == id).firstOrNull;
+    if (card != null) unawaited(_open(card));
+  }
+
   /// The deck's name as stored now.
   String get _name => _stored(ref.read(deckProvider(widget.deck.id))).name;
 
@@ -426,12 +436,12 @@ class _CardListHeader extends StatelessWidget {
   const _CardListHeader({
     required this.deck,
     required this.cards,
-    required this.public,
+    required this.publication,
   });
 
   final DeckId deck;
   final int cards;
-  final bool public;
+  final DeckPublication publication;
 
   @override
   Widget build(BuildContext context) {
@@ -468,11 +478,16 @@ class _CardListHeader extends StatelessWidget {
                     [
                       if (progress != null)
                         l10n.deckMasteredShort(progress.mastered),
-                      if (public) l10n.publicChip,
+                      ?publicationLabel(l10n, publication),
                     ].join(' · '),
                     style: quiet,
                   ),
                 ),
+                if (publicationWhy(l10n, publication) case final why?)
+                  SizedBox(
+                    width: double.infinity,
+                    child: Text(why, style: quiet),
+                  ),
               ],
             ),
           ),
