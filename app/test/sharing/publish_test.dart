@@ -228,8 +228,7 @@ void main() {
       expect(inSheet(why), findsOneWidget);
       expect(shownText('Note published'), findsNothing);
       final stored = await _stored(app);
-      expect(stored.publication, DeckPublication.held);
-      expect(stored.visibility, isA<PublicDeck>());
+      expect(stored.visibility, isA<HeldDeck>());
       await app.tap(widgetWithShownText(FilledButton, 'Close'));
 
       // The note shows the state and the sentence, not "Public".
@@ -287,8 +286,7 @@ void main() {
         findsOneWidget,
       );
       final stored = await _stored(app);
-      expect(stored.publication, DeckPublication.refused);
-      expect(stored.visibility, isA<PrivateDeck>());
+      expect(stored.visibility, isA<RefusedDeck>());
 
       // The row of the card opens it.
       await app.tap(shownText('Front: "chat", Looks like a phone number'));
@@ -303,7 +301,6 @@ void main() {
       await publishNow(app);
       expect(shownText('Note published'), findsOneWidget);
       final published = await _stored(app);
-      expect(published.publication, DeckPublication.public);
       expect(published.visibility, isA<PublicDeck>());
       await app.close();
     },
@@ -324,24 +321,10 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    final since = PublicDeck(DateTime.utc(2026, 10, 15));
-    await write(
-      0,
-      (id) => app.decks.setVisibility(
-        id,
-        since,
-        publication: DeckPublication.checking,
-      ),
-    );
-    await write(
-      1,
-      (id) =>
-          app.decks.setVisibility(id, since, publication: DeckPublication.held),
-    );
-    await write(
-      2,
-      (id) => app.decks.setPublication(id, DeckPublication.refused),
-    );
+    final at = DateTime.utc(2026, 10, 15);
+    await write(0, (id) => app.decks.setVisibility(id, CheckingDeck(at)));
+    await write(1, (id) => app.decks.setVisibility(id, HeldDeck(at)));
+    await write(2, (id) => app.decks.setVisibility(id, const RefusedDeck()));
 
     expect(shownText('Checking'), findsOneWidget);
     expect(shownText('In review'), findsOneWidget);

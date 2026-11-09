@@ -42,6 +42,58 @@ void main() {
     Future<List<Card>> cardsOf(DeckId deckId) =>
         repository.watchCards(deckId).first;
 
+    group('where the server has a deck', () {
+      final at = DateTime.utc(2026, 10, 15);
+
+      test('each state is stored as the server stores it and read back as '
+          'the same state', () async {
+        final deck = await repository.createDeck('French');
+        expect(deck.visibility, isA<PrivateDeck>());
+        final stored = <DeckVisibility, (String, String, bool)>{
+          const PrivateDeck(): ('private', 'private', false),
+          CheckingDeck(at): ('public', 'checking', true),
+          HeldDeck(at): ('public', 'held', true),
+          const RefusedDeck(): ('private', 'refused', false),
+          PublicDeck(at): ('public', 'public', true),
+        };
+
+        for (final MapEntry(key: state, value: columns) in stored.entries) {
+          final read = await repository.setVisibility(deck.id, state);
+          final row = await db.select(db.decks).getSingle();
+
+          expect(read.visibility.runtimeType, state.runtimeType);
+          expect((row.visibility, row.publication), (columns.$1, columns.$2));
+          expect(row.publishedAt != null, columns.$3);
+          expect(read.visibility.requested, columns.$3);
+        }
+      });
+
+      test('a row whose two columns disagree reads as the one state the '
+          'server shows', () async {
+        final deck = await repository.createDeck('French');
+        Future<DeckVisibility> read(
+          String visibility,
+          String publication,
+        ) async {
+          await (db.update(
+            db.decks,
+          )..where((d) => d.id.equals(deck.id.value))).write(
+            DecksCompanion(
+              visibility: Value(visibility),
+              publication: Value(publication),
+              publishedAt: Value(visibility == 'public' ? at : null),
+            ),
+          );
+          return (await repository.getDeck(deck.id)).visibility;
+        }
+
+        expect(await read('public', 'refused'), isA<PublicDeck>());
+        expect(await read('public', 'private'), isA<PublicDeck>());
+        expect(await read('private', 'held'), isA<PrivateDeck>());
+        expect(await read('private', 'public'), isA<PrivateDeck>());
+      });
+    });
+
     group('duplicate rule', () {
       test(
         'refuses an equal key in the same deck and allows it in another deck',

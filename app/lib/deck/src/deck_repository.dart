@@ -83,7 +83,7 @@ class DeckRepository {
       color: color?.key,
       imageMediaId: image?.value,
       visibility: _visibilityName(const PrivateDeck()),
-      publication: DeckPublication.private.name,
+      publication: _publicationName(const PrivateDeck()),
       createdAt: now,
       updatedAt: now,
       dirty: true,
@@ -140,16 +140,14 @@ class DeckRepository {
     }),
   );
 
-  /// Publishes the deck as [visibility] says, with [description] when it is
-  /// public; a private deck keeps the description it had, for the next
-  /// publish. [publication] is where the server has the deck, [public] or
-  /// [private] as [visibility] says unless given. Refused with [DeckDeleted]
-  /// once the deck is deleted.
+  /// Sets where the deck stands, as the server's answer or the owner's
+  /// choice. [description] is kept with a deck that was asked to be public
+  /// and left as it was otherwise, for the next publish. Refused with
+  /// [DeckDeleted] once the deck is deleted.
   Future<Deck> setVisibility(
     DeckId id,
     DeckVisibility visibility, {
     String? description,
-    DeckPublication? publication,
   }) => _guard(
     () => _db.transaction(() async {
       await getDeck(id);
@@ -158,22 +156,16 @@ class DeckRepository {
       )..where((deck) => deck.id.equals(id.value))).write(
         DecksCompanion(
           visibility: Value(_visibilityName(visibility)),
-          publication: Value(
-            (publication ??
-                    switch (visibility) {
-                      PublicDeck() => DeckPublication.public,
-                      PrivateDeck() => DeckPublication.private,
-                    })
-                .name,
-          ),
+          publication: Value(_publicationName(visibility)),
           publishedAt: Value(switch (visibility) {
+            CheckingDeck(:final publishedAt) ||
+            HeldDeck(:final publishedAt) ||
             PublicDeck(:final publishedAt) => publishedAt,
-            PrivateDeck() => null,
+            PrivateDeck() || RefusedDeck() => null,
           }),
-          description: switch (visibility) {
-            PublicDeck() => Value(description),
-            PrivateDeck() => const Value.absent(),
-          },
+          description: visibility.requested
+              ? Value(description)
+              : const Value.absent(),
           updatedAt: Value(_clock()),
           dirty: const Value(true),
         ),
@@ -181,16 +173,6 @@ class DeckRepository {
       return getDeck(id);
     }),
   );
-
-  /// Records that the server holds the deck as [publication], which sync
-  /// reads back on the next pull. A write the server made, so the deck is not
-  /// marked unsynced.
-  Future<void> setPublication(DeckId id, DeckPublication publication) =>
-      _guard(() async {
-        await getDeck(id);
-        await (_db.update(_db.decks)..where((deck) => deck.id.equals(id.value)))
-            .write(DecksCompanion(publication: Value(publication.name)));
-      });
 
   /// The deck, re-emitted on each change; null once it is deleted.
   Stream<Deck?> watchDeck(DeckId id) {
@@ -590,11 +572,24 @@ class DeckRepository {
     return _toDeck(row);
   });
 
+  /// The `visibility` column. A deck being checked or held is public there
+  /// as it is on the server, so a later push of the row cannot lift the hold;
+  /// a pull brings the server's state back.
   static String _visibilityName(DeckVisibility visibility) =>
       switch (visibility) {
-        PrivateDeck() => 'private',
-        PublicDeck() => 'public',
+        PrivateDeck() || RefusedDeck() => 'private',
+        CheckingDeck() || HeldDeck() || PublicDeck() => 'public',
       };
+
+  /// The `publication` column.
+  static String _publicationName(DeckVisibility visibility) =>
+      switch (visibility) {
+        PrivateDeck() => DeckPublication.private,
+        CheckingDeck() => DeckPublication.checking,
+        HeldDeck() => DeckPublication.held,
+        RefusedDeck() => DeckPublication.refused,
+        PublicDeck() => DeckPublication.public,
+      }.name;
 
   static DecksCompanion _deckTombstone(DateTime at) => DecksCompanion(
     deletedAt: Value(at),
@@ -725,17 +720,33 @@ class DeckRepository {
     return image == null ? null : MediaId(image);
   }
 
+  /// The two columns as one state. A public row always carries its publish
+  /// time, which the server checks; a row that says public with a
+  /// `publication` of private or refused reads as public, as the server
+  /// shows it, and one that says private with any state but refused as
+  /// private.
+  static DeckVisibility _visibilityOf(DeckRow row) =>
+      switch ((row.visibility, row.publishedAt)) {
+        ('public', final publishedAt?) => switch (DeckPublication.fromName(
+          row.publication,
+        )) {
+          DeckPublication.checking => CheckingDeck(publishedAt),
+          DeckPublication.held => HeldDeck(publishedAt),
+          DeckPublication.public ||
+          DeckPublication.private ||
+          DeckPublication.refused => PublicDeck(publishedAt),
+        },
+        _ when row.publication == DeckPublication.refused.name =>
+          const RefusedDeck(),
+        _ => const PrivateDeck(),
+      };
+
   Deck _toDeck(DeckRow row) => Deck(
     id: DeckId(row.id),
     name: row.name,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    // A public row always carries its publish time; the server checks it.
-    visibility: switch ((row.visibility, row.publishedAt)) {
-      ('public', final publishedAt?) => PublicDeck(publishedAt),
-      _ => const PrivateDeck(),
-    },
-    publication: DeckPublication.fromName(row.publication),
+    visibility: _visibilityOf(row),
     description: row.description,
     icon: DeckIcon.fromKey(row.icon),
     color: DeckColor.fromKey(row.color),

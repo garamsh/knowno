@@ -144,21 +144,13 @@ class SharingService {
       description: description,
       at: at,
     );
-    switch (screening.state) {
-      case DeckPublication.public:
-        await decks.setVisibility(id, visibility, description: description);
-      case DeckPublication.checking || DeckPublication.held:
-        await decks.setVisibility(
-          id,
-          visibility,
-          description: description,
-          publication: screening.state,
-        );
-      case DeckPublication.refused:
-        await decks.setPublication(id, DeckPublication.refused);
-      case DeckPublication.private:
-        break;
-    }
+    await decks.setVisibility(id, switch (screening.state) {
+      DeckPublication.public => visibility,
+      DeckPublication.checking => CheckingDeck(at),
+      DeckPublication.held => HeldDeck(at),
+      DeckPublication.refused => const RefusedDeck(),
+      DeckPublication.private => const PrivateDeck(),
+    }, description: description);
     return screening;
   }
 

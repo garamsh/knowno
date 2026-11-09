@@ -81,7 +81,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     // With an assistant, adding a card by hand is in the ⋯, behind 말랑이.
     final assistant = ref.watch(assistantClientProvider) != null;
     final current = _stored(ref.watch(deckProvider(widget.deck.id)));
-    final public = current.visibility is PublicDeck;
+    final public = current.visibility.requested;
     final empty = switch (cards) {
       AsyncData(:final value) => value.isEmpty,
       _ => false,
@@ -190,7 +190,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
               ),
             )
           else
-            ..._cardList(l10n, value, publication: current.publication),
+            ..._cardList(l10n, value, visibility: current.visibility),
         ],
         AsyncError(:final error, :final stackTrace) => [
           SliverToBoxAdapter(
@@ -237,7 +237,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
   List<Widget> _cardList(
     AppLocalizations l10n,
     List<Card> cards, {
-    required DeckPublication publication,
+    required DeckVisibility visibility,
   }) {
     final query = _query.trim().toLowerCase();
     final rows = [
@@ -252,7 +252,7 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
         child: _CardListHeader(
           deck: widget.deck.id,
           cards: cards.length,
-          publication: publication,
+          visibility: visibility,
         ),
       ),
       SliverPadding(
@@ -436,12 +436,12 @@ class _CardListHeader extends StatelessWidget {
   const _CardListHeader({
     required this.deck,
     required this.cards,
-    required this.publication,
+    required this.visibility,
   });
 
   final DeckId deck;
   final int cards;
-  final DeckPublication publication;
+  final DeckVisibility visibility;
 
   @override
   Widget build(BuildContext context) {
@@ -478,12 +478,12 @@ class _CardListHeader extends StatelessWidget {
                     [
                       if (progress != null)
                         l10n.deckMasteredShort(progress.mastered),
-                      ?publicationLabel(l10n, publication),
+                      ?publicationLabel(l10n, visibility),
                     ].join(' · '),
                     style: quiet,
                   ),
                 ),
-                if (publicationWhy(l10n, publication) case final why?)
+                if (publicationWhy(l10n, visibility) case final why?)
                   SizedBox(
                     width: double.infinity,
                     child: Text(why, style: quiet),

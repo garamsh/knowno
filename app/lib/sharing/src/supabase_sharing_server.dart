@@ -170,6 +170,12 @@ final class SupabaseSharingServer implements SharingServer {
         // makes it public once its rules have read it.
         await _client.from('decks').upsert(row);
         return _publish(deck.id, description);
+      case CheckingDeck() || HeldDeck() || RefusedDeck():
+        throw ArgumentError.value(
+          visibility,
+          'visibility',
+          'is a state the server answers, not a request',
+        );
     }
   });
 

@@ -345,14 +345,14 @@ void main() {
 
     expect(screening.state, DeckPublication.held);
     expect(
-      (await bea.device.deck.getDeck(deck.id)).publication,
-      DeckPublication.held,
+      (await bea.device.deck.getDeck(deck.id)).visibility,
+      isA<HeldDeck>(),
     );
     // The push and the pull after it leave the state as the server has it.
     await bea.sync();
     expect(
-      (await bea.device.deck.getDeck(deck.id)).publication,
-      DeckPublication.held,
+      (await bea.device.deck.getDeck(deck.id)).visibility,
+      isA<HeldDeck>(),
     );
     // Control: the server did take the request, and still shows nobody the note.
     expect(await listOurs(ada), isEmpty);

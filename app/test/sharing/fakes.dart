@@ -149,6 +149,9 @@ class FakeSharingServer implements SharingServer {
     return switch (visibility) {
       PublicDeck() => screening,
       PrivateDeck() => const Screening(DeckPublication.private),
+      CheckingDeck() ||
+      HeldDeck() ||
+      RefusedDeck() => throw ArgumentError('a state is no request'),
     };
   }
 }

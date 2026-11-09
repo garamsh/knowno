@@ -38,7 +38,8 @@ abstract interface class SharingServer {
   /// takes [description] and is asked of the server's screening, which
   /// answers before this returns with where it has the note: public,
   /// checking, held or refused. A private one keeps the description it had
-  /// and answers [DeckPublication.private].
+  /// and answers [DeckPublication.private]. A state the server answers
+  /// ([CheckingDeck], [HeldDeck], [RefusedDeck]) is no request.
   Future<Screening> writeVisibility(
     Deck deck,
     DeckVisibility visibility, {

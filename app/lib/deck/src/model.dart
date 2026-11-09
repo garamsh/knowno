@@ -22,14 +22,45 @@ final class DeckSelection {
       decks.isEmpty ? null : DeckSelection(decks.first, decks.skip(1));
 }
 
-/// Whether other signed-in users can find a deck.
+/// Where a deck stands with the server's screening (ADR 0238), which the
+/// device learns when it publishes and on each pull: one state, so a deck
+/// cannot be public and refused at once. Only [PublicDeck] is shown to
+/// others.
 sealed class DeckVisibility {
   const DeckVisibility();
+
+  /// Whether the owner asked for the deck to be public and the server has
+  /// not turned that down: checking, held or public. Such a deck can be made
+  /// private.
+  bool get requested => switch (this) {
+    PrivateDeck() || RefusedDeck() => false,
+    CheckingDeck() || HeldDeck() || PublicDeck() => true,
+  };
 }
 
 /// Only its owner sees the deck; the default.
 final class PrivateDeck extends DeckVisibility {
   const PrivateDeck();
+}
+
+/// Published at [publishedAt] and being checked by rules; not yet visible.
+final class CheckingDeck extends DeckVisibility {
+  const CheckingDeck(this.publishedAt);
+
+  final DateTime publishedAt;
+}
+
+/// Published at [publishedAt] and waiting for an admin; not visible.
+final class HeldDeck extends DeckVisibility {
+  const HeldDeck(this.publishedAt);
+
+  final DateTime publishedAt;
+}
+
+/// The screening found something that cannot be public; the deck is private
+/// until its owner fixes it and publishes again.
+final class RefusedDeck extends DeckVisibility {
+  const RefusedDeck();
 }
 
 /// Others can find, preview and copy the deck, since [publishedAt].
@@ -39,9 +70,8 @@ final class PublicDeck extends DeckVisibility {
   final DateTime publishedAt;
 }
 
-/// Where the server's screening has a deck (ADR 0238), which the device
-/// learns when it publishes and on each pull. Only [public] is shown to
-/// others.
+/// The state `publish-note` answers and the server stores for a deck; the
+/// device holds it as a [DeckVisibility].
 enum DeckPublication {
   private,
   checking,
@@ -129,7 +159,6 @@ final class Deck {
     required this.createdAt,
     required this.updatedAt,
     this.visibility = const PrivateDeck(),
-    this.publication = DeckPublication.private,
     this.description,
     this.icon,
     this.color,
@@ -141,11 +170,6 @@ final class Deck {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DeckVisibility visibility;
-
-  /// Where the server's screening has the deck; a [visibility] of
-  /// [PublicDeck] with a state short of [DeckPublication.public] is a note
-  /// still being checked or waiting for an admin.
-  final DeckPublication publication;
 
   /// What the owner wrote about the deck when publishing it, if anything.
   final String? description;

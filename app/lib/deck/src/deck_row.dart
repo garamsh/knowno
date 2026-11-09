@@ -68,7 +68,7 @@ class DeckRow extends StatelessWidget {
                             style: AppType.bodyStrong,
                           ),
                         ),
-                        if (publicationLabel(l10n, deck.publication)
+                        if (publicationLabel(l10n, deck.visibility)
                             case final label?)
                           AppChip(label: label),
                         ?today,
@@ -221,21 +221,21 @@ Color deckTileColor(AppColors colors, DeckColor color) => switch (color) {
 };
 
 /// The chip for where the server has a note; null for a private one.
-String? publicationLabel(AppLocalizations l10n, DeckPublication publication) =>
-    switch (publication) {
-      DeckPublication.public => l10n.publicChip,
-      DeckPublication.checking => l10n.publicationChecking,
-      DeckPublication.held => l10n.publicationHeld,
-      DeckPublication.refused => l10n.publicationRefused,
-      DeckPublication.private => null,
+String? publicationLabel(AppLocalizations l10n, DeckVisibility visibility) =>
+    switch (visibility) {
+      PublicDeck() => l10n.publicChip,
+      CheckingDeck() => l10n.publicationChecking,
+      HeldDeck() => l10n.publicationHeld,
+      RefusedDeck() => l10n.publicationRefused,
+      PrivateDeck() => null,
     };
 
 /// The one sentence of why a note is not public; null while it is, or
 /// private by its owner's choice.
-String? publicationWhy(AppLocalizations l10n, DeckPublication publication) =>
-    switch (publication) {
-      DeckPublication.checking => l10n.publicationCheckingWhy,
-      DeckPublication.held => l10n.publicationHeldWhy,
-      DeckPublication.refused => l10n.publicationRefusedWhy,
-      DeckPublication.public || DeckPublication.private => null,
+String? publicationWhy(AppLocalizations l10n, DeckVisibility visibility) =>
+    switch (visibility) {
+      CheckingDeck() => l10n.publicationCheckingWhy,
+      HeldDeck() => l10n.publicationHeldWhy,
+      RefusedDeck() => l10n.publicationRefusedWhy,
+      PublicDeck() || PrivateDeck() => null,
     };

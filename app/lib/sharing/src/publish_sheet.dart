@@ -236,7 +236,7 @@ class _PublishSheetState extends State<_PublishSheet> {
               ),
             )
           else if (_screening?.state == DeckPublication.refused ||
-              widget.deck.publication == DeckPublication.refused)
+              widget.deck.visibility is RefusedDeck)
             _refused(l10n, colors),
           if (error != null)
             Semantics(

@@ -102,6 +102,7 @@ export 'src/model.dart'
         Card,
         CardId,
         CardSource,
+        CheckingDeck,
         Deck,
         DeckColor,
         DeckIcon,
@@ -109,8 +110,10 @@ export 'src/model.dart'
         DeckPublication,
         DeckSelection,
         DeckVisibility,
+        HeldDeck,
         PrivateDeck,
-        PublicDeck;
+        PublicDeck,
+        RefusedDeck;
 export 'src/providers.dart'
     show
         cardCountsProvider,
