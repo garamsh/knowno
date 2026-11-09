@@ -72,7 +72,7 @@ void main() {
       var screens = await DeckScreens.open(tester, cards: {'Chat': 'cat'});
       await screens.push((deck) => DeckScreen(deck: deck));
       expect(_studyButton, findsOneWidget);
-      expect(widgetWithShownText(AppTextField, 'Search'), findsOneWidget);
+      expect(widgetWithShownText(AppTextField, 'Search cards'), findsOneWidget);
       expect(button('Add card').variant, AppButtonVariant.tonal);
       await screens.close();
 
@@ -188,7 +188,7 @@ void main() {
       expect(find.byTooltip('Search cards'), findsNothing);
 
       // The search is always shown, under the bar and not in it.
-      final search = widgetWithShownText(AppTextField, 'Search');
+      final search = widgetWithShownText(AppTextField, 'Search cards');
       expect(search, findsOneWidget);
       expect(inTopBar(find.byType(AppTextField)), findsNothing);
       expect(
@@ -648,14 +648,14 @@ void main() {
       await screens.push((deck) => DeckScreen(deck: deck));
       expect(find.byType(CardBackRow), findsNWidgets(2));
 
-      await screens.enter('Search', 'rome');
+      await screens.enter('Search cards', 'rome');
       expect(find.byType(CardBackRow), findsOneWidget);
 
       // Controls: a match narrows the list, the cloze card's answer is
       // searched, and a split card's back still is.
-      await screens.enter('Search', 'nowhere');
+      await screens.enter('Search cards', 'nowhere');
       expect(find.byType(CardBackRow), findsNothing);
-      await screens.enter('Search', 'paris');
+      await screens.enter('Search cards', 'paris');
       expect(find.byType(CardBackRow), findsOneWidget);
       expect(
         find.byWidgetPredicate(
@@ -663,7 +663,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      await screens.enter('Search', 'cat');
+      await screens.enter('Search cards', 'cat');
       expect(_rowFronts(tester), ['Chat']);
       await screens.close();
     },
@@ -729,17 +729,17 @@ void main() {
     (tester) async {
       final screens = await DeckScreens.open(tester, cards: cards);
       await screens.push((deck) => DeckScreen(deck: deck));
-      await screens.enter('Search', 'dog');
+      await screens.enter('Search cards', 'dog');
       expect(_rowFronts(tester), ['Chien', 'Hund']);
 
-      await screens.enter('Search', 'CHAT');
+      await screens.enter('Search cards', 'CHAT');
       expect(_rowFronts(tester), ['Chat']);
 
-      await screens.enter('Search', 'zebra');
+      await screens.enter('Search cards', 'zebra');
       expect(_rowFronts(tester), isEmpty);
       expect(shownText('No card matches. Try other words.'), findsOneWidget);
 
-      await screens.enter('Search', '');
+      await screens.enter('Search cards', '');
       expect(_rowFronts(tester), ['Chat', 'Chien', 'Hund']);
       await screens.close();
     },
@@ -755,13 +755,13 @@ void main() {
 
       tester.view.viewInsets = const FakeViewPadding(bottom: 336);
       addTearDown(tester.view.resetViewInsets);
-      await screens.enter('Search', 'ch');
+      await screens.enter('Search cards', 'ch');
       await tester.pumpAndSettle();
       expect(tester.view.viewInsets.bottom, 336, reason: 'the keyboard is up');
 
       final first = tester.getRect(find.byType(CardBackRow).first);
       final search = tester.getRect(
-        widgetWithShownText(AppTextField, 'Search'),
+        widgetWithShownText(AppTextField, 'Search cards'),
       );
       expect(first.bottom, lessThanOrEqualTo(844 - 336));
       expect(first.top - search.bottom, lessThan(AppSize.tapTarget * 2));
@@ -775,7 +775,7 @@ void main() {
   ) async {
     final screens = await DeckScreens.open(tester, cards: cards);
     await screens.push((deck) => DeckScreen(deck: deck));
-    await screens.enter('Search', 'ch');
+    await screens.enter('Search cards', 'ch');
     expect(_rowFronts(tester), ['Chat', 'Chien']);
 
     await tester.binding.handlePopRoute();

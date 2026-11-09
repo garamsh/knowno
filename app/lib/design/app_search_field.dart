@@ -19,10 +19,22 @@ class AppSearchField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final ValueChanged<String>? onSubmitted;
 
+  /// The magnifier's size and its distance from the field's edge, the 1 px
+  /// outline and the 16 padding of the web's `SearchField`; the hint follows
+  /// it 8 on, as there.
+  static const _iconSize = 20.0;
+  static const _iconStart = 17.0;
+
+  /// 8 to the hint less the 4 Material keeps before an input after its prefix.
+  static const _iconEnd = 4.0;
+
   @override
   Widget build(BuildContext context) => AppTextField(
     hint: hint,
-    prefixIcon: const Icon(LucideIcons.search),
+    prefixIcon: const Padding(
+      padding: EdgeInsetsDirectional.only(start: _iconStart, end: _iconEnd),
+      child: Icon(LucideIcons.search, size: _iconSize),
+    ),
     height: AppSize.search,
     textInputAction: TextInputAction.search,
     onChanged: onChanged,

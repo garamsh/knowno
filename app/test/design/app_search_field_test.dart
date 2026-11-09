@@ -55,4 +55,41 @@ void main() {
     expect(changes, ['cat']);
     expect(submitted, ['cat']);
   });
+
+  testWidgets('a search draws its magnifier 20 wide 17 in and its hint 45 in, '
+      'as the web does, at its token height; a field with no icon starts its '
+      'hint at 20', (tester) async {
+    await pumpComponent(
+      tester,
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppSearchField(hint: 'Search', onChanged: (_) {}),
+          const AppTextField(hint: 'Name'),
+        ],
+      ),
+    );
+
+    final field = find.ancestor(
+      of: find.text('Search'),
+      matching: find.byType(TextField),
+    );
+    final left = tester.getTopLeft(field).dx;
+    final icon = tester.getRect(
+      find.descendant(
+        of: find.byType(AppSearchField),
+        matching: find.byType(Icon),
+      ),
+    );
+    expect(icon.left - left, closeTo(17, 0.5));
+    expect(icon.width, 20);
+    expect(tester.getTopLeft(find.text('Search')).dx - left, closeTo(45, 0.5));
+    expect(tester.getSize(field).height, AppSize.search);
+    expect(
+      tester.getTopLeft(find.text('Name')).dx -
+          tester.getTopLeft(find.byType(AppTextField).last).dx,
+      closeTo(20, 0.5),
+      reason: 'control: a field with no icon starts its hint at 20',
+    );
+  });
 }
