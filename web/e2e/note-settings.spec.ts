@@ -307,3 +307,80 @@ test("stores a note's photo in Storage, draws it on the 노트 page from a signe
   await expect.poll(() => held(second)).toBe(false);
   expect(await rows()).toEqual([]);
 });
+
+test("shows a note the server is still checking as waiting, never as public, and offers no second publish", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("skipped without local stack");
+  const { db, userId } = await signUp(context, baseURL);
+  const deckId = randomUUID();
+  const time = new Date(Date.now() - 86_400_000).toISOString();
+  const deck = await db.from("decks").insert({
+    id: deckId,
+    user_id: userId,
+    name: "Waiting",
+    visibility: "private",
+    created_at: time,
+    updated_at: time,
+  });
+  expect(deck.error).toBeNull();
+  const card = await db.from("cards").insert({
+    id: randomUUID(),
+    deck_id: deckId,
+    user_id: userId,
+    front: [{ type: "text", v: 1, id: "f", payload: { text: "chat" } }],
+    back: [],
+    card_key: "chat",
+    source: "manual",
+    template: "free",
+    template_version: 2,
+    created_at: time,
+    updated_at: time,
+  });
+  expect(card.error).toBeNull();
+  await db.from("profiles").upsert({ display_name: "가람" }, { onConflict: "user_id" });
+
+  await page.goto(`/decks/${deckId}`);
+  await choose(page, "노트 공개");
+  const publish = page.getByRole("dialog", { name: '"Waiting" 공개' });
+  await publish.getByRole("checkbox").check();
+  // As the stand-in above, the stack runs no Edge runtime: the database leaves the note held, as
+  // the screening of a flagged note does, and the action's answer is replaced by the waiting one
+  // publish-note gives for it.
+  await page.route("**/decks/**", async (route) => {
+    const request = route.request();
+    if (request.method() !== "POST" || !request.headers()["next-action"]) {
+      await route.fallback();
+      return;
+    }
+    const response = await route.fetch();
+    const body = await response.text();
+    expect(body).toContain('"saved":false');
+    runSql(
+      `update public.decks set visibility = 'public', hidden = true, publication = 'held', published_at = now() where id = '${deckId}'`,
+    );
+    await route.fulfill({
+      response,
+      body: body.replace(
+        /\{"saved":false[^}]*\}/u,
+        '{"saved":false,"message":"노트를 확인하고 있어요. 확인이 끝나면 공개돼요.","waiting":true}',
+      ),
+    });
+  });
+  await publish.getByRole("button", { name: "공개", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "노트를 확인하고 있어요. 확인이 끝나면 공개돼요.",
+  );
+  await page.unroute("**/decks/**");
+  await page.getByRole("button", { name: "확인", exact: true }).click();
+  await page.reload();
+  await expect(page.getByText("0장 익힘 · 확인 중", { exact: true })).toBeVisible();
+  await expect(page.getByText("0장 익힘 · 공개", { exact: true })).toHaveCount(0);
+  await untilReacted(
+    () => page.getByRole("button", { name: "노트 설정" }).click(),
+    () => page.getByRole("menu", { name: "노트 설정" }).isVisible(),
+  );
+  await expect(page.getByRole("menuitem", { name: "노트 공개", exact: true })).toHaveCount(0);
+});

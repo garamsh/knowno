@@ -2,7 +2,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { screeningWords } from "@/features/admin/screening-words";
+import { screeningWords } from "@/features/admin";
 import { FakeAdmin } from "@/testing/mocks/admin";
 import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
@@ -229,8 +229,8 @@ describe("the bundled word list", () => {
     expect(new Set(screeningWords).size).toBe(screeningWords.length);
     for (const word of screeningWords) {
       expect(word).toBe(word.trim());
-      expect([...word].length).toBeGreaterThanOrEqual(1);
-      expect([...word].length).toBeLessThanOrEqual(100);
+      expect(Array.from(word).length).toBeGreaterThanOrEqual(1);
+      expect(Array.from(word).length).toBeLessThanOrEqual(100);
     }
     // Words the matcher would refuse in a note that is not abusive: a year, a station, a number.
     for (const ordinary of ["시발점", "병신년", "십팔", "노무사", "쪽발이", "화냥년", "뒤져라"]) {

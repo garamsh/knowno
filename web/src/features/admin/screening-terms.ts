@@ -13,7 +13,7 @@ const longest = 100;
 export async function addScreeningTerm(term: string): Promise<ActionResult> {
   const trimmed = typeof term === "string" ? term.trim() : "";
   if (trimmed === "") return { changed: false, message: "금칙어를 입력해 주세요." };
-  if ([...trimmed].length > longest) {
+  if (Array.from(trimmed).length > longest) {
     return { changed: false, message: `금칙어는 ${String(longest)}자까지 쓸 수 있어요.` };
   }
   const result = await call("admin_add_screening_term", { term: trimmed });

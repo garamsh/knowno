@@ -986,7 +986,7 @@ export class FakeAdmin {
         return this.terms;
       case "admin_add_screening_term": {
         const term = typeof args.term === "string" ? args.term.trim().normalize("NFKC") : "";
-        if (term === "" || [...term].length > 100)
+        if (term === "" || Array.from(term).length > 100)
           throw new Error("a term has 1 to 100 characters");
         const known = this.terms.find((entry) => entry.term === term);
         if (known) return known.id;

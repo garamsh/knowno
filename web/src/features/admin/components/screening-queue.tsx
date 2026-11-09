@@ -80,7 +80,7 @@ export function ScreeningQueue({
 }) {
   if (notes.length === 0) return <Empty>{empty}</Empty>;
   return (
-    <ul aria-label="검토 중인 노트" className={`${group}`}>
+    <ul aria-label="검토 중인 노트" className={group}>
       {notes.map((note) => (
         <Held key={note.id} note={note} timeZone={timeZone} />
       ))}
