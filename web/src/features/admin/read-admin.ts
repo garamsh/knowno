@@ -934,6 +934,17 @@ function promptLabels(value: unknown): PromptLabel[] | null {
   return labels;
 }
 
+function skillLabels(value: unknown): SkillLabel[] | null {
+  const list = strings(value);
+  if (list === null) return null;
+  const labels: SkillLabel[] = [];
+  for (const label of list) {
+    if (label !== "active" && label !== "test" && label !== "markup") return null;
+    labels.push(label);
+  }
+  return labels;
+}
+
 /** Calls the server function [name] with [args] as the signed-in user. */
 async function call(
   name: string,
@@ -1038,8 +1049,14 @@ export type SkillVersion = {
   note: string;
   createdByEmail: string | null;
   createdAt: number;
-  labels: PromptLabel[];
+  labels: SkillLabel[];
 };
+
+/**
+ * A skill version's label: a prompt's two, and `markup`, the version served in place of `active`
+ * while the server's `card_markup` switch is on (ADR 0216).
+ */
+export type SkillLabel = PromptLabel | "markup";
 
 /** Every saved skill version of every form, newest first. */
 export async function readCardFormSkills(): Promise<AdminRead<SkillVersion[]>> {
@@ -1051,7 +1068,7 @@ export async function readCardFormSkills(): Promise<AdminRead<SkillVersion[]>> {
     const note = field(row, "note");
     const createdBy = field(row, "created_by_email");
     const createdAt = parseTime(field(row, "created_at"));
-    const labels = promptLabels(field(row, "labels"));
+    const labels = skillLabels(field(row, "labels"));
     if (id === null || form === null || createdAt === null || labels === null) return null;
     if (typeof summary !== "string" || typeof text !== "string" || typeof note !== "string") {
       return null;

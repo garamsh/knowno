@@ -160,6 +160,7 @@ export function SkillPanel({
                     {[
                       `v${String(version.id)}`,
                       ...(version.labels.includes("active") ? ["사용 중"] : []),
+                      ...(version.labels.includes("markup") ? ["마크업 켜면 사용"] : []),
                       ...(version.labels.includes("test") ? ["초안"] : []),
                       formatDate(version.createdAt, timeZone),
                     ].join(" · ")}

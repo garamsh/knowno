@@ -193,7 +193,9 @@ export class FakeAdmin {
     note: "seed (#751)",
     by: null,
   }));
-  /** The version each card form's 'active' and 'test' labels name; the seeds are active. */
+  /**
+   * The version each card form's 'active', 'test' and 'markup' labels name; the seeds are active.
+   */
   readonly cardFormSkillLabels = new Map<string, number>(
     this.cardFormSkills.map((skill) => [`${skill.form} active`, skill.id]),
   );
@@ -648,7 +650,7 @@ export class FakeAdmin {
           note: skill.note,
           created_by_email: this.users.find((user) => user.id === skill.by)?.email ?? null,
           created_at: "2026-11-05T01:00:00Z",
-          labels: (["active", "test"] as const).filter(
+          labels: (["active", "test", "markup"] as const).filter(
             (label) => this.cardFormSkillLabels.get(`${skill.form} ${label}`) === skill.id,
           ),
         }));
