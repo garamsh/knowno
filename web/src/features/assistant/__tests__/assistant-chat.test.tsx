@@ -189,6 +189,18 @@ describe("말랑이's chat", () => {
     expect(requests).toHaveLength(1);
   });
 
+  it("draws 말랑이's reply as Markdown and the user's own turn as typed", async () => {
+    const { client } = fakeClient([[{ type: "text", delta: "**굵게** 말해요\n\n- 하나" }]]);
+    render(<AssistantChat allowance={null} client={client} />);
+    await say("**내 말** 그대로");
+    expect(await screen.findByText("굵게")).toBeInTheDocument();
+    expect(screen.getByText("굵게").tagName).toBe("STRONG");
+    expect(screen.getByText("하나").tagName).toBe("LI");
+    // The user's turn keeps its marks, and is no element of Markdown.
+    expect(screen.getByText("**내 말** 그대로")).toBeInTheDocument();
+    expect(screen.queryByText("내 말")).not.toBeInTheDocument();
+  });
+
   it("sends a choice's pick as the next message, after the question it answers", async () => {
     const { client, requests } = fakeClient([
       [
