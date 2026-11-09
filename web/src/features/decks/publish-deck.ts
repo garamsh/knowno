@@ -17,10 +17,11 @@ type Outcome = { saved: true } | { saved: false; message: string };
 const failed = "지금은 처리할 수 없어요. 잠시 후 다시 시도해 주세요.";
 const gone = "이 노트는 삭제됐어요. 다른 노트를 골라 주세요.";
 /** What an answer of `publish-note` other than `public` says; the states' own screens are not drawn yet. */
+const refused = "이 노트는 공개할 수 없어요.";
 const notPublic: Record<string, string> = {
   checking: "노트를 확인하고 있어요. 확인이 끝나면 공개돼요.",
   held: "이 노트는 확인 중이에요. 확인이 끝나면 공개돼요.",
-  refused: "이 노트는 공개할 수 없어요.",
+  refused,
 };
 
 /**
@@ -68,8 +69,8 @@ export async function publishDeck(
   } catch {
     return { saved: false, message: failed };
   }
-  if (response.status === 401 || response.status === 403)
-    return { saved: false, message: "다시 로그인해 주세요" };
+  if (response.status === 401) return { saved: false, message: "다시 로그인해 주세요" };
+  if (response.status === 403) return { saved: false, message: refused };
   if (response.status === 404) return { saved: false, message: gone };
   const state = response.ok ? field(await response.json().catch(() => null), "state") : undefined;
   if (typeof state !== "string") return { saved: false, message: failed };

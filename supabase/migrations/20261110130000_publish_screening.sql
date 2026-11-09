@@ -317,7 +317,8 @@ as $$
 $$;
 
 -- The owner asks to publish [deck_id]: it becomes `checking`, or `held` while a hold stands.
--- Idempotent for a note already checking, held or public.
+-- Idempotent for a note already checking, held or public. Sets the description to the one given,
+-- trimmed, none when empty or null.
 create function public.request_deck_publication(deck_id uuid, description text default null)
 returns text
 language plpgsql
@@ -356,7 +357,7 @@ begin
     where s.deck_id = request_deck_publication.deck_id;
   update public.decks as d set visibility = 'public', published_at = now(), hidden = true,
       publication = new_state,
-      description = coalesce(request_deck_publication.description, d.description),
+      description = nullif(btrim(request_deck_publication.description), ''),
       updated_at = now()
     where d.id = request_deck_publication.deck_id;
   return new_state;

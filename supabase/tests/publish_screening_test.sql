@@ -5,7 +5,7 @@
 -- hidden, each audited; the banned-word list and the suspension candidates; the reports' hold;
 -- the sweeper; no client reaching the service functions; and the revert.
 begin;
-select plan(138);
+select plan(142);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'a@example.com'),
@@ -200,6 +200,19 @@ select isnt((select requested_at from private.deck_screening where deck_id = 'd0
   null, 'and the check requested');
 select pg_temp.sign_in('a');
 select is(public.request_deck_publication('d0000000-0000-4000-8000-000000000001'), 'checking', 'asking again is idempotent');
+select is((select description from public.decks where id = 'd0000000-0000-4000-8000-000000000001'), 'A new description',
+  'and asking again leaves the description as it was');
+update public.decks set visibility = 'private' where id = 'd0000000-0000-4000-8000-000000000001';
+select public.request_deck_publication('d0000000-0000-4000-8000-000000000001', '  Padded  ');
+select is((select description from public.decks where id = 'd0000000-0000-4000-8000-000000000001'), 'Padded', 'a description given is stored, trimmed');
+update public.decks set visibility = 'private' where id = 'd0000000-0000-4000-8000-000000000001';
+select public.request_deck_publication('d0000000-0000-4000-8000-000000000001');
+select is((select description from public.decks where id = 'd0000000-0000-4000-8000-000000000001'), null, 'asking with no description clears an earlier one');
+update public.decks set visibility = 'private' where id = 'd0000000-0000-4000-8000-000000000001';
+select public.request_deck_publication('d0000000-0000-4000-8000-000000000001', 'Again');
+update public.decks set visibility = 'private' where id = 'd0000000-0000-4000-8000-000000000001';
+select public.request_deck_publication('d0000000-0000-4000-8000-000000000001', '   ');
+select is((select description from public.decks where id = 'd0000000-0000-4000-8000-000000000001'), null, 'an empty description clears an earlier one');
 reset role;
 select pg_temp.sign_in('b');
 select throws_ok($$select public.request_deck_publication('d0000000-0000-4000-8000-000000000002')$$,

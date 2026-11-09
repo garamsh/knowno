@@ -278,14 +278,14 @@ describe("노트 공개", () => {
     expect(db.rows.decks[0]).toMatchObject({ visibility: "public" });
   });
 
-  it("reports a failure for an unreachable function, a 502, a 401, a 404 and an answer with no state, leaving the note private", async () => {
+  it("reports a failure for an unreachable function, a 502, a 401, a 403, a 404 and an answer with no state, leaving the note private", async () => {
     db.seed("decks", deckRow("deck", "Deck"));
     publishNote.unreachable = true;
     expect(await publishDeck(uuidOf("deck"), "")).toMatchObject({ saved: false });
     publishNote.unreachable = false;
     for (const [status, message] of [
       [401, "다시 로그인해 주세요"],
-      [403, "다시 로그인해 주세요"],
+      [403, "이 노트는 공개할 수 없어요."],
       [404, "이 노트는 삭제됐어요. 다른 노트를 골라 주세요."],
       [502, "지금은 처리할 수 없어요. 잠시 후 다시 시도해 주세요."],
     ] as const) {
