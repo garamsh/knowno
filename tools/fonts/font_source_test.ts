@@ -1,9 +1,8 @@
 // tools/fonts/font_source.py against a local server standing in for raw.githubusercontent.com,
 // with the cache directory in a temporary one.
 import assert from "node:assert/strict";
-import { run } from "./testing.ts";
 
-const FONTS = new URL("../tools/fonts/", import.meta.url).pathname;
+const FONTS = new URL(".", import.meta.url).pathname;
 const BODY = new Uint8Array(new TextEncoder().encode("the font source"));
 
 async function sha256(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
@@ -18,7 +17,7 @@ type Served = {
   stop: () => Promise<void>;
 };
 
-/** Answers `statuses` in turn, one per request, then 200 with BODY; a status of 0 stalls. */
+/** Answers `statuses` in turn, one per request, then 200 with BODY. */
 function serve(statuses: number[] = []): Served {
   let count = 0;
   const server = Deno.serve(
@@ -47,11 +46,17 @@ async function fetching(
   const code = `import sys, font_source
 data = font_source.fetch(sys.argv[1], sys.argv[2], attempts=${attempts}, pause=0)
 print(data.decode())`;
-  return await run(FONTS, ["python3", "-c", code, served.url, hash], {
-    XDG_CACHE_HOME: cache,
-    NO_PROXY: "127.0.0.1",
-    no_proxy: "127.0.0.1",
-  });
+  const { code: exit, stdout, stderr } = await new Deno.Command("python3", {
+    args: ["-c", code, served.url, hash],
+    cwd: FONTS,
+    env: {
+      XDG_CACHE_HOME: cache,
+      NO_PROXY: "127.0.0.1",
+      no_proxy: "127.0.0.1",
+    },
+  }).output();
+  const decoded = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
+  return { code: exit, stdout: decoded(stdout), stderr: decoded(stderr) };
 }
 
 async function withServer(

@@ -52,11 +52,10 @@ def download(url: str, attempts: int, pause: float) -> bytes:
 def fetch(
     url: str,
     sha256: str,
-    directory: Path | None = None,
     attempts: int = ATTEMPTS,
     pause: float = PAUSE_SECONDS,
 ) -> bytes:
-    cached = (directory or cache_directory()) / sha256
+    cached = cache_directory() / sha256
     if cached.is_file():
         data = cached.read_bytes()
         if hashlib.sha256(data).hexdigest() == sha256:
