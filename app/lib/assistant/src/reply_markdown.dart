@@ -190,17 +190,11 @@ class _Builder {
       case 'p':
         return Text.rich(_inline(children, style), style: style);
       case 'h1' || 'h2' || 'h3' || 'h4' || 'h5' || 'h6':
-        final size = switch (node.tag) {
-          'h1' => 22.0,
-          'h2' => 20.0,
-          'h3' => 18.0,
-          _ => 16.0,
-        };
-        final heading = AppType.bodyStrong.copyWith(
-          color: colors.ink,
-          fontSize: size,
-          height: 1.4,
-        );
+        final heading =
+            (node.tag == 'h1' || node.tag == 'h2'
+                    ? AppType.headline
+                    : AppType.bodyStrong)
+                .copyWith(color: colors.ink);
         return Text.rich(_inline(children, heading), style: heading);
       case 'ul' || 'ol':
         final start = int.tryParse(node.attributes['start'] ?? '') ?? 1;
@@ -251,10 +245,7 @@ class _Builder {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.all(AppSpace.s12),
-            child: Text(
-              code,
-              style: style.copyWith(fontFamily: 'monospace', fontSize: 14),
-            ),
+            child: Text(code, style: style.copyWith(fontFamily: 'monospace')),
           ),
         );
       case 'table':

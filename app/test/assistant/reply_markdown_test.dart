@@ -93,8 +93,9 @@ void main() {
     final taps = <String>[];
     void collect(InlineSpan span) {
       if (span is! TextSpan) return;
-      if (span.recognizer != null)
+      if (span.recognizer != null) {
         taps.add(span.toPlainText().replaceAll('\u2060', ''));
+      }
       span.children?.forEach(collect);
     }
 
