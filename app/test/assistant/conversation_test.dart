@@ -66,6 +66,40 @@ void main() {
     expect(turn.withEvent(const ErrorEvent(ReplyError.cut)).ending, Ending.cut);
   });
 
+  test('ends a turn at a limit only when it has nothing to show', () {
+    const limit = UsageEvent(Allowance(budget: 1, used: 1), atLimit: true);
+    const within = UsageEvent(Allowance(budget: 1, used: 1));
+    final empty = const AssistantTurn(id: 'a').withEvent(const InterimEvent());
+    expect(empty.withEvent(limit).ending, Ending.limit);
+    expect(empty.withEvent(within).ending, isNull, reason: 'control: no limit');
+    for (final shown in [
+      empty.withEvent(const TextDelta('답')),
+      empty.withEvent(ProposalEvent(_two())),
+      empty.withEvent(const JobEvent(id: 'j', photos: 1)),
+      empty.withEvent(const ChoiceEvent(Choice(prompt: '?', options: ['a']))),
+    ]) {
+      expect(shown.withEvent(limit).ending, isNull);
+    }
+    final stored = Conversation.parse(
+      Conversation(turns: [empty.withEvent(limit)]).encode(),
+    );
+    expect((stored.turns.single as AssistantTurn).ending, Ending.limit);
+  });
+
+  test('stores the cards a commit skipped and refused', () {
+    final shown = ShownProposal.of(_two()).copyWith(
+      added: const Added(
+        deckId: 'd',
+        deckName: 'N',
+        count: 1,
+        skipped: 2,
+        refused: 3,
+      ),
+    );
+    final back = ShownProposal.parse(shown.toJson())!.added!;
+    expect((back.count, back.skipped, back.refused), (1, 2, 3));
+  });
+
   test('moves the text before an interim mark to a status line', () {
     var turn = const AssistantTurn(id: 'a');
     AssistantTurn apply(AssistantEvent event) => turn = turn.withEvent(event);
@@ -164,8 +198,9 @@ void main() {
             text: 'hello',
             citations: const [(url: 'https://a.b', title: 'A')],
             proposals: [
-              ShownProposal.of(_two())
-                  .copyWith(added: (deckId: 'd', deckName: 'N', count: 3)),
+              ShownProposal.of(_two()).copyWith(
+                added: const Added(deckId: 'd', deckName: 'N', count: 3),
+              ),
             ],
             choice: const Choice(prompt: 'p', options: ['o', 'q']),
             ending: Ending.cut,
@@ -178,7 +213,8 @@ void main() {
       expect(read.turns, hasLength(3));
       final a = read.turns[1] as AssistantTurn;
       expect(a.ending, Ending.cut);
-      expect(a.proposals.single.added, (deckId: 'd', deckName: 'N', count: 3));
+      final added = a.proposals.single.added!;
+      expect((added.deckId, added.deckName, added.count), ('d', 'N', 3));
       expect(a.proposals.single.proposal.toJson(), _two().toJson());
       expect(a.choice?.options, ['o', 'q']);
       expect((read.turns[2] as AssistantTurn).ending, Ending.stopped);
@@ -215,7 +251,7 @@ void main() {
       expect(Conversation(turns: [reply(null)]).ready, isNull);
       expect(Conversation(turns: [reply(Ending.ok)]).ready, same(shown));
       final added = shown.copyWith(
-        added: (deckId: 'd', deckName: 'N', count: 3),
+        added: const Added(deckId: 'd', deckName: 'N', count: 3),
       );
       expect(
         Conversation(turns: [reply(Ending.ok, proposal: added)]).ready,

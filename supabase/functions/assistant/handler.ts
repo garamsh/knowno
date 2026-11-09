@@ -142,6 +142,9 @@ export type LogEntry = {
   readonly latency_ms: number;
   readonly outcome_recorded: boolean | null;
   readonly outcome: LogOutcome;
+  /** A commit's note left behind because its deletion was refused, and why: never a card. */
+  readonly left_deck_id?: string;
+  readonly left_reason?: string;
 };
 
 export type HandlerDeps = ToolDeps & {
@@ -1053,7 +1056,16 @@ async function commitRequest(
     case "bad_request":
       return refusal(400, "bad_request", entry, { message: committed.message });
     case "refused":
-      return refusal(422, "refused", entry, { message: committed.message });
+      return refusal(
+        422,
+        "refused",
+        committed.left === undefined ? entry : {
+          ...entry,
+          left_deck_id: committed.left.deckId,
+          left_reason: committed.left.reason,
+        },
+        { message: committed.message },
+      );
     case "written":
       return {
         response: Response.json({ deck: committed.deck, ...committed.result }),

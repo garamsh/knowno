@@ -300,7 +300,20 @@ CommitOutcome parseCommit(int status, String body) {
       _ => null,
     };
     if (written != null) {
-      return Committed((deckId: id, deckName: name, count: written));
+      final fields = decoded;
+      int left(String key) => switch (fields[key]) {
+        final List<Object?> list => list.length,
+        _ => 0,
+      };
+      return Committed(
+        Added(
+          deckId: id,
+          deckName: name,
+          count: written,
+          skipped: left('skipped'),
+          refused: left('refused'),
+        ),
+      );
     }
   }
   return const CommitFailed(CommitFailure.failed);

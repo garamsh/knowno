@@ -68,11 +68,13 @@ final class FakeAssistantClient implements AssistantClient {
 
   /// What a commit answers.
   CommitOutcome Function(Proposal proposal) commitWith = (proposal) =>
-      Committed((
-        deckId: proposal.deckId ?? 'new-deck',
-        deckName: proposal.deckName,
-        count: 2,
-      ));
+      Committed(
+        Added(
+          deckId: proposal.deckId ?? 'new-deck',
+          deckName: proposal.deckName,
+          count: 2,
+        ),
+      );
 
   /// What the day's tokens read as; null for unreadable.
   Allowance? tokens = const Allowance(budget: 200000, used: 50000);
@@ -267,7 +269,7 @@ Map<String, Object> storedChatWithProposal({
             ShownProposal.of(proposal).copyWith(
               added: added == null
                   ? null
-                  : (deckId: added.id, deckName: added.name, count: 3),
+                  : Added(deckId: added.id, deckName: added.name, count: 3),
             ),
           ],
           ending: Ending.ok,
@@ -353,7 +355,7 @@ Map<String, Object> storedChatShowcase({
             ShownProposal.of(proposal).copyWith(
               added: added == null
                   ? null
-                  : (deckId: added.id, deckName: added.name, count: 12),
+                  : Added(deckId: added.id, deckName: added.name, count: 12),
             ),
           ],
           choice: ask
