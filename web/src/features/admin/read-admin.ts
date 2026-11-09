@@ -938,17 +938,24 @@ function promptLabels(value: unknown): PromptLabel[] | null {
  * The card markup switch (ADR 0216): whether the server writes `text` version 3 and `cloze`
  * version 2, and who set it and when; nobody before the first change.
  */
-export type CardMarkup = { enabled: boolean; setByEmail: string | null; setAt: number };
+export type CardMarkup = {
+  enabled: boolean;
+  /** Whether an admin ever changed it, though that admin's account may be gone. */
+  everSet: boolean;
+  setByEmail: string | null;
+  setAt: number;
+};
 
 /** The card markup switch as it stands, from `admin_card_markup()`'s one row. */
 export async function readCardMarkup(): Promise<AdminRead<CardMarkup>> {
   const read = parsed(await call("admin_card_markup"), (row) => {
     const enabled = field(row, "enabled");
+    const everSet = field(row, "ever_set");
     const setBy = field(row, "set_by_email");
     const setAt = parseTime(field(row, "set_at"));
-    if (typeof enabled !== "boolean" || setAt === null) return null;
+    if (typeof enabled !== "boolean" || typeof everSet !== "boolean" || setAt === null) return null;
     if (setBy !== null && typeof setBy !== "string") return null;
-    return { enabled, setByEmail: setBy, setAt };
+    return { enabled, everSet, setByEmail: setBy, setAt };
   });
   if ("failure" in read) return read;
   const [markup] = read.data;
