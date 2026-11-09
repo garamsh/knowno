@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { ankiNotes } from "../anki-export";
-import { decorateDeck, deleteDeck, publishDeck, renameDeck, unpublishDeck } from "../actions";
+import {
+  decorateDeck,
+  deleteDeck,
+  publishDeck,
+  readRefusal,
+  renameDeck,
+  unpublishDeck,
+} from "../actions";
 import { parseDeckIcon } from "../deck-icon";
 import { deckColor } from "../deck-tint";
 import type { Card, Deck } from "../library";
@@ -94,7 +101,7 @@ export function NoteSettings({
               setSheet("decorate");
             },
           },
-          deck.public
+          deck.public || deck.screening === "checking" || deck.screening === "held"
             ? {
                 label: "비공개로 전환",
                 pick: () => {
@@ -294,9 +301,23 @@ function PublishSheet({
   const [agreed, setAgreed] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [problem, setProblem] = useState("");
+  const [waiting, setWaiting] = useState(false);
+  // Why a refused note was refused, read when the sheet opens; none for any other note.
+  const [refusal, setRefusal] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const busy = useRef(false);
   const nameError = useId();
+  const refused = deck.screening === "refused";
+  useEffect(() => {
+    if (!refused) return;
+    let current = true;
+    void readRefusal(deck.id).then((sentence) => {
+      if (current) setRefusal(sentence);
+    });
+    return () => {
+      current = false;
+    };
+  }, [refused, deck.id]);
   const descriptionError = useId();
   const title = `"${deck.name}" 공개`;
   if (displayName === "unread") {
@@ -314,6 +335,20 @@ function PublishSheet({
             className={`${secondary} justify-center`}
           >
             다시 시도
+          </button>
+        </div>
+      </Sheet>
+    );
+  }
+  if (waiting) {
+    return (
+      <Sheet title={title} close={close}>
+        <div className="flex flex-col gap-4 pb-2">
+          <p role="status" className="text-body text-ink">
+            {problem}
+          </p>
+          <button type="button" onClick={close} className={`${secondary} justify-center`}>
+            확인
           </button>
         </div>
       </Sheet>
@@ -338,11 +373,15 @@ function PublishSheet({
             const result = await publishDeck(deck.id, description, askName ? name : undefined);
             busy.current = false;
             if (result.saved) done("노트를 공개했어요");
-            else setProblem(result.message);
+            else {
+              setProblem(result.message);
+              setWaiting(result.waiting === true);
+            }
           });
         }}
         className="flex flex-col gap-4 pb-2"
       >
+        {refusal !== null && problem === "" && <Problem>{refusal}</Problem>}
         {askName && (
           <>
             <p className="text-secondary text-muted">

@@ -19,8 +19,18 @@ export function parseCardId(value: unknown): CardId | null {
   return typeof value === "string" && uuid.test(value) ? (value as CardId) : null;
 }
 
+/** A published note's state while it is not public yet or no more: being checked, held for an admin, or refused. */
+export type Screening = "checking" | "held" | "refused";
+
+/** What a note's chip says in each [Screening] state; the owner sees a held note as one being checked. */
+export const screeningWords: Record<Screening, string> = {
+  checking: "확인 중",
+  held: "확인 중",
+  refused: "공개 안 됨",
+};
+
 /**
- * A deck that is not deleted, whether its owner published it, the keys of the icon and colour
+ * A deck that is not deleted, whether its owner published it and the public can see it, the keys of the icon and colour
  * its owner chose for its tile, absent while none is stored (ADR 0103), a signed URL its photo is
  * drawn from while it holds one the server lets it read (ADR 0159), and, on a note's page, the
  * description it is published with.
@@ -29,6 +39,8 @@ export type Deck = {
   id: DeckId;
   name: string;
   public: boolean;
+  /** Its state while the server screens it or refused it; absent for a private or public note. */
+  screening?: Screening;
   icon?: string;
   color?: string;
   imageUrl?: string;

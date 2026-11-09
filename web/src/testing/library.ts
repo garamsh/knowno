@@ -39,6 +39,7 @@ export function deckRow(
     user_id: testUser.id,
     name,
     visibility,
+    publication: visibility,
     created_at: iso(start - 30 * day),
     updated_at: iso(start - 30 * day),
     deleted_at: deleted ? iso(start - day) : null,

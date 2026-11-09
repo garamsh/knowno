@@ -7,7 +7,7 @@ import { Chip } from "@/design/chip";
 import { ScreenSkeleton } from "@/design/screen-skeleton";
 import { SearchField } from "@/design/search-field";
 
-import type { Deck } from "../library";
+import { type Deck, screeningWords } from "../library";
 import { DeckTile } from "./deck-tile";
 
 /**
@@ -63,7 +63,7 @@ export function DeckList({
               <li key={deck.id}>
                 <Link
                   href={`/decks/${encodeURIComponent(deck.id)}`}
-                  aria-label={`${deck.name}, 카드 ${String(cards)}장${deck.public ? ", 공개" : ""}${today > 0 ? `, 오늘 ${String(today)}` : ""}${known ? `, ${String(cards)}장 중 ${String(mastered)}장 익힘, 익힘 ${String(mastered)}장, 학습 중 ${String(learning)}장, 새 카드 ${String(cards - mastered - learning)}장` : ""}`}
+                  aria-label={`${deck.name}, 카드 ${String(cards)}장${deck.public ? ", 공개" : ""}${deck.screening ? `, ${screeningWords[deck.screening]}` : ""}${today > 0 ? `, 오늘 ${String(today)}` : ""}${known ? `, ${String(cards)}장 중 ${String(mastered)}장 익힘, 익힘 ${String(mastered)}장, 학습 중 ${String(learning)}장, 새 카드 ${String(cards - mastered - learning)}장` : ""}`}
                   className="pressable flex min-h-13 items-center gap-3 rounded-row bg-surface py-3 pr-3 pl-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <DeckTile deck={deck} />
@@ -71,6 +71,7 @@ export function DeckList({
                     <span className="flex items-center gap-2">
                       <span className="min-w-0 flex-1 truncate text-body-strong">{deck.name}</span>
                       {deck.public && <PublicChip />}
+                      {deck.screening && <Chip>{screeningWords[deck.screening]}</Chip>}
                       {today > 0 && <Chip tone="brand">{`오늘 ${String(today)}`}</Chip>}
                     </span>
                     <span className="text-caption text-muted">

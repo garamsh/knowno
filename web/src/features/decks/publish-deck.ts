@@ -9,27 +9,25 @@ import { createClient } from "@/supabase/server";
 import { readUserId } from "@/supabase/session";
 
 import { parseDeckId } from "./library";
+import { refusalSentence } from "./refusal";
 import { characters, maxDescriptionLength, parseDisplayName } from "./publishing";
 
-type Outcome = { saved: true } | { saved: false; message: string };
+/** What a publish or unpublish came to: saved; refused with a sentence; or, for a note still being checked, waiting. */
+type Outcome = { saved: true } | { saved: false; message: string; waiting?: true };
 
 /** The phone's `sharingFailed`, for a write the server refused or left unanswered. */
 const failed = "지금은 처리할 수 없어요. 잠시 후 다시 시도해 주세요.";
 const gone = "이 노트는 삭제됐어요. 다른 노트를 골라 주세요.";
-/** What an answer of `publish-note` other than `public` says; the states' own screens are not drawn yet. */
 const refused = "이 노트는 공개할 수 없어요.";
-const notPublic: Record<string, string> = {
-  checking: "노트를 확인하고 있어요. 확인이 끝나면 공개돼요.",
-  held: "이 노트는 확인 중이에요. 확인이 끝나면 공개돼요.",
-  refused,
-};
+/** What the sheet says while the server checks the note or an admin holds it. */
+const waiting = "노트를 확인하고 있어요. 확인이 끝나면 공개돼요.";
 
 /**
  * Publishes the signed-in user's live deck [id] with [description], trimmed, none when empty,
  * at most 300 characters, as the phone's publish sheet does; first stores [name] as the user's
  * display name, 2 to 20 characters, when the user has none yet and gave one. No web write makes a
  * deck public: `publish-note` records the request, screens the note and answers its state, and
- * only `public` is saved.
+ * only `public` is saved; `checking` and `held` come back as waiting, `refused` with its reason.
  */
 export async function publishDeck(
   id: string,
@@ -72,11 +70,20 @@ export async function publishDeck(
   if (response.status === 401) return { saved: false, message: "다시 로그인해 주세요" };
   if (response.status === 403) return { saved: false, message: refused };
   if (response.status === 404) return { saved: false, message: gone };
-  const state = response.ok ? field(await response.json().catch(() => null), "state") : undefined;
+  const answer: unknown = response.ok ? await response.json().catch(() => null) : null;
+  const state = field(answer, "state");
   if (typeof state !== "string") return { saved: false, message: failed };
   revalidatePath("/", "layout");
   if (state === "public") return { saved: true };
-  return { saved: false, message: notPublic[state] ?? failed };
+  if (state === "checking" || state === "held")
+    return { saved: false, message: waiting, waiting: true };
+  if (state === "refused") {
+    return {
+      saved: false,
+      message: refusalSentence(field(answer, "refusal"), field(answer, "findings")),
+    };
+  }
+  return { saved: false, message: failed };
 }
 
 /** Makes the signed-in user's live deck [id] private again, keeping its description. */

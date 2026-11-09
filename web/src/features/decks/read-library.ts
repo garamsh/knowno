@@ -99,7 +99,7 @@ async function read<C extends CardEntry>(
       const query = supabase
         .from("decks")
         .select(
-          `id, name, visibility, icon, color, image_media_id${described ? ", description" : ""}`,
+          `id, name, publication, icon, color, image_media_id${described ? ", description" : ""}`,
           counted ? { count: "exact" } : {},
         )
         .eq("user_id", userId)
@@ -162,9 +162,17 @@ function compare(a: string, b: string): number {
 function parseDeck(row: unknown): Deck | null {
   const id = field(row, "id");
   const name = field(row, "name");
-  const visibility = field(row, "visibility");
+  const publication = field(row, "publication");
   if (typeof id !== "string" || typeof name !== "string") return null;
-  if (visibility !== "private" && visibility !== "public") return null;
+  if (
+    publication !== "private" &&
+    publication !== "public" &&
+    publication !== "checking" &&
+    publication !== "held" &&
+    publication !== "refused"
+  ) {
+    return null;
+  }
   // A key the tile does not know draws the default, so neither key makes a row unreadable.
   const icon = field(row, "icon");
   const color = field(row, "color");
@@ -172,7 +180,8 @@ function parseDeck(row: unknown): Deck | null {
   return {
     id: id as DeckId,
     name,
-    public: visibility === "public",
+    public: publication === "public",
+    ...(publication !== "private" && publication !== "public" && { screening: publication }),
     ...(typeof icon === "string" && { icon }),
     ...(typeof color === "string" && { color }),
     ...(typeof description === "string" && { description }),

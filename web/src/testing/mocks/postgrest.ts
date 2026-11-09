@@ -209,6 +209,8 @@ export class FakePostgrest {
   };
   /** Each user's study settings, by user id, as `public.study_settings` holds them. */
   readonly studySettings = new Map<string, { daily_minutes: number; updated_at: string }>();
+  /** What `my_deck_screening` answers for a deck id: its refusal layer and findings, once it is refused. */
+  readonly refusals = new Map<string, { refusal: string; findings: unknown[] }>();
   /** Every request answered, as `<method> <table>`. */
   readonly requests: string[] = [];
   /** The columns each read selected, as `<table>: <select>`. */
@@ -276,6 +278,22 @@ export class FakePostgrest {
           : HttpResponse.json({ code: "PGRST116", message: "no row" }, { status: 406 });
       }
       return HttpResponse.json(rows);
+    }),
+    http.post(`${supabaseUrl}/rest/v1/rpc/my_deck_screening`, async ({ request }) => {
+      const user = bearerUser(request.headers.get("authorization"));
+      if (!user) {
+        return HttpResponse.json({ code: "42501", message: "permission denied" }, { status: 401 });
+      }
+      this.requests.push("POST rpc/my_deck_screening");
+      const { deck_id: id } = (await request.json()) as { deck_id: string };
+      const deck = this.rows.decks.find((row) => row.id === id && row.user_id === user.id);
+      if (!deck) return HttpResponse.json({ code: "P0002", message: "no deck" }, { status: 404 });
+      const refused = this.refusals.get(id);
+      return HttpResponse.json({
+        state: deck.publication,
+        refusal: deck.publication === "refused" ? (refused?.refusal ?? null) : null,
+        findings: deck.publication === "refused" ? (refused?.findings ?? []) : [],
+      });
     }),
     http.post(`${supabaseUrl}/rest/v1/rpc/save_study_settings`, async ({ request }) => {
       const user = bearerUser(request.headers.get("authorization"));
@@ -478,7 +496,10 @@ export class FakePostgrest {
         const at = this.rows[table].findIndex(
           (stored) => this.keyOf(table, stored) === this.keyOf(table, row),
         );
-        if (at === -1) this.rows[table].push(this.stamp(row));
+        if (at === -1)
+          this.rows[table].push(
+            this.stamp(table === "decks" ? { publication: "private", ...row } : row),
+          );
         else if (!ignore) this.rows[table][at] = this.stamp(row);
       }
       return new HttpResponse(null, { status: 201 });
@@ -505,7 +526,12 @@ export class FakePostgrest {
       const written: Row[] = [];
       for (const row of matching(this.rows[table], url.searchParams)) {
         const at = this.rows[table].indexOf(row);
-        const next = this.stamp({ ...row, ...body });
+        // The server's trigger keeps `publication` with `visibility`: a deck made private is.
+        const kept =
+          table === "decks" && body.visibility === "private" && row.publication !== "refused"
+            ? { publication: "private" }
+            : {};
+        const next = this.stamp({ ...row, ...body, ...kept });
         this.rows[table][at] = next;
         written.push(next);
       }

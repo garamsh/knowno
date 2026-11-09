@@ -272,7 +272,8 @@ describe("노트 공개", () => {
       said.add("message" in result ? result.message : null);
       expect(db.rows.decks[0]).toMatchObject({ visibility: "private" });
     }
-    expect(said.size).toBe(3);
+    // Checking and held read alike to the owner; a refusal says something else.
+    expect(said.size).toBe(2);
     publishNote.state = "public";
     expect(await publishDeck(uuidOf("deck"), "")).toEqual({ saved: true });
     expect(db.rows.decks[0]).toMatchObject({ visibility: "public" });
