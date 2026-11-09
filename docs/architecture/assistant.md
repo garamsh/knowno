@@ -147,7 +147,7 @@ The `assistant` Edge Function, 말랑이 as an assistant that builds notes and c
 ### Log and privacy
 
 - The conversation is not stored: the server keeps a message's record and usage, never its text, a card or a reply. A photo job keeps the user's instructions and each photo's reading until it is purged 7 days after it began, and its photos until it ends (§Photo jobs).
-- Each request logs one JSON line, and each photo read one of route `work`: `route` (`message`, `commit`, `settings`, `job`, `cancel` or `work`), `user_id`, `plan`, `provider`, `model`, `model_calls`, `input_tokens`, `output_tokens`, `reasoning_tokens`, `web_search_requests`, `latency_ms`, `outcome_recorded` and `outcome`, each null where it does not apply; never the token, a key, a message or a card. A stream logs its line when it ends.
+- Each request logs one JSON line, and each photo read one of route `work`: `route` (`message`, `commit`, `settings`, `job`, `cancel` or `work`), `user_id`, `plan`, `provider`, `model`, `model_calls`, `input_tokens`, `output_tokens`, `reasoning_tokens`, `web_search_requests`, `latency_ms`, `outcome_recorded` and `outcome`, each null where it does not apply, and on a refused commit that left its new note, `left_deck_id` and `left_reason`; never the token, a key, a message or a card. A stream logs its line when it ends.
 
 ### Tests
 
