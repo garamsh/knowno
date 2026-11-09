@@ -22,6 +22,8 @@ class AppTextField extends StatelessWidget {
     this.textInputAction,
     this.prefixIcon,
     this.inputFormatters,
+    this.keyboardType,
+    this.autofillHints,
     this.style,
     this.textAlign = TextAlign.start,
     this.height = AppSize.field,
@@ -46,6 +48,13 @@ class AppTextField extends StatelessWidget {
 
   /// Limits or reshapes what is typed.
   final List<TextInputFormatter>? inputFormatters;
+
+  /// The keyboard the field asks for.
+  final TextInputType? keyboardType;
+
+  /// What the platform may fill the field with, such as a one-time code its
+  /// keyboard or password manager offers.
+  final Iterable<String>? autofillHints;
 
   /// The text's style; [AppType.body] when null.
   final TextStyle? style;
@@ -77,6 +86,8 @@ class AppTextField extends StatelessWidget {
         maxLength: maxLength,
         textInputAction: textInputAction,
         inputFormatters: inputFormatters,
+        keyboardType: keyboardType,
+        autofillHints: autofillHints,
         style: style ?? AppType.body,
         textAlign: textAlign,
         onChanged: onChanged,
@@ -89,6 +100,8 @@ class AppTextField extends StatelessWidget {
           ),
           hintText: hint,
           errorText: errorText,
+          // A message is a sentence, which wraps rather than being cut.
+          errorMaxLines: 5,
           prefixIcon: prefixIcon,
         ),
       ),

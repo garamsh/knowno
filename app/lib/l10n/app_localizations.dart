@@ -1213,6 +1213,108 @@ abstract class AppLocalizations {
   /// **'Apple로 계속하기'**
   String get signInWithApple;
 
+  /// Button on the sign-in screen that opens the email step: sign in with a code sent to an email address.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일로 계속하기'**
+  String get signInWithEmail;
+
+  /// Line under the title of the email step: what the code is, and that a first sign-in creates the account.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일 주소로 6자리 코드를 보내 드려요. 처음이라면 계정이 만들어져요.'**
+  String get emailSignInBody;
+
+  /// Label of the email address field.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일'**
+  String get emailAddress;
+
+  /// Hint inside the email address field.
+  ///
+  /// In ko, this message translates to:
+  /// **'name@example.com'**
+  String get emailAddressHint;
+
+  /// Shown under the email field when what was typed is not shaped like an address.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일 주소를 확인해 주세요.'**
+  String get emailAddressInvalid;
+
+  /// Button that sends the sign-in code to the typed address.
+  ///
+  /// In ko, this message translates to:
+  /// **'코드 받기'**
+  String get sendEmailCode;
+
+  /// Accessible label of the progress indicator while the code is sent.
+  ///
+  /// In ko, this message translates to:
+  /// **'코드를 보내는 중'**
+  String get sendingEmailCode;
+
+  /// Line under the title of the code step, naming the address the code was sent to.
+  ///
+  /// In ko, this message translates to:
+  /// **'{email}로 보낸 6자리 코드를 입력해 주세요.'**
+  String emailCodeBody(String email);
+
+  /// Label of the sign-in code field.
+  ///
+  /// In ko, this message translates to:
+  /// **'6자리 코드'**
+  String get emailCode;
+
+  /// Button that signs in with the typed code.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그인'**
+  String get verifyEmailCode;
+
+  /// Button that sends a new code once the wait is over.
+  ///
+  /// In ko, this message translates to:
+  /// **'코드 다시 받기'**
+  String get resendEmailCode;
+
+  /// Muted line under the code field counting down to when a new code can be asked for.
+  ///
+  /// In ko, this message translates to:
+  /// **'{seconds}초 뒤에 코드를 다시 받을 수 있어요'**
+  String resendEmailCodeIn(int seconds);
+
+  /// Button on the code step that goes back to the email step.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일 주소 바꾸기'**
+  String get changeEmailAddress;
+
+  /// Shown when Supabase refused a request for coming too often and said how long to wait.
+  ///
+  /// In ko, this message translates to:
+  /// **'요청이 너무 많아요. {seconds}초 뒤에 다시 시도해 주세요.'**
+  String accountRateLimited(int seconds);
+
+  /// Shown when Supabase refused a request for coming too often and did not say how long to wait.
+  ///
+  /// In ko, this message translates to:
+  /// **'요청이 너무 많아요. 잠시 뒤에 다시 시도해 주세요.'**
+  String get accountRateLimitedLater;
+
+  /// Shown when the sign-in code was refused: Supabase answers a wrong and an expired code alike.
+  ///
+  /// In ko, this message translates to:
+  /// **'코드가 맞지 않거나 만료됐어요. 다시 확인하거나 새 코드를 받아 주세요.'**
+  String get accountCodeRefused;
+
+  /// Shown when Supabase refused the email address a code was asked for.
+  ///
+  /// In ko, this message translates to:
+  /// **'이 주소로는 코드를 보낼 수 없어요. 이메일 주소를 확인해 주세요.'**
+  String get accountAddressRefused;
+
   /// Accessible label of the progress indicator while signing in.
   ///
   /// In ko, this message translates to:

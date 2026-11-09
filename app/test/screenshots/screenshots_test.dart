@@ -965,6 +965,78 @@ void main() {
       await unmount(tester);
     });
 
+    testWidgets('signing in with an email code in $mode', skip: !_capture, (
+      tester,
+    ) async {
+      phone(tester);
+      SharedPreferencesAsyncPlatform.instance =
+          InMemorySharedPreferencesAsync.withData({'themeMode': mode});
+      final storage = (await tester.runAsync(
+        () => SharedPreferencesWithCache.create(
+          cacheOptions: const SharedPreferencesWithCacheOptions(
+            allowList: {
+              ...themeStorageKeys,
+              ...photoImportStorageKeys,
+              ...studyStorageKeys,
+              ...deckStorageKeys,
+            },
+          ),
+        ),
+      ))!;
+      final account = FakeAccountService();
+      await tester.pumpWidget(
+        composeApp(
+          NativeDatabase.memory(),
+          scheduler,
+          account,
+          FakeSyncServer(_ada),
+          storage,
+          FakeExtractionClient(),
+          MemoryImportJobStore(),
+          FakeSharingServer(),
+          FakeReachability(),
+          const UnavailableMediaServer(),
+          unusedMediaDirectory,
+          '1.0.0',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await shot(tester, 'email-1-sign-in');
+      await largest(tester, 'email-1-sign-in');
+
+      await tester.ensureVisible(shownText(ko.signInWithEmail));
+      await tap(tester, shownText(ko.signInWithEmail));
+      await shot(tester, 'email-2-address');
+      await largest(tester, 'email-2-address');
+
+      await tester.enterText(find.byType(EditableText), 'ada@');
+      await tap(tester, shownText(ko.sendEmailCode));
+      await shot(tester, 'email-3-address-invalid');
+      await largest(tester, 'email-3-address-invalid');
+
+      account.sendFailure = AccountRateLimited(
+        Exception('slow'),
+        retryAfter: const Duration(seconds: 49),
+      );
+      await tester.enterText(find.byType(EditableText), 'ada@example.com');
+      await tap(tester, shownText(ko.sendEmailCode));
+      await shot(tester, 'email-4-rate-limited');
+      await largest(tester, 'email-4-rate-limited');
+      account.sendFailure = null;
+
+      await tester.enterText(find.byType(EditableText), 'ada@example.com ');
+      await tap(tester, shownText(ko.sendEmailCode));
+      await shot(tester, 'email-5-code');
+      await largest(tester, 'email-5-code');
+
+      await tester.enterText(find.byType(EditableText), '000000');
+      await tester.pumpAndSettle();
+      await shot(tester, 'email-6-code-refused');
+      await largest(tester, 'email-6-code-refused');
+      // Silence the countdown's timer before the screen goes.
+      await unmount(tester);
+    });
+
     testWidgets('the today tab in a backlog in $mode', skip: !_capture, (
       tester,
     ) async {
