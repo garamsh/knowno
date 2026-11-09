@@ -29,6 +29,11 @@ String _plainInline(List<md.Node> nodes) => [
     },
 ].join();
 
+/// [text] as the words a reader sees in the reply's Markdown, on one line: no
+/// marks, a link as its text, an image as its alt text, whitespace folded.
+String plainLine(String text) =>
+    _plainInline(_parse(text)).replaceAll(RegExp(r'\s+'), ' ').trim();
+
 const _blockTags = {
   'p',
   'h1',

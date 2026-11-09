@@ -424,6 +424,35 @@ void main() {
     expect(stored, contains('다 만들었어요'));
   });
 
+  testWidgets('draws the passing line without Markdown marks', (tester) async {
+    final feed = StreamController<AssistantEvent>();
+    final client = FakeAssistantClient(scripts: [streaming(feed)]);
+    final storage = await openAssistantStorage(tester);
+    await pumpChat(tester, client, storage);
+    await _send(tester, '영단어 만들어 줘');
+    Future<void> deliver(AssistantEvent event) async {
+      feed.add(event);
+      await tester.pump();
+      await tester.pump();
+    }
+
+    await deliver(
+      const TextDelta('**굵게** `코드` [링크](https://example.com) ![그림](a.png)'),
+    );
+    await deliver(const InterimEvent());
+    expect(_text('굵게 코드 링크 그림'), findsOneWidget);
+    await deliver(const TextDelta('\n\n'));
+    await deliver(const TextDelta('그냥 말해요'));
+    await deliver(const InterimEvent());
+    expect(_text('그냥 말해요'), findsOneWidget);
+    await deliver(const TextDelta('\n\n'));
+    await deliver(const TextDelta('---'));
+    await deliver(const InterimEvent());
+    expect(_text('Malangi is thinking'), findsOneWidget);
+    await feed.close();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('drops the passing line when the turn ends on it', (
     tester,
   ) async {
