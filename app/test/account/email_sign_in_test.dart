@@ -61,6 +61,12 @@ void main() {
 
   Finder codeField() => find.byType(TextField);
 
+  AppButton signInButton(WidgetTester tester) => tester.widget<AppButton>(
+    find.byWidgetPredicate(
+      (widget) => widget is AppButton && widget.label == 'Sign in',
+    ),
+  );
+
   TextField codeInput(WidgetTester tester) =>
       tester.widget<TextField>(codeField());
 
@@ -213,7 +219,7 @@ void main() {
       (tester) async {
         await openCodeStep(tester);
 
-        await tester.enterText(codeField(), '123 456');
+        await tester.enterText(codeField(), '인증 코드는 123 456 입니다');
         await tester.pumpAndSettle();
 
         expect(service.verified, [(email: 'ada@example.com', code: '123456')]);
@@ -222,40 +228,51 @@ void main() {
       },
     );
 
-    testWidgets('keeps six digits of what is pasted, and no letters', (
-      tester,
-    ) async {
-      service.emailCode = '987654';
+    testWidgets(
+      'signs in on a review code of 16 digits pasted whole, letters dropped',
+      (tester) async {
+        const reviewCode = '4829105736281047';
+        service.emailCode = reviewCode;
+        await openCodeStep(tester);
+
+        await tester.enterText(codeField(), 'code: $reviewCode');
+        await tester.pumpAndSettle();
+
+        expect(service.verified.single.code, reviewCode);
+        expect(service.state, isA<SignedIn>());
+        expect(find.byType(EmailSignInScreen), findsNothing, reason: 'closed');
+      },
+    );
+
+    testWidgets('keeps at most 128 digits, and no letters', (tester) async {
       await openCodeStep(tester);
 
-      await tester.enterText(codeField(), 'code: 987654321');
-      await tester.pumpAndSettle();
+      await tester.enterText(codeField(), 'a${'7' * 130}');
+      await tester.pump();
 
-      expect(service.verified.single.code, '987654');
-      expect(service.state, isA<SignedIn>());
+      expect(tester.widget<TextField>(codeField()).controller!.text, '7' * 128);
     });
 
-    testWidgets('waits for six digits before it signs in', (tester) async {
+    testWidgets('waits for the button when the code is typed key by key', (
+      tester,
+    ) async {
       await openCodeStep(tester);
 
       await tester.enterText(codeField(), '12345');
       await tester.pump();
-      expect(
-        tester
-            .widget<AppButton>(
-              find.byWidgetPredicate(
-                (widget) => widget is AppButton && widget.label == 'Sign in',
-              ),
-            )
-            .onPressed,
-        isNull,
-      );
+      expect(signInButton(tester).onPressed, isNull);
       await tester.tap(shownText('Sign in'), warnIfMissed: false);
       await tester.pump();
       expect(service.verified, isEmpty);
 
-      // Control: the sixth digit signs in.
+      // The sixth digit is typed, not pasted: it waits for the button.
       await tester.enterText(codeField(), '123456');
+      await tester.pump();
+      expect(service.verified, isEmpty);
+      expect(signInButton(tester).onPressed, isNotNull);
+
+      // Control: the button signs in.
+      await tester.tap(shownText('Sign in'));
       await tester.pumpAndSettle();
       expect(service.verified, hasLength(1));
     });
@@ -298,8 +315,10 @@ void main() {
         expect(service.state, isA<SignedOut>());
         expect(find.byType(EmailSignInScreen), findsOneWidget);
 
-        // Control: the right code, typed over it, signs in.
+        // Control: the right code, typed over it, signs in with the button.
         await tester.enterText(codeField(), '123456');
+        await tester.pump();
+        await tester.tap(shownText('Sign in'));
         await tester.pumpAndSettle();
         expect(
           shownText(
