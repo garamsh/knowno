@@ -63,6 +63,7 @@ export async function Deck({
           <NoteSettings
             deck={deck}
             cardCount={cards.length}
+            cards={cards}
             displayName={displayName}
             adding={adding}
           />
