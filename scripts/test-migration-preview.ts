@@ -60,6 +60,7 @@ async function main(): Promise<void> {
         ...args,
       ]);
     await copyInto("supabase/migrations", `${repo}/supabase/migrations`);
+    await copyInto("supabase/templates", `${repo}/supabase/templates`);
     for (
       const file of [
         "config.toml",

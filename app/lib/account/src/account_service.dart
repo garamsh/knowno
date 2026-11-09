@@ -46,10 +46,13 @@ abstract interface class AccountService {
   Future<void> signOut();
 
   /// Deletes the signed-in account on the server, and with it every row the
-  /// account owns there; the device stays signed in until [signOut]. Throws an
+  /// account owns there; the device stays signed in until [signOut]. An
+  /// account with an Apple identity first shows the Apple sheet once more, for
+  /// the authorization code the server revokes Apple's tokens with. Returns
+  /// false, with nothing deleted, when the user cancels that sheet. Throws an
   /// [AccountFailure] when the account could not be deleted; it then still
   /// exists.
-  Future<void> deleteAccount();
+  Future<bool> deleteAccount();
 }
 
 /// What [connectAccount] connects: the account service, and the Supabase
@@ -282,19 +285,48 @@ final class NativeAccountService implements AccountService {
   }
 
   /// Calls `delete-account`, which deletes the user the session's token
-  /// names; the request carries no user id.
+  /// names; the request carries no user id. For an account with an Apple
+  /// identity the request's body is the code of a fresh Apple sheet, shown
+  /// with no scopes: the code is single-use and short-lived, so it is sent at
+  /// once and never kept.
   @override
-  Future<void> deleteAccount() async {
+  Future<bool> deleteAccount() async {
+    String? appleCode;
+    if (_hasAppleIdentity) {
+      try {
+        appleCode = (await SignInWithApple.getAppleIDCredential(
+          scopes: const [],
+        )).authorizationCode;
+      } on SignInWithAppleException catch (error) {
+        final failure = classifyAppleError(error);
+        if (failure == null) return false;
+        throw failure;
+      }
+    }
     final FunctionResponse response;
     try {
-      response = await _functions.invoke('delete-account');
+      response = await _functions.invoke(
+        'delete-account',
+        body: appleCode == null
+            ? null
+            : {'apple_authorization_code': appleCode},
+      );
     } on FunctionException catch (error) {
       throw classifyDeletionError(error);
     }
     if (response.status != 204) {
       throw AccountRejected(UnexpectedDeletionAnswer(response.status));
     }
+    return true;
   }
+
+  /// Whether the signed-in account holds an Apple identity, as the session's
+  /// user lists its identities; a session that lists none holds none.
+  bool get _hasAppleIdentity =>
+      _auth.currentUser?.identities?.any(
+        (identity) => identity.provider == 'apple',
+      ) ??
+      false;
 
   static AccountState _stateOf(Session? session) => switch (session) {
     null => const SignedOut(),
@@ -334,7 +366,7 @@ final class UnavailableAccountService implements AccountService {
   Future<void> signOut() async {}
 
   @override
-  Future<void> deleteAccount() async => throw failure;
+  Future<bool> deleteAccount() async => throw failure;
 }
 
 /// The nonce that binds a Google or Apple ID token to this app's sign-in: the

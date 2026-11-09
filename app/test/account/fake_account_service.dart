@@ -91,10 +91,15 @@ class FakeAccountService implements AccountService {
     if (failure case final failure?) throw failure;
   }
 
+  /// Makes [deleteAccount] return as a cancelled Apple sheet does.
+  bool cancelDeletion = false;
+
   @override
-  Future<void> deleteAccount() async {
+  Future<bool> deleteAccount() async {
     if (deletionFailure case final failure?) throw failure;
+    if (cancelDeletion) return false;
     deletions++;
+    return true;
   }
 }
 

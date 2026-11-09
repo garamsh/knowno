@@ -136,7 +136,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     setState(() => _busy = _Action.deleting);
     try {
       try {
-        await service.deleteAccount();
+        // Cancelling the Apple sheet cancels the deletion: nothing is deleted
+        // and the account stays signed in.
+        if (!await service.deleteAccount()) return;
       } on AccountFailure catch (failure) {
         messenger.showSnackBar(
           SnackBar(content: Text(describeDeletionFailure(l10n, failure))),
