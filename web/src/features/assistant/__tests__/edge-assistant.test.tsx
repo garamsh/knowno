@@ -38,6 +38,7 @@ function keepReady() {
     proposals: [shown(proposal)],
     choice: null,
     job: null,
+    interim: null,
     ending: "ok",
   };
   window.localStorage.setItem(

@@ -118,3 +118,61 @@ export default function ReplyMarkdown({ text }: { text: string }) {
     </div>
   );
 }
+
+/** The part of a syntax tree the line reads: `react-markdown` hands its plugins a hast tree. */
+type LineNode = {
+  type: string;
+  tagName?: string;
+  value?: string;
+  properties?: Record<string, unknown>;
+  children?: LineNode[];
+};
+
+/** Elements that end a line of the reply or a cell of a row: a space stands where they end. */
+const lineBreaks = new Set([
+  "p",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "li",
+  "br",
+  "blockquote",
+  "pre",
+  "tr",
+  "th",
+  "td",
+  "hr",
+]);
+
+function words(node: LineNode): string {
+  if (node.type === "text" || node.type === "raw") return node.value ?? "";
+  if (node.type !== "element" && node.type !== "root") return "";
+  // A footnote's list is the reader's to follow, not a remark's words.
+  if (node.tagName === "section") return "";
+  if (node.tagName === "img")
+    return typeof node.properties?.alt === "string" ? node.properties.alt : "";
+  const inside = (node.children ?? []).map(words).join("");
+  return node.tagName !== undefined && lineBreaks.has(node.tagName) ? ` ${inside} ` : inside;
+}
+
+/** A rehype plugin: the whole tree becomes one text node, the reply's words folded to a line. */
+function intoLine() {
+  return (tree: LineNode) => {
+    tree.children = [{ type: "text", value: words(tree).replace(/\s+/g, " ").trim() }];
+  };
+}
+
+/**
+ * 말랑이's interim remark as the words the reply would show for it, on one line: read with the
+ * reply's parser and extension set, no mark left, a link as its text, an image as its alt text.
+ */
+export function ReplyLine({ text }: { text: string }) {
+  return (
+    <Markdown remarkPlugins={replyRemarkPlugins} rehypePlugins={[intoLine]}>
+      {text}
+    </Markdown>
+  );
+}

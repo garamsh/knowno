@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   type AssistantTurn,
   type Conversation,
+  ended,
   enteredFrom,
   lastMessage,
   parseConversation,
@@ -10,6 +11,7 @@ import {
   requestTurns,
   runningJob,
   shown,
+  storeConversation,
   type Turn,
   type UserTurn,
   withEvent,
@@ -58,6 +60,7 @@ const reply = (edit: Partial<AssistantTurn> = {}): AssistantTurn => ({
   proposals: [],
   choice: null,
   job: null,
+  interim: null,
   ending: null,
   ...edit,
 });
@@ -213,5 +216,55 @@ describe("photos, the photo job and the note a chat opens from", () => {
     };
     broken.turns[1] = { ...broken.turns[1], job: { id: "j1", state: "lost" } };
     expect((parseConversation(JSON.stringify(broken)).turns[1] as AssistantTurn).job).toBeNull();
+  });
+});
+
+describe("a reply's passing status line", () => {
+  const text = (turn: AssistantTurn, delta: string) => withEvent(turn, { type: "text", delta });
+  const interim = (turn: AssistantTurn) => withEvent(turn, { type: "interim" });
+
+  it("takes the text before the mark as one folded line, each new one replacing the last", () => {
+    let turn = text(reply(), "카드를\n찾아볼게요  ");
+    expect(turn.text).toBe("카드를\n찾아볼게요  ");
+    turn = interim(turn);
+    expect(turn).toMatchObject({ text: "", interim: "카드를 찾아볼게요" });
+    turn = text(text(turn, "\n\n"), "하나 더 볼게요");
+    // The call's text streams in as the reply until its mark arrives (ADR 0224), the line gone.
+    expect(turn).toMatchObject({ text: "하나 더 볼게요", interim: null });
+    turn = interim(turn);
+    expect(turn).toMatchObject({ text: "", interim: "하나 더 볼게요" });
+  });
+
+  it("goes when the reply's text begins, dropping the separator the function sent before it", () => {
+    let turn = interim(text(reply(), "찾아볼게요"));
+    turn = text(turn, "\n\n");
+    // Whitespace alone is not the reply: the line stays.
+    expect(turn).toMatchObject({ text: "", interim: "찾아볼게요" });
+    turn = text(turn, "답이에요");
+    expect(turn).toMatchObject({ text: "답이에요", interim: null });
+  });
+
+  it("is kept by a mark with no text before it, and goes with every ending", () => {
+    const line = interim(text(reply(), "잠깐만요"));
+    expect(interim(line).interim).toBe("잠깐만요");
+    expect(ended(line, "ok").interim).toBeNull();
+    expect(ended(line, "stopped")).toMatchObject({ interim: null, ending: "stopped" });
+    expect(withEvent(line, { type: "error", error: "cut" }).interim).toBeNull();
+    // A turn that ended keeps its first ending.
+    expect(ended(reply({ ending: "cut" }), "ok").ending).toBe("cut");
+  });
+
+  it("a turn of one call has none, and what is stored and sent holds the reply alone", () => {
+    expect(text(reply(), "답이에요")).toMatchObject({ text: "답이에요", interim: null });
+
+    const midStream = interim(text(reply(), "찾아볼게요"));
+    const turns: Turn[] = [said("u1", "안녕"), text(midStream, "답이에요")];
+    expect(requestTurns(turns)[1]).toEqual({ role: "assistant", text: "답이에요" });
+
+    const withLine: Turn[] = [said("u1", "안녕"), midStream];
+    expect(storeConversation({ turns: withLine, draft: "" })).toBe(true);
+    const kept = window.localStorage.getItem("knowno.assistant") ?? "";
+    expect(kept).not.toContain("찾아볼게요");
+    window.localStorage.clear();
   });
 });

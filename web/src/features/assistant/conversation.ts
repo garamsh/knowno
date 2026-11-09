@@ -40,7 +40,11 @@ export type ContextTurn = { role: "context"; id: string; deckId: string; name: s
 /** What the chat sends in the user's place when a photo job is done (the phone's, #721). */
 export const jobDoneMessage = "사진 읽기가 끝났어요. 이어서 해 주세요.";
 
-/** 말랑이's turn; its [ending] is null while it streams. */
+/**
+ * 말랑이's turn; its [ending] is null while it streams. Its [interim] is the passing status line,
+ * the last interim text folded to one line, kept only while the reply has not begun and the turn
+ * has not ended, and never stored or sent.
+ */
 export type AssistantTurn = {
   role: "assistant";
   id: string;
@@ -49,6 +53,7 @@ export type AssistantTurn = {
   proposals: ShownProposal[];
   choice: Choice | null;
   job: JobProgress | null;
+  interim: string | null;
   ending: Ending | null;
 };
 
@@ -97,11 +102,30 @@ function reshown(before: ShownProposal, proposal: Proposal): ShownProposal {
   return fresh;
 }
 
+/** [text] with every run of whitespace folded to one space and the ends trimmed. */
+const folded = (text: string) => text.replace(/\s+/g, " ").trim();
+
+/**
+ * [turn] ended as [ending]: its status line goes with it, and a turn already ended keeps its first
+ * ending.
+ */
+export function ended(turn: AssistantTurn, ending: Ending): AssistantTurn {
+  return turn.ending ? turn : { ...turn, ending, interim: null };
+}
+
 /** [turn] with [event] of its stream applied; `usage` changes no turn. */
 export function withEvent(turn: AssistantTurn, event: AssistantEvent): AssistantTurn {
   switch (event.type) {
-    case "text":
-      return { ...turn, text: turn.text + event.delta };
+    case "text": {
+      // A reply's leading whitespace is the separator the function sends before a call's text,
+      // which belongs to the text after it (ADR 0224).
+      const shownText = turn.text === "" ? event.delta.trimStart() : event.delta;
+      return shownText === "" ? turn : { ...turn, text: turn.text + shownText, interim: null };
+    }
+    case "interim": {
+      const line = folded(turn.text);
+      return line === "" ? { ...turn, text: "" } : { ...turn, text: "", interim: line };
+    }
     case "citation":
       return turn.citations.some((one) => one.url === event.url)
         ? turn
@@ -122,7 +146,7 @@ export function withEvent(turn: AssistantTurn, event: AssistantEvent): Assistant
         job: { id: event.id, photos: event.photos, finished: 0, state: "running" },
       };
     case "error":
-      return { ...turn, ending: event.error };
+      return { ...turn, ending: event.error, interim: null };
     case "usage":
       return turn;
   }
@@ -284,6 +308,7 @@ function turnOf(value: unknown): Turn | null {
         ? { prompt: choice.prompt, options: choice.options }
         : null,
     job: jobOf(value.job),
+    interim: null,
     // A reply stored mid-stream, its page closed, ended there.
     ending: ending === "model_error" || ending === "cut" || ending === "ok" ? ending : "stopped",
   };
@@ -317,12 +342,26 @@ export function loadConversation(): Conversation {
   }
 }
 
+/** [conversation] as it is stored: the reply alone, no turn's passing status line. */
+function stored(conversation: Conversation): Conversation {
+  return {
+    ...conversation,
+    turns: conversation.turns.map((turn) =>
+      turn.role === "assistant" ? { ...turn, interim: null } : turn,
+    ),
+  };
+}
+
 /** Keeps [conversation] in this browser; whether the browser kept it. */
 export function storeConversation(conversation: Conversation): boolean {
   try {
     if (conversation.turns.length === 0 && conversation.draft === "")
       window.localStorage.removeItem(storageKey);
-    else window.localStorage.setItem(storageKey, JSON.stringify({ version: 1, ...conversation }));
+    else
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify({ version: 1, ...stored(conversation) }),
+      );
     return true;
   } catch {
     return false;

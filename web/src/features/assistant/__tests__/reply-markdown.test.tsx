@@ -1,7 +1,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import ReplyMarkdown from "../components/reply-markdown";
+import ReplyMarkdown, { ReplyLine } from "../components/reply-markdown";
 
 const rich = [
   "# 제목",
@@ -136,5 +136,42 @@ describe("말랑이's reply as Markdown", () => {
     expect(light).not.toMatch(
       /style="[^"]*(color|background)|#[0-9a-f]{3,6}|(bg|text|border)-(white|black|[a-z]+-\d{2,3})\b/,
     );
+  });
+});
+
+describe("an interim remark as a status line", () => {
+  const line = (text: string) => render(<ReplyLine text={text} />).container;
+
+  it("shows a remark's words without Markdown marks, on one line", () => {
+    const marked = line("**굵게** *기울여* ~~지워~~ `코드` 말해요");
+    expect(marked.textContent).toBe("굵게 기울여 지워 코드 말해요");
+    expect(marked.children).toHaveLength(0);
+    cleanup();
+    expect(line("[문서](https://example.com/doc)를 읽어요").textContent).toBe("문서를 읽어요");
+    cleanup();
+    const image = line("그림 ![고양이](https://example.com/cat.png) 이에요");
+    expect(image.textContent).toBe("그림 고양이 이에요");
+    expect(image.querySelector("img")).toBeNull();
+    cleanup();
+    expect(line("# 제목\n\n- 하나\n- 둘\n\n마지막\n줄").textContent).toBe("제목 하나 둘 마지막 줄");
+    cleanup();
+    // Elements of the reply's own set, the table and the bare link, read as theirs.
+    expect(line("| 단어 | 뜻 |\n| --- | --- |\n| apple | 사과 |").textContent).toBe(
+      "단어 뜻 apple 사과",
+    );
+    cleanup();
+    expect(line("https://example.com 을 봐요").textContent).toBe("https://example.com 을 봐요");
+    cleanup();
+    expect(line("<b>태그</b> 그대로").textContent).toBe("<b>태그</b> 그대로");
+  });
+
+  it("leaves a plain remark as it is, and draws no element", () => {
+    const plain = line("카드를 찾아볼게요. 잠시만요!");
+    expect(plain.textContent).toBe("카드를 찾아볼게요. 잠시만요!");
+    expect(plain.children).toHaveLength(0);
+  });
+
+  it("reads a mark not yet closed as typed", () => {
+    expect(line("**아직 닫지").textContent).toBe("**아직 닫지");
   });
 });

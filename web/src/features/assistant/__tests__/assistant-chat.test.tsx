@@ -11,7 +11,7 @@ import type {
 } from "../assistant-client";
 import type { CommitResult } from "../commit-proposal";
 import { AssistantChat, busyRetryMs, jobPollMs } from "../components/assistant-chat";
-import { jobDoneMessage } from "../conversation";
+import { type Conversation, jobDoneMessage } from "../conversation";
 import type { AssistantEvent, Proposal, SendRefusal } from "../protocol";
 
 // jsdom decodes no image: the preparation is design/'s own, and here gives a fixed JPEG.
@@ -415,6 +415,137 @@ describe("말랑이's chat", () => {
     await userEvent.click(screen.getByRole("button", { name: "멈추기" }));
     expect(await screen.findByText("멈췄어요.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "보내기" })).toBeInTheDocument();
+  });
+
+  describe("interim remarks as a passing status line", () => {
+    /** A reply whose events the test lets through one at a time; `end` closes the stream. */
+    function held() {
+      const queue: (AssistantEvent | null)[] = [];
+      let wake: (() => void) | null = null;
+      const push = (event: AssistantEvent | null) => {
+        queue.push(event);
+        wake?.();
+      };
+      return {
+        events: (signal: AbortSignal): SendResult => ({
+          kind: "stream",
+          events: (async function* () {
+            for (;;) {
+              while (queue.length === 0) {
+                await new Promise<void>((resolve, reject) => {
+                  wake = resolve;
+                  signal.addEventListener("abort", () => {
+                    reject(new DOMException("stopped", "AbortError"));
+                  });
+                });
+              }
+              const next = queue.shift();
+              if (next === null || next === undefined) return;
+              yield next;
+            }
+          })(),
+        }),
+        text: (delta: string) => {
+          push({ type: "text", delta });
+        },
+        mark: () => {
+          push({ type: "interim" });
+        },
+        end: () => {
+          push(null);
+        },
+      };
+    }
+
+    const lines = () => screen.queryAllByRole("status");
+
+    it("shows one line a call, then only the reply, stored and sent back as the reply alone", async () => {
+      const turn = held();
+      const { client, requests } = fakeClient([turn.events, [{ type: "text", delta: "네" }]]);
+      render(<AssistantChat allowance={null} client={client} />);
+      await say("카드 만들어 줘");
+      expect(await screen.findByText("말랑이가 생각하는 중이에요")).toBeInTheDocument();
+
+      // The first call's text streams in as the reply until its mark arrives (ADR 0224).
+      turn.text("**노트**를\n찾아볼게요");
+      expect(await screen.findByText("찾아볼게요", { exact: false })).toBeInTheDocument();
+      turn.mark();
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent(/^노트를 찾아볼게요$/);
+      });
+      const live = screen.getByRole("status");
+      expect(live).toHaveAttribute("aria-live", "polite");
+      expect(live.textContent).not.toContain("*");
+      expect(lines()).toHaveLength(1);
+      expect(screen.queryByText("말랑이가 생각하는 중이에요")).not.toBeInTheDocument();
+
+      // The second call's text is the reply for a moment, then a line in the first one's place.
+      turn.text("\n\n");
+      turn.text("[카드](https://example.com)를 만들게요");
+      turn.mark();
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent(/^카드를 만들게요$/);
+      });
+      expect(lines()).toHaveLength(1);
+      expect(screen.getByRole("status")).toBe(live);
+      expect(screen.queryByRole("link", { name: "카드" })).not.toBeInTheDocument();
+
+      // The reply starts: the line goes, and the reply has no leading separator.
+      turn.text("\n\n");
+      turn.text("**다 됐어요**");
+      expect(await screen.findByText("다 됐어요")).toBeInTheDocument();
+      expect(lines()).toHaveLength(0);
+      turn.end();
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "보내기" })).toBeInTheDocument();
+      });
+      expect(lines()).toHaveLength(0);
+      expect(screen.queryByText(/찾아볼게요|만들게요/)).not.toBeInTheDocument();
+
+      const stored = window.localStorage.getItem("knowno.assistant") ?? "";
+      expect(stored).not.toMatch(/찾아볼게요|만들게요/);
+      expect((JSON.parse(stored) as Conversation).turns.at(-1)).toMatchObject({
+        text: "**다 됐어요**",
+        ending: "ok",
+      });
+
+      await say("고마워");
+      await screen.findByText("네");
+      expect(requests[1]?.messages.at(-2)).toEqual({ role: "assistant", text: "**다 됐어요**" });
+    });
+
+    it("leaves a turn of one call as it was: no line, the reply as it streams", async () => {
+      const turn = held();
+      const { client } = fakeClient([turn.events]);
+      render(<AssistantChat allowance={null} client={client} />);
+      await say("안녕");
+      expect(await screen.findByRole("status")).toHaveTextContent("말랑이가 생각하는 중이에요");
+      turn.text("안녕");
+      turn.text("하세요");
+      expect(await screen.findByText("안녕하세요")).toBeInTheDocument();
+      expect(lines()).toHaveLength(0);
+      turn.end();
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "보내기" })).toBeInTheDocument();
+      });
+      expect(screen.getByText("안녕하세요")).toBeInTheDocument();
+      expect(lines()).toHaveLength(0);
+    });
+
+    it("drops the line when the turn ends or is stopped before any reply", async () => {
+      const turn = held();
+      const { client } = fakeClient([turn.events]);
+      render(<AssistantChat allowance={null} client={client} />);
+      await say("찾아 줘");
+      turn.text("찾아볼게요");
+      turn.mark();
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent("찾아볼게요");
+      });
+      await userEvent.click(screen.getByRole("button", { name: "멈추기" }));
+      expect(await screen.findByText("멈췄어요.")).toBeInTheDocument();
+      expect(screen.queryByText("찾아볼게요")).not.toBeInTheDocument();
+    });
   });
 
   it("clears the conversation only through its confirmation, from ⋯", async () => {

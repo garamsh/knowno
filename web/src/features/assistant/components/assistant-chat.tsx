@@ -43,6 +43,7 @@ import {
   type ShownProposal,
   storeConversation,
   type Turn,
+  ended,
   withEvent,
 } from "../conversation";
 import { type Allowance, type JobProgress, leftShare, type SendRefusal } from "../protocol";
@@ -50,6 +51,10 @@ import { formatNames, ProposalView } from "./proposal-view";
 
 /** The Markdown renderer is a chunk of its own: a reply shows as plain text until it has loaded (ADR 0227). */
 const ReplyMarkdown = lazy(() => import("./reply-markdown"));
+/** The status line is read by the same chunk's parser, its words without marks (#830). */
+const ReplyLine = lazy(() =>
+  import("./reply-markdown").then((chunk) => ({ default: chunk.ReplyLine })),
+);
 
 /** Where the message list's scroll is kept while the chat is left for a note (#711). */
 const scrollKey = "knowno.assistant.scroll";
@@ -66,6 +71,8 @@ const maxPhotos = 50;
 
 /** A photo staged for the next message: prepared as a JPEG, with the address its thumbnail shows. */
 type StagedPhoto = PreparedPhoto & { url: string };
+
+const waiting = "말랑이가 생각하는 중이에요";
 
 /** What the chat is doing: nothing, photos uploading, a reply streaming, waiting to resend, or refused. */
 type Status =
@@ -256,6 +263,7 @@ export function AssistantChat({
       proposals: [],
       choice: null,
       job: null,
+      interim: null,
       ending: null,
     };
     update((before) => ({ ...before, turns: [...before.turns, reply] }));
@@ -269,17 +277,13 @@ export function AssistantChat({
     };
     try {
       for await (const event of result.events) {
-        if (event === "malformed") change((turn) => ({ ...turn, ending: "model_error" }));
+        if (event === "malformed") change((turn) => ended(turn, "model_error"));
         else if (event.type === "usage") setAllowance(event.allowance);
         else change((turn) => withEvent(turn, event));
       }
-      change((turn) => (turn.ending ? turn : { ...turn, ending: "ok" }));
+      change((turn) => ended(turn, "ok"));
     } catch {
-      change((turn) =>
-        turn.ending
-          ? turn
-          : { ...turn, ending: controller.signal.aborted ? "stopped" : "model_error" },
-      );
+      change((turn) => ended(turn, controller.signal.aborted ? "stopped" : "model_error"));
     }
     setStatus({ kind: "idle" });
   }, [client, note, update]);
@@ -536,8 +540,18 @@ export function AssistantChat({
                   </div>
                 )}
                 {turn.ending === null && !turn.text && (
-                  <p role="status" className="text-secondary text-muted">
-                    말랑이가 생각하는 중이에요
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    className="text-secondary truncate text-muted"
+                  >
+                    {turn.interim === null ? (
+                      waiting
+                    ) : (
+                      <Suspense fallback={waiting}>
+                        <ReplyLine text={turn.interim} />
+                      </Suspense>
+                    )}
                   </p>
                 )}
                 {turn.citations.length > 0 && (

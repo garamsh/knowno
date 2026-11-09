@@ -34,6 +34,7 @@ describe("reading the assistant's events", () => {
       photos: 3,
     });
     expect(parseEvent("error", '{"error":"cut"}')).toEqual({ type: "error", error: "cut" });
+    expect(parseEvent("interim", "{}")).toEqual({ type: "interim" });
     expect(
       parseEvent(
         "usage",
@@ -51,6 +52,7 @@ describe("reading the assistant's events", () => {
   it("passes over an event it does not draw, and marks a known one that is not its form", () => {
     expect(parseEvent("thinking", "{}")).toBe("unknown");
     expect(parseEvent("text", "not json")).toBe("malformed");
+    expect(parseEvent("interim", "[]")).toBe("malformed");
     expect(parseEvent("text", '{"delta":3}')).toBe("malformed");
     expect(parseEvent("error", '{"error":"other"}')).toBe("malformed");
     expect(parseEvent("job", '{"id":"j1"}')).toBe("malformed");
