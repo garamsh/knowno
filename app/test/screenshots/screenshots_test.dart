@@ -295,7 +295,7 @@ void main() {
 
     // Shows 홈.
     Future<void> showHome(WidgetTester tester) =>
-        tap(tester, shownText(ko.tabHome));
+        tap(tester, shownText('홈 없는 글'));
 
     /// Lets the answers a closed study screen is still writing land: a read
     /// of the study store waits for them, each engine call finishing in real
