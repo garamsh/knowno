@@ -9,8 +9,16 @@ import {
 /** A web source a reply cites. */
 export type Citation = { url: string; title: string };
 
-/** What a commit wrote: the note and how many of its cards. */
-export type Added = { deck: { id: string; name: string }; count: number };
+/**
+ * What a commit wrote: the note and how many of its cards, and how many it left out because the
+ * note held them already ([skipped]) or the write refused them ([refused]).
+ */
+export type Added = {
+  deck: { id: string; name: string };
+  count: number;
+  skipped: number;
+  refused: number;
+};
 
 /** A proposal as the chat shows it: the cards checked in each group, and what adding it wrote. */
 export type ShownProposal = {
@@ -19,8 +27,11 @@ export type ShownProposal = {
   added: Added | null;
 };
 
-/** How a reply ended: whole, failed at the model, cut at the output limit, or stopped by the user. */
-export type Ending = "ok" | "model_error" | "cut" | "stopped";
+/**
+ * How a reply ended: whole, failed at the model, cut at the output limit, stopped by the user, or
+ * at the turn's depth or time limit with nothing to show.
+ */
+export type Ending = "ok" | "model_error" | "cut" | "stopped" | "limit";
 
 /**
  * The user's message: the ids of the [photos] it uploaded, and [auto] for the one the chat sends
@@ -113,7 +124,14 @@ export function ended(turn: AssistantTurn, ending: Ending): AssistantTurn {
   return turn.ending ? turn : { ...turn, ending, interim: null };
 }
 
-/** [turn] with [event] of its stream applied; `usage` changes no turn. */
+/** Whether [turn] holds a reply, a proposal, a question or a job. */
+const hasContent = (turn: AssistantTurn) =>
+  turn.text !== "" || turn.proposals.length > 0 || turn.choice !== null || turn.job !== null;
+
+/**
+ * [turn] with [event] of its stream applied; `usage` ends a turn that stopped at a limit with
+ * nothing to show as `limit`, and changes no other.
+ */
 export function withEvent(turn: AssistantTurn, event: AssistantEvent): AssistantTurn {
   switch (event.type) {
     case "text": {
@@ -148,7 +166,9 @@ export function withEvent(turn: AssistantTurn, event: AssistantEvent): Assistant
     case "error":
       return { ...turn, ending: event.error, interim: null };
     case "usage":
-      return turn;
+      return event.atLimit && !hasContent(turn) && turn.ending === null
+        ? { ...turn, ending: "limit", interim: null }
+        : turn;
   }
 }
 
@@ -261,7 +281,12 @@ function shownOf(value: unknown): ShownProposal | null {
   return {
     proposal,
     checked,
-    added: { deck: { id: added.deck.id, name: added.deck.name }, count: added.count },
+    added: {
+      deck: { id: added.deck.id, name: added.deck.name },
+      count: added.count,
+      skipped: typeof added.skipped === "number" ? added.skipped : 0,
+      refused: typeof added.refused === "number" ? added.refused : 0,
+    },
   };
 }
 
@@ -310,7 +335,10 @@ function turnOf(value: unknown): Turn | null {
     job: jobOf(value.job),
     interim: null,
     // A reply stored mid-stream, its page closed, ended there.
-    ending: ending === "model_error" || ending === "cut" || ending === "ok" ? ending : "stopped",
+    ending:
+      ending === "model_error" || ending === "cut" || ending === "ok" || ending === "limit"
+        ? ending
+        : "stopped",
   };
 }
 
