@@ -13,6 +13,8 @@ import {
   MAX_REQUEST_BYTES,
   MAX_TURN_TEXT,
   MAX_TURNS,
+  PARAGRAPH_BREAK,
+  REPLY_RULES,
   STALE_MS,
   TURN_LIMIT_MS,
 } from "./handler.ts";
@@ -678,6 +680,19 @@ function calls_(name: string, args: unknown) {
   };
 }
 
+/** A reply of [text] and then a call of the tool [name] with [args], as one model call. */
+function saysThenCalls(text: string, name: string, args: unknown) {
+  return () => {
+    const call = functionCall(name, args);
+    return responsesStream([
+      { type: "response.output_text.delta", delta: text },
+      { type: "response.output_item.added", item: { ...call, arguments: "" } },
+      { type: "response.function_call_arguments.delta", delta: call.arguments },
+      completed([message(text), call]),
+    ]);
+  };
+}
+
 /** The input items of [request], the conversation the provider was sent. */
 const input = (request: Row) => request.input as Row[];
 
@@ -937,6 +952,87 @@ Deno.test("a choice is sent and ends the turn", async () => {
   assert.equal(run.events.at(-1)!.data.outcome, "choice");
 });
 
+Deno.test("the text before a tool call is marked interim and the next text follows a paragraph break, against a turn of one call", async () => {
+  const fake = seed();
+  fake.replies.push(
+    saysThenCalls("사진을 먼저 볼게요.", "list_decks", {}),
+    saysThenCalls("덱을 찾았어요.", "list_decks", {}),
+    says("다 됐어요."),
+  );
+  const run = await send(fake);
+  assert.deepEqual(run.events.map((e) => [e.event, e.data.delta ?? null]), [
+    ["text", "사진을 먼저 볼게요."],
+    ["interim", null],
+    ["text", PARAGRAPH_BREAK],
+    ["text", "덱을 찾았어요."],
+    ["interim", null],
+    ["text", PARAGRAPH_BREAK],
+    ["text", "다 됐어요."],
+    ["usage", null],
+  ]);
+  assert.deepEqual(run.events[1]!.data, {});
+
+  const single = seed();
+  single.replies.push(says("안녕하세요!"));
+  const control = await send(single);
+  assert.deepEqual(control.events.map((e) => e.event), ["text", "usage"]);
+});
+
+Deno.test("a call with no text marks nothing, and the break follows only text that was marked", async () => {
+  const fake = seed();
+  fake.replies.push(
+    calls_("list_decks", {}),
+    saysThenCalls("찾았어요.", "list_decks", {}),
+    calls_("list_decks", {}),
+    says("끝."),
+  );
+  const run = await send(fake);
+  assert.deepEqual(run.events.map((e) => e.event), [
+    "text",
+    "interim",
+    "text",
+    "text",
+    "usage",
+  ]);
+  assert.deepEqual(run.events.slice(2, 4).map((e) => e.data.delta), [
+    PARAGRAPH_BREAK,
+    "끝.",
+  ]);
+});
+
+Deno.test("the text before ask_choice in the ending call is the reply, not interim, against the same text before another tool", async () => {
+  const fake = seed();
+  fake.replies.push(saysThenCalls("형식을 골라 주세요.", "ask_choice", {
+    prompt: "어떤 형식으로 만들까요?",
+    options: ["단어", "표"],
+  }));
+  const run = await send(fake);
+  assert.deepEqual(run.events.map((e) => e.event), [
+    "text",
+    "choice",
+    "usage",
+  ]);
+  assert.equal(run.events.at(-1)!.data.outcome, "choice");
+
+  // A question the tool refuses does not end the turn: its text is interim.
+  const refused = seed();
+  refused.replies.push(
+    saysThenCalls("고르세요.", "ask_choice", {
+      prompt: "?",
+      options: ["하나"],
+    }),
+    says("알겠어요."),
+  );
+  const control = await send(refused);
+  assert.deepEqual(control.events.map((e) => e.event), [
+    "text",
+    "interim",
+    "text",
+    "text",
+    "usage",
+  ]);
+});
+
 const PROPOSAL: Proposal = {
   id: "00000000-0000-7000-8000-0000000000f1",
   kind: "cards",
@@ -1027,8 +1123,12 @@ Deno.test("the system prompt is the configuration's prompt, then the card forms 
   }
   assert.match(
     system,
-    /Every card of a proposal group takes the group's form\.\n$/,
+    /Every card of a proposal group takes the group's form\.\n\n# Replies\n/,
   );
+  assert.ok(system.endsWith(REPLY_RULES));
+  assert.match(REPLY_RULES, /one reply a turn/);
+  assert.match(REPLY_RULES, /in Markdown/);
+  assert.match(REPLY_RULES, /Never name a tool, a field or an error's text/);
   // Neither the guides nor an instruction to read one: that is prompt v2's, an admin's to apply.
   assert.ok(!system.includes(SEED.table.text));
   assert.ok(!system.includes("read_card_form"));
