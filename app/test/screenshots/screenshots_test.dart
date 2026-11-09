@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -44,13 +45,19 @@ import '../study/study_storage.dart';
 import '../media/fakes.dart';
 import '../word_breaks.dart';
 
-/// Screenshots of every screen and sheet in both themes, for review. They are
-/// written, not compared, and only when asked for:
+/// Screenshots of every screen and sheet in both themes, for review. Every
+/// run draws them all, and so fails on a finder that matches nothing; they are
+/// written, never compared, only with `--update-goldens`:
 ///
-/// `flutter test --update-goldens --dart-define=SCREENSHOTS=true --dart-define-from-file=config/dev.json test/screenshots`
+/// `flutter test --update-goldens --dart-define-from-file=config/dev.json test/screenshots/screenshots_test.dart`
 ///
 /// run in `app/`, writes them to `app/build/screenshots/<theme>/`.
-const _capture = bool.fromEnvironment('SCREENSHOTS');
+class _Unchecked extends LocalFileComparator {
+  _Unchecked(super.testFile);
+
+  @override
+  Future<bool> compare(Uint8List imageBytes, Uri golden) async => true;
+}
 
 /// Hands out [photo] on each pick.
 final class _OnePick implements ImagePick {
@@ -203,7 +210,10 @@ List<double> _chromeSizes(WidgetTester tester) {
 void main() {
   late Scheduler scheduler;
   setUpAll(() async {
-    if (!_capture) return;
+    final base = goldenFileComparator as LocalFileComparator;
+    goldenFileComparator = _Unchecked(
+      base.basedir.resolve('screenshots_test.dart'),
+    );
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
     await loadAppFonts();
     scheduler = await Scheduler.load();
@@ -326,7 +336,7 @@ void main() {
     Future<void> dismissSheet(WidgetTester tester) =>
         tap(tester, find.byType(ModalBarrier).last);
 
-    testWidgets('the assistant in $mode', skip: !_capture, (tester) async {
+    testWidgets('the assistant in $mode', (tester) async {
       final theme = mode == 'dark' ? ThemeMode.dark : ThemeMode.light;
       // The edge character: the one mascot that breathes at its size.
       final edge = find.byWidgetPredicate(
@@ -503,7 +513,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('the app in $mode', skip: !_capture, (tester) async {
+    testWidgets('the app in $mode', (tester) async {
       phone(tester);
       SharedPreferencesAsyncPlatform.instance =
           InMemorySharedPreferencesAsync.withData({'themeMode': mode});
@@ -840,7 +850,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('card text markup in $mode', skip: !_capture, (tester) async {
+    testWidgets('card text markup in $mode', (tester) async {
       phone(tester);
       Widget app(Widget body) => MaterialApp(
         theme: lightTheme,
@@ -916,9 +926,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('the card editor with markup in $mode', skip: !_capture, (
-      tester,
-    ) async {
+    testWidgets('the card editor with markup in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -965,9 +973,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('signing in with an email code in $mode', skip: !_capture, (
-      tester,
-    ) async {
+    testWidgets('signing in with an email code in $mode', (tester) async {
       phone(tester);
       SharedPreferencesAsyncPlatform.instance =
           InMemorySharedPreferencesAsync.withData({'themeMode': mode});
@@ -1037,9 +1043,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('the today tab in a backlog in $mode', skip: !_capture, (
-      tester,
-    ) async {
+    testWidgets('the today tab in a backlog in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -1092,9 +1096,7 @@ void main() {
     for (final device in heroPhones) {
       for (final MapEntry(key: state, value: (_, setup))
           in heroStates.entries) {
-        testWidgets('홈 $state on a ${device.name} in $mode', skip: !_capture, (
-          tester,
-        ) async {
+        testWidgets('홈 $state on a ${device.name} in $mode', (tester) async {
           phone(tester);
           tester.view.physicalSize = device.size * _density;
           tester.view.padding = FakeViewPadding(
@@ -1182,66 +1184,62 @@ void main() {
       }
     }
 
-    testWidgets(
-      'the today tab at twice the text size in $mode',
-      skip: !_capture,
-      (tester) async {
-        phone(tester);
-        tester.platformDispatcher.textScaleFactorTestValue = 2;
-        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-        final db = AppDatabase(NativeDatabase.memory());
-        addTearDown(db.close);
-        var ids = 0;
-        final repository = DeckRepository(
-          db,
-          clock: () => homeNow.subtract(const Duration(days: 2)),
-          newId: () => 'id${ids++}',
-        );
-        await tester.runAsync(() async {
-          final deck = await repository.createDeck('영단어 기본');
-          for (var i = 0; i < 30; i++) {
-            final saved = await repository.addCard(
-              deck.id,
-              front: [TextContent('word $i')],
-              back: [TextContent('$i')],
-            );
-            if (saved case CardSaved(:final card) when i < 12) {
-              // Due today after a day's interval, answered the day before.
-              await storeState(db, card.id, due: homeNow);
-              await storeAnswers(db, card.id, 1, const Duration(seconds: 10));
-            }
-          }
-        });
-        final storage = await openStudyStorage(tester);
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              deckRepositoryProvider.overrideWithValue(repository),
-              ...homeOverrides(db, storage: storage),
-            ],
-            child: MaterialApp(
-              theme: lightTheme,
-              darkTheme: darkTheme,
-              themeMode: ThemeMode.values.byName(mode),
-              locale: const Locale('ko'),
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              home: const HomeScreen(),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-        await shot(tester, '16j-today-text-2x');
-        await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
-        await tester.pumpAndSettle();
-        await shot(tester, '16k-today-text-2x-below');
-        await unmount(tester);
-      },
-    );
-
-    testWidgets('study past the day\'s plan in $mode', skip: !_capture, (
+    testWidgets('the today tab at twice the text size in $mode', (
       tester,
     ) async {
+      phone(tester);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      var ids = 0;
+      final repository = DeckRepository(
+        db,
+        clock: () => homeNow.subtract(const Duration(days: 2)),
+        newId: () => 'id${ids++}',
+      );
+      await tester.runAsync(() async {
+        final deck = await repository.createDeck('영단어 기본');
+        for (var i = 0; i < 30; i++) {
+          final saved = await repository.addCard(
+            deck.id,
+            front: [TextContent('word $i')],
+            back: [TextContent('$i')],
+          );
+          if (saved case CardSaved(:final card) when i < 12) {
+            // Due today after a day's interval, answered the day before.
+            await storeState(db, card.id, due: homeNow);
+            await storeAnswers(db, card.id, 1, const Duration(seconds: 10));
+          }
+        }
+      });
+      final storage = await openStudyStorage(tester);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            deckRepositoryProvider.overrideWithValue(repository),
+            ...homeOverrides(db, storage: storage),
+          ],
+          child: MaterialApp(
+            theme: lightTheme,
+            darkTheme: darkTheme,
+            themeMode: ThemeMode.values.byName(mode),
+            locale: const Locale('ko'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const HomeScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await shot(tester, '16j-today-text-2x');
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+      await tester.pumpAndSettle();
+      await shot(tester, '16k-today-text-2x-below');
+      await unmount(tester);
+    });
+
+    testWidgets('study past the day\'s plan in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -1314,7 +1312,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('whole cards in $mode', skip: !_capture, (tester) async {
+    testWidgets('whole cards in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -1406,7 +1404,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('long cards in $mode', skip: !_capture, (tester) async {
+    testWidgets('long cards in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -1478,9 +1476,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('a long card\'s preview in $mode', skip: !_capture, (
-      tester,
-    ) async {
+    testWidgets('a long card\'s preview in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -1523,7 +1519,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('the senses block in $mode', skip: !_capture, (tester) async {
+    testWidgets('the senses block in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -1646,57 +1642,53 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets(
-      'the card editor with the keyboard up in $mode',
-      skip: !_capture,
-      (tester) async {
-        phone(tester);
-        final db = AppDatabase(NativeDatabase.memory());
-        addTearDown(db.close);
-        var ids = 0;
-        final repository = DeckRepository(
-          db,
-          clock: () => homeNow,
-          newId: () => 'id${ids++}',
-        );
-        final deck = (await tester.runAsync(
-          () => repository.createDeck('영단어 기본'),
-        ))!;
-        final storage = await openStudyStorage(tester);
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              deckRepositoryProvider.overrideWithValue(repository),
-              deckStorageProvider.overrideWithValue(storage),
-            ],
-            child: MaterialApp(
-              theme: lightTheme,
-              darkTheme: darkTheme,
-              themeMode: ThemeMode.values.byName(mode),
-              locale: const Locale('ko'),
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              home: CardEditorScreen(preview: _preview, deck: deck),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-        // A phone keyboard 336 points high, given in physical pixels.
-        tester.view.viewInsets = const FakeViewPadding(bottom: 336 * _density);
-        addTearDown(tester.view.resetViewInsets);
-        await tester.enterText(find.byType(TextField).first, 'ephemeral');
-        await tester.pumpAndSettle();
-        await shot(tester, '05k-card-editor-keyboard');
-        tester.view.resetViewInsets();
-        await tap(tester, find.byTooltip(ko.close));
-        await shot(tester, '05l-card-editor-discard');
-        await unmount(tester);
-      },
-    );
-
-    testWidgets('a back of senses with extras in $mode', skip: !_capture, (
+    testWidgets('the card editor with the keyboard up in $mode', (
       tester,
     ) async {
+      phone(tester);
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      var ids = 0;
+      final repository = DeckRepository(
+        db,
+        clock: () => homeNow,
+        newId: () => 'id${ids++}',
+      );
+      final deck = (await tester.runAsync(
+        () => repository.createDeck('영단어 기본'),
+      ))!;
+      final storage = await openStudyStorage(tester);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            deckRepositoryProvider.overrideWithValue(repository),
+            deckStorageProvider.overrideWithValue(storage),
+          ],
+          child: MaterialApp(
+            theme: lightTheme,
+            darkTheme: darkTheme,
+            themeMode: ThemeMode.values.byName(mode),
+            locale: const Locale('ko'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: CardEditorScreen(preview: _preview, deck: deck),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // A phone keyboard 336 points high, given in physical pixels.
+      tester.view.viewInsets = const FakeViewPadding(bottom: 336 * _density);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.enterText(find.byType(TextField).first, 'ephemeral');
+      await tester.pumpAndSettle();
+      await shot(tester, '05k-card-editor-keyboard');
+      tester.view.resetViewInsets();
+      await tap(tester, find.byTooltip(ko.close));
+      await shot(tester, '05l-card-editor-discard');
+      await unmount(tester);
+    });
+
+    testWidgets('a back of senses with extras in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -1750,7 +1742,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('the block editor in $mode', skip: !_capture, (tester) async {
+    testWidgets('the block editor in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -1805,7 +1797,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('each 칸 type in $mode', skip: !_capture, (tester) async {
+    testWidgets('each 칸 type in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -1919,9 +1911,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('the cloze sentence block in $mode', skip: !_capture, (
-      tester,
-    ) async {
+    testWidgets('the cloze sentence block in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -2002,9 +1992,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('a cloze selection scrolled past in $mode', skip: !_capture, (
-      tester,
-    ) async {
+    testWidgets('a cloze selection scrolled past in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -2070,7 +2058,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('the table block in $mode', skip: !_capture, (tester) async {
+    testWidgets('the table block in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -2138,9 +2126,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('the record tab over twelve weeks in $mode', skip: !_capture, (
-      tester,
-    ) async {
+    testWidgets('the record tab over twelve weeks in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -2262,7 +2248,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('photo import in $mode', skip: !_capture, (tester) async {
+    testWidgets('photo import in $mode', (tester) async {
       final semantics = tester.ensureSemantics();
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
@@ -2435,7 +2421,7 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('spreadsheet import in $mode', skip: !_capture, (tester) async {
+    testWidgets('spreadsheet import in $mode', (tester) async {
       final semantics = tester.ensureSemantics();
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
@@ -2530,9 +2516,7 @@ void main() {
     });
 
     for (final (scale, suffix) in [(1.0, ''), (3.12, '-largest-text')]) {
-      testWidgets('새 노트 at text scale $scale in $mode', skip: !_capture, (
-        tester,
-      ) async {
+      testWidgets('새 노트 at text scale $scale in $mode', (tester) async {
         phone(tester);
         tester.platformDispatcher.textScaleFactorTestValue = scale;
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
@@ -2608,7 +2592,7 @@ void main() {
       });
     }
 
-    testWidgets('several photos in $mode', skip: !_capture, (tester) async {
+    testWidgets('several photos in $mode', (tester) async {
       final semantics = tester.ensureSemantics();
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
@@ -2694,9 +2678,7 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('photo import in the background in $mode', skip: !_capture, (
-      tester,
-    ) async {
+    testWidgets('photo import in the background in $mode', (tester) async {
       phone(tester);
       SharedPreferencesAsyncPlatform.instance =
           InMemorySharedPreferencesAsync.withData({'themeMode': mode});
@@ -2823,9 +2805,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('photo import unavailable in $mode', skip: !_capture, (
-      tester,
-    ) async {
+    testWidgets('photo import unavailable in $mode', (tester) async {
       final semantics = tester.ensureSemantics();
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
@@ -2904,9 +2884,7 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('the photo import bar in $mode', skip: !_capture, (
-      tester,
-    ) async {
+    testWidgets('the photo import bar in $mode', (tester) async {
       phone(tester);
       SharedPreferencesAsyncPlatform.instance =
           InMemorySharedPreferencesAsync.withData({
@@ -3000,7 +2978,7 @@ void main() {
       await unmount(tester);
     });
 
-    testWidgets('sharing in $mode', skip: !_capture, (tester) async {
+    testWidgets('sharing in $mode', (tester) async {
       phone(tester);
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);

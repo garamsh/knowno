@@ -1,8 +1,8 @@
-.PHONY: lint format test build ci lint-repo lint-code bridge test-app test-db test-sync test-web build-ios build-apk build-engine-web preview-migrations brand release-check release-ios release-upload release-cleanup
+.PHONY: lint format test build ci lint-repo lint-code bridge test-app design-shots test-db test-sync test-web build-ios build-apk build-engine-web preview-migrations brand release-check release-ios release-upload release-cleanup
 
 # lint and test are each the sum of their parts, run in this order. CI runs the parts as parallel
 # jobs; lint-repo reads only the repository's files and needs no toolchain, so CI runs it on every
-# pull request, one touching only docs/ or *.md files included.
+# pull request, one touching only *.md files included.
 
 # Every Dart file under app/ that git tracks or would track; ignored output such as
 # build/ and .dart_tool/ stays out. Printed beside each count so the coverage reads true.
@@ -83,6 +83,12 @@ test-app: bridge
 	cd engine && cargo test --locked && \
 	echo "ran the tests cargo test selects by default in engine/: unit tests in src/, engine/tests/*.rs, doc tests"
 	scripts/run.sh wasm-bindgen test
+
+# Writes docs/architecture/design/images/ from the components, where test-app checks them
+# (docs/architecture/design/checks.md). Not part of make ci: it writes, test-app checks.
+design-shots: bridge
+	cd app && flutter test --update-goldens $(APP_CONFIG) test/screenshots/design_shots_test.dart && \
+	echo "wrote the images in docs/architecture/design/images/: the frames app/test/screenshots/design_shots_test.dart draws"
 
 test-db:
 	scripts/run.sh test-db

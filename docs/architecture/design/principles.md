@@ -122,6 +122,8 @@ Applied today:
 - A card's text starts at the size its length gives, smaller as it grows, steps down through the card's sizes until it fits, never below `cardBody`, then scrolls inside the card with a fading bottom edge ([ADR 0176](../adr/0176-start-study-s-front-at-a-size-its-length-gives-and-draw-what-study-hides-on-the-hatch.md)); it is never cut on the current card or the preview, and the card keeps its size (`CardText`, [`components.md`](components.md)).
 - A bottom pair stays in one row only while both labels fit on one line at the text size shown; otherwise it stacks, the primary last (`BottomActions`, [ADR 0173](../adr/0173-keep-a-bottom-pair-in-one-row-only-while-both-labels-fit-on-one-line-and-stack-it-otherwise.md)).
 
+![Nothing clipped: the screen skeleton at the largest text size, the bar grown to the action's line, the title, search and rows grown with the text and the bottom pair stacked with the primary last.](images/screen-skeleton-largest-text.png)
+
 ### Meaningful motion
 
 - Motion shows where things go. Under reduce motion each motion is replaced by a cross-fade or happens at once.
