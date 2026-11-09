@@ -1,5 +1,6 @@
 export { getSession } from "./session";
 export { AppleSignInButton } from "./components/apple-sign-in-button";
+export { EmailSignIn } from "./components/email-sign-in";
 export { CallbackError } from "./components/callback-error";
 export { SignInButton } from "./components/sign-in-button";
 export { SignOutForm } from "./components/sign-out-form";

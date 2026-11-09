@@ -3,7 +3,7 @@
 import { RECORD } from "./testing.ts";
 
 const ENV =
-  `echo "env $SUPABASE_PROJECT_ID $SUPABASE_DB_PORT \${SUPABASE_API_PORT:-}" >>"$(dirname "$0")/calls"`;
+  `echo "env $SUPABASE_PROJECT_ID $SUPABASE_DB_PORT \${SUPABASE_API_PORT:-}" >>"$(dirname "$0")/calls"; echo "mail \${SUPABASE_LOCAL_SMTP_PORT:-}" >>"$(dirname "$0")/calls"`;
 
 export const SUPABASE = `${RECORD}
 case "$1 \${2:-}" in

@@ -187,6 +187,9 @@ export const DATABASE_ONLY =
 /** The services a stack of Postgres, Auth, PostgREST and the API gateway leaves out. */
 export const WITH_API =
   "realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor";
-/** The services a stack of the API's services and Storage leaves out: the web's, which stores media. */
-export const WITH_STORAGE =
-  "realtime,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor";
+/**
+ * The services the web's stack leaves out: the API's, Storage, which it stores media in, and the
+ * mail catcher, Mailpit, which receives the sign-in code the e2e reads.
+ */
+export const WITH_MAIL =
+  "realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor";
