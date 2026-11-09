@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowno/assistant/src/reply_markdown.dart';
 
 import '../word_breaks.dart';
 import 'fakes.dart';
@@ -136,14 +136,44 @@ void main() {
     );
   });
 
-  test('reads a reply without its marks', () {
-    expect(
-      replyPlainText(
-        '**굵게** 와 `코드`\n\n- 가\n- 나\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n![그림](x.png)',
-      ),
-      '굵게 와 코드\n가\n나\na b\n1 2\n그림',
+  testWidgets('keeps a link a tappable node and reads the text without marks', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final client = FakeAssistantClient(
+      scripts: [textReply('**굵게** 와 [자세히](https://example.com/a) 보세요')],
     );
-    expect(replyPlainText('열린 **굵게'), '열린 **굵게');
+    await pumpChat(tester, client, await openAssistantStorage(tester));
+    await _send(tester, '링크');
+    final nodes = <SemanticsNode>[];
+    void walk(SemanticsNode node) {
+      nodes.add(node);
+      node.visitChildren((child) {
+        walk(child);
+        return true;
+      });
+    }
+
+    walk(
+      tester
+          .binding
+          .renderViews
+          .first
+          .owner!
+          .semanticsOwner!
+          .rootSemanticsNode!,
+    );
+    final labels = [
+      for (final node in nodes) node.label.replaceAll('\u2060', ''),
+    ];
+    final link = nodes.singleWhere(
+      (node) => node.label.replaceAll('\u2060', '') == '자세히',
+    );
+    expect(link.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    expect(link.getSemanticsData().flagsCollection.isLink, isTrue);
+    expect(labels.join(' '), contains('굵게'));
+    expect(labels.join(' '), isNot(contains('**')));
+    handle.dispose();
   });
 
   for (final (mode, scale) in [

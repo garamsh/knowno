@@ -413,7 +413,8 @@ class _UserBubble extends StatelessWidget {
 }
 
 /// 말랑이's text in a bubble at the start of the line, as the user's is at
-/// its end, read as [label] without its marks.
+/// its end, named [label] with its content's own semantics kept, so a link in
+/// it can be activated.
 class _ReplyBubble extends StatelessWidget {
   const _ReplyBubble({required this.label, required this.child});
 
@@ -430,7 +431,6 @@ class _ReplyBubble extends StatelessWidget {
         alignment: AlignmentDirectional.centerStart,
         child: Semantics(
           label: label,
-          excludeSemantics: true,
           container: true,
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -488,7 +488,7 @@ class _ReplyView extends StatelessWidget {
       children: [
         if (turn.text.isNotEmpty)
           _ReplyBubble(
-            label: '${l10n.assistantName}: ${replyPlainText(turn.text)}',
+            label: l10n.assistantName,
             child: ReplyMarkdown(
               turn.text,
               onLink: (uri) => _openLink(context, uri),

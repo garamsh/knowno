@@ -19,8 +19,8 @@ Append-only: once merged, the body below is not rewritten. A fact later found wr
 - **Parser: `markdown` ^7.3.1**, a direct dependency of the app. A reply is parsed with an extension set of fenced code, tables, strikethrough and bare links. No syntax for raw HTML is in the set, so `<b>x</b>` stays as text; footnotes and task boxes are not read.
 - **Renderer: ours**, `app/lib/assistant/src/reply_markdown.dart`, which walks the AST into widgets from the theme's tokens: paragraphs, headings, nested lists, block quotes, code blocks and tables as blocks; bold, italic, strikethrough, inline code and links as spans. A table sits in a horizontal scroll view; a code block likewise.
 - **Links** with the scheme `http`, `https` or `mailto` open through `launchUrl` in the external application, as a citation does, and say "linkNotOpened" where they did not; any other scheme is text. **An image** is drawn as its alt text and never loaded.
-- **Words** keep `keepWords`'s joiners, as every Korean text does. The semantics label, "말랑이: …", reads the text without marks (`replyPlainText`), a table row on a line.
-- **A text that cannot be read** is drawn as typed. Streaming re-parses the whole text on each change, so a mark not yet closed shows as typed until its closing arrives.
+- **Words** keep `keepWords`'s joiners, as every Korean text does. The bubble is named "말랑이" and keeps its content's own semantics, so a screen reader reads the text, which has no marks drawn, and finds a link as a node it can activate; each span of a link carries its tap for that.
+- **No fallback.** The parser reads every text, so the widgets have none; a failure in them is a bug that crashes visibly. Streaming re-parses the whole text on each change, so a mark not yet closed shows as typed until its closing arrives.
 - **The bubble** is 말랑이's text alone, at the start of the line, as the user's is at its end; the proposal, question, job and sources stay below it.
 
 ## Alternatives considered

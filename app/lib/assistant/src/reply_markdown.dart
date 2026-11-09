@@ -18,48 +18,6 @@ List<md.Node> _parse(String text) => md.Document(
   encodeHtml: false,
 ).parseLines(text.replaceAll('\r\n', '\n').split('\n'));
 
-/// [text] without its marks, as a screen reader reads it: each block on a
-/// line, a table row on a line with its cells apart, an image as its alt text.
-String replyPlainText(String text) {
-  try {
-    return _plainBlocks(_parse(text)).trim();
-  } on Object {
-    return text;
-  }
-}
-
-String _plainBlocks(List<md.Node> nodes) {
-  final lines = <String>[];
-  final run = StringBuffer();
-  void flush() {
-    if (run.isNotEmpty) lines.add(run.toString());
-    run.clear();
-  }
-
-  for (final node in nodes) {
-    if (node is md.Element && _blockTags.contains(node.tag)) {
-      flush();
-      lines.add(switch (node.tag) {
-        'tr' => [
-          for (final cell in node.children ?? const <md.Node>[])
-            _plainInline([cell]),
-        ].join(' '),
-        'ul' ||
-        'ol' ||
-        'table' ||
-        'thead' ||
-        'tbody' => _plainBlocks(node.children ?? const []),
-        'hr' => '',
-        _ => _plainBlocks(node.children ?? const []),
-      });
-    } else {
-      run.write(_plainInline([node]));
-    }
-  }
-  flush();
-  return lines.where((line) => line.isNotEmpty).join('\n');
-}
-
 String _plainInline(List<md.Node> nodes) => [
   for (final node in nodes)
     switch (node) {
@@ -93,7 +51,7 @@ const _blockTags = {
 
 /// 말랑이's reply text drawn from its Markdown with the design tokens. A link
 /// is handed to [onLink] and nothing is fetched: an image shows as its alt
-/// text. A text that cannot be read is drawn as typed.
+/// text. The parser reads every text, so none is refused.
 class ReplyMarkdown extends StatefulWidget {
   const ReplyMarkdown(this.text, {super.key, required this.onLink});
 
@@ -125,16 +83,12 @@ class _ReplyMarkdownState extends State<ReplyMarkdown> {
     _disposeRecognizers();
     final colors = AppColors.of(context);
     final body = AppType.body.copyWith(color: colors.ink);
-    try {
-      return _Builder(
-        colors: colors,
-        body: body,
-        recognizers: _recognizers,
-        onLink: widget.onLink,
-      ).blocks(_parse(widget.text), body);
-    } on Object {
-      return Text(keepWords(widget.text), style: body);
-    }
+    return _Builder(
+      colors: colors,
+      body: body,
+      recognizers: _recognizers,
+      onLink: widget.onLink,
+    ).blocks(_parse(widget.text), body);
   }
 }
 
@@ -304,55 +258,74 @@ class _Builder {
     );
   }
 
-  InlineSpan _inline(List<md.Node> nodes, TextStyle style) => TextSpan(
-    children: [
-      for (final node in nodes)
-        switch (node) {
-          md.Text(:final text) => TextSpan(text: keepWords(text)),
-          md.Element(tag: 'br') => const TextSpan(text: '\n'),
-          md.Element(tag: 'strong') => TextSpan(
-            style: const TextStyle(fontWeight: FontWeight.w700),
-            children: [_inline(node.children ?? const [], style)],
-          ),
-          md.Element(tag: 'em') => TextSpan(
-            style: const TextStyle(fontStyle: FontStyle.italic),
-            children: [_inline(node.children ?? const [], style)],
-          ),
-          md.Element(tag: 'del') => TextSpan(
-            style: const TextStyle(decoration: TextDecoration.lineThrough),
-            children: [_inline(node.children ?? const [], style)],
-          ),
-          md.Element(tag: 'code') => TextSpan(
-            text: _plainInline(node.children ?? const []),
-            style: _code,
-          ),
-          md.Element(tag: 'img') => TextSpan(
-            text: keepWords(node.attributes['alt'] ?? ''),
-          ),
-          md.Element(tag: 'a') => _link(node, style),
-          md.Element(:final children) => _inline(children ?? const [], style),
-          _ => const TextSpan(),
-        },
-    ],
-  );
+  /// [nodes] as spans. Inside a link, [tap] is on each span that holds text,
+  /// for a screen reader reads a link from the span that carries its tap.
+  InlineSpan _inline(
+    List<md.Node> nodes,
+    TextStyle style, {
+    TapGestureRecognizer? tap,
+  }) {
+    final link = tap == null
+        ? null
+        : TextStyle(
+            color: colors.primaryEdge,
+            decoration: TextDecoration.underline,
+          );
+    InlineSpan inner(md.Element node) =>
+        _inline(node.children ?? const [], style, tap: tap);
+    return TextSpan(
+      children: [
+        for (final node in nodes)
+          switch (node) {
+            md.Text(:final text) => TextSpan(
+              text: keepWords(text),
+              style: link,
+              recognizer: tap,
+            ),
+            md.Element(tag: 'br') => const TextSpan(text: '\n'),
+            md.Element(tag: 'strong') => TextSpan(
+              style: const TextStyle(fontWeight: FontWeight.w700),
+              children: [inner(node)],
+            ),
+            md.Element(tag: 'em') => TextSpan(
+              style: const TextStyle(fontStyle: FontStyle.italic),
+              children: [inner(node)],
+            ),
+            md.Element(tag: 'del') => TextSpan(
+              style: const TextStyle(decoration: TextDecoration.lineThrough),
+              children: [inner(node)],
+            ),
+            md.Element(tag: 'code') => TextSpan(
+              text: _plainInline(node.children ?? const []),
+              style: _code.merge(link),
+              recognizer: tap,
+            ),
+            md.Element(tag: 'img') => TextSpan(
+              text: keepWords(node.attributes['alt'] ?? ''),
+              style: link,
+              recognizer: tap,
+            ),
+            md.Element(tag: 'a') => _link(node, style, tap),
+            md.Element() => inner(node),
+            _ => const TextSpan(),
+          },
+      ],
+    );
+  }
 
-  InlineSpan _link(md.Element node, TextStyle style) {
+  InlineSpan _link(
+    md.Element node,
+    TextStyle style,
+    TapGestureRecognizer? tap,
+  ) {
     final uri = Uri.tryParse(node.attributes['href'] ?? '');
-    final inner = _inline(node.children ?? const [], style);
     if (uri == null ||
         !const {'http', 'https', 'mailto'}.contains(uri.scheme)) {
-      return inner;
+      return _inline(node.children ?? const [], style, tap: tap);
     }
-    final tap = TapGestureRecognizer()..onTap = () => onLink(uri);
-    recognizers.add(tap);
-    return TextSpan(
-      style: TextStyle(
-        color: colors.primaryEdge,
-        decoration: TextDecoration.underline,
-      ),
-      recognizer: tap,
-      children: [inner],
-    );
+    final own = TapGestureRecognizer()..onTap = () => onLink(uri);
+    recognizers.add(own);
+    return _inline(node.children ?? const [], style, tap: own);
   }
 }
 
