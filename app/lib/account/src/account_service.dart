@@ -12,6 +12,15 @@ import 'account_state.dart';
 import 'config.dart';
 import 'failure.dart';
 
+/// How many characters a code has at the least to be sent to the
+/// `review-sign-in` function: an email code has six digits, and the owner's
+/// review code at least 12 characters.
+const reviewCodeMinLength = 12;
+
+/// How long a refused review sign-in asks to wait: the function's
+/// `Retry-After`, which [FunctionException] does not carry.
+const reviewRateLimitWait = Duration(minutes: 10);
+
 /// Signs the user in and out, and reports whether they are signed in.
 abstract interface class AccountService {
   /// The state now.
@@ -36,7 +45,9 @@ abstract interface class AccountService {
   /// was sent.
   Future<void> sendEmailCode(String email);
 
-  /// Starts a session for [email] with the [code] it was sent. Throws an
+  /// Starts a session for [email] with the [code] it was sent: the digits of
+  /// a [code] under [reviewCodeMinLength] characters go to Supabase Auth, and
+  /// a [code] of that length or more to the `review-sign-in` function. Throws an
   /// [AccountFailure] when the code is refused or the session did not start.
   Future<void> verifyEmailCode(String email, String code);
 
@@ -265,8 +276,39 @@ final class NativeAccountService implements AccountService {
 
   @override
   Future<void> verifyEmailCode(String email, String code) async {
+    final typed = code.trim();
+    if (typed.length >= reviewCodeMinLength) {
+      return _signInForReview(email, typed);
+    }
     try {
-      await _auth.verifyOTP(email: email, token: code, type: OtpType.email);
+      await _auth.verifyOTP(
+        email: email,
+        token: typed.replaceAll(RegExp(r'\D'), ''),
+        type: OtpType.email,
+      );
+    } on Exception catch (error) {
+      throw classifyAuthError(error);
+    }
+  }
+
+  /// Asks `review-sign-in` for the token hash of [email] and exchanges it for
+  /// the session, as `verifyOTP` does a code.
+  Future<void> _signInForReview(String email, String code) async {
+    final FunctionResponse response;
+    try {
+      response = await _functions.invoke(
+        'review-sign-in',
+        body: {'email': email, 'code': code},
+      );
+    } on FunctionException catch (error) {
+      throw classifyReviewSignInError(error);
+    }
+    final tokenHash = switch (response.data) {
+      {'token_hash': final String hash} => hash,
+      _ => throw AccountRejected(UnexpectedReviewAnswer(response.status)),
+    };
+    try {
+      await _auth.verifyOTP(tokenHash: tokenHash, type: OtpType.email);
     } on Exception catch (error) {
       throw classifyAuthError(error);
     }
@@ -406,6 +448,34 @@ final class UnexpectedDeletionAnswer implements Exception {
   @override
   String toString() => 'UnexpectedDeletionAnswer: status $status';
 }
+
+/// `review-sign-in` answered with a success that holds no token hash.
+final class UnexpectedReviewAnswer implements Exception {
+  const UnexpectedReviewAnswer(this.status);
+
+  final int status;
+
+  @override
+  String toString() => 'UnexpectedReviewAnswer: status $status';
+}
+
+/// The failure a `review-sign-in` [error] means: its 401 is
+/// [AccountCodeRefused], its 429 [AccountRateLimited] with
+/// [reviewRateLimitWait], a request that never arrived or a 5xx
+/// [AccountOffline], and any other status [AccountRejected].
+AccountFailure classifyReviewSignInError(FunctionException error) =>
+    switch (error) {
+      FunctionsFetchException() => AccountOffline(error),
+      FunctionException(status: 401) => AccountCodeRefused(error),
+      FunctionException(status: 429) => AccountRateLimited(
+        error,
+        retryAfter: reviewRateLimitWait,
+      ),
+      FunctionException(:final status) when status >= 500 => AccountOffline(
+        error,
+      ),
+      _ => AccountRejected(error),
+    };
 
 /// The failure a `delete-account` [error] means: a request that never
 /// arrived, or a server or gateway error, is [AccountOffline]; any other

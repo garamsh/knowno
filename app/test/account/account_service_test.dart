@@ -770,6 +770,175 @@ void main() {
     });
 
     test(
+      'sends only the digits of a short code, whatever is around them',
+      () async {
+        final service = await serviceAnswering(grant);
+
+        await service.verifyEmailCode('ada@example.com', ' 코드 123 456 ');
+
+        expect(requests.single.url.path, '/auth/v1/verify');
+        expect(
+          jsonDecode(requests.single.body),
+          containsPair('token', '123456'),
+        );
+      },
+    );
+
+    group('with the code App Review is given', () {
+      const reviewPath = '/functions/v1/review-sign-in';
+      const reviewCode = 'f3a91c07d25be84601a9c3d7';
+
+      http.Response tokenHash([String hash = 'hash-1']) => http.Response(
+        jsonEncode({'token_hash': hash, 'type': 'email'}),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+
+      /// The function answers with [onReview]; Auth grants a session.
+      Future<NativeAccountService> reviewing(
+        http.Response Function() onReview,
+      ) => serviceAnswering(
+        (request) async =>
+            request.url.path == reviewPath ? onReview() : grant(request),
+      );
+
+      Future<AccountFailure?> expectRefusedWithNoSession(
+        NativeAccountService service,
+        Matcher matcher,
+      ) async {
+        final failure = await failureOf(
+          () => service.verifyEmailCode('review@example.com', reviewCode),
+        );
+        expect(failure, matcher);
+        expect(service.state, isA<SignedOut>());
+        return failure;
+      }
+
+      Future<String> koreanFor(AccountFailure? failure) async =>
+          describeAccountFailure(
+            await AppLocalizations.delegate.load(const Locale('ko')),
+            failure!,
+          );
+
+      test(
+        'asks review-sign-in, then exchanges its token hash for the session',
+        () async {
+          final service = await reviewing(tokenHash);
+
+          await service.verifyEmailCode('review@example.com', ' $reviewCode ');
+
+          expect(requests.map((r) => r.url.path), [
+            reviewPath,
+            '/auth/v1/verify',
+          ]);
+          expect(jsonDecode(requests.first.body), {
+            'email': 'review@example.com',
+            'code': reviewCode,
+          });
+          final verify = jsonDecode(requests.last.body) as Map<String, dynamic>;
+          expect(verify, containsPair('token_hash', 'hash-1'));
+          expect(verify, containsPair('type', 'email'));
+          expect(verify, isNot(contains('token')), reason: 'no code to Auth');
+          expect(service.state, isA<SignedIn>());
+        },
+      );
+
+      test('is chosen from the twelfth character, and an ordinary code never reaches the function', () async {
+        final service = await reviewing(tokenHash);
+
+        await service.verifyEmailCode('ada@example.com', '12345678901');
+        expect(requests.map((r) => r.url.path), ['/auth/v1/verify']);
+
+        requests.clear();
+        await service.verifyEmailCode('ada@example.com', '123456789012');
+        expect(requests.map((r) => r.url.path), [
+          reviewPath,
+          '/auth/v1/verify',
+        ]);
+      });
+
+      test(
+        'a refused pair is a refused code, and no session is asked for',
+        () async {
+          final service = await reviewing(
+            () => http.Response('{"error":"refused"}', 401),
+          );
+
+          final failure = await expectRefusedWithNoSession(
+            service,
+            isA<AccountCodeRefused>(),
+          );
+          expect(requests.map((r) => r.url.path), [reviewPath]);
+          expect(
+            await koreanFor(failure),
+            '코드가 맞지 않거나 만료됐어요. 다시 확인하거나 새 코드를 받아 주세요.',
+          );
+        },
+      );
+
+      test('a rate limit is the rate limit with its ten minutes', () async {
+        final service = await reviewing(
+          () => http.Response(
+            '{"error":"rate_limited"}',
+            429,
+            headers: {'retry-after': '600'},
+          ),
+        );
+
+        final failure = await expectRefusedWithNoSession(
+          service,
+          isA<AccountRateLimited>().having(
+            (f) => f.retryAfter,
+            'retryAfter',
+            const Duration(minutes: 10),
+          ),
+        );
+        expect(await koreanFor(failure), '요청이 너무 많아요. 600초 뒤에 다시 시도해 주세요.');
+      });
+
+      test(
+        'a function that is down is offline, and any other refusal a rejection',
+        () async {
+          await expectRefusedWithNoSession(
+            await reviewing(
+              () => http.Response('{"error":"unavailable"}', 502),
+            ),
+            isA<AccountOffline>(),
+          );
+          await expectRefusedWithNoSession(
+            await reviewing(
+              () => http.Response('{"error":"bad_request"}', 400),
+            ),
+            isA<AccountRejected>(),
+          );
+        },
+      );
+
+      test('an answer without a token hash is a rejection', () async {
+        await expectRefusedWithNoSession(
+          await reviewing(
+            () => http.Response(
+              '{}',
+              200,
+              headers: {'content-type': 'application/json'},
+            ),
+          ),
+          isA<AccountRejected>(),
+        );
+      });
+
+      test('a token hash Auth refuses is a refused code', () async {
+        final service = await serviceAnswering(
+          (request) async => request.url.path == reviewPath
+              ? tokenHash()
+              : refusal(403, 'otp_expired', 'Token has expired or is invalid'),
+        );
+
+        await expectRefusedWithNoSession(service, isA<AccountCodeRefused>());
+      });
+    });
+
+    test(
       'signs out as any account does, though Google was never used',
       () async {
         final service = await serviceAnswering(
