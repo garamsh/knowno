@@ -12,9 +12,9 @@ import 'account_state.dart';
 import 'config.dart';
 import 'failure.dart';
 
-/// How many characters a code has at the least to be sent to the
-/// `review-sign-in` function: an email code has six digits, and the owner's
-/// review code at least 12 characters.
+/// How many digits a code has at the least to be sent to the `review-sign-in`
+/// function: an email code has six digits, and the owner's review code, digits
+/// only, at least 12.
 const reviewCodeMinLength = 12;
 
 /// How long a refused review sign-in asks to wait: the function's
@@ -45,9 +45,9 @@ abstract interface class AccountService {
   /// was sent.
   Future<void> sendEmailCode(String email);
 
-  /// Starts a session for [email] with the [code] it was sent: the digits of
-  /// a [code] under [reviewCodeMinLength] characters go to Supabase Auth, and
-  /// a [code] of that length or more to the `review-sign-in` function. Throws an
+  /// Starts a session for [email] with the [code] it was sent. The digits of
+  /// [code] under [reviewCodeMinLength] go to Supabase Auth, and that many or
+  /// more to the `review-sign-in` function. Throws an
   /// [AccountFailure] when the code is refused or the session did not start.
   Future<void> verifyEmailCode(String email, String code);
 
@@ -276,16 +276,12 @@ final class NativeAccountService implements AccountService {
 
   @override
   Future<void> verifyEmailCode(String email, String code) async {
-    final typed = code.trim();
-    if (typed.length >= reviewCodeMinLength) {
-      return _signInForReview(email, typed);
+    final digits = code.replaceAll(RegExp(r'\D'), '');
+    if (digits.length >= reviewCodeMinLength) {
+      return _signInForReview(email, digits);
     }
     try {
-      await _auth.verifyOTP(
-        email: email,
-        token: typed.replaceAll(RegExp(r'\D'), ''),
-        type: OtpType.email,
-      );
+      await _auth.verifyOTP(email: email, token: digits, type: OtpType.email);
     } on Exception catch (error) {
       throw classifyAuthError(error);
     }

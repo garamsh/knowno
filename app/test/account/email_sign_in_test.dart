@@ -204,38 +204,38 @@ void main() {
   });
 
   group('the code step', () {
+    testWidgets('takes a one-time code the platform can fill, as digits', (
+      tester,
+    ) async {
+      await openCodeStep(tester);
+
+      final field = codeInput(tester);
+      expect(field.autofillHints, contains(AutofillHints.oneTimeCode));
+      expect(field.keyboardType, TextInputType.number);
+    });
+
     testWidgets(
-      'takes a one-time code the platform can fill, as any characters',
+      'signs in on the whole code pasted in, spaces and words around its digits dropped',
       (tester) async {
         await openCodeStep(tester);
 
-        final field = codeInput(tester);
-        expect(field.autofillHints, contains(AutofillHints.oneTimeCode));
-        expect(field.keyboardType, TextInputType.visiblePassword);
-      },
-    );
-
-    testWidgets(
-      'signs in on the whole code pasted in, the service reading its digits',
-      (tester) async {
-        await openCodeStep(tester);
-
-        await tester.enterText(codeField(), '123 456');
+        await tester.enterText(codeField(), '인증 코드는 123 456 입니다');
         await tester.pumpAndSettle();
 
-        expect(service.verified, [(email: 'ada@example.com', code: '123 456')]);
-        expect(find.byType(EmailSignInScreen), findsOneWidget);
+        expect(service.verified, [(email: 'ada@example.com', code: '123456')]);
+        expect(service.state, isA<SignedIn>());
+        expect(find.byType(EmailSignInScreen), findsNothing, reason: 'closed');
       },
     );
 
     testWidgets(
-      'keeps a code of 12 characters or more whole, as App Review types it',
+      'signs in on a review code of 16 digits pasted whole, letters dropped',
       (tester) async {
-        const reviewCode = 'f3a91c07d25be84601a9c3d7';
+        const reviewCode = '4829105736281047';
         service.emailCode = reviewCode;
         await openCodeStep(tester);
 
-        await tester.enterText(codeField(), reviewCode);
+        await tester.enterText(codeField(), 'code: $reviewCode');
         await tester.pumpAndSettle();
 
         expect(service.verified.single.code, reviewCode);
@@ -244,13 +244,13 @@ void main() {
       },
     );
 
-    testWidgets('keeps at most 128 characters', (tester) async {
+    testWidgets('keeps at most 128 digits, and no letters', (tester) async {
       await openCodeStep(tester);
 
-      await tester.enterText(codeField(), 'a' * 130);
+      await tester.enterText(codeField(), 'a${'7' * 130}');
       await tester.pump();
 
-      expect(tester.widget<TextField>(codeField()).controller!.text, 'a' * 128);
+      expect(tester.widget<TextField>(codeField()).controller!.text, '7' * 128);
     });
 
     testWidgets('waits for the button when the code is typed key by key', (
@@ -265,7 +265,7 @@ void main() {
       await tester.pump();
       expect(service.verified, isEmpty);
 
-      // The sixth character is typed, not pasted: it waits for the button.
+      // The sixth digit is typed, not pasted: it waits for the button.
       await tester.enterText(codeField(), '123456');
       await tester.pump();
       expect(service.verified, isEmpty);

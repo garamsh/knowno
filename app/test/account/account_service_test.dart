@@ -774,7 +774,7 @@ void main() {
       () async {
         final service = await serviceAnswering(grant);
 
-        await service.verifyEmailCode('ada@example.com', ' 코드 123 456 ');
+        await service.verifyEmailCode('ada@example.com', '인증 코드는 123 456 입니다');
 
         expect(requests.single.url.path, '/auth/v1/verify');
         expect(
@@ -786,7 +786,7 @@ void main() {
 
     group('with the code App Review is given', () {
       const reviewPath = '/functions/v1/review-sign-in';
-      const reviewCode = 'f3a91c07d25be84601a9c3d7';
+      const reviewCode = '4829105736281047';
 
       http.Response tokenHash([String hash = 'hash-1']) => http.Response(
         jsonEncode({'token_hash': hash, 'type': 'email'}),
@@ -843,7 +843,7 @@ void main() {
         },
       );
 
-      test('is chosen from the twelfth character, and an ordinary code never reaches the function', () async {
+      test('is chosen from the twelfth digit, and an ordinary code never reaches the function', () async {
         final service = await reviewing(tokenHash);
 
         await service.verifyEmailCode('ada@example.com', '12345678901');
@@ -856,6 +856,23 @@ void main() {
           '/auth/v1/verify',
         ]);
       });
+
+      test(
+        'takes the digits of a pasted sentence holding the review code',
+        () async {
+          final service = await reviewing(tokenHash);
+
+          await service.verifyEmailCode(
+            'review@example.com',
+            '코드는 4829 1057 3628 1047 입니다',
+          );
+
+          expect(jsonDecode(requests.first.body), {
+            'email': 'review@example.com',
+            'code': reviewCode,
+          });
+        },
+      );
 
       test(
         'a refused pair is a refused code, and no session is asked for',

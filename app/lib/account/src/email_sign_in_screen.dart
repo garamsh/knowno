@@ -21,7 +21,7 @@ const emailResendInterval = Duration(seconds: 60);
 /// How many digits the sign-in code has: the length Supabase Auth is set to.
 const emailCodeLength = 6;
 
-/// How many characters the field keeps: what `review-sign-in` takes.
+/// How many digits the field keeps: what `review-sign-in` takes.
 const _codeFieldMaxLength = 128;
 
 /// Whether [text] is shaped like an email address: something, an at sign,
@@ -111,7 +111,7 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
   Future<void> _verify() async {
     final address = _sentTo!;
     final code = _code.text;
-    if (code.trim().length < emailCodeLength) return;
+    if (code.length < emailCodeLength) return;
     setState(() {
       _busy = true;
       _failure = null;
@@ -209,24 +209,28 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
                   label: l10n.emailCode,
                   controller: _code,
                   autofocus: true,
-                  keyboardType: TextInputType.visiblePassword,
+                  keyboardType: TextInputType.number,
                   autofillHints: const [AutofillHints.oneTimeCode],
                   textInputAction: TextInputAction.done,
                   textAlign: TextAlign.center,
+                  // What is pasted or filled in keeps its digits, up to what
+                  // `review-sign-in` takes: "123 456" and "코드 123456" are
+                  // the code.
                   inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(_codeFieldMaxLength),
                   ],
                   errorText: message,
                   onChanged: (code) {
                     // A code that arrives whole, pasted or filled by the
                     // platform, signs in; one typed key by key waits for the
-                    // button, since its first six characters may be a review
-                    // code's.
+                    // button, since its first six digits may be the start of
+                    // a review code.
                     final arrivedWhole = _codeLength == 0;
                     _codeLength = code.length;
                     setState(() => _failure = null);
                     if (arrivedWhole &&
-                        code.trim().length >= emailCodeLength &&
+                        code.length >= emailCodeLength &&
                         !_busy) {
                       _verify();
                     }
@@ -276,7 +280,7 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
                     size: AppButtonSize.cta,
                     loading: _busy,
                     loadingLabel: l10n.signingIn,
-                    onPressed: _code.text.trim().length >= emailCodeLength
+                    onPressed: _code.text.length >= emailCodeLength
                         ? _verify
                         : null,
                   ),
