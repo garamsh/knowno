@@ -5,9 +5,9 @@ import { host, program, repository, write } from "./testing.ts";
 
 const VERSION = "2.9.7";
 
-const STUB_MATCH = `if [ "$1" = --version ]; then echo deno ${VERSION} (release, linux x86_64); exit; fi`;
+const STUB_MATCH = `if [ "$1" = --version ]; then echo "deno ${VERSION} (release, linux x86_64)"; exit 0; fi`;
 
-const STUB_DIFFER = `if [ "$1" = --version ]; then echo deno 2.4.5 (release, linux x86_64); exit; fi`;
+const STUB_DIFFER = `if [ "$1" = --version ]; then echo "deno 2.4.5 (release, linux x86_64)"; exit 0; fi`;
 
 const GRANT_LINE = `deno: --allow-read=scripts --allow-write=/tmp --allow-run=env --allow-net=127.0.0.1`;
 
@@ -63,7 +63,7 @@ Deno.test("without deno it skips before the version check, as before", async () 
   assert.equal(ran.code, 0, ran.stderr);
   assert.ok(
     ran.stdout.includes(
-      `skipped scripts/deno.ts test: this host has no deno command`,
+      `skipped deno test over supabase/functions/ and tools/eval/: this host has no deno command`,
     ),
     ran.stdout,
   );

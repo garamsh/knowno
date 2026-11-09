@@ -46,6 +46,9 @@ export async function repository(): Promise<string> {
     if (shipped) {
       await Deno.copyFile(`${HERE}${name}`, `${repo}/scripts/${name}`);
     }
+    if (name.startsWith(".") && name !== "." && name !== "..") {
+      await Deno.copyFile(`${HERE}${name}`, `${repo}/scripts/${name}`);
+    }
   }
   return repo;
 }
