@@ -26,6 +26,7 @@ const READS = [
   "supabase/tests/prompt_v9_activation_test.sql",
   "supabase/migrations/20261105150000_card_form_skills.sql",
   "supabase/migrations/20261109150000_card_markup_switch.sql",
+  "supabase/migrations/20261109210000_assistant_photo_charges.sql",
 ].join(",");
 
 /** The count on the last of deno test's "ok | <n> passed" lines. */

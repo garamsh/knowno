@@ -10,6 +10,7 @@ import type { Keys } from "../_shared/keys.ts";
 import type { LogEntry } from "./handler.ts";
 import {
   clearJob,
+  deleteObjects,
   finishStep,
   MAX_READING,
   nextStep,
@@ -18,6 +19,7 @@ import {
   type StepOutcome,
   type StepUsage,
   unclearedJobs,
+  unreadPhotos,
 } from "./jobs.ts";
 import {
   ADAPTERS,
@@ -26,7 +28,6 @@ import {
   NO_USAGE,
   sseEvents,
   StreamError,
-  withInputAtLeast,
 } from "./providers.ts";
 
 /**
@@ -36,6 +37,12 @@ import {
 export const WORK_LIMIT_MS = 120_000;
 /** How long one photo's read may take; a step begins only while this much of the work's time is left. */
 export const STEP_LIMIT_MS = 60_000;
+/**
+ * The input tokens a photo read that fails after its request was sent is charged: 4,784, the most
+ * visual tokens Anthropic's documentation gives an image on any model (ADR 0219), as
+ * `private.assistant_photo_estimate_tokens` holds it for the sweep's closing of a killed step.
+ */
+export const ASSISTANT_PHOTO_ESTIMATE_TOKENS = 4784;
 /** How many photos one invocation reads at once, as the database lets a user's steps run. */
 export const LANES = 3;
 /** How long a lane waits when every queued photo is hidden, being read or waiting its turn. */
@@ -159,7 +166,13 @@ async function read(step: Step, deps: WorkerDeps): Promise<Read> {
     outcome: deps.now() - started >= STEP_LIMIT_MS
       ? "time_limit"
       : "model_error",
-    usage: counted(withInputAtLeast(reported, body)),
+    usage: counted({
+      ...reported,
+      inputTokens: Math.max(
+        reported.inputTokens,
+        ASSISTANT_PHOTO_ESTIMATE_TOKENS,
+      ),
+    }),
     reading: null,
   });
   let response;
@@ -237,6 +250,26 @@ async function clearEnded(deps: WorkerDeps, started: number): Promise<void> {
   }
 }
 
+/** The most batches of unread uploads one invocation deletes, 100 uploads each. */
+const UNREAD_BATCHES = 10;
+
+/**
+ * Deletes the uploads older than 24 hours that no job names, which a photo never sent to a job
+ * leaves; a failure is logged, and the next invocation lists them again.
+ */
+async function clearUnread(deps: WorkerDeps, started: number): Promise<void> {
+  try {
+    for (let batch = 0; batch < UNREAD_BATCHES; batch++) {
+      const names = await unreadPhotos(deps.supabase);
+      await deleteObjects(names, deps.supabase);
+      if (names.length < 100) return;
+    }
+  } catch (error) {
+    if (!(error instanceof SupabaseError)) throw error;
+    unavailable(deps, started);
+  }
+}
+
 /** Reads [step]'s photo and records it, which charges it; logs one line. */
 async function take(step: Step, deps: WorkerDeps): Promise<void> {
   const started = deps.now();
@@ -284,7 +317,7 @@ async function take(step: Step, deps: WorkerDeps): Promise<void> {
 
 /**
  * Reads photos off the queue from [started] until none is queued or the work's time leaves no room
- * for a whole read, deletes the photos of the jobs that ended, and then, with photos still queued,
+ * for a whole read, deletes the photos of the jobs that ended and the uploads no job read, and then, with photos still queued,
  * asks for a fresh invocation.
  */
 export async function work(deps: WorkerDeps, started: number): Promise<void> {
@@ -310,6 +343,7 @@ export async function work(deps: WorkerDeps, started: number): Promise<void> {
     unavailable(deps, started);
   }
   await clearEnded(deps, started);
+  await clearUnread(deps, started);
   // When Supabase did not answer, the queue keeps every photo and the next poll of a job asks again.
   if (outOfTime && lanes.every((ended) => ended.status === "fulfilled")) {
     await kick(deps.supabase);
