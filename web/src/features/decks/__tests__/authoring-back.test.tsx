@@ -20,7 +20,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const deckId = parseDeckId(uuidOf("deck"));
 if (!deckId) throw new Error("fixture ids");
-const deck = { id: deckId, name: "단어장", public: false };
+const deck = { id: deckId, name: "단어장", publication: "private" as const };
 let db: FakePostgrest;
 beforeEach(async () => {
   db = new FakePostgrest();

@@ -217,7 +217,7 @@ describe("a cloze of version 2", () => {
 });
 
 describe("a note's card list over markup cards", () => {
-  const deck: Deck = { id: "d" as DeckId, name: "노트", public: false };
+  const deck: Deck = { id: "d" as DeckId, name: "노트", publication: "private" as const };
   const card = (read: Cell[]): Card => ({
     id: "c" as CardId,
     deckId: deck.id,

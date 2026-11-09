@@ -237,4 +237,31 @@ describe("the bundled word list", () => {
       expect(screeningWords.filter((word) => ordinary.includes(word))).toEqual([]);
     }
   });
+
+  it("holds no word that an ordinary phrase contains once the server's fold has dropped its separators", () => {
+    // The server's fold: NFKC, lower case, and no space, punctuation, symbol or control mark.
+    const folded = (text: string) =>
+      Array.from(text.normalize("NFKC").toLowerCase())
+        .filter((char) => !/^[\p{Z}\p{P}\p{S}\p{C}]$/u.test(char))
+        .join("");
+    const words = screeningWords.map(folded);
+    const ordinary = [
+      "고양이 새끼",
+      "고양이 새끼야?",
+      "개 같은 동물",
+      "고전 소설에 나오는 창녀의 삶",
+      "정부의 5개년 계획",
+      "벌레가 죽어 버려서 치웠다",
+      "적을 죽여 버리고 도망쳤다",
+      "일제강점기에 조센징이라는 말은 멸칭이었다",
+    ];
+    for (const phrase of ordinary) {
+      expect(
+        words.filter((word) => folded(phrase).includes(word)),
+        phrase,
+      ).toEqual([]);
+    }
+    // Control: the check finds a word where a phrase does hold one.
+    expect(words.filter((word) => folded("씨 발").includes(word))).toEqual(["씨발"]);
+  });
 });

@@ -7,7 +7,7 @@ import { type Cell, sidesOf } from "../card-content";
 import { CardGrid } from "../components/card-grid";
 import type { Card, CardId, Deck, DeckId } from "../library";
 
-const deck: Deck = { id: "d" as DeckId, name: "한국사", public: false };
+const deck: Deck = { id: "d" as DeckId, name: "한국사", publication: "private" as const };
 
 /** A card of [cells], its sides as they read. */
 function card(id: string, cells: Cell[]): Card {

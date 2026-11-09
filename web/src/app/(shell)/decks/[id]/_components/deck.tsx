@@ -9,6 +9,7 @@ import {
   parseDeckId,
   ReadFailure,
   readDisplayName,
+  readRefusal,
 } from "@/features/decks";
 import {
   countDay,
@@ -49,6 +50,8 @@ export async function Deck({
   const deck = read.library.decks.find((candidate) => candidate.id === deckId);
   if (!deck) notFound();
   const { cards } = read.library;
+  // Why a refused note was refused is read here, with the note, for its publish sheet.
+  const refusal = deck.publication === "refused" ? await readRefusal(deck.id) : null;
   const { states, day, answers } = studyDay.today;
   const engine = await readyServerEngine();
   if ("failure" in engine) return <Failure failure={engine.failure} />;
@@ -66,6 +69,7 @@ export async function Deck({
             cardCount={cards.length}
             cards={cards}
             displayName={displayName}
+            {...(refusal !== null && { refusal })}
             adding={adding}
           />
         }

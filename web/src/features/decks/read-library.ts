@@ -9,7 +9,7 @@ import { createClient } from "@/supabase/server";
 import { readUserId } from "@/supabase/session";
 
 import { type Content, parseCardContent } from "./card-content";
-import type { Card, CardEntry, CardId, Deck, DeckId, Library } from "./library";
+import type { Card, CardEntry, CardId, Deck, DeckId, Library, Publication } from "./library";
 import { type MediaId, parseMediaId, signMedia } from "./media";
 
 /** How long a deck's signed photo URL stays valid, in seconds. */
@@ -159,20 +159,21 @@ function compare(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+function parsePublication(value: unknown): Publication | null {
+  return value === "private" ||
+    value === "checking" ||
+    value === "held" ||
+    value === "refused" ||
+    value === "public"
+    ? value
+    : null;
+}
+
 function parseDeck(row: unknown): Deck | null {
   const id = field(row, "id");
   const name = field(row, "name");
-  const publication = field(row, "publication");
-  if (typeof id !== "string" || typeof name !== "string") return null;
-  if (
-    publication !== "private" &&
-    publication !== "public" &&
-    publication !== "checking" &&
-    publication !== "held" &&
-    publication !== "refused"
-  ) {
-    return null;
-  }
+  const publication = parsePublication(field(row, "publication"));
+  if (typeof id !== "string" || typeof name !== "string" || publication === null) return null;
   // A key the tile does not know draws the default, so neither key makes a row unreadable.
   const icon = field(row, "icon");
   const color = field(row, "color");
@@ -180,8 +181,7 @@ function parseDeck(row: unknown): Deck | null {
   return {
     id: id as DeckId,
     name,
-    public: publication === "public",
-    ...(publication !== "private" && publication !== "public" && { screening: publication }),
+    publication,
     ...(typeof icon === "string" && { icon }),
     ...(typeof color === "string" && { color }),
     ...(typeof description === "string" && { description }),

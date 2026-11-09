@@ -14,7 +14,7 @@ describe("a deck row's progress bar", () => {
       <DeckList
         rows={[
           {
-            deck: { id, name: "French", public: false },
+            deck: { id, name: "French", publication: "private" as const },
             cards: 4,
             today: 0,
             mastered: 1,
@@ -48,14 +48,14 @@ describe("a deck row's line", () => {
   if (!french || !empty) throw new Error("the fixed ids are uuids");
   const rows = [
     {
-      deck: { id: french, name: "French", public: false },
+      deck: { id: french, name: "French", publication: "private" as const },
       cards: 4,
       today: 2,
       mastered: 1,
       learning: 2,
     },
     {
-      deck: { id: empty, name: "Empty", public: false },
+      deck: { id: empty, name: "Empty", publication: "private" as const },
       cards: 0,
       today: 0,
       mastered: 0,

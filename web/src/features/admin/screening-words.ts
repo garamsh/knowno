@@ -13,12 +13,17 @@
  * ordinary word or a name in some reading (for example 시발점, 병신년, 십팔, 노무사, 쪽발이,
  * 화냥년, 뒤져라), every slang word that is no more than a mild jibe, and every spelling made of
  * digits or lone jamo. A flashcard note about history or language must not be refused by it.
+ *
+ * The matcher drops every space and punctuation mark before it looks, so a word is judged as it
+ * reads once the separators are gone, and each word kept here was checked that way: none occurs
+ * in an ordinary phrase written with spaces (고양이 새끼 became 이새끼, 개 같은 동물 became 개같,
+ * 3개년 계획 holds 개년, 죽여 버리고 holds 죽여버리고, 조선 시대의 창녀 and 조센징 name a person
+ * or a word of history). The curse 개새끼 itself is kept although "개 새끼" can name a puppy: it is
+ * the term this list exists for, and the separator-free match is the server's.
  */
 export const screeningWords: readonly string[] = [
   "개새끼",
   "개새기",
-  "개같",
-  "개년",
   "개부랄",
   "븅신",
   "씨발",
@@ -45,18 +50,12 @@ export const screeningWords: readonly string[] = [
   "쌍놈",
   "썅",
   "쌔끼",
-  "이새끼",
-  "새끼야",
   "호로새끼",
   "빡새끼",
   "계새끼",
   "뒈져",
-  "죽어버려",
-  "죽여버리고",
-  "창녀",
   "쪽바리",
   "짱깨",
-  "조센징",
   "김치녀",
   "된장녀",
   "보슬아치",

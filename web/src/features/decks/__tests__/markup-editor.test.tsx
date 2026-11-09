@@ -30,7 +30,7 @@ vi.spyOn(console, "error").mockImplementation(() => undefined);
 const deckId = parseDeckId(uuidOf("deck"));
 const cardId = parseCardId(uuidOf("card"));
 if (!deckId || !cardId) throw new Error("fixture ids");
-const deck = { id: deckId, name: "단어장", public: false };
+const deck = { id: deckId, name: "단어장", publication: "private" as const };
 
 /** A JPEG's bytes as the browser prepared one. */
 const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);

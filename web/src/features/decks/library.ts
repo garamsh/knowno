@@ -19,18 +19,42 @@ export function parseCardId(value: unknown): CardId | null {
   return typeof value === "string" && uuid.test(value) ? (value as CardId) : null;
 }
 
-/** A published note's state while it is not public yet or no more: being checked, held for an admin, or refused. */
-export type Screening = "checking" | "held" | "refused";
-
-/** What a note's chip says in each [Screening] state; the owner sees a held note as one being checked. */
-export const screeningWords: Record<Screening, string> = {
-  checking: "확인 중",
-  held: "확인 중",
-  refused: "공개 안 됨",
-};
+/** Where a note stands in publishing: private, being checked, held for an admin, refused, or public. */
+export type Publication = "private" | "checking" | "held" | "refused" | "public";
 
 /**
- * A deck that is not deleted, whether its owner published it and the public can see it, the keys of the icon and colour
+ * What a note's chip says in [publication], none for a private note; the owner sees a held note
+ * as one being checked.
+ */
+export function publicationWord(publication: Publication): string | null {
+  switch (publication) {
+    case "private":
+      return null;
+    case "checking":
+    case "held":
+      return "확인 중";
+    case "refused":
+      return "공개 안 됨";
+    case "public":
+      return "공개";
+  }
+}
+
+/** Whether [publication] is a note that is public or waiting to be, which "비공개로 전환" takes back. */
+export function isOffered(publication: Publication): boolean {
+  switch (publication) {
+    case "public":
+    case "checking":
+    case "held":
+      return true;
+    case "private":
+    case "refused":
+      return false;
+  }
+}
+
+/**
+ * A deck that is not deleted, its [Publication], the keys of the icon and colour
  * its owner chose for its tile, absent while none is stored (ADR 0103), a signed URL its photo is
  * drawn from while it holds one the server lets it read (ADR 0159), and, on a note's page, the
  * description it is published with.
@@ -38,9 +62,7 @@ export const screeningWords: Record<Screening, string> = {
 export type Deck = {
   id: DeckId;
   name: string;
-  public: boolean;
-  /** Its state while the server screens it or refused it; absent for a private or public note. */
-  screening?: Screening;
+  publication: Publication;
   icon?: string;
   color?: string;
   imageUrl?: string;

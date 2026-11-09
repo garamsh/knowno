@@ -2,7 +2,6 @@ export { createDeck } from "./create-deck";
 export { decorateDeck } from "./decorate-deck";
 export { deleteDeck } from "./delete-deck";
 export { publishDeck, unpublishDeck } from "./publish-deck";
-export { readRefusal } from "./read-refusal";
 export { renameDeck } from "./rename-deck";
 export { storeCardMedia } from "./store-card-media";
 export {

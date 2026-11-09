@@ -3,7 +3,7 @@
 import { type ReactNode, useState } from "react";
 
 import { describeContent, holdsBlank, spokenCells, spokenContent } from "../card-content";
-import { type Card, type Deck, screeningWords } from "../library";
+import { type Card, type Deck, publicationWord } from "../library";
 import { CardEditor } from "./card-editor";
 import { SideText } from "./side-text";
 import { EmptyDeck } from "./empty-deck";
@@ -33,6 +33,7 @@ export function CardGrid({
   study?: ReactNode;
   settings?: ReactNode;
 }) {
+  const word = publicationWord(deck.publication);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Card | null>(null);
   const rows = cards.map((card) => {
@@ -77,8 +78,7 @@ export function CardGrid({
             <span className="text-secondary text-muted">
               {[
                 `${String(mastered)}장 익힘`,
-                ...(deck.public ? ["공개"] : []),
-                ...(deck.screening ? [screeningWords[deck.screening]] : []),
+                ...(word ? [word] : []),
               ].join(" · ")}
             </span>
           </span>
