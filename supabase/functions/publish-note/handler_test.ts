@@ -162,6 +162,17 @@ Deno.test("a verdict of this version is not made again", async () => {
   assert.equal(fake.applied.length, 1);
 });
 
+Deno.test("a verdict of an older rules version or of other terms is made again", async () => {
+  for (const version of ["0+0.0", `${RULES_VERSION}+1.0`]) {
+    const { fake, handler } = setup({
+      claim: claimOf("apple", [{ layer: "rules", version, outcome: "clean" }]),
+    });
+    await handler(post("", "user-token"));
+    assert.equal(fake.recorded.length, 1, version);
+    assert.equal(fake.recorded[0]?.version, `${RULES_VERSION}+0.0`);
+  }
+});
+
 Deno.test("a request without a signed-in user is refused before any database call", async () => {
   const { fake, handler } = setup();
   assert.equal((await handler(post("", null))).status, 401);

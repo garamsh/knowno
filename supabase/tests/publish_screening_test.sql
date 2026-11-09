@@ -5,7 +5,7 @@
 -- hidden, each audited; the banned-word list and the suspension candidates; the reports' hold;
 -- the sweeper; no client reaching the service functions; and the revert.
 begin;
-select plan(126);
+select plan(138);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'a@example.com'),
@@ -227,6 +227,15 @@ select results_eq($$select deck_id from public.screening_due(10) order by 1$$,
   $$values ('d0000000-0000-4000-8000-000000000001'::uuid), ('d0000000-0000-4000-8000-000000000004'::uuid)$$,
   'after 20 seconds the checking notes are due');
 select is((select count(*) from public.screening_due(1)), 1::bigint, 'and the limit bounds them');
+reset role;
+select pg_temp.deck('26', 'f');
+update public.decks set visibility = 'public', published_at = now() where id = 'd0000000-0000-4000-8000-000000000026';
+set local role service_role;
+select results_eq(
+  $$select t.d from public.screening_due(10) with ordinality as t (d, n)
+    where t.d in ('d0000000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000026') order by t.n$$,
+  $$values ('d0000000-0000-4000-8000-000000000004'::uuid), ('d0000000-0000-4000-8000-000000000026'::uuid)$$,
+  'a note being checked comes before a public note never screened');
 
 select results_eq(
   $$select c ->> 'publication', c ->> 'name', jsonb_array_length(c -> 'cards'), c ->> 'hash' = pg_temp.hash('04'),
@@ -286,9 +295,11 @@ reset role;
 select pg_temp.deck('07', 'e');
 select pg_temp.deck('08', 'e');
 select pg_temp.deck('09', 'f');
+select pg_temp.deck('23', 'e');
 select pg_temp.sign_in('e');
 select public.request_deck_publication('d0000000-0000-4000-8000-000000000007');
 select public.request_deck_publication('d0000000-0000-4000-8000-000000000008');
+select public.request_deck_publication('d0000000-0000-4000-8000-000000000023');
 reset role;
 select pg_temp.sign_in('f');
 select public.request_deck_publication('d0000000-0000-4000-8000-000000000009');
@@ -303,7 +314,13 @@ select is(public.apply_screening('d0000000-0000-4000-8000-000000000007', pg_temp
 select public.record_screening('d0000000-0000-4000-8000-000000000008', pg_temp.hash('08'),
   'rules', 'r1+0.0', 'severe', '[]');
 select is(public.apply_screening('d0000000-0000-4000-8000-000000000008', pg_temp.hash('08')),
-  'refused', 'a severe verdict refuses it too');
+  'refused', 'a severe verdict of the rules refuses it too');
+select public.record_screening('d0000000-0000-4000-8000-000000000023', pg_temp.hash('23'),
+  'rules', 'r1+0.0', 'clean', '[]');
+select public.record_screening('d0000000-0000-4000-8000-000000000023', pg_temp.hash('23'),
+  'ai', 'm1', 'severe', '[]');
+select is(public.apply_screening('d0000000-0000-4000-8000-000000000023', pg_temp.hash('23')),
+  'refused', 'a severe verdict of the ai refuses a note the rules passed');
 select public.record_screening('d0000000-0000-4000-8000-000000000009', pg_temp.hash('09'),
   'rules', 'r1+0.0', 'clean', '[]');
 select public.record_screening('d0000000-0000-4000-8000-000000000009', pg_temp.hash('09'),
@@ -318,8 +335,8 @@ select is(pg_temp.state('09'), 'held/public/true', 'the unsure note is held');
 select results_eq($$select hold from private.deck_screening where deck_id = 'd0000000-0000-4000-8000-000000000009'$$,
   $$values ('ai')$$, 'with an ai hold');
 select results_eq($$select deck_id, owner_id, kind from private.screening_violations order by deck_id$$,
-  $$values ('d0000000-0000-4000-8000-000000000008'::uuid, '00000000-0000-4000-8000-00000000000e'::uuid, 'severe')$$,
-  'only the severe refusal is a violation');
+  $$values ('d0000000-0000-4000-8000-000000000023'::uuid, '00000000-0000-4000-8000-00000000000e'::uuid, 'severe')$$,
+  'a severe verdict of the ai is a violation, and a refusal by the rules, severe or not, is not');
 
 -- The owner reads where it was found, by card, never the text.
 select pg_temp.sign_in('e');
@@ -396,11 +413,17 @@ select results_eq($$select deck_id, hold from public.admin_screening_queue() ord
   'the admin reads the held notes with their holds');
 select is(public.admin_allow_deck('d0000000-0000-4000-8000-000000000022', 'stale-hash'), 'changed',
   'a decision on a hash the note no longer has is not made');
+select is(public.admin_allow_deck('d0000000-0000-4000-8000-000000000022', null), 'changed',
+  'a decision on no hash at all is not made either');
 select is(public.admin_allow_deck('d0000000-0000-4000-8000-000000000003', 'x'), 'not_held', 'a note that is not held is not allowed');
 select is(public.admin_screening_findings('d0000000-0000-4000-8000-000000000022', 'stale-hash') ->> 'changed', 'true',
   'findings of an old hash answer changed');
 select is(public.admin_screening_findings('d0000000-0000-4000-8000-000000000022', pg_temp.hash('22')) ->> 'changed',
   'false', 'and of the live hash answer the findings');
+select is(public.admin_screening_findings('d0000000-0000-4000-8000-000000000022', pg_temp.hash('22')) ->> 'unscreened',
+  'true', 'a held note the rules never read is unscreened, whose empty findings are not a clean verdict');
+select is(public.admin_screening_findings('d0000000-0000-4000-8000-000000000009', pg_temp.hash('09')) ->> 'unscreened',
+  'false', 'and one every required layer read is not');
 select is(public.admin_allow_deck('d0000000-0000-4000-8000-000000000022', pg_temp.hash('22')),
   'allowed', 'the admin allows a held note by its hash');
 reset role;
@@ -413,6 +436,8 @@ select pg_temp.sign_in('c');
 select is(public.admin_allow_deck('d0000000-0000-4000-8000-000000000022', pg_temp.hash('22')),
   'not_held', 'allowing it again does nothing');
 
+select is(public.admin_keep_deck_hidden('d0000000-0000-4000-8000-000000000009', null, 'spam ads'), 'changed',
+  'keeping a note hidden on no hash is not done');
 select is(public.admin_keep_deck_hidden('d0000000-0000-4000-8000-000000000009', pg_temp.hash('09'), 'spam ads'),
   'kept', 'the admin keeps a held note hidden');
 reset role;
@@ -428,6 +453,39 @@ set local role service_role;
 select is(public.apply_screening('d0000000-0000-4000-8000-000000000009', pg_temp.hash('09')),
   'refused', 'the same text published again is refused, whatever the rules say');
 reset role;
+
+-- A standing hold survives an unpublish and a new request; a client's write keeps a held or
+-- checking note as it is, an upsert over a held note included.
+select pg_temp.deck('24', 'f');
+update public.decks set visibility = 'public', published_at = now() where id = 'd0000000-0000-4000-8000-000000000024';
+insert into public.deck_reports (deck_id, reporter_id, reason) values
+  ('d0000000-0000-4000-8000-000000000024', '00000000-0000-4000-8000-00000000000a', 'spam'),
+  ('d0000000-0000-4000-8000-000000000024', '00000000-0000-4000-8000-00000000000d', 'spam'),
+  ('d0000000-0000-4000-8000-000000000024', '00000000-0000-4000-8000-00000000000e', 'spam');
+select is(pg_temp.state('24'), 'held/public/true', 'control: three reports hold a note');
+select pg_temp.sign_in('f');
+select lives_ok($$update public.decks set name = 'Held, renamed', updated_at = now() where id = 'd0000000-0000-4000-8000-000000000024'$$,
+  'the owner renames a held note');
+select lives_ok(
+  $$insert into public.decks (id, user_id, name, description, visibility, published_at, created_at, updated_at)
+    values ('d0000000-0000-4000-8000-000000000024', '00000000-0000-4000-8000-00000000000f', 'Upserted', 'About 24', 'public', now(), now(), now())
+    on conflict (id) do update set name = excluded.name, visibility = excluded.visibility,
+      published_at = excluded.published_at, updated_at = excluded.updated_at$$,
+  'and upserts over it as public');
+reset role;
+select is(pg_temp.state('24'), 'held/public/true', 'the note is still held and hidden');
+select pg_temp.sign_in('f');
+update public.decks set visibility = 'private' where id = 'd0000000-0000-4000-8000-000000000024';
+select public.request_deck_publication('d0000000-0000-4000-8000-000000000024');
+reset role;
+select results_eq($$select publication, hold from public.decks as d join private.deck_screening as s on s.deck_id = d.id where d.id = 'd0000000-0000-4000-8000-000000000024'$$,
+  $$values ('held', 'reports')$$, 'unpublished and requested again, it is held again by the same hold');
+select pg_temp.deck('25', 'f');
+select pg_temp.sign_in('f');
+select public.request_deck_publication('d0000000-0000-4000-8000-000000000025');
+update public.decks set name = 'Checking, renamed', updated_at = now() where id = 'd0000000-0000-4000-8000-000000000025';
+reset role;
+select is(pg_temp.state('25'), 'checking/public/true', 'a client write to a note being checked leaves it checking and hidden');
 
 -- The banned-word list: audited by id, never the term.
 select pg_temp.sign_in('c');

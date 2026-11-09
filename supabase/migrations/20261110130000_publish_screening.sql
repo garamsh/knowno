@@ -31,7 +31,8 @@
 -- reverted and after any migration made later: `select private.revert_publish_screening();`,
 -- then `drop function private.revert_publish_screening();`. It unschedules the cron job, drops
 -- the triggers, functions, tables and the column, and puts the four replaced functions back as
--- they were; the Vault secrets stay. Every public deck is then public as `visibility` says.
+-- they were; the Vault secrets stay. A deck that was `checking` or `held` keeps `hidden = true`, so it stays unserved until an admin
+-- unhides it; every other public deck is public as `visibility` and `hidden` say.
 
 create table private.deck_screening (
   deck_id uuid primary key references public.decks on delete cascade,
@@ -376,7 +377,8 @@ as $$
   where d.id = my_deck_screening.deck_id and d.user_id = (select auth.uid());
 $$;
 
--- The decks the worker screens: checking for 20 seconds, and the public ones never screened.
+-- The decks the worker screens: checking for 20 seconds, then the public ones never screened. A
+-- checking deck goes first: an edit waits for its own turn, not for the backfilled backlog.
 create function public.screening_due(max_decks integer default 20) returns table (deck_id uuid)
 language sql
 stable
@@ -388,7 +390,7 @@ as $$
   where d.deleted_at is null
     and ((d.publication = 'checking' and coalesce(s.requested_at, '-infinity') < now() - interval '20 seconds')
       or (d.publication = 'public' and s.content_hash is null))
-  order by s.requested_at nulls first, d.id
+  order by (d.publication = 'checking') desc, s.requested_at nulls first, d.id
   limit greatest(screening_due.max_decks, 0);
 $$;
 
@@ -463,7 +465,7 @@ begin
     return 'noop';
   end if;
   live := private.note_content_hash(d.id);
-  if live <> apply_screening.content_hash then
+  if live is distinct from apply_screening.content_hash then
     return 'changed';
   end if;
   select * into s from private.deck_screening as x where x.deck_id = d.id;
@@ -473,8 +475,9 @@ begin
   select v.layer into refused_layer from private.screening_verdicts as v
     where v.content_hash = live and v.outcome in ('refused', 'severe')
     order by case v.layer when 'admin' then 0 when 'rules' then 1 else 2 end limit 1;
+  -- Only an AI verdict of severe is a confirmed violation: a refusal by the rules is not one.
   severe := exists (select from private.screening_verdicts as v
-    where v.content_hash = live and v.outcome = 'severe');
+    where v.content_hash = live and v.outcome = 'severe' and v.layer = 'ai');
   unsure := exists (select from private.screening_verdicts as v
     where v.content_hash = live and v.outcome = 'unsure');
   if refused_layer is not null then
@@ -542,7 +545,9 @@ begin
 end;
 $$;
 
--- What the verdicts found in the note at [content_hash]; `changed` while the note moved on.
+-- What the verdicts found in the note at [content_hash]; `changed` while the note moved on, and
+-- `unscreened` while a required layer has no verdict on this content (a note edited while held),
+-- which an empty list of findings does not mean is clean.
 create function public.admin_screening_findings(deck_id uuid, content_hash text) returns jsonb
 language plpgsql
 stable
@@ -553,9 +558,13 @@ begin
   perform private.require_admin();
   if private.note_content_hash(admin_screening_findings.deck_id) is distinct from
     admin_screening_findings.content_hash then
-    return jsonb_build_object('changed', true, 'findings', '[]'::jsonb);
+    return jsonb_build_object('changed', true, 'unscreened', true, 'findings', '[]'::jsonb);
   end if;
-  return jsonb_build_object('changed', false, 'findings',
+  return jsonb_build_object('changed', false, 'unscreened',
+    exists (select from unnest(private.required_screening_layers()) as l
+      where not exists (select from private.screening_verdicts as v
+        where v.content_hash = admin_screening_findings.content_hash and v.layer = l)),
+    'findings',
     private.screening_findings(admin_screening_findings.deck_id, admin_screening_findings.content_hash));
 end;
 $$;
@@ -575,7 +584,7 @@ begin
   if not found or state <> 'held' then
     return 'not_held';
   end if;
-  if private.note_content_hash(admin_allow_deck.deck_id) <> admin_allow_deck.content_hash then
+  if private.note_content_hash(admin_allow_deck.deck_id) is distinct from admin_allow_deck.content_hash then
     return 'changed';
   end if;
   update public.decks as d set publication = 'public', hidden = false, updated_at = now()
@@ -609,7 +618,7 @@ begin
   if not found or state <> 'held' then
     return 'not_held';
   end if;
-  if private.note_content_hash(admin_keep_deck_hidden.deck_id) <> admin_keep_deck_hidden.content_hash then
+  if private.note_content_hash(admin_keep_deck_hidden.deck_id) is distinct from admin_keep_deck_hidden.content_hash then
     return 'changed';
   end if;
   update public.decks as d set visibility = 'private', publication = 'refused', hidden = false,
