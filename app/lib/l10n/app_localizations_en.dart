@@ -801,7 +801,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'New cards wait until you catch up on your reviews.';
 
   @override
-  String get searchCards => 'Search';
+  String get searchCards => 'Search cards';
 
   @override
   String get noMatches => 'No card matches. Try other words.';

@@ -468,7 +468,7 @@
   "@backlogPaused": {
     "description": "Sentence under the today count while so many reviews are due that a session takes no new card."
   },
-  "searchCards": "검색",
+  "searchCards": "카드 검색",
   "@searchCards": {"description": "Hint of the card list search field."},
   "noMatches": "찾는 카드가 없어요. 다른 단어로 검색해 보세요.",
   "@noMatches": {"description": "Shown when no card matches the card list search."},
