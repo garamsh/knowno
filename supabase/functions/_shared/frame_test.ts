@@ -56,12 +56,12 @@ Deno.test("a free v2 card reads its front as its 칸, a card of another template
   const glue = { type: "text", v: 2, payload: { front: "a", back: "b" } };
   const framed = { front: [glue], back: [], template: "free" };
   assert.deepEqual(cellsOf({ ...framed, template_version: 2 }), [
-    { kind: "text", front: "a", back: "b" },
+    { kind: "text", front: "a", back: "b", markup: false },
   ]);
   const old = { type: "text", v: 1, payload: { text: "a" } };
   assert.deepEqual(
     cellsOf(earlier([old], [{ ...old, payload: { text: "b" } }])),
-    [{ kind: "text", front: "a", back: "b" }],
+    [{ kind: "text", front: "a", back: "b", markup: false }],
   );
 });
 

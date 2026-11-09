@@ -1,0 +1,38 @@
+# ADR 0216: Write the card text markup behind a database switch, off until a release that reads it is on TestFlight, and serve its skills only while it is on
+
+> Status: accepted
+> Date: 2026-11-09
+
+Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
+
+## Context
+
+- Issue #763 makes the server write the card text markup of [ADR 0208](0208-escape-card-text-with-a-backslash-keep-its-lines-and-store-the-markup-as-text-version-3.md): `text` version 3, `{front, back}` read as markup, and `cloze` version 2, `{text}` in Anki's syntax. Both clients read them: the app since #778 ([ADR 0207](0207-render-and-edit-card-text-markup-and-cloze-in-the-app-through-the-engine-behind-a-deck-owned-seam-and-write-text-version-3.md)) and the web since #780 ([ADR 0209](0209-draw-and-edit-card-text-markup-and-anki-cloze-on-the-web-through-the-engine-s-document-read-where-a-card-is-read.md)).
+- The server deploys on merge. The phone builds in users' hands, tags `v1.0.1` and `v1.0.2`, predate #778, and the app enforces no minimum version. A phone on those builds reads a `text` block of version 3 or a `cloze` block of version 2 as a block of a later version, and shows its card as unsupported (`deck.md`). A merge that wrote the new forms at once would turn every card the server wrote after it, on every one of those phones, into one the owner's users cannot study.
+- Settings an admin changes without a deploy are rows in `private`, written by an `admin_*` function that calls `private.require_admin()` and `private.audit` ([ADR 0182](0182-make-each-plan-s-ai-configuration-its-provider-model-and-prompt-version-with-one-draft-tried-and-applied-as-a-unit-in-one-admin-ai-section.md), [ADR 0196](0196-add-a-seventh-admin-section-malangi-for-the-assistant-s-configuration-prompts-and-token-budget-beside-ai.md)). An environment variable changes only with a deploy and is not audited.
+- What the model is taught is the card-form skills, append-only versions the database serves ([ADR 0197](0197-make-the-card-forms-versioned-skills-an-index-the-assistant-always-sees-and-a-guide-per-form-it-loads-shared-with-mcp-and-hold-each-proposal-group-to-one-form.md)). A model taught Anki's syntax while the server writes version 1 would write what the server then converts, and where it cannot, stores for a phone that cannot show it.
+
+## Decision
+
+- **A switch, `card_markup`, off, in the database.** `private.server_switches` holds one row for it. `public.card_markup_enabled()`, executable by `authenticated`, answers it, and the card tools read it as the caller, once for each `add_cards` and `update_cards` call. `admin_set_card_markup(enabled)` sets it, checks the admin role, and records `set_card_markup` with the value before; `admin_card_markup()` reads it. Turning it on or off takes no deploy.
+- **Accepted on input, always.** The card tools, and so MCP, the assistant's proposals and its commit, accept a `text` block as markup and a `cloze` block as `{text}` in Anki's syntax, or in version 1's form, `text` with `___` and `answers`. They do not depend on the switch. A cloze text with no cloze, one with an empty answer or one not closed, is refused with a sentence.
+- **Written by the switch.** Off, the server writes the forms the released builds read: a `text` block of version 2 and a `cloze` block of version 1, where a literal form reads as the same document, found by parsing the input and writing the result back through `escape_literal`: the document must hold only text and line breaks, or, for a cloze, clozes numbered 1 to k in order with no hint, mark or list. Where none exists, the block is stored as the input gave it, at version 3 or 2. On, it writes `text` version 3 and `cloze` version 2: a text as given, a version 1 cloze through `cloze_from_v1`, so every literal run goes through the escape ([ADR 0208](0208-escape-card-text-with-a-backslash-keep-its-lines-and-store-the-markup-as-text-version-3.md)); a version 1 cloze `cloze_from_v1` refuses stays version 1.
+- **A text read back is a text sent back.** `list_cards` shows a stored `text` of version 3 as stored, and one of version 2 as the markup that reads as it: itself when the markup reads it unchanged, and `escape_literal`'s otherwise. A cloze is shown as stored, version 1 with `answers` and version 2 without.
+- **The card key** is the text the fixtures' `plain_text` gives, so a card has one key in every form it is written in.
+- **The skills follow the switch.** A form's version may carry a third label, `markup`, served in place of `active` while the switch is on, under an admin's `test` version. The migration appends a `text` and a `cloze` version that teach the marks, the escape and Anki's syntax, labelled `markup`, and no `active` label moves, so while the switch is off every form is served as before. The index and the guides the model reads come from `card_form_skills()`, so they follow it at the next read, within the 60 seconds `SKILL_CACHE_MS` keeps them. An admin who applies a version of a form ends its `markup` label: an edit an admin made replaces the text that followed the switch. The tools' definitions are the same either way: they say what is accepted, and say to use the markup and the Anki form only as the guide says.
+- **Turning it on** waits for a release of the app that reads both forms to be on TestFlight; the PM or the owner turns it on with `admin_set_card_markup(true)`, and the web admin control for it, a later web issue, calls the same function. Turning it off again stops new writes and rewrites no card.
+- **The validator is TypeScript, held to the fixtures.** `_shared/markup.ts` ports `engine/src/markup.rs`; `markup_test.ts` runs every fixture of `engine/tests/fixtures/markup/`, read from the repository.
+
+## Consequences
+
+- Merging this changes no card a user's phone sees until the switch is turned on, but for a markup the server cannot write as a literal: a text with a mark or a list, or a cloze with a hint, written by a model that was not told to use them. Such a card is stored as given and an old build shows it unsupported. The skills make it uncommon while the switch is off; the schema and the tool definitions say the forms are accepted.
+- A literal text with a `*` pair or other markup-significant characters, sent as markup, is read as the markup it is: a model that writes `2*3*4` as text writes an italic `3`. The server cannot tell the two apart, and the text guide says to escape.
+- A card written as version 3 or 2 stays so when the switch is turned off. Reverting the migration while such cards exist leaves them unreadable to an old build; the migration's revert says so.
+- A switch change reaches the model within a minute, not at once, and a conversation already holding the old guides keeps them until it reads one again.
+- One more function call a write: the tools read the switch once a call, as a row of one small table.
+
+## Signs the decision was wrong
+
+- Cards stored at version 3 or 2 while the switch is off are found in number: the case with no literal form is not rare, and the server should refuse it, or strip it, while the switch is off, instead of storing it.
+- The switch stays off for long after the release is out: the condition for turning it on was wrong, or nobody owns turning it on, and the server should write the new forms by default.
+- A second switch is added: a settings table with a row each, written by one function, is the shape this decision earned, and the next one reuses it instead of adding a table.

@@ -28,6 +28,7 @@ import { fetchPhoto, MAX_PHOTO_BYTES, type PhotoDeps } from "./photo.ts";
 import {
   allCards,
   cardKeys,
+  cardMarkupEnabled,
   deckCards,
   deckImage,
   deckKeys,
@@ -113,7 +114,7 @@ const blockIn = {
     {
       type: "object",
       description:
-        'A question and its answer, or any text: front is shown first and back at the reveal; either may be left out, not both. {"type":"text","front":"Capital of France?","back":"Paris"}',
+        'A question and its answer, or any text: front is shown first and back at the reveal; either may be left out, not both. Both are read as markup (**bold**, *italic*, `code`, "- " and "1. " lists), a backslash before \\ * _ ` { } or : keeping it literal; use markup only as the text guide says. {"type":"text","front":"Capital of France?","back":"Paris"}',
       properties: {
         type: { const: "text" },
         front: { type: "string", maxLength: MAX_TEXT },
@@ -163,6 +164,17 @@ const blockIn = {
         },
       },
       required: ["type", "text", "answers"],
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      description:
+        'The same card with its blanks in Anki\'s syntax and no answers: {{c1::answer}} or {{c1::answer::hint}} in text, the numbers from 1, a number used twice hiding both together. Use this form only as the cloze guide says. {"type":"cloze","text":"The capital of France is {{c1::Paris}}."}',
+      properties: {
+        type: { const: "cloze" },
+        text: { type: "string", maxLength: MAX_TEXT },
+      },
+      required: ["type", "text"],
       additionalProperties: false,
     },
     {
@@ -968,6 +980,7 @@ async function addCards(
   const deck = await readDeck(store, id);
   if (deck === null) return refuse(NOT_FOUND);
   const keys = await deckKeys(store, id);
+  const writes = { markup: await cardMarkupEnabled(store) };
   const start = deps.now();
   const added: { index: number; id: string; front: string }[] = [];
   const skipped: {
@@ -983,7 +996,7 @@ async function addCards(
   const photos: string[] = [];
   let photosLeft = MAX_PHOTOS;
   for (const [index, value] of input.entries()) {
-    const card = readCard(value, deps);
+    const card = readCard(value, deps, null, writes);
     if (typeof card === "string") {
       refused.push({ index, reason: card });
       continue;
@@ -1092,6 +1105,7 @@ async function updateCards(
       ...new Set([...stored.values()].map((card) => card.deck_id)),
     ])
   ) hold(id, `${deck_id}\n${card_key}`);
+  const writes = { markup: await cardMarkupEnabled(store) };
   const now = new Date(deps.now()).toISOString();
   const updated: { index: number; id: string; front: string }[] = [];
   const refused: { index: number; reason: string }[] = [];
@@ -1119,7 +1133,7 @@ async function updateCards(
       continue;
     }
     const { id: _, ...fields } = value as Args;
-    const read = readCard(fields, deps, keptOf(card));
+    const read = readCard(fields, deps, keptOf(card), writes);
     if (typeof read === "string") {
       refused.push({ index, reason: read });
       continue;

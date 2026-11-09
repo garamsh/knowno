@@ -68,6 +68,8 @@ type Fake = {
   skills: Row[];
   /** Whether `card_form_skills` answers 500. */
   skillsDown: boolean;
+  /** What `card_markup_enabled` answers the caller (ADR 0216). */
+  markup: boolean;
   /** What `assistant_study_record` reads, each row a user's; the bodies it was called with. */
   studyDecks: Row[];
   studyMissed: Row[];
@@ -169,6 +171,7 @@ function seed(): Fake {
       text: SEED[form].text,
     })),
     skillsDown: false,
+    markup: false,
     studyDecks: [],
     studyMissed: [],
     studyCalls: [],
@@ -460,6 +463,10 @@ function fakeFetch(fake: Fake): typeof fetch {
       return user !== undefined && fake.admins.has(user)
         ? Response.json(true)
         : Response.json({ code: "42501" }, { status: 403 });
+    }
+    if (rpc === "card_markup_enabled") {
+      assert.equal(headers.get("apikey"), "anon-key");
+      return Response.json(fake.markup);
     }
     if (rpc === "card_form_skills") {
       // Called as the user, as the tools read.
@@ -2905,4 +2912,62 @@ Deno.test("a zone Intl knows and Postgres does not is read again in Asia/Seoul, 
     "Asia/Seoul",
   ]);
   assert.match(answered(seoul.requests[1]!), /did not answer/);
+});
+
+Deno.test("a commit writes a proposed cloze as version 1 while the switch is off and as version 2 while it is on, whichever form the model proposed", async () => {
+  const proposal: Proposal = {
+    ...PROPOSAL,
+    groups: [{
+      id: PROPOSAL.groups[0]!.id,
+      title: "빈칸",
+      format: "cloze",
+      cards: [
+        {
+          id: "00000000-0000-7000-8000-0000000000c4",
+          card: {
+            blocks: [{ type: "cloze", text: "I {{c1::run}} daily" }],
+          },
+        },
+        {
+          id: "00000000-0000-7000-8000-0000000000c5",
+          card: {
+            blocks: [{
+              type: "cloze",
+              text: "She ___ daily",
+              answers: ["runs"],
+            }],
+          },
+        },
+      ],
+    }],
+  };
+  const commit = async (markup: boolean) => {
+    const fake = seed();
+    fake.markup = markup;
+    const run = await send(fake, {
+      path: "/assistant/commit",
+      body: {
+        proposal,
+        checked: {
+          [proposal.groups[0]!.id]: proposal.groups[0]!.cards.map((c) => c.id),
+        },
+      },
+    });
+    assert.equal(run.status, 200);
+    return fake.cards.filter((c) => c.deck_id === ADA_DECK).flatMap((c) =>
+      (c.front as Row[]).map(({ type, v, payload }) => ({ type, v, payload }))
+    ).filter(({ type }) => type === "cloze");
+  };
+  assert.deepEqual(await commit(false), [
+    { type: "cloze", v: 1, payload: { text: "I ___ daily", answers: ["run"] } },
+    {
+      type: "cloze",
+      v: 1,
+      payload: { text: "She ___ daily", answers: ["runs"] },
+    },
+  ]);
+  assert.deepEqual(await commit(true), [
+    { type: "cloze", v: 2, payload: { text: "I {{c1::run}} daily" } },
+    { type: "cloze", v: 2, payload: { text: "She {{c1::runs}} daily" } },
+  ]);
 });

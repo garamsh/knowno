@@ -169,6 +169,19 @@ export async function cardFormRows(
   return rowsOf(await response.json());
 }
 
+/** Whether the server writes the card text markup's forms, as `public.card_markup_enabled` answers it (ADR 0216). */
+export async function cardMarkupEnabled(store: Store): Promise<boolean> {
+  const response = await request(store, "rpc/card_markup_enabled", {
+    method: "POST",
+    body: {},
+  });
+  const enabled: unknown = await response.json();
+  if (typeof enabled !== "boolean") {
+    throw new SupabaseError("card_markup_enabled answered no boolean");
+  }
+  return enabled;
+}
+
 /**
  * The caller's study record as `public.assistant_study_record` answers it, unparsed: [deckId]
  * limits it to one deck, [periodDays] is how far back its answers count and [timeZone] the zone its study day is counted in.

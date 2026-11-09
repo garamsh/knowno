@@ -6,6 +6,14 @@
  */
 
 import { cardKey, isPartOfSpeech, type Label, labelShown } from "./cards.ts";
+import {
+  clozeNumbers,
+  escapeLiteral,
+  fillCloze as fillMarkup,
+  literalOf,
+  parseMarkup,
+  plainText as markupPlainText,
+} from "./markup.ts";
 
 /** A sense of a 단어 or a v1 `senses` block. */
 export type Sense = {
@@ -30,7 +38,8 @@ export type Content =
   | {
     readonly kind: "cloze";
     readonly text: string;
-    readonly answers: readonly string[];
+    /** The answers of a version 1 block; null when [text] is Anki's syntax, of version 2. */
+    readonly answers: readonly string[] | null;
   }
   | {
     readonly kind: "table";
@@ -59,7 +68,13 @@ export type CellSide = "front" | "back";
 
 /** One 칸 of a card, whose type decides whether it has sides (ADR 0137). */
 export type Cell =
-  | { readonly kind: "text"; readonly front: string; readonly back: string }
+  | {
+    readonly kind: "text";
+    readonly front: string;
+    readonly back: string;
+    /** Whether front and back are markup, a 글 of version 3 (ADR 0208), and not literal. */
+    readonly markup: boolean;
+  }
   | {
     readonly kind: "word";
     readonly term: string;
@@ -82,10 +97,15 @@ export const FRAME_VERSIONS: ReadonlyMap<string, number> = new Map([
   ["audio", 2],
 ]);
 
+/** The version of a 글 whose front and back are markup (ADR 0208); version 2 is literal. */
+export const MARKUP_TEXT_VERSION = 3;
+/** The version of a cloze whose one text is Anki's syntax (ADR 0202). */
+export const MARKUP_CLOZE_VERSION = 2;
+
 /** The version of each type a side reads; a table at v1 holds no spans. */
 const SIDE_VERSIONS: ReadonlyMap<string, number> = new Map([
   ["text", 1],
-  ["cloze", 1],
+  ["cloze", MARKUP_CLOZE_VERSION],
   ["table", 2],
   ["senses", 1],
   ["image", 1],
@@ -115,6 +135,15 @@ function parseCloze(payload: Record<string, unknown>): Content | null {
   if (answers.length === 0 || answers.some((a) => a.trim() === "")) return null;
   if (text.split(CLOZE_BLANK).length - 1 !== answers.length) return null;
   return { kind: "cloze", text, answers };
+}
+
+/** A cloze of version 2: a text in Anki's syntax holding at least one cloze; null otherwise. */
+function parseClozeMarkup(payload: Record<string, unknown>): Content | null {
+  const { text } = payload;
+  if (typeof text !== "string") return null;
+  return clozeNumbers(parseMarkup(text)).length === 0
+    ? null
+    : { kind: "cloze", text, answers: null };
 }
 
 function isBlank(blanks: readonly TableBlank[], row: number, column: number) {
@@ -255,7 +284,9 @@ function parseBlock(
         ? { kind: "text", text: upcast.text }
         : null;
     case "cloze":
-      return parseCloze(upcast);
+      return version >= MARKUP_CLOZE_VERSION
+        ? parseClozeMarkup(upcast)
+        : parseCloze(upcast);
     case "table":
       return parseTable(upcast);
     case "senses": {
@@ -284,6 +315,11 @@ function parseSide(value: unknown): Content[] | null {
       continue;
     }
     const read = parseBlock(type, v as number, payload);
+    // A cloze of version 2 with no cloze in it is kept as read, as a block of a later version is.
+    if (read === null && type === "cloze" && (v as number) >= 2) {
+      blocks.push({ kind: "unsupported", type });
+      continue;
+    }
     if (read === null) return null;
     blocks.push(read);
   }
@@ -295,7 +331,13 @@ function hasBlank(block: Content): boolean {
     (block.kind === "image" && block.boxes.length > 0);
 }
 
-function fillCloze(text: string, answers: readonly string[]): string {
+function fillCloze(
+  text: string,
+  answers: readonly string[] | null,
+): string {
+  if (answers === null) {
+    return markupPlainText(fillMarkup(parseMarkup(text)));
+  }
   return text.split(CLOZE_BLANK).map((part, index) =>
     part + (index < answers.length ? answers[index] : "")
   ).join("");
@@ -355,7 +397,7 @@ function plainText(blocks: readonly Content[]): string {
 function frontCell(block: Content): Cell {
   switch (block.kind) {
     case "text":
-      return { kind: "text", front: block.text, back: "" };
+      return { kind: "text", front: block.text, back: "", markup: false };
     case "senses":
       return { kind: "word", term: "", senses: block.senses, ask: "meaning" };
     case "cloze":
@@ -372,11 +414,14 @@ function frontCell(block: Content): Cell {
   }
 }
 
-function parseTextCell(payload: Record<string, unknown>): Cell | null {
+function parseTextCell(
+  payload: Record<string, unknown>,
+  markup: boolean,
+): Cell | null {
   const { front, back } = payload;
   if (typeof front !== "string" || typeof back !== "string") return null;
   if (front.trim() === "" && back.trim() === "") return null;
-  return { kind: "text", front, back };
+  return { kind: "text", front, back, markup };
 }
 
 function parseWordCell(payload: Record<string, unknown>): Cell | null {
@@ -411,10 +456,14 @@ function parseCell(block: unknown): Cell | null {
   const { type, v, id, payload } = block;
   if (
     typeof type === "string" && v !== undefined &&
-    v === FRAME_VERSIONS.get(type) && isRecord(payload)
+    (v === FRAME_VERSIONS.get(type) ||
+      (type === "text" && v === MARKUP_TEXT_VERSION)) &&
+    isRecord(payload)
   ) {
     if (id !== undefined && id !== null && typeof id !== "string") return null;
-    if (type === "text") return parseTextCell(payload);
+    if (type === "text") {
+      return parseTextCell(payload, v === MARKUP_TEXT_VERSION);
+    }
     if (type === "senses") return parseWordCell(payload);
     return parsePlacedCell(type, payload);
   }
@@ -450,7 +499,7 @@ function addBackText(cells: Cell[], text: string): void {
   );
   const cell = cells[index];
   if (cell?.kind === "text") cells[index] = { ...cell, back: text };
-  else cells.push({ kind: "text", front: "", back: text });
+  else cells.push({ kind: "text", front: "", back: text, markup: false });
 }
 
 function addBackSenses(cells: Cell[], senses: readonly Sense[]): void {
@@ -471,7 +520,12 @@ function placedOnBack(image: Extract<Content, { kind: "image" }>): Cell[] {
     side: "back",
   };
   return answers.length > 0
-    ? [placed, { kind: "text", front: "", back: answers.join("\n") }]
+    ? [placed, {
+      kind: "text",
+      front: "",
+      back: answers.join("\n"),
+      markup: false,
+    }]
     : [placed];
 }
 
@@ -485,7 +539,7 @@ function addBack(cells: Cell[], block: Content, frontBlank: boolean): void {
     case "table":
       cells.push(
         frontBlank
-          ? { kind: "text", front: "", back: describe(block) }
+          ? { kind: "text", front: "", back: describe(block), markup: false }
           : { kind: "blank", block },
       );
       return;
@@ -553,7 +607,13 @@ function partsOf(cell: Cell): Part[] {
   switch (cell.kind) {
     case "text": {
       const part = (text: string, added: boolean): Part[] =>
-        text === "" ? [] : [{ block: { kind: "text", text }, added }];
+        text === "" ? [] : [{
+          block: {
+            kind: "text",
+            text: cell.markup ? markupPlainText(parseMarkup(text)) : text,
+          },
+          added,
+        }];
       return [...part(cell.front, false), ...part(cell.back, true)];
     }
     case "word": {
@@ -625,6 +685,14 @@ export function searchText(cells: readonly Cell[]): string {
   }).join("\n");
 }
 
+/**
+ * A literal text as the markup that reads back as it: itself when the markup reads it unchanged,
+ * and otherwise [escapeLiteral]'s, so that a model that sends it back keeps its meaning.
+ */
+export function markupOfLiteral(text: string): string {
+  return literalOf(text) === text ? text : escapeLiteral(text);
+}
+
 const senseOut = ({ labels, meaning, examples }: Sense) => ({
   labels: labels.map(labelShown),
   meaning,
@@ -635,7 +703,9 @@ const senseOut = ({ labels, meaning, examples }: Sense) => ({
 function blockOut(block: Content, side?: CellSide): Record<string, unknown> {
   switch (block.kind) {
     case "cloze":
-      return { type: "cloze", text: block.text, answers: block.answers };
+      return block.answers === null
+        ? { type: "cloze", text: block.text }
+        : { type: "cloze", text: block.text, answers: block.answers };
     case "table":
       return {
         type: "table",
@@ -675,7 +745,13 @@ export function blocksOut(cells: readonly Cell[]): Record<string, unknown>[] {
   return cells.map((cell) => {
     switch (cell.kind) {
       case "text":
-        return { type: "text", front: cell.front, back: cell.back };
+        return cell.markup
+          ? { type: "text", front: cell.front, back: cell.back }
+          : {
+            type: "text",
+            front: markupOfLiteral(cell.front),
+            back: markupOfLiteral(cell.back),
+          };
       case "word":
         return {
           type: "senses",

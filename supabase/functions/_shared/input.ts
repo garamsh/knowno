@@ -10,10 +10,20 @@ import {
   FRAME_VERSIONS,
   frameKey,
   frameProblem,
+  MARKUP_CLOZE_VERSION,
+  MARKUP_TEXT_VERSION,
   parseCells,
   shownFirst,
   type StoredSides,
 } from "./frame.ts";
+import {
+  clozeFromV1,
+  clozeNumbers,
+  clozeToV1,
+  literalOf,
+  parseMarkup,
+  unfinishedClozes,
+} from "./markup.ts";
 
 /** The longest a card's text may be. */
 export const MAX_TEXT = 2000;
@@ -54,6 +64,14 @@ export type ReadCard = {
 };
 
 type Args = Record<string, unknown>;
+
+/**
+ * Which forms a call writes (ADR 0216). With `markup` off, the forms the released clients read:
+ * a text of version 2 and a cloze of version 1, each where the input has a literal form that reads
+ * the same. With it on, the forms of the markup: a text of version 3 and a cloze of version 2.
+ * What is accepted does not depend on it.
+ */
+export type Writes = { readonly markup: boolean };
 
 function isRecord(value: unknown): value is Args {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -102,15 +120,28 @@ function sense(value: unknown) {
 }
 
 /** A 칸's payload, or a sentence saying what is wrong with it. */
-type Built = { readonly payload: Args; readonly url?: string } | string;
+type Built =
+  | {
+    readonly payload: Args;
+    readonly url?: string;
+    /** The version it is written at, when it is not its type's usual. */
+    readonly v?: number;
+  }
+  | string;
 
-function textBlock(value: Args): Built {
+/** A text block: its front and back are markup; written as the literal they read as when [writes] asks for it. */
+function textBlock(value: Args, writes: Writes): Built {
   const front = optionalText(value.front ?? "");
   const back = optionalText(value.back ?? "");
   if (front === null || back === null) {
     return `a text block's front and back must be text of at most ${MAX_TEXT} characters.`;
   }
-  return { payload: { front, back } };
+  const literal = [literalOf(front), literalOf(back)];
+  if (!writes.markup && literal[0] !== null && literal[1] !== null) {
+    return { payload: { front: literal[0], back: literal[1] } };
+  }
+  // A markup that reads as no literal text is stored as given, which a build before version 3 shows as unsupported.
+  return { payload: { front, back }, v: MARKUP_TEXT_VERSION };
 }
 
 function sensesBlock(value: Args): Built {
@@ -136,12 +167,43 @@ function withinLimit(value: unknown): boolean {
     );
 }
 
-function clozeBlock(value: Args): Built {
+const NO_CLOZE =
+  "a cloze's text needs at least one {{c1::answer}} or {{c1::answer::hint}}, each with an answer that is not blank.";
+const UNFINISHED =
+  "a cloze's text has a {{cN:: that is no cloze: give it an answer that is not blank and a closing }}, and no cloze inside another; write a literal { or : after a backslash.";
+
+/**
+ * A cloze: `text` with `answers`, one `___` for each, or `text` alone in Anki's syntax. Written at
+ * version 2 when [writes] asks for it, and otherwise at version 1 where one reads the same.
+ */
+function clozeBlock(value: Args, writes: Writes): Built {
   const { text, answers } = value;
   if (!withinLimit([text]) || !withinLimit(answers)) {
     return `a cloze's text and answers must be at most ${MAX_TEXT} characters each.`;
   }
-  return { payload: { text, answers } };
+  if (answers === undefined) {
+    if (typeof text !== "string") return NO_CLOZE;
+    if (clozeNumbers(parseMarkup(text)).length === 0) {
+      return unfinishedClozes(text) > 0 ? UNFINISHED : NO_CLOZE;
+    }
+    if (unfinishedClozes(text) > 0) return UNFINISHED;
+    const v1 = writes.markup ? null : clozeToV1(text);
+    return v1 === null
+      ? { payload: { text }, v: MARKUP_CLOZE_VERSION }
+      : { payload: v1 };
+  }
+  if (!writes.markup || typeof text !== "string" || !isStrings(answers)) {
+    return { payload: { text, answers } };
+  }
+  const source = clozeFromV1(text, answers);
+  return source === null
+    ? { payload: { text, answers } }
+    : { payload: { text: source }, v: MARKUP_CLOZE_VERSION };
+}
+
+function isStrings(value: unknown): value is string[] {
+  return Array.isArray(value) &&
+    value.every((item) => typeof item === "string");
 }
 
 function tableBlock(value: Args): Built {
@@ -205,7 +267,12 @@ function imageBlock(value: Args, ids: IdSource): Built {
   };
 }
 
-function built(value: Args, ids: IdSource, kept: Kept | null): Built {
+function built(
+  value: Args,
+  ids: IdSource,
+  kept: Kept | null,
+  writes: Writes,
+): Built {
   if (
     kept !== null &&
     (value.type === "audio" ||
@@ -215,11 +282,11 @@ function built(value: Args, ids: IdSource, kept: Kept | null): Built {
   const type = BLOCK_TYPES.find((known) => known === value.type);
   switch (type) {
     case "text":
-      return textBlock(value);
+      return textBlock(value, writes);
     case "senses":
       return sensesBlock(value);
     case "cloze":
-      return clozeBlock(value);
+      return clozeBlock(value, writes);
     case "table":
       return tableBlock(value);
     case "image":
@@ -237,7 +304,7 @@ const SHAPES: Record<string, string> = {
   senses:
     "a senses block needs one or more senses, each with a meaning, and ask must be term or meaning.",
   cloze:
-    "a cloze needs text with one ___ for each of its answers, each answer holding text.",
+    "a cloze needs text with one ___ for each of its answers, each answer holding text; or text alone with a {{c1::answer}} in it.",
   table:
     "a table needs columns, rows of as many cells as columns, and a blank or a span: each blank a distinct cell holding text, each span a run of a cell's text that overlaps no other span and is in no blank cell.",
   image:
@@ -270,6 +337,7 @@ function readBlocks(
   values: unknown,
   ids: IdSource,
   kept: Kept | null,
+  writes: Writes,
 ): ReadCard | string {
   if (
     !Array.isArray(values) || values.length === 0 ||
@@ -283,12 +351,12 @@ function readBlocks(
   for (const [index, value] of values.entries()) {
     const where = `block ${index}: `;
     if (!isRecord(value)) return `${where}a block must be an object.`;
-    const read = built(value, ids, kept);
+    const read = built(value, ids, kept, writes);
     if (typeof read === "string") return where + read;
     const type = value.type as string;
     const block = {
       type,
-      v: FRAME_VERSIONS.get(type) ?? (type === "table" ? 2 : 1),
+      v: read.v ?? FRAME_VERSIONS.get(type) ?? (type === "table" ? 2 : 1),
       id: keptId(value.id, type, kept, blocks) ?? uuidV7(ids),
       payload: read.payload,
     };
@@ -321,6 +389,7 @@ function readPlain(
   value: Args,
   ids: IdSource,
   kept: Kept | null,
+  writes: Writes,
 ): ReadCard | string {
   const front = requiredText(value.front);
   if (front === null) {
@@ -343,6 +412,7 @@ function readPlain(
     ],
     ids,
     kept,
+    writes,
   );
 }
 
@@ -354,6 +424,7 @@ export function readCard(
   value: unknown,
   ids: IdSource,
   kept: Kept | null = null,
+  writes: Writes = { markup: false },
 ): ReadCard | string {
   if (!isRecord(value)) {
     return "the card must be an object with blocks, or with front and back.";
@@ -361,9 +432,9 @@ export function readCard(
   if ("blocks" in value) {
     return "front" in value || "back" in value
       ? "give a card blocks, or front and back, not both."
-      : readBlocks(value.blocks, ids, kept);
+      : readBlocks(value.blocks, ids, kept, writes);
   }
-  return readPlain(value, ids, kept);
+  return readPlain(value, ids, kept, writes);
 }
 
 /** What a stored card holds that an update may keep. */

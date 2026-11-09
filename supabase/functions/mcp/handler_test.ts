@@ -73,6 +73,8 @@ type Fake = {
   calls: { url: string; method: string; headers: Headers }[];
   /** What `card_form_skills` answers: one served version of each form. */
   skills: Row[];
+  /** What `card_markup_enabled` answers: whether the markup's forms are written (ADR 0216). */
+  markup: boolean;
 };
 
 function block(type: string, payload: Row) {
@@ -107,6 +109,7 @@ function seed(): Fake {
   return {
     rest: "up",
     calls: [],
+    markup: false,
     skills: FORMS.map((form, index) => ({
       form,
       version_id: index + 1,
@@ -254,6 +257,9 @@ function rest(
     return Response.json({ code: "PGRST301" }, { status: 401 });
   }
   const table = url.pathname.split("/").at(-1);
+  if (url.pathname.endsWith("/rpc/card_markup_enabled") && method === "POST") {
+    return Response.json(fake.markup);
+  }
   if (url.pathname.endsWith("/rpc/card_form_skills") && method === "POST") {
     return Response.json(fake.skills);
   }
@@ -1428,7 +1434,12 @@ Deno.test("add_cards refuses 101 cards and writes nothing, and adds 100", async 
   assert.ok(over.fake.calls.every((c) => c.method !== "POST"));
   const cap = await call("add_cards", { deck_id: ADA_DECK, cards: many(100) });
   assert.equal((cap.result.structuredContent?.added as Row[]).length, 100);
-  assert.equal(cap.fake.calls.filter((c) => c.method === "POST").length, 1);
+  assert.equal(
+    cap.fake.calls.filter((c) =>
+      c.method === "POST" && !c.url.includes("/rpc/")
+    ).length,
+    1,
+  );
 });
 
 Deno.test("add_cards refuses another user's deck and writes nothing, as the same call adds to the caller's own", async () => {
@@ -2321,4 +2332,147 @@ Deno.test("update_cards whose update fails releases the photo it stored for the 
   assert.match(result.content[0]!.text, /try again/);
   assert.deepEqual(fake.media, []);
   assert.equal(fake.objects.size, 0);
+});
+
+const MARKUP_CARDS = [
+  { blocks: [{ type: "text", front: "Capital?", back: "Paris" }] },
+  { blocks: [{ type: "text", front: "What is **bold**?", back: "a mark" }] },
+  {
+    blocks: [{
+      type: "cloze",
+      text: "The capital of France is ___.",
+      answers: ["Paris"],
+    }],
+  },
+  {
+    blocks: [{
+      type: "cloze",
+      text: "{{c1::Seoul::city}} is the capital of Korea",
+    }],
+  },
+  { blocks: [{ type: "cloze", text: "no cloze here" }] },
+];
+
+Deno.test("add_cards writes the forms the released clients read while the markup switch is off, and the markup's forms while it is on, refusing a cloze with no cloze either way", async () => {
+  const off = await call("add_cards", {
+    deck_id: ADA_DECK,
+    cards: MARKUP_CARDS,
+  }, seed());
+  const on = seed();
+  on.markup = true;
+  const written = await call("add_cards", {
+    deck_id: ADA_DECK,
+    cards: MARKUP_CARDS,
+  }, on);
+  const stored = (done: Awaited<ReturnType<typeof call>>) =>
+    (done.result.structuredContent?.added as Row[]).map((added) =>
+      storedBlocks(done.fake.cards.find((row) => row.id === added.id)!)
+    );
+  for (const done of [off, written]) {
+    assert.deepEqual(
+      (done.result.structuredContent?.refused as Row[]).map((r) => r.index),
+      [4],
+    );
+    assert.match(
+      (done.result.structuredContent?.refused as Row[])[0]!.reason as string,
+      /block 0: a cloze's text needs at least one \{\{c1::answer\}\}/,
+    );
+  }
+  assert.deepEqual(stored(off), [
+    [{ type: "text", v: 2, payload: { front: "Capital?", back: "Paris" } }],
+    // A mark has no literal form: stored as given, which a build before version 3 shows as unsupported.
+    [{
+      type: "text",
+      v: 3,
+      payload: { front: "What is **bold**?", back: "a mark" },
+    }],
+    [{
+      type: "cloze",
+      v: 1,
+      payload: { text: "The capital of France is ___.", answers: ["Paris"] },
+    }],
+    // A hint has no version 1 form.
+    [{
+      type: "cloze",
+      v: 2,
+      payload: { text: "{{c1::Seoul::city}} is the capital of Korea" },
+    }],
+  ]);
+  assert.deepEqual(stored(written), [
+    [{ type: "text", v: 3, payload: { front: "Capital?", back: "Paris" } }],
+    [{
+      type: "text",
+      v: 3,
+      payload: { front: "What is **bold**?", back: "a mark" },
+    }],
+    [{
+      type: "cloze",
+      v: 2,
+      payload: { text: "The capital of France is {{c1::Paris}}." },
+    }],
+    [{
+      type: "cloze",
+      v: 2,
+      payload: { text: "{{c1::Seoul::city}} is the capital of Korea" },
+    }],
+  ]);
+});
+
+Deno.test("the switch is read as the caller, once for each add_cards and update_cards call", async () => {
+  const { fake } = await call("add_cards", {
+    deck_id: ADA_DECK,
+    cards: [{ front: "pear", back: "배" }],
+  });
+  const asked = fake.calls.filter((one) =>
+    one.url.endsWith("/rpc/card_markup_enabled")
+  );
+  assert.equal(asked.length, 1);
+  assert.equal(asked[0]!.headers.get("Authorization"), `Bearer ${ADA_TOKEN}`);
+  assert.equal(asked[0]!.headers.get("apikey"), ANON_KEY);
+  const updated = await call("update_cards", {
+    cards: [{ id: FREE_CARD, blocks: [{ type: "text", front: "a" }] }],
+  }, withFreeCard());
+  assert.equal(
+    updated.fake.calls.filter((one) =>
+      one.url.endsWith("/rpc/card_markup_enabled")
+    ).length,
+    1,
+  );
+});
+
+Deno.test("update_cards writes a card's text as version 3 while the switch is on and as version 2 while it is off, and list_cards shows each as it reads", async () => {
+  const stored = async (markup: boolean) => {
+    const fake = withFreeCard();
+    fake.markup = markup;
+    const { result } = await call("update_cards", {
+      cards: [{
+        id: FREE_CARD,
+        blocks: [{ type: "text", front: "2\\*3\\*4", back: "x" }],
+      }],
+    }, fake);
+    assert.deepEqual(result.structuredContent?.refused, []);
+    return fake;
+  };
+  const off = await stored(false);
+  assert.deepEqual(storedBlocks(off.cards.find((c) => c.id === FREE_CARD)!), [{
+    type: "text",
+    v: 2,
+    payload: { front: "2*3*4", back: "x" },
+  }]);
+  const on = await stored(true);
+  assert.deepEqual(storedBlocks(on.cards.find((c) => c.id === FREE_CARD)!), [{
+    type: "text",
+    v: 3,
+    payload: { front: "2\\*3\\*4", back: "x" },
+  }]);
+  // list_cards sends the literal back escaped, so that update_cards keeps its meaning.
+  const listed = await call("list_cards", { deck_id: ADA_OTHER_DECK }, off);
+  const card = (listed.result.structuredContent?.cards as {
+    id: string;
+    blocks: Row[];
+  }[]).find((one) => one.id === FREE_CARD)!;
+  assert.deepEqual(
+    { front: card.blocks[0]!.front, back: card.blocks[0]!.back },
+    { front: "2\\*3\\*4", back: "x" },
+  );
 });
