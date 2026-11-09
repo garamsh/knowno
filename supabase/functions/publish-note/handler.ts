@@ -76,9 +76,10 @@ export function createHandler(
           : [];
         const outcomes: Record<string, number> = {};
         for (const id of ids) {
+          // Any failure of one note leaves the others their turn: the same note stays at the
+          // head of the queue, and a throw out of the batch would stop every later sweep.
           const outcome = await screenDeck(id, service, deps).catch(
-            (error: unknown) => {
-              if (!(error instanceof SupabaseError)) throw error;
+            () => {
               deps.log({ route: "work", deck: id, outcome: "failed" });
               return "failed";
             },

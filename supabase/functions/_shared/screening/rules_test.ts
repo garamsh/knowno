@@ -82,15 +82,80 @@ Deno.test("the name and the description are screened", () => {
   assertEquals(verdict.findings.map((f) => f.where), ["name", "description"]);
 });
 
-Deno.test("a text repeated on five cards is spam, on four it is not", () => {
+const same = (line: string, n: number) =>
+  Array.from(
+    { length: n },
+    (_, i) => ({ hash: `h${i}`, front: text(line), back: text(`b${i}`) }),
+  );
+
+Deno.test("a text repeated on five cards beside a contact is spam, on four it is not", () => {
   const line = "this exact promotional sentence again";
-  const cards = (n: number) =>
-    Array.from(
-      { length: n },
-      (_, i) => ({ hash: `h${i}`, front: text(line), back: text(`b${i}`) }),
-    );
-  assertEquals(screen(claim("x", { cards: cards(5) })).findings.length, 5);
-  assertEquals(screen(claim("x", { cards: cards(4) })).outcome, "clean");
+  const ad = { name: "문의 주세요" };
+  assertEquals(
+    screen(claim("x", { cards: same(line, 5), ...ad })).findings
+      .filter((f) => f.category === "repeat").length,
+    5,
+  );
+  assertEquals(
+    screen(claim("x", { cards: same(line, 4), ...ad })).findings
+      .filter((f) => f.category === "repeat").length,
+    0,
+  );
+});
+
+Deno.test("a prompt shared by many cards is not spam", () => {
+  const cards = same("Translate the following sentence into Korean", 8);
+  assertEquals(screen(claim("x", { cards })), {
+    outcome: "clean",
+    findings: [],
+  });
+});
+
+Deno.test("year ranges and dates are not phone numbers; a service number beside a cue is", () => {
+  for (
+    const t of [
+      "임진왜란 1592-1598",
+      "1939-1945",
+      "2024-01-15",
+      "2024.1.15",
+      "1990-2000 and 1580-1620",
+    ]
+  ) {
+    assertEquals(categories(claim(t)), [], t);
+  }
+  assertEquals(categories(claim("대표번호 1588-1234")), ["phone"]);
+  assertEquals(categories(claim("고객센터: 1577-0000")), ["phone"]);
+});
+
+Deno.test("English words that end in a messenger's name are not ids", () => {
+  for (
+    const t of [
+      "Deadline: tomorrow",
+      "Timeline: 2020",
+      "Error at line: 1024",
+      "Pipeline: build1234",
+      "line 1024",
+    ]
+  ) {
+    assertEquals(categories(claim(t)), [], t);
+  }
+  assertEquals(categories(claim("LINE ID: abcd1234")), ["kakao_id"]);
+  assertEquals(categories(claim("instagram @abcd_1234")), ["kakao_id"]);
+});
+
+Deno.test("an account needs a bank beside it, and citizens beside years are not one", () => {
+  assertEquals(categories(claim("국민 1948 1950 1960 1970")), []);
+  assertEquals(categories(claim("Bank of Korea 1998 2001 2005 2010")), []);
+  assertEquals(categories(claim("국민은행 1002123456789")), ["account"]);
+  assertEquals(categories(claim("계좌번호: 1002123456789")), ["account"]);
+  assertEquals(categories(claim("1002123456789")), []);
+});
+
+Deno.test("narrower contact rules: a name, a product, a domain with a particle", () => {
+  assertEquals(categories(claim("Call me Ishmael")), []);
+  assertEquals(categories(claim("Learn ASP.NET")), []);
+  assertEquals(categories(claim("Call me at 5")), ["contact"]);
+  assertEquals(categories(claim("naver.com에서 검색")), ["link"]);
 });
 
 Deno.test("structural strings and media ids are not scanned", () => {

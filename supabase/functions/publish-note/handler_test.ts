@@ -1,5 +1,6 @@
 // The handler end to end, with the database and Supabase Auth replaced by a recording fake fetch.
 import assert from "node:assert/strict";
+import { RULES_VERSION } from "../_shared/screening/rules.ts";
 import { readConfig } from "./config.ts";
 import { createHandler } from "./handler.ts";
 
@@ -17,6 +18,8 @@ const ENV: Record<string, string> = {
 
 type Fake = {
   claim: Record<string, unknown> | null;
+  /** A claim by deck, over [claim]. */
+  claims: Record<string, Record<string, unknown>>;
   due: string[];
   requestStatus: number;
   recorded: Record<string, unknown>[];
@@ -47,6 +50,7 @@ function claimOf(front: string, verdicts: unknown[] = []) {
 function setup(over: Partial<Fake> = {}) {
   const fake: Fake = {
     claim: claimOf("apple"),
+    claims: {},
     due: [],
     requestStatus: 200,
     recorded: [],
@@ -84,7 +88,9 @@ function setup(over: Partial<Fake> = {}) {
           Response.json(fake.due.map((deck_id) => ({ deck_id }))),
         );
       case "screening_claim":
-        return Promise.resolve(Response.json(fake.claim));
+        return Promise.resolve(
+          Response.json(fake.claims[String(body.deck_id)] ?? fake.claim),
+        );
       case "record_screening":
         fake.recorded.push(body);
         return Promise.resolve(Response.json("recorded"));
@@ -132,7 +138,7 @@ Deno.test("an owner's request is recorded as the owner, screened at once and ans
   assert.equal(fake.recorded.length, 1);
   assert.equal(fake.recorded[0]?.layer, "rules");
   assert.equal(fake.recorded[0]?.outcome, "clean");
-  assert.equal(fake.recorded[0]?.version, "1+0.0");
+  assert.equal(fake.recorded[0]?.version, `${RULES_VERSION}+0.0`);
   assert.deepEqual(fake.applied, [{ deck_id: DECK, content_hash: "hash-1" }]);
 });
 
@@ -147,7 +153,7 @@ Deno.test("a verdict of this version is not made again", async () => {
   const { fake, handler } = setup({
     claim: claimOf("apple", [{
       layer: "rules",
-      version: "1+0.0",
+      version: `${RULES_VERSION}+0.0`,
       outcome: "clean",
     }]),
   });
@@ -191,6 +197,28 @@ Deno.test("/work screens each due note, and takes only the service-role key", as
   });
   assert.equal(fake.applied.length, 1);
   assert.equal(JSON.stringify(logs).includes("apple"), false);
+});
+
+Deno.test("a note that fails in any way does not stop the others of the batch", async () => {
+  const BAD = "33333333-3333-4333-8333-333333333333";
+  const LAST = "44444444-4444-4444-8444-444444444444";
+  const { fake, handler, logs } = setup({
+    due: [DECK, BAD, LAST],
+    // A claim of a shape the rules cannot read throws a TypeError, not a SupabaseError.
+    claims: { [BAD]: { ...claimOf("secret text"), cards: null } },
+  });
+  const response = await handler(post("/work", SERVICE));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    screened: 3,
+    outcomes: { public: 2, failed: 1 },
+  });
+  assert.deepEqual(fake.applied.map((a) => a.deck_id), [DECK, LAST]);
+  assert.equal(
+    logs.some((l) => l.deck === BAD && l.outcome === "failed"),
+    true,
+  );
+  assert.equal(JSON.stringify(logs).includes("secret"), false);
 });
 
 Deno.test("a note no longer checking is skipped", async () => {
