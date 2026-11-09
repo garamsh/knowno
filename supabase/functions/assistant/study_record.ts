@@ -5,7 +5,11 @@
  */
 
 import { SupabaseError } from "../_shared/auth.ts";
-import { type Store, studyRecordRows } from "../_shared/store.ts";
+import {
+  DatabaseRefusal,
+  type Store,
+  studyRecordRows,
+} from "../_shared/store.ts";
 import { cardOf } from "../_shared/tools.ts";
 import { READ_PAGE } from "./photo_tools.ts";
 import type { Ran } from "./tools.ts";
@@ -59,6 +63,37 @@ function textAt(row: Row, key: string): string {
   return found;
 }
 
+/**
+ * Postgres's refusal of a zone its tz data lacks: SQLSTATE 22023, `invalid_parameter_value`, with
+ * the message `time zone "..." not recognized`.
+ */
+const isUnknownZone = (error: unknown): boolean =>
+  error instanceof DatabaseRefusal && error.code === "22023" &&
+  /time zone .* not recognized/i.test(error.reason ?? "");
+
+/** The study record in [timeZone], in the default zone when Postgres does not know [timeZone]. */
+async function studyRecord(
+  store: Store,
+  deckId: string | null,
+  period: number,
+  timeZone: string | null,
+): Promise<unknown> {
+  try {
+    return await studyRecordRows(
+      store,
+      deckId,
+      period,
+      timeZone ?? DEFAULT_TIME_ZONE,
+    );
+  } catch (error) {
+    if (
+      timeZone === null || timeZone === DEFAULT_TIME_ZONE ||
+      !isUnknownZone(error)
+    ) throw error;
+    return await studyRecordRows(store, deckId, period, DEFAULT_TIME_ZONE);
+  }
+}
+
 /** The record of the caller's decks and most missed cards, [periodDays] back, for [deckId] alone when given. */
 export async function readStudyRecord(
   args: Record<string, unknown>,
@@ -84,12 +119,7 @@ export async function readStudyRecord(
       `period_days is a number of days from 1 to ${MAX_PERIOD_DAYS}, ${DEFAULT_PERIOD_DAYS} by default.`,
     );
   }
-  const record = await studyRecordRows(
-    store,
-    id,
-    period,
-    timeZone ?? DEFAULT_TIME_ZONE,
-  );
+  const record = await studyRecord(store, id, period, timeZone);
   if (!isRow(record)) {
     throw new SupabaseError("the REST API answered no study record");
   }
