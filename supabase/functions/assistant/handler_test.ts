@@ -72,6 +72,10 @@ type Fake = {
   studyDecks: Row[];
   studyMissed: Row[];
   studyCalls: Row[];
+  /** The zones `assistant_study_record` refuses as Postgres does when its tz data lacks them. */
+  unknownZones: Set<string>;
+  /** The zones it answers a database error that is not that one, 400 as the same SQLSTATE would be. */
+  brokenZones: Set<string>;
   /** The photo jobs, the photos uploaded as `{user}/{photo}`, the queue and the steps. */
   jobs: Map<string, FakeJob>;
   uploaded: Set<string>;
@@ -168,6 +172,8 @@ function seed(): Fake {
     studyDecks: [],
     studyMissed: [],
     studyCalls: [],
+    unknownZones: new Set(),
+    brokenZones: new Set(),
     jobs: new Map(),
     uploaded: new Set(),
     queue: [],
@@ -473,6 +479,18 @@ function fakeFetch(fake: Fake): typeof fetch {
         return Response.json({ code: "PGRST301" }, { status: 401 });
       }
       fake.studyCalls.push(body);
+      if (fake.brokenZones.has(body.time_zone)) {
+        return Response.json({
+          code: "22023",
+          message: "period_days must not be negative",
+        }, { status: 400 });
+      }
+      if (fake.unknownZones.has(body.time_zone)) {
+        return Response.json({
+          code: "22023",
+          message: `time zone "${body.time_zone}" not recognized`,
+        }, { status: 400 });
+      }
       const mine = (rows: Row[]) =>
         rows.filter((row) =>
           row.user_id === user &&
@@ -2790,7 +2808,6 @@ Deno.test("a message whose time zone is no IANA name is refused before any count
   const fake = seed();
   for (
     const time_zone of [
-      "Mars/Phobos",
       "KST",
       "+09:00",
       "Asia/Seoul; drop table",
@@ -2813,4 +2830,79 @@ Deno.test("a message whose time zone is no IANA name is refused before any count
     body: { ...ask("안녕"), context: { time_zone: "Asia/Seoul" } },
   });
   assert.equal(valid.status, 200);
+});
+
+Deno.test("a zone Intl does not know is read as absent, the message answered and the study day counted in Asia/Seoul, against a known zone", async () => {
+  for (const unknown of ["Etc/Unknown", "Mars/Phobos"]) {
+    const fake = seed();
+    fake.replies.push(calls_("read_study_record", {}), says("네."));
+    const run = await send(fake, {
+      body: { ...ask("틀린 것만"), context: { time_zone: unknown } },
+    });
+    assert.equal(run.status, 200, unknown);
+    assert.deepEqual(fake.studyCalls.map((call) => call.time_zone), [
+      "Asia/Seoul",
+    ], unknown);
+  }
+
+  // Control: a zone Intl knows is counted in.
+  const known = seed();
+  known.replies.push(calls_("read_study_record", {}), says("네."));
+  await send(known, {
+    body: { ...ask("틀린 것만"), context: { time_zone: "America/Denver" } },
+  });
+  assert.deepEqual(known.studyCalls.map((call) => call.time_zone), [
+    "America/Denver",
+  ]);
+});
+
+Deno.test("a zone Intl knows and Postgres does not is read again in Asia/Seoul, and any other database refusal is not, against a zone both know", async () => {
+  const fake = seed();
+  fake.unknownZones.add("America/Denver");
+  fake.studyDecks.push(studyDeck(ADA, ADA_DECK, "영단어"));
+  fake.replies.push(calls_("read_study_record", {}), says("네."));
+  await send(fake, {
+    body: { ...ask("틀린 것만"), context: { time_zone: "America/Denver" } },
+  });
+  assert.deepEqual(fake.studyCalls.map((call) => call.time_zone), [
+    "America/Denver",
+    "Asia/Seoul",
+  ]);
+  assert.equal(
+    JSON.parse(answered(fake.requests[1]!)).decks[0].name,
+    "영단어",
+  );
+
+  // Control: a zone the database knows is asked once.
+  const own = seed();
+  own.studyDecks.push(studyDeck(ADA, ADA_DECK, "영단어"));
+  own.replies.push(calls_("read_study_record", {}), says("네."));
+  await send(own, {
+    body: { ...ask("틀린 것만"), context: { time_zone: "Europe/Paris" } },
+  });
+  assert.deepEqual(own.studyCalls.map((call) => call.time_zone), [
+    "Europe/Paris",
+  ]);
+
+  // Another refusal of the database, even of the same SQLSTATE, is not a zone it does not know.
+  const broken = seed();
+  broken.brokenZones.add("America/Denver");
+  broken.replies.push(calls_("read_study_record", {}), says("네."));
+  await send(broken, {
+    body: { ...ask("틀린 것만"), context: { time_zone: "America/Denver" } },
+  });
+  assert.deepEqual(broken.studyCalls.map((call) => call.time_zone), [
+    "America/Denver",
+  ]);
+  assert.match(answered(broken.requests[1]!), /did not answer/);
+
+  // Control: no fallback when no zone was named, so Seoul refused is the server not answering.
+  const seoul = seed();
+  seoul.unknownZones.add("Asia/Seoul");
+  seoul.replies.push(calls_("read_study_record", {}), says("네."));
+  await send(seoul);
+  assert.deepEqual(seoul.studyCalls.map((call) => call.time_zone), [
+    "Asia/Seoul",
+  ]);
+  assert.match(answered(seoul.requests[1]!), /did not answer/);
 });
