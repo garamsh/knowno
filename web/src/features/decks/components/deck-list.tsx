@@ -25,9 +25,10 @@ export type DeckRow = {
 /**
  * The 노트 page's notes, as the phone's 노트 tab lists them (ADR 0165): the "노트 검색" field,
  * keeping the decks whose name holds it, ignoring case, while there is any deck; then [notice],
- * and a row per deck that opens it: its tile, its name, "n장 중 m장 익힘" under it and its progress bar under
- * that, or "0장" and no bar for a deck with no card, "공개" when it is published, and what a
- * session over it would study now, in the accent (ADR 0096). The row's name ends with the bar's
+ * and a row per deck that opens it: its tile, its name with "공개" when it is published and a brand
+ * "오늘 n" chip when a session over it would study now (ADR 0096, #845), "n장 중 m장 익힘" under it
+ * and its progress bar under that, running to the row's inner end under the chips, or "0장" and no
+ * bar for a deck with no card. The row's name ends with the bar's
  * mastered, learning and new counts, the one place a screen reader hears the learning cards.
  */
 export function DeckList({ rows, notice }: { rows: DeckRow[]; notice?: ReactNode }) {
@@ -63,11 +64,15 @@ export function DeckList({ rows, notice }: { rows: DeckRow[]; notice?: ReactNode
                 <Link
                   href={`/decks/${encodeURIComponent(deck.id)}`}
                   aria-label={`${deck.name}, 카드 ${String(cards)}장${deck.public ? ", 공개" : ""}${today > 0 ? `, 오늘 ${String(today)}` : ""}${known ? `, ${String(cards)}장 중 ${String(mastered)}장 익힘, 익힘 ${String(mastered)}장, 학습 중 ${String(learning)}장, 새 카드 ${String(cards - mastered - learning)}장` : ""}`}
-                  className="pressable flex min-h-13 items-center gap-3 rounded-row bg-surface py-3 pr-4 pl-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  className="pressable flex min-h-13 items-center gap-3 rounded-row bg-surface py-3 pr-3 pl-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <DeckTile deck={deck} />
                   <span className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="truncate text-body-strong">{deck.name}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-body-strong">{deck.name}</span>
+                      {deck.public && <PublicChip />}
+                      {today > 0 && <Chip tone="brand">{`오늘 ${String(today)}`}</Chip>}
+                    </span>
                     <span className="text-caption text-muted">
                       {known
                         ? `${String(cards)}장 중 ${String(mastered)}장 익힘`
@@ -86,12 +91,6 @@ export function DeckList({ rows, notice }: { rows: DeckRow[]; notice?: ReactNode
                       </span>
                     )}
                   </span>
-                  {deck.public && <PublicChip />}
-                  {today > 0 && (
-                    <span aria-hidden className="shrink-0 text-label text-accent tabular-nums">
-                      {today}
-                    </span>
-                  )}
                 </Link>
               </li>
             );

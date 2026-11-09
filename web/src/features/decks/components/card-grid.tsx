@@ -113,7 +113,7 @@ export function CardGrid({
                         <SideText blocks={row.blocks} />
                       </span>
                       {row.backBlocks.length > 0 && (
-                        <span className="text-secondary break-words text-ink-2">
+                        <span className="break-words">
                           <HatchedBox>
                             <SideText blocks={row.backBlocks} />
                           </HatchedBox>
