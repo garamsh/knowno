@@ -364,20 +364,28 @@ export async function photoUrl(
   return `${deps.url}/storage/v1${signed.signedURL}`;
 }
 
-/** Deletes [userId]'s photos [photoIds] from the bucket; one already gone is no failure. */
-export async function deletePhotos(
-  userId: UserId,
-  photoIds: readonly string[],
+/** Deletes the bucket's objects named [names]; one already gone is no failure. */
+export async function deleteObjects(
+  names: readonly string[],
   deps: SupabaseDeps,
 ): Promise<void> {
-  if (photoIds.length === 0) return;
+  if (names.length === 0) return;
   const response = await storage(deps, `object/${PHOTO_BUCKET}`, "DELETE", {
-    prefixes: photoIds.map((id) => `${userId}/${id}`),
+    prefixes: names,
   });
   await response.body?.cancel();
   if (!response.ok) {
     throw new SupabaseError(`storage answered ${response.status}`);
   }
+}
+
+/** Deletes [userId]'s photos [photoIds] from the bucket; one already gone is no failure. */
+export function deletePhotos(
+  userId: UserId,
+  photoIds: readonly string[],
+  deps: SupabaseDeps,
+): Promise<void> {
+  return deleteObjects(photoIds.map((id) => `${userId}/${id}`), deps);
 }
 
 /**
@@ -413,5 +421,22 @@ export async function unclearedJobs(deps: SupabaseDeps): Promise<Uncleared[]> {
     }
     // A uuid the database holds as an auth user's id.
     return { userId: row.user_id as UserId, jobId: row.job_id };
+  });
+}
+
+/**
+ * The names, `{user id}/{photo id}`, of at most 100 objects of the bucket older than 24 hours that
+ * no job photo names (`public.assistant_unread_photos`).
+ */
+export async function unreadPhotos(deps: SupabaseDeps): Promise<string[]> {
+  const rows = await rpc("assistant_unread_photos", {}, deps);
+  if (!Array.isArray(rows)) {
+    throw new SupabaseError("assistant_unread_photos answered no rows");
+  }
+  return rows.map((row: unknown) => {
+    if (!isRecord(row) || typeof row.name !== "string") {
+      throw new SupabaseError("assistant_unread_photos answered a bad row");
+    }
+    return row.name;
   });
 }

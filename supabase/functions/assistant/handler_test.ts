@@ -17,7 +17,12 @@ import {
   TURN_LIMIT_MS,
 } from "./handler.ts";
 import { READ_PAGE } from "./photo_tools.ts";
-import { READING_PROMPT, STEP_LIMIT_MS, WORK_LIMIT_MS } from "./worker.ts";
+import {
+  ASSISTANT_PHOTO_ESTIMATE_TOKENS,
+  READING_PROMPT,
+  STEP_LIMIT_MS,
+  WORK_LIMIT_MS,
+} from "./worker.ts";
 import { readConfig } from "./config.ts";
 import {
   ADAPTERS,
@@ -81,6 +86,8 @@ type Fake = {
   /** The photo jobs, the photos uploaded as `{user}/{photo}`, the queue and the steps. */
   jobs: Map<string, FakeJob>;
   uploaded: Set<string>;
+  /** The uploaded photos older than 24 hours. */
+  aged: Set<string>;
   queue: { job: string; position: number; visible: boolean }[];
   steps: Row[];
   /** The prefixes Storage was asked to delete, and the times the worker was asked for. */
@@ -183,6 +190,7 @@ function seed(): Fake {
     brokenZones: new Set(),
     jobs: new Map(),
     uploaded: new Set(),
+    aged: new Set(),
     queue: [],
     steps: [],
     deleted: [],
@@ -330,6 +338,18 @@ function jobRpc(fake: Fake, rpc: string, body: Row): Response | null {
           job.status !== "running" && !job.cleared
         ).map(([job_id, job]) => ({ user_id: job.user, job_id })),
       );
+    case "assistant_unread_photos": {
+      const named = new Set(
+        [...fake.jobs.values()].flatMap((job) =>
+          job.photos.map((photo) => `${job.user}/${photo.photo_id}`)
+        ),
+      );
+      return Response.json(
+        [...fake.uploaded].filter((name) =>
+          fake.aged.has(name) && !named.has(name)
+        ).slice(0, 100).map((name) => ({ name })),
+      );
+    }
     case "mark_assistant_job_cleared": {
       const job = fake.jobs.get(String(body.job_id));
       if (job !== undefined && job.status !== "running") job.cleared = true;
@@ -370,6 +390,7 @@ function photoStorage(fake: Fake, url: URL, method: string, body: Row) {
   ) {
     if (fake.storageDown) return Response.json({}, { status: 500 });
     fake.deleted.push(...(body.prefixes as string[]));
+    for (const name of body.prefixes as string[]) fake.uploaded.delete(name);
     return Response.json([]);
   }
   if (url.pathname === "/functions/v1/assistant/jobs/work") {
@@ -2480,7 +2501,7 @@ Deno.test("the worker reads each queued photo with one call of the job's model, 
   assert.equal(refused.requests.length, 0, "a user's token runs no work");
 });
 
-Deno.test("a read that fails is charged its request's estimated input and retried, the photo failed on its third, and a photo Storage lacks fails unread", async () => {
+Deno.test("a read that fails after its request was sent is charged the photo estimate and retried, the photo failed on its third, and a photo Storage lacks fails unread", async () => {
   const fake = seed();
   const id = jobOf(fake, ADA, [photoOf(1)]);
   const down = (): Response => {
@@ -2502,9 +2523,25 @@ Deno.test("a read that fails is charged its request's estimated input and retrie
     "model_error",
     "model_error",
   ]);
-  assert.ok(
-    fake.steps.every((step) => Number(step.input_tokens) > 0),
-    "each failed read is charged its input as an estimate",
+  assert.deepEqual(
+    fake.steps.map((step) => step.input_tokens),
+    [
+      ASSISTANT_PHOTO_ESTIMATE_TOKENS,
+      ASSISTANT_PHOTO_ESTIMATE_TOKENS,
+      ASSISTANT_PHOTO_ESTIMATE_TOKENS,
+    ],
+    "each failed read is charged the photo estimate",
+  );
+
+  const refused = seed();
+  jobOf(refused, ADA, [photoOf(1)]);
+  const rejected = () => Response.json({}, { status: 429 });
+  refused.replies.push(rejected, rejected, rejected);
+  await runWorker(refused);
+  assert.deepEqual(
+    refused.steps.map((step) => [step.outcome, step.input_tokens]),
+    [["model_error", 0], ["model_error", 0], ["model_error", 0]],
+    "control: a request the provider refused is charged nothing",
   );
 
   const lacking = seed();
@@ -2556,6 +2593,46 @@ Deno.test("a job the database ended, by the budget or a third failed read, has i
   running.queue.forEach((message) => message.visible = false);
   await runWorker(running);
   assert.deepEqual(running.deleted, [], "a running job keeps its photos");
+});
+
+Deno.test("the worker deletes the uploads older than 24 hours that no job names, and a failed deletion is logged and tried again", async () => {
+  const fake = seed();
+  const named = photoOf(1);
+  const unread = photoOf(2);
+  const fresh = photoOf(3);
+  jobOf(fake, ADA, [named]);
+  fake.queue.forEach((message) => message.visible = false);
+  for (const photo of [unread, fresh]) fake.uploaded.add(`${ADA}/${photo}`);
+  for (const photo of [named, unread]) fake.aged.add(`${ADA}/${photo}`);
+  fake.storageDown = true;
+  const down = await runWorker(fake);
+  assert.deepEqual(fake.deleted, [], "setup: Storage refused the deletion");
+  assert.ok(
+    down.logs.some((entry) =>
+      entry.route === "work" && entry.outcome === "unavailable"
+    ),
+    "and it reaches a log",
+  );
+  fake.storageDown = false;
+  await runWorker(fake);
+  assert.deepEqual(
+    fake.deleted,
+    [`${ADA}/${unread}`],
+    "only the old upload no job names is deleted, not the one a job names or the fresh one",
+  );
+  assert.ok(fake.uploaded.has(`${ADA}/${named}`));
+  assert.ok(fake.uploaded.has(`${ADA}/${fresh}`));
+});
+
+Deno.test("the photo estimate of the worker is the one the sweep charges", async () => {
+  const sql = await Deno.readTextFile(
+    "supabase/migrations/20261109210000_assistant_photo_charges.sql",
+  );
+  const held = sql.match(
+    /assistant_photo_estimate_tokens\(\) returns integer[\s\S]*?select (\d+);/,
+  );
+  assert.ok(held, "setup: the migration holds the estimate");
+  assert.equal(Number(held[1]), ASSISTANT_PHOTO_ESTIMATE_TOKENS);
 });
 
 Deno.test("a lane that fails on Supabase is logged, and the other work goes on", async () => {
