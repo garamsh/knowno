@@ -217,3 +217,6 @@ insert into private.card_frame_backup (card_id, user_id, front, back, template, 
 
 insert into private.senses_migration_backup (card_id, back, migrated_at) values
   ('5eed0000-0000-4000-8000-0000000000c1', '[{"type":"text","v":1,"payload":{"text":"[명] 사과"}}]', now() - interval '8 days');
+
+insert into private.review_sign_in_attempts (address_key, at) values
+  (encode(sha256('review@example.com'::bytea), 'hex'), now() - interval '2 hours');
