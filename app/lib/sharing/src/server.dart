@@ -35,7 +35,10 @@ abstract interface class SharingServer {
 
   /// Writes [deck]'s visibility to the server as an edit made [at], creating
   /// the deck's row there when sync has not pushed it yet. A [PublicDeck]
-  /// takes [description]; a private one keeps the description it had.
+  /// takes [description] and is asked of the server's screening, which
+  /// answers before this returns; it throws [SharingRejected] when the note
+  /// is not public then, held or refused. A private one keeps the
+  /// description it had.
   Future<void> writeVisibility(
     Deck deck,
     DeckVisibility visibility, {

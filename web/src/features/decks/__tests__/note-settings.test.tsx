@@ -8,6 +8,7 @@ import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 
 import { cardRow, deckRow, uuidOf } from "@/testing/library";
 import { testUser } from "@/testing/mocks/handlers";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
+import { FakePublishNote } from "@/testing/mocks/publish-note";
 import { server } from "@/testing/mocks/server";
 import { FakeStorage } from "@/testing/mocks/storage";
 import { setRequestCookies } from "@/testing/next-headers";
@@ -33,10 +34,12 @@ beforeAll(() => {
 });
 let db: FakePostgrest;
 let storage: FakeStorage;
+let publishNote: FakePublishNote;
 beforeEach(async () => {
   db = new FakePostgrest();
   storage = new FakeStorage(db);
-  server.use(...db.handlers, ...storage.handlers);
+  publishNote = new FakePublishNote(db);
+  server.use(...db.handlers, ...storage.handlers, ...publishNote.handlers);
   setRequestCookies(await signedInCookies());
   testRouter.push.mockClear();
   testRouter.refresh.mockClear();
@@ -238,6 +241,23 @@ describe("노트 설정", () => {
     await userEvent.click(sheet.getByRole("button", { name: "공개" }));
     expect(await screen.findByRole("status")).toHaveTextContent("노트를 공개했어요");
     expect(db.rows.profiles).toEqual([]);
+  });
+
+  it("says a note publish-note has not made public is not yet, keeps the sheet open and the snack bar silent, against one it made public", async () => {
+    db.seed("decks", deckRow("deck", "French"));
+    publishNote.state = "checking";
+    await choose("노트 공개", { displayName: { name: "가람" } });
+    const sheet = within(screen.getByRole("dialog", { name: '"French" 공개' }));
+    await userEvent.click(sheet.getByRole("checkbox"));
+    await userEvent.click(sheet.getByRole("button", { name: "공개" }));
+    expect(await sheet.findByText("노트를 확인하고 있어요. 확인이 끝나면 공개돼요.")).toBeVisible();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(db.rows.decks[0]).toMatchObject({ visibility: "private" });
+
+    publishNote.state = "public";
+    await userEvent.click(sheet.getByRole("button", { name: "공개" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("노트를 공개했어요");
+    expect(db.rows.decks[0]).toMatchObject({ visibility: "public" });
   });
 
   it("makes a published note private at once from 비공개로 전환, saying so", async () => {

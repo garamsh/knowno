@@ -27,6 +27,7 @@ import {
 import { fetchPhoto, MAX_PHOTO_BYTES, type PhotoDeps } from "./photo.ts";
 import {
   allCards,
+  anyChecking,
   cardKeys,
   cardMarkupEnabled,
   deckCards,
@@ -774,8 +775,40 @@ function integer(
 const NOT_FOUND =
   "No deck of the signed-in user has that deck_id, or it was deleted. Call list_decks for the ids of the user's decks.";
 
+/** The tools whose write to a public note's text sets it to be checked again (ADR 0238). */
+const WRITES_TEXT = [
+  "add_cards",
+  "update_cards",
+  "delete_cards",
+  "update_deck",
+];
+
+const CHECKING =
+  "This note is public, so it is hidden while it is checked again, which takes a minute or two; tell the user it will be shown again once it passes.";
+
 /** Runs the tool [name] with [args] for the caller behind [store]. */
 export async function callTool(
+  name: string,
+  args: unknown,
+  store: Store,
+  deps: ToolDeps,
+): Promise<ToolResult> {
+  const outcome = await runTool(name, args, store, deps);
+  if (outcome.kind !== "result" || !WRITES_TEXT.includes(name)) return outcome;
+  const input = isRecord(args) ? args : {};
+  const deckIds = [input.deck_id].flatMap((id) => idOf(id) ?? []);
+  const cardIds = [
+    ...(Array.isArray(input.card_ids) ? input.card_ids : []),
+    ...(Array.isArray(input.cards)
+      ? input.cards.map((card) => isRecord(card) ? card.id : null)
+      : []),
+  ].flatMap((id) => idOf(id) ?? []);
+  return await anyChecking(store, deckIds, cardIds)
+    ? result({ ...outcome.value, notice: CHECKING })
+    : outcome;
+}
+
+async function runTool(
   name: string,
   args: unknown,
   store: Store,

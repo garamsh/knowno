@@ -81,25 +81,45 @@ final class SupabaseSyncServer implements SyncServer {
   });
 
   @override
-  Future<void> pushDecks(UserId owner, List<DeckRow> rows) => _request(
-    () => _client.from('decks').upsert([
-      for (final row in rows)
-        {
-          'id': row.id,
-          'user_id': owner.value,
-          'name': row.name,
-          'visibility': row.visibility,
-          'published_at': _timeOrNull(row.publishedAt),
-          'description': row.description,
-          'icon': row.icon,
-          'color': row.color,
-          'image_media_id': row.imageMediaId,
-          'created_at': _time(row.createdAt),
-          'updated_at': _time(row.updatedAt),
-          'deleted_at': _timeOrNull(row.deletedAt),
-        },
-    ]),
-  );
+  Future<void> pushDecks(UserId owner, List<DeckRow> rows) =>
+      _request(() async {
+        // The server refuses a client write that makes a deck public: only
+        // `publish-note` does. A row that says public is pushed without its
+        // visibility and publication time, so the server keeps what it has, or
+        // makes a never-synced deck private; the pull that follows brings the
+        // server's state back. The two groups have the same keys inside, as a
+        // bulk upsert needs.
+        final private = [
+          for (final row in rows)
+            if (row.visibility == 'private') row,
+        ];
+        final public = [
+          for (final row in rows)
+            if (row.visibility != 'private') row,
+        ];
+        for (final (group, keepsState) in [(private, false), (public, true)]) {
+          if (group.isEmpty) continue;
+          await _client.from('decks').upsert([
+            for (final row in group)
+              {
+                'id': row.id,
+                'user_id': owner.value,
+                'name': row.name,
+                if (!keepsState) ...{
+                  'visibility': row.visibility,
+                  'published_at': _timeOrNull(row.publishedAt),
+                },
+                'description': row.description,
+                'icon': row.icon,
+                'color': row.color,
+                'image_media_id': row.imageMediaId,
+                'created_at': _time(row.createdAt),
+                'updated_at': _time(row.updatedAt),
+                'deleted_at': _timeOrNull(row.deletedAt),
+              },
+          ]);
+        }
+      });
 
   @override
   Future<void> pushCards(UserId owner, List<CardRow> rows) => _request(

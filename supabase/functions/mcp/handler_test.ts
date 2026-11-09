@@ -244,6 +244,15 @@ function matches(row: Row, params: URLSearchParams, prefix = ""): boolean {
   return true;
 }
 
+/** A client's write to a public note's text hides it until it is checked again (ADR 0238). */
+function checkAgain(fake: Fake, deckIds: unknown[]) {
+  for (const deck of fake.decks) {
+    if (deck.publication === "public" && deckIds.includes(deck.id)) {
+      deck.publication = "checking";
+    }
+  }
+}
+
 /** PostgREST over [fake], with row-level security's rules for [user]. */
 function rest(
   fake: Fake,
@@ -292,6 +301,7 @@ function rest(
       ) return Response.json({ code: "23503" }, { status: 409 });
     }
     rows.push(...inserted.map((row) => ({ deleted_at: null, ...row })));
+    if (table === "cards") checkAgain(fake, inserted.map((row) => row.deck_id));
     return new Response(null, { status: 201 });
   }
   if (method === "PATCH") {
@@ -302,6 +312,10 @@ function rest(
     for (const row of changed) {
       Object.assign(row, body as Row, { revision: ++fake.revision });
     }
+    checkAgain(
+      fake,
+      changed.map((row) => table === "decks" ? row.id : row.deck_id),
+    );
     return Response.json(changed.map((row) => ({ id: row.id })));
   }
   if (method === "DELETE") {
@@ -2491,4 +2505,56 @@ Deno.test("update_cards writes a card's text as version 3 while the switch is on
   // The same stored version 2 text, read while on, is shown escaped so that update_cards keeps its meaning.
   off.markup = true;
   assert.equal(await shown(off), "2\\*3\\*4\n\\- a");
+});
+
+const makePublic = (fake: Fake) => {
+  Object.assign(deckRow(fake, ADA_DECK), {
+    visibility: "public",
+    publication: "public",
+  });
+  return fake;
+};
+
+Deno.test("a write to a public note's text says it is checked again, whichever tool made it", async () => {
+  const writes: [string, Record<string, unknown>][] = [
+    ["add_cards", {
+      deck_id: ADA_DECK,
+      cards: [{ front: "cat", back: "고양이" }],
+    }],
+    ["delete_cards", { card_ids: [BANANA] }],
+    ["update_deck", { deck_id: ADA_DECK, name: "English words" }],
+  ];
+  for (const [name, args] of writes) {
+    const { result } = await call(name, args, makePublic(seed()));
+    assert.match(
+      String(result.structuredContent?.notice),
+      /checked again/,
+      name,
+    );
+  }
+});
+
+Deno.test("update_cards says it too, finding the note by the card", async () => {
+  const fake = withFreeCard();
+  const listed = await call("list_cards", { deck_id: ADA_OTHER_DECK }, fake);
+  const read = (listed.result.structuredContent?.cards as {
+    id: string;
+    blocks: Row[];
+  }[]).find((card) => card.id === FREE_CARD)!;
+  Object.assign(deckRow(fake, ADA_OTHER_DECK), { publication: "public" });
+  const { result } = await call(
+    "update_cards",
+    { cards: [{ id: FREE_CARD, blocks: read.blocks }] },
+    fake,
+  );
+  assert.equal(result.isError, undefined);
+  assert.match(String(result.structuredContent?.notice), /checked again/);
+});
+
+Deno.test("a write to a private note says nothing of a check", async () => {
+  const { result } = await call("update_deck", {
+    deck_id: ADA_DECK,
+    name: "English words",
+  });
+  assert.equal(result.structuredContent?.notice, undefined);
 });

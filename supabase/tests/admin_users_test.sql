@@ -195,11 +195,11 @@ select results_eq(
 reset role;
 select pg_temp.sign_in('c');
 select throws_ok(
-  $$update public.decks set visibility = 'public', published_at = now() where id = 'd0000000-0000-4000-8000-0000000000c1'$$,
-  '42501', null, 'its owner cannot publish a removed deck again');
+  $$select public.request_deck_publication('d0000000-0000-4000-8000-0000000000c1')$$,
+  '42501', 'removed from sharing', 'its owner cannot publish a removed deck again');
 select results_eq(
-  $$update public.decks set visibility = 'public', published_at = now() where id = 'd0000000-0000-4000-8000-0000000000c2' returning visibility$$,
-  $$values ('public')$$, 'control: the owner publishes another deck');
+  $$select public.request_deck_publication('d0000000-0000-4000-8000-0000000000c2')$$,
+  $$values ('checking')$$, 'control: the owner asks to publish another deck');
 reset role;
 
 -- The audit log, and what no admin function may write.

@@ -3,9 +3,12 @@
 @Timeout.none
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:knowno/account/account.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/sharing/sharing.dart';
@@ -21,6 +24,7 @@ import 'fakes.dart';
 /// environment it runs this file in.
 const _urlVariable = 'KNOWNO_SYNC_TEST_URL';
 const _keyVariable = 'KNOWNO_SYNC_TEST_KEY';
+const _dbVariable = 'KNOWNO_SYNC_TEST_DB_CONTAINER';
 
 /// One signed-in user: a device that syncs, and sharing over the same
 /// session.
@@ -38,9 +42,10 @@ class _User {
 void main() {
   final url = Platform.environment[_urlVariable];
   final key = Platform.environment[_keyVariable];
-  final skip = url == null || key == null
+  final db = Platform.environment[_dbVariable];
+  final skip = url == null || key == null || db == null
       ? 'needs the local Supabase stack that scripts/test-sync.ts starts, '
-            'which sets $_urlVariable and $_keyVariable'
+            'which sets $_urlVariable, $_keyVariable and $_dbVariable'
       : null;
 
   late Scheduler scheduler;
@@ -73,12 +78,71 @@ void main() {
     ];
   }
 
+  /// Runs [sql] as the database's owner, as the stack's other tests do.
+  Future<void> psql(String sql) async {
+    final result = await Process.run('docker', [
+      'exec',
+      db!,
+      'psql',
+      '-U',
+      'postgres',
+      '-d',
+      'postgres',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-Atc',
+      sql,
+    ]);
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+  }
+
+  /// `publish-note` as the stack can stand it in, for the stack runs no Edge
+  /// runtime: the owner's request, made with the owner's own session as the
+  /// function makes it, then the screening's pass, which lifts the hold on a
+  /// note that is checking and has none, then the owner's own state, in the
+  /// function's reply shape and statuses (`supabase/functions/publish-note/`).
+  FunctionsClient publishNote(SupabaseClient client) => FunctionsClient(
+    'https://publish-note.test/functions/v1',
+    {},
+    httpClient: MockClient((request) async {
+      http.Response reply(int status, Object body) => http.Response(
+        jsonEncode(body),
+        status,
+        headers: {'content-type': 'application/json'},
+        request: request,
+      );
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final deck = body['deck_id'] as String;
+      try {
+        final state = await client.rpc<Object?>(
+          'request_deck_publication',
+          params: {'deck_id': deck, 'description': body['description']},
+        );
+        if (state == 'checking') {
+          await psql(
+            "update public.decks set hidden = false where id = '$deck'",
+          );
+        }
+        final mine = await client.rpc<Object?>(
+          'my_deck_screening',
+          params: {'deck_id': deck},
+        );
+        return reply(200, mine as Object);
+      } on PostgrestException catch (error) {
+        return reply(error.code == 'P0002' ? 404 : 403, {'error': 'no'});
+      }
+    }),
+  );
+
   /// A new account, signed up and signed in on its own client.
   Future<_User> signUp(String name) async {
     const options = AuthClientOptions(authFlowType: AuthFlowType.implicit);
     final client = SupabaseClient(url!, key!, authOptions: options);
     final email = '$name-${DateTime.now().microsecondsSinceEpoch}@example.com';
-    final server = SupabaseSharingServer(client);
+    final server = SupabaseSharingServer(
+      client,
+      functions: publishNote(client),
+    );
     // Signing up is bounded as each sharing request is.
     await signUpWithinBound(client, email, 'sharing-password', server.timeout);
     expect(client.auth.currentUser?.email, email);
@@ -260,5 +324,67 @@ void main() {
       throwsA(isA<SharingRejected>()),
     );
     expect(await listOurs(ada), hasLength(1));
+  }, skip: skip);
+
+  test('a note held for an admin is not left public on the device', () async {
+    final bea = await signUp('bea');
+    final ada = await signUp('ada');
+    final deck = await bea.device.deck.createDeck('Spanish');
+    await bea.sync();
+    // A standing hold, as an admin's keep-hidden leaves.
+    await psql(
+      'insert into private.deck_screening (deck_id, hold) '
+      "values ('${deck.id.value}', 'admin')",
+    );
+
+    await expectLater(
+      bea.sharing.makePublic(deck.id, description: 'about'),
+      throwsA(
+        isA<SharingRejected>().having(
+          (failure) => failure.cause.toString(),
+          'cause',
+          contains('held'),
+        ),
+      ),
+    );
+
+    expect(
+      (await bea.device.deck.getDeck(deck.id)).visibility,
+      isA<PrivateDeck>(),
+    );
+    // Control: the server did take the request, and still shows nobody the note.
+    expect(await listOurs(ada), isEmpty);
+  }, skip: skip);
+
+  test('a deck public on the device and never synced is created private, '
+      'and the push does not retry', () async {
+    final bea = await signUp('bea');
+    final deck = await bea.device.deck.createDeck('Spanish');
+    await bea.device.deck.setVisibility(
+      deck.id,
+      PublicDeck(bea.device.now),
+      description: 'about',
+    );
+    // Control: the server refuses this very row written as a visibility.
+    await expectLater(
+      bea.client.from('decks').upsert({
+        'id': deck.id.value,
+        'name': 'Spanish',
+        'visibility': 'public',
+      }),
+      throwsA(isA<PostgrestException>().having((e) => e.code, 'code', '42501')),
+    );
+
+    await bea.sync();
+    await bea.sync();
+
+    expect(await bea.device.store.hasUnsynced(), isFalse);
+    final other = Device('bea2', SupabaseSyncServer(bea.client), scheduler);
+    addTearDown(other.close);
+    await other.sync(bea.id);
+    final synced = (await other.deck.watchDecks().first).single;
+    expect(synced.id, deck.id);
+    expect(synced.visibility, isA<PrivateDeck>());
+    expect(await listOurs(bea), isEmpty);
   }, skip: skip);
 }

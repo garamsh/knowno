@@ -4,14 +4,15 @@ import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
+import { database, runSql } from "./database";
 import { untilReacted } from "./until-reacted";
 
 // The local stack scripts/test-web.ts starts, whose URL and publishable key the app was built with.
 const url = process.env.E2E_SUPABASE_URL;
 const key = process.env.E2E_SUPABASE_KEY;
 test.skip(
-  !url || !key,
-  "needs a throwaway local Supabase stack, which sets E2E_SUPABASE_URL and E2E_SUPABASE_KEY",
+  !url || !key || !database,
+  "needs a throwaway local Supabase stack, which sets E2E_SUPABASE_URL, E2E_SUPABASE_KEY and E2E_DB_CONTAINER",
 );
 
 /** Saves [page] at 390 and 1280 px in both themes when E2E_SCREENSHOTS names a directory. */
@@ -162,10 +163,37 @@ test("renames, decorates, publishes, makes private and deletes a note as the use
   await publish.getByRole("textbox", { name: "설명 (선택)" }).fill("고양이와 개");
   await publish.getByRole("checkbox").check();
   await capture(page, "publish");
+  // The stack runs no Edge runtime, so publish-note is substituted at the Server Action: the
+  // action reaches the built app and finds no function, so it answers a failure and writes no
+  // visibility, which the stand-in reads back; then the database makes the note public as the
+  // function's request and screening would, and the action's answer is replaced by its success.
+  let publishedAs: unknown;
+  await page.route("**/decks/**", async (route) => {
+    const request = route.request();
+    if (
+      request.method() !== "POST" ||
+      !request.headers()["next-action"] ||
+      !request.postData()?.includes("고양이와 개")
+    ) {
+      await route.fallback();
+      return;
+    }
+    const response = await route.fetch();
+    const body = await response.text();
+    expect(body).toContain('"saved":false');
+    publishedAs = await stored();
+    runSql(
+      `update public.decks set visibility = 'public', published_at = now(), description = '고양이와 개' where id = '${deckId}'`,
+    );
+    await route.fulfill({ response, body: body.replace('"saved":false', '"saved":true') });
+  });
   await publish.getByRole("button", { name: "공개", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("노트를 공개했어요");
-  await expect(page.getByText("0장 익힘 · 공개", { exact: true })).toBeVisible();
+  expect(publishedAs).toMatchObject({ visibility: "private" });
   expect(await stored()).toMatchObject({ visibility: "public", description: "고양이와 개" });
+  await page.unroute("**/decks/**");
+  await page.reload();
+  await expect(page.getByText("0장 익힘 · 공개", { exact: true })).toBeVisible();
   const profile = await db.from("profiles").select("display_name").eq("user_id", userId).single();
   expect(profile.data).toEqual({ display_name: "가람" });
 

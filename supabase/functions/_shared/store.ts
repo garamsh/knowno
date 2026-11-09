@@ -158,6 +158,35 @@ export async function readDeck(
     : { id: text(row, "id"), name: text(row, "name") };
 }
 
+/**
+ * Whether any of the caller's live decks among [deckIds], and those holding the cards [cardIds],
+ * is `checking`: a public note whose edit is being checked again (ADR 0238).
+ */
+export async function anyChecking(
+  store: Store,
+  deckIds: readonly string[],
+  cardIds: readonly string[],
+): Promise<boolean> {
+  const decks = new Set(deckIds);
+  if (cardIds.length > 0) {
+    const held = await rows(
+      store,
+      `cards?select=deck_id&id=in.(${
+        cardIds.join(",")
+      })&user_id=eq.${store.userId}`,
+    );
+    for (const row of held) decks.add(text(row, "deck_id"));
+  }
+  if (decks.size === 0) return false;
+  const found = await rows(
+    store,
+    `decks?select=id&publication=eq.checking&id=in.(${[...decks].join(",")})&${
+      own(store)
+    }`,
+  );
+  return found.length > 0;
+}
+
 /** The card-form skills served to the caller, as `public.card_form_skills` answers them. */
 export async function cardFormRows(
   store: Store,

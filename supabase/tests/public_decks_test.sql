@@ -90,11 +90,11 @@ select results_eq(
 
 set local role authenticated;
 set local request.jwt.claims to '{"sub":"00000000-0000-4000-8000-00000000000a","role":"authenticated"}';
-update public.decks set name = 'Renamed by A' where id = 'd0000000-0000-4000-8000-00000000007a';
+update public.decks set color = 'teal' where id = 'd0000000-0000-4000-8000-00000000007a';
 reset role;
 select results_eq(
-  $$select name from public.decks where id = 'd0000000-0000-4000-8000-00000000007a'$$,
-  $$values ('Renamed by A')$$,
+  $$select color from public.decks where id = 'd0000000-0000-4000-8000-00000000007a'$$,
+  $$values ('teal')$$,
   'the owner''s update of the same deck takes effect');
 
 -- The listing, as B.

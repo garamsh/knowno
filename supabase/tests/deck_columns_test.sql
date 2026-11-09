@@ -11,9 +11,9 @@ set local role authenticated;
 set local request.jwt.claims to '{"sub":"00000000-0000-4000-8000-00000000000a","role":"authenticated"}';
 
 select lives_ok(
-  $$insert into public.decks (id, name, created_at, updated_at, visibility, published_at, description)
-    values ('d0000000-0000-4000-8000-00000000000a', 'French', now(), now(), 'public', now(), 'Verbs')$$,
-  'the owner inserts a public deck with its description');
+  $$insert into public.decks (id, name, created_at, updated_at, description)
+    values ('d0000000-0000-4000-8000-00000000000a', 'French', now(), now(), 'Verbs')$$,
+  'the owner inserts a deck with its description');
 select throws_ok(
   $$insert into public.decks (id, name, created_at, updated_at, hidden)
     values ('d0000000-0000-4000-8000-000000000004', 'Hidden', now(), now(), false)$$,
@@ -30,8 +30,8 @@ select lives_ok(
     name = 'Renamed', updated_at = now() where id = 'd0000000-0000-4000-8000-00000000000a'$$,
   'the owner updates the deck''s writable columns');
 select throws_ok(
-  $$update public.decks set visibility = 'public', published_at = null where id = 'd0000000-0000-4000-8000-00000000000a'$$,
-  '23514', null, 'a public deck without a publish time is refused');
+  $$update public.decks set visibility = 'public', published_at = now() where id = 'd0000000-0000-4000-8000-00000000000a'$$,
+  '42501', 'publication_requires_screening', 'the owner cannot make a deck public with an update (ADR 0238)');
 select throws_ok(
   $$update public.decks set description = repeat('x', 301) where id = 'd0000000-0000-4000-8000-00000000000a'$$,
   '23514', null, 'a description over 300 characters is refused');

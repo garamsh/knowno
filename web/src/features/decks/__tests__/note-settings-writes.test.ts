@@ -1,10 +1,13 @@
 import { createHash } from "node:crypto";
 
+import { http, HttpResponse } from "msw";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cardRow, deckRow, uuidOf } from "@/testing/library";
-import { otherUser, testUser } from "@/testing/mocks/handlers";
+import { otherUser, supabaseUrl, testAccessToken, testUser } from "@/testing/mocks/handlers";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
+import { FakePublishNote } from "@/testing/mocks/publish-note";
 import { server } from "@/testing/mocks/server";
 import { FakeStorage } from "@/testing/mocks/storage";
 import { setRequestCookies } from "@/testing/next-headers";
@@ -22,10 +25,12 @@ vi.spyOn(console, "error").mockImplementation(() => undefined);
 
 let db: FakePostgrest;
 let storage: FakeStorage;
+let publishNote: FakePublishNote;
 beforeEach(async () => {
   db = new FakePostgrest();
   storage = new FakeStorage(db);
-  server.use(...db.handlers, ...storage.handlers);
+  publishNote = new FakePublishNote(db);
+  server.use(...db.handlers, ...storage.handlers, ...publishNote.handlers);
   setRequestCookies(await signedInCookies());
 });
 
@@ -231,14 +236,23 @@ describe("노트 꾸미기", () => {
 });
 
 describe("노트 공개", () => {
-  it("publishes with a description and the display name asked for, and makes the note private again keeping the description", async () => {
+  it("publishes through publish-note with the trimmed description and the display name asked for, writing no deck row, and makes the note private again keeping the description", async () => {
     db.seed("decks", deckRow("deck", "Deck"));
     expect(await publishDeck(uuidOf("deck"), "  토익 단어  ", " 가람 ")).toEqual({ saved: true });
     expect(db.rows.profiles).toEqual([
       expect.objectContaining({ user_id: testUser.id, display_name: "가람" }),
     ]);
+    expect(publishNote.calls).toEqual([
+      {
+        authorization: `Bearer ${testAccessToken}`,
+        body: { deck_id: uuidOf("deck"), description: "토익 단어" },
+      },
+    ]);
+    // The only write the web made is the profile's: no request wrote the deck.
+    expect(
+      db.requests.filter((request) => request.endsWith(" decks") && request !== "GET decks"),
+    ).toEqual([]);
     expect(db.rows.decks[0]).toMatchObject({ visibility: "public", description: "토익 단어" });
-    expect(Number.isNaN(Date.parse(String(db.rows.decks[0]?.published_at)))).toBe(false);
 
     expect(await unpublishDeck(uuidOf("deck"))).toEqual({ saved: true });
     expect(db.rows.decks[0]).toMatchObject({
@@ -248,7 +262,45 @@ describe("노트 공개", () => {
     });
   });
 
-  it("refuses a display name outside 2 to 20 characters and a description over 300, against both at their bounds", async () => {
+  it("saves only a public answer: checking, held and refused say so and leave the note private, against the same publish answered public", async () => {
+    db.seed("decks", deckRow("deck", "Deck"));
+    const said = new Set<unknown>();
+    for (const state of ["checking", "held", "refused"]) {
+      publishNote.state = state;
+      const result = await publishDeck(uuidOf("deck"), "");
+      expect(result).toMatchObject({ saved: false });
+      said.add("message" in result ? result.message : null);
+      expect(db.rows.decks[0]).toMatchObject({ visibility: "private" });
+    }
+    expect(said.size).toBe(3);
+    publishNote.state = "public";
+    expect(await publishDeck(uuidOf("deck"), "")).toEqual({ saved: true });
+    expect(db.rows.decks[0]).toMatchObject({ visibility: "public" });
+  });
+
+  it("reports a failure for an unreachable function, a 502, a 401, a 403, a 404 and an answer with no state, leaving the note private", async () => {
+    db.seed("decks", deckRow("deck", "Deck"));
+    publishNote.unreachable = true;
+    expect(await publishDeck(uuidOf("deck"), "")).toMatchObject({ saved: false });
+    publishNote.unreachable = false;
+    for (const [status, message] of [
+      [401, "다시 로그인해 주세요"],
+      [403, "이 노트는 공개할 수 없어요."],
+      [404, "이 노트는 삭제됐어요. 다른 노트를 골라 주세요."],
+      [502, "지금은 처리할 수 없어요. 잠시 후 다시 시도해 주세요."],
+    ] as const) {
+      publishNote.status = status;
+      expect(await publishDeck(uuidOf("deck"), "")).toEqual({ saved: false, message });
+    }
+    publishNote.status = undefined;
+    server.use(
+      http.post(`${supabaseUrl}/functions/v1/publish-note`, () => HttpResponse.json({ ok: true })),
+    );
+    expect(await publishDeck(uuidOf("deck"), "")).toMatchObject({ saved: false });
+    expect(db.rows.decks[0]).toMatchObject({ visibility: "private" });
+  });
+
+  it("refuses a display name outside 2 to 20 characters and a description over 300 before any request, against both at their bounds", async () => {
     db.seed("decks", deckRow("deck", "Deck"));
     for (const [description, name] of [
       ["", "가"],
@@ -258,19 +310,23 @@ describe("노트 공개", () => {
       expect(await publishDeck(uuidOf("deck"), description, name)).toMatchObject({ saved: false });
     expect(db.rows.decks[0]).toMatchObject({ visibility: "private" });
     expect(db.rows.profiles).toEqual([]);
+    expect(publishNote.calls).toEqual([]);
     expect(await publishDeck(uuidOf("deck"), "가".repeat(300), "가".repeat(20))).toEqual({
       saved: true,
     });
     expect(db.rows.decks[0]).toMatchObject({ visibility: "public" });
   });
 
-  it("publishes without writing a name when none is given, and refuses a deleted note", async () => {
+  it("publishes without writing a name when none is given, sending no description for an empty one, and refuses a deleted note", async () => {
     db.seed("decks", deckRow("deck", "Deck"), deckRow("gone", "Gone", true));
     expect(await publishDeck(uuidOf("gone"), "")).toMatchObject({ saved: false });
     expect(await publishDeck(uuidOf("deck"), "")).toEqual({ saved: true });
     expect(db.rows.profiles).toEqual([]);
     expect(db.rows.decks.map((row) => row.visibility)).toEqual(["public", "private"]);
-    expect(db.rows.decks[0]).toMatchObject({ description: null });
+    expect(publishNote.calls.map((call) => call.body)).toEqual([
+      { deck_id: uuidOf("gone"), description: null },
+      { deck_id: uuidOf("deck"), description: null },
+    ]);
   });
 });
 
