@@ -59,6 +59,15 @@ import { kick, work } from "./worker.ts";
 
 /** The most model calls one message makes, tool calls and pauses included. */
 export const MAX_MODEL_CALLS = 8;
+/** Sent as text before the text of a call that follows an interim one, for a client that keeps appending. */
+export const PARAGRAPH_BREAK = "\n\n";
+/** What the model is told about speaking, after the card forms index; code-owned, so no prompt version. */
+export const REPLY_RULES = `# Replies
+
+You send one reply a turn. What you write before a tool call is a passing status line the user sees for a moment and then loses, so keep it to a short remark.
+Give the reply in the last step of the turn, in Markdown, which the chat renders.
+Never name a tool, a field or an error's text to the user. When something failed, say what happened in the user's terms and what you will do or what they can do.
+`;
 /** How long one message may take, under the platform's 150 s wall clock on every plan. */
 export const TURN_LIMIT_MS = 120_000;
 /** The most turns a request carries; the client keeps the rest of the chat. */
@@ -849,7 +858,7 @@ async function converse(
       () => "",
       "Every card of a proposal group takes the group's form.",
     )
-  }`;
+  }\n${REPLY_RULES}`;
   if (incoming.deckId !== null) {
     const deck = await readDeck(store, incoming.deckId).catch((error) => {
       if (error instanceof SupabaseError) return null;
@@ -863,6 +872,9 @@ async function converse(
   const messages: unknown[] = adapter.history(incoming.turns);
   const proposals = [...incoming.proposals];
   const cited = new Set<string>();
+  // Whether a call's text was marked interim and no text has followed it yet: the next text
+  // is sent after a paragraph break, for a client that does not read `interim`.
+  let separate = false;
   for (;;) {
     if (client.aborted) return { outcome: "cancelled", usage };
     if (usage.modelCalls >= MAX_MODEL_CALLS) {
@@ -903,10 +915,17 @@ async function converse(
       return failed();
     }
     let result;
+    let streamed = false;
     try {
       result = await adapter.read(sseEvents(response.body), (event) => {
-        if (event.kind === "text") send("text", { delta: event.delta });
-        else if (!cited.has(event.url)) {
+        if (event.kind === "text") {
+          if (separate && event.delta !== "") {
+            send("text", { delta: PARAGRAPH_BREAK });
+            separate = false;
+          }
+          if (event.delta !== "") streamed = true;
+          send("text", { delta: event.delta });
+        } else if (!cited.has(event.url)) {
           cited.add(event.url);
           send("citation", { url: event.url, title: event.title });
         }
@@ -929,6 +948,18 @@ async function converse(
     }
     const results: ToolResult[] = [];
     let asked: Choice | null = null;
+    // The text of a call that ends in tool calls the function runs is interim; a call that
+    // asks a choice ends the turn, so its text is the reply. A question the tool refuses does
+    // not end it, which is known only once the tools have run.
+    const marksFirst = !result.toolCalls.some((call) =>
+      call.name === "ask_choice"
+    );
+    const markInterim = () => {
+      if (!streamed) return;
+      send("interim", {});
+      separate = true;
+    };
+    if (marksFirst) markInterim();
     for (const call of result.toolCalls) {
       let ran;
       try {
@@ -974,6 +1005,7 @@ async function converse(
     }
     messages.push(...adapter.toolResults(results));
     if (asked !== null) return { outcome: "choice", usage };
+    if (!marksFirst) markInterim();
   }
 }
 
