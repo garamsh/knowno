@@ -9,56 +9,55 @@ const rawUrl = process.env.E2E_MAIL_URL;
 if (!rawUrl) throw new Error("E2E_MAIL_URL is unset — the web's stack starts Mailpit and sets it");
 const mailUrl: string = rawUrl;
 
-/**
- * Polls Mailpit's search endpoint until a message for [address] arrives, then returns its
- * Subject and id. Reads the documented API for Mailpit v1.19+: GET /api/v1/search with
- * query `to:"<address>"` (search-filters.md, axllent/mailpit). The response shape is
- * validated: MessagesSummary → MessagesMessage[] → Subject (capitalised) and Id.
- * runtime-safety.md §Trust boundaries — the JSON is the trust boundary it is, not casts.
- */
-async function latestMessage(address: string) {
-  const query = `to:"${address}"`;
-  // Poll until a message for this address exists (the condition we depend on).
-  await expect
-    .poll(
-      async () => {
-        const response = await fetch(`${mailUrl}/api/v1/search?query=${encodeURIComponent(query)}`);
-        expect(response.status).toBe(200);
-        const body = (await response.json()) as Record<string, unknown>;
-        const raw = body.messages as Array<unknown>;
-        return raw.length > 0;
-      },
-      { timeout: 10_000, message: "Mailpit has a message for this address" },
-    )
-    .toBe(true);
-
-  // The message is there — read it and validate the shape.
-  const response = await fetch(`${mailUrl}/api/v1/search?query=${encodeURIComponent(query)}`);
-  expect(response.status).toBe(200);
-  const body = (await response.json()) as Record<string, unknown>;
-  const msgs = body.messages as Array<Record<string, unknown>>;
-  expect(msgs.length).toBeGreaterThan(0);
-  const first: Record<string, unknown> = msgs[0]!;
-  expect(typeof first.Subject).toBe("string");
-  expect(typeof first.Id).toBe("string");
-
-  return { subject: first.Subject as string, id: first.Id as string };
+/** True for a non-null, non-array object, so its keys can be read as `unknown`. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
- * Extracts the 6-digit code from a subject like "알아몰라 로그인 코드 NNNNNN", or fails.
+ * The 6-digit code in the Subject of the newest message in a Mailpit search response, or `null`
+ * when the response has no message, the Subject is not a string, or it carries no code. The
+ * shape is Mailpit v1.31.3's `MessagesSummary` (`messages`, each a `MessageSummary` with
+ * `Subject`; `server/apiv1/messages.go` and `internal/storage/structs.go` at that tag). The
+ * newest comes first: `/api/v1/search` sorts by received date, descending.
  */
-function extractCode(subject: string): string {
-  const match = subject.match(/코드\s+(\d{6})/);
-  expect(match, `subject does not carry a 6-digit code: ${subject}`).not.toBeNull();
-  return match![1]!;
+function codeInSearch(body: unknown): string | null {
+  if (!isRecord(body) || !Array.isArray(body.messages)) return null;
+  const newest: unknown = body.messages[0];
+  if (!isRecord(newest) || typeof newest.Subject !== "string") return null;
+  const match = /코드\s+(\d{6})/.exec(newest.Subject);
+  const code = match?.[1];
+  return code === undefined ? null : code;
+}
+
+/**
+ * Polls Mailpit's search endpoint, `GET /api/v1/search?query=to:"<address>"` (Mailpit's search
+ * filters), until a message for [address] carries a code, and returns that code. The value the
+ * poll accepts is the value returned.
+ */
+async function codeSentTo(address: string): Promise<string> {
+  const query = `to:"${address}"`;
+  const found: { code: string | null } = { code: null };
+  await expect(async () => {
+    const response = await fetch(`${mailUrl}/api/v1/search?query=${encodeURIComponent(query)}`);
+    expect(response.status).toBe(200);
+    found.code = codeInSearch(await response.json());
+    expect(found.code, `no message for ${address} carries a 6-digit code yet`).not.toBeNull();
+  }).toPass({ timeout: 10_000 });
+  if (found.code === null) throw new Error(`no code for ${address}`);
+  return found.code;
+}
+
+/** A 6-digit code that is not [code]: its last digit moved by one. */
+function otherCode(code: string): string {
+  return `${code.slice(0, 5)}${String((Number(code.slice(5)) + 1) % 10)}`;
 }
 
 test("sends a code to a fresh address, reads it from Mailpit, wrong code is refused, right code signs in", async ({
   page,
   baseURL,
 }) => {
-  if (!baseURL) throw new Error("skipped without local stack");
+  if (!baseURL) throw new Error("baseURL is unset: playwright.config.ts sets it from E2E_BASE_URL");
 
   // A fresh address: the first code send creates the account.
   const email = `web-email-signin-${randomUUID()}@example.com`;
@@ -79,12 +78,11 @@ test("sends a code to a fresh address, reads it from Mailpit, wrong code is refu
     () => Promise.resolve(page.getByRole("textbox", { name: "6자리 코드" }).isVisible()),
   );
 
-  // 3. Poll Mailpit until the code arrives, then extract it.
-  const { subject } = await latestMessage(email);
-  const code = extractCode(subject);
+  // 3. Poll Mailpit until the code arrives.
+  const code = await codeSentTo(email);
 
-  // 4. Try a wrong code ("000000"): the refusal sentence appears.
-  await page.getByRole("textbox", { name: "6자리 코드" }).fill("000000");
+  // 4. Try a wrong code (the real one with its last digit moved): the refusal sentence appears.
+  await page.getByRole("textbox", { name: "6자리 코드" }).fill(otherCode(code));
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(
     page.getByText("코드가 맞지 않거나 만료됐어요. 다시 확인하거나 새 코드를 받아 주세요"),
