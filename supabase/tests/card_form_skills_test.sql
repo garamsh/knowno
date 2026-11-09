@@ -173,7 +173,9 @@ select ok((select text ~ 'Understand the material' and text ~ 'Restate'
 
 -- The revert.
 
--- The photo jobs' revert runs before the assistant's (assistant_photo_jobs_test.sql tests it).
+-- The photo jobs' revert runs before the assistant's (assistant_photo_jobs_test.sql tests it), and
+-- the retry-after revert before it, which puts back the function it drops.
+select private.revert_assistant_photo_retry_after();
 select private.revert_assistant_photo_jobs();
 
 select throws_ok($q$do $do$ begin
