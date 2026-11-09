@@ -654,16 +654,21 @@ function readMessage(body: unknown, ids: IdSource): Incoming | null {
       deckId = id;
     }
     if (context.time_zone !== undefined) {
-      timeZone = readTimeZone(context.time_zone);
-      if (timeZone === null) return null;
+      const zone = readTimeZone(context.time_zone);
+      if (zone === "refused") return null;
+      timeZone = zone;
     }
   }
   return { turns, proposals, deckId, timeZone, attached };
 }
 
-/** An IANA zone name as the runtime spells it, or null: an offset or an abbreviation is none. */
-function readTimeZone(value: unknown): string | null {
-  if (typeof value !== "string" || !TIME_ZONE.test(value)) return null;
+/**
+ * An IANA zone name as the runtime spells it; null when `Intl` does not know the name, which is
+ * read as no zone; `"refused"` for what is no IANA name at all: not a string, or an offset or an
+ * abbreviation.
+ */
+function readTimeZone(value: unknown): string | null | "refused" {
+  if (typeof value !== "string" || !TIME_ZONE.test(value)) return "refused";
   try {
     return new Intl.DateTimeFormat(undefined, { timeZone: value })
       .resolvedOptions().timeZone;
