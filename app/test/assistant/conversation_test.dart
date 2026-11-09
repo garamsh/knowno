@@ -66,6 +66,57 @@ void main() {
     expect(turn.withEvent(const ErrorEvent(ReplyError.cut)).ending, Ending.cut);
   });
 
+  test('moves the text before an interim mark to a status line', () {
+    var turn = const AssistantTurn(id: 'a');
+    AssistantTurn apply(AssistantEvent event) => turn = turn.withEvent(event);
+    apply(const TextDelta('카드를 \n찾아볼게요'));
+    apply(const InterimEvent());
+    expect(turn.text, '');
+    expect(turn.interim, '카드를 찾아볼게요');
+    // The separator belongs to the text after it and is dropped.
+    apply(const TextDelta('\n\n'));
+    expect(turn.text, '');
+    expect(turn.interim, '카드를 찾아볼게요');
+    apply(const TextDelta('만들어 볼게요'));
+    apply(const InterimEvent());
+    expect(turn.interim, '만들어 볼게요');
+    apply(const TextDelta('\n\n'));
+    apply(const TextDelta('다 만들었어요'));
+    expect(turn.text, '다 만들었어요');
+    expect(turn.interim, isNull);
+    expect(turn.copyWith(ending: Ending.ok).interim, isNull);
+  });
+
+  test('stores and sends the reply alone', () {
+    var turn = const AssistantTurn(id: 'a');
+    for (final event in [
+      const TextDelta('찾아볼게요'),
+      const InterimEvent(),
+      const TextDelta('\n\n'),
+      const TextDelta('답이에요'),
+    ]) {
+      turn = turn.withEvent(event);
+    }
+    final conversation = Conversation(
+      turns: [
+        const UserTurn(id: 'u', text: '질문'),
+        turn.copyWith(ending: Ending.ok),
+      ],
+    );
+    expect(conversation.requestTurns.last['text'], '답이에요');
+    expect(conversation.encode(), isNot(contains('찾아볼게요')));
+    final kept = Conversation.parse(conversation.encode()).turns.last;
+    expect(kept.text, '답이에요');
+  });
+
+  test('does not show a status line for an interim text of blanks', () {
+    final turn = const AssistantTurn(id: 'a')
+        .withEvent(const TextDelta('  '))
+        .withEvent(const InterimEvent());
+    expect(turn.interim, isNull);
+    expect(turn.text, '');
+  });
+
   test('keeps the checks of the groups a remade proposal left alone', () {
     var turn = AssistantTurn(id: 'a').withEvent(ProposalEvent(_two()));
     final unchecked = turn.proposals.single.copyWith(

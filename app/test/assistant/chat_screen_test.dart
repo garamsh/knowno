@@ -79,7 +79,7 @@ void main() {
     // A stream's event is delivered in a microtask, drawn by the next frame.
     await tester.pump();
     await tester.pump();
-    expect(_text('좋아요, '), findsOneWidget);
+    expect(_text('좋아요,'), findsOneWidget);
     expect(find.byTooltip('Stop'), findsOneWidget);
     feed.add(const TextDelta('만들게요'));
     feed.add(const UsageEvent(Allowance(budget: 200000, used: 100000)));
@@ -382,6 +382,94 @@ void main() {
     await _send(tester, '안녕');
     expect(shownTextContaining('stopped midway'), findsOneWidget);
     expect(_text('Try again'), findsNothing, reason: 'cut asks to go on');
+  });
+
+  testWidgets('shows a three-call turn as one passing line, then the reply', (
+    tester,
+  ) async {
+    final feed = StreamController<AssistantEvent>();
+    final client = FakeAssistantClient(scripts: [streaming(feed)]);
+    final storage = await openAssistantStorage(tester);
+    final container = await pumpChat(tester, client, storage);
+    await _send(tester, '영단어 만들어 줘');
+    Future<void> deliver(AssistantEvent event) async {
+      feed.add(event);
+      await tester.pump();
+      await tester.pump();
+    }
+
+    await deliver(const TextDelta('찾아볼게요'));
+    await deliver(const InterimEvent());
+    expect(_text('찾아볼게요'), findsOneWidget);
+    expect(_text('Malangi is thinking'), findsNothing);
+    await deliver(const TextDelta('\n\n'));
+    await deliver(const TextDelta('만들어 볼게요'));
+    await deliver(const InterimEvent());
+    // The new line replaces the last; there is one.
+    expect(_text('찾아볼게요'), findsNothing);
+    expect(_text('만들어 볼게요'), findsOneWidget);
+    await deliver(const TextDelta('\n\n'));
+    await deliver(const TextDelta('다 만들었어요'));
+    // The reply begins, and the line goes.
+    expect(_text('만들어 볼게요'), findsNothing);
+    expect(shownTextContaining('다 만들었어요'), findsOneWidget);
+    await feed.close();
+    await tester.pumpAndSettle();
+    expect(shownTextContaining('다 만들었어요'), findsOneWidget);
+    expect(shownTextContaining('찾아볼게요'), findsNothing);
+    expect(_lastReply(container).text, '다 만들었어요');
+    final stored = storage.getString('assistant.conversation')!;
+    expect(stored, isNot(contains('찾아볼게요')));
+    expect(stored, isNot(contains('만들어 볼게요')));
+    expect(stored, contains('다 만들었어요'));
+  });
+
+  testWidgets('draws the passing line without Markdown marks', (tester) async {
+    final feed = StreamController<AssistantEvent>();
+    final client = FakeAssistantClient(scripts: [streaming(feed)]);
+    final storage = await openAssistantStorage(tester);
+    await pumpChat(tester, client, storage);
+    await _send(tester, '영단어 만들어 줘');
+    Future<void> deliver(AssistantEvent event) async {
+      feed.add(event);
+      await tester.pump();
+      await tester.pump();
+    }
+
+    await deliver(
+      const TextDelta('**굵게** `코드` [링크](https://example.com) ![그림](a.png)'),
+    );
+    await deliver(const InterimEvent());
+    expect(_text('굵게 코드 링크 그림'), findsOneWidget);
+    await deliver(const TextDelta('\n\n'));
+    await deliver(const TextDelta('그냥 말해요'));
+    await deliver(const InterimEvent());
+    expect(_text('그냥 말해요'), findsOneWidget);
+    await deliver(const TextDelta('\n\n'));
+    await deliver(const TextDelta('---'));
+    await deliver(const InterimEvent());
+    expect(_text('Malangi is thinking'), findsOneWidget);
+    await feed.close();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('drops the passing line when the turn ends on it', (
+    tester,
+  ) async {
+    final feed = StreamController<AssistantEvent>();
+    final client = FakeAssistantClient(scripts: [streaming(feed)]);
+    final storage = await openAssistantStorage(tester);
+    await pumpChat(tester, client, storage);
+    await _send(tester, '영단어 만들어 줘');
+    feed.add(const TextDelta('찾아볼게요'));
+    feed.add(const InterimEvent());
+    await tester.pump();
+    await tester.pump();
+    expect(_text('찾아볼게요'), findsOneWidget);
+    feed.add(const ErrorEvent(ReplyError.modelError));
+    await feed.close();
+    await tester.pumpAndSettle();
+    expect(shownTextContaining('찾아볼게요'), findsNothing);
   });
 
   testWidgets('stops a reply streaming in', (tester) async {

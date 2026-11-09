@@ -426,9 +426,9 @@ function readGroups(
         refused.push({
           group: g,
           index,
-          reason: typeof card === "string"
-            ? card
-            : "the card must be an object.",
+          reason: `groups[${g}].cards[${index}]: ${
+            typeof card === "string" ? card : "the card must be an object."
+          }`,
         });
         continue;
       }
@@ -465,26 +465,35 @@ function readGroups(
 
 /** The groups argument read, or a refusal naming what is wrong. */
 function groupsOf(value: unknown): GroupInput[] | string {
+  const form =
+    `Send groups as a list of {"title":"1단원","format":"text","cards":[...]}: a title of 1 to ${MAX_TITLE} characters, a format of ${
+      FORMS.join(", ")
+    } and at least one card.`;
+  if (typeof value === "string") {
+    return `groups is text, and must be a list, not a JSON string. ${form}`;
+  }
   if (
     !Array.isArray(value) || value.length === 0 || value.length > MAX_GROUPS
   ) {
-    return `groups must be a list of 1 to ${MAX_GROUPS} groups, each with a title, a format and cards.`;
+    return `groups must be a list of 1 to ${MAX_GROUPS} groups. ${form}`;
   }
   const groups = [];
   let total = 0;
   for (const [index, group] of value.entries()) {
-    const title = isRecord(group) ? trimmed(group.title, MAX_TITLE) : null;
-    const format = isRecord(group)
-      ? FORMS.find((known) => known === group.format)
-      : undefined;
-    if (
-      !isRecord(group) || title === null || format === undefined ||
-      !Array.isArray(group.cards) ||
-      group.cards.length === 0
-    ) {
-      return `group ${index} must have a title of 1 to ${MAX_TITLE} characters, a format of ${
+    const at = `groups[${index}]`;
+    if (!isRecord(group)) return `${at} must be an object. ${form}`;
+    const title = trimmed(group.title, MAX_TITLE);
+    if (title === null) {
+      return `${at}.title must be text of 1 to ${MAX_TITLE} characters. ${form}`;
+    }
+    const format = FORMS.find((known) => known === group.format);
+    if (format === undefined) {
+      return `${at}.format must be one of ${
         FORMS.join(", ")
-      } and at least one card.`;
+      }, and a table card's group is table. ${form}`;
+    }
+    if (!Array.isArray(group.cards) || group.cards.length === 0) {
+      return `${at}.cards must be a list of at least one card, each {"blocks":[...]}. ${form}`;
     }
     total += group.cards.length;
     groups.push({ title, format, cards: group.cards });
@@ -616,9 +625,9 @@ async function proposeChanges(
         refused.push({
           group: g,
           index,
-          reason: typeof read === "string"
-            ? read
-            : "the card must be an object.",
+          reason: `groups[${g}].cards[${index}]: ${
+            typeof read === "string" ? read : "the card must be an object."
+          }`,
         });
         continue;
       }

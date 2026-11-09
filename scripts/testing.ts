@@ -46,6 +46,9 @@ export async function repository(): Promise<string> {
     if (shipped) {
       await Deno.copyFile(`${HERE}${name}`, `${repo}/scripts/${name}`);
     }
+    if (name.startsWith(".") && name !== "." && name !== "..") {
+      await Deno.copyFile(`${HERE}${name}`, `${repo}/scripts/${name}`);
+    }
   }
   return repo;
 }
@@ -92,26 +95,33 @@ const HOST_TOOLS = [
   "dirname",
   "git",
   "grep",
+  "head",
   "realpath",
   "rm",
   "sed",
   "sh",
   "sleep",
   "touch",
+  "tr",
   "wc",
   "which",
 ];
 
 /**
  * A directory to set as PATH: the tools a program's run needs, and a stub for each of `stubs`, whose
- * body is shell. A tool named in neither is missing, as on a host without it. `log` is the stubs'
- * record of their calls.
+ * body is shell. A tool named in neither is missing, as on a host without it, and so is each of
+ * `missing`, a tool the host would otherwise have. `log` is the stubs' record of their calls.
  */
 export async function host(
   stubs: Record<string, string>,
+  { missing = [] }: { missing?: string[] } = {},
 ): Promise<{ path: string; log: () => Promise<string> }> {
   const path = await Deno.makeTempDir();
-  for (const tool of HOST_TOOLS.filter((name) => !(name in stubs))) {
+  for (
+    const tool of HOST_TOOLS.filter((name) =>
+      !(name in stubs) && !missing.includes(name)
+    )
+  ) {
     const found = await run(path, ["sh", "-c", `command -v ${tool}`]);
     assert.equal(found.code, 0, `setup: no ${tool} on this host`);
     await run(path, ["ln", "-s", found.stdout.trim(), tool]);

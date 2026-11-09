@@ -22,6 +22,7 @@ import 'assistant_controller.dart';
 import 'conversation.dart';
 import 'proposal_view.dart';
 import 'protocol.dart';
+import 'reply_markdown.dart';
 import 'providers.dart';
 
 /// Opens the note [deckId], over the chat, from [context]. `home/` supplies
@@ -411,6 +412,46 @@ class _UserBubble extends StatelessWidget {
   }
 }
 
+/// 말랑이's text in a bubble at the start of the line, as the user's is at
+/// its end, named [label] with its content's own semantics kept, so a link in
+/// it can be activated.
+class _ReplyBubble extends StatelessWidget {
+  const _ReplyBubble({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: FractionallySizedBox(
+        widthFactor: 0.92,
+        alignment: AlignmentDirectional.centerStart,
+        child: Semantics(
+          label: label,
+          container: true,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              border: Border.all(color: colors.hairline),
+              borderRadius: BorderRadius.circular(AppRadius.row),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpace.s16,
+                vertical: AppSpace.s12,
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 말랑이's turn: its text, sources, proposals, question and how it ended.
 class _ReplyView extends StatelessWidget {
   const _ReplyView({
@@ -441,18 +482,29 @@ class _ReplyView extends StatelessWidget {
     final colors = AppColors.of(context);
     final ending = turn.ending;
     final choice = turn.choice;
+    // A remark of marks alone has no words to show.
+    final line = switch (turn.interim) {
+      final interim? => plainLine(interim),
+      null => '',
+    };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: AppSpace.s12,
       children: [
         if (turn.text.isNotEmpty)
-          Text(
-            keepWords(turn.text),
-            semanticsLabel: '${l10n.assistantName}: ${turn.text}',
-            style: AppType.body.copyWith(color: colors.ink),
+          _ReplyBubble(
+            label: l10n.assistantName,
+            child: ReplyMarkdown(
+              turn.text,
+              onLink: (uri) => _openLink(context, uri),
+            ),
           ),
         if (ending == null && turn.text.isEmpty)
-          _Notice(text: l10n.assistantThinking, status: true),
+          _Notice(
+            text: line.isEmpty ? l10n.assistantThinking : line,
+            status: true,
+            oneLine: line.isNotEmpty,
+          ),
         if (turn.job case final job?) _JobView(job: job, onCancel: onCancelJob),
         if (turn.citations.isNotEmpty)
           Semantics(
@@ -542,23 +594,24 @@ class _CitationLink extends StatelessWidget {
         style: AppType.secondary.copyWith(color: AppColors.of(context).muted),
       );
     }
-    final messenger = ScaffoldMessenger.of(context);
-    final notOpened = AppLocalizations.of(context).linkNotOpened;
     return AppButton(
       label: label,
       variant: AppButtonVariant.link,
-      onPressed: () async {
-        try {
-          if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-            return;
-          }
-        } on PlatformException {
-          // Said below, as a link that did not open.
-        }
-        messenger.showSnackBar(SnackBar(content: Text(notOpened)));
-      },
+      onPressed: () => _openLink(context, uri),
     );
   }
+}
+
+/// Opens [uri] in the system browser, and says so where it did not open.
+Future<void> _openLink(BuildContext context, Uri uri) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final notOpened = AppLocalizations.of(context).linkNotOpened;
+  try {
+    if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
+  } on PlatformException {
+    // Said below, as a link that did not open.
+  }
+  messenger.showSnackBar(SnackBar(content: Text(notOpened)));
 }
 
 /// A line of what is true under a reply, read as a status while [status].
@@ -567,11 +620,15 @@ class _Notice extends StatelessWidget {
     required this.text,
     this.status = false,
     this.centred = false,
+    this.oneLine = false,
   });
 
   final String text;
   final bool status;
   final bool centred;
+
+  /// Cut to one line, for text that is not ours and may be long.
+  final bool oneLine;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -580,6 +637,8 @@ class _Notice extends StatelessWidget {
       keepWords(text),
       semanticsLabel: text,
       textAlign: centred ? TextAlign.center : null,
+      maxLines: oneLine ? 1 : null,
+      overflow: oneLine ? TextOverflow.ellipsis : null,
       style: AppType.secondary.copyWith(color: AppColors.of(context).muted),
     ),
   );

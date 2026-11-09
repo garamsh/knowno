@@ -3,19 +3,20 @@
 They are Google Sans from github.com/google/fonts at SOURCE_COMMIT, checked against SOURCE_SHA256,
 pinned at weight 500 with its other axes at their defaults, and cut to Basic Latin and the
 characters of the button's labels, with fontTools' instancer and subsetter at the release
-uv.lock pins. Run from the repository's root:
+uv.lock pins. font_source.py fetches the source, through a cache outside the repository. Run from
+the repository's root:
 
     uv run --project tools/fonts --locked python tools/fonts/google_sans.py
 """
 
-import hashlib
 import io
-import urllib.request
 from pathlib import Path
 
 from fontTools import subset
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
+
+from font_source import fetch
 
 SOURCE_COMMIT = "d4eb04601981780781306966afb88e876652bab4"
 SOURCE_URL = (
@@ -36,15 +37,6 @@ LABELS = {
 BASIC_LATIN = range(0x20, 0x7F)
 
 
-def source() -> bytes:
-    with urllib.request.urlopen(SOURCE_URL) as response:
-        data = response.read()
-    found = hashlib.sha256(data).hexdigest()
-    if found != SOURCE_SHA256:
-        raise SystemExit(f"{SOURCE_URL} has SHA-256 {found}, not {SOURCE_SHA256}")
-    return data
-
-
 def characters() -> set[int]:
     wanted = set(BASIC_LATIN)
     for path, label in LABELS.items():
@@ -57,7 +49,7 @@ def characters() -> set[int]:
 def main() -> None:
     # None pins an axis at its default.
     font = instancer.instantiateVariableFont(
-        TTFont(io.BytesIO(source())),
+        TTFont(io.BytesIO(fetch(SOURCE_URL, SOURCE_SHA256))),
         {"wght": 500, "opsz": None, "GRAD": None},
         updateFontNames=True,
     )

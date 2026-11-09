@@ -150,46 +150,100 @@ function isBlank(blanks: readonly TableBlank[], row: number, column: number) {
   return blanks.some((blank) => blank.row === row && blank.column === column);
 }
 
-/** A table with a blank or a span, each inside it, as the app's and the web's readers hold it. */
-function parseTable(payload: Record<string, unknown>): Content | null {
+const TABLE_FORM =
+  '{"type":"table","columns":["구분","A"],"rows":[["수도","평양"]],"blanks":[{"row":0,"column":1}]}';
+
+/**
+ * A table with a blank or a span, each inside it, as the app's and the web's readers hold it, or
+ * the reason it is refused, naming the field and the cell.
+ */
+function readTable(payload: Record<string, unknown>): Content | string {
   const { columns, rows, blanks, spans } = payload;
-  if (!isStrings(columns) || columns.length === 0) return null;
-  if (!Array.isArray(rows) || rows.length === 0) return null;
-  if (!rows.every((row) => isStrings(row) && row.length === columns.length)) {
-    return null;
+  if (!isStrings(columns) || columns.length === 0) {
+    return `a table needs columns: a list of the column headings as text, such as ["구분","A"]. The form is ${TABLE_FORM}.`;
+  }
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return `a table needs rows: a list of rows, each a list of text with one cell per column. The form is ${TABLE_FORM}.`;
+  }
+  for (const [index, row] of rows.entries()) {
+    if (!isStrings(row) || row.length !== columns.length) {
+      return `a table needs every row to be a list of ${columns.length} texts, one per column, and rows[${index}] is ${
+        isStrings(row) ? `${row.length} texts` : "not a list of texts"
+      }.`;
+    }
   }
   const cells = rows as string[][];
-  if (!Array.isArray(blanks) || !Array.isArray(spans)) return null;
-  if (blanks.length === 0 && spans.length === 0) return null;
+  if (!Array.isArray(blanks) || !Array.isArray(spans)) {
+    return `a table needs blanks and spans to be lists. The form is ${TABLE_FORM}.`;
+  }
+  if (blanks.length === 0 && spans.length === 0) {
+    return `a table needs blanks, the cells to recall, or spans: none was given. Add blanks, counting row and column from 0, such as ${TABLE_FORM}.`;
+  }
   const parsed: TableBlank[] = [];
-  for (const blank of blanks as unknown[]) {
-    if (!isRecord(blank)) return null;
-    const { row, column } = blank;
-    if (!isIndex(row) || !isIndex(column)) return null;
-    // A cell outside the table reads as "", an empty cell, so this refuses both.
-    if ((cells[row]?.[column] ?? "").trim() === "") return null;
-    if (isBlank(parsed, row, column)) return null;
+  for (const [index, blank] of (blanks as unknown[]).entries()) {
+    const { row, column } = isRecord(blank)
+      ? blank
+      : ({} as Record<string, unknown>);
+    if (!isIndex(row) || !isIndex(column)) {
+      return `a table needs each blank to be {"row":0,"column":1}, counted from 0, and blanks[${index}] is not.`;
+    }
+    const cell = cells[row]?.[column];
+    if (cell === undefined) {
+      return `a table needs each blank inside the table's ${rows.length} rows and ${columns.length} columns, and blanks[${index}] (row ${row}, column ${column}) is outside.`;
+    }
+    if (cell.trim() === "") {
+      return `a table needs each blank to be a cell holding text, and blanks[${index}] (row ${row}, column ${column}) is an empty cell.`;
+    }
+    if (isBlank(parsed, row, column)) {
+      return `a table needs each blank to be a distinct cell, and blanks[${index}] repeats row ${row}, column ${column}.`;
+    }
     parsed.push({ row, column });
   }
   const runs: CellSpan[] = [];
-  for (const span of spans as unknown[]) {
-    if (!isRecord(span)) return null;
-    const { row, column, start, end } = span;
+  for (const [index, span] of (spans as unknown[]).entries()) {
+    const at = `spans[${index}]`;
+    const { row, column, start, end } = isRecord(span)
+      ? span
+      : ({} as Record<string, unknown>);
     if (
       !isIndex(row) || !isIndex(column) || !isIndex(start) || !isIndex(end)
-    ) return null;
+    ) {
+      return `a table needs each span to be {"row":0,"column":1,"start":0,"end":2}, whole numbers counted from 0, and ${at} is not.`;
+    }
     const cell = cells[row]?.[column];
-    if (cell === undefined || isBlank(parsed, row, column)) return null;
-    if (start < 0 || start >= end || end > cell.length) return null;
-    if (cell.slice(start, end).trim() === "") return null;
+    if (cell === undefined) {
+      return `a table needs each span inside the table's ${rows.length} rows and ${columns.length} columns, and ${at} (row ${row}, column ${column}) is outside.`;
+    }
+    if (isBlank(parsed, row, column)) {
+      return `a table needs each span in a cell that is not a blank, and ${at} is in the blank at row ${row}, column ${column}.`;
+    }
+    if (start < 0 || start >= end || end > cell.length) {
+      return `a table needs each span to run from start to end inside its cell's text of ${cell.length} units, and ${at} runs ${start} to ${end}.`;
+    }
+    if (cell.slice(start, end).trim() === "") {
+      return `a table needs each span to hold text, and ${at} (row ${row}, column ${column}) holds only spaces.`;
+    }
     const overlaps = runs.some((seen) =>
       seen.row === row && seen.column === column && seen.start < end &&
       start < seen.end
     );
-    if (overlaps) return null;
+    if (overlaps) {
+      return `a table needs spans that do not overlap, and ${at} overlaps an earlier span in row ${row}, column ${column}.`;
+    }
     runs.push({ row, column, start, end });
   }
   return { kind: "table", columns, rows: cells, blanks: parsed, spans: runs };
+}
+
+/** Why a table payload is refused, or null when it is held; `parseTable` is null exactly then not. */
+export function tableReason(payload: Record<string, unknown>): string | null {
+  const read = readTable(payload);
+  return typeof read === "string" ? read : null;
+}
+
+function parseTable(payload: Record<string, unknown>): Content | null {
+  const read = readTable(payload);
+  return typeof read === "string" ? null : read;
 }
 
 function parseLabel(value: unknown): Label | null {

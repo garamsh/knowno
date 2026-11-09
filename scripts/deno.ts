@@ -4,7 +4,8 @@
 // read access to tools/eval/ and to the prompt files' copies in SQL, the store's seed, v9's
 // activation and its pgTAP test, which one test compares with the prompt files, and to the
 // card-form skills' migration and the markup's, which one test compares with their seed, only: no write,
-// network or environment access, so a test that writes fails. A *_io_test.ts file runs apart,
+// network or environment access, so a test that writes fails. A test in tools/fonts/ runs apart,
+// writing only under a temporary directory and running python3 against a local server. A *_io_test.ts file runs apart,
 // writing only under a temporary directory this program removes, and running deno, so it can run
 // the eval as a subprocess under the eval's own grant.
 import {
@@ -17,7 +18,11 @@ import {
   Stop,
 } from "./process.ts";
 
-const FUNCTIONS_AND_EVAL = ["supabase/functions/*.ts", "tools/eval/*.ts"];
+const FUNCTIONS_AND_EVAL = [
+  "supabase/functions/*.ts",
+  "tools/eval/*.ts",
+  "tools/fonts/*.ts",
+];
 const SCRIPTS = ["scripts/*.ts"];
 const READS = [
   "tools/eval",
@@ -110,7 +115,11 @@ async function test(): Promise<void> {
   );
   const isTest = (file: string) => file.endsWith("_test.ts");
   const isIoTest = (file: string) => file.endsWith("_io_test.ts");
-  const tests = files.filter((file) => isTest(file) && !isIoTest(file));
+  const isFontTest = (file: string) => file.startsWith("tools/fonts/");
+  const tests = files.filter((file) =>
+    isTest(file) && !isIoTest(file) && !isFontTest(file)
+  );
+  const fontTests = files.filter((file) => isTest(file) && isFontTest(file));
   const ioTests = files.filter(isIoTest);
   if (tests.length === 0) fail(`no *_test.ts file was selected by: ${scope}`);
 
@@ -134,9 +143,25 @@ async function test(): Promise<void> {
       )
     );
   }
+  if (fontTests.length > 0) {
+    // They run python3 against a server on a local port, with the cache in a temporary directory.
+    passed += await withTemporaryDirectory((dir) =>
+      denoTest(
+        [
+          `--allow-read=${dir}`,
+          `--allow-write=${dir}`,
+          "--allow-run=python3",
+          "--allow-net=127.0.0.1",
+        ],
+        fontTests,
+        { TMPDIR: dir },
+        "deno test ran no test in tools/fonts/",
+      )
+    );
+  }
   console.log(
     `ran ${passed} Deno tests in ${
-      tests.length + ioTests.length
+      tests.length + ioTests.length + fontTests.length
     } files, selected as the *_test.ts files among: ${scope}`,
   );
 

@@ -163,6 +163,7 @@ final class AssistantTurn extends Turn {
     this.choice,
     this.ending,
     this.job,
+    this.interim,
   });
 
   final List<Citation> citations;
@@ -173,6 +174,10 @@ final class AssistantTurn extends Turn {
   /// The photo job this reply started, with how far it has read.
   final JobProgress? job;
 
+  /// The passing status line: the last interim text, kept only while the
+  /// reply has not begun and the turn has not ended, and never stored.
+  final String? interim;
+
   AssistantTurn copyWith({
     String? text,
     List<Citation>? citations,
@@ -180,6 +185,8 @@ final class AssistantTurn extends Turn {
     Choice? choice,
     Ending? ending,
     JobProgress? job,
+    String? interim,
+    bool clearInterim = false,
   }) => AssistantTurn(
     id: id,
     text: text ?? this.text,
@@ -188,11 +195,23 @@ final class AssistantTurn extends Turn {
     choice: choice ?? this.choice,
     ending: ending ?? this.ending,
     job: job ?? this.job,
+    interim: clearInterim || ending != null ? null : interim ?? this.interim,
   );
 
   /// This turn with [event] of its stream applied; `usage` changes nothing.
   AssistantTurn withEvent(AssistantEvent event) => switch (event) {
-    TextDelta(:final delta) => copyWith(text: text + delta),
+    // A reply's leading whitespace is the separator the function sends
+    // before a call's text, which belongs to the text after it.
+    TextDelta(:final delta) => switch (text.isEmpty
+        ? delta.trimLeft()
+        : delta) {
+      '' => this,
+      final shown => copyWith(text: text + shown, clearInterim: true),
+    },
+    InterimEvent() => switch (text.replaceAll(RegExp(r'\s+'), ' ').trim()) {
+      '' => copyWith(text: ''),
+      final line => copyWith(text: '', interim: line),
+    },
     CitationEvent(:final url, :final title) =>
       citations.any((one) => one.url == url)
           ? this

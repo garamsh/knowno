@@ -171,6 +171,12 @@ final class TextDelta extends AssistantEvent {
   final String delta;
 }
 
+/// The text since the previous `interim`, or the turn's start, was interim:
+/// a passing status line, not the reply.
+final class InterimEvent extends AssistantEvent {
+  const InterimEvent();
+}
+
 final class CitationEvent extends AssistantEvent {
   const CitationEvent({required this.url, required this.title});
 
@@ -301,6 +307,7 @@ final class MalformedEvent extends AssistantEvent {
 AssistantEvent? parseEvent(String name, String data) {
   const known = {
     'text',
+    'interim',
     'citation',
     'proposal',
     'choice',
@@ -321,6 +328,7 @@ AssistantEvent? parseEvent(String name, String data) {
       {'delta': final String delta} => TextDelta(delta),
       _ => null,
     },
+    'interim' => const InterimEvent(),
     'citation' => switch (value) {
       {'url': final String url, 'title': final String title} => CitationEvent(
         url: url,

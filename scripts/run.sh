@@ -23,6 +23,12 @@ if ! command -v deno >/dev/null 2>&1; then
 	skip "$what: this host has no deno command"
 	exit 0
 fi
+want=$(head -1 scripts/.deno-version | tr -d '[:space:]')
+have=$(deno --version | head -1 | sed 's/^deno //;s/ .*//')
+if [ "$have" != "$want" ]; then
+	echo "scripts/run.sh runs on Deno $want (scripts/.deno-version); this host's deno is $have" >&2
+	exit 1
+fi
 shift
 # shellcheck disable=SC2086 # the grants are separate flags
 exec deno run --quiet --no-prompt $allow "scripts/$program.ts" "$@"
