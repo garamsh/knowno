@@ -3,7 +3,7 @@
 // two run as one set; scripts/ reports apart, under a grant of its own. The set's tests run with
 // read access to tools/eval/ and to the prompt files' copies in SQL, the store's seed, v9's
 // activation and its pgTAP test, which one test compares with the prompt files, and to the
-// card-form skills' migration, which one test compares with their seed, only: no write,
+// card-form skills' migration and the markup's, which one test compares with their seed, only: no write,
 // network or environment access, so a test that writes fails. A *_io_test.ts file runs apart,
 // writing only under a temporary directory this program removes, and running deno, so it can run
 // the eval as a subprocess under the eval's own grant.
@@ -25,6 +25,7 @@ const READS = [
   "supabase/migrations/20261019230003_activate_prompt_v9.sql",
   "supabase/tests/prompt_v9_activation_test.sql",
   "supabase/migrations/20261105150000_card_form_skills.sql",
+  "supabase/migrations/20261109150000_card_markup_switch.sql",
 ].join(",");
 
 /** The count on the last of deno test's "ok | <n> passed" lines. */

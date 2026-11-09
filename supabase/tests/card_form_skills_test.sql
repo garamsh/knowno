@@ -1,4 +1,6 @@
--- The card-form skills (#751, ADR 0197): each form's seeded version active; `card_form_skills`
+-- The card-form skills (#751, ADR 0197): each form's seeded version active (migration
+-- 20261109150000_card_markup_switch.sql adds the markup's two versions, labelled markup, which
+-- card_markup_switch_test.sql tests); `card_form_skills`
 -- serving a signed-in user the active versions and an admin a form's test version while one is
 -- set; a version saved as the form's test, applied and ended by an admin alone, each write
 -- recorded; versions append-only; no client reaching the tables; the assistant's prompt v2 as each
@@ -52,10 +54,11 @@ grant execute on function pg_temp.seeded(text) to public;
 select results_eq(
   $$select l.form, l.label, v.note from private.card_form_skill_labels as l
     join private.card_form_skills as v on v.id = l.version_id order by l.form, l.label$$,
-  $$values ('cloze', 'active', 'seed (#751)'), ('image', 'active', 'seed (#751)'),
-    ('mixed', 'active', 'seed (#751)'), ('senses', 'active', 'seed (#751)'),
-    ('table', 'active', 'seed (#751)'), ('text', 'active', 'seed (#751)')$$,
-  'each form has one seeded version, active, and none in test');
+  $$values ('cloze', 'active', 'seed (#751)'), ('cloze', 'markup', 'markup (#763)'),
+    ('image', 'active', 'seed (#751)'), ('mixed', 'active', 'seed (#751)'),
+    ('senses', 'active', 'seed (#751)'), ('table', 'active', 'seed (#751)'),
+    ('text', 'active', 'seed (#751)'), ('text', 'markup', 'markup (#763)')$$,
+  'each form has one seeded version, active, the markup''s two versions labelled markup, and none in test');
 select results_eq(
   $$select form, version_id = pg_temp.seeded(form) from pg_temp.served('b')$$,
   $$values ('cloze', true), ('image', true), ('mixed', true), ('senses', true), ('table', true),
@@ -86,7 +89,7 @@ select throws_ok($$select public.admin_activate_card_form_skill('cloze')$$, '425
 select throws_ok($$select public.admin_clear_card_form_skill_test('cloze')$$, '42501', null,
   'a user ends no test');
 select pg_temp.sign_in('a');
-select is((select count(*) from public.admin_card_form_skills()), 6::bigint,
+select is((select count(*) from public.admin_card_form_skills()), 8::bigint,
   'control: an admin lists every version');
 select is(public.admin_activate_card_form_skill('cloze'), 'no_test',
   'a form without a test version has nothing to apply');
