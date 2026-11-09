@@ -93,6 +93,7 @@ export const STALE_MS = 180_000;
 export type LogOutcome =
   | Outcome
   | "unreadable"
+  | "not_sent"
   | "polled"
   | "working"
   | "committed"

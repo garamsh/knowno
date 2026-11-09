@@ -36,7 +36,8 @@ export type StepOutcome =
   | "cut"
   | "model_error"
   | "time_limit"
-  | "unreadable";
+  | "unreadable"
+  | "not_sent";
 
 const JOB_STATUSES: readonly JobStatus[] = ["running", "done", "cancelled"];
 const PHOTO_STATUSES: readonly PhotoStatus[] = [
@@ -213,7 +214,9 @@ export type StepUsage = {
 
 /**
  * Records how [stepId]'s read ended, which charges it, keeping [reading] on a read photo
- * (`public.finish_assistant_job_step`); answers the photo's status and the job's after it.
+ * (`public.finish_assistant_job_step`); answers the photo's status and the job's after it. A photo
+ * to be shown again waits [retryAfterSeconds], which the database bounds, or its usual 30 or 120 s
+ * when null.
  */
 export async function finishStep(
   stepId: number,
@@ -221,6 +224,7 @@ export async function finishStep(
   usage: StepUsage,
   latencyMs: number,
   reading: string | null,
+  retryAfterSeconds: number | null,
   deps: SupabaseDeps,
 ): Promise<{ photo: PhotoStatus; job: JobStatus }> {
   const row = firstRow(
@@ -232,6 +236,7 @@ export async function finishStep(
       reasoning_tokens: usage.reasoningTokens,
       latency_ms: Math.round(latencyMs),
       reading,
+      retry_after_seconds: retryAfterSeconds,
     }, deps),
     "finish_assistant_job_step",
   );
@@ -364,20 +369,28 @@ export async function photoUrl(
   return `${deps.url}/storage/v1${signed.signedURL}`;
 }
 
-/** Deletes [userId]'s photos [photoIds] from the bucket; one already gone is no failure. */
-export async function deletePhotos(
-  userId: UserId,
-  photoIds: readonly string[],
+/** Deletes the bucket's objects named [names]; one already gone is no failure. */
+export async function deleteObjects(
+  names: readonly string[],
   deps: SupabaseDeps,
 ): Promise<void> {
-  if (photoIds.length === 0) return;
+  if (names.length === 0) return;
   const response = await storage(deps, `object/${PHOTO_BUCKET}`, "DELETE", {
-    prefixes: photoIds.map((id) => `${userId}/${id}`),
+    prefixes: names,
   });
   await response.body?.cancel();
   if (!response.ok) {
     throw new SupabaseError(`storage answered ${response.status}`);
   }
+}
+
+/** Deletes [userId]'s photos [photoIds] from the bucket; one already gone is no failure. */
+export function deletePhotos(
+  userId: UserId,
+  photoIds: readonly string[],
+  deps: SupabaseDeps,
+): Promise<void> {
+  return deleteObjects(photoIds.map((id) => `${userId}/${id}`), deps);
 }
 
 /**
@@ -413,5 +426,22 @@ export async function unclearedJobs(deps: SupabaseDeps): Promise<Uncleared[]> {
     }
     // A uuid the database holds as an auth user's id.
     return { userId: row.user_id as UserId, jobId: row.job_id };
+  });
+}
+
+/**
+ * The names, `{user id}/{photo id}`, of at most 100 objects of the bucket older than 24 hours that
+ * no job photo names (`public.assistant_unread_photos`).
+ */
+export async function unreadPhotos(deps: SupabaseDeps): Promise<string[]> {
+  const rows = await rpc("assistant_unread_photos", {}, deps);
+  if (!Array.isArray(rows)) {
+    throw new SupabaseError("assistant_unread_photos answered no rows");
+  }
+  return rows.map((row: unknown) => {
+    if (!isRecord(row) || typeof row.name !== "string") {
+      throw new SupabaseError("assistant_unread_photos answered a bad row");
+    }
+    return row.name;
   });
 }

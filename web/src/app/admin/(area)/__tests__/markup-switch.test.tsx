@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { readCardMarkup } from "@/features/admin";
 import { setCardMarkup } from "@/features/admin/actions";
 import { FakeAdmin } from "@/testing/mocks/admin";
 import { otherUser, supabaseUrl, testUser } from "@/testing/mocks/handlers";
@@ -47,6 +48,38 @@ describe("the card markup switch on 말랑이", () => {
     ).toBeInTheDocument();
     expect(section.getByRole("button", { name: "마크업 켜기" })).toBeInTheDocument();
     expect(section.queryByRole("button", { name: "마크업 끄기" })).toBeNull();
+  });
+
+  it("says a switch no admin changed was never changed, and not that of one changed by an account that is gone", async () => {
+    await assistant();
+    const never = within(screen.getByRole("region", { name: "카드 마크업" }));
+    expect(never.getByText("아직 바꾼 적 없어요")).toBeInTheDocument();
+    // Control: the case below is not read as this one.
+    expect(never.queryByText(/삭제된 계정/)).toBeNull();
+  });
+
+  it("shows when a switch was changed by an account that is gone, with that said, and not as never changed", async () => {
+    admin.cardMarkup = { enabled: false, everSet: true, by: null, at: "2026-11-09T05:00:00Z" };
+    await assistant();
+    const section = within(screen.getByRole("region", { name: "카드 마크업" }));
+    expect(section.getByText(/ · 삭제된 계정$/)).toBeInTheDocument();
+    // Control: it is not the sentence for a switch nobody changed.
+    expect(section.queryByText("아직 바꾼 적 없어요")).toBeNull();
+  });
+
+  it("reads a row without a boolean ever_set as unreadable, against the row with one", async () => {
+    const row = { enabled: false, set_by_email: null, set_at: "2026-11-09T01:00:00Z" };
+    const answer = (value: Record<string, unknown>) => {
+      server.use(
+        http.post(`${supabaseUrl}/rest/v1/rpc/admin_card_markup`, () => HttpResponse.json([value])),
+      );
+    };
+    answer({ ...row, ever_set: false });
+    expect(await readCardMarkup()).toMatchObject({ data: { everSet: false } });
+    answer(row);
+    expect(await readCardMarkup()).toEqual({ failure: "unreadable" });
+    answer({ ...row, ever_set: "true" });
+    expect(await readCardMarkup()).toEqual({ failure: "unreadable" });
   });
 
   it("asks before it turns the switch on, then shows it on with who set it, and offers to turn it off", async () => {

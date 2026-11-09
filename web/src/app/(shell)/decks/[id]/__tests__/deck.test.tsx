@@ -134,11 +134,11 @@ describe("the deck page", () => {
     expect(screen.queryByRole("button", { name: "카드 검색" })).not.toBeInTheDocument();
   });
 
-  it("puts 노트 설정 on the surface beside the name, with the phone's five items, on a note with cards and on one with none", async () => {
+  it('puts 노트 설정 on the surface beside the name, with the phone\'s five items, and "Anki로 내보내기" only on a note with cards', async () => {
     postgrest.seed("decks", deckRow("d-empty", "Empty"));
-    for (const [name, title] of [
-      ["d-fr", "French"],
-      ["d-empty", "Empty"],
+    for (const [name, title, exported] of [
+      ["d-fr", "French", ["Anki로 내보내기"]],
+      ["d-empty", "Empty", []],
     ] as const) {
       cleanup();
       await open(name);
@@ -152,7 +152,7 @@ describe("the deck page", () => {
         within(screen.getByRole("menu", { name: "노트 설정" }))
           .getAllByRole("menuitem")
           .map((item) => item.textContent),
-      ).toEqual(["직접 추가", "이름 바꾸기", "노트 꾸미기", "노트 공개", "노트 삭제"]);
+      ).toEqual(["직접 추가", "이름 바꾸기", "노트 꾸미기", "노트 공개", ...exported, "노트 삭제"]);
     }
   });
 

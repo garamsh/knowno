@@ -87,6 +87,15 @@ dev_dependencies:
   flutter_launcher_icons: 0.14.4
   flutter_native_splash: 2.4.8
 
+# The sqlite3 package's build hook downloads a prebuilt SQLite from GitHub releases unless
+# told to compile one; this compiles the committed amalgamation instead, so no build fetches
+# anything and every build ships the same SQLite (ADR 0220).
+hooks:
+  user_defines:
+    sqlite3:
+      source: source
+      path: third_party/sqlite/sqlite3.c
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

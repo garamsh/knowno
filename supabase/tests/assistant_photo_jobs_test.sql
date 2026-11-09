@@ -8,8 +8,12 @@
 -- With #800: a failed read shown again after 30 s and then 120 s; the queue's reader never waiting
 -- for a lock another transaction holds; the ended jobs whose photos are in the bucket found, and
 -- recorded once deleted; and the purge keeping a job until then.
+--
+-- With #816: a photo refused with a provider's `Retry-After` shown again after it, from 1 s to
+-- 300 s and still failed on its third read; a read that failed before it was sent given back, three
+-- times a photo, so it cannot loop; and the revert.
 begin;
-select plan(70);
+select plan(87);
 
 delete from private.assistant_configuration_labels where label = 'test';
 
@@ -65,6 +69,23 @@ begin
       case when outcome in ('ok', 'cut') then '# 1단원' end) as f;
   perform set_config('role', 'none', true);
 end;
+$$;
+
+-- Records [step] as service_role does, with no tokens: [outcome] and the seconds a provider asked
+-- to wait, null for no ask.
+create function pg_temp.finish_after(step bigint, outcome text, asked integer)
+returns table (photo_status text, job_status text) language plpgsql as $$
+begin
+  perform set_config('role', 'service_role', true);
+  return query select f.photo_status, f.job_status
+    from public.finish_assistant_job_step(step, outcome, 0, 0, 0, 3000, null, asked) as f;
+  perform set_config('role', 'none', true);
+end;
+$$;
+
+create function pg_temp.attempts(job uuid, place int) returns integer language sql stable as $$
+  select p.attempts from private.assistant_job_photos as p
+  where p.job_id = job and p.position = place;
 $$;
 
 -- Shows [job]'s message for [position] on the queue now, as its hiding would have ended.
@@ -353,6 +374,76 @@ select is(
   (select input_tokens from private.assistant_job_steps where id = (select step_id from flight)),
   1000, 'and is still charged');
 
+-- A provider's Retry-After (#816): shown again after it, at least 1 s and at most 300 s, and a
+-- photo still fails on its third read.
+
+select is(pg_temp.start(pg_temp.job(6), array[pg_temp.photo(5), pg_temp.photo(4)]), 'started',
+  'a job of two photos starts');
+create temporary table first_reads as select * from pg_temp.next();
+create temporary table second_reads as select * from pg_temp.next();
+select * from pg_temp.finish_after((select step_id from first_reads), 'model_error', 45);
+select ok(pg_temp.hidden_for(pg_temp.job(6), 1) between 40 and 46,
+  'a read refused with a Retry-After of 45 s is shown again after 45 s, not 30');
+select * from pg_temp.finish_after((select step_id from second_reads), 'model_error', 0);
+select ok(pg_temp.hidden_for(pg_temp.job(6), 2) between 0.5 and 1.5,
+  'a Retry-After of 0 waits 1 s');
+select pg_temp.show(pg_temp.job(6), 2);
+create temporary table second_again as select * from pg_temp.next();
+select * from pg_temp.finish_after((select step_id from second_again), 'model_error', 100000);
+select ok(pg_temp.hidden_for(pg_temp.job(6), 2) between 295 and 301,
+  'and one of 100,000 s waits 300');
+select pg_temp.show(pg_temp.job(6), 1);
+create temporary table first_again as select * from pg_temp.next();
+select * from pg_temp.finish_after((select step_id from first_again), 'time_limit', null);
+select ok(pg_temp.hidden_for(pg_temp.job(6), 1) between 115 and 121,
+  'control: with no Retry-After a second failure waits 120 s');
+select pg_temp.show(pg_temp.job(6), 1);
+create temporary table first_third as select * from pg_temp.next();
+select results_eq(
+  $$select * from pg_temp.finish_after((select step_id from first_third), 'model_error', 5)$$,
+  $$values ('failed', 'running')$$, 'a Retry-After gives no fourth read: the third failure fails the photo');
+select pg_temp.show(pg_temp.job(6), 2);
+create temporary table second_third as select * from pg_temp.next();
+select results_eq(
+  $$select * from pg_temp.finish_after((select step_id from second_third), 'model_error', 5)$$,
+  $$values ('failed', 'done')$$, 'and the job ends');
+
+-- A read that failed before it was sent (#816) gives its read back, three times a photo.
+
+select is(pg_temp.start(pg_temp.job(7), array[pg_temp.photo(5)]), 'started', 'a job of one photo starts');
+create temporary table unsent as select * from pg_temp.next();
+select results_eq(
+  $$select * from pg_temp.finish_after((select step_id from unsent), 'not_sent', null)$$,
+  $$values ('queued', 'running')$$, 'a read not sent leaves the photo queued');
+select results_eq($$select pg_temp.attempts(pg_temp.job(7), 1)$$, $$values (0)$$,
+  'and is not counted as a read');
+select ok(pg_temp.hidden_for(pg_temp.job(7), 1) between 25 and 31, 'shown again after 30 s');
+select pg_temp.show(pg_temp.job(7), 1);
+create temporary table unsent2 as select * from pg_temp.next();
+select * from pg_temp.finish_after((select step_id from unsent2), 'not_sent', null);
+select pg_temp.show(pg_temp.job(7), 1);
+create temporary table unsent3 as select * from pg_temp.next();
+select * from pg_temp.finish_after((select step_id from unsent3), 'not_sent', null);
+select results_eq($$select pg_temp.attempts(pg_temp.job(7), 1)$$, $$values (0)$$,
+  'the third is given back too');
+select pg_temp.show(pg_temp.job(7), 1);
+create temporary table unsent4 as select * from pg_temp.next();
+select * from pg_temp.finish_after((select step_id from unsent4), 'not_sent', null);
+select results_eq($$select pg_temp.attempts(pg_temp.job(7), 1)$$, $$values (1)$$,
+  'the fourth counts as a read, so a failure that stays cannot loop');
+select pg_temp.show(pg_temp.job(7), 1);
+create temporary table unsent5 as select * from pg_temp.next();
+select * from pg_temp.finish_after((select step_id from unsent5), 'not_sent', null);
+select pg_temp.show(pg_temp.job(7), 1);
+create temporary table unsent6 as select * from pg_temp.next();
+select results_eq(
+  $$select * from pg_temp.finish_after((select step_id from unsent6), 'not_sent', null)$$,
+  $$values ('failed', 'done')$$, 'it fails on its third counted read, after six steps');
+select is((select count(*) from private.assistant_job_steps where job_id = pg_temp.job(7)), 6::bigint,
+  'three given back and three counted');
+delete from private.assistant_job_steps where job_id in (pg_temp.job(6), pg_temp.job(7));
+delete from private.assistant_jobs where id in (pg_temp.job(6), pg_temp.job(7));
+
 -- The budget.
 
 select is(pg_temp.start(pg_temp.job(3), array[pg_temp.photo(5)]), 'started',
@@ -412,6 +503,25 @@ select results_eq(
       where job_id is null) from private.assistant_jobs$$,
   $$values (array[pg_temp.job(2)], 7::bigint)$$,
   'once recorded, a job begun over 7 days ago is deleted with its photos, and its steps stay with no job');
+
+-- The retry-after revert comes first: it puts the cleanup's `finish_assistant_job_step` back, with
+-- the steps of outcome `not_sent` read as `model_error`.
+
+insert into private.assistant_job_steps (user_id, job_id, position, plan, configuration_id,
+    outcome, input_tokens, output_tokens, reasoning_tokens, latency_ms)
+  select pg_temp.b(), null, 1, 'free', configuration_id, 'not_sent', 0, 0, 0, 1
+  from private.assistant_configuration_labels where plan = 'free' and label = 'active';
+select lives_ok($$select private.revert_assistant_photo_retry_after()$$,
+  'the retry-after revert runs');
+select results_eq(
+  $$select (select count(*) from pg_proc where proname = 'finish_assistant_job_step'),
+    (select count(*) from private.assistant_job_steps where outcome = 'not_sent'),
+    (select count(*) from private.assistant_job_steps where outcome = 'model_error' and job_id is null
+      and input_tokens = 0),
+    pg_get_functiondef('public.finish_assistant_job_step(bigint, text, integer, integer, integer, integer, text)'::regprocedure) like '%case when photo.attempts <= 1%'$$,
+  $$values (1::bigint, 0::bigint, 1::bigint, true)$$,
+  'the cleanup''s function is back alone and a not sent step is a model error');
+drop function private.revert_assistant_photo_retry_after();
 
 -- The reverts: this change's, then the sweeper's, whose functions are named for the jobs too and
 -- which assistant_job_sweeper_test.sql tests, and then the jobs'.
