@@ -69,6 +69,11 @@ void main() {
       );
     });
 
+    test('reads the interim mark, whatever its data holds', () {
+      expect(parseEvent('interim', _json({})), isA<InterimEvent>());
+      expect(parseEvent('interim', 'not json'), isA<MalformedEvent>());
+    });
+
     test('reads a job event at the boundary and keeps nothing of it', () {
       expect(
         parseEvent(

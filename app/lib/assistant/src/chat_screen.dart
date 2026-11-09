@@ -495,7 +495,11 @@ class _ReplyView extends StatelessWidget {
             ),
           ),
         if (ending == null && turn.text.isEmpty)
-          _Notice(text: l10n.assistantThinking, status: true),
+          _Notice(
+            text: turn.interim ?? l10n.assistantThinking,
+            status: true,
+            oneLine: turn.interim != null,
+          ),
         if (turn.job case final job?) _JobView(job: job, onCancel: onCancelJob),
         if (turn.citations.isNotEmpty)
           Semantics(
@@ -611,11 +615,15 @@ class _Notice extends StatelessWidget {
     required this.text,
     this.status = false,
     this.centred = false,
+    this.oneLine = false,
   });
 
   final String text;
   final bool status;
   final bool centred;
+
+  /// Cut to one line, for text that is not ours and may be long.
+  final bool oneLine;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -624,6 +632,8 @@ class _Notice extends StatelessWidget {
       keepWords(text),
       semanticsLabel: text,
       textAlign: centred ? TextAlign.center : null,
+      maxLines: oneLine ? 1 : null,
+      overflow: oneLine ? TextOverflow.ellipsis : null,
       style: AppType.secondary.copyWith(color: AppColors.of(context).muted),
     ),
   );
