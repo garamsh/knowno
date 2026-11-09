@@ -435,6 +435,11 @@ verify_jwt = true
 [functions.review-sign-in]
 verify_jwt = false
 
+# Refuses a request without a valid JWT before the function runs: the owner's token on `/`, the
+# service-role key on `/work`; the function checks which each route got.
+[functions.publish-note]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 54327
