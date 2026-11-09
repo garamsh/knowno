@@ -93,7 +93,8 @@ async function stubAssistant(
 
 /**
  * Saves [page] at 390 and 1280 px in both themes, and at 390 px shown at 200%, when E2E_SCREENSHOTS
- * names a directory; at every size nothing reaches past the viewport's right edge.
+ * names a directory; at every size nothing reaches past the viewport's right edge, a table or code block
+ * wider than its bubble scrolling inside it.
  */
 async function capture(page: Page, name: string) {
   const directory = process.env.E2E_SCREENSHOTS;
@@ -111,6 +112,8 @@ async function capture(page: Page, name: string) {
       expect(
         await page.evaluate(() =>
           [...document.querySelectorAll<HTMLElement>("body *")]
+            // A table or a code block wider than its bubble scrolls inside it, and its cells are clipped there.
+            .filter((element) => element.closest('[role="region"][aria-label="표"], pre') === null)
             .filter((element) => element.getBoundingClientRect().right > window.innerWidth + 0.5)
             .map((element) => `${element.tagName} ${element.className}`),
         ),
@@ -423,11 +426,15 @@ test("draws a Markdown reply in a bubble in both themes, its wide table scrollin
   const sizes = await region.evaluate((element) => ({
     scroll: element.scrollWidth,
     client: element.clientWidth,
-    page: document.documentElement.scrollWidth,
+    overflowX: getComputedStyle(element).overflowX,
+    regionRight: element.getBoundingClientRect().right,
+    bubbleRight: element.parentElement?.getBoundingClientRect().right ?? Infinity,
     window: window.innerWidth,
   }));
   expect(sizes.scroll).toBeGreaterThan(sizes.client);
-  expect(sizes.page).toBeLessThanOrEqual(sizes.window);
+  expect(sizes.overflowX).toBe("auto");
+  expect(sizes.regionRight).toBeLessThanOrEqual(sizes.bubbleRight);
+  expect(sizes.bubbleRight).toBeLessThanOrEqual(sizes.window);
 
   // The bubble is the surface under the hairline, in each theme, and not the ground behind it.
   const paint = (colorScheme: "light" | "dark") =>
@@ -440,6 +447,9 @@ test("draws a Markdown reply in a bubble in both themes, its wide table scrollin
     );
   const light = await paint("light");
   const dark = await paint("dark");
+  // theme.md's surface: #FFFFFF light, #232F4E dark.
+  expect(light.bubble).toBe("rgb(255, 255, 255)");
+  expect(dark.bubble).toBe("rgb(35, 47, 78)");
   expect(light.bubble).not.toBe(light.ground);
   expect(dark.bubble).not.toBe(dark.ground);
   expect(light.bubble).not.toBe(dark.bubble);
