@@ -199,6 +199,12 @@ export class FakeAdmin {
   readonly cardFormSkillLabels = new Map<string, number>(
     this.cardFormSkills.map((skill) => [`${skill.form} active`, skill.id]),
   );
+  /** The card markup switch, off, and who set it and when once an admin has. */
+  cardMarkup: { enabled: boolean; by: string | null; at: string } = {
+    enabled: false,
+    by: null,
+    at: "2026-11-09T01:00:00Z",
+  };
   /** Each plan's daily assistant token budget, as the owner approved them; null for none. */
   readonly assistantTokenBudgets = new Map<string, number | null>([
     ["free", 200_000],
@@ -693,6 +699,26 @@ export class FakeAdmin {
           version_id: cleared,
         });
         return true;
+      }
+      case "admin_card_markup":
+        return [
+          {
+            enabled: this.cardMarkup.enabled,
+            set_by_email: this.users.find((user) => user.id === this.cardMarkup.by)?.email ?? null,
+            set_at: this.cardMarkup.at,
+          },
+        ];
+      case "admin_set_card_markup": {
+        const enabled = args.enabled;
+        if (typeof enabled !== "boolean") return "bad_value";
+        if (this.cardMarkup.enabled === enabled) return "unchanged";
+        const before = this.cardMarkup.enabled;
+        this.cardMarkup = { enabled, by: admin, at: "2026-11-09T11:00:00Z" };
+        this.record(admin, "set_card_markup", "switch", "card_markup", {
+          enabled,
+          enabled_before: before,
+        });
+        return "set";
       }
       case "admin_assistant_token_budgets":
         return [...this.assistantTokenBudgets].map(([plan, daily]) => ({

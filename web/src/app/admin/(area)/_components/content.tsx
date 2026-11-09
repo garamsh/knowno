@@ -30,6 +30,7 @@ import {
   readAssistantBudgets,
   readAssistantPrompts,
   readCardFormSkills,
+  readCardMarkup,
   readAuditLog,
   readConfigurationResults,
   readDeck,
@@ -338,11 +339,12 @@ export async function AiContent({ searchParams }: { searchParams: SearchParams }
  */
 export async function AssistantContent({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const [configurations, prompts, budgets, skills, timeZone] = await Promise.all([
+  const [configurations, prompts, budgets, skills, markup, timeZone] = await Promise.all([
     readAssistantConfigurations(),
     readAssistantPrompts(),
     readAssistantBudgets(),
     readCardFormSkills(),
+    readCardMarkup(),
     adminTimeZone(),
   ]);
   const failed = (failure: AdminFailure) => <AdminFailureMessage failure={failure} />;
@@ -350,6 +352,7 @@ export async function AssistantContent({ searchParams }: { searchParams: SearchP
   if ("failure" in prompts) return failed(prompts.failure);
   if ("failure" in budgets) return failed(budgets.failure);
   if ("failure" in skills) return failed(skills.failure);
+  if ("failure" in markup) return failed(markup.failure);
   const form = parseCardForm(params.skill);
   const skillFrom = versionId(params.from);
   // The server lists the configurations in the plans' order, so the first draft is the first plan's.
@@ -370,6 +373,7 @@ export async function AssistantContent({ searchParams }: { searchParams: SearchP
           : null
       }
       skills={skills.data}
+      markup={markup.data}
       skill={
         form === null
           ? null
