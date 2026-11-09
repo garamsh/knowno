@@ -430,6 +430,11 @@ verify_jwt = false
 [functions.assistant]
 verify_jwt = true
 
+# Lets a request without a user's JWT through, since the caller is not signed in yet; the function
+# refuses every attempt but the review address's with its code, and limits attempts itself.
+[functions.review-sign-in]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
