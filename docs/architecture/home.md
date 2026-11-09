@@ -14,7 +14,7 @@ The app's `home/` shell: the signed-in screens that show more than one domain or
   - `record_tab.dart` — the 기록 tab: its title over `study`'s record, over the edge character;
   - `deck_screen.dart` — `DeckScreen`, a deck's page;
   - `new_deck.dart` — `openNewDeck`, which opens `deck`'s 새 노트 and then the deck it made on the 노트 tab;
-  - `list_header.dart` — the header form the 노트 tab and the deck screen share: `ListHeaderActions`, the screen's tonal "+" action, where it has one, and its ⋯, and the height of a top bar holding them; the always-shown search under it is `app/lib/design/`'s `AppSearchField`, and "카드 추가"'s sheet of options its `showAppChoice`;
+  - `list_header.dart` — the header form the 노트 tab and the deck screen share, drawn in `app/lib/design/`'s `ScreenSkeleton`: `ListHeaderActions`, the screen's tonal "+" action, where it has one, and its ⋯, and the height of a top bar holding them; the always-shown search under it is `app/lib/design/`'s `AppSearchField`, and "카드 추가"'s sheet of options its `showAppChoice`;
   - `above_menu.dart` — `aboveMenu`, the context whose navigator shows a screen or sheet over the menu, and `RaisedIconButton`, the top bars' icon buttons;
   - `open_assistant.dart` — `openAssistant`, which opens `assistant`'s chat over the menu, from a note when given one, and gives it the callback that opens a note it added: a sync, then `DeckScreen`, without the edge character, over the chat;
   - `progress_bar.dart` — a deck's progress bar;

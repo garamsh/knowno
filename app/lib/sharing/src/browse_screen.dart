@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../design/app_list_row.dart';
 import '../../design/app_search_field.dart';
+import '../../design/screen_skeleton.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'failure.dart';
@@ -80,32 +81,20 @@ class _BrowseScreenState extends State<BrowseScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      appBar: AppBar(),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpace.gutter,
-          0,
-          AppSpace.gutter,
-          AppSpace.s16,
-        ),
-        children: [
-          Semantics(
-            header: true,
-            child: Text(l10n.browse, style: AppType.title),
-          ),
-          const SizedBox(height: AppSpace.s16),
-          AppSearchField(
-            hint: l10n.searchPublicDecks,
-            onChanged: _onSearch,
-            onSubmitted: (search) {
-              _typing?.cancel();
-              _search = search;
-              _load();
-            },
-          ),
-          const SizedBox(height: AppSpace.s12),
-          SegmentedButton<BrowseSort>(
+    return ScreenSkeleton(
+      title: l10n.browse,
+      search: AppSearchField(
+        hint: l10n.searchPublicDecks,
+        onChanged: _onSearch,
+        onSubmitted: (search) {
+          _typing?.cancel();
+          _search = search;
+          _load();
+        },
+      ),
+      body: [
+        SliverToBoxAdapter(
+          child: SegmentedButton<BrowseSort>(
             showSelectedIcon: false,
             segments: [
               ButtonSegment(
@@ -123,10 +112,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
               _load();
             },
           ),
-          const SizedBox(height: AppSpace.s16),
-          ..._results(l10n),
-        ],
-      ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.only(top: AppSpace.s16),
+          sliver: SliverList.list(children: _results(l10n)),
+        ),
+      ],
     );
   }
 

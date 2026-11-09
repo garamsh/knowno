@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
+import '../../design/bottom_actions.dart';
 import '../../design/app_list_row.dart';
 import '../../design/app_sheet.dart';
+import '../../design/screen_skeleton.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'failure.dart';
@@ -47,119 +49,97 @@ class _PublicDeckScreenState extends State<PublicDeckScreen> {
       deck.cardCount,
       deck.copyCount,
     );
-    return Scaffold(
-      appBar: AppBar(
-        actions: [
-          PopupMenuButton<_Action>(
-            tooltip: l10n.deckActions,
-            onSelected: (action) => switch (action) {
-              _Action.report => _report(),
-              _Action.block => _block(),
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: _Action.report,
-                child: Text(l10n.reportDeck),
-              ),
-              PopupMenuItem(value: _Action.block, child: Text(l10n.blockUser)),
-            ],
-          ),
+    return ScreenSkeleton(
+      title: deck.name,
+      userTitle: true,
+      actions: PopupMenuButton<_Action>(
+        tooltip: l10n.deckActions,
+        onSelected: (action) => switch (action) {
+          _Action.report => _report(),
+          _Action.block => _block(),
+        },
+        itemBuilder: (_) => [
+          PopupMenuItem(value: _Action.report, child: Text(l10n.reportDeck)),
+          PopupMenuItem(value: _Action.block, child: Text(l10n.blockUser)),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpace.gutter,
-          0,
-          AppSpace.gutter,
-          AppSpace.s16,
-        ),
-        children: [
-          Semantics(
-            header: true,
-            child: Text(deck.name, style: AppType.deckName),
-          ),
-          const SizedBox(height: AppSpace.s4),
-          Text(
-            keepWords(deckLine),
-            semanticsLabel: deckLine,
-            style: AppType.secondary.copyWith(color: colors.muted),
-          ),
-          if (description != null && description.isNotEmpty) ...[
-            const SizedBox(height: AppSpace.s12),
+      body: [
+        SliverList.list(
+          children: [
             Text(
-              keepWords(description),
-              semanticsLabel: description,
-              style: AppType.body,
+              keepWords(deckLine),
+              semanticsLabel: deckLine,
+              style: AppType.secondary.copyWith(color: colors.muted),
             ),
-          ],
-          const SizedBox(height: AppSpace.s24),
-          FutureBuilder(
-            future: _cards,
-            builder: (context, snapshot) => switch (snapshot) {
-              AsyncSnapshot(hasData: true, :final data?) when data.isEmpty =>
-                ListMessage(l10n.noCards),
-              AsyncSnapshot(hasData: true, :final data?) => Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AppGroup(
-                    children: [
-                      for (final card in data)
-                        CardBackRow(
-                          front: card.front,
-                          back: card.back,
-                          cells: card.cells,
-                        ),
-                    ],
-                  ),
-                  if (deck.cardCount > data.length)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppSpace.s8),
-                      child: Text(
-                        l10n.previewFirstCards(data.length, deck.cardCount),
-                        textAlign: TextAlign.center,
-                        style: AppType.caption.copyWith(color: colors.muted),
-                      ),
+            if (description != null && description.isNotEmpty) ...[
+              const SizedBox(height: AppSpace.s12),
+              Text(
+                keepWords(description),
+                semanticsLabel: description,
+                style: AppType.body,
+              ),
+            ],
+            const SizedBox(height: AppSpace.s24),
+            FutureBuilder(
+              future: _cards,
+              builder: (context, snapshot) => switch (snapshot) {
+                AsyncSnapshot(hasData: true, :final data?) when data.isEmpty =>
+                  ListMessage(l10n.noCards),
+                AsyncSnapshot(hasData: true, :final data?) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AppGroup(
+                      children: [
+                        for (final card in data)
+                          CardBackRow(
+                            front: card.front,
+                            back: card.back,
+                            cells: card.cells,
+                          ),
+                      ],
                     ),
-                ],
-              ),
-              AsyncSnapshot(:final error?, :final stackTrace) => ListMessage(
-                switch (error) {
-                  SharingFailure() => describeSharingFailure(l10n, error),
-                  _ => Error.throwWithStackTrace(
-                    error,
-                    stackTrace ?? StackTrace.current,
-                  ),
-                },
-                onRetry: () => setState(() {
-                  // Shown by the builder, which subscribes a frame later.
-                  _cards = widget.sharing.preview(widget.deck.id)..ignore();
-                }),
-              ),
-              _ => Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpace.s40),
-                child: Center(
-                  child: CircularProgressIndicator(
-                    semanticsLabel: l10n.loading,
+                    if (deck.cardCount > data.length)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpace.s8),
+                        child: Text(
+                          l10n.previewFirstCards(data.length, deck.cardCount),
+                          textAlign: TextAlign.center,
+                          style: AppType.caption.copyWith(color: colors.muted),
+                        ),
+                      ),
+                  ],
+                ),
+                AsyncSnapshot(:final error?, :final stackTrace) => ListMessage(
+                  switch (error) {
+                    SharingFailure() => describeSharingFailure(l10n, error),
+                    _ => Error.throwWithStackTrace(
+                      error,
+                      stackTrace ?? StackTrace.current,
+                    ),
+                  },
+                  onRetry: () => setState(() {
+                    // Shown by the builder, which subscribes a frame later.
+                    _cards = widget.sharing.preview(widget.deck.id)..ignore();
+                  }),
+                ),
+                _ => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpace.s40),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      semanticsLabel: l10n.loading,
+                    ),
                   ),
                 ),
-              ),
-            },
-          ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpace.gutter,
-            AppSpace.s8,
-            AppSpace.gutter,
-            AppSpace.s16,
-          ),
-          child: AppButton(
-            label: l10n.copyToMyDecks,
-            size: AppButtonSize.cta,
-            onPressed: _copy,
-          ),
+              },
+            ),
+          ],
+        ),
+      ],
+      bottom: BottomActions(
+        secondary: AppButton(
+          label: l10n.copyToMyDecks,
+          size: AppButtonSize.cta,
+          onPressed: _copy,
         ),
       ),
     );

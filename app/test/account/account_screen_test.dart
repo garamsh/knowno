@@ -10,6 +10,7 @@ import 'package:knowno/design/app_button.dart';
 import 'package:knowno/design/app_choice.dart';
 import 'package:knowno/design/app_list_row.dart';
 import 'package:knowno/design/app_sheet.dart';
+import 'package:knowno/design/screen_skeleton.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/design/theme_choice.dart';
 import 'package:knowno/l10n/app_localizations.dart';
@@ -108,7 +109,10 @@ void main() {
       );
 
       expect(
-        find.descendant(of: find.byType(AppBar), matching: shownText('설정')),
+        find.descendant(
+          of: find.byType(ScreenSkeleton),
+          matching: shownText('설정'),
+        ),
         findsOneWidget,
       );
       double top(Finder finder) => tester.getRect(finder).top;
@@ -627,7 +631,7 @@ void main() {
       expect(
         line.center.dx,
         moreOrLessEquals(
-          tester.getCenter(find.byType(ListView)).dx,
+          tester.getCenter(find.byType(CustomScrollView)).dx,
           epsilon: 1,
         ),
       );

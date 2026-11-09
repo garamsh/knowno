@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../design/app_button.dart';
 import '../../design/app_text_field.dart';
 import '../../design/bottom_actions.dart';
+import '../../design/screen_skeleton.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../media/media.dart';
@@ -75,77 +76,68 @@ class _NewDeckScreenState extends ConsumerState<NewDeckScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Semantics(
-          header: true,
-          child: Text(l10n.newDeck, style: AppType.title),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpace.gutter,
-          AppSpace.s8,
-          AppSpace.gutter,
-          AppSpace.s24,
-        ),
-        children: [
-          // The tile the deck will get, over its name as typed.
-          ExcludeSemantics(
-            child: Column(
-              spacing: AppSpace.s8,
+    return ScreenSkeleton(
+      title: l10n.newDeck,
+      body: [
+        SliverList.list(
+          children: [
+            // The tile the deck will get, over its name as typed.
+            ExcludeSemantics(
+              child: Column(
+                spacing: AppSpace.s8,
+                children: [
+                  DeckTile(look: _look, size: AppSize.deckTile * 2),
+                  ListenableBuilder(
+                    listenable: _name,
+                    builder: (context, _) {
+                      final typed = _name.text.trim();
+                      return Text(
+                        typed.isEmpty ? l10n.deckName : typed,
+                        textAlign: TextAlign.center,
+                        style: AppType.bodyStrong.copyWith(
+                          color: typed.isEmpty ? colors.muted : colors.ink,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpace.s16),
+            EditorGroup(
               children: [
-                DeckTile(look: _look, size: AppSize.deckTile * 2),
-                ListenableBuilder(
-                  listenable: _name,
-                  builder: (context, _) {
-                    final typed = _name.text.trim();
-                    return Text(
-                      typed.isEmpty ? l10n.deckName : typed,
-                      textAlign: TextAlign.center,
-                      style: AppType.bodyStrong.copyWith(
-                        color: typed.isEmpty ? colors.muted : colors.ink,
-                      ),
-                    );
-                  },
+                Padding(
+                  padding: const EdgeInsets.all(AppSpace.s16),
+                  // The field on the ground, so it shows inside the white
+                  // group, the label above it at the group's inset.
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      inputDecorationTheme: groupFieldTheme(colors)
+                          .copyWith(fillColor: colors.ground),
+                    ),
+                    child: AppTextField(
+                      label: l10n.deckName,
+                      hint: l10n.deckNameHint,
+                      controller: _name,
+                      autofocus: true,
+                      textInputAction: TextInputAction.done,
+                      errorText: _showRequired ? l10n.deckNameRequired : null,
+                      onSubmitted: (_) => _save(addCards: false),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: AppSpace.s16),
-          EditorGroup(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(AppSpace.s16),
-                // The field on the ground, so it shows inside the white
-                // group, the label above it at the group's inset.
-                child: Theme(
-                  data: Theme.of(context).copyWith(
-                    inputDecorationTheme: groupFieldTheme(colors)
-                        .copyWith(fillColor: colors.ground),
-                  ),
-                  child: AppTextField(
-                    label: l10n.deckName,
-                    hint: l10n.deckNameHint,
-                    controller: _name,
-                    autofocus: true,
-                    textInputAction: TextInputAction.done,
-                    errorText: _showRequired ? l10n.deckNameRequired : null,
-                    onSubmitted: (_) => _save(addCards: false),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpace.s12),
-          DeckAppearanceFields(
-            look: _look,
-            enabled: !_busy,
-            onChanged: (look) => setState(() => _look = look),
-          ),
-        ],
-      ),
-      bottomNavigationBar: BottomActions(
+            const SizedBox(height: AppSpace.s12),
+            DeckAppearanceFields(
+              look: _look,
+              enabled: !_busy,
+              onChanged: (look) => setState(() => _look = look),
+            ),
+          ],
+        ),
+      ],
+      bottom: BottomActions(
         secondary: AppButton(
           label: l10n.save,
           variant: AppButtonVariant.secondary,

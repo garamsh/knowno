@@ -15,6 +15,8 @@ The frame of a screen the user lands on: the 노트 tab, the deck screen, 설정
 3. Body: groups and rows (§Group and section), `AppSpace.sectionGap` between groups.
 4. The primary, where the screen has one: in `BottomActions` at the foot, or inside the card it acts on.
 
+The phone draws it as `ScreenSkeleton` (`app/lib/design/screen_skeleton.dart`), with a slot for each part above: `title` (with `userTitle` for a name the user wrote), `actions`, `search`, `body` as slivers and `bottom`. A tab's first screen (`topLevel`) has no back bar and shares one line between the title and the actions; any other screen has a bar `AppButton.barHeight` high with the back arrow and the actions, and the title under it. The 노트 tab, the deck screen, 설정, 둘러보기, a public deck and 새 노트 use it; study, the card editor, photo import and the pickers are not a screen the user lands on and draw their own. The web's component is named beside it by #857.
+
 Horizontal edges are `AppSpace.gutter` throughout. The 노트 tab and the deck screen use it ([ADR 0172](../adr/0172-make-a-note-with-the-choices-of-its-customization-head-the-notes-and-a-note-with-a-tonal-action-and-a-menu-over-an-always-shown-search.md)).
 
 ### List row

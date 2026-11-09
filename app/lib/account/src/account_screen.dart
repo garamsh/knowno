@@ -6,6 +6,7 @@ import '../../design/app_choice.dart';
 import '../../design/app_list_row.dart';
 import '../../design/app_section_label.dart';
 import '../../design/app_sheet.dart';
+import '../../design/screen_skeleton.dart';
 import '../../design/theme.dart';
 import '../../design/theme_choice.dart';
 import '../../l10n/app_localizations.dart';
@@ -48,54 +49,50 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final l10n = AppLocalizations.of(context);
     final state = ref.watch(accountStateProvider);
     final idle = _busy == null && state is SignedIn;
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.accountTitle)),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpace.gutter,
-          AppSpace.s8,
-          AppSpace.gutter,
-          AppSpace.s24,
+    return ScreenSkeleton(
+      title: l10n.accountTitle,
+      body: [
+        SliverList.list(
+          children: [
+            AppSectionLabel(l10n.accountSection),
+            AppGroup(
+              children: [
+                // The gate leaves this screen once no account is signed in.
+                if (state case SignedIn(:final email))
+                  _EmailRow(email: email, syncStatus: widget.syncStatus),
+                AppListRow(
+                  title: l10n.signOut,
+                  trailing: _busy == _Action.signingOut
+                      ? _Progress(l10n.signingOut)
+                      : null,
+                  onTap: idle ? _signOut : null,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.sectionGap),
+            AppSectionLabel(l10n.settingsStudy),
+            AppGroup(children: widget.studySettings),
+            const SizedBox(height: AppSpace.sectionGap),
+            AppSectionLabel(l10n.displaySection),
+            const AppGroup(children: [_ThemeRow()]),
+            const SizedBox(height: AppSpace.sectionGap),
+            AppGroup(
+              children: [
+                AppListRow(
+                  title: l10n.deleteAccount,
+                  destructive: true,
+                  trailing: _busy == _Action.deleting
+                      ? _Progress(l10n.deletingAccount)
+                      : null,
+                  onTap: idle ? _deleteAccount : null,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.s32),
+            const _Footer(),
+          ],
         ),
-        children: [
-          AppSectionLabel(l10n.accountSection),
-          AppGroup(
-            children: [
-              // The gate leaves this screen once no account is signed in.
-              if (state case SignedIn(:final email))
-                _EmailRow(email: email, syncStatus: widget.syncStatus),
-              AppListRow(
-                title: l10n.signOut,
-                trailing: _busy == _Action.signingOut
-                    ? _Progress(l10n.signingOut)
-                    : null,
-                onTap: idle ? _signOut : null,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpace.sectionGap),
-          AppSectionLabel(l10n.settingsStudy),
-          AppGroup(children: widget.studySettings),
-          const SizedBox(height: AppSpace.sectionGap),
-          AppSectionLabel(l10n.displaySection),
-          const AppGroup(children: [_ThemeRow()]),
-          const SizedBox(height: AppSpace.sectionGap),
-          AppGroup(
-            children: [
-              AppListRow(
-                title: l10n.deleteAccount,
-                destructive: true,
-                trailing: _busy == _Action.deleting
-                    ? _Progress(l10n.deletingAccount)
-                    : null,
-                onTap: idle ? _deleteAccount : null,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpace.s32),
-          const _Footer(),
-        ],
-      ),
+      ],
     );
   }
 
