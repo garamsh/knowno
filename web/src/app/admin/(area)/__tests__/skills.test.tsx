@@ -1,5 +1,6 @@
 import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -7,8 +8,9 @@ import {
   clearCardFormSkillTest,
   saveCardFormSkill,
 } from "@/features/admin/actions";
+import { readCardFormSkills } from "@/features/admin";
 import { FakeAdmin } from "@/testing/mocks/admin";
-import { otherUser, testUser } from "@/testing/mocks/handlers";
+import { otherUser, supabaseUrl, testUser } from "@/testing/mocks/handlers";
 import { server } from "@/testing/mocks/server";
 import { setRequestCookies } from "@/testing/next-headers";
 import { redirectTarget } from "@/testing/redirect";
@@ -128,6 +130,60 @@ describe("the card forms' skills on 말랑이", () => {
     await assistant({ skill: "cloze" });
     expect(screen.getByText("관리자만 볼 수 있어요.")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "카드 형식 스킬" })).toBeNull();
+  });
+});
+
+describe("a skill version labelled markup (ADR 0216)", () => {
+  /** The text form's markup version, 8, beside its version 1 in use. */
+  function seedMarkup() {
+    admin.cardFormSkills.push({
+      id: 8,
+      form: "text",
+      summary: "text, markup",
+      text: "# text\nUse markup.",
+      note: "markup (#763)",
+      by: null,
+    });
+    admin.cardFormSkillLabels.set("text markup", 8);
+  }
+
+  it("reads a version labelled markup beside the one in use, and refuses a label it does not know", async () => {
+    seedMarkup();
+    const read = await readCardFormSkills();
+    if ("failure" in read) throw new Error(`the read failed: ${read.failure}`);
+    expect(read.data.find((skill) => skill.id === 8)?.labels).toEqual(["markup"]);
+    expect(read.data.find((skill) => skill.id === 1)?.labels).toEqual(["active"]);
+    // Control: the same row with a label outside active, test and markup is refused as unreadable.
+    server.use(
+      http.post(`${supabaseUrl}/rest/v1/rpc/admin_card_form_skills`, () =>
+        HttpResponse.json([
+          {
+            id: 8,
+            form: "text",
+            summary: "s",
+            text: "t",
+            note: "",
+            created_by_email: null,
+            created_at: "2026-11-05T01:00:00Z",
+            labels: ["markup", "staging"],
+          },
+        ]),
+      ),
+    );
+    expect(await readCardFormSkills()).toEqual({ failure: "unreadable" });
+  });
+
+  it("names the version in a form's versions as served while markup is on, neither in use nor the draft, and the list still reads", async () => {
+    seedMarkup();
+    await assistant({ skill: "text" });
+    expect(screen.getByRole("link", { name: /^글 · v1 사용 중/ })).toBeInTheDocument();
+    const versions = within(screen.getByRole("list", { name: "글 스킬 버전" }));
+    const links = versions.getAllByRole("link").map((link) => link.textContent);
+    expect(links[0]).toMatch(/^v8 · 마크업 켜면 사용 · /);
+    expect(links[0]).not.toMatch(/사용 중|초안/);
+    // Control: the version in use keeps its own label and no markup one.
+    expect(links[1]).toMatch(/^v1 · 사용 중 · /);
+    expect(links[1]).not.toMatch(/마크업/);
   });
 });
 
