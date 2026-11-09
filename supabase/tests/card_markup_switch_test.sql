@@ -3,15 +3,17 @@
 -- and `cloze` versions that teach the markup served while it is on, an admin's test version over
 -- them, an applied version replacing them, and every other form unchanged. And the revert.
 begin;
-select plan(44);
+select plan(52);
 
 delete from private.admin_audit;
 
--- A is an admin, B a signed-in user who is not.
+-- A and C are admins, B a signed-in user who is not.
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'admin@example.com'),
-  ('00000000-0000-4000-8000-00000000000b', 'user@example.com');
-insert into private.admins (user_id) values ('00000000-0000-4000-8000-00000000000a');
+  ('00000000-0000-4000-8000-00000000000b', 'user@example.com'),
+  ('00000000-0000-4000-8000-00000000000c', 'admin2@example.com');
+insert into private.admins (user_id) values ('00000000-0000-4000-8000-00000000000a'),
+  ('00000000-0000-4000-8000-00000000000c');
 
 -- Signs in as the user whose id ends in [who], or as anon for null.
 create function pg_temp.sign_in(who text) returns void language plpgsql as $$
@@ -72,10 +74,12 @@ select throws_ok($$select public.admin_set_card_markup(true)$$, '42501', null,
 reset role;
 select is(public.card_markup_enabled(), false, 'control: the refused call left it off');
 select pg_temp.sign_in('a');
-select results_eq($$select enabled, set_by_email from public.admin_card_markup()$$,
-  $$values (false, null::text)$$, 'an admin reads it off, set by no one');
+select results_eq($$select enabled, set_by_email, ever_set from public.admin_card_markup()$$,
+  $$values (false, null::text, false)$$, 'an admin reads it off, set by no one, never set');
 select is(public.admin_set_card_markup(null), 'bad_value', 'a null value is refused');
 select is(public.admin_set_card_markup(false), 'unchanged', 'the value it has changes nothing');
+select is((select ever_set from public.admin_card_markup()), false,
+  'and neither marks it set');
 reset role;
 select is((select count(*) from private.admin_audit), 0::bigint,
   'and neither records anything');
@@ -112,8 +116,8 @@ select ok((select bool_and(text !~ '\{\{c1::') from private.card_form_skills
 
 select pg_temp.sign_in('a');
 select is(public.admin_set_card_markup(true), 'set', 'an admin turns it on');
-select results_eq($$select enabled, set_by_email from public.admin_card_markup()$$,
-  $$values (true, 'admin@example.com')$$, 'it reads on, set by the admin');
+select results_eq($$select enabled, set_by_email, ever_set from public.admin_card_markup()$$,
+  $$values (true, 'admin@example.com', true)$$, 'it reads on, set by the admin, set');
 reset role;
 select results_eq(
   $$select action, target_kind, target_id, detail from private.admin_audit order by id$$,
@@ -191,6 +195,34 @@ select lives_ok($$insert into private.card_form_skill_labels (form, label, versi
     values ('table', 'markup', pg_temp.seeded('table'))$$,
   'control: markup is one');
 
+-- The deleted setter: ever_set holds when set_by is gone, a second admin reading it.
+
+delete from auth.users where id = '00000000-0000-4000-8000-00000000000a';
+select is((select set_by from private.server_switches), null::uuid,
+  'the setter''s account is deleted and set_by is null');
+select pg_temp.sign_in('c');
+select results_eq($$select enabled, set_by_email, ever_set from public.admin_card_markup()$$,
+  $$values (false, null::text, true)$$, 'it still reads set, by no account that remains');
+reset role;
+update private.server_switches set ever_set = false;
+select pg_temp.sign_in('c');
+select is((select ever_set from public.admin_card_markup()), false,
+  'control: the same row with ever_set false reads never set');
+reset role;
+update private.server_switches set ever_set = true;
+
+-- The revert of ever_set.
+
+select lives_ok($$select private.revert_card_markup_ever_set()$$, 'the ever_set revert runs');
+select pg_temp.sign_in('c');
+select results_eq($$select enabled, set_by_email from public.admin_card_markup()$$,
+  $$values (false, null::text)$$, 'admin_card_markup answers its three columns again');
+select is(public.admin_set_card_markup(true), 'set', 'and admin_set_card_markup still sets');
+reset role;
+select is((select count(*) from information_schema.columns where table_schema = 'private'
+    and table_name = 'server_switches' and column_name = 'ever_set'), 0::bigint,
+  'the column is gone');
+
 -- The revert.
 
 select lives_ok($$select private.revert_card_markup_switch()$$, 'the revert runs');
@@ -199,7 +231,7 @@ select results_eq(
       where n.nspname = 'private' and c.relname = 'server_switches'),
     (select count(*) from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
       where n.nspname in ('public', 'private') and p.proname like '%card_markup%'
-        and p.proname <> 'revert_card_markup_switch'),
+        and p.proname not like 'revert_card_markup%'),
     (select count(*) from private.card_form_skill_labels where label = 'markup')$$,
   $$values (0::bigint, 0::bigint, 0::bigint)$$,
   'the table, the functions and the labels are gone, the revert alone left');
