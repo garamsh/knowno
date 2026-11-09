@@ -93,3 +93,17 @@ describe("the sentence for each way a send or a verification fails", () => {
     expect(api("User is banned", 400, "user_banned").message).toBe(emailMessages.suspended);
   });
 });
+
+describe("the strings the phone has, word for word (ADR 0214)", () => {
+  it("are the phone's for an address, a refused address, a refused code and a rate limit", () => {
+    expect(emailMessages.address).toBe("이메일 주소를 확인해 주세요.");
+    expect(emailMessages.refused).toBe(
+      "이 주소로는 코드를 보낼 수 없어요. 이메일 주소를 확인해 주세요.",
+    );
+    expect(emailMessages.wrongOrExpired).toBe(
+      "코드가 맞지 않거나 만료됐어요. 다시 확인하거나 새 코드를 받아 주세요.",
+    );
+    expect(rateLimited(42)).toBe("요청이 너무 많아요. 42초 뒤에 다시 시도해 주세요.");
+    expect(rateLimited(null)).toBe("요청이 너무 많아요. 잠시 뒤에 다시 시도해 주세요.");
+  });
+});

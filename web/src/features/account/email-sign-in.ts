@@ -15,22 +15,27 @@ export type SendCodeState = {
 /** The seconds before the next send, `auth.email.max_frequency` in production. */
 export const resendSeconds = 60;
 
-/** What the email step and the code step show after an attempt that did not go on. */
+/**
+ * What the email step and the code step show after an attempt that did not go on. The phone's
+ * strings (ADR 0214) where it has them: `address`, `refused`, `wrongOrExpired` and the rate limit.
+ * The web's own: `code` (the phone's button is off below six digits, the web's form is not),
+ * `offline`, `unavailable` and `suspended`.
+ */
 export const emailMessages = {
   address: "이메일 주소를 확인해 주세요.",
   code: "6자리 숫자를 입력해 주세요.",
   offline: "연결할 수 없어요. 연결을 확인하고 다시 시도해 주세요.",
   unavailable: "지금은 코드를 보낼 수 없어요. 잠시 후 다시 시도해 주세요.",
-  refused: "이 주소로는 코드를 보낼 수 없어요. 주소를 확인해 주세요.",
-  wrongOrExpired: "코드가 맞지 않거나 만료됐어요. 새 코드를 받아 주세요.",
+  refused: "이 주소로는 코드를 보낼 수 없어요. 이메일 주소를 확인해 주세요.",
+  wrongOrExpired: "코드가 맞지 않거나 만료됐어요. 다시 확인하거나 새 코드를 받아 주세요.",
   suspended: "이 계정은 이용이 정지됐어요. 문의는 sauce@garam.sh로 보내 주세요.",
 } as const;
 
 /** The sentence for a send refused for its rate: when the next one is allowed, if the server said. */
 export function rateLimited(seconds: number | null): string {
   return seconds === null
-    ? "코드를 너무 자주 요청했어요. 잠시 후 다시 시도해 주세요."
-    : `코드를 너무 자주 요청했어요. ${String(seconds)}초 뒤에 다시 받을 수 있어요.`;
+    ? "요청이 너무 많아요. 잠시 뒤에 다시 시도해 주세요."
+    : `요청이 너무 많아요. ${String(seconds)}초 뒤에 다시 시도해 주세요.`;
 }
 
 /** The longest address the server keeps, as RFC 5321 bounds a path. */

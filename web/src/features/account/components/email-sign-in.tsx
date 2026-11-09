@@ -68,8 +68,11 @@ export function EmailSignIn() {
         aria-label="이메일로 계속하기"
         className="flex w-full max-w-sign-in flex-col gap-3 self-center"
       >
+        <p className="text-body text-ink-2">
+          이메일 주소로 {String(codeLength)}자리 코드를 보내 드려요. 처음이라면 계정이 만들어져요.
+        </p>
         <label className="flex flex-col gap-2 text-body text-ink-2">
-          이메일 주소
+          이메일
           <input
             name="email"
             type="email"
@@ -101,30 +104,28 @@ export function EmailSignIn() {
 
   return (
     <div className="flex w-full max-w-sign-in flex-col gap-3 self-center">
-      <form action={verify} aria-label="인증 코드" className="flex flex-col gap-3">
+      <form action={verify} className="flex flex-col gap-3">
         <input type="hidden" name="email" value={sent.email ?? ""} />
-        <label className="flex flex-col gap-2 text-body text-ink-2">
-          <span className="break-words">
-            {sent.email}로 보낸 {String(codeLength)}자리 코드를 입력해 주세요.
-          </span>
-          <input
-            name="code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            required
-            autoFocus
-            aria-label="인증 코드"
-            placeholder="000000"
-            className={`${field} text-center tracking-widest tabular-nums`}
-          />
-        </label>
+        <p className="text-body break-words text-ink-2">
+          {sent.email}로 보낸 {String(codeLength)}자리 코드를 입력해 주세요.
+        </p>
+        <input
+          name="code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          required
+          autoFocus
+          aria-label={`${String(codeLength)}자리 코드`}
+          placeholder="000000"
+          className={`${field} text-center tracking-widest tabular-nums`}
+        />
         <button
           type="submit"
           disabled={verifying}
           aria-busy={verifying}
           className={`${buttonClass("primary")} gap-2`}
         >
-          확인
+          로그인
           {verifying && <LoaderCircle aria-hidden className="size-5 motion-safe:animate-spin" />}
         </button>
         {verified.message !== null && (
@@ -135,13 +136,15 @@ export function EmailSignIn() {
       </form>
       <form action={send} className="flex flex-col gap-2">
         <input type="hidden" name="email" value={sent.email ?? ""} />
-        <button
-          type="submit"
-          disabled={sending || counting}
-          className={buttonClass("text", "header")}
-        >
-          {counting ? `코드 다시 받기 (${String(left)}초)` : "코드 다시 받기"}
-        </button>
+        {counting ? (
+          <p className="text-center text-caption text-muted">
+            {String(left)}초 뒤에 코드를 다시 받을 수 있어요
+          </p>
+        ) : (
+          <button type="submit" disabled={sending} className={buttonClass("text", "header")}>
+            코드 다시 받기
+          </button>
+        )}
         {sent.message !== null && (
           <p role="alert" className="text-caption text-dont-know-text">
             {sent.message}
@@ -155,7 +158,7 @@ export function EmailSignIn() {
         }}
         className={buttonClass("text", "header")}
       >
-        이메일 바꾸기
+        이메일 주소 바꾸기
       </button>
     </div>
   );

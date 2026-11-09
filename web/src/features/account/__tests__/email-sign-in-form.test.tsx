@@ -26,9 +26,9 @@ const sentTo = (email: string, sent = 1, resendIn = 60): SendCodeState => ({
 async function toCodeStep(user: ReturnType<typeof userEvent.setup>) {
   sendEmailCode.mockResolvedValueOnce(sentTo("kim@example.com"));
   await user.click(screen.getByRole("button", { name: "이메일로 계속하기" }));
-  await user.type(screen.getByRole("textbox", { name: "이메일 주소" }), "kim@example.com");
+  await user.type(screen.getByRole("textbox", { name: "이메일" }), "kim@example.com");
   await user.click(screen.getByRole("button", { name: "코드 받기" }));
-  await screen.findByRole("textbox", { name: "인증 코드" });
+  await screen.findByRole("textbox", { name: "6자리 코드" });
 }
 
 beforeEach(() => {
@@ -49,7 +49,10 @@ describe("EmailSignIn", () => {
 
     await user.click(screen.getByRole("button", { name: "이메일로 계속하기" }));
 
-    const email = screen.getByRole("textbox", { name: "이메일 주소" });
+    const email = screen.getByRole("textbox", { name: "이메일" });
+    expect(
+      screen.getByText("이메일 주소로 6자리 코드를 보내 드려요. 처음이라면 계정이 만들어져요."),
+    ).toBeInTheDocument();
     expect(email).toHaveAttribute("type", "email");
     expect(email).toHaveAttribute("autocomplete", "email");
     expect(screen.getByRole("button", { name: "코드 받기" })).toBeEnabled();
@@ -69,14 +72,14 @@ describe("EmailSignIn", () => {
     verifyEmailCode.mockResolvedValue({ message: null });
     render(<EmailSignIn />);
     await toCodeStep(user);
-    const code = screen.getByRole("textbox", { name: "인증 코드" });
+    const code = screen.getByRole("textbox", { name: "6자리 코드" });
     expect(code).toHaveAttribute("autocomplete", "one-time-code");
     expect(code).toHaveAttribute("inputmode", "numeric");
 
     // A paste of the whole code goes in whole.
     await user.click(code);
     await user.paste("123456");
-    await user.click(screen.getByRole("button", { name: "확인" }));
+    await user.click(screen.getByRole("button", { name: "로그인" }));
 
     const form = verifyEmailCode.mock.calls[0]?.[1];
     expect(form?.get("code")).toBe("123456");
@@ -86,15 +89,15 @@ describe("EmailSignIn", () => {
   it("shows the sentence the server returns for a wrong code, and keeps the code step", async () => {
     const user = userEvent.setup();
     verifyEmailCode.mockResolvedValue({
-      message: "코드가 맞지 않거나 만료됐어요. 새 코드를 받아 주세요.",
+      message: "코드가 맞지 않거나 만료됐어요. 다시 확인하거나 새 코드를 받아 주세요.",
     });
     render(<EmailSignIn />);
     await toCodeStep(user);
-    await user.type(screen.getByRole("textbox", { name: "인증 코드" }), "000000");
-    await user.click(screen.getByRole("button", { name: "확인" }));
+    await user.type(screen.getByRole("textbox", { name: "6자리 코드" }), "000000");
+    await user.click(screen.getByRole("button", { name: "로그인" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("코드가 맞지 않거나 만료됐어요");
-    expect(screen.getByRole("textbox", { name: "인증 코드" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "6자리 코드" })).toBeInTheDocument();
   });
 
   it("shows why the email step did not send, staying on it with the address kept", async () => {
@@ -107,32 +110,32 @@ describe("EmailSignIn", () => {
     });
     render(<EmailSignIn />);
     await user.click(screen.getByRole("button", { name: "이메일로 계속하기" }));
-    await user.type(screen.getByRole("textbox", { name: "이메일 주소" }), "kim@example");
+    await user.type(screen.getByRole("textbox", { name: "이메일" }), "kim@example");
     await user.click(screen.getByRole("button", { name: "코드 받기" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("이메일 주소를 확인해 주세요.");
-    expect(screen.queryByRole("textbox", { name: "인증 코드" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "6자리 코드" })).not.toBeInTheDocument();
   });
 
-  it("counts the resend down from the interval, and offers it once the count is over", async () => {
+  it("counts the resend down from the interval, offering the button only once the count is over", async () => {
     const user = userEvent.setup();
     render(<EmailSignIn />);
     await toCodeStep(user);
-    const resend = () => screen.getByRole("button", { name: /^코드 다시 받기/ });
-    expect(resend()).toHaveAccessibleName("코드 다시 받기 (60초)");
-    expect(resend()).toBeDisabled();
+    const button = () => screen.queryByRole("button", { name: "코드 다시 받기" });
+    expect(screen.getByText("60초 뒤에 코드를 다시 받을 수 있어요")).toBeInTheDocument();
+    expect(button()).not.toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(59_000);
     });
-    expect(resend()).toHaveAccessibleName("코드 다시 받기 (1초)");
-    expect(resend()).toBeDisabled();
+    expect(screen.getByText("1초 뒤에 코드를 다시 받을 수 있어요")).toBeInTheDocument();
+    expect(button()).not.toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(1000);
     });
 
-    expect(resend()).toHaveAccessibleName("코드 다시 받기");
-    expect(resend()).toBeEnabled();
+    expect(screen.queryByText(/초 뒤에 코드를 다시 받을 수 있어요/)).not.toBeInTheDocument();
+    expect(button()).toBeEnabled();
   });
 
   it("resends to the same address, and starts the count again", async () => {
@@ -147,7 +150,7 @@ describe("EmailSignIn", () => {
     await user.click(screen.getByRole("button", { name: "코드 다시 받기" }));
 
     expect(sendEmailCode.mock.calls.at(-1)?.[1].get("email")).toBe("kim@example.com");
-    expect(await screen.findByRole("button", { name: "코드 다시 받기 (60초)" })).toBeDisabled();
+    expect(await screen.findByText("60초 뒤에 코드를 다시 받을 수 있어요")).toBeInTheDocument();
   });
 
   it("counts down the wait a refused resend names", async () => {
@@ -161,12 +164,12 @@ describe("EmailSignIn", () => {
       sent: 1,
       email: "kim@example.com",
       resendIn: 25,
-      message: "코드를 너무 자주 요청했어요. 25초 뒤에 다시 받을 수 있어요.",
+      message: "요청이 너무 많아요. 25초 뒤에 다시 시도해 주세요.",
     });
     await user.click(screen.getByRole("button", { name: "코드 다시 받기" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("25초 뒤에");
-    expect(screen.getByRole("button", { name: "코드 다시 받기 (25초)" })).toBeDisabled();
+    expect(await screen.findByRole("alert")).toHaveTextContent("요청이 너무 많아요. 25초 뒤에");
+    expect(screen.getByText("25초 뒤에 코드를 다시 받을 수 있어요")).toBeInTheDocument();
   });
 
   it("goes back to the email step with the address to change, and sends to the new one", async () => {
@@ -174,11 +177,11 @@ describe("EmailSignIn", () => {
     render(<EmailSignIn />);
     await toCodeStep(user);
 
-    await user.click(screen.getByRole("button", { name: "이메일 바꾸기" }));
+    await user.click(screen.getByRole("button", { name: "이메일 주소 바꾸기" }));
 
-    const email = screen.getByRole("textbox", { name: "이메일 주소" });
+    const email = screen.getByRole("textbox", { name: "이메일" });
     expect(email).toHaveValue("kim@example.com");
-    expect(screen.queryByRole("textbox", { name: "인증 코드" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "6자리 코드" })).not.toBeInTheDocument();
     sendEmailCode.mockResolvedValueOnce(sentTo("lee@example.com", 2));
     await user.clear(email);
     await user.type(email, "lee@example.com");
@@ -191,7 +194,7 @@ describe("EmailSignIn", () => {
     sendEmailCode.mockReturnValue(new Promise(() => undefined));
     render(<EmailSignIn />);
     await user.click(screen.getByRole("button", { name: "이메일로 계속하기" }));
-    await user.type(screen.getByRole("textbox", { name: "이메일 주소" }), "kim@example.com");
+    await user.type(screen.getByRole("textbox", { name: "이메일" }), "kim@example.com");
     const send = screen.getByRole("button", { name: "코드 받기" });
     expect(send).toHaveAttribute("aria-busy", "false");
 
