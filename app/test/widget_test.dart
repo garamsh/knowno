@@ -1088,7 +1088,7 @@ void main() {
 
         // A search typed in the field under the top bar.
         await tester.enterText(
-          widgetWithShownText(AppTextField, 'Search'),
+          widgetWithShownText(AppTextField, 'Search cards'),
           'ch',
         );
         await tester.pumpAndSettle();

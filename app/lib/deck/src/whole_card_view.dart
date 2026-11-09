@@ -395,6 +395,9 @@ class WholeCardView extends StatelessWidget {
       ),
       child: child,
     );
+    // A card list's cells start at their left, as a grid reads; a card's
+    // stay centred.
+    final cellAlign = listed ? TextAlign.start : TextAlign.center;
     // A card list's row shows a table's first rows and how many it leaves.
     final shown = listed ? table.rows.take(_listedRows).length : null;
     final grid = Table(
@@ -405,7 +408,7 @@ class WholeCardView extends StatelessWidget {
           decoration: BoxDecoration(color: colors.ground),
           children: [
             for (final text in table.columns)
-              padded(Text(text, style: header, textAlign: TextAlign.center)),
+              padded(Text(text, style: header, textAlign: cellAlign)),
           ],
         ),
         for (final (row, cells)
@@ -429,7 +432,7 @@ class WholeCardView extends StatelessWidget {
                     ),
                     // Each row starts with its header.
                     style: column == 0 ? header : cell,
-                    textAlign: TextAlign.center,
+                    textAlign: cellAlign,
                   ),
                 ),
             ],

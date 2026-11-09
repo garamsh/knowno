@@ -772,7 +772,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backlogPaused => '밀린 복습을 마칠 때까지 새 카드는 쉬어요.';
 
   @override
-  String get searchCards => '검색';
+  String get searchCards => '카드 검색';
 
   @override
   String get noMatches => '찾는 카드가 없어요. 다른 단어로 검색해 보세요.';

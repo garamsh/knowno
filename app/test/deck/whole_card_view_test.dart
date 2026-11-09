@@ -299,6 +299,44 @@ void main() {
       expect(styleOf(tester, 'Added').fontWeight, FontWeight.w400);
     });
 
+    testWidgets('a card list\'s table starts its header and cells at their '
+        'left, and a card\'s keeps them centred', (tester) async {
+      const table = BlankCell(
+        TableContent(
+          columns: ['왕', '업적'],
+          rows: [
+            ['세종', '훈민정음'],
+          ],
+          blanks: [],
+        ),
+      );
+      Set<TextAlign> aligns(String text) => {
+        for (final t in tester.widgetList<Text>(find.textContaining(text)))
+          t.textAlign ?? TextAlign.start,
+      };
+
+      await pumpComponent(
+        tester,
+        const WholeCardView.listed([table], style: AppType.label),
+      );
+      for (final text in ['왕', '훈민정음']) {
+        expect(aligns(text), {TextAlign.start}, reason: text);
+      }
+
+      // Control: the same table on a card.
+      await pumpComponent(
+        tester,
+        const WholeCardView.cells(
+          [table],
+          revealed: true,
+          style: AppType.front,
+        ),
+      );
+      for (final text in ['왕', '훈민정음']) {
+        expect(aligns(text), {TextAlign.center}, reason: text);
+      }
+    });
+
     test('a photo on the back is a part after the reveal alone', () {
       final cells = [blank, photo];
       expect(partsOf(cells, revealed: false), hasLength(1));
