@@ -51,6 +51,8 @@ type Row = Record<string, unknown>;
 type Fake = {
   decks: Row[];
   cards: Row[];
+  /** How many reads of a note by its id still answer that it is not there (a note gone meanwhile). */
+  unreadDecks: number;
   suspended: Set<string>;
   /**
    * What `begin_assistant_message` answers beyond the configuration: the day's budget, the tokens
@@ -188,6 +190,7 @@ function seed(): Fake {
     })),
     skillsDown: false,
     markup: false,
+    unreadDecks: 0,
     studyDecks: [],
     studyMissed: [],
     studyCalls: [],
@@ -456,8 +459,23 @@ function rest(
     rows.push(...(body as Row[]).map((row) => ({ deleted_at: null, ...row })));
     return new Response(null, { status: 201 });
   }
+  if (method === "PATCH") {
+    fake.writes.push({ method, table, body });
+    for (const row of rows) {
+      if (row.user_id === user && matches(row, url.searchParams)) {
+        Object.assign(row, body);
+      }
+    }
+    return Response.json([]);
+  }
   if (method !== "GET") {
     fake.writes.push({ method, table, body });
+    return Response.json([]);
+  }
+  if (
+    table === "decks" && fake.unreadDecks > 0 && url.searchParams.has("id")
+  ) {
+    fake.unreadDecks--;
     return Response.json([]);
   }
   const select = url.searchParams.get("select") ?? "";
@@ -1364,6 +1382,75 @@ Deno.test("a commit of a new note creates it with every checked card", async () 
     fake.cards.filter((c) => c.deck_id === deck.id).map((c) => c.card_key),
     ["dog", "cat"],
   );
+});
+
+/** A commit of [cards] as one group of [proposal]'s deck, every one checked. */
+function commitOf(
+  fake: Fake,
+  deck: Proposal["deck"],
+  cards: Proposal["groups"][number]["cards"],
+) {
+  const group = { ...PROPOSAL.groups[0]!, cards };
+  return send(fake, {
+    path: "/assistant/commit",
+    body: {
+      proposal: { ...PROPOSAL, deck, groups: [group] },
+      checked: { [group.id]: cards.map((c) => c.id) },
+    },
+  });
+}
+
+const BARE = (n: number) => ({
+  id: `00000000-0000-7000-8000-${String(n).padStart(12, "0")}`,
+  card: { blocks: [] },
+});
+const live = (fake: Fake, name: string) =>
+  fake.decks.filter((d) => d.name === name && d.deleted_at === null);
+
+Deno.test("a commit that refuses every card answers a refusal with each reason and leaves no new note behind, against one that wrote a card", async () => {
+  const fake = seed();
+  const run = await commitOf(fake, { id: null, name: "빈 노트" }, [
+    BARE(1),
+    BARE(2),
+  ]);
+  assert.equal(run.status, 422);
+  assert.equal(run.json.error, "refused");
+  assert.match(run.json.message, /^No card was written\. Card 0: .* Card 1: /);
+  assert.equal(live(fake, "빈 노트").length, 0);
+  assert.equal(run.logs[0]!.outcome, "refused");
+  // Control: one card written keeps the 200, and the new note.
+  const kept = seed();
+  const ok = await commitOf(kept, { id: null, name: "새 노트" }, [
+    BARE(1),
+    PROPOSAL.groups[0]!.cards[0]!,
+  ]);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.json.added.length, 1);
+  assert.equal(ok.json.refused.length, 1);
+  assert.equal(live(kept, "새 노트").length, 1);
+});
+
+Deno.test("a commit that skips every card as a duplicate answers a refusal and leaves the existing note", async () => {
+  const fake = seed();
+  const run = await commitOf(fake, PROPOSAL.deck, [
+    { id: PROPOSAL.groups[0]!.cards[0]!.id, card: card("apple", "사과") },
+  ]);
+  assert.equal(run.status, 422);
+  assert.match(run.json.message, /^No card was written\. Card 0: /);
+  assert.equal(live(fake, "영단어").length, 1);
+});
+
+Deno.test("a commit of a new note whose add_cards is refused whole leaves no note behind", async () => {
+  const fake = seed();
+  // The note is gone when add_cards reads it, as one deleted between the two calls.
+  fake.unreadDecks = 1;
+  const run = await commitOf(fake, { id: null, name: "사라진 노트" }, [
+    PROPOSAL.groups[0]!.cards[0]!,
+  ]);
+  assert.equal(run.status, 422);
+  assert.match(run.json.message, /No deck of the signed-in user/);
+  assert.equal(fake.decks.some((d) => d.name === "사라진 노트"), true);
+  assert.equal(live(fake, "사라진 노트").length, 0);
 });
 
 Deno.test("a commit refuses a card its group lacks and another user's note, against its own", async () => {

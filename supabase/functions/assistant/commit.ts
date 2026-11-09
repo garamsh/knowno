@@ -96,7 +96,30 @@ export async function commit(
     store,
     deps,
   );
-  return added.kind === "refused"
-    ? { kind: "refused", message: added.message }
-    : { kind: "written", deck, result: added.value };
+  if (added.kind === "result" && wrote(added.value)) {
+    return { kind: "written", deck, result: added.value };
+  }
+  const message = added.kind === "refused"
+    ? added.message
+    : reasons(added.value);
+  // A note this commit made is not left empty, so a retry makes no second one.
+  if (deckId === null) {
+    await callTool("delete_deck", { deck_id: deck.id }, store, deps);
+  }
+  return { kind: "refused", message };
+}
+
+/** Whether [answer], an `add_cards` answer, added a card. */
+function wrote(answer: Record<string, unknown>): boolean {
+  return Array.isArray(answer.added) && answer.added.length > 0;
+}
+
+/** Why [answer] wrote no card, each card's reason by its index; one skipped or refused is not written. */
+function reasons(answer: Record<string, unknown>): string {
+  const list = (key: string): Record<string, unknown>[] =>
+    Array.isArray(answer[key]) ? answer[key] : [];
+  const each = [...list("skipped"), ...list("refused")]
+    .sort((a, b) => Number(a.index) - Number(b.index))
+    .map((one) => `Card ${String(one.index)}: ${String(one.reason)}`);
+  return `No card was written. ${each.join(" ")}`;
 }
