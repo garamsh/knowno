@@ -44,9 +44,10 @@ const proposal: Proposal = {
   ],
 };
 
-const usage = (tokensUsed: number): AssistantEvent => ({
+const usage = (tokensUsed: number, atLimit = false): AssistantEvent => ({
   type: "usage",
   allowance: { tokenBudget: 200000, tokensUsed },
+  atLimit,
 });
 
 /** A reply's events, each held until [gate] lets it through; an abort ends them with an AbortError. */
@@ -73,7 +74,13 @@ function stream(events: AssistantEvent[], signal: AbortSignal, gate?: Promise<vo
  */
 function fakeClient(
   replies: (AssistantEvent[] | SendRefusal | ((signal: AbortSignal) => SendResult))[],
-  committed: CommitResult = { kind: "added", deck: { id: "d1", name: "영단어" }, count: 2 },
+  committed: CommitResult = {
+    kind: "added",
+    deck: { id: "d1", name: "영단어" },
+    count: 2,
+    skipped: 0,
+    refused: 0,
+  },
   photos: { stored?: boolean; polls?: JobPoll[]; cancelled?: boolean } = {},
 ) {
   const requests: MessageRequest[] = [];
@@ -403,6 +410,56 @@ describe("말랑이's chat", () => {
     expect(
       screen.queryByText("말랑이가 답하지 못했어요. 다시 시도해 주세요."),
     ).not.toBeInTheDocument();
+  });
+
+  it("says a turn stopped at its limit with nothing to show, and tries again, against a limit turn with a reply", async () => {
+    const limitNotice = "할 일이 많아 여기서 멈췄어요. 다시 시도해 주세요.";
+    const { client, requests } = fakeClient([
+      [{ type: "interim" }, usage(1000, true)],
+      [{ type: "text", delta: "이번엔 됐어요" }],
+      [{ type: "text", delta: "여기까지 찾았어요" }, usage(2000, true)],
+    ]);
+    render(<AssistantChat allowance={null} client={client} />);
+    await say("안녕");
+    expect(await screen.findByText(limitNotice)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "다시 시도" }));
+    expect(await screen.findByText("이번엔 됐어요")).toBeInTheDocument();
+    expect(requests[1]).toEqual({
+      messages: [{ role: "user", text: "안녕" }],
+      context: { time_zone: browserZone },
+    });
+    expect(screen.queryByText(limitNotice)).not.toBeInTheDocument();
+    // Control: a limit turn with a reply shows the reply alone.
+    await say("또");
+    expect(await screen.findByText("여기까지 찾았어요")).toBeInTheDocument();
+    expect(screen.queryByText(limitNotice)).not.toBeInTheDocument();
+  });
+
+  it("says how many cards a commit left out beside the count, and nothing for a commit that wrote all", async () => {
+    const left = {
+      kind: "added",
+      deck: { id: "d1", name: "영단어" },
+      count: 2,
+      skipped: 1,
+      refused: 3,
+    } as const;
+    const first = fakeClient([[{ type: "proposal", proposal }]], left);
+    const { unmount } = render(<AssistantChat allowance={null} client={first.client} />);
+    await say("만들어 줘");
+    await userEvent.click(await screen.findByRole("button", { name: "3장 추가" }));
+    const shortcut = await screen.findByRole("link", { name: /영단어/ });
+    expect(shortcut).toHaveTextContent(
+      "카드 2장 · 1장은 이미 노트에 있어요 · 3장은 추가하지 못했어요",
+    );
+    unmount();
+    window.localStorage.clear();
+    // Control: a commit that wrote every card says only the count.
+    const whole = fakeClient([[{ type: "proposal", proposal }]]);
+    render(<AssistantChat allowance={null} client={whole.client} />);
+    await say("만들어 줘");
+    await userEvent.click(await screen.findByRole("button", { name: "3장 추가" }));
+    const plain = await screen.findByRole("link", { name: /영단어/ });
+    expect(plain).toHaveTextContent(/^영단어카드 2장$/);
   });
 
   it("stops a streaming reply on 멈추기, saying so under what came", async () => {

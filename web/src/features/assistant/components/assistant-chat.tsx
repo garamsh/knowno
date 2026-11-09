@@ -102,6 +102,7 @@ const endingNotices = {
   model_error: "말랑이가 답하지 못했어요. 다시 시도해 주세요.",
   cut: "답이 길어 중간에 멈췄어요. 이어서 해 달라고 해 보세요.",
   stopped: "멈췄어요.",
+  limit: "할 일이 많아 여기서 멈췄어요. 다시 시도해 주세요.",
 } as const;
 
 const newId = () => crypto.randomUUID();
@@ -278,8 +279,10 @@ export function AssistantChat({
     try {
       for await (const event of result.events) {
         if (event === "malformed") change((turn) => ended(turn, "model_error"));
-        else if (event.type === "usage") setAllowance(event.allowance);
-        else change((turn) => withEvent(turn, event));
+        else {
+          if (event.type === "usage") setAllowance(event.allowance);
+          change((turn) => withEvent(turn, event));
+        }
       }
       change((turn) => ended(turn, "ok"));
     } catch {
@@ -463,7 +466,12 @@ export function AssistantChat({
     }
     editProposal(lastReply.id, open.proposal.id, (one) => ({
       ...one,
-      added: { deck: result.deck, count: result.count },
+      added: {
+        deck: result.deck,
+        count: result.count,
+        skipped: result.skipped,
+        refused: result.refused,
+      },
     }));
   };
 
@@ -617,15 +625,17 @@ export function AssistantChat({
                     <p className="text-secondary break-keep text-muted">
                       {endingNotices[turn.ending]}
                     </p>
-                    {turn.ending === "model_error" && turn === last && !busy && (
-                      <button
-                        type="button"
-                        onClick={retry}
-                        className={buttonClass("text", "header")}
-                      >
-                        다시 시도
-                      </button>
-                    )}
+                    {(turn.ending === "model_error" || turn.ending === "limit") &&
+                      turn === last &&
+                      !busy && (
+                        <button
+                          type="button"
+                          onClick={retry}
+                          className={buttonClass("text", "header")}
+                        >
+                          다시 시도
+                        </button>
+                      )}
                   </div>
                 )}
               </li>

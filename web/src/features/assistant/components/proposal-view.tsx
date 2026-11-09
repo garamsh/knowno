@@ -228,7 +228,15 @@ export function ProposalView({
         >
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="text-body-strong break-keep">{added.deck.name}</span>
-            <span className="text-secondary text-muted">카드 {added.count}장</span>
+            <span className="text-secondary text-muted">
+              {[
+                `카드 ${String(added.count)}장`,
+                added.skipped > 0 && `${String(added.skipped)}장은 이미 노트에 있어요`,
+                added.refused > 0 && `${String(added.refused)}장은 추가하지 못했어요`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
           </span>
           <ChevronRight aria-hidden className="size-5 shrink-0 text-muted" />
         </Link>
