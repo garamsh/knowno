@@ -164,6 +164,17 @@ Deno.test("another address with the right code is refused and signed in nowhere"
   });
   assert.equal(response.status, 401);
   assert.equal(linkCalls(state).length, 0);
+  const control = fake();
+  const accepted = await call(control, {
+    email: REVIEW_EMAIL,
+    code: REVIEW_CODE,
+  });
+  assert.equal(
+    accepted.response.status,
+    200,
+    "the review pair on the same fake",
+  );
+  assert.equal(linkCalls(control).length, 1);
 });
 
 Deno.test("the review address with another code is refused", async () => {
@@ -174,6 +185,17 @@ Deno.test("the review address with another code is refused", async () => {
   });
   assert.equal(response.status, 401);
   assert.equal(linkCalls(state).length, 0);
+  const control = fake();
+  const accepted = await call(control, {
+    email: REVIEW_EMAIL,
+    code: REVIEW_CODE,
+  });
+  assert.equal(
+    accepted.response.status,
+    200,
+    "the right code on the same fake",
+  );
+  assert.equal(linkCalls(control).length, 1);
 });
 
 Deno.test("a missing secret refuses every attempt, even the pair a person would type", async () => {
@@ -199,6 +221,13 @@ Deno.test("a missing secret refuses every attempt, even the pair a person would 
       assert.equal(linkCalls(state).length, 0);
     }
   }
+  const control = fake();
+  const accepted = await call(control, {
+    email: REVIEW_EMAIL,
+    code: REVIEW_CODE,
+  });
+  assert.equal(accepted.response.status, 200, "with both secrets set");
+  assert.equal(linkCalls(control).length, 1);
 });
 
 Deno.test("a code shorter than the minimum is no code, though the pair matches", async () => {
@@ -250,6 +279,15 @@ Deno.test("a limited attempt answers 429 with the wait, and reads and signs in n
   assert.equal(linkCalls(state).length, 0);
   const other = await call(state, { email: "other@example.com", code: "x" });
   assert.equal(other.text, text, "the limit answers every address alike");
+  const control = fake({
+    begin: { allowed: true, email: REVIEW_EMAIL, code: REVIEW_CODE },
+  });
+  const accepted = await call(control, {
+    email: REVIEW_EMAIL,
+    code: REVIEW_CODE,
+  });
+  assert.equal(accepted.response.status, 200, "the same fake with allowed");
+  assert.equal(linkCalls(control).length, 1);
 });
 
 Deno.test("a body that is not an address and a code is a bad request, before any call", async () => {
@@ -274,6 +312,17 @@ Deno.test("a body that is not an address and a code is a bad request, before any
     assert.equal(response.status, 400, JSON.stringify(body));
     assert.equal(state.calls.length, 0);
   }
+  const control = fake();
+  const accepted = await call(control, {
+    email: REVIEW_EMAIL,
+    code: REVIEW_CODE,
+  });
+  assert.equal(accepted.response.status, 200, "a well-formed body");
+  assert.equal(
+    control.calls[0]?.url,
+    `${SUPABASE_URL}/rest/v1/rpc/review_sign_in_begin`,
+    "reaches review_sign_in_begin",
+  );
 });
 
 Deno.test("only POST is served, and an unconfigured function refuses", async () => {
@@ -287,6 +336,12 @@ Deno.test("only POST is served, and an unconfigured function refuses", async () 
   );
   assert.equal(none.response.status, 503);
   assert.equal(state.calls.length, 0);
+  const control = fake();
+  const configured = await call(control, {
+    email: REVIEW_EMAIL,
+    code: REVIEW_CODE,
+  }, { env: ENV });
+  assert.equal(configured.response.status, 200, "the same request with ENV");
 });
 
 Deno.test("an unreachable or failing database or Auth is a 502, not a sign-in", async () => {
