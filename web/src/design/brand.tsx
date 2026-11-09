@@ -111,9 +111,9 @@ export function Mascot({
 }) {
   const reduced = useReducedMotion();
   const [element, setElement] = useState<Element | null>(null);
-  const [onScreen, setOnScreen] = useState<Motion | null>(null);
+  const [seen, setSeen] = useState({ onScreen: false, width: 0 });
   const [eyes, setEyes] = useState(ahead);
-  const motion = reduced ? null : onScreen;
+  const motion = reduced || !seen.onScreen ? null : motionOf(expression, seen.width, breathes);
 
   // One observer tells whether the mascot is on screen, and how wide it is drawn.
   useEffect(() => {
@@ -121,17 +121,29 @@ export function Mascot({
     const observer = new IntersectionObserver((entries) => {
       const entry = entries.at(-1);
       if (!entry) return;
-      setOnScreen(
-        entry.isIntersecting
-          ? motionOf(expression, entry.boundingClientRect.width, breathes)
-          : null,
-      );
+      setSeen({ onScreen: entry.isIntersecting, width: entry.boundingClientRect.width });
     });
     observer.observe(element);
     return () => {
       observer.disconnect();
     };
-  }, [element, reduced, expression, breathes]);
+  }, [element, reduced]);
+
+  // The width it is drawn at changes while it stays on screen, which the intersection observer
+  // does not report: the drawing is the one its width now calls for (#627).
+  useEffect(() => {
+    if (!element || reduced || typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries.at(-1);
+      if (!entry) return;
+      const { width } = entry.target.getBoundingClientRect();
+      setSeen((now) => (now.width === width ? now : { ...now, width }));
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+    };
+  }, [element, reduced]);
 
   // A blink or a glance every 3 to 7 s while it moves, as the app's mascot makes them.
   useEffect(() => {
