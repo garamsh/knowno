@@ -254,6 +254,9 @@ describe("the bundled word list", () => {
       "벌레가 죽어 버려서 치웠다",
       "적을 죽여 버리고 도망쳤다",
       "일제강점기에 조센징이라는 말은 멸칭이었다",
+      "개 새끼",
+      "세 시 팔 분",
+      "씨 팔아요",
     ];
     for (const phrase of ordinary) {
       expect(

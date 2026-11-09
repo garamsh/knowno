@@ -18,17 +18,13 @@
  * reads once the separators are gone, and each word kept here was checked that way: none occurs
  * in an ordinary phrase written with spaces (고양이 새끼 became 이새끼, 개 같은 동물 became 개같,
  * 3개년 계획 holds 개년, 죽여 버리고 holds 죽여버리고, 조선 시대의 창녀 and 조센징 name a person
- * or a word of history). The curse 개새끼 itself is kept although "개 새끼" can name a puppy: it is
- * the term this list exists for, and the separator-free match is the server's.
+ * or a word of history). 시팔 and 씨팔 sit inside 세 시 팔 분 and 씨 팔아요, and 개새끼 inside "개 새끼", a puppy; the
+ * spellings the matcher cannot tell from ordinary text are left to the admin's own list.
  */
 export const screeningWords: readonly string[] = [
-  "개새끼",
-  "개새기",
   "개부랄",
   "븅신",
   "씨발",
-  "시팔",
-  "씨팔",
   "씨벌",
   "시부럴",
   "씨부럴",
@@ -54,8 +50,6 @@ export const screeningWords: readonly string[] = [
   "빡새끼",
   "계새끼",
   "뒈져",
-  "쪽바리",
-  "짱깨",
   "김치녀",
   "된장녀",
   "보슬아치",
