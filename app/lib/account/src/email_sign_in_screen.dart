@@ -21,6 +21,9 @@ const emailResendInterval = Duration(seconds: 60);
 /// How many digits the sign-in code has: the length Supabase Auth is set to.
 const emailCodeLength = 6;
 
+/// How many digits the field keeps: what `review-sign-in` takes.
+const _codeFieldMaxLength = 128;
+
 /// Whether [text] is shaped like an email address: something, an at sign,
 /// something, a dot and something, with no space. Auth decides the rest.
 bool looksLikeEmail(String text) =>
@@ -40,6 +43,9 @@ class EmailSignInScreen extends ConsumerStatefulWidget {
 class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
   final _email = TextEditingController();
   final _code = TextEditingController();
+
+  /// The length of the code field's text before its last change.
+  var _codeLength = 0;
   Timer? _ticker;
 
   /// The address the code was sent to; null while on the address step.
@@ -94,6 +100,7 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
     }
     if (!mounted) return;
     _code.clear();
+    _codeLength = 0;
     setState(() {
       _busy = false;
       _sentTo = address;
@@ -104,7 +111,7 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
   Future<void> _verify() async {
     final address = _sentTo!;
     final code = _code.text;
-    if (code.length != emailCodeLength) return;
+    if (code.length < emailCodeLength) return;
     setState(() {
       _busy = true;
       _failure = null;
@@ -131,6 +138,7 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
       _failure = null;
       _resendIn = 0;
       _code.clear();
+      _codeLength = 0;
     });
   }
 
@@ -205,16 +213,27 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
                   autofillHints: const [AutofillHints.oneTimeCode],
                   textInputAction: TextInputAction.done,
                   textAlign: TextAlign.center,
-                  // What is pasted or filled in keeps its digits, up to the
-                  // code's length: "123 456" and "코드 123456" are the code.
+                  // What is pasted or filled in keeps its digits, up to what
+                  // `review-sign-in` takes: "123 456" and "코드 123456" are
+                  // the code.
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(emailCodeLength),
+                    LengthLimitingTextInputFormatter(_codeFieldMaxLength),
                   ],
                   errorText: message,
                   onChanged: (code) {
+                    // A code that arrives whole, pasted or filled by the
+                    // platform, signs in; one typed key by key waits for the
+                    // button, since its first six digits may be the start of
+                    // a review code.
+                    final arrivedWhole = _codeLength == 0;
+                    _codeLength = code.length;
                     setState(() => _failure = null);
-                    if (code.length == emailCodeLength && !_busy) _verify();
+                    if (arrivedWhole &&
+                        code.length >= emailCodeLength &&
+                        !_busy) {
+                      _verify();
+                    }
                   },
                   onSubmitted: (_) => _verify(),
                 ),
@@ -261,7 +280,7 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
                     size: AppButtonSize.cta,
                     loading: _busy,
                     loadingLabel: l10n.signingIn,
-                    onPressed: _code.text.length == emailCodeLength
+                    onPressed: _code.text.length >= emailCodeLength
                         ? _verify
                         : null,
                   ),

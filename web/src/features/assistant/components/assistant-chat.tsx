@@ -7,6 +7,8 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  lazy,
+  Suspense,
   useLayoutEffect,
   useRef,
   useState,
@@ -45,6 +47,9 @@ import {
 } from "../conversation";
 import { type Allowance, type JobProgress, leftShare, type SendRefusal } from "../protocol";
 import { formatNames, ProposalView } from "./proposal-view";
+
+/** The Markdown renderer is a chunk of its own: a reply shows as plain text until it has loaded (ADR 0227). */
+const ReplyMarkdown = lazy(() => import("./reply-markdown"));
 
 /** Where the message list's scroll is kept while the chat is left for a note (#711). */
 const scrollKey = "knowno.assistant.scroll";
@@ -520,7 +525,15 @@ export function AssistantChat({
               <li key={turn.id} className="flex flex-col gap-3">
                 <span className="sr-only">말랑이: </span>
                 {turn.text && (
-                  <p className="text-body break-keep whitespace-pre-wrap">{turn.text}</p>
+                  <div className="max-w-[92%] min-w-0 self-start rounded-row border border-hairline bg-surface px-4 py-3">
+                    <Suspense
+                      fallback={
+                        <p className="text-body break-keep whitespace-pre-wrap">{turn.text}</p>
+                      }
+                    >
+                      <ReplyMarkdown text={turn.text} />
+                    </Suspense>
+                  </div>
                 )}
                 {turn.ending === null && !turn.text && (
                   <p role="status" className="text-secondary text-muted">
