@@ -100,6 +100,32 @@ insert into public.deck_reports (deck_id, reporter_id, reason) values
 insert into public.user_blocks (blocker_id, blocked_id) values
   ('5eed0000-0000-4000-8000-0000000000a1', '5eed0000-0000-4000-8000-0000000000a4');
 
+-- A note being screened, one held for its AI check and one refused for severe content, each with
+-- the content hash its screening reads, the verdicts of both layers, a banned word and the
+-- violation the refusal recorded.
+insert into public.decks (id, user_id, name, created_at, updated_at, visibility, published_at, hidden, publication) values
+  ('5eed0000-0000-4000-8000-0000000000d6', '5eed0000-0000-4000-8000-0000000000a2', '세포 소기관', now() - interval '2 hours',
+   now() - interval '1 hour', 'public', now() - interval '1 hour', true, 'checking'),
+  ('5eed0000-0000-4000-8000-0000000000d7', '5eed0000-0000-4000-8000-0000000000a2', '광고 같은 노트', now() - interval '6 days',
+   now() - interval '5 days', 'public', now() - interval '5 days', true, 'held'),
+  ('5eed0000-0000-4000-8000-0000000000d8', '5eed0000-0000-4000-8000-0000000000a4', 'Refused deck', now() - interval '4 days',
+   now() - interval '4 days', 'private', null, false, 'refused');
+insert into private.deck_screening (deck_id, requested_at, content_hash, hold, refusal, decided_by, decided_at) values
+  ('5eed0000-0000-4000-8000-0000000000d6', now() - interval '1 hour', repeat('c1', 32), null, null, null, null),
+  ('5eed0000-0000-4000-8000-0000000000d7', now() - interval '5 days', repeat('c2', 32), 'ai', null, null, null),
+  ('5eed0000-0000-4000-8000-0000000000d8', now() - interval '4 days', repeat('c3', 32), null, 'ai',
+   '5eed0000-0000-4000-8000-0000000000a3', now() - interval '4 days');
+insert into private.screening_verdicts (content_hash, layer, version, outcome, findings, created_at) values
+  (repeat('c2', 32), 'rules', '2', 'clean', '[]', now() - interval '5 days'),
+  (repeat('c2', 32), 'ai', 'seed-model', 'unsure', '[{"kind":"advertising"}]', now() - interval '5 days'),
+  (repeat('c3', 32), 'rules', '2', 'clean', '[]', now() - interval '4 days'),
+  (repeat('c3', 32), 'ai', 'seed-model', 'severe', '[{"kind":"spam"}]', now() - interval '4 days');
+insert into private.screening_terms (term, created_by, created_at, removed_at) values
+  ('seed-banned-word', '5eed0000-0000-4000-8000-0000000000a3', now() - interval '20 days', null),
+  ('seed-removed-word', '5eed0000-0000-4000-8000-0000000000a3', now() - interval '30 days', now() - interval '10 days');
+insert into private.screening_violations (deck_id, owner_id, kind, at) values
+  ('5eed0000-0000-4000-8000-0000000000d8', '5eed0000-0000-4000-8000-0000000000a4', 'severe', now() - interval '4 days');
+
 insert into private.admins (user_id, granted_by) values ('5eed0000-0000-4000-8000-0000000000a3', null);
 
 insert into private.suspensions (user_id, reason, suspended_by) values
