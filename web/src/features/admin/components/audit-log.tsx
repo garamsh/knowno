@@ -30,7 +30,9 @@ function Target({ entry }: { entry: AuditEntry }) {
               ? labelOf(providerLabels, entry.targetId)
               : entry.targetKind === "card_form"
                 ? labelOf(cardFormLabels, entry.targetId)
-                : entry.targetId;
+                : entry.targetKind === "switch" && entry.targetId === "card_markup"
+                  ? "카드 마크업"
+                  : entry.targetId;
   const href =
     entry.targetKind === "deck"
       ? `/decks/${entry.targetId}`
@@ -46,7 +48,9 @@ function Target({ entry }: { entry: AuditEntry }) {
                 ? "/assistant"
                 : entry.targetKind === "card_form"
                   ? `/assistant?${new URLSearchParams({ skill: entry.targetId }).toString()}`
-                  : null;
+                  : entry.targetKind === "switch"
+                    ? "/assistant"
+                    : null;
   return href === null ? (
     <span>{words}</span>
   ) : (
@@ -86,6 +90,9 @@ export function AuditLog({ entries, timeZone }: { entries: AuditEntry[]; timeZon
               : ""}
             {"daily_tokens" in entry.detail
               ? ` · ${tokenBudgetLabel(entry.detail.daily_tokens)}`
+              : ""}
+            {typeof entry.detail.enabled === "boolean"
+              ? ` · ${entry.detail.enabled ? "켜기" : "끄기"}`
               : ""}
             {entry.detail.applies_to_all === true ? " · 기존 사용자도 적용" : ""}
           </span>
