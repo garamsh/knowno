@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
+import { ankiNotes } from "../anki-export";
 import { decorateDeck, deleteDeck, publishDeck, renameDeck, unpublishDeck } from "../actions";
 import { parseDeckIcon } from "../deck-icon";
 import { deckColor } from "../deck-tint";
-import type { Deck } from "../library";
+import type { Card, Deck } from "../library";
 import { leaveThen } from "@/design/use-back-entry";
 import { characters, maxDescriptionLength, parseDisplayName } from "../publishing";
 import { buttonClass } from "@/design/button";
@@ -31,16 +32,19 @@ const secondary = buttonClass("secondary");
  * The note page's ⋯, "노트 설정", as the phone's deck screen has it: "직접 추가", which opens the
  * 카드 추가 sheet (open on arrival with [adding]), "이름 바꾸기", "노트 꾸미기",
  * "노트 공개" or "비공개로 전환", and "노트 삭제" in red, each opening the phone's sheet or, for
- * making it private, acting at once; what was done, or what failed, is said in a snack bar.
+ * making it private, acting at once; what was done, or what failed, is said in a snack bar. While
+ * [cards] holds any, "Anki로 내보내기" downloads them as Anki's plain text (ADR 0222).
  */
 export function NoteSettings({
   deck,
   cardCount,
   displayName,
   adding = false,
+  cards = [],
 }: {
   deck: Deck;
   cardCount: number;
+  cards?: Card[];
   displayName: DisplayNameRead;
   adding?: boolean;
 }) {
@@ -107,6 +111,16 @@ export function NoteSettings({
                   setSheet("publish");
                 },
               },
+          ...(cards.length > 0
+            ? [
+                {
+                  label: "Anki로 내보내기",
+                  pick: () => {
+                    setSnack(downloadAnki(deck.name, cards));
+                  },
+                },
+              ]
+            : []),
           {
             label: "노트 삭제",
             danger: true,
@@ -135,6 +149,23 @@ export function NoteSettings({
       )}
     </>
   );
+}
+
+/** Downloads [cards] as `<name>.txt` for Anki, and says what was written and what was not. */
+function downloadAnki(name: string, cards: Card[]): string {
+  const { text, basic, cloze, flattened, skipped } = ankiNotes(name, cards);
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${name.replace(/[\\/:*?"<>|]/gu, "_")}.txt`;
+  link.click();
+  URL.revokeObjectURL(url);
+  const notes = `카드 ${String(basic + cloze)}장을 내보냈어요`;
+  const extra = [
+    flattened > 0 && `${String(flattened)}장은 글만 담았어요`,
+    skipped > 0 && `${String(skipped)}장은 글이 없어 뺐어요`,
+  ].filter(Boolean);
+  return extra.length > 0 ? `${notes}. ${extra.join(", ")}` : notes;
 }
 
 /** A sheet's problem, in red under its fields, read as it appears. */

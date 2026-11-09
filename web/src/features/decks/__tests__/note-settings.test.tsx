@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { revalidatePath } from "next/cache";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { cardRow, deckRow, uuidOf } from "@/testing/library";
 import { testUser } from "@/testing/mocks/handlers";
@@ -16,7 +16,8 @@ import { testRouter } from "@/testing/router";
 import { signedInCookies } from "@/testing/session";
 
 import { type DisplayNameRead, NoteSettings } from "../components/note-settings";
-import type { Deck, DeckId } from "../library";
+import { parseCardContent } from "../card-content";
+import type { Card, CardId, Deck, DeckId } from "../library";
 import { prepareImage } from "../prepare-image";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
@@ -56,10 +57,13 @@ async function choose(
     deck = french,
     cardCount = 2,
     displayName = { name: null },
-  }: { deck?: Deck; cardCount?: number; displayName?: DisplayNameRead } = {},
+    cards = [],
+  }: { deck?: Deck; cardCount?: number; displayName?: DisplayNameRead; cards?: Card[] } = {},
 ) {
   await render(
-    () => <NoteSettings deck={deck} cardCount={cardCount} displayName={displayName} />,
+    () => (
+      <NoteSettings deck={deck} cardCount={cardCount} displayName={displayName} cards={cards} />
+    ),
     {},
   );
   await userEvent.click(screen.getByRole("button", { name: "노트 설정" }));
@@ -280,5 +284,61 @@ describe("노트 설정", () => {
     expect(screen.getByRole("dialog", { name: '"French" 노트를 삭제할까요?' })).toHaveTextContent(
       "이 노트에는 카드가 없어요.",
     );
+  });
+
+  it("downloads the cards as Anki's plain text from Anki로 내보내기 and says what it wrote", async () => {
+    const stored = (...cells: unknown[]) => {
+      const content = parseCardContent({
+        front: cells,
+        back: [],
+        template: "free",
+        templateVersion: 2,
+      });
+      if (!content) throw new Error("the cells did not parse");
+      return { id: "c" as CardId, deckId: french.id, createdAt: 0, ...content };
+    };
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    const written: Blob[] = [];
+    vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
+      written.push(blob as Blob);
+      return "blob:picked";
+    });
+    const named: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      named.push(this.download);
+    });
+    const photo = {
+      type: "image",
+      v: 2,
+      id: "p",
+      payload: { media: "m", width: 1, height: 1, boxes: [], side: "front" },
+    };
+    await choose("Anki로 내보내기", {
+      cards: [
+        stored({ type: "text", v: 3, id: "t", payload: { front: "**a**", back: "b" } }),
+        stored(photo),
+      ],
+    });
+
+    expect(await written[0]?.text()).toContain("Basic\tFrench\t<b>a</b>\tb\n");
+    expect(named).toEqual(["French.txt"]);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "카드 1장을 내보냈어요. 1장은 글이 없어 뺐어요",
+    );
+  });
+
+  it("offers no export for a note with no card", async () => {
+    await render(
+      () => <NoteSettings deck={french} cardCount={0} displayName={{ name: null }} />,
+      {},
+    );
+    await userEvent.click(screen.getByRole("button", { name: "노트 설정" }));
+
+    expect(screen.getByRole("menuitem", { name: "노트 삭제" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Anki로 내보내기" })).not.toBeInTheDocument();
   });
 });
