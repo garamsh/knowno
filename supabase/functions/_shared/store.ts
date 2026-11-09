@@ -15,6 +15,22 @@ export type Store = {
   readonly fetch: typeof fetch;
 };
 
+/**
+ * A refusal by the project's API, with the status and the `code` and `message` of the database
+ * error PostgREST put in its body, null when it had none.
+ */
+export class DatabaseRefusal extends SupabaseError {
+  override name = "DatabaseRefusal";
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string | null,
+    readonly reason: string | null,
+  ) {
+    super(message);
+  }
+}
+
 /** The most rows the project's API returns for one request (`config.toml`, `max_rows`). */
 const PAGE = 1000;
 
@@ -37,8 +53,18 @@ async function request(
     throw new SupabaseError("the REST API could not be reached", { cause });
   });
   if (!response.ok) {
-    await response.body?.cancel();
-    throw new SupabaseError(`the REST API answered ${response.status}`);
+    const body: unknown = await response.json().catch(() => null);
+    const field = (name: string) =>
+      typeof body === "object" && body !== null && name in body &&
+        typeof (body as Record<string, unknown>)[name] === "string"
+        ? String((body as Record<string, unknown>)[name])
+        : null;
+    throw new DatabaseRefusal(
+      `the REST API answered ${response.status}`,
+      response.status,
+      field("code"),
+      field("message"),
+    );
   }
   return response;
 }
