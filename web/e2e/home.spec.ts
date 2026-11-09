@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { writeFile } from "node:fs/promises";
 
 import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
 import { createServerClient } from "@supabase/ssr";
@@ -290,6 +291,39 @@ test("draws the first-run home, 홈 with its streak, the 노트 page, a note, it
   expect(
     await fieldHeight(page.getByRole("searchbox", { name: "노트 검색" }).locator("xpath=..")),
   ).toBe(48);
+  // The bar runs to the row's inner end, where the "오늘 n" chip ends too, as the phone's row does:
+  // the row is padded 12 at its end. Saved with the shots, in px, when E2E_SCREENSHOTS names a directory.
+  const measures: Record<string, { bar: number; chip: number; inner: number }[]> = {};
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const rows = page.getByRole("region", { name: "노트 목록" }).getByRole("link");
+    const found: { bar: number; chip: number; inner: number }[] = [];
+    for (let at = 0; at < (await rows.count()); at++) {
+      const row = rows.nth(at);
+      const [box, bar, chip] = await Promise.all([
+        row.boundingBox(),
+        row.locator(".bg-edge").boundingBox(),
+        row.getByText(/^오늘 \d+$/).boundingBox(),
+      ]);
+      if (!box || !bar || !chip) throw new Error("the row draws its bar and its chip");
+      found.push({
+        bar: bar.x + bar.width,
+        chip: chip.x + chip.width,
+        inner: box.x + box.width - 12,
+      });
+    }
+    expect(found.length).toBeGreaterThan(0);
+    for (const { bar, chip, inner } of found) {
+      expect(bar).toBeCloseTo(inner, 0);
+      expect(chip).toBeCloseTo(inner, 0);
+    }
+    measures[String(width)] = found;
+  }
+  if (process.env.E2E_SCREENSHOTS)
+    await writeFile(
+      `${process.env.E2E_SCREENSHOTS}/notes-row-measure.json`,
+      JSON.stringify(measures, null, 2),
+    );
   await capture(page, "notes-search");
 
   await page.goto(`/decks/${decks[0]?.id ?? ""}`);

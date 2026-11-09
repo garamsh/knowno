@@ -350,9 +350,9 @@ describe("홈 and the 노트 page", () => {
     await renderBoth();
 
     expect(rowNames()).toEqual(["French, 카드 1장, 공개, 오늘 1", "Spanish, 카드 1장, 오늘 1"]);
-    // 공개 in the one chip's neutral tone (ADR 0119), and today's count in the accent beside it.
+    // 공개 in the one chip's neutral tone (ADR 0119), and today's count in a brand-tint "오늘 n" chip beside it (#845).
     expect(chipTone(within(row("French")).getByText("공개"))).toBe("surface");
-    expect(within(row("French")).getByText("1")).toHaveClass("text-accent");
+    expect(chipTone(within(row("French")).getByText("오늘 1"))).toBe("brand-tint");
     // Control: the private deck's row carries no chip.
     expect(within(row("Spanish")).queryByText("공개")).not.toBeInTheDocument();
   });
