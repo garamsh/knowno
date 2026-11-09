@@ -96,4 +96,22 @@ describe("a deck row's line", () => {
     const french = screen.getByRole("link", { name: /^French/ });
     expect(french.querySelector(".bg-edge")).not.toBeNull();
   });
+
+  it('ends the row in a brand "오늘 n" chip beside the name, so the bar runs under it to the row\'s inner end (#845)', () => {
+    render(<DeckList rows={rows} />);
+
+    const row = screen.getByRole("link", { name: /^French/ });
+    const chip = within(row).getByText("오늘 2");
+    expect(chip).toHaveClass("bg-brand-tint");
+    // The chip shares the name's line, in the text column, which the bar spans.
+    const name = within(row).getByText("French");
+    expect(chip.parentElement).toBe(name.parentElement);
+    const bar = row.querySelector("span[style]")?.parentElement;
+    expect(bar?.parentElement).toBe(chip.parentElement?.parentElement);
+    // Nothing follows the column in the row but the column itself: no bare count at its end.
+    expect(row.lastElementChild).toBe(chip.parentElement?.parentElement);
+    // Control: a deck with nothing to study today draws no chip.
+    const empty = screen.getByRole("link", { name: /^Empty/ });
+    expect(within(empty).queryByText(/^오늘/)).not.toBeInTheDocument();
+  });
 });
