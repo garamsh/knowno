@@ -380,6 +380,31 @@ void main() {
       },
     );
 
+    testWidgets(
+      'a cancelled Apple sheet cancels the deletion: nothing is deleted, signed out or cleared, and no message is shown',
+      (tester) async {
+        final service = signedIn()..cancelDeletion = true;
+        final data = FakeAccountData();
+        await pumpScreen(tester, service, data: data);
+
+        await tapAndSettle(tester, 'Delete account');
+        await tapAndSettle(tester, 'Delete');
+
+        expect(service.deletions, 0);
+        expect(service.state, isA<SignedIn>());
+        expect([data.pushes, data.clears], [0, 0]);
+        expect(find.byType(SnackBar), findsNothing);
+        expect(shownText('ada@example.com'), findsOneWidget);
+        // The row answers a new tap, and a deletion that goes through ends
+        // the session (the control).
+        service.cancelDeletion = false;
+        await tapAndSettle(tester, 'Delete account');
+        await tapAndSettle(tester, 'Delete');
+        expect(service.deletions, 1);
+        expect(service.state, isA<SignedOut>());
+      },
+    );
+
     for (final (failure, message) in [
       (
         const AccountOffline(FormatException('offline')),

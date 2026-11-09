@@ -19,7 +19,10 @@ import 'fake_google_sign_in.dart';
 
 const _url = 'https://example.test/auth/v1';
 
-Map<String, Object?> _session({String email = 'ada@example.com'}) => {
+Map<String, Object?> _session({
+  String email = 'ada@example.com',
+  List<String> providers = const ['google'],
+}) => {
   'access_token': 'supabase-access-token',
   'expires_in': 3600,
   'refresh_token': 'supabase-refresh-token',
@@ -31,6 +34,16 @@ Map<String, Object?> _session({String email = 'ada@example.com'}) => {
     'app_metadata': <String, Object?>{},
     'user_metadata': <String, Object?>{},
     'created_at': '2026-10-14T00:00:00Z',
+    'identities': [
+      for (final provider in providers)
+        {
+          'id': '00000000-0000-4000-8000-000000000001',
+          'user_id': '00000000-0000-4000-8000-000000000001',
+          'identity_id': 'identity-$provider',
+          'provider': provider,
+          'identity_data': <String, Object?>{},
+        },
+    ],
   },
 };
 
@@ -338,18 +351,22 @@ void main() {
   group('deleting the account', () {
     const deletePath = '/functions/v1/delete-account';
 
-    /// A signed-in service whose `delete-account` answers with [respond].
+    /// A service signed in with an account holding identities of
+    /// [providers], whose `delete-account` answers with [respond].
     Future<NativeAccountService> signedInDeleting(
-      Future<http.Response> Function(http.Request) respond,
-    ) async {
+      Future<http.Response> Function(http.Request) respond, {
+      List<String> providers = const ['google'],
+    }) async {
       final service = await serviceAnswering(
-        (request) =>
-            request.url.path == deletePath ? respond(request) : grant(request),
+        (request) async => request.url.path == deletePath
+            ? respond(request)
+            : http.Response(jsonEncode(_session(providers: providers)), 200),
       );
       await service.signInWithGoogle();
       // The setup signed in.
       expect(service.state, isA<SignedIn>());
       requests.clear();
+      apple.nonces.clear();
       return service;
     }
 
@@ -358,14 +375,146 @@ void main() {
         (_) async => http.Response('', 204),
       );
 
-      await service.deleteAccount();
+      expect(await service.deleteAccount(), isTrue);
 
       final request = requests.single;
       expect(request.method, 'POST');
       expect(request.url.path, deletePath);
       expect(request.body, isEmpty);
+      expect(apple.nonces, isEmpty, reason: 'no Apple sheet for Google');
       expect(service.state, isA<SignedIn>());
       expect(google.signOuts, 0);
+    });
+
+    test('an email account sends no body and shows no Apple sheet', () async {
+      final service = await signedInDeleting(
+        (_) async => http.Response('', 204),
+        providers: const ['email'],
+      );
+
+      expect(await service.deleteAccount(), isTrue);
+
+      expect(requests.single.body, isEmpty);
+      expect(apple.nonces, isEmpty);
+    });
+
+    group('an account with an Apple identity', () {
+      test(
+        'shows the sheet with no scopes, then posts its code as the JSON body',
+        () async {
+          final order = <String>[];
+          final service = await signedInDeleting((request) async {
+            order.add('request');
+            return http.Response('', 204);
+          }, providers: const ['apple']);
+          apple.onSheet = () => order.add('sheet');
+
+          expect(await service.deleteAccount(), isTrue);
+
+          expect(apple.scopes, isEmpty);
+          expect(order, ['sheet', 'request']);
+          final request = requests.single;
+          expect(request.url.path, deletePath);
+          expect(request.headers['Content-Type'], contains('application/json'));
+          expect(jsonDecode(request.body), {
+            'apple_authorization_code': 'apple-authorization-code',
+          });
+          expect(service.state, isA<SignedIn>());
+        },
+      );
+
+      test(
+        'does the same for an account that also signed in with Google',
+        () async {
+          final service = await signedInDeleting(
+            (_) async => http.Response('', 204),
+            providers: const ['google', 'apple'],
+          );
+
+          expect(await service.deleteAccount(), isTrue);
+
+          expect(jsonDecode(requests.single.body), {
+            'apple_authorization_code': 'apple-authorization-code',
+          });
+        },
+      );
+
+      test('is not deleted when the sheet is cancelled, and asks the server nothing', () async {
+        final service = await signedInDeleting(
+          (_) async => http.Response('', 204),
+          providers: const ['apple'],
+        );
+        apple.error = const SignInWithAppleAuthorizationException(
+          code: AuthorizationErrorCode.canceled,
+          message: 'The user canceled the authorization attempt.',
+        );
+
+        expect(await service.deleteAccount(), isFalse);
+
+        expect(requests, isEmpty);
+        expect(service.state, isA<SignedIn>());
+      });
+
+      test('is not deleted when the sheet fails otherwise, and says it was rejected', () async {
+        final service = await signedInDeleting(
+          (_) async => http.Response('', 204),
+          providers: const ['apple'],
+        );
+        apple.error = const SignInWithAppleAuthorizationException(
+          code: AuthorizationErrorCode.failed,
+          message: 'failed',
+        );
+
+        expect(await failureOf(service.deleteAccount), isA<AccountRejected>());
+        expect(requests, isEmpty);
+      });
+
+      test('asks for a new code at each try, since a code is spent once and kept nowhere', () async {
+        var status = 502;
+        final service = await signedInDeleting(
+          (_) async => http.Response('', status),
+          providers: const ['apple'],
+        );
+
+        expect(await failureOf(service.deleteAccount), isA<AccountOffline>());
+        apple.credential = FakeAppleSignIn.signedIn(
+          authorizationCode: 'second-code',
+        );
+        status = 204;
+        expect(await service.deleteAccount(), isTrue);
+
+        expect(requests.map((r) => jsonDecode(r.body)), [
+          {'apple_authorization_code': 'apple-authorization-code'},
+          {'apple_authorization_code': 'second-code'},
+        ]);
+        expect(apple.nonces, hasLength(2), reason: 'a sheet each time');
+      });
+
+      for (final (name, respond, failure) in [
+        (
+          'a 502 is offline',
+          (http.Request _) async => http.Response('', 502),
+          isA<AccountOffline>(),
+        ),
+        (
+          'a 401 is a rejection',
+          (http.Request _) async => http.Response('', 401),
+          isA<AccountRejected>(),
+        ),
+      ]) {
+        test(
+          '$name, as for any account, and the account stays signed in',
+          () async {
+            final service = await signedInDeleting(
+              respond,
+              providers: const ['apple'],
+            );
+
+            expect(await failureOf(service.deleteAccount), failure);
+            expect(service.state, isA<SignedIn>());
+          },
+        );
+      }
     });
 
     for (final (name, respond, failure) in [

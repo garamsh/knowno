@@ -11,18 +11,22 @@ class FakeAppleSignIn extends SignInWithApplePlatform
   final nonces = <String?>[];
   List<AppleIDAuthorizationScopes> scopes = const [];
 
+  /// Runs when the sheet is shown, before it answers.
+  void Function()? onSheet;
+
   /// A credential as Apple returns it, with the name it shares on an
   /// account's first sign-in alone.
   static AuthorizationCredentialAppleID signedIn({
     String? identityToken = 'apple-id-token',
     String? givenName,
     String? familyName,
+    String authorizationCode = 'apple-authorization-code',
   }) => AuthorizationCredentialAppleID(
     userIdentifier: '000001.apple',
     givenName: givenName,
     familyName: familyName,
     email: 'ada@example.com',
-    authorizationCode: 'apple-authorization-code',
+    authorizationCode: authorizationCode,
     identityToken: identityToken,
     state: null,
   );
@@ -37,6 +41,7 @@ class FakeAppleSignIn extends SignInWithApplePlatform
     String? nonce,
     String? state,
   }) async {
+    onSheet?.call();
     nonces.add(nonce);
     this.scopes = scopes;
     if (error case final error?) throw error;
