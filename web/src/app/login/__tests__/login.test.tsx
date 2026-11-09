@@ -28,6 +28,13 @@ describe("the login page", () => {
       "밀어서 응답하고,\n잊을 때쯤 다시 만나는 암기 카드",
     );
     expect(screen.getByRole("button", { name: "Google로 로그인" })).toBeEnabled();
+    // The third way, after Google's and Apple's: a button until pressed.
+    const email = screen.getByRole("button", { name: "이메일로 계속하기" });
+    expect(email).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Google로 로그인" }).compareDocumentPosition(email) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(document.getElementById("appleid-signin")).toHaveAttribute("data-type", "sign-in");
     expect(
       screen.getByText("계속하면 이용약관과 개인정보 처리방침에 동의하는 것으로 봐요."),

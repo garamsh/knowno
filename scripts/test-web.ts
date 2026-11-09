@@ -17,7 +17,7 @@ import {
   succeeds,
 } from "./process.ts";
 import { skip } from "./skip.ts";
-import { dockerReady, Stack, WITH_STORAGE } from "./stack.ts";
+import { dockerReady, Stack, WITH_MAIL } from "./stack.ts";
 
 const SCOPE = ["web/e2e/*.spec.ts"];
 const SERVER_ATTEMPTS = 5;
@@ -141,9 +141,12 @@ async function main(args: string[]): Promise<void> {
   const stack = new Stack("the web e2e stack");
   const dbPort = await stack.reserve(54400, 54499);
   const apiPort = await stack.reserve(54500, 54599);
+  // Mailpit's port is the stack's own as well, so stacks run together do not meet on config.toml's.
+  const mailPort = await stack.reserve(54700, 54799);
   stack.env.SUPABASE_PROJECT_ID = `knowno_web_${dbPort}`;
   stack.env.SUPABASE_DB_PORT = `${dbPort}`;
   stack.env.SUPABASE_API_PORT = `${apiPort}`;
+  stack.env.SUPABASE_LOCAL_SMTP_PORT = `${mailPort}`;
   let server: Server | undefined;
   const serverLog = await Deno.makeTempFile();
   stack.onStop(async () => {
@@ -151,7 +154,7 @@ async function main(args: string[]): Promise<void> {
     await Deno.remove(serverLog).catch(() => {});
   });
   await stack.run(async () => {
-    await stack.start(WITH_STORAGE);
+    await stack.start(WITH_MAIL);
     const { url, key } = await stack.endpoint();
     const built = {
       NEXT_PUBLIC_SUPABASE_URL: url,
@@ -204,6 +207,8 @@ async function main(args: string[]): Promise<void> {
         E2E_BASE_URL: base,
         E2E_SUPABASE_URL: url,
         E2E_SUPABASE_KEY: key,
+        // The mail catcher's API, which the sign-in code is read from.
+        E2E_MAIL_URL: `http://127.0.0.1:${mailPort}`,
         // admin-host.spec.ts makes its admin in the stack's database, as the PM makes the first.
         E2E_DB_CONTAINER: `supabase_db_${stack.projectId}`,
       },

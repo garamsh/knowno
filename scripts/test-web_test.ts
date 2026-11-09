@@ -16,7 +16,7 @@ const CURL = `[ -f "$(dirname "$0")/up" ]`;
 const PASSED =
   "  ✓  1 [chromium] › e2e/a.spec.ts:3:1 › works\n  ✓  2 [chromium] › e2e/b.spec.ts:3:1 › works\n\n  2 passed (1s)";
 const NPX = `${RECORD}
-[ "$1 $2" != "playwright test" ] || { printf '%s\\n' "\${PLAYWRIGHT:-${PASSED}}"; exit "\${PLAYWRIGHT_EXIT:-0}"; }`;
+[ "$1 $2" != "playwright test" ] || { echo "mail-url $E2E_MAIL_URL" >>"$(dirname "$0")/calls"; printf '%s\\n' "\${PLAYWRIGHT:-${PASSED}}"; exit "\${PLAYWRIGHT_EXIT:-0}"; }`;
 const stubs = () => ({
   docker: DOCKER,
   supabase: SUPABASE,
@@ -76,6 +76,12 @@ Deno.test("runs every spec against the app built for its stack, then stops the s
   assert.ok(start, calls);
   assert.ok(!start.split(",").includes("storage-api"), start);
   assert.ok(start.split(",").includes("realtime"), start);
+  // Its sign-in code arrives by mail, so Mailpit runs, on a port of the stack's own that the specs
+  // are given as a URL.
+  assert.ok(!start.split(",").includes("mailpit"), start);
+  const mail = calls.match(/^mail (547\d\d)$/m)?.[1];
+  assert.ok(mail, calls);
+  assert.ok(calls.includes(`mail-url http://127.0.0.1:${mail}\n`), calls);
 });
 
 Deno.test("tries the next port when the server finds its port taken", async () => {
