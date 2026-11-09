@@ -20,7 +20,6 @@ import {
   clozeFromV1,
   clozeNumbers,
   clozeToV1,
-  literalOf,
   parseMarkup,
   unfinishedClozes,
 } from "./markup.ts";
@@ -66,10 +65,9 @@ export type ReadCard = {
 type Args = Record<string, unknown>;
 
 /**
- * Which forms a call writes (ADR 0216). With `markup` off, the forms the released clients read:
- * a text of version 2 and a cloze of version 1, each where the input has a literal form that reads
- * the same. With it on, the forms of the markup: a text of version 3 and a cloze of version 2.
- * What is accepted does not depend on it.
+ * How a call reads and writes text (ADR 0216). With `markup` off, a text is literal and written at
+ * version 2 as given, and a cloze is written at version 1. With it on, a text is markup written at
+ * version 3 and a cloze at version 2. A cloze is accepted in either form whichever it says.
  */
 export type Writes = { readonly markup: boolean };
 
@@ -129,19 +127,16 @@ type Built =
   }
   | string;
 
-/** A text block: its front and back are markup; written as the literal they read as when [writes] asks for it. */
+/** A text block: its front and back are markup while [writes] says so, and literal otherwise. */
 function textBlock(value: Args, writes: Writes): Built {
   const front = optionalText(value.front ?? "");
   const back = optionalText(value.back ?? "");
   if (front === null || back === null) {
     return `a text block's front and back must be text of at most ${MAX_TEXT} characters.`;
   }
-  const literal = [literalOf(front), literalOf(back)];
-  if (!writes.markup && literal[0] !== null && literal[1] !== null) {
-    return { payload: { front: literal[0], back: literal[1] } };
-  }
-  // A markup that reads as no literal text is stored as given, which a build before version 3 shows as unsupported.
-  return { payload: { front, back }, v: MARKUP_TEXT_VERSION };
+  return writes.markup
+    ? { payload: { front, back }, v: MARKUP_TEXT_VERSION }
+    : { payload: { front, back } };
 }
 
 function sensesBlock(value: Args): Built {
@@ -169,12 +164,15 @@ function withinLimit(value: unknown): boolean {
 
 const NO_CLOZE =
   "a cloze's text needs at least one {{c1::answer}} or {{c1::answer::hint}}, each with an answer that is not blank.";
+const NO_V1 =
+  "a cloze in {{c1::answer}} form cannot be written yet when it has a hint, a number used twice or out of order from 1, a mark or a list: give each blank its own number from 1 in order, with plain text, or the form with ___ and answers.";
 const UNFINISHED =
   "a cloze's text has a {{cN:: that is no cloze: give it an answer that is not blank and a closing }}, and no cloze inside another; write a literal { or : after a backslash.";
 
 /**
  * A cloze: `text` with `answers`, one `___` for each, or `text` alone in Anki's syntax. Written at
- * version 2 when [writes] asks for it, and otherwise at version 1 where one reads the same.
+ * version 2 while [writes] says so, and otherwise at version 1; an Anki cloze with no version 1 form
+ * is refused.
  */
 function clozeBlock(value: Args, writes: Writes): Built {
   const { text, answers } = value;
@@ -187,10 +185,11 @@ function clozeBlock(value: Args, writes: Writes): Built {
       return unfinishedClozes(text) > 0 ? UNFINISHED : NO_CLOZE;
     }
     if (unfinishedClozes(text) > 0) return UNFINISHED;
-    const v1 = writes.markup ? null : clozeToV1(text);
-    return v1 === null
-      ? { payload: { text }, v: MARKUP_CLOZE_VERSION }
-      : { payload: v1 };
+    if (writes.markup) {
+      return { payload: { text }, v: MARKUP_CLOZE_VERSION };
+    }
+    const v1 = clozeToV1(text);
+    return v1 === null ? NO_V1 : { payload: v1 };
   }
   if (!writes.markup || typeof text !== "string" || !isStrings(answers)) {
     return { payload: { text, answers } };

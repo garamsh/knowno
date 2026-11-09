@@ -71,7 +71,8 @@ function tokens(text: string): Tok[] {
   const chars = [...text];
   const out: Tok[] = [];
   for (let at = 0; at < chars.length; at++) {
-    const ch = chars[at]!;
+    const ch = chars[at];
+    if (ch === undefined) break;
     const next = chars[at + 1];
     if (ch === "\\" && next !== undefined && ESCAPABLE.has(next)) {
       out.push({ ch: next, lit: true });
@@ -96,10 +97,11 @@ function runLength(chars: readonly Tok[], at: number): number {
   const first = chars[at];
   if (first === undefined) return 0;
   let length = 0;
-  while (chars[at + length] !== undefined && same(chars[at + length]!, first)) {
+  for (;;) {
+    const next = chars[at + length];
+    if (next === undefined || !same(next, first)) return length;
     length++;
   }
-  return length;
 }
 
 /** The index of the backtick closing the code span opened at [open], on the same line. */
@@ -134,10 +136,11 @@ function clozeSpan(chars: readonly Tok[], open: number): ClozeSpan | null {
   if (!pairAt(chars, open, "{") || !is(chars[open + 2], "c")) return null;
   const digitsAt = open + 3;
   let digits = 0;
-  while (
-    chars[digitsAt + digits] !== undefined &&
-    !chars[digitsAt + digits]!.lit && ascii(chars[digitsAt + digits]!.ch)
-  ) digits++;
+  for (;;) {
+    const digit = chars[digitsAt + digits];
+    if (digit === undefined || digit.lit || !ascii(digit.ch)) break;
+    digits++;
+  }
   if (digits === 0 || digits > MAX_NUMBER_DIGITS) return null;
   const number = Number(string(chars.slice(digitsAt, digitsAt + digits)));
   const start = digitsAt + digits + 2;
@@ -169,8 +172,9 @@ function closer(
   clozeAllowed: boolean,
 ): number | null {
   let at = from;
-  while (at < chars.length) {
-    const here = chars[at]!;
+  for (;;) {
+    const here = chars[at];
+    if (here === undefined) return null;
     if (is(here, "`")) {
       const end = codeEnd(chars, at);
       if (end !== null) {
@@ -193,7 +197,6 @@ function closer(
     }
     at++;
   }
-  return null;
 }
 
 /** The inlines of [chars]; recursion is bounded as the engine's is. */
@@ -205,8 +208,9 @@ function inlines(chars: readonly Tok[], clozeAllowed: boolean): Inline[] {
     text = "";
   };
   let at = 0;
-  while (at < chars.length) {
-    const tok = chars[at]!;
+  for (;;) {
+    const tok = chars[at];
+    if (tok === undefined) break;
     if (is(tok, "\n")) {
       flush();
       out.push({ type: "lineBreak" });
@@ -364,11 +368,13 @@ export function parseMarkup(text: string): Document {
       list.items.push({ content: parseInlines(mark.content), sublists: [] });
     } else if (mark !== null && list !== null && list.items.length > 0) {
       const content = parseInlines(mark.content);
-      const item = list.items[list.items.length - 1]!;
-      const sub = item.sublists[item.sublists.length - 1];
-      if (sub !== undefined && sub.ordered === mark.ordered) {
+      const item = list.items[list.items.length - 1];
+      const sub = item?.sublists[item.sublists.length - 1];
+      if (
+        item !== undefined && sub !== undefined && sub.ordered === mark.ordered
+      ) {
         sub.items.push(content);
-      } else item.sublists.push({ ordered: mark.ordered, items: [content] });
+      } else item?.sublists.push({ ordered: mark.ordered, items: [content] });
     } else {
       flushList();
       paragraph.push(current);

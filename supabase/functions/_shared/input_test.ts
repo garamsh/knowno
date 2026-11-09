@@ -38,50 +38,37 @@ Deno.test("a text of plain words is written as version 2 while the switch is off
   });
 });
 
-Deno.test("an escape is converted to the literal it stands for while off, and kept as given while on", () => {
-  const input = text("2\\*3\\*4 \\{x\\}", "snake\\_case: \\\\ a");
-  assert.deepEqual(written(input, OFF), {
+Deno.test("while the switch is off a text is literal: written at version 2 exactly as given, a list, a mark and a backslash included, and while on it is markup at version 3", () => {
+  const given = [
+    text("준비물\n- 여권\n- 지갑", "1. 첫째\n2. 둘째"),
+    text("2*3*4 and **x**", "C:\\Users\\me and 2\\*3"),
+    text("What is {{c1::x}}?", "`code` _it_"),
+  ];
+  for (const input of given) {
+    assert.deepEqual(written(input, OFF), {
+      type: "text",
+      v: 2,
+      payload: { front: input.front, back: input.back },
+    });
+    assert.deepEqual(written(input, ON), {
+      type: "text",
+      v: 3,
+      payload: { front: input.front, back: input.back },
+    });
+  }
+  // Control: the accepted literal is written the same way, so the lists are told from it by nothing.
+  assert.deepEqual(written(text("snake_case", "a * b"), OFF), {
     type: "text",
     v: 2,
-    payload: {
-      front: "2*3*4 {x}",
-      back: "snake_case: \\ a",
-    },
-  });
-  assert.deepEqual(written(input, ON).payload, {
-    front: "2\\*3\\*4 \\{x\\}",
-    back: "snake\\_case: \\\\ a",
-  });
-});
-
-Deno.test("a text with a mark has no literal form, so it is stored as given at version 3 even while off", () => {
-  const marked = text("What is **bold**?", "plain");
-  assert.deepEqual(written(marked, OFF), {
-    type: "text",
-    v: 3,
-    payload: { front: "What is **bold**?", back: "plain" },
-  });
-  // Control: the same text without the mark is converted, so the mark is what decided it.
-  assert.equal(written(text("What is bold?", "plain"), OFF).v, 2);
-  // A list is no literal text either.
-  assert.equal(written(text("steps", "- one\n- two"), OFF).v, 3);
-});
-
-Deno.test("a text whose front converts and whose back does not is stored whole at version 3", () => {
-  assert.deepEqual(written(text("Q", "*A*"), OFF), {
-    type: "text",
-    v: 3,
-    payload: { front: "Q", back: "*A*" },
+    payload: { front: "snake_case", back: "a * b" },
   });
 });
 
 Deno.test("the plain front and back are read as a text block, in either state", () => {
   const read = (writes: Writes) =>
     readCard({ front: "Q: *x*", back: "A" }, ids, null, writes) as ReadCard;
-  assert.equal(read(OFF).blocks[0]!.v, 3);
+  assert.equal(read(OFF).blocks[0]!.v, 2);
   assert.equal(read(ON).blocks[0]!.v, 3);
-  const plainRead = readCard({ front: "Q:", back: "A" }, ids, null, OFF);
-  assert.equal((plainRead as ReadCard).blocks[0]!.v, 2);
 });
 
 Deno.test("a cloze in version 1's form is written as version 1 while off, and as version 2 with its literals escaped while on", () => {
@@ -132,7 +119,7 @@ Deno.test("a cloze in Anki's syntax is written as version 2 while on, and as ver
   );
 });
 
-Deno.test("a cloze with no version 1 form is stored as given at version 2 even while off", () => {
+Deno.test("a cloze with no version 1 form is refused with a sentence while off, never stored at version 2, and written at version 2 while on", () => {
   const cases = {
     "a hint": "{{c1::Paris::city}} is a city",
     "one number twice": "{{c1::a}} and {{c1::b}}",
@@ -144,13 +131,19 @@ Deno.test("a cloze with no version 1 form is stored as given at version 2 even w
     "a literal blank": "x ___ {{c1::a}}",
   };
   for (const [name, source] of Object.entries(cases)) {
+    const read = readCard({ blocks: [cloze(source)] }, ids, null, OFF);
+    assert.match(
+      read as string,
+      /^block 0: a cloze in \{\{c1::answer\}\} form/,
+      name,
+    );
     assert.deepEqual(
-      written(cloze(source), OFF),
+      written(cloze(source), ON),
       { type: "cloze", v: 2, payload: { text: source } },
       name,
     );
   }
-  // Control: the case that converts is told from them by the reason alone.
+  // Control: the case that converts is accepted while off, so the reason alone is what refuses.
   assert.equal(written(cloze("{{c1::a}} {{c2::b}}"), OFF).v, 1);
 });
 
@@ -232,19 +225,27 @@ Deno.test("list_cards' form of a stored card sends back as the same card: a lite
       template_version: 2,
     })!;
   const literal = { front: "Note: 2*3*4", back: "plain" };
-  const shown = blocksOut(stored(2, literal));
+  const shown = blocksOut(stored(2, literal), true);
   assert.deepEqual(shown, [
     { type: "text", front: "Note\\: 2\\*3\\*4", back: "plain" },
   ]);
-  const again = written(shown[0]!, OFF);
-  assert.deepEqual(again, { type: "text", v: 2, payload: literal });
+  const again = written(shown[0]!, ON);
+  assert.equal(again.v, 3);
+  // While off a stored literal is shown as stored, and sends back as the same version 2 text.
+  const plainShown = blocksOut(stored(2, literal), false);
+  assert.deepEqual(plainShown, [{ type: "text", ...literal }]);
+  assert.deepEqual(written(plainShown[0]!, OFF), {
+    type: "text",
+    v: 2,
+    payload: literal,
+  });
   // A markup text is shown as stored.
   assert.deepEqual(
-    blocksOut(stored(3, { front: "**a**", back: "" })),
+    blocksOut(stored(3, { front: "**a**", back: "" }), false),
     [{ type: "text", front: "**a**", back: "" }],
   );
   // Control: text the markup reads unchanged is not escaped, a colon included.
-  assert.deepEqual(blocksOut(stored(2, { front: "Q: a", back: "b" })), [
+  assert.deepEqual(blocksOut(stored(2, { front: "Q: a", back: "b" }), true), [
     { type: "text", front: "Q: a", back: "b" },
   ]);
 });
@@ -256,7 +257,10 @@ Deno.test("a stored cloze of version 2 is read as the cloze it is, its key the f
     template: "free",
     template_version: 2,
   })!;
-  assert.deepEqual(blocksOut(cells), [{ type: "cloze", text: sentence }]);
+  assert.deepEqual(blocksOut(cells, false), [{
+    type: "cloze",
+    text: sentence,
+  }]);
   // A cloze of version 2 holding no cloze reads as a block this build cannot show, as the clients read it.
   const none = cellsOf({
     front: [{ type: "cloze", v: 2, id: "c", payload: { text: "none" } }],

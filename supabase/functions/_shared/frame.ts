@@ -740,12 +740,15 @@ function blockOut(block: Content, side?: CellSide): Record<string, unknown> {
   }
 }
 
-/** [cells] in the union `add_cards` takes; a stored photo names its `media` in place of a url. */
-export function blocksOut(cells: readonly Cell[]): Record<string, unknown>[] {
+/** [cells] in the union `add_cards` takes, a literal text escaped while [markup] says text is read as markup; a stored photo names its `media` in place of a url. */
+export function blocksOut(
+  cells: readonly Cell[],
+  markup: boolean,
+): Record<string, unknown>[] {
   return cells.map((cell) => {
     switch (cell.kind) {
       case "text":
-        return cell.markup
+        return cell.markup || !markup
           ? { type: "text", front: cell.front, back: cell.back }
           : {
             type: "text",

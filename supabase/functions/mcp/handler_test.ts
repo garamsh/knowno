@@ -2336,7 +2336,9 @@ Deno.test("update_cards whose update fails releases the photo it stored for the 
 
 const MARKUP_CARDS = [
   { blocks: [{ type: "text", front: "Capital?", back: "Paris" }] },
-  { blocks: [{ type: "text", front: "What is **bold**?", back: "a mark" }] },
+  {
+    blocks: [{ type: "text", front: "준비물\n- 여권\n- 지갑", back: "2*3*4" }],
+  },
   {
     blocks: [{
       type: "cloze",
@@ -2344,6 +2346,7 @@ const MARKUP_CARDS = [
       answers: ["Paris"],
     }],
   },
+  { blocks: [{ type: "cloze", text: "{{c1::Seoul}} is the capital" }] },
   {
     blocks: [{
       type: "cloze",
@@ -2353,7 +2356,7 @@ const MARKUP_CARDS = [
   { blocks: [{ type: "cloze", text: "no cloze here" }] },
 ];
 
-Deno.test("add_cards writes the forms the released clients read while the markup switch is off, and the markup's forms while it is on, refusing a cloze with no cloze either way", async () => {
+Deno.test("add_cards reads and writes text as the switch says: literal at version 2 as given and clozes at version 1 while off, markup at version 3 and clozes at version 2 while on, an Anki cloze with no version 1 form refused only while off", async () => {
   const off = await call("add_cards", {
     deck_id: ADA_DECK,
     cards: MARKUP_CARDS,
@@ -2368,34 +2371,36 @@ Deno.test("add_cards writes the forms the released clients read while the markup
     (done.result.structuredContent?.added as Row[]).map((added) =>
       storedBlocks(done.fake.cards.find((row) => row.id === added.id)!)
     );
-  for (const done of [off, written]) {
-    assert.deepEqual(
-      (done.result.structuredContent?.refused as Row[]).map((r) => r.index),
-      [4],
-    );
-    assert.match(
-      (done.result.structuredContent?.refused as Row[])[0]!.reason as string,
-      /block 0: a cloze's text needs at least one \{\{c1::answer\}\}/,
-    );
-  }
+  const refused = (
+    done: Awaited<ReturnType<typeof call>>,
+  ) => (done.result.structuredContent?.refused as Row[]);
+  assert.deepEqual(refused(off).map((r) => r.index), [4, 5]);
+  assert.match(
+    refused(off)[0]!.reason as string,
+    /block 0: a cloze in \{\{c1::answer\}\} form cannot be written yet/,
+  );
+  assert.match(
+    refused(off)[1]!.reason as string,
+    /block 0: a cloze's text needs at least one \{\{c1::answer\}\}/,
+  );
+  assert.deepEqual(refused(written).map((r) => r.index), [5]);
   assert.deepEqual(stored(off), [
     [{ type: "text", v: 2, payload: { front: "Capital?", back: "Paris" } }],
-    // A mark has no literal form: stored as given, which a build before version 3 shows as unsupported.
+    // A list and an asterisk pair stay literal while off, byte for byte.
     [{
       type: "text",
-      v: 3,
-      payload: { front: "What is **bold**?", back: "a mark" },
+      v: 2,
+      payload: { front: "준비물\n- 여권\n- 지갑", back: "2*3*4" },
     }],
     [{
       type: "cloze",
       v: 1,
       payload: { text: "The capital of France is ___.", answers: ["Paris"] },
     }],
-    // A hint has no version 1 form.
     [{
       type: "cloze",
-      v: 2,
-      payload: { text: "{{c1::Seoul::city}} is the capital of Korea" },
+      v: 1,
+      payload: { text: "___ is the capital", answers: ["Seoul"] },
     }],
   ]);
   assert.deepEqual(stored(written), [
@@ -2403,7 +2408,7 @@ Deno.test("add_cards writes the forms the released clients read while the markup
     [{
       type: "text",
       v: 3,
-      payload: { front: "What is **bold**?", back: "a mark" },
+      payload: { front: "준비물\n- 여권\n- 지갑", back: "2*3*4" },
     }],
     [{
       type: "cloze",
@@ -2413,41 +2418,50 @@ Deno.test("add_cards writes the forms the released clients read while the markup
     [{
       type: "cloze",
       v: 2,
+      payload: { text: "{{c1::Seoul}} is the capital" },
+    }],
+    [{
+      type: "cloze",
+      v: 2,
       payload: { text: "{{c1::Seoul::city}} is the capital of Korea" },
     }],
   ]);
 });
 
-Deno.test("the switch is read as the caller, once for each add_cards and update_cards call", async () => {
+Deno.test("the switch is read as the caller, once for each add_cards, update_cards, list_cards and search_cards call", async () => {
+  const asked = (fake: Fake) =>
+    fake.calls.filter((one) => one.url.endsWith("/rpc/card_markup_enabled"));
   const { fake } = await call("add_cards", {
     deck_id: ADA_DECK,
     cards: [{ front: "pear", back: "배" }],
   });
-  const asked = fake.calls.filter((one) =>
-    one.url.endsWith("/rpc/card_markup_enabled")
-  );
-  assert.equal(asked.length, 1);
-  assert.equal(asked[0]!.headers.get("Authorization"), `Bearer ${ADA_TOKEN}`);
-  assert.equal(asked[0]!.headers.get("apikey"), ANON_KEY);
-  const updated = await call("update_cards", {
-    cards: [{ id: FREE_CARD, blocks: [{ type: "text", front: "a" }] }],
-  }, withFreeCard());
+  assert.equal(asked(fake).length, 1);
   assert.equal(
-    updated.fake.calls.filter((one) =>
-      one.url.endsWith("/rpc/card_markup_enabled")
-    ).length,
-    1,
+    asked(fake)[0]!.headers.get("Authorization"),
+    `Bearer ${ADA_TOKEN}`,
   );
+  assert.equal(asked(fake)[0]!.headers.get("apikey"), ANON_KEY);
+  const calls = [
+    ["update_cards", {
+      cards: [{ id: FREE_CARD, blocks: [{ type: "text", front: "a" }] }],
+    }],
+    ["list_cards", { deck_id: ADA_OTHER_DECK }],
+    ["search_cards", { query: "heart" }],
+  ] as const;
+  for (const [name, args] of calls) {
+    const done = await call(name, args, withFreeCard());
+    assert.equal(asked(done.fake).length, 1, name);
+  }
 });
 
-Deno.test("update_cards writes a card's text as version 3 while the switch is on and as version 2 while it is off, and list_cards shows each as it reads", async () => {
+Deno.test("update_cards writes a card's text as version 3 while the switch is on and as version 2 as given while it is off, and list_cards shows a stored literal as stored while off and escaped while on", async () => {
   const stored = async (markup: boolean) => {
     const fake = withFreeCard();
     fake.markup = markup;
     const { result } = await call("update_cards", {
       cards: [{
         id: FREE_CARD,
-        blocks: [{ type: "text", front: "2\\*3\\*4", back: "x" }],
+        blocks: [{ type: "text", front: "2*3*4\n- a", back: "x" }],
       }],
     }, fake);
     assert.deepEqual(result.structuredContent?.refused, []);
@@ -2457,22 +2471,24 @@ Deno.test("update_cards writes a card's text as version 3 while the switch is on
   assert.deepEqual(storedBlocks(off.cards.find((c) => c.id === FREE_CARD)!), [{
     type: "text",
     v: 2,
-    payload: { front: "2*3*4", back: "x" },
+    payload: { front: "2*3*4\n- a", back: "x" },
   }]);
   const on = await stored(true);
   assert.deepEqual(storedBlocks(on.cards.find((c) => c.id === FREE_CARD)!), [{
     type: "text",
     v: 3,
-    payload: { front: "2\\*3\\*4", back: "x" },
+    payload: { front: "2*3*4\n- a", back: "x" },
   }]);
-  // list_cards sends the literal back escaped, so that update_cards keeps its meaning.
-  const listed = await call("list_cards", { deck_id: ADA_OTHER_DECK }, off);
-  const card = (listed.result.structuredContent?.cards as {
-    id: string;
-    blocks: Row[];
-  }[]).find((one) => one.id === FREE_CARD)!;
-  assert.deepEqual(
-    { front: card.blocks[0]!.front, back: card.blocks[0]!.back },
-    { front: "2\\*3\\*4", back: "x" },
-  );
+  const shown = async (fake: Fake) => {
+    const listed = await call("list_cards", { deck_id: ADA_OTHER_DECK }, fake);
+    const card = (listed.result.structuredContent?.cards as {
+      id: string;
+      blocks: Row[];
+    }[]).find((one) => one.id === FREE_CARD)!;
+    return card.blocks[0]!.front;
+  };
+  assert.equal(await shown(off), "2*3*4\n- a");
+  // The same stored version 2 text, read while on, is shown escaped so that update_cards keeps its meaning.
+  off.markup = true;
+  assert.equal(await shown(off), "2\\*3\\*4\n\\- a");
 });

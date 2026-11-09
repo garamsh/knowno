@@ -1,7 +1,7 @@
 -- The card text markup's switch (#763, ADR 0216): whether the server writes `text` version 3 and
--- `cloze` version 2, and the card-form skills that teach them. The server always accepts both; while
--- the switch is off it writes the forms the released phone builds read, `text` version 2 and `cloze`
--- version 1, where a form that reads the same exists. It starts off. An admin turns it on through
+-- `cloze` version 2, and the card-form skills that teach them. While the switch is off a text is
+-- read as literal and written as `text` version 2, and a cloze as version 1 (an Anki cloze with no
+-- version 1 form is refused), the forms the released phone builds read. It starts off. An admin turns it on through
 -- `admin_set_card_markup`, recorded in the audit log, with no deploy.
 --
 -- Additive. It creates `private.server_switches` with one row, `card_markup`, off; the three

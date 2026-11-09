@@ -114,7 +114,7 @@ const blockIn = {
     {
       type: "object",
       description:
-        'A question and its answer, or any text: front is shown first and back at the reveal; either may be left out, not both. Both are read as markup (**bold**, *italic*, `code`, "- " and "1. " lists), a backslash before \\ * _ ` { } or : keeping it literal; use markup only as the text guide says. {"type":"text","front":"Capital of France?","back":"Paris"}',
+        'A question and its answer, or any text: front is shown first and back at the reveal; either may be left out, not both. Front and back are read as the card-forms guide says: as plain text, or as markup. {"type":"text","front":"Capital of France?","back":"Paris"}',
       properties: {
         type: { const: "text" },
         front: { type: "string", maxLength: MAX_TEXT },
@@ -826,14 +826,14 @@ function deckIdOf(args: Args): string | null {
  * A stored card as the read tools return it, each 칸 of a `free` v2 card with its stored id; one
  * that does not parse says so by its one block.
  */
-export function cardOf(card: StoredSides & { id: string }) {
+export function cardOf(card: StoredSides & { id: string }, markup: boolean) {
   const cells = cellsOf(card);
   const ids = storedIds(card);
   return {
     id: card.id,
     blocks: cells === null
       ? [{ type: "unknown", stored_type: "unreadable" }]
-      : blocksOut(cells).map((block, index) => {
+      : blocksOut(cells, markup).map((block, index) => {
         const id = ids[index];
         return typeof id === "string" ? { ...block, id } : block;
       }),
@@ -854,11 +854,12 @@ async function listCardsTool(args: Args, store: Store): Promise<ToolResult> {
   const deck = await readDeck(store, id);
   if (deck === null) return refuse(NOT_FOUND);
   const { cards, total } = await listCards(store, id, offset, limit);
+  const markup = await cardMarkupEnabled(store);
   const next = offset + cards.length;
   return result({
     deck,
     total,
-    cards: cards.map(cardOf),
+    cards: cards.map((card) => cardOf(card, markup)),
     next_offset: cards.length > 0 && next < total ? next : null,
   });
 }
@@ -875,12 +876,13 @@ async function searchCards(args: Args, store: Store): Promise<ToolResult> {
   if (typeof limit === "string") return refuse(limit);
   const [decks, cards] = await Promise.all([listDecks(store), allCards(store)]);
   const names = new Map(decks.map((deck) => [deck.id, deck.name]));
+  const markup = await cardMarkupEnabled(store);
   const found = cards.flatMap((card) => {
     const name = names.get(card.deck_id);
     if (name === undefined) return [];
     const cells = cellsOf(card);
     return cells !== null && comparable(searchText(cells)).includes(query)
-      ? [{ ...cardOf(card), deck: { id: card.deck_id, name } }]
+      ? [{ ...cardOf(card, markup), deck: { id: card.deck_id, name } }]
       : [];
   });
   return result({
