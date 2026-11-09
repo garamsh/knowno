@@ -7,6 +7,7 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/deck/src/label_presets.dart';
 import 'package:knowno/deck/src/label_presets_screen.dart';
 import 'package:knowno/design/app_text_field.dart';
+import 'package:knowno/design/screen_skeleton.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/l10n/app_localizations.dart';
 
@@ -60,13 +61,15 @@ List<String> _shown(WidgetTester tester) => [
 
 /// How many presets the screen lists, those scrolled out of view included.
 int _count(WidgetTester tester) => tester
-    .widget<ReorderableListView>(find.byType(ReorderableListView))
+    .widget<SliverReorderableList>(
+      find.byType(SliverReorderableList, skipOffstage: false),
+    )
     .itemCount;
 
 /// The screen's list, apart from any field's own scrolling.
 final _list = find
     .descendant(
-      of: find.byType(ReorderableListView),
+      of: find.byType(ScreenSkeleton),
       matching: find.byType(Scrollable),
     )
     .first;
@@ -318,6 +321,13 @@ void main() {
         tester.platformDispatcher.textScaleFactorTestValue = scale;
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
         await _open(tester, presets: _seed);
+        await tester.scrollUntilVisible(
+          find.bySemanticsLabel('Edit 명 noun'),
+          100,
+          scrollable: _list,
+        );
+        await tester.ensureVisible(find.bySemanticsLabel('Edit 명 noun'));
+        await tester.pump();
         await tester.tap(find.bySemanticsLabel('Edit 명 noun'));
         await tester.pumpAndSettle();
 

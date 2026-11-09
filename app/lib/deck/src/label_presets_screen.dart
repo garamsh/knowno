@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../design/app_button.dart';
 import '../../design/app_list_row.dart';
 import '../../design/app_text_field.dart';
+import '../../design/screen_skeleton.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'editor_group.dart';
@@ -130,69 +131,68 @@ class _PartOfSpeechPresetsScreenState
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
     final idle = _editing == null;
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.labelPresetsTitle)),
-      body: Theme(
-        data: Theme.of(context)
-            .copyWith(inputDecorationTheme: groupFieldTheme(colors)),
-        child: ReorderableListView.builder(
-          buildDefaultDragHandles: false,
-          padding: const EdgeInsets.fromLTRB(
-            AppSpace.gutter,
-            AppSpace.s8,
-            AppSpace.gutter,
-            AppSpace.s24,
-          ),
-          header: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpace.s4,
-              0,
-              AppSpace.s4,
-              AppSpace.s16,
-            ),
-            child: Text(
-              l10n.labelPresetsBody,
-              style: AppType.caption.copyWith(color: colors.muted),
+    return Theme(
+      data: Theme.of(context)
+          .copyWith(inputDecorationTheme: groupFieldTheme(colors)),
+      child: ScreenSkeleton(
+        title: l10n.labelPresetsTitle,
+        body: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.s4,
+                0,
+                AppSpace.s4,
+                AppSpace.s16,
+              ),
+              child: Text(
+                l10n.labelPresetsBody,
+                style: AppType.caption.copyWith(color: colors.muted),
+              ),
             ),
           ),
-          footer: _GroupPart(
-            first: _presets.isEmpty,
-            last: true,
-            child: GroupAddRow(
-              label: l10n.addLabelPreset,
-              semanticsLabel: l10n.addLabelPreset,
-              color: colors.ink2,
-              onPressed: idle ? _add : null,
+          SliverReorderableList(
+            itemCount: _presets.length,
+            onReorderItem: _move,
+            // While a row is edited, the list holds what it does not store
+            // yet: no other row moves or goes until it is done.
+            itemBuilder: (context, index) => _GroupPart(
+              key: _editing == index
+                  ? ValueKey(('editing', index))
+                  : ValueKey((_presets[index], index)),
+              first: index == 0,
+              last: false,
+              child: _editing == index
+                  ? _EditingRow(
+                      label: _label,
+                      name: _name,
+                      showLabelError: _showLabelError,
+                      onDone: _done,
+                    )
+                  : _PresetRow(
+                      index: index,
+                      preset: _presets[index],
+                      idle: idle,
+                      canMoveUp: index > 0,
+                      canMoveDown: index < _presets.length - 1,
+                      onEdit: () => _edit(index),
+                      onAction: (action) => _act(index, action),
+                    ),
             ),
           ),
-          itemCount: _presets.length,
-          onReorderItem: _move,
-          // While a row is edited, the list holds what it does not store yet:
-          // no other row moves or goes until it is done.
-          itemBuilder: (context, index) => _GroupPart(
-            key: _editing == index
-                ? ValueKey(('editing', index))
-                : ValueKey((_presets[index], index)),
-            first: index == 0,
-            last: false,
-            child: _editing == index
-                ? _EditingRow(
-                    label: _label,
-                    name: _name,
-                    showLabelError: _showLabelError,
-                    onDone: _done,
-                  )
-                : _PresetRow(
-                    index: index,
-                    preset: _presets[index],
-                    idle: idle,
-                    canMoveUp: index > 0,
-                    canMoveDown: index < _presets.length - 1,
-                    onEdit: () => _edit(index),
-                    onAction: (action) => _act(index, action),
-                  ),
+          SliverToBoxAdapter(
+            child: _GroupPart(
+              first: _presets.isEmpty,
+              last: true,
+              child: GroupAddRow(
+                label: l10n.addLabelPreset,
+                semanticsLabel: l10n.addLabelPreset,
+                color: colors.ink2,
+                onPressed: idle ? _add : null,
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

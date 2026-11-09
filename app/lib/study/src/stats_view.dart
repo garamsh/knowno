@@ -18,7 +18,7 @@ import 'queue.dart';
 import 'stats.dart';
 import 'stats_style.dart';
 
-/// The 기록 tab's content: [title], then the retention against its target
+/// The 기록 tab's content, as a sliver: the retention against its target
 /// with the period selector it alone follows, the recall bands, the mastered
 /// weeks and the study days, read from the device by [readStats] over
 /// [decks].
@@ -26,18 +26,9 @@ import 'stats_style.dart';
 /// It is read again when [decks] changes and whenever the route that shows
 /// it comes back on top.
 class StatsView extends ConsumerStatefulWidget {
-  const StatsView({
-    super.key,
-    required this.decks,
-    required this.title,
-    this.bottomInset = 0,
-  });
+  const StatsView({super.key, required this.decks});
 
   final DeckSelection decks;
-
-  /// Room kept under the last chart, for what floats over the screen's foot.
-  final double bottomInset;
-  final Widget title;
 
   @override
   ConsumerState<StatsView> createState() => _StatsViewState();
@@ -83,50 +74,37 @@ class _StatsViewState extends ConsumerState<StatsView> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = AppColors.of(context);
-    return ListView(
-      padding: EdgeInsets.fromLTRB(
-        AppSpace.gutter,
-        AppSpace.s8,
-        AppSpace.gutter,
-        AppSpace.s28 + widget.bottomInset,
+    return SliverToBoxAdapter(
+      child: FutureBuilder(
+        future: _stats,
+        builder: (context, read) => switch (read) {
+          AsyncSnapshot(hasError: true, :final error?) => Text(switch (error) {
+            DeckFailure() => describeFailure(l10n, error),
+            StudyFailure() => describeStudyFailure(l10n, error),
+            _ => Error.throwWithStackTrace(
+              error,
+              read.stackTrace ?? StackTrace.empty,
+            ),
+          }, style: AppType.body.copyWith(color: colors.ink)),
+          AsyncSnapshot<_Read>(:final data?) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppSpace.s16,
+            children: [
+              // It governs the retention alone, which comes next.
+              _PeriodChoice(
+                period: _period,
+                onChanged: (period) => setState(() => _period = period),
+              ),
+              _RetentionCard(read: data, period: _period),
+              _RecallCard(bands: data.stats.recall),
+              _MasteredCard(weeks: data.stats.mastered),
+              _StudyDaysCard(stats: data.stats),
+            ],
+          ),
+          // A read of the device's own data: nothing to wait on shown.
+          _ => const SizedBox.shrink(),
+        },
       ),
-      children: [
-        widget.title,
-        const SizedBox(height: AppSpace.s16),
-        FutureBuilder(
-          future: _stats,
-          builder: (context, read) => switch (read) {
-            AsyncSnapshot(hasError: true, :final error?) => Text(
-              switch (error) {
-                DeckFailure() => describeFailure(l10n, error),
-                StudyFailure() => describeStudyFailure(l10n, error),
-                _ => Error.throwWithStackTrace(
-                  error,
-                  read.stackTrace ?? StackTrace.empty,
-                ),
-              },
-              style: AppType.body.copyWith(color: colors.ink),
-            ),
-            AsyncSnapshot<_Read>(:final data?) => Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: AppSpace.s16,
-              children: [
-                // It governs the retention alone, which comes next.
-                _PeriodChoice(
-                  period: _period,
-                  onChanged: (period) => setState(() => _period = period),
-                ),
-                _RetentionCard(read: data, period: _period),
-                _RecallCard(bands: data.stats.recall),
-                _MasteredCard(weeks: data.stats.mastered),
-                _StudyDaysCard(stats: data.stats),
-              ],
-            ),
-            // A read of the device's own data: nothing to wait on shown.
-            _ => const SizedBox.shrink(),
-          },
-        ),
-      ],
     );
   }
 }
