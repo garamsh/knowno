@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -20,6 +19,7 @@ import 'package:uuid/uuid.dart';
 import '../contrast.dart';
 import '../home/deck_screens.dart';
 import '../media/fakes.dart';
+import '../media/memory_files.dart';
 import '../settle_until.dart';
 import 'editor.dart';
 import '../word_breaks.dart';
@@ -295,19 +295,19 @@ void main() {
   });
 
   group('the editor (ADR 0109)', () {
-    late Directory directory;
+    late MemoryFiles files;
     late AppDatabase mediaDb;
     late MediaStore media;
     late FakeImagePick pick;
 
     setUp(() {
-      directory = newMediaDirectory();
+      files = MemoryFiles.install();
       mediaDb = AppDatabase(NativeDatabase.memory());
       var ids = 0;
       media = MediaStore(
         mediaDb,
         FakeMediaServer(),
-        directory: directory,
+        directory: files.directory,
         clock: () => DateTime.utc(2026, 10, 27),
         newId: () => 'photo${ids++}',
       );
@@ -316,18 +316,16 @@ void main() {
 
     tearDown(() async {
       await mediaDb.close();
-      await deleteMediaDirectory(directory);
+      files.uninstall();
     });
 
     Future<Set<String>> released(WidgetTester tester) async => {
-      for (final row in (await tester.runAsync(
-        () => mediaDb.select(mediaDb.mediaDeletions).get(),
-      ))!)
+      for (final row in await mediaDb.select(mediaDb.mediaDeletions).get())
         row.id,
     };
 
     /// Waits until the store holds the chosen photo and the block shows it.
-    Future<void> chosen(WidgetTester tester) => settleUntil(
+    Future<void> chosen(WidgetTester tester) => pumpUntil(
       tester,
       'the chosen photo',
       () => find.byType(ImagePhoto).evaluate().isNotEmpty,
@@ -335,7 +333,7 @@ void main() {
 
     /// Waits until a photo is released: the editor lets go of one it does
     /// not save without waiting for the store.
-    Future<void> anyReleased(WidgetTester tester) => settleUntil(
+    Future<void> anyReleased(WidgetTester tester) => pumpUntil(
       tester,
       'a released photo',
       () async => (await released(tester)).isNotEmpty,
@@ -397,7 +395,7 @@ void main() {
     /// the card is stored and the photos it does not hold are let go.
     Future<void> save(WidgetTester tester) async {
       await tapVisible(tester, shownText('Save'));
-      await settleUntil(
+      await pumpUntil(
         tester,
         'the editor to close on the saved card',
         () => find.byType(CardEditorScreen).evaluate().isEmpty,
@@ -640,9 +638,14 @@ void main() {
         expect(inView(tester, answer), isTrue);
         await tester.enterText(answer, 'Paris');
 
+        final writing = Completer<void>();
+        files.holdWrites = writing.future;
+
         await tapPick(tester, shownText('Choose another photo'));
         expect(find.byType(CircularProgressIndicator), findsOneWidget);
-        await settleUntil(
+        files.holdWrites = null;
+        writing.complete();
+        await pumpUntil(
           tester,
           'the replacing photo',
           () => find.byType(CircularProgressIndicator).evaluate().isEmpty,
@@ -770,9 +773,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(
-          (await tester.runAsync(
-            () => mediaDb.select(mediaDb.mediaUploads).get(),
-          ))!,
+          await mediaDb.select(mediaDb.mediaUploads).get(),
           isEmpty,
           reason: 'its upload is let go',
         );
