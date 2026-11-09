@@ -199,6 +199,10 @@ select lives_ok(format($$select pg_temp.finish(%s, 'cut')$$, pg_temp.last_messag
   'a reply cut at the output limit is recorded');
 
 -- A message begun 151 s ago and never recorded, as when the function stopped before its record.
+-- In the first 151 s of the Seoul day that is yesterday's, which no day's count includes: 0 then,
+-- 1 otherwise.
+create function pg_temp.unrecorded_today() returns integer language sql stable as
+  $$select (now() - interval '151 seconds' >= date_trunc('day', now(), 'Asia/Seoul'))::integer$$;
 insert into private.assistant_messages (user_id, plan, configuration_id, created_at)
   values ('00000000-0000-4000-8000-00000000000b', 'free', pg_temp.config('free', 'active'),
     now() - interval '151 seconds');
@@ -208,11 +212,13 @@ select results_eq($$select tokens_used, busy, allowed from pg_temp.start('b')$$,
 select lives_ok(format($$select pg_temp.finish(%s, 'ok')$$, pg_temp.last_message('b')),
   'service_role records a turn''s outcome and usage');
 
--- Today's tokens one short of Free's budget of 200,000.
+-- Today's tokens one short of Free's budget of 200,000. Dated an hour back, but not before the
+-- Seoul day's start, which an hour back crosses in the day's first hour.
 insert into private.assistant_messages (user_id, plan, configuration_id, created_at, outcome,
     model_calls, input_tokens, output_tokens, reasoning_tokens, web_search_requests, latency_ms)
   values ('00000000-0000-4000-8000-00000000000b', 'free', pg_temp.config('free', 'active'),
-    now() - interval '1 hour', 'ok', 1, 179799, 10000, 900, 0, 1000);
+    greatest(now() - interval '1 hour', date_trunc('day', now(), 'Asia/Seoul')), 'ok', 1, 179799,
+    10000, 900, 0, 1000);
 select results_eq($$select tokens_used, allowed from pg_temp.start('b')$$,
   $$values (199999::bigint, true)$$, 'a message starts while one token of the budget is left');
 select lives_ok(format($$select pg_temp.finish(%s, 'model_error')$$, pg_temp.last_message('b')),
@@ -230,7 +236,8 @@ select lives_ok(format($$select pg_temp.finish(%s, 'ok')$$, pg_temp.last_message
 insert into private.assistant_messages (user_id, plan, configuration_id, created_at, outcome,
     model_calls, input_tokens, output_tokens, reasoning_tokens, web_search_requests, latency_ms)
   values ('00000000-0000-4000-8000-00000000000a', 'special', pg_temp.config('special', 'active'),
-    now() - interval '1 hour', 'ok', 1, 2000000000, 2000000000, 0, 0, 1000);
+    greatest(now() - interval '1 hour', date_trunc('day', now(), 'Asia/Seoul')), 'ok', 1,
+    2000000000, 2000000000, 0, 0, 1000);
 select results_eq($$select tokens_used, allowed from pg_temp.start('a')$$,
   $$values (4000003400::bigint, true)$$,
   'and is let through past every budget, each message charged');
@@ -532,11 +539,11 @@ set local role service_role;
 select results_eq(
   $$select daily_limit, used, allowed
     from public.begin_assistant_message('00000000-0000-4000-8000-00000000000b')$$,
-  $$values (10, 8, true)$$, 'a message is counted against the day''s limit again');
+  $$values (10, 7 + pg_temp.unrecorded_today(), true)$$, 'a message is counted against the day''s limit again');
 reset role;
 select pg_temp.sign_in('b');
 select results_eq($$select daily_limit, used from public.assistant_allowance()$$,
-  $$values (10, 8)$$, 'and the allowance reads the limit');
+  $$values (10, 7 + pg_temp.unrecorded_today())$$, 'and the allowance reads the limit');
 select pg_temp.sign_in('a');
 select is(public.admin_set_assistant_limit('free', 10), 'unchanged',
   'and an admin sets the limit again');
