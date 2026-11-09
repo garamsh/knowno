@@ -2155,6 +2155,28 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String assistantCardsSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cards are in the note already',
+      one: '1 card is in the note already',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String assistantCardsRefused(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cards could not be added',
+      one: '1 card could not be added',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get assistantStopped => 'Stopped.';
 
   @override
@@ -2163,6 +2185,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get assistantCut =>
       'The reply was long and stopped midway. Ask Malangi to go on.';
+
+  @override
+  String get assistantLimit =>
+      'There was a lot to do, so Malangi stopped here. Try again.';
 
   @override
   String get assistantWaiting =>

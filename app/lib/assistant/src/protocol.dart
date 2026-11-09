@@ -211,9 +211,12 @@ final class ErrorEvent extends AssistantEvent {
 }
 
 final class UsageEvent extends AssistantEvent {
-  const UsageEvent(this.allowance);
+  const UsageEvent(this.allowance, {this.atLimit = false});
 
   final Allowance allowance;
+
+  /// The turn's `outcome` is `depth_limit` or `time_limit`.
+  final bool atLimit;
 }
 
 /// Whether a photo job still reads, or ended: all its photos done, or the
@@ -357,7 +360,12 @@ AssistantEvent? parseEvent(String name, String data) {
       _ => null,
     },
     _ => switch (Allowance.parse(value)) {
-      final allowance? => UsageEvent(allowance),
+      final allowance? => UsageEvent(
+        allowance,
+        atLimit:
+            value['outcome'] == 'depth_limit' ||
+            value['outcome'] == 'time_limit',
+      ),
       null => null,
     },
   };

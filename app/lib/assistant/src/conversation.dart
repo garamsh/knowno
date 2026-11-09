@@ -14,12 +14,29 @@ const maxMessageLength = 4000;
 /// A web source a reply cites.
 typedef Citation = ({String url, String title});
 
-/// What a commit wrote: the note and how many of its cards.
-typedef Added = ({String deckId, String deckName, int count});
+/// What a commit wrote: the note and how many of its cards, and how many it
+/// left out because the note held them already ([skipped]) or the write
+/// refused them ([refused]).
+final class Added {
+  const Added({
+    required this.deckId,
+    required this.deckName,
+    required this.count,
+    this.skipped = 0,
+    this.refused = 0,
+  });
 
-/// How a reply ended: whole, failed at the model, cut at the output limit, or
-/// stopped by the user.
-enum Ending { ok, modelError, cut, stopped }
+  final String deckId;
+  final String deckName;
+  final int count;
+  final int skipped;
+  final int refused;
+}
+
+/// How a reply ended: whole, failed at the model, cut at the output limit,
+/// stopped by the user, or at the turn's depth or time [limit] with nothing
+/// to show.
+enum Ending { ok, modelError, cut, stopped, limit }
 
 /// A proposal as the chat shows it: the card ids checked in each group, and
 /// what adding it wrote.
@@ -82,6 +99,8 @@ final class ShownProposal {
         'deck_id': added.deckId,
         'deck_name': added.deckName,
         'count': added.count,
+        'skipped': added.skipped,
+        'refused': added.refused,
       },
       null => null,
     },
@@ -110,7 +129,19 @@ final class ShownProposal {
           'deck_name': final String deckName,
           'count': final int count,
         }:
-          added = (deckId: deckId, deckName: deckName, count: count);
+          added = Added(
+            deckId: deckId,
+            deckName: deckName,
+            count: count,
+            skipped: switch (value['added']) {
+              {'skipped': final int n} => n,
+              _ => 0,
+            },
+            refused: switch (value['added']) {
+              {'refused': final int n} => n,
+              _ => 0,
+            },
+          );
         default:
           return null;
       }
@@ -198,7 +229,12 @@ final class AssistantTurn extends Turn {
     interim: clearInterim || ending != null ? null : interim ?? this.interim,
   );
 
-  /// This turn with [event] of its stream applied; `usage` changes nothing.
+  /// Whether the turn holds a reply, a proposal, a question or a job.
+  bool get hasContent =>
+      text.isNotEmpty || proposals.isNotEmpty || choice != null || job != null;
+
+  /// This turn with [event] of its stream applied; `usage` ends a turn that
+  /// stopped at a limit with nothing to show as [Ending.limit].
   AssistantTurn withEvent(AssistantEvent event) => switch (event) {
     // A reply's leading whitespace is the separator the function sends
     // before a call's text, which belongs to the text after it.
@@ -237,7 +273,10 @@ final class AssistantTurn extends Turn {
     JobEvent(:final id, :final photos) => copyWith(
       job: JobProgress(id: id, photos: photos),
     ),
-    UsageEvent() => this,
+    UsageEvent(:final atLimit) =>
+      atLimit && !hasContent && ending == null
+          ? copyWith(ending: Ending.limit)
+          : this,
     MalformedEvent() => copyWith(ending: Ending.modelError),
   };
 }

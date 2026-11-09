@@ -388,6 +388,7 @@ class AssistantController extends Notifier<ChatState> {
         if (!ref.mounted) return;
         if (event is UsageEvent) {
           state = state.copyWith(allowance: event.allowance);
+          _change(id, (turn) => turn.withEvent(event));
         } else {
           _change(
             id,

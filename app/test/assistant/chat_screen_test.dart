@@ -372,6 +372,98 @@ void main() {
     },
   );
 
+  testWidgets(
+    'says a turn stopped at its limit with nothing to show, and tries again',
+    (tester) async {
+      const usage = Allowance(budget: 200000, used: 100000);
+      final client = FakeAssistantClient(
+        scripts: [
+          reply([
+            const TextDelta('찾아볼게요'),
+            const InterimEvent(),
+            const UsageEvent(usage, atLimit: true),
+          ]),
+          reply([const TextDelta('다시 답해요')]),
+        ],
+      );
+      await pumpChat(tester, client, await openAssistantStorage(tester));
+      await _send(tester, '안녕');
+      expect(
+        _text('There was a lot to do, so Malangi stopped here. Try again.'),
+        findsOneWidget,
+      );
+      await tester.tap(_text('Try again'));
+      await tester.pumpAndSettle();
+      expect(_text('다시 답해요'), findsOneWidget);
+      expect(shownTextContaining('stopped here'), findsNothing);
+    },
+  );
+
+  testWidgets('shows a reply alone when its turn stopped at a limit', (
+    tester,
+  ) async {
+    final client = FakeAssistantClient(
+      scripts: [
+        reply([
+          const TextDelta('여기까지 찾았어요'),
+          const UsageEvent(
+            Allowance(budget: 200000, used: 100000),
+            atLimit: true,
+          ),
+        ]),
+      ],
+    );
+    await pumpChat(tester, client, await openAssistantStorage(tester));
+    await _send(tester, '안녕');
+    expect(_text('여기까지 찾았어요'), findsOneWidget);
+    expect(shownTextContaining('stopped here'), findsNothing);
+    expect(_text('Try again'), findsNothing);
+  });
+
+  testWidgets('counts the cards a commit skipped and refused', (tester) async {
+    final client =
+        FakeAssistantClient(
+            scripts: [
+              reply([ProposalEvent(_threeGroups)]),
+            ],
+          )
+          ..commitWith = (proposal) => Committed(
+            Added(
+              deckId: 'd',
+              deckName: proposal.deckName,
+              count: 1,
+              skipped: 2,
+              refused: 3,
+            ),
+          );
+    await pumpChat(tester, client, await openAssistantStorage(tester));
+    await _send(tester, '만들어 줘');
+    await tester.tap(_text('Add 3 cards'));
+    await tester.pumpAndSettle();
+    expect(
+      shownTextContaining('1 card · 2 cards are in the note already'),
+      findsOneWidget,
+    );
+    expect(shownTextContaining('3 cards could not be added'), findsOneWidget);
+  });
+
+  testWidgets('says nothing of unwritten cards when a commit wrote all', (
+    tester,
+  ) async {
+    final client = FakeAssistantClient(
+      scripts: [
+        reply([ProposalEvent(_threeGroups)]),
+      ],
+    );
+    await pumpChat(tester, client, await openAssistantStorage(tester));
+    await _send(tester, '만들어 줘');
+    await tester.tap(_text('Add 3 cards'));
+    await tester.pumpAndSettle();
+    expect(_text('2 cards'), findsOneWidget, reason: 'the commit was added');
+    expect(shownTextContaining('already'), findsNothing);
+    expect(shownTextContaining('could not be added'), findsNothing);
+  });
+
   testWidgets('says a reply was cut at the output limit', (tester) async {
     final client = FakeAssistantClient(
       scripts: [
@@ -597,7 +689,7 @@ void main() {
     );
     expect(_text('Add 3 cards'), findsOneWidget);
     client.commitWith = (proposal) =>
-        Committed((deckId: 'd', deckName: proposal.deckName, count: 3));
+        Committed(Added(deckId: 'd', deckName: proposal.deckName, count: 3));
     await tester.tap(_text('Add 3 cards'));
     await tester.pumpAndSettle();
     expect(client.commits, hasLength(2));
@@ -646,8 +738,9 @@ void main() {
   testWidgets(
     'opens a note it added and returns to the same chat, scroll and draft kept',
     (tester) async {
-      final added = ShownProposal.of(_threeGroups)
-          .copyWith(added: (deckId: 'deck-7', deckName: '영단어 노트', count: 3));
+      final added = ShownProposal.of(_threeGroups).copyWith(
+        added: const Added(deckId: 'deck-7', deckName: '영단어 노트', count: 3),
+      );
       final turns = <Turn>[
         const UserTurn(id: 'u0', text: '만들어 줘'),
         AssistantTurn(
