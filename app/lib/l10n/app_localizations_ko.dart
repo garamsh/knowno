@@ -1964,6 +1964,16 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String assistantCardsSkipped(int count) {
+    return '$count장은 이미 노트에 있어요';
+  }
+
+  @override
+  String assistantCardsRefused(int count) {
+    return '$count장은 추가하지 못했어요';
+  }
+
+  @override
   String get assistantStopped => '멈췄어요.';
 
   @override
@@ -1971,6 +1981,9 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get assistantCut => '답이 길어 중간에 멈췄어요. 이어서 해 달라고 해 보세요.';
+
+  @override
+  String get assistantLimit => '할 일이 많아 여기서 멈췄어요. 다시 시도해 주세요.';
 
   @override
   String get assistantWaiting => '앞의 메시지를 마무리하고 있어요. 잠시 후 다시 보낼게요.';

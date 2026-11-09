@@ -560,10 +560,13 @@ class _ReplyView extends StatelessWidget {
                 text: switch (ending) {
                   Ending.modelError => l10n.assistantModelError,
                   Ending.cut => l10n.assistantCut,
+                  Ending.limit => l10n.assistantLimit,
                   _ => l10n.assistantStopped,
                 },
               ),
-              if (ending == Ending.modelError && isLast && !busy)
+              if ((ending == Ending.modelError || ending == Ending.limit) &&
+                  isLast &&
+                  !busy)
                 AppButton(
                   label: l10n.retry,
                   variant: AppButtonVariant.text,

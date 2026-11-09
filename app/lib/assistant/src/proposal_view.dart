@@ -88,7 +88,11 @@ class ProposalView extends StatelessWidget {
         if (added != null)
           AppListRow(
             title: added.deckName,
-            subtitle: l10n.assistantNoteCards(added.count),
+            subtitle: [
+              l10n.assistantNoteCards(added.count),
+              if (added.skipped > 0) l10n.assistantCardsSkipped(added.skipped),
+              if (added.refused > 0) l10n.assistantCardsRefused(added.refused),
+            ].join(' · '),
             trailing: Icon(LucideIcons.chevronRight, color: colors.muted),
             onTap: () => onOpenNote(added.deckId),
           ),

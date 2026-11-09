@@ -69,6 +69,25 @@ void main() {
       );
     });
 
+    test('reads a limit from the usage outcome', () {
+      bool atLimit(String outcome) =>
+          (parseEvent(
+                    'usage',
+                    _json({
+                      'outcome': outcome,
+                      'token_budget': 200,
+                      'tokens_used': 50,
+                    }),
+                  )!
+                  as UsageEvent)
+              .atLimit;
+      expect(atLimit('depth_limit'), isTrue);
+      expect(atLimit('time_limit'), isTrue);
+      for (final other in ['ok', 'choice', 'model_error', 'cut']) {
+        expect(atLimit(other), isFalse, reason: other);
+      }
+    });
+
     test('reads the interim mark, whatever its data holds', () {
       expect(parseEvent('interim', _json({})), isA<InterimEvent>());
       expect(parseEvent('interim', 'not json'), isA<MalformedEvent>());

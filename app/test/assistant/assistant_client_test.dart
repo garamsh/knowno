@@ -137,7 +137,18 @@ void main() {
       'deck': {'id': 'd1', 'name': 'N'},
       'added': [<String, Object?>{}, <String, Object?>{}],
     });
-    expect((added as Committed).added, (deckId: 'd1', deckName: 'N', count: 2));
+    expect((added as Committed).added.deckId, 'd1');
+    expect(added.added.deckName, 'N');
+    expect(added.added.count, 2);
+    expect((added.added.skipped, added.added.refused), (0, 0));
+    final partial = await commit(200, {
+      'deck': {'id': 'd1', 'name': 'N'},
+      'added': [<String, Object?>{}],
+      'skipped': [<String, Object?>{}, <String, Object?>{}],
+      'refused': [<String, Object?>{}],
+    });
+    expect((partial as Committed).added.count, 1);
+    expect((partial.added.skipped, partial.added.refused), (2, 1));
     final updated = await commit(200, {
       'deck': {'id': 'd1', 'name': 'N'},
       'updated': [<String, Object?>{}],
