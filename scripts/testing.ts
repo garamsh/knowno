@@ -107,6 +107,26 @@ const HOST_TOOLS = [
   "which",
 ];
 
+/** The HOST_TOOLS list minus `deno`, for a PATH that simulates a host without deno. */
+const HOST_TOOLS_NO_DENO = HOST_TOOLS.filter((name) => name !== "deno");
+
+// Additional tools always available on the host, not in HOST_TOOLS.
+const EXTRA_TOOLS = ["sh", "ln"];
+
+/**
+ * Finds the real path of a tool using the current environment PATH (not a
+ * modified one), for use in `host*` setup before any PATH override is in effect.
+ * Uses `env` (allowed by the `deno` grant) to run `sh`, since `sh` is not in the
+ * grant but `env` is.
+ */
+async function findTool(tool: string): Promise<string> {
+  const { code, stdout } = await new Deno.Command("env", {
+    args: ["sh", "-c", `command -v ${tool}`],
+  }).output();
+  assert.equal(code, 0, `setup: no ${tool} on this host`);
+  return new TextDecoder().decode(stdout).trim();
+}
+
 /**
  * A directory to set as PATH: the tools a program's run needs, and a stub for each of `stubs`, whose
  * body is shell. A tool named in neither is missing, as on a host without it. `log` is the stubs'
@@ -120,6 +140,30 @@ export async function host(
     const found = await run(path, ["sh", "-c", `command -v ${tool}`]);
     assert.equal(found.code, 0, `setup: no ${tool} on this host`);
     await run(path, ["ln", "-s", found.stdout.trim(), tool]);
+  }
+  for (const [name, body] of Object.entries(stubs)) {
+    await Deno.writeTextFile(`${path}/${name}`, `#!/bin/sh\n${body}\n`);
+    await Deno.chmod(`${path}/${name}`, 0o755);
+  }
+  await Deno.writeTextFile(`${path}/calls`, "");
+  return { path, log: () => Deno.readTextFile(`${path}/calls`) };
+}
+
+/** Like `host(stubs)`, but excludes `deno` from the PATH, for a host without deno. */
+export async function hostNoDeno(
+  stubs: Record<string, string>,
+): Promise<{ path: string; log: () => Promise<string> }> {
+  const path = await Deno.makeTempDir();
+  for (
+    const tool of [...HOST_TOOLS_NO_DENO, ...EXTRA_TOOLS].filter((name) =>
+      !(name in stubs)
+    )
+  ) {
+    const found = await findTool(tool);
+    await new Deno.Command("env", {
+      args: ["sh", "-c", `ln -s "${found}" "${tool}"`],
+      cwd: path,
+    }).output();
   }
   for (const [name, body] of Object.entries(stubs)) {
     await Deno.writeTextFile(`${path}/${name}`, `#!/bin/sh\n${body}\n`);

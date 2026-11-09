@@ -1,7 +1,7 @@
 // scripts/run.sh deno-version check: a stub deno that echoes its version fails when it differs from
 // scripts/.deno-version, and passes when it matches.
 import assert from "node:assert/strict";
-import { host, program, repository, write } from "./testing.ts";
+import { host, hostNoDeno, program, repository, write } from "./testing.ts";
 
 const VERSION = "2.9.7";
 
@@ -58,10 +58,13 @@ Deno.test("deno version check fails on a different version where CI is set", asy
 });
 
 Deno.test("without deno it skips before the version check, as before", async () => {
-  const { path } = await host({});
+  const { path } = await hostNoDeno({});
   const repo = await repository();
   await write(repo, "scripts/.deno-version", `${VERSION}\n`);
   await write(repo, "scripts/grants.txt", `${GRANT_LINE}\n`);
+  // Assert no deno on PATH before asserting the skip; run.sh relies on `deno` missing.
+  const denoInPath = await Deno.stat(`${path}/deno`).catch(() => null);
+  assert.equal(denoInPath, null, "setup: deno found on PATH");
   const ran = await program(repo, "deno", ["test"], { PATH: path });
   assert.equal(ran.code, 0, ran.stderr);
   assert.ok(
