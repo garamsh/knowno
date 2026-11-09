@@ -63,6 +63,7 @@ The `extract-cards` Edge Function that turns a photo of clear study material, su
 
 - A request is checked in this order: method, configuration, user, body, suspension, the plan with its photo limit, or for a request with a cursor the cursor, model. A refused request never reaches the model, and one refused before the plan never reaches the count.
 - `config.toml` sets `verify_jwt = true` for the function, so the platform refuses a request without a valid JWT first. The function then asks Supabase Auth for the token's user, which refuses the anon key, and refuses a user with `is_anonymous`.
+- The candidates are not stored cards, and this function writes none, so the card text markup ([ADR 0216](adr/0216-write-the-card-text-markup-behind-a-database-switch-off-until-a-release-that-reads-it-is-on-testflight-and-serve-its-skills-only-while-it-is-on.md)) changes nothing here: a `cloze` candidate stays `{answers}` with `___` in its front, its prompt and its parser unchanged, and the client that makes a card of it writes the form it reads. The assistant's photo jobs, which read the chat's photos, write only through the card tools, which write the markup's forms while the card markup switch is on ([`server.md`](server.md) §Card markup switch).
 
 ### Web client
 
