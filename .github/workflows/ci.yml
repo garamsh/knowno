@@ -63,7 +63,7 @@ jobs:
       # rust-cache, every Cargo.lock, Cargo.toml, rust-toolchain.toml and .cargo/config.toml;
       # flutter-action, the Flutter release in app/pubspec.yaml and app/pubspec.lock; setup-gradle's
       # basic provider, the Gradle build files; setup-node, web/package-lock.json; and this file,
-      # which sets the tools' versions.
+      # which sets the tools' versions; and the font cache, tools/fonts/google_sans.py.
       - if: github.event_name == 'push'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: cache
@@ -80,6 +80,7 @@ jobs:
               - '**/*.gradle*'
               - '**/gradle-wrapper.properties'
               - 'web/package-lock.json'
+              - 'tools/fonts/google_sans.py'
               - '.github/workflows/ci.yml'
 
   lint-repo:
@@ -177,13 +178,22 @@ jobs:
         with:
           version: 2.120.0
       # make lint-code's scripts/check-generated.ts runs tools/fonts/google_sans.py through uv, on
-      # the fontTools and Brotli releases tools/fonts/uv.lock pins. Uncached: the two install in
-      # seconds.
+      # the fontTools and Brotli releases tools/fonts/uv.lock pins. Those are uncached: the two
+      # install in seconds.
       - if: matrix.uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: 0.13.7
           enable-cache: false
+      # The 5 MB Google Sans source tools/fonts/google_sans.py downloads, in the directory
+      # tools/fonts/font_source.py caches it in. The key is the hash of google_sans.py, which holds
+      # the pinned commit and the SHA-256, so a changed pin misses; the script checks the hash of
+      # the file on a hit as on a download.
+      - if: matrix.uv
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/knowno/fonts
+          key: google-sans-${{ hashFiles('tools/fonts/google_sans.py') }}
       # scripts/run.sh runs the programs in scripts/, which these targets call.
       - if: matrix.deno
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5

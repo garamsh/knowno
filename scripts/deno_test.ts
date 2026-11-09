@@ -18,7 +18,7 @@ Deno.test("test counts each set beside how it was selected, and fails on a faili
   assert.equal(passing.code, 0, passing.stdout + passing.stderr);
   assert.ok(
     passing.stdout.includes(
-      "ran 1 Deno tests in 1 files, selected as the *_test.ts files among: git ls-files --cached --others --exclude-standard -- 'supabase/functions/*.ts' 'tools/eval/*.ts'\n",
+      "ran 1 Deno tests in 1 files, selected as the *_test.ts files among: git ls-files --cached --others --exclude-standard -- 'supabase/functions/*.ts' 'tools/eval/*.ts' 'tools/fonts/*.ts'\n",
     ),
     passing.stdout,
   );
@@ -60,4 +60,25 @@ Deno.test("passedCount takes the last summary and reads none as zero", () => {
     12,
   );
   assert.equal(passedCount("nothing ran"), 0);
+});
+
+Deno.test("test runs a tools/fonts/ test apart, under a grant that lets it run python3, and counts it", async () => {
+  const repo = await fixture(PASSES);
+  await write(
+    repo,
+    "tools/fonts/a_test.ts",
+    `Deno.test("runs python3", async () => {
+  const { code } = await new Deno.Command("python3", { args: ["-c", "pass"] }).output();
+  if (code !== 0) throw new Error("python3 failed");
+});\n`,
+  );
+  const ran = await program(repo, "deno", ["test"]);
+  assert.equal(ran.code, 0, ran.stdout + ran.stderr);
+  assert.ok(ran.stdout.includes("runs python3 ... ok"), ran.stdout);
+  assert.ok(
+    ran.stdout.includes(
+      "ran 2 Deno tests in 2 files, selected as the *_test.ts files among: git ls-files --cached --others --exclude-standard -- 'supabase/functions/*.ts' 'tools/eval/*.ts' 'tools/fonts/*.ts'\n",
+    ),
+    ran.stdout,
+  );
 });
