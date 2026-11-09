@@ -81,6 +81,23 @@ test("draws a note's 사진 card at the thumbnail height, its row no taller than
       ],
     ],
     [
+      "태조는 1392년에 조선을 세웠다.",
+      [
+        {
+          type: "text",
+          v: 2,
+          id: randomUUID(),
+          payload: { front: "태조의 건국", back: "이성계" },
+        },
+        {
+          type: "cloze",
+          v: 1,
+          id: randomUUID(),
+          payload: { text: "태조는 ___년에 조선을 세웠다.", answers: ["1392"] },
+        },
+      ],
+    ],
+    [
       "세종대왕은 1443년에 훈민정음을 창제했다.",
       [
         {
@@ -170,6 +187,13 @@ test("draws a note's 사진 card at the thumbnail height, its row no taller than
     expect(frame.width).toBeCloseTo(144, 0);
     // The row is its padding, the photo, the gap and the answers' box, and nothing taller.
     expect(box.height).toBeCloseTo(12 + frame.height + 8 + answers.height + 12, 0);
+    // Every hatched box draws its text at the one `secondary` size, a split card's back and a whole
+    // card's added part alike (#845).
+    const sizes = await page
+      .locator("[data-hatched]")
+      .evaluateAll((boxes) => boxes.map((box) => getComputedStyle(box).fontSize));
+    expect(sizes.length).toBeGreaterThan(3);
+    expect(new Set(sizes)).toEqual(new Set(["13px"]));
     if (!screenshots) continue;
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
