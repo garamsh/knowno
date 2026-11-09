@@ -50,6 +50,8 @@ export function AnkiImport({ close }: { close: () => void }) {
   const [message, setMessage] = useState("");
   const [duplicate, setDuplicate] = useState(false);
   const [discarding, setDiscarding] = useState(false);
+  // Set once the write is done and something was left out: the notes made, and what the user is told.
+  const [done, setDone] = useState<{ ids: string[]; left: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [pending, start] = useTransition();
   const busy = useRef(false);
@@ -85,6 +87,20 @@ export function AnkiImport({ close }: { close: () => void }) {
     } finally {
       setOpening(false);
     }
+  }
+
+  /** The sentence for the photos the import could not read or prepare and the cards left without them; "" when none. */
+  function leftOut(decks: ImportedDeck[]): string {
+    const photosLeft = imagesOf(decks).filter((name) => photos.current.get(name) === null).length;
+    const cardsLeft = decks.reduce(
+      (sum, deck) => sum + deck.cards.filter((card) => !cellsOf(card, photos.current)).length,
+      0,
+    );
+    if (photosLeft === 0 && cardsLeft === 0) return "";
+    const why = photosLeft > 0 ? `사진 ${String(photosLeft)}장을 읽지 못해 ` : "";
+    return cardsLeft > 0
+      ? `${why}카드 ${String(cardsLeft)}장은 추가하지 못했어요.`
+      : `${why}카드에 넣지 못했어요.`;
   }
 
   /** Stores the photos a note's cards show once each, as photo import stores one; false on a failed store. */
@@ -154,11 +170,9 @@ export function AnkiImport({ close }: { close: () => void }) {
             for (const { id } of part) written.current.add(id);
           }
         }
-        leaveThen(() => {
-          close();
-          if (ids.length === 1) router.push(`/decks/${ids[0] ?? ""}`);
-          else router.refresh();
-        });
+        const left = leftOut(decks);
+        if (left) setDone({ ids, left });
+        else finish(ids);
       } catch {
         setMessage(notSaved);
       } finally {
@@ -168,8 +182,21 @@ export function AnkiImport({ close }: { close: () => void }) {
     });
   }
 
+  /** Closes the sheet and shows the notes made: the one note's page, or the list again. */
+  function finish(ids: string[]) {
+    leaveThen(() => {
+      close();
+      if (ids.length === 1) router.push(`/decks/${ids[0] ?? ""}`);
+      else router.refresh();
+    });
+  }
+
   function leave() {
     if (busy.current) return;
+    if (done) {
+      finish(done.ids);
+      return;
+    }
     if (opened && written.current.size === 0) setDiscarding(true);
     else close();
   }
@@ -231,13 +258,16 @@ export function AnkiImport({ close }: { close: () => void }) {
           type="button"
           disabled={saving || pending}
           onClick={() => {
-            save(false);
+            if (done) finish(done.ids);
+            else save(false);
           }}
           className={`${buttonClass("primary", "cta")} w-full`}
         >
-          {saving
-            ? "저장 중"
-            : `노트 ${String(opened.decks.length)}개, 카드 ${String(cards)}장 추가`}
+          {done
+            ? "확인"
+            : saving
+              ? "저장 중"
+              : `노트 ${String(opened.decks.length)}개, 카드 ${String(cards)}장 추가`}
         </button>
       }
     >
@@ -260,6 +290,11 @@ export function AnkiImport({ close }: { close: () => void }) {
         {skipped > 0 && (
           <p className="text-caption break-keep text-muted">
             앞면이나 뒷면이 비어서 카드로 만들지 못한 노트가 {skipped}개 있어요.
+          </p>
+        )}
+        {done && (
+          <p role="status" className="text-caption break-keep text-dont-know">
+            {`카드를 추가했어요. ${done.left}`}
           </p>
         )}
         {status}

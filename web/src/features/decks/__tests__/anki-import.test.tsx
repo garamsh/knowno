@@ -88,6 +88,31 @@ describe("notes from an Anki package", () => {
     expect(fronts.every((count) => count > 0)).toBe(true);
   });
 
+  it("says which photos and cards were left out after the write, and none when every photo reads", async () => {
+    // Control: every photo readable, nothing left out, the sheet goes on to the notes.
+    await pick(fixture("spanish-legacy.apkg"));
+    await userEvent.click(await screen.findByRole("button", { name: "노트 2개, 카드 4장 추가" }));
+    await waitFor(() => {
+      expect(db.rows.cards).toHaveLength(4);
+    });
+    expect(screen.queryByText(/추가하지 못했어요/u)).toBeNull();
+  });
+
+  it("tells the user when a photo cannot be prepared and its card is not written", async () => {
+    vi.mocked(prepareImage).mockResolvedValue(null);
+    await pick(fixture("spanish-legacy.apkg"));
+    await userEvent.click(await screen.findByRole("button", { name: "노트 2개, 카드 4장 추가" }));
+    expect(
+      await screen.findByText(/사진 1장을 읽지 못해 카드 1장은 추가하지 못했어요/u),
+    ).toBeVisible();
+    expect(db.rows.cards).toHaveLength(3);
+    expect(db.rows.media).toHaveLength(0);
+    await userEvent.click(screen.getByRole("button", { name: "확인" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "노트 확인" })).toBeNull();
+    });
+  });
+
   it("refuses a file that is not a package with a sentence", async () => {
     await pick(new File(["not a zip"], "a.apkg"));
     expect(await screen.findByRole("alert")).toHaveTextContent("Anki 패키지를 읽지 못했어요");
