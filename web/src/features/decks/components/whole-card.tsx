@@ -123,10 +123,16 @@ export function faceLength(blocks: Content[]): number {
 /** The rows of a table a card list's row shows. */
 const listedRows = 3;
 
-/** [children] in a box on the hatch, cut at three lines, as a card list marks a revealed part. */
+/**
+ * [children] in a box on the hatch, cut at three lines, as a card list marks a revealed part: every
+ * box in `secondary` at regular weight in `ink-2`, as the phone's `HatchedBox` text (#845).
+ */
 export function HatchedBox({ children }: { children: ReactNode }) {
   return (
-    <span data-hatched className="hatch block rounded-chip px-3 py-2">
+    <span
+      data-hatched
+      className="hatch block rounded-chip px-3 py-2 text-secondary font-normal text-ink-2"
+    >
       <span className="line-clamp-3 break-keep">{children}</span>
     </span>
   );

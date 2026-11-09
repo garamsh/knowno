@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { blanksUnder, hatchedBlanksUnder } from "@/testing/whole-cards";
@@ -158,5 +158,24 @@ describe("a note's card list row (#629)", () => {
     expect(within(whole).getByText(`앞 ${long}`)).toHaveClass("line-clamp-2", "break-keep");
     expect(within(whole).getByText(`뒤 ${long}`)).toHaveClass("line-clamp-3", "break-keep");
     expect(whole.querySelector("[data-blank]")?.closest(".line-clamp-2")).not.toBeNull();
+  });
+
+  it("draws every hatched box's text at the one secondary size, a split card's back and a whole card's part alike (#845)", () => {
+    const split = row([{ kind: "text", front: "앞", back: "뒤" }]);
+    expect(split.querySelector("[data-hatched]")).toHaveClass("text-secondary", "font-normal");
+    cleanup();
+    const whole = row([
+      { kind: "text", front: "앞", back: "뒤" },
+      { kind: "blank", block: { kind: "cloze", text: "___ 문장", answers: ["답"] } },
+    ]);
+    const boxes = [...whole.querySelectorAll("[data-hatched]")];
+    expect(boxes.length).toBeGreaterThan(0);
+    for (const box of boxes) {
+      expect(box).toHaveClass("text-secondary", "font-normal");
+      expect(box).not.toHaveClass("text-body-strong");
+    }
+    // The shown part keeps the row's size: the control that the box's class is not on everything.
+    expect(whole.querySelector("[role=group]")).toHaveClass("text-body-strong", "text-left");
+    expect(whole.querySelector("[role=group]")).not.toHaveClass("text-secondary");
   });
 });
