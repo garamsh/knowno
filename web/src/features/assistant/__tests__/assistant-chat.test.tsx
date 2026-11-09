@@ -11,7 +11,7 @@ import type {
 } from "../assistant-client";
 import type { CommitResult } from "../commit-proposal";
 import { AssistantChat, busyRetryMs, jobPollMs } from "../components/assistant-chat";
-import { type Conversation, jobDoneMessage } from "../conversation";
+import { jobDoneMessage, parseConversation } from "../conversation";
 import type { AssistantEvent, Proposal, SendRefusal } from "../protocol";
 
 // jsdom decodes no image: the preparation is design/'s own, and here gives a fixed JPEG.
@@ -504,7 +504,7 @@ describe("말랑이's chat", () => {
 
       const stored = window.localStorage.getItem("knowno.assistant") ?? "";
       expect(stored).not.toMatch(/찾아볼게요|만들게요/);
-      expect((JSON.parse(stored) as Conversation).turns.at(-1)).toMatchObject({
+      expect(parseConversation(stored).turns.at(-1)).toMatchObject({
         text: "**다 됐어요**",
         ending: "ok",
       });
