@@ -32,15 +32,17 @@ export type AnkiPackage = {
 
 const notAPackage: Refusal = { refused: ".apkg 파일을 골라 주세요" };
 const tooBig: Refusal = {
-  refused: `파일이 ${String(packageLimitBytes / 1024 / 1024)}MB보다 커서 읽지 못했어요. 덱을 나눠 다시 내보낸 뒤 골라 주세요.`,
+  refused: `파일이 ${String(packageLimitBytes / 1024 / 1024)}MB보다 커서 읽지 못했어요. Anki에서 나눠 다시 내보낸 뒤 골라 주세요.`,
 };
 const collectionTooBig: Refusal = {
-  refused: `덱의 크기가 ${String(collectionLimitBytes / 1024 / 1024)}MB보다 커서 읽지 못했어요. 덱을 나눠 다시 내보낸 뒤 골라 주세요.`,
+  refused: `파일 안의 내용이 ${String(collectionLimitBytes / 1024 / 1024)}MB보다 커서 읽지 못했어요. Anki에서 나눠 다시 내보낸 뒤 골라 주세요.`,
 };
 const unreadable: Refusal = {
   refused: "Anki 패키지를 읽지 못했어요. Anki에서 .apkg로 다시 내보내 골라 주세요.",
 };
-const empty: Refusal = { refused: "가져올 노트가 없어요. 노트가 있는 덱을 골라 내보내 주세요." };
+const empty: Refusal = {
+  refused: "가져올 노트가 없어요. 카드가 있는 노트를 Anki에서 내보내 주세요.",
+};
 
 /** A part that unpacks past its limit. */
 class OverLimit extends Error {}
@@ -101,7 +103,7 @@ export async function openAnkiPackage(
     if (error instanceof OverLimit) return collectionTooBig;
     if (error instanceof TooManyNotes) {
       return {
-        refused: `'${error.deck}' 덱에 노트가 ${String(deckNoteLimit)}개보다 많아서 읽지 못했어요. 덱을 나눠 다시 내보낸 뒤 골라 주세요.`,
+        refused: `'${error.deck}'에 노트가 ${String(deckNoteLimit)}개보다 많아서 읽지 못했어요. Anki에서 나눠 다시 내보낸 뒤 골라 주세요.`,
       };
     }
     return unreadable;

@@ -199,8 +199,8 @@ export function AnkiImport({ close }: { close: () => void }) {
       <Sheet title="Anki에서 노트 가져오기" close={close}>
         <div className="flex min-w-0 flex-col gap-4">
           <p className="text-secondary break-keep text-muted">
-            Anki에서 내보낸 .apkg 파일의 덱 하나가 노트 하나가 돼요. 파일은 100MB, 덱마다 노트
-            1,000개까지 읽어요.
+            Anki에서 내보낸 .apkg 파일의 Anki 묶음 하나가 노트 하나가 돼요. 파일은 100MB, 묶음마다
+            노트 1,000개까지 읽어요.
           </p>
           <label className={`${buttonClass("primary", "cta")} ${opening ? "opacity-50" : ""}`}>
             {opening ? "읽는 중" : "파일 고르기"}

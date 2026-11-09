@@ -80,7 +80,9 @@ describe("refusals", () => {
       frame.set(b, header.length + i * 4);
     });
     const zip = zipSync({ "collection.anki21b": [frame, { level: 0 }] });
-    expect(await openAnkiPackage(new File([zip], "a.apkg"), sqlite)).toEqual(refusing("덱의 크기"));
+    expect(await openAnkiPackage(new File([zip], "a.apkg"), sqlite)).toEqual(
+      refusing("파일 안의 내용"),
+    );
   });
 
   it("refuses a deck holding more notes than the limit, naming it", async () => {
