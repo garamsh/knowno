@@ -85,6 +85,9 @@ type Fake = {
   steps: Row[];
   /** The prefixes Storage was asked to delete, and the times the worker was asked for. */
   deleted: string[];
+  /** Storage refuses to delete photos, and the queue's function fails, while set. */
+  storageDown: boolean;
+  queueDown: boolean;
   kicks: number;
   /** The background tasks the handler started. */
   tasks: Promise<void>[];
@@ -96,6 +99,7 @@ type FakeJob = {
   instructions: string;
   createdAt: string;
   lastStepAt: string | null;
+  cleared: boolean;
   photos: {
     position: number;
     photo_id: string;
@@ -182,6 +186,8 @@ function seed(): Fake {
     queue: [],
     steps: [],
     deleted: [],
+    storageDown: false,
+    queueDown: false,
     kicks: 0,
     tasks: [],
   };
@@ -220,6 +226,7 @@ function jobRpc(fake: Fake, rpc: string, body: Row): Response | null {
           instructions: String(body.instructions),
           createdAt: new Date(clock).toISOString(),
           lastStepAt: null,
+          cleared: false,
           photos: photos.map((photo_id, index) => ({
             position: index + 1,
             photo_id,
@@ -245,6 +252,7 @@ function jobRpc(fake: Fake, rpc: string, body: Row): Response | null {
       }]);
     }
     case "next_assistant_job_step": {
+      if (fake.queueDown) return Response.json({}, { status: 500 });
       const message = fake.queue.find((one) => one.visible);
       if (message === undefined) {
         return Response.json([{
@@ -316,6 +324,17 @@ function jobRpc(fake: Fake, rpc: string, body: Row): Response | null {
       job.status = "cancelled";
       return Response.json("cancelled");
     }
+    case "assistant_jobs_to_clear":
+      return Response.json(
+        [...fake.jobs.entries()].filter(([, job]) =>
+          job.status !== "running" && !job.cleared
+        ).map(([job_id, job]) => ({ user_id: job.user, job_id })),
+      );
+    case "mark_assistant_job_cleared": {
+      const job = fake.jobs.get(String(body.job_id));
+      if (job !== undefined && job.status !== "running") job.cleared = true;
+      return new Response(null, { status: 204 });
+    }
     case "assistant_job": {
       const job = fake.jobs.get(String(body.job_id));
       if (job === undefined || job.user !== body.user_id) {
@@ -349,6 +368,7 @@ function photoStorage(fake: Fake, url: URL, method: string, body: Row) {
     url.pathname === "/storage/v1/object/assistant-photos" &&
     method === "DELETE"
   ) {
+    if (fake.storageDown) return Response.json({}, { status: 500 });
     fake.deleted.push(...(body.prefixes as string[]));
     return Response.json([]);
   }
@@ -2498,6 +2518,57 @@ Deno.test("a read that fails is charged its request's estimated input and retrie
   );
   assert.deepEqual(lacking.steps.map((step) => step.outcome), ["unreadable"]);
   assert.equal(lacking.jobs.get(gone)!.photos[0]!.status, "failed");
+});
+
+Deno.test("a job the database ended, by the budget or a third failed read, has its photos deleted by the next worker, and a deletion that failed is retried", async () => {
+  const fake = seed();
+  const photos = [photoOf(1), photoOf(2)];
+  const id = jobOf(fake, ADA, photos);
+  const job = fake.jobs.get(id)!;
+  // What `next_assistant_job_step` does when the day's budget is spent: no worker's code runs.
+  for (const photo of job.photos) photo.status = "skipped";
+  fake.queue = [];
+  job.status = "done";
+  fake.storageDown = true;
+  const down = await runWorker(fake);
+  assert.deepEqual(fake.deleted, [], "setup: Storage refused the deletion");
+  assert.equal(job.cleared, false, "a failed deletion is not recorded");
+  assert.ok(
+    down.logs.some((entry) =>
+      entry.route === "work" && entry.outcome === "unavailable"
+    ),
+    "and reaches a log",
+  );
+
+  fake.storageDown = false;
+  await runWorker(fake);
+  assert.deepEqual(
+    [...fake.deleted].sort(),
+    photos.map((p) => `${ADA}/${p}`).sort(),
+  );
+  assert.equal(job.cleared, true);
+  fake.deleted.length = 0;
+  await runWorker(fake);
+  assert.deepEqual(fake.deleted, [], "a cleared job is left alone");
+
+  const running = seed();
+  jobOf(running, ADA, [photoOf(1)]);
+  running.queue.forEach((message) => message.visible = false);
+  await runWorker(running);
+  assert.deepEqual(running.deleted, [], "a running job keeps its photos");
+});
+
+Deno.test("a lane that fails on Supabase is logged, and the other work goes on", async () => {
+  const fake = seed();
+  jobOf(fake, ADA, [photoOf(1)]);
+  fake.queueDown = true;
+  const run = await runWorker(fake);
+  assert.equal(run.status, 202);
+  const failed = run.logs.filter((entry) =>
+    entry.route === "work" && entry.outcome === "unavailable"
+  );
+  assert.equal(failed.length, 3, "each of the three lanes logs its failure");
+  assert.equal(fake.kicks, 0);
 });
 
 Deno.test("the worker starts no read its time cannot hold and asks for a fresh invocation", async () => {

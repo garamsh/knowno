@@ -4,15 +4,14 @@
 -- lock; a failed read retried and failed on its third, a photo past the budget skipped; a job done
 -- once none is queued, and cancelled; the snapshot its owner alone reads; the purge; no client
 -- reaching the tables or the functions; and the revert.
+--
+-- With #800: a failed read shown again after 30 s and then 120 s; the queue's reader never waiting
+-- for a lock another transaction holds; the ended jobs whose photos are in the bucket found, and
+-- recorded once deleted; and the purge keeping a job until then.
 begin;
-select plan(53);
+select plan(70);
 
 delete from private.assistant_configuration_labels where label = 'test';
-
--- The sweeper's revert runs first: its functions are named for the jobs too, and
--- assistant_job_sweeper_test.sql tests them.
-select private.revert_assistant_job_sweeper();
-drop function private.revert_assistant_job_sweeper();
 
 -- A is an admin, B is on Free.
 insert into auth.users (id, email, created_at) values
@@ -72,6 +71,14 @@ $$;
 create function pg_temp.show(job uuid, place int) returns void language sql as $$
   select pgmq.set_vt('assistant_photo_reads', p.message_id, 0)
   from private.assistant_job_photos as p where p.job_id = job and p.position = place;
+$$;
+
+-- The seconds [job]'s message for [position] stays hidden from the queue.
+create function pg_temp.hidden_for(job uuid, place int) returns numeric language sql stable as $$
+  select extract(epoch from q.vt - clock_timestamp())
+  from private.assistant_job_photos as p
+  join pgmq.q_assistant_photo_reads as q on q.msg_id = p.message_id
+  where p.job_id = job and p.position = place;
 $$;
 
 create function pg_temp.statuses(job uuid) returns text[] language sql stable as $$
@@ -145,14 +152,22 @@ select throws_ok($$select * from public.assistant_job(pg_temp.b(), pg_temp.job(1
   'a signed-in user reads no job through the service function');
 select throws_ok($$select public.cancel_assistant_job(pg_temp.b(), pg_temp.job(1))$$, '42501',
   null, 'a signed-in user cancels nothing through the service function');
+select throws_ok($$select * from public.assistant_jobs_to_clear()$$, '42501', null,
+  'a signed-in user finds no job to clear');
+select throws_ok(
+  $$select public.mark_assistant_job_cleared(pg_temp.b(), pg_temp.job(1))$$, '42501', null,
+  'a signed-in user records no job cleared');
 reset role;
 select results_eq(
   $$select p.proname::text collate "default", p.prosecdef and p.proconfig = array['search_path=""']
     from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
     where n.nspname in ('public', 'private') and p.proname ~ 'assistant_job'
+      and p.proname not in ('sweep_assistant_jobs', 'request_assistant_job_worker',
+        'revert_assistant_job_sweeper')
     order by p.proname$$,
-  $$values ('assistant_job', true), ('cancel_assistant_job', true),
-    ('end_assistant_job_if_read', true), ('finish_assistant_job_step', true),
+  $$values ('assistant_job', true), ('assistant_jobs_to_clear', true),
+    ('cancel_assistant_job', true), ('end_assistant_job_if_read', true),
+    ('finish_assistant_job_step', true), ('mark_assistant_job_cleared', true),
     ('next_assistant_job_step', true), ('purge_assistant_jobs', true),
     ('start_assistant_job', true)$$,
   'every job function runs as its owner with an empty search_path');
@@ -233,9 +248,13 @@ select results_eq(
   $$select * from pg_temp.finish((select step_id from steps where photo_position = 2),
     'model_error')$$,
   $$values ('queued', 'running')$$, 'a failed read leaves the photo queued');
+select ok(pg_temp.hidden_for(pg_temp.job(1), 2) between 25 and 31,
+  'shown again after 30 s, not 10');
 select pg_temp.show(pg_temp.job(1), 2);
 insert into steps select * from pg_temp.next();
 select * from pg_temp.finish((select max(step_id) from steps), 'time_limit');
+select ok(pg_temp.hidden_for(pg_temp.job(1), 2) between 115 and 121,
+  'after its second failure, after 120 s');
 select pg_temp.show(pg_temp.job(1), 2);
 insert into steps select * from pg_temp.next();
 select results_eq($$select attempt from steps where photo_position = 2 order by step_id$$,
@@ -273,6 +292,42 @@ select is_empty(
   $$select * from public.assistant_job('00000000-0000-4000-8000-00000000000a', pg_temp.job(1))$$,
   'and no other user reads it');
 reset role;
+
+-- The queue's reader waits for no lock. A second connection holds A's lock, as a transaction of
+-- `finish_assistant_job_step` would, and A has a queued photo; a reader that waited for it would
+-- wait while holding a lock another reader may wait for. A's, since this transaction took B's.
+insert into private.assistant_jobs (id, user_id, plan, configuration_id, instructions)
+  select pg_temp.job(6), '00000000-0000-4000-8000-00000000000a', 'free', configuration_id, ''
+  from private.assistant_configuration_labels where plan = 'free' and label = 'active';
+insert into private.assistant_job_photos (job_id, position, photo_id, message_id)
+  values (pg_temp.job(6), 1, pg_temp.photo(9),
+    pgmq.send('assistant_photo_reads', jsonb_build_object('job_id', pg_temp.job(6), 'position', 1)));
+create extension dblink;
+select dblink_connect('other', format('host=%s dbname=%s port=%s user=postgres password=postgres',
+  host(inet_server_addr()), current_database(), current_setting('port')));
+select dblink_exec('other', 'begin');
+select * from dblink('other', format('select pg_advisory_xact_lock(hashtextextended(%L, 7))::text',
+  '00000000-0000-4000-8000-00000000000a')) as held(lock text);
+select is(pg_try_advisory_xact_lock(hashtextextended('00000000-0000-4000-8000-00000000000a', 7)),
+  false, 'setup: the other connection holds A''s lock');
+set local lock_timeout = '1s';
+select results_eq($$select outcome, pending from pg_temp.next()$$,
+  $$values ('empty', 1::bigint)$$,
+  'while another transaction holds the user''s lock no step is taken, and nothing waits');
+select results_eq($$select pg_temp.hidden_for(pg_temp.job(6), 1) between 3 and 6,
+    (select count(*) from private.assistant_job_steps where job_id = pg_temp.job(6))$$,
+  $$values (true, 0::bigint)$$, 'the photo''s message is hidden 5 s and no step begun');
+select dblink_exec('other', 'commit');
+select dblink_disconnect('other');
+reset lock_timeout;
+select pg_temp.show(pg_temp.job(6), 1);
+create temporary table held as select * from pg_temp.next();
+select results_eq($$select outcome, photo_position from held$$, $$values ('step', 1)$$,
+  'once the lock is free the photo is taken');
+select results_eq($$select * from pg_temp.finish((select step_id from held), 'ok')$$,
+  $$values ('read', 'done')$$, 'and read');
+delete from private.assistant_job_steps where job_id = pg_temp.job(6);
+delete from private.assistant_jobs where id = pg_temp.job(6);
 
 -- Cancelling.
 
@@ -315,18 +370,66 @@ select results_eq(
 select is(pg_temp.start(pg_temp.job(4), array[pg_temp.photo(5)]), 'rate_limited',
   'and no job starts with the budget spent');
 
+-- The jobs whose photos are in the bucket: the first ended by a read, the second by a cancel and
+-- the third in SQL by the budget, none by the worker.
+
+set local role service_role;
+select results_eq($$select job_id from public.assistant_jobs_to_clear() order by job_id$$,
+  $$values (pg_temp.job(1)), (pg_temp.job(2)), (pg_temp.job(3))$$,
+  'every job that ended is found, the one the budget ended in SQL too');
+select public.mark_assistant_job_cleared('00000000-0000-4000-8000-00000000000a', pg_temp.job(3));
+select results_eq($$select count(*) from public.assistant_jobs_to_clear()$$, $$values (3::bigint)$$,
+  'another user''s record clears nothing');
+select public.mark_assistant_job_cleared(pg_temp.b(), pg_temp.job(3));
+select results_eq($$select job_id from public.assistant_jobs_to_clear() order by job_id$$,
+  $$values (pg_temp.job(1)), (pg_temp.job(2))$$,
+  'once its photos are recorded deleted the job is not found, the others still are');
+reset role;
+insert into private.assistant_jobs (id, user_id, plan, configuration_id, instructions)
+  select pg_temp.job(5), '00000000-0000-4000-8000-00000000000a', 'free', configuration_id, ''
+  from private.assistant_configuration_labels where plan = 'free' and label = 'active';
+select throws_ok(
+  $$update private.assistant_jobs set photos_cleared_at = now() where id = pg_temp.job(5)$$,
+  '23514', null, 'a running job cannot be recorded cleared');
+select public.mark_assistant_job_cleared('00000000-0000-4000-8000-00000000000a', pg_temp.job(5));
+select is((select photos_cleared_at from private.assistant_jobs where id = pg_temp.job(5)), null,
+  'and the function leaves it');
+delete from private.assistant_jobs where id = pg_temp.job(5);
+
 -- The purge.
 
 update private.assistant_jobs set created_at = now() - interval '8 days'
-  where id = pg_temp.job(1);
+  where id in (pg_temp.job(1), pg_temp.job(3));
+select private.purge_assistant_jobs();
+select results_eq(
+  $$select array_agg(id order by id) from private.assistant_jobs$$,
+  $$values (array[pg_temp.job(1), pg_temp.job(2)])$$,
+  'a job begun over 7 days ago whose photos are still in the bucket stays, the one cleared is deleted');
+select public.mark_assistant_job_cleared(pg_temp.b(), pg_temp.job(1));
 select private.purge_assistant_jobs();
 select results_eq(
   $$select array_agg(id order by id), (select count(*) from private.assistant_job_steps
       where job_id is null) from private.assistant_jobs$$,
-  $$values (array[pg_temp.job(2), pg_temp.job(3)], 7::bigint)$$,
-  'a job begun over 7 days ago is deleted with its photos, and its steps stay with no job');
+  $$values (array[pg_temp.job(2)], 7::bigint)$$,
+  'once recorded, a job begun over 7 days ago is deleted with its photos, and its steps stay with no job');
 
--- The revert.
+-- The reverts: this change's, then the sweeper's, whose functions are named for the jobs too and
+-- which assistant_job_sweeper_test.sql tests, and then the jobs'.
+
+select lives_ok($$select private.revert_assistant_photo_job_cleanup()$$,
+  'the cleanup''s revert runs');
+select results_eq(
+  $$select (select count(*) from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname in ('assistant_jobs_to_clear', 'mark_assistant_job_cleared')),
+    (select count(*) from information_schema.columns
+      where table_schema = 'private' and table_name = 'assistant_jobs'
+        and column_name = 'photos_cleared_at'),
+    pg_get_functiondef('public.finish_assistant_job_step(bigint, text, integer, integer, integer, integer, text)'::regprocedure) like '%photo.message_id, 10)%',
+    pg_get_functiondef('public.next_assistant_job_step()'::regprocedure) like '%pg_advisory_xact_lock(%'$$,
+  $$values (0::bigint, 0::bigint, true, true)$$,
+  'the two functions and the column are gone, and the others are as they were');
+select private.revert_assistant_job_sweeper();
+drop function private.revert_assistant_job_sweeper();
 
 select lives_ok($$select private.revert_assistant_photo_jobs()$$, 'the revert runs');
 select results_eq(

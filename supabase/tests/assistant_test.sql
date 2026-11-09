@@ -140,8 +140,9 @@ select results_eq(
     ('admin_assistant_prompts', true), ('admin_assistant_token_budgets', true),
     ('admin_clear_assistant_test', true), ('admin_save_assistant_prompt', true),
     ('admin_set_assistant_token_budget', true), ('assistant_allowance', true), ('assistant_effort_fits', true),
-    ('assistant_job', true), ('begin_assistant_message', true), ('cancel_assistant_job', true),
-    ('finish_assistant_job_step', true), ('finish_assistant_message', true),
+    ('assistant_job', true), ('assistant_jobs_to_clear', true), ('begin_assistant_message', true),
+    ('cancel_assistant_job', true), ('finish_assistant_job_step', true),
+    ('finish_assistant_message', true), ('mark_assistant_job_cleared', true),
     ('next_assistant_job_step', true), ('save_assistant_configuration', true),
     ('start_assistant_job', true)$$,
   'every assistant function runs as its owner with an empty search_path');
@@ -473,8 +474,10 @@ select results_eq(
 -- The reverts: the token budget's puts the message limit back, and then the assistant's leaves
 -- nothing the two migrations made but the reverts.
 
--- The sweeper's and the photo jobs' reverts run before them (assistant_job_sweeper_test.sql and
--- assistant_photo_jobs_test.sql test them).
+-- The photo job cleanup's, the sweeper's and the photo jobs' reverts run before them
+-- (assistant_job_sweeper_test.sql and assistant_photo_jobs_test.sql test them).
+select private.revert_assistant_photo_job_cleanup();
+drop function private.revert_assistant_photo_job_cleanup();
 select private.revert_assistant_job_sweeper();
 drop function private.revert_assistant_job_sweeper();
 select private.revert_assistant_photo_jobs();

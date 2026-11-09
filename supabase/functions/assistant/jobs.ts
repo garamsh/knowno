@@ -380,7 +380,10 @@ export async function deletePhotos(
   }
 }
 
-/** Deletes [userId]'s job [jobId]'s photos from the bucket; what was read of them stays. */
+/**
+ * Deletes [userId]'s ended job [jobId]'s photos from the bucket and records it
+ * (`public.mark_assistant_job_cleared`); what was read of them stays.
+ */
 export async function clearJob(
   userId: UserId,
   jobId: string,
@@ -389,4 +392,26 @@ export async function clearJob(
   const job = await readJob(userId, jobId, deps);
   if (job === null) return;
   await deletePhotos(userId, job.photos.map((photo) => photo.photoId), deps);
+  await rpc("mark_assistant_job_cleared", {
+    user_id: userId,
+    job_id: jobId,
+  }, deps);
+}
+
+/** A job that has ended and whose photos are not recorded deleted. */
+export type Uncleared = { readonly userId: UserId; readonly jobId: string };
+
+/** The ended jobs whose photos are still in the bucket (`public.assistant_jobs_to_clear`). */
+export async function unclearedJobs(deps: SupabaseDeps): Promise<Uncleared[]> {
+  const rows = await rpc("assistant_jobs_to_clear", {}, deps);
+  if (!Array.isArray(rows)) {
+    throw new SupabaseError("assistant_jobs_to_clear answered no rows");
+  }
+  return rows.map((row: unknown) => {
+    if (!isRecord(row) || !isUuid(row.user_id) || !isUuid(row.job_id)) {
+      throw new SupabaseError("assistant_jobs_to_clear answered a bad row");
+    }
+    // A uuid the database holds as an auth user's id.
+    return { userId: row.user_id as UserId, jobId: row.job_id };
+  });
 }
