@@ -99,7 +99,28 @@ type Read = {
   readonly outcome: StepOutcome;
   readonly usage: StepUsage;
   readonly reading: string | null;
+  /** Seconds the provider asked to wait before the photo is read again, when it refused with 429 or 529. */
+  readonly retryAfter?: number;
 };
+
+/**
+ * The seconds a provider's `Retry-After` asks for, from [header], which is a count of seconds or an
+ * HTTP date (RFC 9110 section 10.2.3; OpenRouter's, Anthropic's and OpenAI's documentation give
+ * seconds, ADR 0221); undefined for no header or one that is neither. A date in the past is 0.
+ */
+export function retryAfterSeconds(
+  header: string | null,
+  now: number,
+): number | undefined {
+  const value = header?.trim() ?? "";
+  if (/^\d{1,9}$/.test(value)) return Number(value);
+  const at = /^[A-Za-z]/.test(value) ? Date.parse(value) : NaN;
+  if (Number.isNaN(at)) return undefined;
+  return Math.max(0, Math.ceil((at - now) / 1000));
+}
+
+/** The provider statuses that refuse a call for now and may carry `Retry-After`. */
+const BUSY_STATUSES: readonly number[] = [429, 529];
 
 const counted = (call: CallUsage): StepUsage => ({
   inputTokens: call.inputTokens,
@@ -129,14 +150,14 @@ async function read(step: Step, deps: WorkerDeps): Promise<Read> {
     apiKey = null;
   }
   if (apiKey === null) {
-    return { outcome: "model_error", usage: NOTHING, reading: null };
+    return { outcome: "not_sent", usage: NOTHING, reading: null };
   }
   let url;
   try {
     url = await photoUrl(step.userId, step.photoId, deps.supabase);
   } catch (error) {
     if (!(error instanceof SupabaseError)) throw error;
-    return { outcome: "model_error", usage: NOTHING, reading: null };
+    return { outcome: "not_sent", usage: NOTHING, reading: null };
   }
   if (url === null) {
     return { outcome: "unreadable", usage: NOTHING, reading: null };
@@ -189,7 +210,15 @@ async function read(step: Step, deps: WorkerDeps): Promise<Read> {
   }
   if (!response.ok || response.body === null) {
     await response.body?.cancel();
-    return { outcome: "model_error", usage: NOTHING, reading: null };
+    const asked = BUSY_STATUSES.includes(response.status)
+      ? retryAfterSeconds(response.headers.get("retry-after"), deps.now())
+      : undefined;
+    return {
+      outcome: "model_error",
+      usage: NOTHING,
+      reading: null,
+      ...(asked === undefined ? {} : { retryAfter: asked }),
+    };
   }
   let text = "";
   let result;
@@ -283,6 +312,7 @@ async function take(step: Step, deps: WorkerDeps): Promise<void> {
       done.usage,
       deps.now() - started,
       done.outcome === "ok" || done.outcome === "cut" ? done.reading : null,
+      done.retryAfter ?? null,
       deps.supabase,
     );
     ended = after.job !== "running";
@@ -304,7 +334,9 @@ async function take(step: Step, deps: WorkerDeps): Promise<void> {
     plan: step.plan,
     provider: step.provider,
     model: step.model,
-    model_calls: done.outcome === "unreadable" ? 0 : 1,
+    model_calls: done.outcome === "unreadable" || done.outcome === "not_sent"
+      ? 0
+      : 1,
     input_tokens: done.usage.inputTokens,
     output_tokens: done.usage.outputTokens,
     reasoning_tokens: done.usage.reasoningTokens,

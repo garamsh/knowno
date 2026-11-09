@@ -475,8 +475,10 @@ select results_eq(
 -- The reverts: the token budget's puts the message limit back, and then the assistant's leaves
 -- nothing the two migrations made but the reverts.
 
--- The photo charges', the photo job cleanup's, the sweeper's and the photo jobs' reverts run before them
+-- The photo retry-after's, the photo charges', the photo job cleanup's, the sweeper's and the photo jobs' reverts run before them
 -- (assistant_job_sweeper_test.sql and assistant_photo_jobs_test.sql test them).
+select private.revert_assistant_photo_retry_after();
+drop function private.revert_assistant_photo_retry_after();
 select private.revert_assistant_photo_charges();
 drop function private.revert_assistant_photo_charges();
 select private.revert_assistant_photo_job_cleanup();

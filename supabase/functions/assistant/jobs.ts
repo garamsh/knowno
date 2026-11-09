@@ -36,7 +36,8 @@ export type StepOutcome =
   | "cut"
   | "model_error"
   | "time_limit"
-  | "unreadable";
+  | "unreadable"
+  | "not_sent";
 
 const JOB_STATUSES: readonly JobStatus[] = ["running", "done", "cancelled"];
 const PHOTO_STATUSES: readonly PhotoStatus[] = [
@@ -213,7 +214,9 @@ export type StepUsage = {
 
 /**
  * Records how [stepId]'s read ended, which charges it, keeping [reading] on a read photo
- * (`public.finish_assistant_job_step`); answers the photo's status and the job's after it.
+ * (`public.finish_assistant_job_step`); answers the photo's status and the job's after it. A photo
+ * to be shown again waits [retryAfterSeconds], which the database bounds, or its usual 30 or 120 s
+ * when null.
  */
 export async function finishStep(
   stepId: number,
@@ -221,6 +224,7 @@ export async function finishStep(
   usage: StepUsage,
   latencyMs: number,
   reading: string | null,
+  retryAfterSeconds: number | null,
   deps: SupabaseDeps,
 ): Promise<{ photo: PhotoStatus; job: JobStatus }> {
   const row = firstRow(
@@ -232,6 +236,7 @@ export async function finishStep(
       reasoning_tokens: usage.reasoningTokens,
       latency_ms: Math.round(latencyMs),
       reading,
+      retry_after_seconds: retryAfterSeconds,
     }, deps),
     "finish_assistant_job_step",
   );

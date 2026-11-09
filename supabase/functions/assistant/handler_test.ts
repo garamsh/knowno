@@ -20,6 +20,7 @@ import { READ_PAGE } from "./photo_tools.ts";
 import {
   ASSISTANT_PHOTO_ESTIMATE_TOKENS,
   READING_PROMPT,
+  retryAfterSeconds,
   STEP_LIMIT_MS,
   WORK_LIMIT_MS,
 } from "./worker.ts";
@@ -95,6 +96,8 @@ type Fake = {
   /** Storage refuses to delete photos, and the queue's function fails, while set. */
   storageDown: boolean;
   queueDown: boolean;
+  /** Storage fails to sign a photo's address while set. */
+  signDown: boolean;
   kicks: number;
   /** The background tasks the handler started. */
   tasks: Promise<void>[];
@@ -196,6 +199,7 @@ function seed(): Fake {
     deleted: [],
     storageDown: false,
     queueDown: false,
+    signDown: false,
     kicks: 0,
     tasks: [],
   };
@@ -308,6 +312,9 @@ function jobRpc(fake: Fake, rpc: string, body: Row): Response | null {
           photo.reading = String(body.reading);
           photo.cut = body.outcome === "cut";
           fake.queue.splice(at, 1);
+        } else if (body.outcome === "not_sent") {
+          // Given back, and hidden for its delay, which this fake does not run out.
+          photo.attempts--;
         } else if (body.outcome === "unreadable" || photo.attempts >= 3) {
           photo.status = "failed";
           fake.queue.splice(at, 1);
@@ -378,6 +385,7 @@ function photoStorage(fake: Fake, url: URL, method: string, body: Row) {
     /^\/storage\/v1\/object\/sign\/assistant-photos\/(.+)$/,
   )?.[1];
   if (signed !== undefined && method === "POST") {
+    if (fake.signDown) return Response.json({}, { status: 500 });
     return fake.uploaded.has(signed)
       ? Response.json({
         signedURL: `/object/sign/assistant-photos/${signed}?token=t`,
@@ -2555,6 +2563,96 @@ Deno.test("a read that fails after its request was sent is charged the photo est
   );
   assert.deepEqual(lacking.steps.map((step) => step.outcome), ["unreadable"]);
   assert.equal(lacking.jobs.get(gone)!.photos[0]!.status, "failed");
+});
+
+Deno.test("a provider's Retry-After on a 429 or 529 is sent with the step, in seconds or as an HTTP date, against no wait for another status, a missing or a bad header", async () => {
+  const asked = async (response: () => Response) => {
+    const fake = seed();
+    jobOf(fake, ADA, [photoOf(1)]);
+    fake.replies.push(response, response, response);
+    await runWorker(fake);
+    const [step] = fake.steps;
+    return [step!.outcome, step!.input_tokens, step!.retry_after_seconds];
+  };
+  const refuse = (status: number, headers: Record<string, string>) => () =>
+    Response.json({}, { status, headers });
+  assert.deepEqual(
+    await asked(refuse(429, { "retry-after": "45" })),
+    ["model_error", 0, 45],
+  );
+  assert.deepEqual(
+    await asked(refuse(529, { "retry-after": "7" })),
+    ["model_error", 0, 7],
+    "a 529 as well, charged nothing",
+  );
+  const [, , byDate] = await asked(() =>
+    Response.json({}, {
+      status: 429,
+      headers: { "retry-after": new Date(clock + 90_000).toUTCString() },
+    })
+  );
+  assert.ok(
+    typeof byDate === "number" && byDate > 0 && byDate <= 92,
+    `an HTTP date is the seconds until it by the worker's clock, got ${byDate}`,
+  );
+  assert.deepEqual(
+    await asked(refuse(429, {})),
+    ["model_error", 0, null],
+    "control: with no header the step asks for no wait, and the 30 s and 120 s of ADR 0218 hold",
+  );
+  assert.deepEqual(
+    await asked(refuse(429, { "retry-after": "soon" })),
+    ["model_error", 0, null],
+    "a header that is neither seconds nor a date is not obeyed",
+  );
+  assert.deepEqual(
+    await asked(refuse(503, { "retry-after": "45" })),
+    ["model_error", 0, null],
+    "another status keeps the schedule",
+  );
+});
+
+Deno.test("retryAfterSeconds reads seconds and HTTP dates, and nothing else", () => {
+  const now = Date.UTC(2026, 10, 9, 12, 0, 0);
+  assert.equal(retryAfterSeconds("0", now), 0);
+  assert.equal(retryAfterSeconds(" 120 ", now), 120);
+  assert.equal(
+    retryAfterSeconds("Mon, 09 Nov 2026 12:01:30 GMT", now),
+    90,
+  );
+  assert.equal(
+    retryAfterSeconds("Mon, 09 Nov 2026 11:00:00 GMT", now),
+    0,
+    "a date in the past is no wait",
+  );
+  for (const bad of [null, "", "soon", "-5", "1.5", "99999999999"]) {
+    assert.equal(retryAfterSeconds(bad, now), undefined, String(bad));
+  }
+});
+
+Deno.test("a read that fails on our side before its request is sent is recorded as not sent and charged nothing, with no call", async () => {
+  const keyless = seed();
+  jobOf(keyless, ADA, [photoOf(1)]);
+  keyless.keyed = false;
+  await runWorker(keyless);
+  assert.equal(keyless.requests.length, 0, "no call without a key");
+  assert.deepEqual(
+    keyless.steps.map((step) => [step.outcome, step.input_tokens]),
+    [["not_sent", 0]],
+    "a missing key",
+  );
+
+  const unsigned = seed();
+  jobOf(unsigned, ADA, [photoOf(1)]);
+  unsigned.signDown = true;
+  await runWorker(unsigned);
+  assert.equal(unsigned.requests.length, 0, "no call when signing fails");
+  assert.deepEqual(
+    unsigned.steps.map((step) => [step.outcome, step.input_tokens]),
+    [["not_sent", 0]],
+    "a signing that failed",
+  );
+  assert.equal(unsigned.charged, 0);
 });
 
 Deno.test("a job the database ended, by the budget or a third failed read, has its photos deleted by the next worker, and a deletion that failed is retried", async () => {
