@@ -79,9 +79,15 @@ Future<void> _pump(WidgetTester tester, Locale locale) async {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: StatsView(
-            decks: DeckSelection(deck.id),
-            title: const Text('Record'),
+          body: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.gutter,
+                ),
+                sliver: StatsView(decks: DeckSelection(deck.id)),
+              ),
+            ],
           ),
         ),
       ),

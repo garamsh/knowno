@@ -140,9 +140,20 @@ Future<void> _pump(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: StatsView(
-            decks: DeckSelection(deck),
-            title: const Text('Record'),
+          body: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.gutter,
+                ),
+                sliver: SliverMainAxisGroup(
+                  slivers: [
+                    const SliverToBoxAdapter(child: Text('Record')),
+                    StatsView(decks: DeckSelection(deck)),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

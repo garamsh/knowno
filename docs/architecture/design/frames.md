@@ -15,6 +15,17 @@ The frame of a screen the user lands on: the 노트 tab, the deck screen, 설정
 3. Body: groups and rows (§Group and section), `AppSpace.sectionGap` between groups.
 4. The primary, where the screen has one: in `BottomActions` at the foot, or inside the card it acts on.
 
+The phone draws it as `ScreenSkeleton` (`app/lib/design/screen_skeleton.dart`), with a slot for each part above: `title` (with `userTitle` for a name the user wrote), `actions`, `search`, `body` as slivers and `bottom`. A tab's first screen (`topLevel`) has no back bar and shares one line between the title and the actions; any other screen has a bar `AppButton.barHeight` high with the back arrow and the actions, and the title under it. The 기록 tab, the 노트 tab, the deck screen, 설정, the 라벨 screen, 둘러보기, a public deck and 새 노트 use it. These keep their own layout, each for a reason the slots cannot hold:
+
+- 홈 (`home_tab.dart`): the day's hero on its sky with the profile button, no title, list or primary of the frame.
+- Chat with 말랑이 (`chat_screen.dart`): a header with the character's face, a reversed list that grows from its foot and a composer, not a title over a body.
+- Study (`study_screen.dart`), the card preview (`card_preview_screen.dart`), the card editor (`card_editor_screen.dart`) and the spreadsheet import (`spreadsheet_import_screen.dart`): a top bar of their own (a close, the progress and count, or the editor's title and "미리보기") in place of the back bar and title.
+- Photo import (`photo_import/`, with the photo viewer): a full-screen flow with a close in its top bar and a bottom bar of its own table.
+- The daily-minutes screen (`daily_minutes_sheet.dart`): the picker, a sheet or a screen with its two buttons, whose title the picker draws.
+- Sign-in and sign-in by email: shown before the user is signed in.
+
+The web's component is named beside it by #857.
+
 Horizontal edges are `AppSpace.gutter` throughout. The 노트 tab and the deck screen use it ([ADR 0172](../adr/0172-make-a-note-with-the-choices-of-its-customization-head-the-notes-and-a-note-with-a-tonal-action-and-a-menu-over-an-always-shown-search.md)).
 
 ### List row

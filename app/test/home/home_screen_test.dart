@@ -849,6 +849,8 @@ void main() {
         await list.tap('Save');
         expect(shownText('Enter a name'), findsOneWidget);
         await tester.enterText(find.byType(EditableText), 'Delta');
+        await tester.ensureVisible(find.bySemanticsLabel('Sand'));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Sand'));
         await tester.pumpAndSettle();
         await list.tap('Save');

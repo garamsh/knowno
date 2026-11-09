@@ -5,13 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../assistant/assistant.dart';
 import '../../deck/deck.dart';
-import '../../design/theme.dart';
+import '../../design/screen_skeleton.dart';
 import '../../l10n/app_localizations.dart';
 import '../../study/study.dart';
 import 'open_assistant.dart';
 
-/// The 기록 tab: `study`'s [StatsView] over every deck, under the tab's
-/// title.
+/// The 기록 tab: `study`'s [StatsView] over every deck, in the tab's
+/// `ScreenSkeleton`.
 class RecordTab extends ConsumerWidget {
   const RecordTab({super.key, required this.decks});
 
@@ -20,30 +20,18 @@ class RecordTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final colors = AppColors.of(context);
     final all = DeckSelection.of([for (final deck in decks) deck.id]);
     final assistant = ref.watch(assistantClientProvider) != null;
-    return Scaffold(
-      body: EdgeAssistant(
+    return ScreenSkeleton(
+      topLevel: true,
+      title: l10n.tabRecord,
+      bottomReserve: assistant ? edgeReserve : 0,
+      wrapBody: (body) => EdgeAssistant(
         onOpen: () => unawaited(openAssistant(context)),
         hint: all != null,
-        child: SafeArea(
-          bottom: false,
-          child: all == null
-              ? const SizedBox.shrink()
-              : StatsView(
-                  decks: all,
-                  bottomInset: assistant ? edgeReserve : 0,
-                  title: Semantics(
-                    header: true,
-                    child: Text(
-                      l10n.tabRecord,
-                      style: AppType.deckTitle.copyWith(color: colors.ink),
-                    ),
-                  ),
-                ),
-        ),
+        child: body,
       ),
+      body: [if (all != null) StatsView(decks: all)],
     );
   }
 }

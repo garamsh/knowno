@@ -175,7 +175,10 @@ void main() {
           find.descendant(of: label(), matching: find.byType(RichText)),
         );
         expect(painted.didExceedMaxLines, isFalse);
-        await tester.drag(find.byType(ListView), const Offset(0, -2000));
+        await tester.drag(
+          find.byType(CustomScrollView),
+          const Offset(0, -2000),
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       },

@@ -8,6 +8,7 @@ import '../../assistant/assistant.dart';
 import '../../deck/deck.dart';
 import '../../design/app_chip.dart';
 import '../../design/app_search_field.dart';
+import '../../design/screen_skeleton.dart';
 import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import '../../l10n/app_localizations.dart';
@@ -56,103 +57,81 @@ class _NotesTabState extends ConsumerState<NotesTab> {
     ];
     // With an assistant, writing a note by hand is in the ⋯, behind 말랑이.
     final assistant = ref.watch(assistantClientProvider) != null;
-    return Scaffold(
-      body: EdgeAssistant(
+    return ScreenSkeleton(
+      topLevel: true,
+      title: l10n.tabNotes,
+      bottomReserve: assistant ? edgeReserve : 0,
+      wrapBody: (body) => EdgeAssistant(
         onOpen: () => unawaited(openAssistant(context)),
         hint: decks.isNotEmpty,
-        child: SafeArea(
-          bottom: false,
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(
-              AppSpace.gutter,
-              AppSpace.s16,
-              AppSpace.gutter,
-              AppSpace.s24 + (assistant ? edgeReserve : 0),
-            ),
-            children: [
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: AppSpace.s8,
-                runSpacing: AppSpace.s8,
-                children: [
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      l10n.tabNotes,
-                      style: AppType.deckTitle.copyWith(color: colors.ink),
+        child: body,
+      ),
+      actions: ListHeaderActions(
+        label: assistant ? null : l10n.newDeck,
+        onPressed: assistant ? null : () => openNewDeck(context, _open),
+        menu: sharing == null && !assistant
+            ? null
+            : (
+                tooltip: l10n.notesActions,
+                items: [
+                  if (assistant)
+                    MenuItemButton(
+                      onPressed: () => openNewDeck(context, _open),
+                      child: Text(l10n.assistantAddByHand),
                     ),
-                  ),
-                  ListHeaderActions(
-                    label: assistant ? null : l10n.newDeck,
-                    onPressed: assistant
-                        ? null
-                        : () => openNewDeck(context, _open),
-                    menu: sharing == null && !assistant
-                        ? null
-                        : (
-                            tooltip: l10n.notesActions,
-                            items: [
-                              if (assistant)
-                                MenuItemButton(
-                                  onPressed: () => openNewDeck(context, _open),
-                                  child: Text(l10n.assistantAddByHand),
-                                ),
-                              if (sharing != null)
-                                MenuItemButton(
-                                  onPressed: () =>
-                                      Navigator.of(aboveMenu(context)).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) =>
-                                              sharing.browseScreen(),
-                                        ),
-                                      ),
-                                  child: Text(l10n.browsePublicDecks),
-                                ),
-                            ],
-                          ),
-                  ),
+                  if (sharing != null)
+                    MenuItemButton(
+                      onPressed: () => Navigator.of(aboveMenu(context)).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => sharing.browseScreen(),
+                        ),
+                      ),
+                      child: Text(l10n.browsePublicDecks),
+                    ),
                 ],
               ),
-              if (decks.isNotEmpty) ...[
-                const SizedBox(height: AppSpace.s16),
-                AppSearchField(
-                  hint: l10n.searchDecks,
-                  onChanged: (query) => setState(() => _query = query),
-                ),
-              ],
-              const SizedBox(height: AppSpace.s16),
-              if (shown.isEmpty && query.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpace.s32),
-                  child: Text(
-                    keepWords(l10n.noDeckMatches),
-                    semanticsLabel: l10n.noDeckMatches,
-                    textAlign: TextAlign.center,
-                    style: AppType.body.copyWith(color: colors.muted),
-                  ),
-                ),
-              for (final deck in shown)
-                DeckRow(
-                  deck: deck,
-                  cardCount: counts[deck.id] ?? 0,
-                  onOpen: () => _open(deck),
-                  today: TodayCounter(
-                    decks: DeckSelection(deck.id),
-                    builder: (context, count) => TodayChip(count: count),
-                  ),
-                  progress: ProgressCounter(
-                    decks: DeckSelection(deck.id),
-                    builder: (context, progress) => _DeckProgress(
-                      progress: progress,
-                      cardCount: counts[deck.id] ?? 0,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
       ),
+      search: decks.isEmpty
+          ? null
+          : AppSearchField(
+              hint: l10n.searchDecks,
+              onChanged: (query) => setState(() => _query = query),
+            ),
+      body: [
+        if (shown.isEmpty && query.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpace.s32),
+              child: Text(
+                keepWords(l10n.noDeckMatches),
+                semanticsLabel: l10n.noDeckMatches,
+                textAlign: TextAlign.center,
+                style: AppType.body.copyWith(color: colors.muted),
+              ),
+            ),
+          ),
+        SliverList.list(
+          children: [
+            for (final deck in shown)
+              DeckRow(
+                deck: deck,
+                cardCount: counts[deck.id] ?? 0,
+                onOpen: () => _open(deck),
+                today: TodayCounter(
+                  decks: DeckSelection(deck.id),
+                  builder: (context, count) => TodayChip(count: count),
+                ),
+                progress: ProgressCounter(
+                  decks: DeckSelection(deck.id),
+                  builder: (context, progress) => _DeckProgress(
+                    progress: progress,
+                    cardCount: counts[deck.id] ?? 0,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }

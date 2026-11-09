@@ -2248,7 +2248,7 @@ void main() {
       await showRecord(tester);
       await shot(tester, '16e-record-history');
       await largest(tester, '16e-record-history');
-      await tester.drag(find.byType(ListView), const Offset(0, -600));
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
       await tester.pumpAndSettle();
       await shot(tester, '16f-record-history-scrolled');
       // The recall bands' tiles at the largest text size.
