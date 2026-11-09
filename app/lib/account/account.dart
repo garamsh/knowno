@@ -13,9 +13,12 @@ export 'src/account_state.dart'
 export 'src/config.dart' show accountDefines;
 export 'src/failure.dart'
     show
+        AccountAddressRefused,
+        AccountCodeRefused,
         AccountFailure,
         AccountMisconfigured,
         AccountOffline,
+        AccountRateLimited,
         AccountRejected,
         AccountSuspended;
 export 'src/profile_button.dart' show ProfileButton;

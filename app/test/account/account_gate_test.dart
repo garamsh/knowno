@@ -16,6 +16,8 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:knowno/account/account.dart';
 import 'package:knowno/account/src/account_service.dart';
+import 'package:knowno/account/src/email_button.dart';
+import 'package:knowno/account/src/email_sign_in_screen.dart';
 import 'package:knowno/account/src/google_button.dart';
 import 'package:knowno/account/src/sign_in_screen.dart';
 import 'package:knowno/deck/deck.dart';
@@ -224,6 +226,10 @@ void main() {
       find.byType(SignInWithAppleButton),
     ))
       if (button.onPressed != null) button.text,
+    for (final button in tester.widgetList<EmailSignInButton>(
+      find.byType(EmailSignInButton),
+    ))
+      button.label,
     for (final button in tester.widgetList<ButtonStyleButton>(
       find.byWidgetPredicate((w) => w is ButtonStyleButton),
     ))
@@ -254,6 +260,7 @@ void main() {
       expect(enabledButtons(tester), [
         'Google로 계속하기',
         'Apple로 계속하기',
+        '이메일로 계속하기',
         '이용약관',
         '개인정보 처리방침',
       ]);
@@ -274,6 +281,31 @@ void main() {
     expect(find.byType(SignInScreen), findsNothing);
     await unmountApp(tester);
   });
+
+  testWidgets(
+    'signing in with an email code shows 홈 with no email screen left over it, and signing out returns to the gate',
+    (tester) async {
+      final account = FakeAccountService();
+      await pumpApp(tester, account);
+
+      await tapAndSettle(tester, shownText('Continue with email'));
+      await tester.enterText(find.byType(TextField), 'ada@example.com');
+      await tapAndSettle(tester, shownText('Send code'));
+      await tester.enterText(find.byType(TextField), account.emailCode);
+      await tester.pumpAndSettle();
+
+      expect(account.state, isA<SignedIn>());
+      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(find.byType(EmailSignInScreen), findsNothing);
+      expect(find.byType(SignInScreen), findsNothing);
+
+      await account.signOut();
+      await tester.pumpAndSettle();
+      expect(find.byType(SignInScreen), findsOneWidget);
+      expect(find.byType(EmailSignInScreen), findsNothing);
+      await unmountApp(tester);
+    },
+  );
 
   testWidgets(
     'a cancelled sign-in stays on the gate, and a failed one says why',
@@ -438,6 +470,7 @@ void main() {
         expect(find.byType(SignInScreen), findsOneWidget);
         expect(enabledButtons(tester), [
           'Continue with Google',
+          'Continue with email',
           'Terms of Service',
           'Privacy Policy',
         ]);
