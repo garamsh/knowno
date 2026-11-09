@@ -16,9 +16,13 @@ final class SupabaseSharingServer implements SharingServer {
   SupabaseSharingServer(
     this._client, {
     this.timeout = const Duration(seconds: 20),
-  });
+    FunctionsClient? functions,
+  }) : _functions = functions ?? _client.functions;
 
   final SupabaseClient _client;
+
+  /// Where `publish-note` is called, the client's own unless a test names one.
+  final FunctionsClient _functions;
 
   /// How long one request may take before it counts as offline.
   final Duration timeout;
@@ -143,24 +147,55 @@ final class SupabaseSharingServer implements SharingServer {
     DeckVisibility visibility, {
     String? description,
     required DateTime at,
-  }) => _request(
+  }) => _request(() async {
     // user_id defaults to the caller, and deleted_at is left as the server
     // has it, so a deck deleted on another device stays deleted.
-    () => _client.from('decks').upsert({
+    final row = {
       'id': deck.id.value,
       'name': deck.name,
       'created_at': _time(deck.createdAt),
       'updated_at': _time(at),
-      ...switch (visibility) {
-        PublicDeck(:final publishedAt) => {
-          'visibility': 'public',
-          'published_at': _time(publishedAt),
-          'description': description,
-        },
-        PrivateDeck() => {'visibility': 'private', 'published_at': null},
-      },
-    }),
-  );
+    };
+    switch (visibility) {
+      case PrivateDeck():
+        await _client.from('decks').upsert({
+          ...row,
+          'visibility': 'private',
+          'published_at': null,
+        });
+      case PublicDeck():
+        // No client write makes a deck public, so the row is made as the
+        // server defaults it (private) or left as it is, and `publish-note`
+        // makes it public once its rules have read it.
+        await _client.from('decks').upsert(row);
+        await _publish(deck.id, description);
+    }
+  });
+
+  /// Asks `publish-note` to publish [deck], which answers once it has
+  /// screened the note. Returns when the note is public; any other state
+  /// throws, so the device is not left showing a note the server does not.
+  Future<void> _publish(DeckId deck, String? description) async {
+    final FunctionResponse response;
+    try {
+      response = await _functions.invoke(
+        'publish-note',
+        body: {'deck_id': deck.value, 'description': description},
+      );
+    } on FunctionException catch (error) {
+      throw classifyPublishError(error);
+    }
+    switch (response.data) {
+      case {'state': 'public'}:
+        return;
+      case {'state': final String state}:
+        throw SharingRejected(NotPublic(state));
+      default:
+        throw SharingFailed(
+          const FormatException('publish-note answered no state'),
+        );
+    }
+  }
 
   /// Runs [request] within [timeout], mapping each expected failure to its
   /// [SharingFailure].
@@ -185,6 +220,27 @@ final class SupabaseSharingServer implements SharingServer {
 }
 
 const _uniqueViolation = '23505';
+
+/// The failure a `publish-note` [error] means: a refused session, owner or
+/// account is [SharingRejected], an unreachable function or gateway is
+/// [SharingOffline], and anything else is [SharingFailed].
+SharingFailure classifyPublishError(FunctionException error) =>
+    switch (error.status) {
+      401 || 403 => SharingRejected(error),
+      0 || 500 || 502 || 503 || 504 => SharingOffline(error),
+      _ => SharingFailed(error),
+    };
+
+/// `publish-note` answered that the note is not public: it is still
+/// `checking`, `held` for an admin or `refused`.
+final class NotPublic implements Exception {
+  const NotPublic(this.state);
+
+  final String state;
+
+  @override
+  String toString() => 'the note is $state, not public';
+}
 
 /// The failure a PostgREST [error] means, read as sync reads it: a refused
 /// privilege or session, an unreachable database or gateway, or anything
