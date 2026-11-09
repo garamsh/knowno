@@ -12,6 +12,10 @@ export const actionLabels: Record<string, string> = {
   unhide_deck: "노트 숨김 해제",
   unpublish_deck: "노트 비공개로 전환",
   dismiss_reports: "신고 정리",
+  allow_deck: "검토 중인 노트 공개 허용",
+  keep_deck_hidden: "검토 중인 노트 숨김 유지",
+  add_screening_term: "금칙어 추가",
+  remove_screening_term: "금칙어 삭제",
   grant_admin: "관리자 지정",
   revoke_admin: "관리자 해제",
   set_plan: "요금제 설정",
@@ -118,3 +122,30 @@ export function tokenBudgetLabel(tokens: unknown): string {
 export function labelOf(labels: Record<string, string>, key: string): string {
   return labels[key] ?? key;
 }
+
+/** What a screening finding's category reads as to an admin. */
+export const findingLabels: Record<string, string> = {
+  resident_number: "주민등록번호",
+  account: "계좌번호",
+  phone: "전화번호",
+  link: "링크",
+  kakao_id: "메신저 아이디",
+  contact: "연락처 안내",
+  repeat: "반복된 문구",
+  term: "금칙어",
+};
+
+/** Where a finding is, as the note names it. */
+export const placeLabels: Record<string, string> = {
+  name: "노트 이름",
+  description: "설명",
+  front: "카드 앞면",
+  back: "카드 뒷면",
+};
+
+/** Why a note is held for an admin, in the words the queue gives. */
+export const holdLabels: Record<string, string> = {
+  reports: "신고가 쌓여 자동으로 숨겼어요",
+  admin: "운영자가 보류했어요",
+  ai: "자동 검토가 사람의 확인을 요청했어요",
+};

@@ -96,6 +96,22 @@ export class FakeAdmin {
   ];
   readonly decks: FakeDeck[] = [];
   readonly audit: Row[] = [];
+  /**
+   * The notes `admin_screening_queue` lists while [state] is `held`: each names a deck of [decks],
+   * the hold behind it, the content [hash] the server holds now (a test sets another to stand for
+   * an edit by the owner), and the findings `admin_screening_findings` answers.
+   */
+  readonly holds: {
+    deckId: string;
+    hold: string | null;
+    hash: string;
+    unscreened?: boolean;
+    findings: Row[];
+    state: "held" | "public" | "refused";
+  }[] = [];
+  /** The banned words, as `private.screening_terms` keeps the live ones. */
+  readonly terms: { id: number; term: string; created_at: string }[] = [];
+  private nextTerm = 1;
   /** What `admin_week_activity` answers: the last 7 study days and the 7 before. */
   weekActivity: Row = { new_users_this: 1, new_users_last: 0, studied_this: 7, studied_last: 14 };
   /** The rows `admin_extraction_breakdown` answers: each UTC day's photos by plan, model and version. */
@@ -920,6 +936,71 @@ export class FakeAdmin {
           email: this.users.find((user) => user.id === id)?.email ?? "",
         });
         return "revoked";
+      }
+      case "admin_screening_queue":
+        return this.holds
+          .filter((hold) => hold.state === "held")
+          .flatMap((hold) => {
+            const deck = deckOf(hold.deckId);
+            if (!deck) return [];
+            return [
+              {
+                deck_id: deck.id,
+                name: deck.name,
+                owner_id: deck.ownerId,
+                owner_email: this.users.find((user) => user.id === deck.ownerId)?.email ?? "",
+                hold: hold.hold,
+                content_hash: hold.hash,
+                reports: deck.reports.length,
+                updated_at: "2026-10-19T02:00:00Z",
+              },
+            ];
+          });
+      case "admin_screening_findings": {
+        const hold = this.holds.find((entry) => entry.deckId === args.deck_id);
+        if (!hold || hold.hash !== args.content_hash) {
+          return { changed: true, unscreened: true, findings: [] };
+        }
+        return { changed: false, unscreened: hold.unscreened ?? false, findings: hold.findings };
+      }
+      case "admin_allow_deck":
+      case "admin_keep_deck_hidden": {
+        const hold = this.holds.find((entry) => entry.deckId === args.deck_id);
+        const deck = deckOf(args.deck_id);
+        if (!hold || !deck || hold.state !== "held") return "not_held";
+        if (hold.hash !== args.content_hash) return "changed";
+        const allowed = name === "admin_allow_deck";
+        hold.state = allowed ? "public" : "refused";
+        deck.visibility = allowed ? "public" : "private";
+        deck.hidden = false;
+        this.record(
+          admin,
+          allowed ? "allow_deck" : "keep_deck_hidden",
+          "deck",
+          deck.id,
+          allowed ? { name: deck.name } : { name: deck.name, reason: args.reason },
+        );
+        return allowed ? "allowed" : "kept";
+      }
+      case "admin_screening_terms":
+        return this.terms;
+      case "admin_add_screening_term": {
+        const term = typeof args.term === "string" ? args.term.trim().normalize("NFKC") : "";
+        if (term === "" || [...term].length > 100)
+          throw new Error("a term has 1 to 100 characters");
+        const known = this.terms.find((entry) => entry.term === term);
+        if (known) return known.id;
+        const added = { id: this.nextTerm++, term, created_at: "2026-10-19T03:30:00Z" };
+        this.terms.push(added);
+        this.record(admin, "add_screening_term", "screening_term", String(added.id), {});
+        return added.id;
+      }
+      case "admin_remove_screening_term": {
+        const at = this.terms.findIndex((entry) => entry.id === args.id);
+        if (at === -1) return false;
+        this.terms.splice(at, 1);
+        this.record(admin, "remove_screening_term", "screening_term", String(args.id), {});
+        return true;
       }
       default:
         throw new Error(`the fake admin functions do not know ${name}`);
