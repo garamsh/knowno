@@ -3217,3 +3217,122 @@ Deno.test("a commit writes a proposed cloze as version 1 while the switch is off
     { type: "cloze", v: 2, payload: { text: "She {{c1::runs}} daily" } },
   ]);
 });
+
+const THREE_KINGDOMS = {
+  columns: ["구분", "고구려", "백제", "신라"],
+  rows: [
+    ["수도", "평양", "사비", "금성"],
+    ["중앙 관제", "대대로", "6좌평", "상대등"],
+    ["귀족 회의", "제가 회의", "정사암 회의", "화백 회의"],
+    ["지방 행정", "5부", "5방", "5주"],
+    ["특수 행정 구역", "-", "22담로", "2소경"],
+    ["군사 조직", "대모달", "방령", "서당"],
+    ["관등", "10여 관등", "16관등", "17관등"],
+  ],
+};
+const tableCard = (extra: Record<string, unknown>) => ({
+  blocks: [{ type: "table", ...THREE_KINGDOMS, ...extra }],
+});
+
+Deno.test("a table read from a photo is shown as one table group, and an invalid shape is refused with the group, card, field and form to send (#823)", async () => {
+  const propose = async (groups: unknown) => {
+    const fake = seed();
+    fake.replies.push(
+      calls_("propose_cards", { deck_id: ADA_DECK, groups }),
+      says("끝"),
+    );
+    const run = await send(fake);
+    // The refused cards reach the model as JSON, so a quote in a sentence is escaped there.
+    return { run, told: answered(fake.requests[1]!).replaceAll('\\"', '"') };
+  };
+  const group = (card: unknown) => [{
+    title: "삼국 통치 체제",
+    format: "table",
+    cards: [card],
+  }];
+  // The 4 x 7 table with its `-` cell, blanks on cells of text and on the `-` cell.
+  const { run } = await propose(group(tableCard({
+    blanks: [{ row: 0, column: 1 }, { row: 4, column: 1 }, {
+      row: 6,
+      column: 3,
+    }],
+  })));
+  const shown = run.events.find((e) => e.event === "proposal")!
+    .data as unknown as Proposal;
+  assert.deepEqual(shown.groups.map((g) => [g.format, g.cards.length]), [
+    ["table", 1],
+  ]);
+
+  const refused: [string, unknown, RegExp][] = [
+    [
+      "no blanks",
+      group(tableCard({})),
+      /groups\[0\]\.cards\[0\]: block 0: a table needs blanks.*"blanks":\[\{"row":0,"column":1\}\]/,
+    ],
+    [
+      "a block as the card",
+      group({
+        type: "table",
+        ...THREE_KINGDOMS,
+        blanks: [{ row: 0, column: 1 }],
+      }),
+      /groups\[0\]\.cards\[0\]: a card is \{"blocks":\[\.\.\.\]\}.*type table/,
+    ],
+    [
+      "a short row",
+      group(tableCard({
+        rows: [...THREE_KINGDOMS.rows.slice(0, 6), ["관등", "10여 관등"]],
+        blanks: [{ row: 0, column: 1 }],
+      })),
+      /block 0: a table needs every row to be a list of 4 texts, one per column, and rows\[6\] is 2 texts/,
+    ],
+    [
+      "a blank outside the table",
+      group(tableCard({ blanks: [{ row: 7, column: 1 }] })),
+      /inside the table's 7 rows and 4 columns, and blanks\[0\] \(row 7, column 1\) is outside/,
+    ],
+    [
+      "a blank on an empty cell",
+      group(tableCard({
+        rows: THREE_KINGDOMS.rows.map((row) =>
+          row.map((c) => c === "-" ? "" : c)
+        ),
+        blanks: [{ row: 4, column: 1 }],
+      })),
+      /blanks\[0\] \(row 4, column 1\) is an empty cell/,
+    ],
+    [
+      "a span past its cell's text",
+      group(tableCard({ spans: [{ row: 0, column: 1, start: 0, end: 9 }] })),
+      /groups\[0\]\.cards\[0\]: block 0: a table needs each span to run from start to end inside its cell's text of 2 units, and spans\[0\] runs 0 to 9/,
+    ],
+    [
+      "a span in a blank cell",
+      group(tableCard({
+        blanks: [{ row: 0, column: 1 }],
+        spans: [{ row: 0, column: 1, start: 0, end: 1 }],
+      })),
+      /spans\[0\] is in the blank at row 0, column 1/,
+    ],
+    [
+      "groups as a JSON string",
+      JSON.stringify(group(tableCard({ blanks: [{ row: 0, column: 1 }] }))),
+      /^groups is text, and must be a list.*\{"title":"1단원","format":"text","cards":\[\.\.\.\]\}/,
+    ],
+    [
+      "a format that is no form",
+      [{ title: "삼국", format: "표", cards: [tableCard({})] }],
+      /^groups\[0\]\.format must be one of text, senses, cloze, table, image, mixed/,
+    ],
+    [
+      "a group without cards",
+      [{ title: "삼국", format: "table" }],
+      /^groups\[0\]\.cards must be a list of at least one card/,
+    ],
+  ];
+  for (const [name, groups, expected] of refused) {
+    const { run, told } = await propose(groups);
+    assert.ok(!run.events.some((e) => e.event === "proposal"), name);
+    assert.match(told, expected, name);
+  }
+});
