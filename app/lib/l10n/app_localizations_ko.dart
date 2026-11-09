@@ -663,6 +663,63 @@ class AppLocalizationsKo extends AppLocalizations {
   String get signInWithApple => 'Apple로 계속하기';
 
   @override
+  String get signInWithEmail => '이메일로 계속하기';
+
+  @override
+  String get emailSignInBody => '이메일 주소로 6자리 코드를 보내 드려요. 처음이라면 계정이 만들어져요.';
+
+  @override
+  String get emailAddress => '이메일';
+
+  @override
+  String get emailAddressHint => 'name@example.com';
+
+  @override
+  String get emailAddressInvalid => '이메일 주소를 확인해 주세요.';
+
+  @override
+  String get sendEmailCode => '코드 받기';
+
+  @override
+  String get sendingEmailCode => '코드를 보내는 중';
+
+  @override
+  String emailCodeBody(String email) {
+    return '$email로 보낸 6자리 코드를 입력해 주세요.';
+  }
+
+  @override
+  String get emailCode => '6자리 코드';
+
+  @override
+  String get verifyEmailCode => '로그인';
+
+  @override
+  String get resendEmailCode => '코드 다시 받기';
+
+  @override
+  String resendEmailCodeIn(int seconds) {
+    return '$seconds초 뒤에 코드를 다시 받을 수 있어요';
+  }
+
+  @override
+  String get changeEmailAddress => '이메일 주소 바꾸기';
+
+  @override
+  String accountRateLimited(int seconds) {
+    return '요청이 너무 많아요. $seconds초 뒤에 다시 시도해 주세요.';
+  }
+
+  @override
+  String get accountRateLimitedLater => '요청이 너무 많아요. 잠시 뒤에 다시 시도해 주세요.';
+
+  @override
+  String get accountCodeRefused => '코드가 맞지 않거나 만료됐어요. 다시 확인하거나 새 코드를 받아 주세요.';
+
+  @override
+  String get accountAddressRefused => '이 주소로는 코드를 보낼 수 없어요. 이메일 주소를 확인해 주세요.';
+
+  @override
   String get signingIn => '로그인 중';
 
   @override

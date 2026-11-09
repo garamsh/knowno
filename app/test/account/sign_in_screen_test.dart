@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/account/account.dart';
+import 'package:knowno/account/src/email_button.dart';
 import 'package:knowno/account/src/google_button.dart';
 import 'package:knowno/account/src/legal.dart';
 import 'package:knowno/account/src/sign_in_screen.dart';
@@ -285,7 +286,8 @@ void main() {
         await pumpScreen(tester, service);
         final buttons = tester
             .getRect(find.byType(GoogleSignInButton))
-            .expandToInclude(tester.getRect(apple));
+            .expandToInclude(tester.getRect(apple))
+            .expandToInclude(tester.getRect(find.byType(EmailSignInButton)));
 
         await tester.tap(find.text('Continue with Apple'));
         await tester.pump();
