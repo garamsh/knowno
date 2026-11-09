@@ -35,6 +35,7 @@ export type JobProgress = { id: string; photos: number; finished: number; state:
 /** One event of a message's stream. */
 export type AssistantEvent =
   | { type: "text"; delta: string }
+  | { type: "interim" }
   | { type: "citation"; url: string; title: string }
   | { type: "proposal"; proposal: Proposal }
   | { type: "choice"; choice: Choice }
@@ -106,7 +107,7 @@ function allowanceOf(value: Fields): Allowance | null {
  * not draw, or `malformed` for a known name whose data is not its form.
  */
 export function parseEvent(name: string, data: string): AssistantEvent | "unknown" | "malformed" {
-  const known = ["text", "citation", "proposal", "choice", "job", "error", "usage"];
+  const known = ["text", "interim", "citation", "proposal", "choice", "job", "error", "usage"];
   if (!known.includes(name)) return "unknown";
   let value: unknown;
   try {
@@ -118,6 +119,8 @@ export function parseEvent(name: string, data: string): AssistantEvent | "unknow
   switch (name) {
     case "text":
       return isText(value.delta) ? { type: "text", delta: value.delta } : "malformed";
+    case "interim":
+      return { type: "interim" };
     case "citation":
       return isText(value.url) && isText(value.title)
         ? { type: "citation", url: value.url, title: value.title }
