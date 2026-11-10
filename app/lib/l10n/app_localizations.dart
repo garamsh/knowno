@@ -3768,6 +3768,30 @@ abstract class AppLocalizations {
   /// **'사진으로 더 많은 카드를 만들고, AI 연결을 쓸 수 있어요.'**
   String get plusSheetBody;
 
+  /// Price of the subscription per week, the most prominent line of the purchase sheet.
+  ///
+  /// In ko, this message translates to:
+  /// **'주 {price}'**
+  String plusPricePerWeek(String price);
+
+  /// Price of the subscription per month, the most prominent line of the purchase sheet.
+  ///
+  /// In ko, this message translates to:
+  /// **'월 {price}'**
+  String plusPricePerMonth(String price);
+
+  /// Price of the subscription per year, the most prominent line of the purchase sheet.
+  ///
+  /// In ko, this message translates to:
+  /// **'연 {price}'**
+  String plusPricePerYear(String price);
+
+  /// Purchase sheet: the subscription renews until cancelled in the store.
+  ///
+  /// In ko, this message translates to:
+  /// **'구독은 취소하기 전까지 매 기간 자동으로 갱신돼요. 스토어의 구독 설정에서 언제든 취소할 수 있어요.'**
+  String get plusAutoRenew;
+
   /// Primary button of the purchase sheet that buys the package.
   ///
   /// In ko, this message translates to:

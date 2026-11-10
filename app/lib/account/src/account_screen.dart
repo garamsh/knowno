@@ -17,6 +17,7 @@ import 'ai_connection_group.dart';
 import 'failure.dart';
 import 'failure_message.dart';
 import 'legal.dart';
+import 'plan_controller.dart';
 import 'plan_group.dart';
 import 'providers.dart';
 
@@ -45,6 +46,20 @@ enum _Action { signingOut, deleting }
 
 class _AccountScreenState extends ConsumerState<AccountScreen> {
   _Action? _busy;
+
+  @override
+  void initState() {
+    super.initState();
+    // The plan may have changed since the last read: a store event, an admin.
+    Future.microtask(() {
+      // A first read still under way is as fresh as a read gets.
+      if (mounted &&
+          ref.exists(planProvider) &&
+          ref.read(planProvider) is! PlanLoading) {
+        ref.read(planProvider.notifier).refresh();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

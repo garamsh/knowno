@@ -55,6 +55,12 @@ final class RevenueCatPurchaseStore implements PurchaseStore {
       return PlusPackage(
         id: package.identifier,
         price: package.storeProduct.priceString,
+        period: switch (package.storeProduct.subscriptionPeriod) {
+          'P1W' || 'P7D' => PlusPeriod.week,
+          'P1M' => PlusPeriod.month,
+          'P1Y' => PlusPeriod.year,
+          _ => null,
+        },
       );
     } on PlatformException {
       return null;

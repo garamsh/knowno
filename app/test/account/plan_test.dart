@@ -227,7 +227,7 @@ void main() {
 
       await tapAndSettle(tester, shownText('Learn about Plus'));
       expect(find.byType(AppSheet), findsOneWidget);
-      expect(shownText('₩4,900'), findsOneWidget);
+      expect(shownText('₩4,900 per month'), findsOneWidget);
 
       await tapAndSettle(tester, shownText('Start Plus'));
 
@@ -240,6 +240,88 @@ void main() {
       expect(lock(), findsNothing, reason: 'AI 연결 opened with the plan');
     },
   );
+
+  testWidgets(
+    'the sheet names the period beside the price, says it renews until cancelled, and links the terms and the privacy policy',
+    (tester) async {
+      await pumpScreen(tester);
+
+      await tapAndSettle(tester, shownText('Learn about Plus'));
+
+      expect(shownText('₩4,900 per month'), findsOneWidget);
+      expect(
+        shownText(
+          'The subscription renews automatically each period until you cancel it. You can cancel any time in your store\'s subscription settings.',
+        ),
+        findsOneWidget,
+      );
+      await tapAndSettle(
+        tester,
+        find.descendant(
+          of: find.byType(AppSheet),
+          matching: shownText('Terms of Service'),
+        ),
+      );
+      await tapAndSettle(
+        tester,
+        find.descendant(
+          of: find.byType(AppSheet),
+          matching: shownText('Privacy Policy'),
+        ),
+      );
+      expect(opened, [termsOfServiceUrl, privacyPolicyUrl]);
+    },
+  );
+
+  testWidgets(
+    'a free account restores from the sheet: a restore that brings the plan back closes it, one that fails keeps it',
+    (tester) async {
+      await pumpScreen(tester);
+      store.restoreOutcome = RestoreOutcome.failed;
+
+      await tapAndSettle(tester, shownText('Learn about Plus'));
+      await tapAndSettle(tester, shownText('Restore purchases'));
+      expect(store.restores, 1);
+      expect(find.byType(AppSheet), findsOneWidget);
+      expect(
+        shownText("Couldn't restore purchases. Please try again."),
+        findsOneWidget,
+      );
+
+      await tester.pump(const Duration(seconds: 5));
+      store.restoreOutcome = RestoreOutcome.restored;
+      store.onRestored = () => plans.standing = _plus;
+      await tapAndSettle(tester, shownText('Restore purchases'));
+
+      expect(store.restores, 2);
+      expect(find.byType(AppSheet), findsNothing);
+      expect(shownText('Purchases restored'), findsOneWidget);
+      expect(shownText('Plus'), findsOneWidget);
+      expect(store.bought, isEmpty);
+    },
+  );
+
+  testWidgets('opening 설정 again reads the plan again', (tester) async {
+    await pumpScreen(tester);
+    expect(shownText('Learn about Plus'), findsOneWidget);
+    expect(plans.reads, hasLength(1));
+
+    plans.standing = _plus;
+    final context = tester.element(find.byType(AccountScreen));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const AccountScreen(
+          syncStatus: Text('sync status'),
+          studySettings: [AppListRow(title: 'study setting')],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(plans.reads, hasLength(2));
+    expect(shownText('Learn about Plus'), findsNothing);
+    expect(lock(), findsNothing);
+  });
 
   testWidgets(
     'a purchase the server does not show yet says it may take a moment, and the plan stays as it was',

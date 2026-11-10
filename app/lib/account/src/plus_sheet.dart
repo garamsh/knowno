@@ -5,6 +5,7 @@ import '../../design/app_button.dart';
 import '../../design/app_sheet.dart';
 import '../../design/theme.dart';
 import '../../l10n/app_localizations.dart';
+import 'legal.dart';
 import 'plan_controller.dart';
 import 'purchase_store.dart';
 
@@ -28,6 +29,7 @@ enum _Notice { pending, failed }
 class _PlusSheetState extends ConsumerState<PlusSheet> {
   late final Future<PlusPackage?> _offer;
   var _buying = false;
+  var _restoring = false;
   _Notice? _notice;
 
   @override
@@ -74,6 +76,40 @@ class _PlusSheetState extends ConsumerState<PlusSheet> {
     }
   }
 
+  Future<void> _restore() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final l10n = AppLocalizations.of(context);
+    setState(() {
+      _restoring = true;
+      _notice = null;
+    });
+    final outcome = await ref.read(planProvider.notifier).restore();
+    if (!mounted) return;
+    setState(() => _restoring = false);
+    if (outcome == RestoreOutcome.restored) {
+      final plan = ref.read(planProvider);
+      if (plan is PlanKnown && !plan.standing.canBuy) navigator.pop();
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          outcome == RestoreOutcome.restored
+              ? l10n.planRestored
+              : l10n.planRestoreFailed,
+        ),
+      ),
+    );
+  }
+
+  String _price(AppLocalizations l10n, PlusPackage package) =>
+      switch (package.period) {
+        PlusPeriod.week => l10n.plusPricePerWeek(package.price),
+        PlusPeriod.month => l10n.plusPricePerMonth(package.price),
+        PlusPeriod.year => l10n.plusPricePerYear(package.price),
+        null => package.price,
+      };
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -102,7 +138,12 @@ class _PlusSheetState extends ConsumerState<PlusSheet> {
               if (waiting)
                 const Center(child: CircularProgressIndicator())
               else if (package != null)
-                Text(package.price, style: AppType.title),
+                Text(_price(l10n, package), style: AppType.title),
+              if (package != null)
+                Text(
+                  l10n.plusAutoRenew,
+                  style: AppType.secondary.copyWith(color: colors.muted),
+                ),
               if (notice != null)
                 Semantics(
                   liveRegion: true,
@@ -119,8 +160,32 @@ class _PlusSheetState extends ConsumerState<PlusSheet> {
                 label: l10n.plusSheetStart,
                 size: AppButtonSize.cta,
                 loading: _buying,
-                onPressed: _buying ? null : () => _buy(package),
+                onPressed: _buying || _restoring ? null : () => _buy(package),
               ),
+            if (ready)
+              AppButton(
+                label: l10n.planRestore,
+                variant: AppButtonVariant.link,
+                loading: _restoring,
+                onPressed: _buying || _restoring ? null : _restore,
+              ),
+            Wrap(
+              alignment: WrapAlignment.center,
+              children: [
+                AppButton(
+                  label: l10n.termsOfService,
+                  variant: AppButtonVariant.link,
+                  onPressed: () =>
+                      openLegalLink(context, ref, termsOfServiceUrl),
+                ),
+                AppButton(
+                  label: l10n.privacyPolicy,
+                  variant: AppButtonVariant.link,
+                  onPressed: () =>
+                      openLegalLink(context, ref, privacyPolicyUrl),
+                ),
+              ],
+            ),
           ],
         );
       },

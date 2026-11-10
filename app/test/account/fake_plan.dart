@@ -37,7 +37,11 @@ class FakePurchaseStore implements PurchaseStore {
   @override
   bool ready;
 
-  PlusPackage? package = const PlusPackage(id: r'$rc_monthly', price: '₩4,900');
+  PlusPackage? package = const PlusPackage(
+    id: r'$rc_monthly',
+    price: '₩4,900',
+    period: PlusPeriod.month,
+  );
   PurchaseOutcome purchase = const Purchased();
   RestoreOutcome restoreOutcome = RestoreOutcome.restored;
   Uri? management = Uri.parse('https://apps.apple.com/account/subscriptions');

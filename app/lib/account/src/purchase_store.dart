@@ -1,14 +1,21 @@
 import 'account_state.dart';
 
+/// How long one payment of a package covers.
+enum PlusPeriod { week, month, year }
+
 /// The one package the purchase sheet sells, with the price the store shows.
 final class PlusPackage {
-  const PlusPackage({required this.id, required this.price});
+  const PlusPackage({required this.id, required this.price, this.period});
 
   /// The package's identifier in the default offering.
   final String id;
 
   /// The store's own price text, in the user's currency.
   final String price;
+
+  /// The subscription's duration, or null when the store names none the
+  /// sheet knows.
+  final PlusPeriod? period;
 }
 
 /// How a purchase ended.

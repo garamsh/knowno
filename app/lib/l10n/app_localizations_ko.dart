@@ -2203,6 +2203,25 @@ class AppLocalizationsKo extends AppLocalizations {
   String get plusSheetBody => '사진으로 더 많은 카드를 만들고, AI 연결을 쓸 수 있어요.';
 
   @override
+  String plusPricePerWeek(String price) {
+    return '주 $price';
+  }
+
+  @override
+  String plusPricePerMonth(String price) {
+    return '월 $price';
+  }
+
+  @override
+  String plusPricePerYear(String price) {
+    return '연 $price';
+  }
+
+  @override
+  String get plusAutoRenew =>
+      '구독은 취소하기 전까지 매 기간 자동으로 갱신돼요. 스토어의 구독 설정에서 언제든 취소할 수 있어요.';
+
+  @override
   String get plusSheetStart => '플러스 시작하기';
 
   @override

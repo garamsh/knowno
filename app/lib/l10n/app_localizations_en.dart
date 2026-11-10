@@ -2441,6 +2441,25 @@ class AppLocalizationsEn extends AppLocalizations {
       'Make more cards from photos and use AI connections.';
 
   @override
+  String plusPricePerWeek(String price) {
+    return '$price per week';
+  }
+
+  @override
+  String plusPricePerMonth(String price) {
+    return '$price per month';
+  }
+
+  @override
+  String plusPricePerYear(String price) {
+    return '$price per year';
+  }
+
+  @override
+  String get plusAutoRenew =>
+      'The subscription renews automatically each period until you cancel it. You can cancel any time in your store\'s subscription settings.';
+
+  @override
   String get plusSheetStart => 'Start Plus';
 
   @override
