@@ -36,14 +36,16 @@ const documents = [
     name: "the terms of service",
     page: TermsPage,
     title: "이용약관",
-    effectiveDate: "2026년 11월 3일",
-    effectiveSentence: "이 약관은 2026년 11월 3일부터 시행해요.",
+    effectiveDate: "2026년 11월 17일",
+    effectiveSentence: "이 약관은 2026년 11월 17일부터 시행해요.",
     headings: [
       "서비스",
       "계정과 로그인",
       "이용자의 콘텐츠와 이용 허락",
       "공개 공유, 신고와 차단, 금지 콘텐츠",
       "AI로 만든 카드",
+      "플러스 요금제와 구독",
+      "환불과 청약철회",
       "서비스의 변경과 중단",
       "계정 삭제",
       "면책과 책임의 제한",
@@ -105,7 +107,48 @@ describe("the terms of service", () => {
   });
 });
 
+describe("the terms of service, for the paid plan", () => {
+  it("says 플러스 renews automatically until cancelled, and where each purchase is cancelled", async () => {
+    await render(TermsPage, {});
+
+    const plus = within(screen.getByRole("region", { name: "플러스 요금제와 구독" }));
+    // A row of the list holds more than the phrase asserted, so these match by presence.
+    expect(
+      plus.getByText(/해지하기 전까지 매 결제 주기가 끝날 때 같은 가격으로 자동으로 갱신/),
+    ).toBeInTheDocument();
+    expect(plus.getByText(/App Store의 구독 관리에서/)).toBeInTheDocument();
+    expect(plus.getByText(/Paddle의 고객 포털\(paddle\.net\)에서 해지/)).toBeInTheDocument();
+    expect(plus.getByText(/가격을 바꾸면 적용하기 전에/)).toBeInTheDocument();
+    expect(
+      plus.getByText(/환불이 처리되면 그 결제로 받은 플러스는 그때 끝나고/),
+    ).toBeInTheDocument();
+  });
+
+  it("cites 전자상거래법 제17조 for 청약철회 and sends each purchase to its refund process", async () => {
+    await render(TermsPage, {});
+
+    const refund = within(screen.getByRole("region", { name: "환불과 청약철회" }));
+    expect(refund.getByText(/전자상거래법 제17조 제1항/)).toBeInTheDocument();
+    expect(refund.getByText(/제17조 제2항 제5호/)).toBeInTheDocument();
+    expect(refund.getByText(/Apple의 환불 절차로 요청해요/)).toBeInTheDocument();
+    expect(refund.getByText(/웹에서 구매했다면 Paddle을 통해 환불을 요청해요/)).toBeInTheDocument();
+    expect(refund.getByRole("link", { name: "Paddle의 환불 정책" })).toHaveAttribute(
+      "href",
+      "https://www.paddle.com/legal/refund-policy",
+    );
+  });
+});
+
 describe("the privacy policy", () => {
+  it("names RevenueCat, Apple and Paddle among the processors, each with what it receives", async () => {
+    await render(PrivacyPage, {});
+
+    const processors = within(screen.getByRole("region", { name: "개인정보 처리의 위탁" }));
+    expect(processors.getByText(/^RevenueCat: .*구독 상태/)).toBeInTheDocument();
+    expect(processors.getByText(/^Apple: .*결제와 환불을 처리/)).toBeInTheDocument();
+    expect(processors.getByText(/^Paddle: .*이메일 주소, 결제 수단 정보/)).toBeInTheDocument();
+  });
+
   it("says a note is checked by rules before it is public, and that the operator may read it", async () => {
     await render(PrivacyPage, {});
 

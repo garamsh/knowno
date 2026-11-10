@@ -33,6 +33,10 @@ const sections: readonly LegalSection[] = [
             결과)이에요.
           </li>
           <li>
+            구매 기록: 플러스를 구매하면 구매한 상품, 구독 상태와 갱신, 만료, 환불 사실을 받아요.
+            카드 번호 같은 결제 수단 정보는 받지 않아요.
+          </li>
+          <li>
             사진: 사진으로 카드를 만들 때 고른 사진을 보내요. 사진은 카드를 만드는 데만 쓰고
             저장하지 않아요.
           </li>
@@ -54,6 +58,7 @@ const sections: readonly LegalSection[] = [
         <li>학습 기록으로 카드마다 다음 복습일을 계산해요.</li>
         <li>공개한 노트를 다른 이용자에게 보여 주고, 신고와 차단을 처리해요.</li>
         <li>사진에서 카드를 찾아 만들고, 하루 이용 한도를 적용해요.</li>
+        <li>플러스 구매를 확인하고, 구독 상태에 맞는 요금제를 적용해요.</li>
         <li>요청 기록으로 서비스가 제대로 동작하는지 확인해요.</li>
       </ul>
     ),
@@ -120,6 +125,19 @@ const sections: readonly LegalSection[] = [
           <li>OpenRouter: 사진 추출 요청을 AI 모델 제공자에게 전달</li>
           <li>AI 모델 제공자: OpenRouter를 거쳐 받은 사진에서 카드 내용 읽기</li>
           <li>Google: Google 계정으로 로그인</li>
+          <li>
+            RevenueCat: 앱과 웹의 플러스 구매를 확인하고 구독 상태를 관리해요. 계정 식별자(구매자를
+            구분하는 번호로 써요), 구매한 상품, 구독 상태와 갱신, 만료, 환불 사실을 받아요.
+          </li>
+          <li>
+            Apple: 앱에서 플러스를 구매할 때 결제와 환불을 처리해요. Apple ID와 결제 수단 정보는
+            Apple이 받고, 운영자는 받지 않아요. 구매 사실은 RevenueCat을 거쳐 알게 돼요.
+          </li>
+          <li>
+            Paddle: 웹에서 플러스를 구매할 때 판매자로서 결제, 세금 처리와 환불을 맡아요. 구매자의
+            이메일 주소, 결제 수단 정보, 결제 국가와 세금 정보, 구매 내역을 받아요. 결제 수단 정보는
+            Paddle이 받고, 운영자는 받지 않아요.
+          </li>
         </ul>
       </>
     ),
@@ -152,6 +170,11 @@ const sections: readonly LegalSection[] = [
           <li>
             Google(google.com): Google 로그인을 할 때 이메일 주소와 기본 프로필 정보가 로그인을 위해
             오가요. 보관은 Google의 정책을 따라요.
+          </li>
+          <li>
+            RevenueCat(revenuecat.com), Apple(apple.com), Paddle(paddle.com): 플러스를 구매할 때 위
+            &ldquo;개인정보 처리의 위탁&rdquo;에 적은 정보가 구매 확인과 결제, 환불을 위해 오가요.
+            보관은 각 회사의 정책과 법령을 따라요.
           </li>
         </ul>
         <p>
