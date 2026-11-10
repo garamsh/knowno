@@ -144,6 +144,11 @@ class _PlusSheetState extends ConsumerState<PlusSheet> {
                   l10n.plusAutoRenew,
                   style: AppType.secondary.copyWith(color: colors.muted),
                 ),
+              if (package != null)
+                Text(
+                  l10n.plusWithdrawal,
+                  style: AppType.secondary.copyWith(color: colors.muted),
+                ),
               if (notice != null)
                 Semantics(
                   liveRegion: true,

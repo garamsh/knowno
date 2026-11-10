@@ -619,6 +619,7 @@
   "plusPricePerMonth": "{price} per month",
   "plusPricePerYear": "{price} per year",
   "plusAutoRenew": "The subscription renews automatically each period until you cancel it. You can cancel any time in your store's subscription settings.",
+  "plusWithdrawal": "You can't withdraw from the part of Plus that has already begun. Ask for a refund through the app store you bought it in.",
   "plusSheetStart": "Start Plus",
   "plusNotReady": "Purchases aren't ready yet. Please check back soon.",
   "plusUnavailable": "You can't buy right now. Please try again in a moment.",

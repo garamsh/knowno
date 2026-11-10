@@ -274,6 +274,25 @@ void main() {
   );
 
   testWidgets(
+    'the sheet says before the buy button that begun use cannot be withdrawn and a refund is asked of the store',
+    (tester) async {
+      const line =
+          "You can't withdraw from the part of Plus that has already begun. Ask for a refund through the app store you bought it in.";
+      await pumpScreen(tester);
+
+      await tapAndSettle(tester, shownText('Learn about Plus'));
+
+      expect(shownText('Start Plus'), findsOneWidget);
+      expect(shownText(line), findsOneWidget);
+      expect(
+        tester.getTopLeft(shownText(line)).dy,
+        lessThan(tester.getTopLeft(shownText('Start Plus')).dy),
+        reason: 'shown above the buy button, with no tap to reveal it',
+      );
+    },
+  );
+
+  testWidgets(
     'a free account restores from the sheet: a restore that brings the plan back closes it, one that fails keeps it',
     (tester) async {
       await pumpScreen(tester);
@@ -429,6 +448,11 @@ void main() {
       findsOneWidget,
     );
     expect(shownText('Start Plus'), findsNothing);
+    expect(
+      find.textContaining("You can't withdraw from the part of Plus"),
+      findsNothing,
+      reason: 'the control: no package, no line',
+    );
   });
 
   for (final (name, standing) in [
