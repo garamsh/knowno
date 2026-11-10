@@ -5,7 +5,6 @@ import {
   buildPayload,
   bytes,
   encodeCut,
-  instructions,
   locate,
   parseReply,
 } from "./payload.ts";
