@@ -1,6 +1,6 @@
 # Assistant app
 
-The app's `assistant` domain: the chat with 말랑이 on the phone, its client of the `assistant` function, the conversation kept on the device, the proposals the user adds, the photos it reads, the character at a screen's edge, and how 홈 opens it. The function's contract is [`assistant.md`](assistant.md)'s; the web's chat is issue #722's.
+The app's `assistant` domain: the chat with 말랑이 on the phone, its client of the `assistant` function, the conversation kept on the device, the proposals the user adds, the photos it reads, the character at a screen's edge, and how 홈 opens it. The function's contract is [`assistant.md`](assistant.md)'s; the web's chat is [`web-assistant.md`](web-assistant.md)'s.
 
 ## Current decisions
 
@@ -68,7 +68,7 @@ The app's `assistant` domain: the chat with 말랑이 on the phone, its client o
 
 ### Strings
 
-- Every string is in the ARB set under `assistant…` keys, the same Korean as the web's chat (issue #722), in 해요체 and with a deck a 노트 ([`design/copy.md`](design/copy.md)).
+- Every string is in the ARB set under `assistant…` keys, the same Korean as the web's chat ([`web-assistant.md`](web-assistant.md)), in 해요체 and with a deck a 노트 ([`design/copy.md`](design/copy.md)).
 
 ### Tests
 
