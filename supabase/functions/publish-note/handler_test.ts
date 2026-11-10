@@ -591,7 +591,11 @@ Deno.test("a flagged card too large to send holds the note instead of judging th
   const claim = claimOf("도박사이트" + "가".repeat(20000), [], ["도박사이트"]);
   const { fake, handler, logs } = setup({ claim });
   await handler(post("", "user-token"));
-  assert.deepEqual(fake.provider, [], "no model reads a note it cannot read whole");
+  assert.deepEqual(
+    fake.provider,
+    [],
+    "no model reads a note it cannot read whole",
+  );
   assert.deepEqual(fake.spends, []);
   assert.equal(aiOf(fake)?.outcome, "unsure");
   assert.equal(aiOf(fake)?.version, "unavailable");
@@ -601,7 +605,11 @@ Deno.test("a flagged card too large to send holds the note instead of judging th
   );
   const control = setup({ claim: claimOf("도박사이트", [], ["도박사이트"]) });
   await control.handler(post("", "user-token"));
-  assert.equal(aiOf(control.fake)?.outcome, "clean", "a card that fits is judged");
+  assert.equal(
+    aiOf(control.fake)?.outcome,
+    "clean",
+    "a card that fits is judged",
+  );
 });
 
 const MEDIA = "55555555-5555-4555-8555-555555555555";
@@ -631,9 +639,14 @@ Deno.test("a card's photo leaves as an image part read from the bucket", async (
   await handler(post("", "user-token"));
   const images = imageParts(fake);
   assert.equal(images.length, 1);
-  assert.equal(images[0]?.image_url.url.startsWith("data:image/png;base64,"), true);
+  assert.equal(
+    images[0]?.image_url.url.startsWith("data:image/png;base64,"),
+    true,
+  );
   assert.equal(aiOf(fake)?.outcome, "clean");
-  const items = JSON.parse((fake.provider[0]?.content[0] as { text: string }).text)
+  const items = JSON.parse(
+    (fake.provider[0]?.content[0] as { text: string }).text,
+  )
     .items as { kind: string; n: number }[];
   assert.equal(items.some((i) => i.kind === "photo"), true);
 });
