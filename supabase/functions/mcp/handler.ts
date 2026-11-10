@@ -7,6 +7,7 @@
 import { SupabaseError, type UserId } from "../_shared/auth.ts";
 import { authorize } from "./authorize.ts";
 import type { Config } from "./config.ts";
+import { FREE_REFUSAL, onFree } from "./plan.ts";
 import {
   cardFormIndex,
   type CardForms,
@@ -30,6 +31,7 @@ const METADATA_SUFFIX = "/oauth-protected-resource";
 export type Outcome =
   | "answered"
   | "tool_refused"
+  | "plan_refused"
   | "metadata"
   | "notification"
   | "unauthenticated"
@@ -275,6 +277,39 @@ async function handle(request: Request, deps: HandlerDeps): Promise<Exchange> {
   });
   switch (method) {
     case "initialize": {
+      try {
+        if (await onFree(store)) {
+          return {
+            response: Response.json(rpcError(id, -32001, FREE_REFUSAL), {
+              status: 403,
+            }),
+            entry: {
+              user_id: caller.userId,
+              method,
+              tool: null,
+              outcome: "plan_refused",
+            },
+          };
+        }
+      } catch (error) {
+        if (!(error instanceof SupabaseError)) throw error;
+        return {
+          response: Response.json(
+            rpcError(
+              id,
+              -32603,
+              "knowno's server did not answer; connect again in a moment",
+            ),
+            { status: 503 },
+          ),
+          entry: {
+            user_id: caller.userId,
+            method,
+            tool: null,
+            outcome: "unavailable",
+          },
+        };
+      }
       const offered = params.protocolVersion;
       const protocolVersion =
         (PROTOCOL_VERSIONS as readonly unknown[]).includes(offered)
@@ -347,6 +382,13 @@ async function handle(request: Request, deps: HandlerDeps): Promise<Exchange> {
       const name = typeof params.name === "string" ? params.name : "";
       let result;
       try {
+        if (await onFree(store)) {
+          return answer(
+            { content: [{ type: "text", text: FREE_REFUSAL }], isError: true },
+            "plan_refused",
+            name,
+          );
+        }
         result = await callTool(name, params.arguments, store, deps);
       } catch (error) {
         if (error instanceof SupabaseError) {

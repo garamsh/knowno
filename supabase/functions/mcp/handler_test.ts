@@ -75,6 +75,8 @@ type Fake = {
   skills: Row[];
   /** What `card_markup_enabled` answers: whether the markup's forms are written (ADR 0216). */
   markup: boolean;
+  /** The plan `my_plan` answers for the caller, "broken" an answer without one, "down" a 500. */
+  plan: "free" | "pro" | "max" | "broken" | "down";
 };
 
 function block(type: string, payload: Row) {
@@ -110,6 +112,7 @@ function seed(): Fake {
     rest: "up",
     calls: [],
     markup: false,
+    plan: "pro",
     skills: FORMS.map((form, index) => ({
       form,
       version_id: index + 1,
@@ -266,6 +269,10 @@ function rest(
     return Response.json({ code: "PGRST301" }, { status: 401 });
   }
   const table = url.pathname.split("/").at(-1);
+  if (url.pathname.endsWith("/rpc/my_plan") && method === "POST") {
+    if (fake.plan === "down") return Response.json({}, { status: 500 });
+    return Response.json([fake.plan === "broken" ? {} : { plan: fake.plan }]);
+  }
   if (url.pathname.endsWith("/rpc/card_markup_enabled") && method === "POST") {
     return Response.json(fake.markup);
   }
@@ -1445,7 +1452,11 @@ Deno.test("add_cards refuses 101 cards and writes nothing, and adds 100", async 
   const over = await call("add_cards", { deck_id: ADA_DECK, cards: many(101) });
   assert.equal(over.result.isError, true);
   assert.match(over.result.content[0]!.text, /at most 100 cards per call/);
-  assert.ok(over.fake.calls.every((c) => c.method !== "POST"));
+  assert.ok(
+    over.fake.calls.every((c) =>
+      c.method !== "POST" || c.url.endsWith("/rpc/my_plan")
+    ),
+  );
   const cap = await call("add_cards", { deck_id: ADA_DECK, cards: many(100) });
   assert.equal((cap.result.structuredContent?.added as Row[]).length, 100);
   assert.equal(
@@ -1463,7 +1474,11 @@ Deno.test("add_cards refuses another user's deck and writes nothing, as the same
     cards,
   });
   assert.equal(foreign.result.isError, true);
-  assert.ok(foreign.fake.calls.every((c) => c.method !== "POST"));
+  assert.ok(
+    foreign.fake.calls.every((c) =>
+      c.method !== "POST" || c.url.endsWith("/rpc/my_plan")
+    ),
+  );
   assert.equal(
     foreign.fake.cards.filter((row) => row.deck_id === GRACE_PUBLIC_DECK)
       .length,
@@ -2557,4 +2572,140 @@ Deno.test("a write to a private note says nothing of a check", async () => {
     name: "English words",
   });
   assert.equal(result.structuredContent?.notice, undefined);
+});
+
+const FREE_SENTENCE = /플러스/;
+
+Deno.test("a 무료 user's connection is refused with a sentence naming 플러스, and a paid user's is not", async () => {
+  const initialize = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: { protocolVersion: "2025-11-25" },
+  };
+  const free = seed();
+  free.plan = "free";
+  const refused = await send({ body: initialize, fake: free });
+  assert.equal(refused.status, 403);
+  const error = (refused.json as { error: { code: number; message: string } })
+    .error;
+  assert.equal(error.code, -32001);
+  assert.match(error.message, FREE_SENTENCE);
+  assert.deepEqual(refused.logs.map((entry) => entry.outcome), [
+    "plan_refused",
+  ]);
+  for (const plan of ["pro", "max"] as const) {
+    const paid = seed();
+    paid.plan = plan;
+    const run = await send({ body: initialize, fake: paid });
+    assert.equal(run.status, 200, `control: ${plan} passes`);
+    assert.equal(
+      (run.json as { result: Row }).result.serverInfo !== undefined,
+      true,
+    );
+  }
+});
+
+Deno.test("every tool call of a 무료 user is refused with the sentence and writes nothing, as the same call of a paid user is carried out", async () => {
+  const call = {
+    jsonrpc: "2.0",
+    id: 2,
+    method: "tools/call",
+    params: { name: "create_deck", arguments: { name: "새 덱" } },
+  };
+  const free = seed();
+  free.plan = "free";
+  const decks = free.decks.length;
+  const refused = await send({ body: call, fake: free });
+  const result = (refused.json as {
+    result: { isError: boolean; content: { text: string }[] };
+  })
+    .result;
+  assert.equal(result.isError, true);
+  assert.match(result.content[0]!.text, FREE_SENTENCE);
+  assert.equal(free.decks.length, decks, "nothing is written");
+  assert.deepEqual(refused.logs.map((entry) => [entry.tool, entry.outcome]), [
+    ["create_deck", "plan_refused"],
+  ]);
+  for (const name of ["list_decks", "list_cards", "delete_deck", "nope"]) {
+    const run = await send({
+      body: { ...call, params: { name, arguments: {} } },
+      fake: free,
+    });
+    assert.match(
+      (run.json as { result: { content: { text: string }[] } }).result
+        .content[0]!.text,
+      FREE_SENTENCE,
+      name,
+    );
+  }
+  const paid = seed();
+  const carried = await send({ body: call, fake: paid });
+  assert.equal(
+    (carried.json as { result: { isError?: boolean } }).result.isError,
+    undefined,
+    "control: a paid user's call is carried out",
+  );
+  assert.equal(paid.decks.length, decks + 1);
+});
+
+Deno.test("a plan that cannot be read refuses the connection and the call, as unavailable, never as a pass", async () => {
+  for (const plan of ["down", "broken"] as const) {
+    const fake = seed();
+    fake.plan = plan;
+    const decks = fake.decks.length;
+    const initialize = await send({
+      body: { jsonrpc: "2.0", id: 1, method: "initialize", params: {} },
+      fake,
+    });
+    assert.equal(initialize.status, 503, plan);
+    assert.deepEqual(initialize.logs.map((entry) => entry.outcome), [
+      "unavailable",
+    ]);
+    const call = await send({
+      body: {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "create_deck", arguments: { name: "새 덱" } },
+      },
+      fake,
+    });
+    assert.equal(
+      (call.json as { result: { isError: boolean } }).result.isError,
+      true,
+      plan,
+    );
+    assert.equal(fake.decks.length, decks);
+    assert.deepEqual(call.logs.map((entry) => entry.outcome), ["unavailable"]);
+  }
+});
+
+Deno.test("the plan is read with the caller's own token, and only the connection and tool calls read it", async () => {
+  const fake = seed();
+  fake.plan = "free";
+  const listed = await send({
+    body: { jsonrpc: "2.0", id: 3, method: "tools/list" },
+    fake,
+  });
+  assert.ok(
+    (listed.json as { result: Row }).result.tools,
+    "a 무료 user may list the tools",
+  );
+  assert.equal(
+    fake.calls.filter((one) => one.url.endsWith("/rpc/my_plan")).length,
+    0,
+  );
+  await send({
+    body: {
+      jsonrpc: "2.0",
+      id: 4,
+      method: "tools/call",
+      params: { name: "list_decks" },
+    },
+    fake,
+  });
+  const [read] = fake.calls.filter((one) => one.url.endsWith("/rpc/my_plan"));
+  assert.equal(read?.headers.get("Authorization"), `Bearer ${ADA_TOKEN}`);
+  assert.equal(read?.headers.get("apikey"), ANON_KEY);
 });

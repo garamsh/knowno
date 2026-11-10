@@ -193,6 +193,19 @@ insert into private.provider_keys (provider, secret_id, last_four, set_by)
 values ('openai', vault.create_secret('seed-not-a-real-key-0000', 'knowno_provider_key_openai'),
   '0000', '5eed0000-0000-4000-8000-0000000000a3');
 
+-- A store grant for the Free learner on a renewing Pro, and the store's webhook value in Vault.
+insert into private.store_grants (user_id, plan, ends_at, renews, version_id)
+select '5eed0000-0000-4000-8000-0000000000a1', 'pro', now() + interval '20 days', true, max(id)
+from private.plan_versions where plan = 'pro';
+insert into private.store_secrets (name, secret_id, set_by)
+values ('knowno_store_webhook_authorization',
+  vault.create_secret('seed-not-a-real-webhook-value', 'knowno_store_webhook_authorization'),
+  '5eed0000-0000-4000-8000-0000000000a3');
+
+-- One sync-route call of the Free learner.
+insert into private.store_sync_attempts (user_id)
+values ('5eed0000-0000-4000-8000-0000000000a1');
+
 -- Two assistant messages of the Free user: one recorded with what it used, one never finished.
 insert into private.assistant_messages (user_id, plan, configuration_id, created_at, outcome,
   model_calls, input_tokens, output_tokens, reasoning_tokens, web_search_requests, latency_ms)

@@ -150,8 +150,8 @@ select results_eq(
       and p.prosrc ~ '(user_plans|plan_versions|entitlement_of|ai_configuration)'
       and p.proname !~ '^admin_'
     order by 1$$,
-  $$values ('assistant_allowance'::text collate "default"), ('extraction_allowance')$$,
-  'the user-facing functions that read a plan are the two allowances, which answer no plan');
+  $$values ('assistant_allowance'::text collate "default"), ('extraction_allowance'), ('my_plan')$$,
+  'the user-facing functions that read a plan are the two allowances and my_plan, none of which names special');
 select ok(
   (select count(*) from pg_proc as p
     where p.pronamespace = 'public'::regnamespace
