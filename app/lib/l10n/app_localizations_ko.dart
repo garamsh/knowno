@@ -2244,6 +2244,10 @@ class AppLocalizationsKo extends AppLocalizations {
       '구독은 취소하기 전까지 매 기간 자동으로 갱신돼요. 스토어의 구독 설정에서 언제든 취소할 수 있어요.';
 
   @override
+  String get plusWithdrawal =>
+      '플러스의 이용이 시작된 부분은 청약철회를 할 수 없어요. 환불은 구매한 앱 스토어의 절차로 요청해요.';
+
+  @override
   String get plusSheetStart => '플러스 시작하기';
 
   @override

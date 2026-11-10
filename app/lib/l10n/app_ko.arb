@@ -1339,6 +1339,8 @@
   "@plusPricePerYear": {"description": "Price of the subscription per year, the most prominent line of the purchase sheet.", "placeholders": {"price": {"type": "String"}}},
   "plusAutoRenew": "구독은 취소하기 전까지 매 기간 자동으로 갱신돼요. 스토어의 구독 설정에서 언제든 취소할 수 있어요.",
   "@plusAutoRenew": {"description": "Purchase sheet: the subscription renews until cancelled in the store."},
+  "plusWithdrawal": "플러스의 이용이 시작된 부분은 청약철회를 할 수 없어요. 환불은 구매한 앱 스토어의 절차로 요청해요.",
+  "@plusWithdrawal": {"description": "Purchase sheet, before the buy button: withdrawal is not possible for the part of Plus already begun, and a refund is requested from the store the purchase was made in."},
   "plusSheetStart": "플러스 시작하기",
   "@plusSheetStart": {"description": "Primary button of the purchase sheet that buys the package."},
   "plusNotReady": "구매는 아직 준비 중이에요. 조금만 기다려 주세요.",

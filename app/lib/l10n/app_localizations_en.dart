@@ -2482,6 +2482,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The subscription renews automatically each period until you cancel it. You can cancel any time in your store\'s subscription settings.';
 
   @override
+  String get plusWithdrawal =>
+      'You can\'t withdraw from the part of Plus that has already begun. Ask for a refund through the app store you bought it in.';
+
+  @override
   String get plusSheetStart => 'Start Plus';
 
   @override
