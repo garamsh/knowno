@@ -18,6 +18,7 @@ import 'package:knowno/l10n/app_localizations.dart';
 import '../contrast.dart';
 import 'fake_account_data.dart';
 import 'fake_account_service.dart';
+import 'fake_plan.dart';
 import '../word_breaks.dart';
 
 const _ada = UserId('00000000-0000-4000-8000-00000000000a');
@@ -30,7 +31,14 @@ void main() {
     AccountData? data,
     String? themeMode,
     LinkOpener? opener,
+    FakePlanServer? plans,
+    FakePurchaseStore? store,
   }) async {
+    // Tall enough for every group to be built, as the plan and AI 연결 groups
+    // push the rows below them out of the default window's reach.
+    tester.view.physicalSize = const Size(800, 3200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.withData({'themeMode': ?themeMode});
     final storage = (await tester.runAsync(
@@ -45,6 +53,8 @@ void main() {
         overrides: [
           accountServiceProvider.overrideWithValue(service),
           appVersionProvider.overrideWithValue('1.0.0'),
+          planServerProvider.overrideWithValue(plans ?? FakePlanServer()),
+          purchaseStoreProvider.overrideWithValue(store ?? FakePurchaseStore()),
           accountDataProvider.overrideWithValue(data ?? FakeAccountData()),
           themeStorageProvider.overrideWithValue(storage),
           if (opener != null) linkOpenerProvider.overrideWithValue(opener),

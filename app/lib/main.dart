@@ -75,6 +75,11 @@ Future<void> main() async {
       },
       Directory('${support.path}/media'),
       package.version,
+      plans: switch (account.client) {
+        final client? => SupabasePlanServer.of(client),
+        null => null,
+      },
+      purchases: connectPurchases(accountDefines()),
       assistant: switch (account.client) {
         final client? => HttpAssistantClient(
           http.Client(),
@@ -100,8 +105,10 @@ Future<void> main() async {
 /// without [sharing] the app offers no sharing. Decks' images are kept in
 /// [mediaDirectory] and stored through [mediaServer]. The account screen names
 /// the app's [version]. Chats with 말랑이 go through [assistant], whose
-/// absence hides every way into the chat, and are kept in [preferences]. Sync
-/// starts at once.
+/// absence hides every way into the chat, and are kept in [preferences]. The
+/// plan is read from [plans], and 플러스 is bought through [purchases]; without
+/// them the app reads no plan and says purchases are not ready. Sync starts at
+/// once.
 Widget composeApp(
   QueryExecutor executor,
   Scheduler scheduler,
@@ -116,6 +123,8 @@ Widget composeApp(
   Directory mediaDirectory,
   String version, {
   AssistantClient? assistant,
+  PlanServer? plans,
+  PurchaseStore? purchases,
 }) {
   final database = AppDatabase(executor);
   const uuid = Uuid();
@@ -194,6 +203,15 @@ Widget composeApp(
         (start) => Random(start.microsecondsSinceEpoch),
       ),
       accountServiceProvider.overrideWithValue(account),
+      planServerProvider.overrideWithValue(
+        plans ?? const UnavailablePlanServer(),
+      ),
+      purchaseStoreProvider.overrideWithValue(
+        purchases ?? const UnavailablePurchaseStore(),
+      ),
+      photoLimitOfferProvider.overrideWith(
+        (ref) => ref.watch(purchaseOfferProvider),
+      ),
       appVersionProvider.overrideWithValue(version),
       accountDataProvider.overrideWithValue(sync),
       syncControllerProvider.overrideWithValue(sync),
