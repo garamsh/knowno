@@ -2382,4 +2382,110 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pasteImageFailed => 'Could not get the pasted photo';
+
+  @override
+  String get planTitle => 'My plan';
+
+  @override
+  String get planFree => 'Free';
+
+  @override
+  String get planPlus => 'Plus';
+
+  @override
+  String get planPro => 'Pro';
+
+  @override
+  String planPhotosUsed(int used, int limit) {
+    return '$used/$limit photos used';
+  }
+
+  @override
+  String get planNoLimit => 'No limit';
+
+  @override
+  String planRenews(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMd(localeName);
+    final String dateString = dateDateFormat.format(date);
+
+    return 'Renews $dateString';
+  }
+
+  @override
+  String get planLearnPlus => 'Learn about Plus';
+
+  @override
+  String get planManage => 'Manage subscription';
+
+  @override
+  String get planRestore => 'Restore purchases';
+
+  @override
+  String get planRestoring => 'Restoring purchases';
+
+  @override
+  String get planRestored => 'Purchases restored';
+
+  @override
+  String get planRestoreFailed =>
+      'Couldn\'t restore purchases. Please try again.';
+
+  @override
+  String get planLoadFailed => 'Couldn\'t load your plan';
+
+  @override
+  String get plusSheetTitle => 'Plus';
+
+  @override
+  String get plusSheetBody =>
+      'Make more cards from photos and use AI connections.';
+
+  @override
+  String get plusSheetStart => 'Start Plus';
+
+  @override
+  String get plusNotReady =>
+      'Purchases aren\'t ready yet. Please check back soon.';
+
+  @override
+  String get plusUnavailable =>
+      'You can\'t buy right now. Please try again in a moment.';
+
+  @override
+  String get plusPending =>
+      'Waiting for the payment to be approved. Your plan changes when it is.';
+
+  @override
+  String get plusFailed => 'Couldn\'t complete the payment. Please try again.';
+
+  @override
+  String get plusStarted => 'Plus started';
+
+  @override
+  String get plusStartedSlow =>
+      'Payment complete. Your plan may take a moment to update.';
+
+  @override
+  String get aiSection => 'AI connection';
+
+  @override
+  String get aiServerAddress => 'Server address';
+
+  @override
+  String get aiServerCopied => 'Server address copied';
+
+  @override
+  String get aiLocked => 'Available with Plus';
+
+  @override
+  String get aiClaudeHow =>
+      'Add a custom connector in connector settings, enter the server address, then sign in with 알아몰라';
+
+  @override
+  String get aiChatGptHow =>
+      'Add a custom MCP server at chatgpt.com/plugins, enter the server address, then sign in with 알아몰라';
+
+  @override
+  String get aiNote =>
+      'A connected AI can read, add, change and delete notes and cards. How many AIs you can connect and what they do depends on each service\'s plan.';
 }

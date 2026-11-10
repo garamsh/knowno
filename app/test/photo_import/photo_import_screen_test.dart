@@ -79,6 +79,7 @@ class _Import {
     bool refuseWrites = false,
     MemoryImportJobStore? restoring,
     void Function(_Import import)? before,
+    Future<void> Function(BuildContext context)? limitOffer,
   }) async {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);
@@ -116,7 +117,10 @@ class _Import {
     final target = deck == null ? frenchDeck.id : deck(import);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [deckRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          deckRepositoryProvider.overrideWithValue(repository),
+          photoLimitOfferProvider.overrideWithValue(limitOffer),
+        ],
         child: MaterialApp(
           theme: lightTheme,
           darkTheme: darkTheme,
@@ -2754,6 +2758,55 @@ void main() {
         expect(_shown('Words found'), findsNothing);
         expect(import.client.calls, hasLength(2), reason: 'none sent after');
         await import.close();
+      },
+    );
+
+    testWidgets(
+      'reaching the photo limit offers a higher one where the app makes an offer, and only there',
+      (tester) async {
+        const limit = PhotoLimitReached(limit: 30, period: LimitPeriod.day);
+        final offered = <BuildContext>[];
+        final import = await _Import.open(
+          tester,
+          limitOffer: (context) async => offered.add(context),
+        );
+        await import.shoot();
+        import.client.fail(limit);
+        await tester.pumpAndSettle();
+
+        expect(
+          _shown("You've used today's 30 photos. Try again tomorrow."),
+          findsOneWidget,
+        );
+        await import.tap(_shown('Learn about Plus'));
+        expect(offered, hasLength(1));
+        await import.close();
+
+        final none = await _Import.open(tester);
+        await none.shoot();
+        none.client.fail(limit);
+        await tester.pumpAndSettle();
+        expect(
+          _shown("You've used today's 30 photos. Try again tomorrow."),
+          findsOneWidget,
+          reason: 'control: the limit is shown as before',
+        );
+        expect(_shown('Learn about Plus'), findsNothing);
+        await none.close();
+
+        final other = await _Import.open(
+          tester,
+          limitOffer: (context) async => offered.add(context),
+        );
+        await other.shoot();
+        other.client.fail(const ModelFailed());
+        await tester.pumpAndSettle();
+        expect(
+          _shown('Learn about Plus'),
+          findsNothing,
+          reason: 'only the limit offers a higher one',
+        );
+        await other.close();
       },
     );
 

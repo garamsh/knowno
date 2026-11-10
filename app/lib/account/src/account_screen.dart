@@ -13,14 +13,16 @@ import '../../l10n/app_localizations.dart';
 import 'account_data.dart';
 import 'account_service.dart';
 import 'account_state.dart';
+import 'ai_connection_group.dart';
 import 'failure.dart';
 import 'failure_message.dart';
 import 'legal.dart';
+import 'plan_group.dart';
 import 'providers.dart';
 
-/// The settings screen: the signed-in account with [syncStatus] under its
-/// email and sign-out, the study settings, the theme the app is drawn in,
-/// and, last, deleting the account.
+/// The settings screen: the plan, the signed-in account with [syncStatus]
+/// under its email and sign-out, the study settings, how to connect an AI,
+/// the theme the app is drawn in, and, last, deleting the account.
 class AccountScreen extends ConsumerStatefulWidget {
   const AccountScreen({
     super.key,
@@ -54,6 +56,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       body: [
         SliverList.list(
           children: [
+            const PlanGroup(),
             AppSectionLabel(l10n.accountSection),
             AppGroup(
               children: [
@@ -73,6 +76,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             AppSectionLabel(l10n.settingsStudy),
             AppGroup(children: widget.studySettings),
             const SizedBox(height: AppSpace.sectionGap),
+            const AiConnectionGroup(),
             AppSectionLabel(l10n.displaySection),
             const AppGroup(children: [_ThemeRow()]),
             const SizedBox(height: AppSpace.sectionGap),

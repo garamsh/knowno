@@ -3671,6 +3671,186 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'붙여넣은 사진을 가져오지 못했어요'**
   String get pasteImageFailed;
+
+  /// Section heading of the settings screen's plan card.
+  ///
+  /// In ko, this message translates to:
+  /// **'내 플랜'**
+  String get planTitle;
+
+  /// Display name of the free plan.
+  ///
+  /// In ko, this message translates to:
+  /// **'무료'**
+  String get planFree;
+
+  /// Display name of the first paid plan, the one sold.
+  ///
+  /// In ko, this message translates to:
+  /// **'플러스'**
+  String get planPlus;
+
+  /// Display name of the highest plan, not sold yet.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로'**
+  String get planPro;
+
+  /// Plan card: the photos read in the period and the plan's limit.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 {used}/{limit}장 사용'**
+  String planPhotosUsed(int used, int limit);
+
+  /// Plan card: the account's plan has no photo limit.
+  ///
+  /// In ko, this message translates to:
+  /// **'제한 없이 쓸 수 있어요'**
+  String get planNoLimit;
+
+  /// Plan card: when the store subscription renews next.
+  ///
+  /// In ko, this message translates to:
+  /// **'다음 갱신 {date}'**
+  String planRenews(DateTime date);
+
+  /// Row and button that open the purchase sheet.
+  ///
+  /// In ko, this message translates to:
+  /// **'플러스 알아보기'**
+  String get planLearnPlus;
+
+  /// Plan card row that opens the store's subscription page.
+  ///
+  /// In ko, this message translates to:
+  /// **'구독 관리'**
+  String get planManage;
+
+  /// Plan card row that asks the store for earlier purchases.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매 복원'**
+  String get planRestore;
+
+  /// Accessible label of the progress shown while restoring.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매 복원 중'**
+  String get planRestoring;
+
+  /// Snack bar after a restore.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매를 복원했어요'**
+  String get planRestored;
+
+  /// Snack bar after a restore that failed.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매를 복원하지 못했어요. 다시 시도해 주세요.'**
+  String get planRestoreFailed;
+
+  /// Plan card row when the server's answer could not be had; tapping it retries.
+  ///
+  /// In ko, this message translates to:
+  /// **'플랜을 불러오지 못했어요'**
+  String get planLoadFailed;
+
+  /// Title of the purchase sheet.
+  ///
+  /// In ko, this message translates to:
+  /// **'플러스'**
+  String get plusSheetTitle;
+
+  /// Body of the purchase sheet.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진으로 더 많은 카드를 만들고, AI 연결을 쓸 수 있어요.'**
+  String get plusSheetBody;
+
+  /// Primary button of the purchase sheet that buys the package.
+  ///
+  /// In ko, this message translates to:
+  /// **'플러스 시작하기'**
+  String get plusSheetStart;
+
+  /// Purchase sheet in a build without a store key.
+  ///
+  /// In ko, this message translates to:
+  /// **'구매는 아직 준비 중이에요. 조금만 기다려 주세요.'**
+  String get plusNotReady;
+
+  /// Purchase sheet when the store offers no package.
+  ///
+  /// In ko, this message translates to:
+  /// **'지금은 구매할 수 없어요. 잠시 후 다시 시도해 주세요.'**
+  String get plusUnavailable;
+
+  /// Purchase sheet after the store holds the payment for approval.
+  ///
+  /// In ko, this message translates to:
+  /// **'결제 승인을 기다리고 있어요. 끝나면 플랜이 바뀌어요.'**
+  String get plusPending;
+
+  /// Purchase sheet after a failed payment.
+  ///
+  /// In ko, this message translates to:
+  /// **'결제하지 못했어요. 다시 시도해 주세요.'**
+  String get plusFailed;
+
+  /// Snack bar after a purchase the server already shows.
+  ///
+  /// In ko, this message translates to:
+  /// **'플러스를 시작했어요'**
+  String get plusStarted;
+
+  /// Snack bar after a purchase the server does not show yet.
+  ///
+  /// In ko, this message translates to:
+  /// **'결제가 끝났어요. 플랜에 반영되는 데 잠시 걸릴 수 있어요.'**
+  String get plusStartedSlow;
+
+  /// Heading of the settings group that says how to connect Claude and ChatGPT.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI 연결'**
+  String get aiSection;
+
+  /// Row of the AI connection group: the MCP server's address.
+  ///
+  /// In ko, this message translates to:
+  /// **'서버 주소'**
+  String get aiServerAddress;
+
+  /// Snack bar after the address was copied.
+  ///
+  /// In ko, this message translates to:
+  /// **'서버 주소를 복사했어요'**
+  String get aiServerCopied;
+
+  /// Subtitle of a locked AI connection row on the free plan.
+  ///
+  /// In ko, this message translates to:
+  /// **'플러스에서 쓸 수 있어요'**
+  String get aiLocked;
+
+  /// How to add the server in Claude.
+  ///
+  /// In ko, this message translates to:
+  /// **'커넥터 설정에서 커스텀 커넥터를 추가하고 서버 주소를 넣은 뒤 알아몰라로 로그인해요'**
+  String get aiClaudeHow;
+
+  /// How to add the server in ChatGPT.
+  ///
+  /// In ko, this message translates to:
+  /// **'chatgpt.com/plugins에서 커스텀 MCP 서버를 추가하고 서버 주소를 넣은 뒤 알아몰라로 로그인해요'**
+  String get aiChatGptHow;
+
+  /// Note under the AI connection group.
+  ///
+  /// In ko, this message translates to:
+  /// **'연결한 AI는 노트와 카드를 읽고, 추가하고, 고치고, 지울 수 있어요. 연결할 수 있는 AI의 수와 기능은 각 서비스의 요금제에 따라 달라요.'**
+  String get aiNote;
 }
 
 class _AppLocalizationsDelegate

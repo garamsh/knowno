@@ -281,6 +281,7 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
         onRetake: () => _retake(failure),
         retakeLabel: retakeLabel(failure),
         onOpenSettings: failure is PhotoAccessDenied ? _openSettings : null,
+        onLearnPlus: _learnPlus(failure),
         onAddByHand: instead(unavailable, AddByHandInstead.new),
         onAddFromSpreadsheet: instead(
           unavailable,
@@ -298,6 +299,7 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
           onRetake: () => _retake(failure),
           retakeLabel: retakeLabel(failure),
           onOpenSettings: failure is PhotoAccessDenied ? _openSettings : null,
+          onLearnPlus: _learnPlus(failure),
           onAddByHand: instead(unavailable, AddByHandInstead.new),
           onAddFromSpreadsheet: instead(
             unavailable,
@@ -451,6 +453,14 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
           _watch(next);
         });
     }
+  }
+
+  /// Opens the offer of a higher limit when [failure] is the limit and the
+  /// app makes one; otherwise null.
+  VoidCallback? _learnPlus(PhotoImportFailure failure) {
+    final offer = ref.watch(photoLimitOfferProvider);
+    if (failure is! PhotoLimitReached || offer == null) return null;
+    return () => offer(context);
   }
 
   Future<void> _openSettings() async {

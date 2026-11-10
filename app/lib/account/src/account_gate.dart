@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'account_state.dart';
+import 'plan_controller.dart';
 import 'providers.dart';
 import 'sign_in_screen.dart';
 
@@ -16,6 +17,8 @@ class AccountGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The plan follows the account from sign-in on, whichever screen is open.
+    ref.listen(planProvider, (_, _) {});
     ref.listen(accountStateProvider, (previous, next) {
       // Every screen opened over the app leaves with the account.
       if (previous is SignedIn && next is! SignedIn) {
