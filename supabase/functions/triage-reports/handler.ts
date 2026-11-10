@@ -2,6 +2,9 @@
  * The triage-reports HTTP handler (ADR 0244). `POST /work` is the scheduler's, with the service-role
  * key: it judges the notes the database says are due, a cheap model first and a strong one only when
  * unsure, and hands every verdict to `record_triage`, where the database decides what it does.
+ * Every model call is charged to the spend ledger by `record_triage_spend`, a failed or unreadable
+ * one too, and no call is made once the day's cap is closed; the lease and the backoff of a note
+ * are the database's, told by `triage_release`.
  * `POST /settings/configuration` is an admin saving the providers, models, prices and prompt as the
  * draft, after one check call per tier parsed. Nothing here logs or stores a note's text: the log
  * holds ids, a route, an outcome and counts.
@@ -18,6 +21,7 @@ import { same } from "../_shared/same.ts";
 import type { Config } from "./config.ts";
 import {
   buildPayload,
+  bytes,
   instructions,
   locate,
   MAX_FIELD,
@@ -26,7 +30,7 @@ import {
   type Reply,
   type TriageClaim,
 } from "./payload.ts";
-import { type Answer, ask } from "./provider.ts";
+import { type Answer, ask, MAX_ANSWER_TOKENS } from "./provider.ts";
 
 export type Deps = {
   readonly config: Config;
@@ -108,6 +112,64 @@ export function costOf(
 ): number {
   return answer.costUsd ??
     (answer.tokensIn * tier.inUsd + answer.tokensOut * tier.outUsd) / 1e6;
+}
+
+/** What a call is charged to the ledger. */
+export type Charge = {
+  readonly costUsd: number;
+  readonly tokensIn: number;
+  readonly tokensOut: number;
+  /** True when the figure is the most the call could have cost, not what the provider reported. */
+  readonly estimated: boolean;
+};
+
+/**
+ * The most a call can cost: every byte of the request a token in, and a full answer out. A
+ * tokenizer makes at most one token of a byte, so this bounds what the provider can bill.
+ */
+export function ceilingOf(tier: Tier, requestBytes: number): Charge {
+  return {
+    costUsd: costOf(tier, {
+      tokensIn: requestBytes,
+      tokensOut: MAX_ANSWER_TOKENS,
+      costUsd: null,
+    }),
+    tokensIn: requestBytes,
+    tokensOut: MAX_ANSWER_TOKENS,
+    estimated: true,
+  };
+}
+
+/**
+ * What [answer] is charged, null when nothing was spent: the reported cost, else the reported
+ * tokens at the tier's prices, else the ceiling when the reply omits its usage or the call may have
+ * run without telling (unreachable, timed out, an unreadable body); a refusal with an error status
+ * cost nothing.
+ */
+export function chargeOf(
+  tier: Tier,
+  answer: Answer,
+  requestBytes: number,
+): Charge | null {
+  if (answer.kind === "failed") {
+    return answer.status === null || answer.status < 400
+      ? ceilingOf(tier, requestBytes)
+      : null;
+  }
+  const { tokensIn, tokensOut, costUsd } = answer;
+  if (costUsd === null && (tokensIn === null || tokensOut === null)) {
+    return ceilingOf(tier, requestBytes);
+  }
+  return {
+    costUsd: costOf(tier, {
+      tokensIn: tokensIn ?? 0,
+      tokensOut: tokensOut ?? 0,
+      costUsd,
+    }),
+    tokensIn: tokensIn ?? 0,
+    tokensOut: tokensOut ?? 0,
+    estimated: false,
+  };
 }
 
 type Keys = {
@@ -195,7 +257,8 @@ type Keyring = ReturnType<typeof vaultKeys>;
 
 /**
  * Judges the due notes, at most `WORK_BATCH`, and counts what happened to each. A note whose
- * judging fails stays due, and one failure leaves the others their turn.
+ * judging fails is released with a failure, which the database backs off from, and one failure
+ * leaves the others their turn.
  */
 async function work(
   severe: boolean,
@@ -219,13 +282,27 @@ async function work(
       outcomes.deferred = (outcomes.deferred ?? 0) + 1;
       continue;
     }
-    const outcome = await judge(id, service, keys, deps).catch(() => {
+    const outcome = await judge(id, service, keys, deps).catch(async () => {
       deps.log({ route: "work", deck: id, outcome: "failed" });
+      await release(service, deps, id, true).catch(() => undefined);
       return "failed";
     });
     outcomes[outcome] = (outcomes[outcome] ?? 0) + 1;
   }
   return outcomes;
+}
+
+/** Gives up the lease on [deckId], with a failure when [failed]; the database backs off from one. */
+async function release(
+  service: Keys,
+  deps: Deps,
+  deckId: string,
+  failed: boolean,
+): Promise<void> {
+  await call(service, deps, "triage_release", {
+    deck_id: deckId,
+    failed,
+  });
 }
 
 /** A parsed reply and the tier that gave it. */
@@ -237,8 +314,11 @@ type Verdict = {
 
 /**
  * Judges one note: claims it, asks the cheap model, asks the strong one only when the cheap one
- * is unsure, and records the verdict. Answers `record_triage`'s word, `skipped` for a note that is
- * no longer due, `no_key` while a tier's provider has none and `failed` when no model answered.
+ * is unsure and the day's cap is still open, and records the verdict. Each call is charged to the
+ * ledger at once. Answers `record_triage`'s word, `skipped` for a note that is no longer due,
+ * `no_key` while a tier's provider has none, `failed` when no model answered and `capped` when the
+ * cap closed on a reply that could not be read; the last two release the lease, `failed` with a
+ * failure.
  */
 export async function judge(
   deckId: string,
@@ -262,6 +342,7 @@ export async function judge(
   let tokensIn = 0;
   let tokensOut = 0;
   let cost = 0;
+  let open = true;
   const attempt = async (
     which: "cheap" | "strong",
   ): Promise<Verdict | "no_key" | "failed" | "unparsed"> => {
@@ -277,27 +358,55 @@ export async function judge(
       fetch: deps.fetch,
       timeoutMs: CALL_TIMEOUT_MS,
     });
+    const charge = chargeOf(tier, answer, bytes(system) + bytes(payload.text));
+    if (charge !== null) {
+      const stays = await call(service, deps, "record_triage_spend", {
+        deck_id: deckId,
+        content_hash: claim.hash,
+        tier: which,
+        provider: tier.provider,
+        model: tier.model,
+        tokens_in: charge.tokensIn,
+        tokens_out: charge.tokensOut,
+        cost_usd: Math.round(charge.costUsd * 1e6) / 1e6,
+        estimated: charge.estimated,
+      });
+      open = stays === true;
+    }
     if (answer.kind === "failed") return "failed";
-    tokensIn += answer.tokensIn;
-    tokensOut += answer.tokensOut;
-    cost += costOf(tier, answer);
+    if (charge !== null) {
+      tokensIn += charge.tokensIn;
+      tokensOut += charge.tokensOut;
+      cost += charge.costUsd;
+    }
     const reply = parseReply(answer.text);
     return reply === null ? "unparsed" : { reply, tier: which, model: tier };
   };
   const cheap = await attempt("cheap");
-  if (cheap === "no_key" || cheap === "failed") return cheap;
+  if (cheap === "no_key" || cheap === "failed") {
+    await release(service, deps, deckId, cheap === "failed");
+    return cheap;
+  }
   let chosen: Verdict | null = cheap === "unparsed" ? null : cheap;
   let escalated = false;
   if (
     chosen === null || chosen.reply.confidence < configuration.escalateBelow ||
     chosen.reply.category === "other"
   ) {
-    escalated = true;
-    const strong = await attempt("strong");
-    if (strong !== "no_key" && strong !== "failed" && strong !== "unparsed") {
-      chosen = strong;
-    } else if (chosen === null && strong === "failed") {
-      return "failed";
+    if (!open) {
+      if (chosen === null) {
+        await release(service, deps, deckId, false);
+        return "capped";
+      }
+    } else {
+      escalated = true;
+      const strong = await attempt("strong");
+      if (strong !== "no_key" && strong !== "failed" && strong !== "unparsed") {
+        chosen = strong;
+      } else if (chosen === null && strong === "failed") {
+        await release(service, deps, deckId, true);
+        return "failed";
+      }
     }
   }
   const place = chosen === null
@@ -342,8 +451,12 @@ function checkFailure(answer: Answer): string | null {
   return parseReply(answer.text) === null ? "bad_output" : null;
 }
 
-const CHECK_NOTE =
-  "<note>\n[name] Spring sale\n[description] Buy two get one free at our shop.\n</note>";
+const CHECK_NOTE = [
+  "<note>",
+  '{"at":"name","text":"Spring sale"}',
+  '{"at":"description","text":"Buy two get one free at our shop."}',
+  "</note>",
+].join("\n");
 
 function numberIn(value: unknown, low: number, high: number): number | null {
   return typeof value === "number" && Number.isFinite(value) && value >= low &&

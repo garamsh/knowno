@@ -30,8 +30,9 @@ export type Answer =
   | {
     readonly kind: "answer";
     readonly text: string;
-    readonly tokensIn: number;
-    readonly tokensOut: number;
+    /** The tokens the provider reports, null when its reply omits them. */
+    readonly tokensIn: number | null;
+    readonly tokensOut: number | null;
     /** The cost the provider reported, null when it reports none. */
     readonly costUsd: number | null;
   }
@@ -41,10 +42,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-const count = (value: unknown): number =>
+const count = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) && value >= 0
     ? Math.round(value)
-    : 0;
+    : null;
 
 function request(
   call: Call,
