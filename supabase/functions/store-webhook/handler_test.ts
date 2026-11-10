@@ -31,6 +31,10 @@ type Fake = {
   apply: string | number | "offline";
   /** RevenueCat's answer for another user id, by id; a user with none is not served. */
   others?: Record<string, unknown>;
+  /** What `/auth/v1/user` answers for the token "session-token": a user, or a status. */
+  session?: Record<string, unknown> | number;
+  /** What `store_sync_begin` answers. */
+  allowed?: boolean;
   calls: { url: string; headers: Headers; body: unknown }[];
 };
 
@@ -74,6 +78,19 @@ function respond(
     }
     return Response.json([state.secrets]);
   }
+  if (url === `${SUPABASE_URL}/auth/v1/user`) {
+    const token = new Headers(init?.headers).get("Authorization");
+    if (token !== "Bearer session-token" || state.session === undefined) {
+      return Response.json({}, { status: 401 });
+    }
+    if (typeof state.session === "number") {
+      return Response.json({}, { status: state.session });
+    }
+    return Response.json(state.session);
+  }
+  if (url === `${SUPABASE_URL}/rest/v1/rpc/store_sync_begin`) {
+    return Response.json(state.allowed ?? true);
+  }
   if (url === `${SUPABASE_URL}/rest/v1/rpc/apply_store_entitlement`) {
     if (state.apply === "offline") throw new TypeError("error sending");
     if (typeof state.apply === "number") {
@@ -113,6 +130,7 @@ async function call(
   body: unknown = event(),
   options: {
     method?: string;
+    path?: string;
     env?: Record<string, string>;
     authorization?: string | null;
   } = {},
@@ -128,15 +146,18 @@ async function call(
     ? AUTHORIZATION
     : options.authorization;
   const response = await handler(
-    new Request(`${SUPABASE_URL}/functions/v1/store-webhook`, {
-      method: options.method ?? "POST",
-      headers: authorization === null ? {} : { Authorization: authorization },
-      body: options.method === "GET"
-        ? null
-        : typeof body === "string"
-        ? body
-        : JSON.stringify(body),
-    }),
+    new Request(
+      `${SUPABASE_URL}/functions/v1/store-webhook${options.path ?? ""}`,
+      {
+        method: options.method ?? "POST",
+        headers: authorization === null ? {} : { Authorization: authorization },
+        body: options.method === "GET"
+          ? null
+          : typeof body === "string"
+          ? body
+          : JSON.stringify(body),
+      },
+    ),
   );
   return { response, text: await response.clone().text(), logs };
 }
@@ -458,4 +479,108 @@ Deno.test("a transfer whose read fails for one id answers non-200 and changes no
   );
   assert.equal(response.status, 502);
   assert.equal(applies(state).length, 0);
+});
+
+const sync = (
+  state: Fake,
+  authorization: string | null = "Bearer session-token",
+  body: unknown = {},
+) => call(state, body, { path: "/sync", authorization });
+
+Deno.test("the sync route reads and applies the caller's own entitlements, as a webhook for them would", async () => {
+  const state = fake({ session: { id: USER }, apply: "granted" });
+  const { response, logs } = await sync(state);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    outcome: "applied",
+    result: "granted",
+  });
+  assert.deepEqual(logs, [{ outcome: "applied", result: "granted" }]);
+  assert.deepEqual(reads(state).map((c) => c.url.split("/").pop()), [USER]);
+  const body = applies(state)[0].body as Record<string, unknown>;
+  assert.equal(body.user_id, USER);
+  assert.equal(body.plan, "pro");
+  assert.equal(body.renews, true);
+});
+
+Deno.test("the sync route acts on the caller alone: an id or event in the body changes nothing", async () => {
+  const state = fake({
+    session: { id: USER },
+    others: { [OTHER]: subscriber({ expires_date: FUTURE }) },
+  });
+  const { response } = await sync(state, "Bearer session-token", {
+    app_user_id: OTHER,
+    user_id: OTHER,
+    event: { type: "TRANSFER", transferred_to: [OTHER], app_user_id: OTHER },
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(reads(state).map((c) => c.url.split("/").pop()), [USER]);
+  assert.deepEqual(
+    applies(state).map((c) => (c.body as Record<string, unknown>).user_id),
+    [USER],
+  );
+});
+
+Deno.test("the sync route refuses a call with no valid session, and reads and sets nothing", async () => {
+  const sessions: (string | null)[] = [
+    null,
+    "",
+    "session-token",
+    "Bearer wrong-token",
+    AUTHORIZATION,
+  ];
+  for (const authorization of sessions) {
+    const state = fake({ session: { id: USER } });
+    const { response, logs } = await sync(state, authorization);
+    assert.equal(response.status, 401, String(authorization));
+    assert.deepEqual(logs, [{ outcome: "unauthorized" }]);
+    assert.equal(reads(state).length, 0);
+    assert.equal(applies(state).length, 0);
+  }
+  const anonymous = fake({ session: { id: USER, is_anonymous: true } });
+  assert.equal((await sync(anonymous)).response.status, 401);
+  assert.equal(applies(anonymous).length, 0);
+});
+
+Deno.test("the sync route is limited per user, answering 429 with Retry-After before any read", async () => {
+  const state = fake({ session: { id: USER }, allowed: false });
+  const { response, logs } = await sync(state);
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get("Retry-After"), "600");
+  assert.deepEqual(logs, [{ outcome: "rate_limited" }]);
+  assert.equal(reads(state).length, 0);
+  assert.equal(applies(state).length, 0);
+  const begun = state.calls.find((c) => c.url.endsWith("/store_sync_begin"));
+  assert.deepEqual(begun?.body, { user_id: USER });
+});
+
+Deno.test("the sync route answers 502 on a RevenueCat failure and 503 while the API key is unset", async () => {
+  const down = fake({ session: { id: USER }, revenuecat: 500 });
+  assert.equal((await sync(down)).response.status, 502);
+  assert.equal(applies(down).length, 0);
+  const unset = fake({
+    session: { id: USER },
+    secrets: { webhook_authorization: null, api_key: null },
+  });
+  assert.equal((await sync(unset)).response.status, 503);
+  assert.equal(applies(unset).length, 0);
+});
+
+Deno.test("control: the webhook route is unchanged, taking the Vault value and no session", async () => {
+  const state = fake({ session: { id: OTHER } });
+  const { response } = await call(state);
+  assert.equal(response.status, 200);
+  assert.equal(
+    state.calls.some((c) => c.url.endsWith("/auth/v1/user")),
+    false,
+  );
+  assert.equal(
+    state.calls.some((c) => c.url.endsWith("/store_sync_begin")),
+    false,
+  );
+  assert.deepEqual(reads(state).map((c) => c.url.split("/").pop()), [USER]);
+  const refused = await call(fake({ session: { id: USER } }), event(), {
+    authorization: "Bearer session-token",
+  });
+  assert.equal(refused.response.status, 401, "a session is no webhook value");
 });

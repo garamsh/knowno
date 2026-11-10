@@ -6,11 +6,15 @@
  * answers 200.
  */
 
-import { type SupabaseDeps, SupabaseError } from "../_shared/auth.ts";
+import {
+  authenticate,
+  type SupabaseDeps,
+  SupabaseError,
+} from "../_shared/auth.ts";
 import { same } from "../_shared/same.ts";
 import type { Config } from "./config.ts";
 import { read, RevenueCatError } from "./revenuecat.ts";
-import { apply, secrets } from "./store.ts";
+import { apply, begin, secrets } from "./store.ts";
 
 /** How a request ended; a refusal's body carries the same code. */
 export type Outcome =
@@ -18,6 +22,7 @@ export type Outcome =
   | "ignored"
   | "no_user"
   | "unauthorized"
+  | "rate_limited"
   | "method_not_allowed"
   | "not_configured"
   | "unavailable"
@@ -41,6 +46,8 @@ export function status(outcome: Outcome): number {
       return 200;
     case "unauthorized":
       return 401;
+    case "rate_limited":
+      return 429;
     case "method_not_allowed":
       return 405;
     case "internal":
@@ -98,7 +105,10 @@ export function createHandler(
     const body = ended.result === undefined
       ? { outcome: ended.outcome }
       : { outcome: ended.outcome, result: ended.result };
-    return Response.json(body, { status: status(ended.outcome) });
+    return Response.json(body, {
+      status: status(ended.outcome),
+      headers: ended.outcome === "rate_limited" ? { "Retry-After": "600" } : {},
+    });
   };
 }
 
@@ -111,7 +121,9 @@ async function handle(request: Request, deps: HandlerDeps): Promise<Result> {
     serviceRoleKey: config.serviceRoleKey,
     fetch: deps.fetch,
   };
+  const sync = new URL(request.url).pathname.endsWith("/sync");
   try {
+    if (sync) return await syncCaller(request, deps, supabase);
     const vault = await secrets(supabase);
     // The same comparison whether or not the value is set, so neither time nor answer tells them apart.
     const matches = await same(
@@ -124,34 +136,64 @@ async function handle(request: Request, deps: HandlerDeps): Promise<Result> {
     const userIds = usersOf(await request.json().catch(() => null));
     if (userIds.length === 0) return { outcome: "ignored" };
     if (vault.apiKey === null) return { outcome: "not_configured" };
-    // Every read first, so one failure answers non-200 before any grant changes and RevenueCat retries.
-    const entitlements = [];
-    for (const userId of userIds) {
-      entitlements.push(
-        await read(userId, vault.apiKey, deps.now(), deps.fetch),
-      );
-    }
-    const results: string[] = [];
-    for (const [i, userId] of userIds.entries()) {
-      const entitlement = entitlements[i];
-      const result = entitlement.plan === null
-        ? await apply(userId, null, null, false, supabase)
-        : await apply(
-          userId,
-          entitlement.plan,
-          entitlement.endsAt,
-          entitlement.renews,
-          supabase,
-        );
-      if (result !== "no_user") results.push(result);
-    }
-    return results.length === 0
-      ? { outcome: "no_user" }
-      : { outcome: "applied", result: results.join(",") };
+    return await converge(userIds, vault.apiKey, deps, supabase);
   } catch (error) {
     if (error instanceof SupabaseError || error instanceof RevenueCatError) {
       return { outcome: "unavailable" };
     }
     throw error;
   }
+}
+
+/**
+ * Reads every user's current entitlements before applying any, so one failed read changes no grant
+ * and answers non-200, then applies each.
+ */
+async function converge(
+  userIds: readonly string[],
+  apiKey: string,
+  deps: HandlerDeps,
+  supabase: SupabaseDeps,
+): Promise<Result> {
+  const entitlements = [];
+  for (const userId of userIds) {
+    entitlements.push(await read(userId, apiKey, deps.now(), deps.fetch));
+  }
+  const results: string[] = [];
+  for (const [i, userId] of userIds.entries()) {
+    const entitlement = entitlements[i];
+    const result = entitlement.plan === null
+      ? await apply(userId, null, null, false, supabase)
+      : await apply(
+        userId,
+        entitlement.plan,
+        entitlement.endsAt,
+        entitlement.renews,
+        supabase,
+      );
+    if (result !== "no_user") results.push(result);
+  }
+  return results.length === 0
+    ? { outcome: "no_user" }
+    : { outcome: "applied", result: results.join(",") };
+}
+
+/**
+ * The sync route: the signed-in caller's own entitlements, read and applied as a webhook for them
+ * would. The session is verified here, the body is never read, and no id but the caller's is used.
+ */
+async function syncCaller(
+  request: Request,
+  deps: HandlerDeps,
+  supabase: SupabaseDeps,
+): Promise<Result> {
+  const userId = await authenticate(
+    request.headers.get("Authorization"),
+    supabase,
+  );
+  if (userId === null) return { outcome: "unauthorized" };
+  if (!await begin(userId, supabase)) return { outcome: "rate_limited" };
+  const vault = await secrets(supabase);
+  if (vault.apiKey === null) return { outcome: "not_configured" };
+  return await converge([userId], vault.apiKey, deps, supabase);
 }

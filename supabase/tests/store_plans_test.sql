@@ -4,7 +4,7 @@
 -- answers the plan, its source and the period's photos; and the two RevenueCat secrets are set and
 -- cleared by an admin who signed in recently, never read back, never recorded.
 begin;
-select plan(66);
+select plan(72);
 
 delete from private.admin_audit;
 
@@ -312,6 +312,28 @@ select results_eq($$select * from pg_temp.secrets()$$,
   $$values ('Bearer webhook-value-1', null::text)$$, 'read back as unset, the other kept');
 select is((select count(*) from vault.secrets where name = 'knowno_store_api_key'), 0::bigint,
   'and gone from Vault');
+
+-- The sync route's limit: 10 calls in 10 minutes by one user.
+
+select is((select count(*) filter (where public.store_sync_begin('00000000-0000-4000-8000-00000000000b'))
+    from generate_series(1, 10)), 10::bigint, 'a user may call the sync route 10 times');
+select is(public.store_sync_begin('00000000-0000-4000-8000-00000000000b'), false, 'and not an 11th');
+select is(public.store_sync_begin('00000000-0000-4000-8000-00000000000c'), true,
+  'another user is not limited by it');
+update private.store_sync_attempts set at = now() - interval '11 minutes'
+  where user_id = '00000000-0000-4000-8000-00000000000b';
+select is(public.store_sync_begin('00000000-0000-4000-8000-00000000000b'), true,
+  'calls older than 10 minutes are not counted');
+update private.store_sync_attempts set at = now() - interval '2 days'
+  where user_id = '00000000-0000-4000-8000-00000000000c';
+select public.store_sync_begin('00000000-0000-4000-8000-00000000000c');
+select is((select count(*) from private.store_sync_attempts
+    where user_id = '00000000-0000-4000-8000-00000000000c' and at < now() - interval '1 day'),
+  0::bigint, 'a call a day old is deleted');
+select pg_temp.sign_in('b');
+select throws_ok($$select public.store_sync_begin('00000000-0000-4000-8000-00000000000b')$$,
+  '42501', null, 'a user cannot reset or spend its own limit');
+reset role;
 
 select * from finish();
 rollback;

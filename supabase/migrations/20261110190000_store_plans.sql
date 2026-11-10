@@ -4,7 +4,8 @@
 -- one. `private.entitlement_of` takes the better of the two live grants; `public.my_plan` is the
 -- one read behind 내 플랜; `public.apply_store_entitlement` is what the `store-webhook` Edge
 -- Function calls with the entitlement it read from RevenueCat; the admin functions set and clear
--- the two Vault secrets the function needs, which are never read back.
+-- the two Vault secrets the function needs, which are never read back; `public.store_sync_begin`
+-- limits the function's sync route, which a signed-in user calls, to 10 calls in 10 minutes.
 --
 -- Changes no row and no plan version or limit, and stores no secret: additive. The owner enters
 -- the two secrets in admin.
@@ -378,6 +379,34 @@ $$;
 revoke all on function public.my_plan() from public, anon;
 grant execute on function public.my_plan() to authenticated;
 
+-- Each call of the sync route by a user, so it is limited per user. A row is deleted a day after it.
+create table private.store_sync_attempts (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users on delete cascade,
+  at timestamptz not null default now()
+);
+create index store_sync_attempts_user_id_at on private.store_sync_attempts (user_id, at);
+alter table private.store_sync_attempts enable row level security;
+revoke all on table private.store_sync_attempts from public, anon, authenticated, service_role;
+
+-- Records a call by [user_id] and answers whether it may go on: no, beyond 10 calls (this one
+-- included) by the user in the last 10 minutes. Only service_role executes it.
+create function public.store_sync_begin(user_id uuid) returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  delete from private.store_sync_attempts as a where a.at < now() - interval '1 day';
+  insert into private.store_sync_attempts (user_id) values (store_sync_begin.user_id);
+  return (select count(*) from private.store_sync_attempts as a
+    where a.user_id = store_sync_begin.user_id and a.at > now() - interval '10 minutes') <= 10;
+end;
+$$;
+
+revoke all on function public.store_sync_begin(uuid) from public, anon, authenticated;
+grant execute on function public.store_sync_begin(uuid) to service_role;
+
 -- The revert in the header.
 create function private.revert_store_plans() returns void
 language plpgsql
@@ -386,6 +415,8 @@ set search_path = ''
 as $revert$
 begin
   drop function public.my_plan();
+  drop function public.store_sync_begin(uuid);
+  drop table private.store_sync_attempts;
   drop function public.admin_set_store_secret(text, text);
   drop function public.admin_clear_store_secret(text);
   drop function public.admin_store_secrets();

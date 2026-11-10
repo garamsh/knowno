@@ -202,6 +202,10 @@ values ('knowno_store_webhook_authorization',
   vault.create_secret('seed-not-a-real-webhook-value', 'knowno_store_webhook_authorization'),
   '5eed0000-0000-4000-8000-0000000000a3');
 
+-- One sync-route call of the Free learner.
+insert into private.store_sync_attempts (user_id)
+values ('5eed0000-0000-4000-8000-0000000000a1');
+
 -- Two assistant messages of the Free user: one recorded with what it used, one never finished.
 insert into private.assistant_messages (user_id, plan, configuration_id, created_at, outcome,
   model_calls, input_tokens, output_tokens, reasoning_tokens, web_search_requests, latency_ms)

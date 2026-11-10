@@ -91,3 +91,18 @@ export async function apply(
   }
   throw new SupabaseError("apply_store_entitlement answered another outcome");
 }
+
+/**
+ * Records a call of the sync route by [userId] and answers whether it may go on, 10 calls in 10
+ * minutes. Throws [SupabaseError] when the database cannot be reached or answers another shape.
+ */
+export async function begin(
+  userId: string,
+  deps: SupabaseDeps,
+): Promise<boolean> {
+  const answer = await rpc("store_sync_begin", { user_id: userId }, deps);
+  if (typeof answer !== "boolean") {
+    throw new SupabaseError("store_sync_begin answered another shape");
+  }
+  return answer;
+}
