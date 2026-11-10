@@ -60,10 +60,13 @@ final class SupabasePlanServer implements PlanServer {
         (used != null && used is! int)) {
       return null;
     }
-    final renewsOn = endsAt == null
+    // `ends_at` is a renewal only while `renews`; otherwise it is an end.
+    final renewsOn = endsAt == null || row['renews'] != true
         ? null
         : DateTime.tryParse(endsAt as String);
-    if (endsAt != null && renewsOn == null) return null;
+    if (endsAt != null && DateTime.tryParse(endsAt as String) == null) {
+      return null;
+    }
     return PlanStanding(
       plan: plan,
       source: source,

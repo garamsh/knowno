@@ -8,13 +8,14 @@ Map<String, Object?> _row({
   Object? plan = 'free',
   Object? source = 'none',
   Object? endsAt,
+  Object? renews,
   Object? limit = 5,
   Object? used = 2,
 }) => {
   'plan': plan,
   'source': source,
   'ends_at': endsAt,
-  'renews': null,
+  'renews': renews,
   'photo_limit': limit,
   'period': 'month',
   'used': used,
@@ -42,7 +43,12 @@ void main() {
     'the server plan pro is 플러스 and max is 프로, a store grant with its renewal',
     () async {
       final plus = await read([
-        _row(plan: 'pro', source: 'store', endsAt: '2026-12-10T00:00:00+00:00'),
+        _row(
+          plan: 'pro',
+          source: 'store',
+          endsAt: '2026-12-10T00:00:00+00:00',
+          renews: true,
+        ),
       ]);
       final pro = await read([_row(plan: 'max', source: 'store')]);
 
@@ -53,6 +59,20 @@ void main() {
       expect(pro.plan, Plan.pro);
     },
   );
+
+  test('a store grant that does not renew shows no renewal date', () async {
+    final ended = await read([
+      _row(
+        plan: 'pro',
+        source: 'store',
+        endsAt: '2026-12-10T00:00:00+00:00',
+        renews: false,
+      ),
+    ]);
+
+    expect(ended.fromStore, isTrue);
+    expect(ended.renewsOn, isNull);
+  });
 
   test(
     'an admin and a 무제한 holder are read as never to be offered a purchase',
