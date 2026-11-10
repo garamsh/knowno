@@ -227,6 +227,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                 contentPadding: EdgeInsets.zero,
                 title: Text(switch (option) {
                   ReportReason.inappropriate => l10n.reportInappropriate,
+                  ReportReason.sexual => l10n.reportSexual,
                   ReportReason.spam => l10n.reportSpam,
                   ReportReason.copyright => l10n.reportCopyright,
                   ReportReason.other => l10n.reportOther,

@@ -121,6 +121,10 @@ class SharingService {
   Future<ReportOutcome> report(DeckId deck, ReportReason reason) =>
       server.report(deck, reason);
 
+  Future<AiHidden?> aiHidden(DeckId deck) => server.aiHidden(deck);
+
+  Future<AppealOutcome> appeal(DeckId deck) => server.appeal(deck);
+
   Future<void> block(UserId user) => server.block(user);
 
   Future<DisplayName?> displayName() => server.displayName();

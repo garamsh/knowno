@@ -50,7 +50,45 @@ enum BrowseSort {
 }
 
 /// Why a user reports a public deck.
-enum ReportReason { inappropriate, spam, copyright, other }
+enum ReportReason { inappropriate, sexual, spam, copyright, other }
+
+/// What an AI hid a note as, by the key the server gives.
+enum TriageCategory { spam, ad }
+
+/// Where the owner's appeal of an AI's hiding stands.
+enum AppealState {
+  /// Not appealed; the owner may appeal once.
+  open,
+
+  /// Appealed; a person has not decided.
+  pending,
+
+  /// A person decided to keep the note hidden.
+  upheld,
+}
+
+/// A note an AI hid and has not been restored, as its owner reads it.
+final class AiHidden {
+  const AiHidden({required this.appeal, this.category});
+
+  final AppealState appeal;
+
+  /// What the AI judged the note; null while the server does not say or
+  /// answers a category this app does not know.
+  final TriageCategory? category;
+}
+
+/// What the owner's appeal did.
+enum AppealOutcome {
+  /// The appeal was sent.
+  appealed,
+
+  /// The standing action had been appealed already; nothing changed.
+  already,
+
+  /// No standing AI action hides the note.
+  notHiddenByAi,
+}
 
 /// What a report did.
 enum ReportOutcome {
