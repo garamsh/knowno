@@ -113,6 +113,21 @@ void main() {
     await app.close();
   });
 
+  testWidgets('is placed on a public note only, and not on a private one', (
+    tester,
+  ) async {
+    const hidden = AiHidden(appeal: AppealState.open);
+    final (publicApp, _) = await _open(tester, hidden);
+    expect(shownText(_plain), findsOneWidget);
+    await publicApp.close();
+
+    final (privateApp, server) = await _open(tester, hidden, public: false);
+    expect(shownText(_plain), findsNothing);
+    expect(shownText(_appeal), findsNothing);
+    expect(server.appeals, isEmpty);
+    await privateApp.close();
+  });
+
   testWidgets('shows nothing while no AI action hides the note', (
     tester,
   ) async {
