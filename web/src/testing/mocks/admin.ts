@@ -245,6 +245,8 @@ export class FakeAdmin {
     string,
     { plan: string; endsAt: string | null; grantedBy: string | null }
   >();
+  /** Each user's live store grant (RevenueCat), by user id; `endsAt` is its end, the next renewal while `renews`. */
+  readonly storeGrants = new Map<string, { plan: string; endsAt: string; renews: boolean }>();
   /** The functions called, as `<name> <args as JSON>`. */
   /** The report triage's verdicts on decks of [decks], by deck id, as `private.triage_verdicts` keeps them. */
   readonly triageVerdicts = new Map<
@@ -365,13 +367,26 @@ export class FakeAdmin {
     });
   }
 
-  /** The plan [id] is on now: 스페셜 for an admin whatever it was granted (ADR 0177), a grant not ended, or Free. */
-  private planOf(id: string): string {
+  /** The plan [id] is on now and where it comes from: the better of an admin's live grant and a store grant, 스페셜 for an admin account (ADR 0177). */
+  private entitlementOf(id: string): {
+    plan: string;
+    source: "admin" | "store" | "unlimited" | "none";
+  } {
+    const rank = ["free", "pro", "max", "special"];
     const grant = this.userPlans.get(id);
-    if (this.admins.has(id)) return "special";
-    return grant && (grant.endsAt === null || Date.parse(grant.endsAt) > Date.now())
-      ? grant.plan
-      : "free";
+    const admin =
+      grant && (grant.endsAt === null || Date.parse(grant.endsAt) > Date.now())
+        ? grant.plan
+        : "free";
+    const store = this.storeGrants.get(id)?.plan ?? "free";
+    if (this.admins.has(id)) return { plan: "special", source: "admin" };
+    if (rank.indexOf(store) > rank.indexOf(admin)) return { plan: store, source: "store" };
+    if (admin === "free") return { plan: "free", source: "none" };
+    return { plan: admin, source: admin === "special" ? "unlimited" : "admin" };
+  }
+
+  private planOf(id: string): string {
+    return this.entitlementOf(id).plan;
   }
 
   /** [plan]'s version a user subscribing at [at] takes: the latest started by then. */
@@ -942,7 +957,9 @@ export class FakeAdmin {
         const user = this.users.find((candidate) => candidate.id === args.user_id);
         if (!user) return [];
         const grant = this.userPlans.get(user.id);
-        const terms = this.currentVersion(this.planOf(user.id));
+        const entitlement = this.entitlementOf(user.id);
+        const store = entitlement.source === "store" ? this.storeGrants.get(user.id) : undefined;
+        const terms = this.currentVersion(entitlement.plan);
         const serving = this.aiConfigurations.find(
           (entry) => entry.plan === terms?.plan && entry.label === "active",
         );
@@ -959,6 +976,9 @@ export class FakeAdmin {
             ends_at: grant?.endsAt ?? null,
             granted_at: grant ? "2026-10-19T03:00:00Z" : null,
             granted_by_email: this.users.find((u) => u.id === grant?.grantedBy)?.email ?? null,
+            source: entitlement.source,
+            store_ends_at: store?.endsAt ?? null,
+            store_renews: store?.renews ?? null,
           },
         ];
       }

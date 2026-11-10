@@ -17,6 +17,7 @@ import {
   unpublishDeck,
   unsuspendUser,
 } from "@/features/admin/actions";
+import { readUser } from "@/features/admin";
 import { FakeAdmin } from "@/testing/mocks/admin";
 import { otherUser, supabaseUrl, testUser } from "@/testing/mocks/handlers";
 import { server } from "@/testing/mocks/server";
@@ -1527,6 +1528,118 @@ describe("스페셜", () => {
     const plan = within(screen.getByRole("region", { name: "요금제" }));
     expect(plan.getByText("지금")).toBeInTheDocument();
     expect(plan.queryByText("지정한 곳")).not.toBeInTheDocument();
+  });
+
+  describe("a user's plan source", () => {
+    const day = 86_400_000;
+    const planGroup = () => within(screen.getByRole("region", { name: "요금제" }));
+    const storeEnd = () => new Date(Date.now() + 20 * day).toISOString();
+
+    it("names a store grant that renews, with its renewal day", async () => {
+      const endsAt = storeEnd();
+      admin.storeGrants.set(otherUser.id, { plan: "pro", endsAt, renews: true });
+      await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
+      const plan = planGroup();
+      expect(plan.getByText("지금").nextSibling).toHaveTextContent("플러스");
+      expect(plan.getByText("지정한 곳", { selector: "dt" }).nextSibling).toHaveTextContent(
+        "스토어 구독",
+      );
+      expect(plan.getByText("구독 갱신", { selector: "dt" }).nextSibling).toHaveTextContent(
+        endsAt.slice(0, 10),
+      );
+      // Control: a renewing grant is not shown as ending, and no admin grant row stands.
+      expect(plan.queryByText("구독 끝")).toBeNull();
+      expect(plan.queryByText("플러스 지정")).toBeNull();
+    });
+
+    it("names a store grant that ends, with its last day", async () => {
+      const endsAt = storeEnd();
+      admin.storeGrants.set(otherUser.id, { plan: "max", endsAt, renews: false });
+      await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
+      const plan = planGroup();
+      expect(plan.getByText("지금").nextSibling).toHaveTextContent("프로");
+      expect(plan.getByText("구독 끝", { selector: "dt" }).nextSibling).toHaveTextContent(
+        endsAt.slice(0, 10),
+      );
+      expect(plan.queryByText("구독 갱신")).toBeNull();
+    });
+
+    it("names an admin's grant as 관리자 and shows no store row", async () => {
+      admin.userPlans.set(otherUser.id, { plan: "pro", endsAt: null, grantedBy: testUser.id });
+      await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
+      const plan = planGroup();
+      expect(plan.getByText("지정한 곳", { selector: "dt" }).nextSibling).toHaveTextContent(
+        "관리자",
+      );
+      expect(plan.queryByText("스토어 구독")).toBeNull();
+      expect(plan.queryByText("구독 갱신")).toBeNull();
+      expect(plan.queryByText("구독 끝")).toBeNull();
+    });
+
+    it("names an unlimited grant as 관리자, and the better of an admin and a store grant wins", async () => {
+      admin.userPlans.set(otherUser.id, { plan: "special", endsAt: null, grantedBy: testUser.id });
+      admin.storeGrants.set(otherUser.id, { plan: "pro", endsAt: storeEnd(), renews: true });
+      await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
+      expect(planGroup().getByText("지정한 곳", { selector: "dt" }).nextSibling).toHaveTextContent(
+        "관리자",
+      );
+      expect(planGroup().queryByText("스토어 구독")).toBeNull();
+      cleanup();
+      admin.userPlans.set(otherUser.id, { plan: "pro", endsAt: null, grantedBy: testUser.id });
+      admin.storeGrants.set(otherUser.id, { plan: "max", endsAt: storeEnd(), renews: true });
+      await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
+      expect(planGroup().getByText("지정한 곳", { selector: "dt" }).nextSibling).toHaveTextContent(
+        "스토어 구독",
+      );
+    });
+
+    it("counts a store plan in the plan filter, against a user with no grant", async () => {
+      await render(UsersContent, { searchParams: Promise.resolve({ plan: "pro" }) });
+      expect(screen.queryByRole("table", { name: "사용자 목록" })).toBeNull();
+      cleanup();
+      admin.storeGrants.set(otherUser.id, { plan: "pro", endsAt: storeEnd(), renews: true });
+      await render(UsersContent, { searchParams: Promise.resolve({ plan: "pro" }) });
+      expect(listedEmails()).toEqual([otherUser.email]);
+    });
+
+    it("refuses a malformed source or store date, against the well-formed row", async () => {
+      const row = {
+        plan: null,
+        version_id: null,
+        quota: null,
+        amount: null,
+        provider: null,
+        model: null,
+        used: null,
+        granted_plan: null,
+        ends_at: null,
+        granted_at: null,
+        granted_by_email: null,
+        source: "none",
+        store_ends_at: null,
+        store_renews: null,
+      };
+      const answer = async (value: Record<string, unknown>) => {
+        server.use(
+          http.post(`${supabaseUrl}/rest/v1/rpc/admin_user_plan`, () =>
+            HttpResponse.json([{ ...row, ...value }]),
+          ),
+        );
+        return await readUser(otherUser.id);
+      };
+      const store = { source: "store", store_ends_at: storeEnd(), store_renews: true };
+      expect(await answer({})).toMatchObject({ data: { plan: { source: "none", store: null } } });
+      expect(await answer(store)).toMatchObject({
+        data: { plan: { source: "store", store: { renews: true } } },
+      });
+      expect(await answer({ source: "gift" })).toEqual({ failure: "unreadable" });
+      expect(await answer({ source: undefined })).toEqual({ failure: "unreadable" });
+      expect(await answer({ ...store, store_ends_at: "soon" })).toEqual({ failure: "unreadable" });
+      expect(await answer({ ...store, store_renews: "yes" })).toEqual({ failure: "unreadable" });
+      expect(await answer({ source: "admin", store_renews: true })).toEqual({
+        failure: "unreadable",
+      });
+    });
   });
 
   it("lists 스페셜 on the plans page with no limit and no form for a new version", async () => {

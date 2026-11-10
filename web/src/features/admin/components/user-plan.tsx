@@ -8,9 +8,12 @@ import type { UserPlan as Plan } from "../read-admin";
 import { Section } from "@/design/section";
 import { type Fact, Facts } from "./admin-section";
 
+const sourceLabels = { admin: "관리자", unlimited: "관리자", store: "스토어 구독" } as const;
+
 /**
- * A user's plan now, the provider serving it with its model under it, the admin's grant behind it
- * (a store grant is not in this read; the log shows it) and the next renewal, ended by [children], the rows that change it (`user-view.tsx`).
+ * A user's plan now, the provider serving it with its model under it, the admin's grant behind it,
+ * where the plan comes from with a store grant's end or renewal, and the next renewal, ended by
+ * [children], the rows that change it (`user-view.tsx`).
  */
 export function UserPlan({
   plan,
@@ -49,15 +52,23 @@ export function UserPlan({
             `${planLabels[grant.plan] ?? grant.plan} 지정`,
             `${formatTime(grant.grantedAt, timeZone)}${grant.grantedByEmail === null ? "" : ` · ${grant.grantedByEmail}`}`,
           ] as const,
-          ["지정한 곳", "관리자"] as const,
-          ...(grant.endsAt === null
-            ? []
-            : [
-                [
-                  grant.ended ? "끝난 날" : "마지막 날",
-                  formatDate(studyDayStart(grant.endsAt - 1, timeZone), timeZone),
-                ] as const,
-              ]),
+        ]),
+    ...(plan.source === "none" ? [] : [["지정한 곳", sourceLabels[plan.source]] as const]),
+    ...(plan.store === null
+      ? []
+      : [
+          [
+            plan.store.renews ? "구독 갱신" : "구독 끝",
+            formatDate(plan.store.endsAt, timeZone),
+          ] as const,
+        ]),
+    ...(grant === null || grant.endsAt === null
+      ? []
+      : [
+          [
+            grant.ended ? "끝난 날" : "마지막 날",
+            formatDate(studyDayStart(grant.endsAt - 1, timeZone), timeZone),
+          ] as const,
         ]),
     ["다음 갱신", renewal],
   ];
