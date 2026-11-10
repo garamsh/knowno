@@ -1,4 +1,5 @@
 import { Section } from "@/design/section";
+import { AiLocked } from "@/features/account";
 
 /**
  * The `mcp` Edge Function on the project's custom domain, which Claude and ChatGPT connect to
@@ -8,9 +9,17 @@ const MCP_SERVER_URL = "https://api.knowno.app/functions/v1/mcp";
 
 /**
  * "AI 연결": the MCP server's address and how to add it in Claude and in ChatGPT (ADR 0126). It
- * needs no server, so it is drawn while the server cannot be reached too.
+ * needs no server, so it is drawn while the server cannot be reached too. On 무료 [locked] replaces
+ * them with why AI 연결 is not available (`mcp.md` §Plan gate).
  */
-export function AiConnection() {
+export function AiConnection({ locked = false }: { locked?: boolean }) {
+  if (locked) {
+    return (
+      <Section label="AI 연결">
+        <AiLocked />
+      </Section>
+    );
+  }
   return (
     <Section label="AI 연결">
       <div className="flex flex-col divide-y divide-hairline rounded-group bg-surface">

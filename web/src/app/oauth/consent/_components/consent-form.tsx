@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 
 import { buttonClass } from "@/design/button";
 import { Section } from "@/design/section";
@@ -12,24 +12,32 @@ const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 /**
  * What an AI app asks of the account, and the user's answer, sent from the browser to Supabase
  * Auth, which returns the address to send the browser back to: "연결" grants, "취소" refuses. While
- * an answer is on its way, neither button can be pressed again.
+ * an answer is on its way, neither button can be pressed again. While [locked], only "취소" is
+ * offered, with why.
  */
 export function ConsentForm({
   authorizationId,
   appName,
   host,
   email,
+  locked,
+  lockedNotice,
 }: {
   authorizationId: string;
   appName: string;
   host: string;
   email: string;
+  /** Whether the plan is 무료, which AI 연결 refuses: "연결" is not offered and cannot be sent. */
+  locked: boolean;
+  /** Why it is locked, drawn by the server, which a client file may not import it from. */
+  lockedNotice: ReactNode;
 }) {
   const [pending, startTransition] = useTransition();
   const [failed, setFailed] = useState(false);
   const loopback = LOOPBACK.has(host.replace(/:\d+$/, ""));
 
   function answer(approve: boolean) {
+    if (approve && locked) return;
     setFailed(false);
     startTransition(async () => {
       const oauth = createClient().auth.oauth;
@@ -70,6 +78,7 @@ export function ConsentForm({
           이 주소는 이 컴퓨터 안의 프로그램이에요. 직접 시작한 프로그램일 때만 연결해 주세요.
         </p>
       )}
+      {locked && lockedNotice}
       {failed && (
         <p role="alert" className="text-body break-keep text-dont-know-text">
           연결하지 못했어요. AI 앱에서 다시 연결해 주세요.
@@ -86,16 +95,18 @@ export function ConsentForm({
         >
           취소
         </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => {
-            answer(true);
-          }}
-          className={buttonClass("primary", "cta")}
-        >
-          연결
-        </button>
+        {!locked && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              answer(true);
+            }}
+            className={buttonClass("primary", "cta")}
+          >
+            연결
+          </button>
+        )}
       </div>
     </>
   );
