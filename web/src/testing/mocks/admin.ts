@@ -161,6 +161,8 @@ export class FakeAdmin {
   }));
   /** The providers whose key Vault holds, with its last four characters; never the key. */
   readonly providerKeys = new Map<string, { lastFour: string; setBy: string }>();
+  /** The RevenueCat secrets Vault holds, by name, with who set each; the value is Vault's alone. */
+  readonly storeSecrets = new Map<string, { value: string; setBy: string }>();
   /** Whether the admin's session is from a sign-in within the last 10 minutes. */
   recentSignIn = true;
   /** The saved prompt versions, oldest first; the seed, prompt v8, is version 1. */
@@ -764,6 +766,41 @@ export class FakeAdmin {
           daily_tokens_before: before,
         });
         return "set";
+      }
+      case "admin_store_secrets":
+        return ["knowno_store_api_key", "knowno_store_webhook_authorization"]
+          .toSorted()
+          .map((name) => {
+            const secret = this.storeSecrets.get(name);
+            return {
+              name,
+              is_set: secret !== undefined,
+              set_at: secret ? "2026-11-10T01:00:00Z" : null,
+              set_by_email: this.users.find((user) => user.id === secret?.setBy)?.email ?? null,
+            };
+          });
+      case "admin_set_store_secret": {
+        const name = String(args.name);
+        const value = String(args.value);
+        if (!this.recentSignIn) return "reauth";
+        if (!["knowno_store_api_key", "knowno_store_webhook_authorization"].includes(name)) {
+          return "bad_name";
+        }
+        const valid =
+          name === "knowno_store_api_key"
+            ? /^\S{8,1000}$/.test(value)
+            : /^[ -~]{16,1000}$/.test(value);
+        if (!valid) return "bad_secret";
+        this.storeSecrets.set(name, { value, setBy: admin });
+        this.record(admin, "set_store_secret", "store_secret", name, {});
+        return "saved";
+      }
+      case "admin_clear_store_secret": {
+        const name = String(args.name);
+        if (!this.recentSignIn) return "reauth";
+        if (!this.storeSecrets.delete(name)) return "none";
+        this.record(admin, "clear_store_secret", "store_secret", name, {});
+        return "cleared";
       }
       case "admin_remove_provider_key": {
         const provider = String(args.provider);

@@ -20,8 +20,8 @@ export const searchDelayMs = 250;
 const planOptions = [
   ["", "요금제 전체"],
   ["free", "무료"],
-  ["pro", "프로"],
-  ["max", "맥스"],
+  ["pro", "플러스"],
+  ["max", "프로"],
   ["special", "스페셜"],
 ] as const;
 

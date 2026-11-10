@@ -22,8 +22,8 @@ export function GrantPlanForm({ userId }: { userId: string }) {
         <label className={formLine}>
           <span className="text-body">바꿀 요금제</span>
           <select name="plan" defaultValue="pro" className={`${field} ${formInput}`}>
-            <option value="pro">프로</option>
-            <option value="max">맥스</option>
+            <option value="pro">플러스</option>
+            <option value="max">프로</option>
             <option value="special">스페셜</option>
           </select>
         </label>
@@ -38,7 +38,7 @@ export function GrantPlanForm({ userId }: { userId: string }) {
             />
           </label>
           <span id={`${userId}-ends`} className="text-caption text-muted">
-            맥스와 스페셜만 정할 수 있고, 비우면 끝없이 이어져요
+            프로와 스페셜만 정할 수 있고, 비우면 끝없이 이어져요
           </span>
         </div>
       </div>

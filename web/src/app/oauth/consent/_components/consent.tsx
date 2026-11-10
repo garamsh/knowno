@@ -2,6 +2,7 @@ import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
 import { ReadFailureMessage, unreachableMessage } from "@/design/read-failure";
+import { AiLocked, mcpLocked, readMyPlan } from "@/features/account";
 import { createClient } from "@/supabase/server";
 
 import { ConsentForm } from "./consent-form";
@@ -21,7 +22,7 @@ function sendable(url: string): boolean {
 /**
  * An AI app's request to connect, read from Supabase Auth with the user's session, which binds it
  * to the user (ADR 0126): the form that answers it, or, for a request the user already allowed,
- * the browser sent straight back to the app.
+ * the browser sent straight back to the app. On 무료 the form cannot grant (`mcp.md` §Plan gate).
  */
 export async function Consent({
   searchParams,
@@ -39,12 +40,15 @@ export async function Consent({
     redirect(data.redirect_url);
   }
   if (!sendable(data.redirect_uri)) return <Failure />;
+  const locked = mcpLocked(await readMyPlan());
   return (
     <ConsentForm
       authorizationId={data.authorization_id}
       appName={data.client.name.trim() || "이 앱"}
       host={new URL(data.redirect_uri).host}
       email={data.user.email}
+      locked={locked}
+      lockedNotice={<AiLocked />}
     />
   );
 }

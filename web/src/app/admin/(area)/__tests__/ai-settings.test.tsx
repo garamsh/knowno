@@ -249,13 +249,15 @@ describe("a plan's draft: its provider, model and prompt saved after a check, tr
 
     const user = userEvent.setup();
     await ai();
-    const panel = within(screen.getByRole("region", { name: "프로 · 초안 (관리자만 테스트 중)" }));
+    const panel = within(
+      screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }),
+    );
     expect(
       panel.getByRole("heading", {
         name: "제공자 OpenRouter → Anthropic · 모델 anthropic/claude-haiku-5.5 → claude-haiku-5-5 · 프롬프트 v1 → v2",
       }),
     ).toBeInTheDocument();
-    const trial = within(panel.getByRole("region", { name: "프로 사진 한 장으로 시험" }));
+    const trial = within(panel.getByRole("region", { name: "플러스 사진 한 장으로 시험" }));
     await user.upload(
       trial.getByLabelText("사진"),
       new File([new Uint8Array([1, 2, 3])], "page.jpg", { type: "image/jpeg" }),
@@ -287,7 +289,7 @@ describe("a plan's draft: its provider, model and prompt saved after a check, tr
     ).toEqual([["active", 2]]);
     await render(AdminsContent, {});
     expect(screen.getByRole("list", { name: "작업 기록" })).toHaveTextContent(
-      /AI 설정 적용 · 프로 · Anthropic · claude-haiku-5-5/,
+      /AI 설정 적용 · 플러스 · Anthropic · claude-haiku-5-5/,
     );
   });
 
@@ -330,7 +332,7 @@ describe("a plan's draft: its provider, model and prompt saved after a check, tr
     });
     const user = userEvent.setup();
     await ai({ plan: "max" });
-    const panel = within(screen.getByRole("region", { name: "맥스 · 초안 (관리자만 테스트 중)" }));
+    const panel = within(screen.getByRole("region", { name: "프로 · 초안 (관리자만 테스트 중)" }));
     await user.click(panel.getByRole("button", { name: "테스트 끝내기" }));
     await user.click(panel.getByRole("button", { name: "끝내기" }));
     expect(
