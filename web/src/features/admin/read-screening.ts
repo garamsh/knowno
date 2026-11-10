@@ -104,16 +104,25 @@ export async function readScreeningQueue(): Promise<AdminRead<ScreeningHold[]>> 
   return { data: list };
 }
 
-/** The string leaves of [value] a finding's offsets can point into. */
-function leaves(value: unknown, into: string[] = []): string[] {
+/** The strings of [value] by their dotted path, as the server's rules write a finding's `field`. */
+function leaves(value: unknown, path = "", into = new Map<string, string>()): Map<string, string> {
   if (typeof value === "string") {
-    if (value !== "") into.push(value);
+    if (value !== "") into.set(path, value);
   } else if (Array.isArray(value)) {
-    for (const item of value as unknown[]) leaves(item, into);
+    (value as unknown[]).forEach((item, index) =>
+      leaves(item, path === "" ? String(index) : `${path}.${String(index)}`, into),
+    );
   } else if (isRecord(value)) {
-    for (const item of Object.values(value)) leaves(item, into);
+    for (const [key, item] of Object.entries(value)) {
+      leaves(item, path === "" ? key : `${path}.${key}`, into);
+    }
   }
   return into;
+}
+
+/** The one string of [strings], or null where there are none or several. */
+function onlyString(strings: Map<string, string>): string | null {
+  return strings.size === 1 ? (strings.values().next().value ?? null) : null;
 }
 
 /** [source] split at [start, end), or null when that span is not inside it. */
@@ -131,8 +140,8 @@ function split(source: string, start: unknown, end: unknown): ScreeningFinding["
 
 /**
  * The findings the screening recorded for held note [id] at [contentHash], each with the passage
- * it flagged. A finding's offsets are in the string it came from, which the server does not name
- * inside a block, so a passage is shown only where its block holds exactly one string.
+ * it flagged. A finding's offsets are in the string its `field` names; one without a `field` is
+ * placed only where its block holds exactly one string.
  */
 export async function readScreeningDetail(
   id: string,
@@ -184,7 +193,8 @@ export async function readScreeningDetail(
         ? (blocks as unknown[])[Number(field(item, "block"))]
         : undefined;
       const strings = leaves(field(block, "payload"));
-      source = strings.length === 1 ? (strings[0] ?? null) : null;
+      const path = field(item, "field");
+      source = typeof path === "string" ? (strings.get(path) ?? null) : onlyString(strings);
     }
     findings.push({
       category,
