@@ -851,7 +851,7 @@ describe("노트's triage reads of a malformed row", () => {
     set_at: "2026-11-10T01:00:00Z",
     set_by_email: null,
   };
-  const cases: [string, string, () => Promise<unknown>, unknown, unknown][] = [
+  const cases: [string, string, () => Promise<unknown>, object, object][] = [
     ["the queue", "admin_triage_queue", readTriageQueue, note, { ...note, confidence: 5 }],
     [
       "the actions",
