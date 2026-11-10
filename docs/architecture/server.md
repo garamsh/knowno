@@ -170,6 +170,43 @@ The Supabase schema the app syncs to, and the extraction count, the plans and th
   - Migration `20261102170843_unlimited.sql` had made unlimited use a 무제한 grant beside the plan, in `private.unlimited_grants` with three admin functions; `20261103143442_special_plan.sql` moved those grants onto 스페셜 and dropped them (§Special plan migration).
 - Migration `20261019180000_plans.sql` created `private.plans`, with a model and a `daily_limit` per plan set in place by `admin_set_plan`, and the grants; `20261026005136_plan_versions.sql` replaced them (§Plan versions migration).
 
+### Store plans
+
+- **What** ([ADR 0241](adr/0241-set-a-paid-plan-from-revenuecat-s-current-entitlements-keep-store-grants-beside-admin-grants-and-refuse-mcp-to-free.md), [`payments.md`](payments.md)). A purchase through RevenueCat gives the user a store grant on plan `pro`, shown as 플러스; the plan versions and limits are ADR 0097's, unchanged. The RevenueCat app user id is the Supabase user id; the client never decides a plan.
+- **Store grants** are `private.store_grants`, one row per user: the plan, `pro` or `max` (only `pro` is written, for the entitlement `plus`; `max` is reserved for the entitlement `pro`), an end that is null for an entitlement with none, whether it `renews`, when it began, and its plan version as `private.user_plans` holds it. No client role holds a privilege on it.
+  - A store grant sits beside `private.user_plans`, which holds admin grants alone, so no store event reads or writes an admin's grant or a 무제한 (스페셜) one, and an admin's write never reaches a store grant.
+  - `private.entitlement_of` takes the better of the user's live admin grant and live store grant (`special`, `max`, `pro`; the admin's on a tie), then resolves versions and renewal as before (§Plans); an admin is on 스페셜 whatever either holds. So a 스페셜 or Max grant that ends leaves a paying user on Pro, not Free (the constraint ADR 0177 set for #599).
+- **Applying an entitlement.** `public.apply_store_entitlement(user_id, plan, ends_at, renews)`, executable only by `service_role`, sets the user's store grant from what the function read, a null `plan` meaning no active entitlement, and answers one of:
+  - `granted`, a new grant on the plan's version in effect now;
+  - `changed`, an existing grant with another plan, end or `renews`, its start and version kept;
+  - `ended`, the grant deleted, also for an end not in the future;
+  - `unchanged`, a replay, or no entitlement and no grant, recording nothing;
+  - `no_user`, an id that is no user, recording nothing.
+  A change records `store_grant_plan`, `store_change_plan` or `store_end_plan` on a `user` with the email, plan, end and `renews`, as an audit row with no admin id and `admin_email` `revenuecat`.
+- **Secrets.** `private.store_secrets` names two Vault secrets, `knowno_store_webhook_authorization`, the value RevenueCat sends in its `Authorization` header, and `knowno_store_api_key`, a RevenueCat secret API key, with who set each and when. `public.store_secrets()`, `service_role` only, returns both decrypted, null while unset.
+  - `admin_set_store_secret(name, value)` creates or replaces one and `admin_clear_store_secret(name)` removes one, each checking the role and a sign-in within 10 minutes (`reauth` otherwise), recorded as `set_store_secret` and `clear_store_secret` on a `store_secret` named by `name`, with no value; a webhook value is 16 to 1,000 printable ASCII characters and an API key 8 to 1,000 without whitespace, else `bad_secret`. `admin_store_secrets()` lists each name with whether it is set, when and by whom, never a value or any part of one.
+- **`public.my_plan()`**, executable by `authenticated`, is the one read behind 내 플랜. It answers one row for the caller:
+
+  | Column | Value |
+  |---|---|
+  | `plan` | `free`, `pro` or `max`: the plan the caller is on, 스페셜 as `max`, so no read names 스페셜 (ADR 0177). `pro` is shown 플러스 and `max` 프로 |
+  | `source` | `none` on Free with no grant, `store` for a store grant, `admin` for an admin account or an admin's grant of Pro or Max, `unlimited` for a 스페셜 grant |
+  | `ends_at` | a store grant's end, the next renewal while `renews`; null for any other source |
+  | `renews` | whether a store grant renews at `ends_at`; null for any other source |
+  | `photo_limit` | the period's photos, null where none applies, as `extraction_allowance()` answers it |
+  | `period` | `day` or `month` |
+  | `used` | the photos counted in the period |
+
+  A caller on `admin` or `unlimited` is never locked or offered a purchase; a caller on `free` is locked from MCP and offered 플러스.
+- **The function.** `store-webhook`, `verify_jwt = false` since RevenueCat sends no Supabase JWT, takes RevenueCat's `POST` and answers:
+  - `401` `unauthorized` when `Authorization` differs from the Vault value, compared as SHA-256 digests byte by byte, and when the value is unset;
+  - `200` `ignored` for a body that is not an event, an event with no app user id that is a UUID, and `TEST`; `200` `no_user` for an id that is no user;
+  - otherwise the event is only a trigger: the function reads `GET /v1/subscribers/{app_user_id}` with the API key from Vault, takes the entitlement `plus` as active when it exists and its end, the later of `expires_date` and `grace_period_expires_date`, is null or in the future, and calls `apply_store_entitlement`; `200` `applied` with the outcome. Sandbox events are read like any other (#599);
+  - `502` `unavailable` when RevenueCat or the database cannot be reached or answers another shape, and `503` `not_configured` while the API key is unset, so RevenueCat retries (five times over about 80 minutes).
+  - A replayed, duplicated or out-of-order event cannot leave a wrong plan: each reads the current state.
+- Migration `20261110190000_store_plans.sql` creates the tables and functions and replaces `private.entitlement_of` and `admin_grant_plan`'s neighbours not at all; it changes no row, so it is additive (§Location and migrations, "Gate"). **Revert:** `select private.revert_store_plans();` and then `drop function private.revert_store_plans();`, run once by the PM against production, restore `private.entitlement_of`, drop the functions and tables and delete nothing in Vault.
+- **Gate.** The function is a cost-relevant change under §Edge Function deploys: the owner approved it on 2026-11-10 (#599). It reads no function secret; the owner enters the two secrets in Vault through admin ([`payments.md`](payments.md)).
+
 ### AI providers
 
 - Each plan, 스페셜 included, is served by an AI configuration, a provider, `openrouter`, `openai` or `anthropic`, its model and a prompt version (§Prompt store) ([ADR 0182](adr/0182-make-each-plan-s-ai-configuration-its-provider-model-and-prompt-version-with-one-draft-tried-and-applied-as-a-unit-in-one-admin-ai-section.md), [ADR 0162](adr/0162-choose-each-plan-s-ai-provider-in-admin-keep-provider-keys-in-vault-and-apply-a-configuration-only-after-a-check-call-and-an-admin-s-trial.md), [`ai-extraction.md`](ai-extraction.md) §Switching the model).
