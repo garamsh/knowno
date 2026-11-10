@@ -233,8 +233,10 @@ export async function screenDeck(
   return typeof applied === "string" ? applied : "unknown";
 }
 
-/** The photos' largest size sent to a model. */
+/** The photos' largest size sent to a model; a larger one is left out, as one past the cap is. */
 const MAX_PHOTO_BYTES = 5_000_000;
+/** How long one photo's read from Storage may take. */
+export const PHOTO_TIMEOUT_MS = 10_000;
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 /** The AI layer's verdict on a claimed note; one the layer could not decide holds the note. */
@@ -259,8 +261,8 @@ async function askAi(
   for (const item of payload.items) {
     if (item.kind !== "photo") continue;
     const url = await photoUrl(service, deps, String(claim.owner), item.media);
-    if (url === null) return unavailableDecision("failed");
-    images.set(item.n, url);
+    if (url === null) return unavailableDecision("failed", "photo");
+    if (url !== "unsendable") images.set(item.n, url);
   }
   return await judgeNote({
     state,
@@ -281,7 +283,10 @@ async function askAi(
   });
 }
 
-/** A card's photo as a data URL read from the `media` bucket, or null when it cannot be. */
+/**
+ * A card's photo as a data URL read from the `media` bucket; `unsendable` for one no model is
+ * sent (too large, or not JPEG, PNG or WebP); null when the bucket did not answer.
+ */
 async function photoUrl(
   service: Keys,
   deps: Deps,
@@ -296,6 +301,7 @@ async function photoUrl(
         apikey: service.key,
         Authorization: `Bearer ${service.bearer}`,
       },
+      signal: AbortSignal.timeout(PHOTO_TIMEOUT_MS),
     },
   ).catch(() => null);
   if (response === null || !response.ok) {
@@ -303,9 +309,11 @@ async function photoUrl(
     return null;
   }
   const type = response.headers.get("Content-Type")?.split(";")[0] ?? "";
-  const bytes = new Uint8Array(await response.arrayBuffer());
+  const body = await response.arrayBuffer().catch(() => null);
+  if (body === null) return null;
+  const bytes = new Uint8Array(body);
   if (!PHOTO_TYPES.includes(type) || bytes.length > MAX_PHOTO_BYTES) {
-    return null;
+    return "unsendable";
   }
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000) {

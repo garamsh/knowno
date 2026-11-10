@@ -34,6 +34,8 @@ type Fake = {
   /** Each call the fake provider got: the model and the user content it was sent. */
   provider: { model: string; content: unknown[]; auth: string | null }[];
   spends: Record<string, unknown>[];
+  /** What the bucket answers for a media id: its type and size, absent for a miss. */
+  photos: Record<string, { type: string; bytes: number }>;
 };
 
 type ProviderReply =
@@ -96,6 +98,7 @@ function setup(over: Partial<Fake> = {}) {
     replies: [{ verdict: "clean", confidence: 0.95, cost: 0.001 }],
     provider: [],
     spends: [],
+    photos: {},
     ...over,
   };
   const logs: Record<string, unknown>[] = [];
@@ -142,6 +145,16 @@ function setup(over: Partial<Fake> = {}) {
             : { cost: reply.cost }),
         },
       }));
+    }
+    if (url.pathname.startsWith("/storage/v1/object/media/")) {
+      const photo = fake.photos[url.pathname.split("/").pop() ?? ""];
+      return Promise.resolve(
+        photo === undefined
+          ? new Response(null, { status: 404 })
+          : new Response(new Uint8Array(photo.bytes), {
+            headers: { "Content-Type": photo.type },
+          }),
+      );
     }
     const headers = new Headers(init?.headers);
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
@@ -589,4 +602,67 @@ Deno.test("a flagged card too large to send holds the note instead of judging th
   const control = setup({ claim: claimOf("도박사이트", [], ["도박사이트"]) });
   await control.handler(post("", "user-token"));
   assert.equal(aiOf(control.fake)?.outcome, "clean", "a card that fits is judged");
+});
+
+const MEDIA = "55555555-5555-4555-8555-555555555555";
+const withPhoto = () => ({
+  ...claimOf("apple"),
+  cards: [{
+    hash: "c1",
+    front: [{
+      type: "image",
+      v: 1,
+      id: "i1",
+      payload: { media: MEDIA, width: 1, height: 1, boxes: [] },
+    }],
+    back: text("답"),
+  }],
+});
+const imageParts = (fake: Fake) =>
+  (fake.provider[0]?.content ?? []).filter((p) =>
+    (p as { type: string }).type === "image_url"
+  ) as { image_url: { url: string } }[];
+
+Deno.test("a card's photo leaves as an image part read from the bucket", async () => {
+  const { fake, handler } = setup({
+    claim: withPhoto(),
+    photos: { [MEDIA]: { type: "image/png", bytes: 1000 } },
+  });
+  await handler(post("", "user-token"));
+  const images = imageParts(fake);
+  assert.equal(images.length, 1);
+  assert.equal(images[0]?.image_url.url.startsWith("data:image/png;base64,"), true);
+  assert.equal(aiOf(fake)?.outcome, "clean");
+  const items = JSON.parse((fake.provider[0]?.content[0] as { text: string }).text)
+    .items as { kind: string; n: number }[];
+  assert.equal(items.some((i) => i.kind === "photo"), true);
+});
+
+Deno.test("a photo over the size sent is left out and the note is judged on the rest", async () => {
+  const { fake, handler } = setup({
+    claim: withPhoto(),
+    photos: { [MEDIA]: { type: "image/png", bytes: 6_000_000 } },
+  });
+  await handler(post("", "user-token"));
+  assert.deepEqual(models(fake), ["vendor/cheap"], "the note is still judged");
+  assert.equal(imageParts(fake).length, 0, "no oversized photo is sent");
+  assert.equal(aiOf(fake)?.outcome, "clean");
+  const type = setup({
+    claim: withPhoto(),
+    photos: { [MEDIA]: { type: "image/gif", bytes: 1000 } },
+  });
+  await type.handler(post("", "user-token"));
+  assert.equal(imageParts(type.fake).length, 0, "nor one of another type");
+  assert.equal(aiOf(type.fake)?.outcome, "clean");
+});
+
+Deno.test("a photo the bucket does not answer holds the note and the log names the photo", async () => {
+  const { fake, handler, logs } = setup({ claim: withPhoto() });
+  await handler(post("", "user-token"));
+  assert.deepEqual(fake.provider, []);
+  assert.equal(aiOf(fake)?.version, "unavailable");
+  assert.equal(
+    logs.some((l) => l.route === "ai" && l.failure === "photo"),
+    true,
+  );
 });
