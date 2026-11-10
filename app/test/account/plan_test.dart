@@ -414,12 +414,18 @@ void main() {
     (tester) async {
       await pumpScreen(tester, standing: null);
 
-      expect(shownText("Couldn't load your plan"), findsOneWidget);
+      expect(
+        shownText("Couldn't load your plan. Tap to try again."),
+        findsOneWidget,
+      );
       expect(shownText('Learn about Plus'), findsNothing);
       expect(lock(), findsNothing);
 
       plans.standing = _free;
-      await tapAndSettle(tester, shownText('Try again'));
+      await tapAndSettle(
+        tester,
+        shownText("Couldn't load your plan. Tap to try again."),
+      );
       expect(shownText('Free'), findsOneWidget);
       expect(shownText('Learn about Plus'), findsOneWidget);
       expect(lock(), findsNWidgets(3));

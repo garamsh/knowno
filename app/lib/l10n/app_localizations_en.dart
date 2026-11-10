@@ -2431,7 +2431,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t restore purchases. Please try again.';
 
   @override
-  String get planLoadFailed => 'Couldn\'t load your plan';
+  String get planLoadFailed => 'Couldn\'t load your plan. Tap to try again.';
 
   @override
   String get plusSheetTitle => 'Plus';

@@ -57,7 +57,6 @@ class _PlanGroupState extends ConsumerState<PlanGroup> {
       PlanUnknown() => [
         AppListRow(
           title: l10n.planLoadFailed,
-          trailing: Text(l10n.retry),
           onTap: ref.read(planProvider.notifier).refresh,
         ),
       ],

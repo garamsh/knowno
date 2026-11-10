@@ -2194,7 +2194,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get planRestoreFailed => '구매를 복원하지 못했어요. 다시 시도해 주세요.';
 
   @override
-  String get planLoadFailed => '플랜을 불러오지 못했어요';
+  String get planLoadFailed => '플랜을 불러오지 못했어요. 눌러서 다시 시도해요.';
 
   @override
   String get plusSheetTitle => '플러스';

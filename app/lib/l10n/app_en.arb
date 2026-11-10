@@ -607,7 +607,7 @@
   "planRestoring": "Restoring purchases",
   "planRestored": "Purchases restored",
   "planRestoreFailed": "Couldn't restore purchases. Please try again.",
-  "planLoadFailed": "Couldn't load your plan",
+  "planLoadFailed": "Couldn't load your plan. Tap to try again.",
   "plusSheetTitle": "Plus",
   "plusSheetBody": "Make more cards from photos and use AI connections.",
   "plusSheetStart": "Start Plus",

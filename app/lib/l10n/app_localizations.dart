@@ -3750,10 +3750,10 @@ abstract class AppLocalizations {
   /// **'구매를 복원하지 못했어요. 다시 시도해 주세요.'**
   String get planRestoreFailed;
 
-  /// Plan card row when the server's answer could not be had; tapping it retries.
+  /// Plan card row when the server's answer could not be had; the row itself retries when tapped.
   ///
   /// In ko, this message translates to:
-  /// **'플랜을 불러오지 못했어요'**
+  /// **'플랜을 불러오지 못했어요. 눌러서 다시 시도해요.'**
   String get planLoadFailed;
 
   /// Title of the purchase sheet.

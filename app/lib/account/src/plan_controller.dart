@@ -8,18 +8,15 @@ import 'providers.dart';
 import 'purchase_store.dart';
 
 /// The server that answers the account's plan. The composition site
-/// overrides it.
+/// overrides it; unoverridden, the plan is unknown and nothing is offered.
 final planServerProvider = Provider<PlanServer>(
-  (ref) => throw UnimplementedError(
-    'planServerProvider is overridden at the composition site',
-  ),
+  (ref) => const UnavailablePlanServer(),
 );
 
-/// The store the app buys through. The composition site overrides it.
+/// The store the app buys through. The composition site overrides it;
+/// unoverridden, purchases are not ready.
 final purchaseStoreProvider = Provider<PurchaseStore>(
-  (ref) => throw UnimplementedError(
-    'purchaseStoreProvider is overridden at the composition site',
-  ),
+  (ref) => const UnavailablePurchaseStore(),
 );
 
 /// What the app knows of the account's plan.
