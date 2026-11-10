@@ -149,6 +149,8 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
           : null,
       body: switch (cards) {
         AsyncData(:final value) => [
+          if (sharing != null && public)
+            SliverToBoxAdapter(child: AiHiddenNotice(deck: widget.deck.id)),
           // While searching, the matches start under the search field; with
           // no card, the empty line is the screen's content.
           if (_query.trim().isEmpty && !empty)

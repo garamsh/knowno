@@ -25,6 +25,13 @@ abstract interface class SharingServer {
 
   Future<ReportOutcome> report(DeckId deck, ReportReason reason);
 
+  /// What an AI did to the user's own [deck]: [AiHidden] while its action
+  /// hides the note, null when none does.
+  Future<AiHidden?> aiHidden(DeckId deck);
+
+  /// Appeals the AI's hiding of the user's own [deck], once per action.
+  Future<AppealOutcome> appeal(DeckId deck);
+
   /// Leaves [user]'s decks out of the user's listing from now on.
   Future<void> block(UserId user);
 

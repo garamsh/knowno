@@ -11,6 +11,9 @@ export 'src/failure.dart'
         SharingRejected;
 export 'src/model.dart'
     show
+        AiHidden,
+        AppealOutcome,
+        AppealState,
         BrowseSort,
         DisplayName,
         FindingCategory,
@@ -20,7 +23,9 @@ export 'src/model.dart'
         ReportOutcome,
         ReportReason,
         Screening,
-        ScreeningFinding;
+        ScreeningFinding,
+        TriageCategory;
+export 'src/ai_hidden_notice.dart' show AiHiddenNotice;
 export 'src/providers.dart' show onlineProvider, sharingServiceProvider;
 export 'src/reachability.dart' show DeviceReachability, Reachability;
 export 'src/server.dart' show SharingServer;
