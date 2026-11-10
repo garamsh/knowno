@@ -2225,6 +2225,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get planRestored => '구매를 복원했어요';
 
   @override
+  String get planRestoreNone => '복원할 구매가 없어요';
+
+  @override
   String get planRestoreFailed => '구매를 복원하지 못했어요. 다시 시도해 주세요.';
 
   @override
