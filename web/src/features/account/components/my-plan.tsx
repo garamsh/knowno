@@ -25,14 +25,16 @@ export function MyPlan({ plan, timeZone }: { plan: Plan; timeZone: string }) {
   return (
     <Section label="내 플랜">
       <div className="flex flex-col divide-y divide-hairline rounded-group bg-surface">
-        <p className="px-4 py-3 text-body-strong">{names[plan.plan]}</p>
-        <p className="px-4 py-3 text-body">
+        <p className="flex min-h-button items-center px-4 py-3 text-body-strong">
+          {names[plan.plan]}
+        </p>
+        <p className="flex min-h-button items-center px-4 py-3 text-body">
           {plan.photoLimit === null
             ? "제한 없이 쓸 수 있어요"
             : `사진 ${String(plan.used)}/${String(plan.photoLimit)}장 사용`}
         </p>
         {store && plan.endsAt !== null && (
-          <p className="px-4 py-3 text-body">
+          <p className="flex min-h-button items-center px-4 py-3 text-body">
             {plan.renews
               ? `다음 갱신 ${dateOf(plan.endsAt, timeZone)}`
               : `${dateOf(plan.endsAt, timeZone)}까지 쓸 수 있어요`}

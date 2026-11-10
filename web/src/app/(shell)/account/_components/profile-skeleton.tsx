@@ -1,7 +1,7 @@
 import { Skeleton, SkeletonLine } from "@/design/skeleton";
 
 /**
- * The settings page while the session is read: the 내 플랜 group's two rows, the 계정 group with the email and sign-out, the
+ * The settings page while the session is read: the 내 플랜 group's two rows and the line under them, the 계정 group with the email and sign-out, the
  * 학습 group's row, the AI 연결 group's three rows and the 화면 group's three rows, in their sizes.
  */
 export function ProfileSkeleton() {
@@ -17,6 +17,7 @@ export function ProfileSkeleton() {
               </span>
             ))}
           </div>
+          {section === 0 && <SkeletonLine text="text-caption" width="w-2/3" />}
         </div>
       ))}
     </Skeleton>
