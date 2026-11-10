@@ -796,6 +796,7 @@ void main() {
       // 설정, from 홈's profile button.
       await tap(tester, find.byTooltip(ko.accountTitle));
       await shot(tester, '18-account');
+      await tester.scrollUntilVisible(shownText(ko.themeTitle), 200);
       await tap(tester, shownText(ko.themeTitle));
       await shot(tester, '18e-theme-sheet');
       await dismissSheet(tester);
@@ -830,12 +831,26 @@ void main() {
       await tester.pumpAndSettle();
       await shot(tester, '18b-account-footer');
       server.failure = const SyncOffline('no route to host');
+      await tester.scrollUntilVisible(
+        shownText(ko.signOut),
+        -100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(shownText(ko.signOut));
+      await tester.pumpAndSettle();
       await tester.tap(shownText(ko.signOut));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await shot(tester, '19-sign-out-warning');
       await tester.tap(shownText(ko.cancel));
       await tester.pump(const Duration(seconds: 1));
+      await tester.scrollUntilVisible(
+        shownText(ko.deleteAccount),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(shownText(ko.deleteAccount));
+      await tester.pumpAndSettle();
       await tester.tap(shownText(ko.deleteAccount));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));

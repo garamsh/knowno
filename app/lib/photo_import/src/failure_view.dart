@@ -22,6 +22,7 @@ class FailureView extends StatelessWidget {
     required this.onRetake,
     required this.retakeLabel,
     required this.onOpenSettings,
+    this.onLearnPlus,
     this.onAddByHand,
     this.onAddFromSpreadsheet,
   });
@@ -41,6 +42,10 @@ class FailureView extends StatelessWidget {
   /// what failed.
   final VoidCallback? onOpenSettings;
 
+  /// Opens the offer of a higher limit; null unless the limit was reached
+  /// and the app makes one.
+  final VoidCallback? onLearnPlus;
+
   /// Leaves photo import for adding the note's cards by hand; null where
   /// photo import is not what is unavailable.
   final VoidCallback? onAddByHand;
@@ -54,9 +59,11 @@ class FailureView extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final onRetry = this.onRetry;
     final onOpenSettings = this.onOpenSettings;
+    final onLearnPlus = this.onLearnPlus;
     final onAddByHand = this.onAddByHand;
     final onAddFromSpreadsheet = this.onAddFromSpreadsheet;
-    final primaryElsewhere = onRetry != null || onOpenSettings != null;
+    final primaryElsewhere =
+        onRetry != null || onOpenSettings != null || onLearnPlus != null;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -135,6 +142,14 @@ class FailureView extends StatelessWidget {
                       label: l10n.retry,
                       size: AppButtonSize.cta,
                       onPressed: onRetry,
+                    ),
+                  ),
+                if (onLearnPlus != null)
+                  Expanded(
+                    child: AppButton(
+                      label: l10n.planLearnPlus,
+                      size: AppButtonSize.cta,
+                      onPressed: onLearnPlus,
                     ),
                   ),
                 if (onOpenSettings != null)
