@@ -10,7 +10,7 @@
 -- no client reaching the service functions; and the revert. Each rule has a control that a near
 -- miss cannot pass.
 begin;
-select plan(306);
+select plan(311);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'a@example.com'),
@@ -525,9 +525,14 @@ create function pg_temp.queued() returns bigint language sql security definer as
 $$;
 select is(pg_temp.due(), '01,02,03', 'three notes are due');
 select is(pg_temp.sweep(), 0::bigint, 'a due note and no secrets: nothing requested');
-select vault.create_secret('https://example.supabase.co/functions/v1/triage-reports', 'triage_function_url');
+select vault.create_secret('https://example.supabase.co', 'project_url');
 select is(pg_temp.sweep(), 0::bigint, 'a due note and no key: nothing requested');
+delete from vault.secrets where name = 'project_url';
 select vault.create_secret('service-key', 'assistant_service_role_key');
+select vault.create_secret('https://example.supabase.co/functions/v1/triage-reports', 'triage_function_url');
+select is(pg_temp.sweep(), 0::bigint, 'a due note, the key and only the old per-function URL: nothing requested');
+delete from vault.secrets where name = 'triage_function_url';
+select vault.create_secret('https://example.supabase.co', 'project_url');
 select is(pg_temp.sweep(), 1::bigint, 'a due note and both secrets: the worker requested once');
 select results_eq($$select method::text, url, headers ->> 'Authorization', convert_from(body, 'utf8')::jsonb ->> 'severe' from net.http_request_queue$$,
   $$values ('POST', 'https://example.supabase.co/functions/v1/triage-reports/work', 'Bearer service-key', 'false')$$,
@@ -557,6 +562,23 @@ select pg_temp.note('63', 'a');
 select pg_temp.report('63', 'd', 'inappropriate');
 select pg_temp.report('63', 'e', 'inappropriate');
 select is(pg_temp.queued(), 0::bigint, 'two inappropriate reports wait for the batch too: only sexual is severe');
+delete from vault.secrets where name = 'project_url';
+select pg_temp.note('64', 'a');
+select pg_temp.report('64', 'd', 'sexual');
+select pg_temp.report('64', 'e', 'sexual');
+select is(pg_temp.queued(), 0::bigint, 'a severe report, the key and no project_url requests nothing');
+select vault.create_secret('https://example.supabase.co', 'project_url');
+
+-- The project_url revert restores the old secret and the sweeper and trigger that read it.
+select lives_ok($$select private.revert_project_url()$$, 'the project_url revert runs');
+delete from vault.secrets where name = 'project_url';
+select is(pg_temp.sweep(), 1::bigint, 'the restored sweeper requests the worker by triage_function_url alone');
+delete from net.http_request_queue;
+select pg_temp.note('65', 'a');
+select pg_temp.report('65', 'd', 'sexual');
+select pg_temp.report('65', 'e', 'sexual');
+select is(pg_temp.queued(), 1::bigint, 'and the restored trigger does too');
+delete from net.http_request_queue;
 update private.triage_settings set daily_cap_usd = 0;
 select pg_temp.note('62', 'a');
 select pg_temp.report('62', 'd', 'sexual');

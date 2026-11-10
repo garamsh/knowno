@@ -5,7 +5,7 @@
 -- hidden, each audited; the banned-word list and the suspension candidates; the reports' hold;
 -- the sweeper; no client reaching the service functions; and the revert.
 begin;
-select plan(142);
+select plan(145);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'a@example.com'),
@@ -575,9 +575,14 @@ update private.deck_screening set requested_at = now() - interval '1 minute';
 update public.decks set publication = 'checking', visibility = 'public', hidden = true, published_at = now() where id = 'd0000000-0000-4000-8000-000000000003';
 update private.deck_screening set requested_at = now() - interval '1 minute' where deck_id = 'd0000000-0000-4000-8000-000000000003';
 select is(pg_temp.sweep(), 0::bigint, 'a due note and no secrets: nothing requested');
-select vault.create_secret('https://example.supabase.co/functions/v1/publish-note', 'screening_function_url');
+select vault.create_secret('https://example.supabase.co', 'project_url');
 select is(pg_temp.sweep(), 0::bigint, 'a due note and no key: nothing requested');
+delete from vault.secrets where name = 'project_url';
 select vault.create_secret('service-key', 'assistant_service_role_key');
+select vault.create_secret('https://example.supabase.co/functions/v1/publish-note', 'screening_function_url');
+select is(pg_temp.sweep(), 0::bigint, 'a due note, the key and only the old per-function URL: nothing requested');
+delete from vault.secrets where name = 'screening_function_url';
+select vault.create_secret('https://example.supabase.co', 'project_url');
 select is(pg_temp.sweep(), 1::bigint, 'a due note and both secrets: the worker requested once');
 select results_eq($$select method::text, url, headers ->> 'Authorization', headers ->> 'apikey' from net.http_request_queue$$,
   $$values ('POST', 'https://example.supabase.co/functions/v1/publish-note/work', 'Bearer service-key', 'service-key')$$,
@@ -589,6 +594,14 @@ select is((select schedule from cron.job where jobname = 'sweep-deck-screening')
 select pg_temp.sign_in('a');
 select throws_ok($$select private.sweep_deck_screening()$$, '42501', null, 'no client reaches the sweep');
 reset role;
+
+-- The project_url revert restores the old secret and the sweeper that reads it.
+update public.decks set publication = 'checking', visibility = 'public', hidden = true, published_at = now() where id = 'd0000000-0000-4000-8000-000000000003';
+update private.deck_screening set requested_at = now() - interval '1 minute' where deck_id = 'd0000000-0000-4000-8000-000000000003';
+select lives_ok($$select private.revert_project_url()$$, 'the project_url revert runs');
+delete from vault.secrets where name = 'project_url';
+select is(pg_temp.sweep(), 1::bigint, 'the restored sweeper requests the worker by screening_function_url alone');
+update public.decks set publication = 'private', visibility = 'private' where id = 'd0000000-0000-4000-8000-000000000003';
 
 -- The revert.
 select lives_ok($$select private.revert_publish_screening()$$, 'the revert runs');
