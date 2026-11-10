@@ -14,6 +14,7 @@ DeckRow _deck(String id, String visibility) => DeckRow(
   id: id,
   name: id,
   visibility: visibility,
+  publication: visibility,
   publishedAt: visibility == 'public' ? _t0 : null,
   description: visibility == 'public' ? 'about' : null,
   createdAt: _t0,
@@ -60,5 +61,61 @@ void main() {
       expect(row, containsPair('description', 'about'));
       expect(row, containsPair('user_id', 'owner'));
     }
+  });
+
+  test('a pulled deck keeps the publication the server holds, so a held '
+      'deck is not read as public', () async {
+    Map<String, Object?> row(
+      String id,
+      String visibility,
+      String publication,
+    ) => {
+      'id': id,
+      'name': id,
+      'visibility': visibility,
+      'publication': publication,
+      'published_at': visibility == 'public'
+          ? '2026-10-15T09:00:00.000Z'
+          : null,
+      'description': null,
+      'icon': null,
+      'color': null,
+      'image_media_id': null,
+      'created_at': '2026-10-15T09:00:00.000Z',
+      'updated_at': '2026-10-15T09:00:00.000Z',
+      'deleted_at': null,
+      'revision': 1,
+    };
+    final client = SupabaseClient(
+      'https://example.test',
+      'anon-key',
+      httpClient: MockClient(
+        (request) async => http.Response(
+          jsonEncode([
+            row('checked', 'public', 'checking'),
+            row('held', 'public', 'held'),
+            row('refused', 'private', 'refused'),
+            row('open', 'public', 'public'),
+          ]),
+          200,
+          headers: {'content-type': 'application/json'},
+          request: request,
+        ),
+      ),
+    );
+    addTearDown(client.dispose);
+
+    final pulled = await SupabaseSyncServer(client)
+        .pullDecks(const UserId('owner'), 0, 100);
+
+    expect(
+      {for (final deck in pulled) deck.row.id: deck.row.publication},
+      {
+        'checked': 'checking',
+        'held': 'held',
+        'refused': 'refused',
+        'open': 'public',
+      },
+    );
   });
 }

@@ -52,6 +52,12 @@ class FakeSharingServer implements SharingServer {
 
   SharingFailure? failure;
 
+  /// While set, a publish waits for it, as the screening takes seconds.
+  Completer<void>? hold;
+
+  /// What the screening answers to a publish.
+  Screening screening = const Screening(DeckPublication.public);
+
   final blocked = <UserId>{};
   final reports = <(DeckId, ReportReason)>[];
   final imports = <DeckId>[];
@@ -131,7 +137,7 @@ class FakeSharingServer implements SharingServer {
   }
 
   @override
-  Future<void> writeVisibility(
+  Future<Screening> writeVisibility(
     Deck deck,
     DeckVisibility visibility, {
     String? description,
@@ -139,5 +145,13 @@ class FakeSharingServer implements SharingServer {
   }) async {
     _answer();
     writes.add((deck: deck, visibility: visibility, description: description));
+    await hold?.future;
+    return switch (visibility) {
+      PublicDeck() => screening,
+      PrivateDeck() => const Screening(DeckPublication.private),
+      CheckingDeck() ||
+      HeldDeck() ||
+      RefusedDeck() => throw ArgumentError('a state is no request'),
+    };
   }
 }

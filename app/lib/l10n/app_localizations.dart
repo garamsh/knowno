@@ -2137,6 +2137,66 @@ abstract class AppLocalizations {
   /// **'노트를 비공개로 전환했어요'**
   String get unpublished;
 
+  /// Chip beside a note the server is checking before it is public.
+  ///
+  /// In ko, this message translates to:
+  /// **'확인 중'**
+  String get publicationChecking;
+
+  /// Chip beside a note held for an admin.
+  ///
+  /// In ko, this message translates to:
+  /// **'검토 중'**
+  String get publicationHeld;
+
+  /// Chip beside a note the check refused.
+  ///
+  /// In ko, this message translates to:
+  /// **'공개 못 함'**
+  String get publicationRefused;
+
+  /// The one sentence for a note being checked; also the publish sheet's waiting line.
+  ///
+  /// In ko, this message translates to:
+  /// **'노트를 확인하고 있어요'**
+  String get publicationCheckingWhy;
+
+  /// The one sentence of why a held note is not public yet.
+  ///
+  /// In ko, this message translates to:
+  /// **'관리자가 검토한 뒤에 공개돼요'**
+  String get publicationHeldWhy;
+
+  /// The one sentence of why a refused note is private.
+  ///
+  /// In ko, this message translates to:
+  /// **'공개할 수 없는 내용이 있어 고친 뒤에 다시 공개할 수 있어요'**
+  String get publicationRefusedWhy;
+
+  /// Where in a note a finding is, by its stored key.
+  ///
+  /// In ko, this message translates to:
+  /// **'{place, select, name{노트 이름} description{설명} front{앞면} back{뒷면} other{노트}}'**
+  String findingPlace(String place);
+
+  /// Why a passage was found, by the category the server gives.
+  ///
+  /// In ko, this message translates to:
+  /// **'{category, select, resident_number{주민등록번호처럼 보여요} account{계좌번호처럼 보여요} phone{전화번호처럼 보여요} link{링크나 주소가 있어요} kakao_id{메신저 아이디가 있어요} contact{연락을 유도하는 말이 있어요} repeat{같은 홍보 문구가 반복돼요} term{공개할 수 없는 말이 있어요} other{공개할 수 없는 내용이에요}}'**
+  String findingCategory(String category);
+
+  /// A finding without its passage: where it is and why.
+  ///
+  /// In ko, this message translates to:
+  /// **'{place}: {category}'**
+  String findingLine(String category, String place);
+
+  /// A finding with its passage: where it is, the passage and why.
+  ///
+  /// In ko, this message translates to:
+  /// **'{place}: \"{passage}\", {category}'**
+  String findingLinePassage(String category, String passage, String place);
+
   /// 오늘 tab heading while the user has decks but no card in any.
   ///
   /// In ko, this message translates to:

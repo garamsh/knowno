@@ -22,9 +22,20 @@ final class DeckSelection {
       decks.isEmpty ? null : DeckSelection(decks.first, decks.skip(1));
 }
 
-/// Whether other signed-in users can find a deck.
+/// Where a deck stands with the server's screening (ADR 0238), which the
+/// device learns when it publishes and on each pull: one state, so a deck
+/// cannot be public and refused at once. Only [PublicDeck] is shown to
+/// others.
 sealed class DeckVisibility {
   const DeckVisibility();
+
+  /// Whether the owner asked for the deck to be public and the server has
+  /// not turned that down: checking, held or public. Such a deck can be made
+  /// private.
+  bool get requested => switch (this) {
+    PrivateDeck() || RefusedDeck() => false,
+    CheckingDeck() || HeldDeck() || PublicDeck() => true,
+  };
 }
 
 /// Only its owner sees the deck; the default.
@@ -32,11 +43,49 @@ final class PrivateDeck extends DeckVisibility {
   const PrivateDeck();
 }
 
+/// Published at [publishedAt] and being checked by rules; not yet visible.
+final class CheckingDeck extends DeckVisibility {
+  const CheckingDeck(this.publishedAt);
+
+  final DateTime publishedAt;
+}
+
+/// Published at [publishedAt] and waiting for an admin; not visible.
+final class HeldDeck extends DeckVisibility {
+  const HeldDeck(this.publishedAt);
+
+  final DateTime publishedAt;
+}
+
+/// The screening found something that cannot be public; the deck is private
+/// until its owner fixes it and publishes again.
+final class RefusedDeck extends DeckVisibility {
+  const RefusedDeck();
+}
+
 /// Others can find, preview and copy the deck, since [publishedAt].
 final class PublicDeck extends DeckVisibility {
   const PublicDeck(this.publishedAt);
 
   final DateTime publishedAt;
+}
+
+/// The state `publish-note` answers and the server stores for a deck; the
+/// device holds it as a [DeckVisibility].
+enum DeckPublication {
+  private,
+  checking,
+  held,
+  refused,
+  public;
+
+  /// The state stored as [name]; [private] for one this build does not know.
+  static DeckPublication fromName(String name) {
+    for (final state in values) {
+      if (state.name == name) return state;
+    }
+    return private;
+  }
 }
 
 /// The icons a deck's tile can hold, each stored under its [key].

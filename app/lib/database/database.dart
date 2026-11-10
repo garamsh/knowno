@@ -39,6 +39,16 @@ class Decks extends Table {
   /// was made private again.
   DateTimeColumn get publishedAt =>
       dateTime().nullable().map(const StoredTime())();
+
+  /// Where the server's screening has the deck (ADR 0238): a deck the
+  /// device made public is `checking`, `held` or `public` there.
+  TextColumn get publication => text()
+      .withDefault(const Constant('private'))
+      .check(
+        const CustomExpression(
+          "publication IN ('private', 'checking', 'held', 'refused', 'public')",
+        ),
+      )();
   TextColumn get description => text().nullable()();
 
   /// The key of the icon the owner chose for the deck's tile; null, or a key
@@ -226,7 +236,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -436,6 +446,14 @@ class AppDatabase extends _$AppDatabase {
             [framed, card.read<String>('id')],
           );
         }
+      },
+      // A deck's screening state (ADR 0238): a public deck is `public` until
+      // a pull says otherwise, so no row changes shape.
+      from14To15: (m, schema) async {
+        await m.addColumn(schema.decks, schema.decks.publication);
+        await m.database.customStatement(
+          "UPDATE decks SET publication = 'public' WHERE visibility = 'public'",
+        );
       },
     ),
     // SQLite leaves foreign keys off per connection; deck deletion cascades only with them on.

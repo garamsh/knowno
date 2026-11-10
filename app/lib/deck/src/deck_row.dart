@@ -68,8 +68,9 @@ class DeckRow extends StatelessWidget {
                             style: AppType.bodyStrong,
                           ),
                         ),
-                        if (deck.visibility is PublicDeck)
-                          AppChip(label: l10n.publicChip),
+                        if (publicationLabel(l10n, deck.visibility)
+                            case final label?)
+                          AppChip(label: label),
                         ?today,
                       ],
                     ),
@@ -218,3 +219,23 @@ Color deckTileColor(AppColors colors, DeckColor color) => switch (color) {
   DeckColor.slate => colors.deckSlate,
   DeckColor.sand => colors.deckSand,
 };
+
+/// The chip for where the server has a note; null for a private one.
+String? publicationLabel(AppLocalizations l10n, DeckVisibility visibility) =>
+    switch (visibility) {
+      PublicDeck() => l10n.publicChip,
+      CheckingDeck() => l10n.publicationChecking,
+      HeldDeck() => l10n.publicationHeld,
+      RefusedDeck() => l10n.publicationRefused,
+      PrivateDeck() => null,
+    };
+
+/// The one sentence of why a note is not public; null while it is, or
+/// private by its owner's choice.
+String? publicationWhy(AppLocalizations l10n, DeckVisibility visibility) =>
+    switch (visibility) {
+      CheckingDeck() => l10n.publicationCheckingWhy,
+      HeldDeck() => l10n.publicationHeldWhy,
+      RefusedDeck() => l10n.publicationRefusedWhy,
+      PublicDeck() || PrivateDeck() => null,
+    };

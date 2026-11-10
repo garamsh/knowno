@@ -80,6 +80,7 @@ void main() {
             id: const Uuid().v7(),
             name: 'Note',
             visibility: 'private',
+            publication: 'private',
             createdAt: now,
             updatedAt: now,
             dirty: true,

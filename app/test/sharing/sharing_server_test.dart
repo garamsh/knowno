@@ -326,7 +326,8 @@ void main() {
     expect(await listOurs(ada), hasLength(1));
   }, skip: skip);
 
-  test('a note held for an admin is not left public on the device', () async {
+  test('a note held for an admin stays held on the device, through the '
+      'sync that follows', () async {
     final bea = await signUp('bea');
     final ada = await signUp('ada');
     final deck = await bea.device.deck.createDeck('Spanish');
@@ -337,20 +338,21 @@ void main() {
       "values ('${deck.id.value}', 'admin')",
     );
 
-    await expectLater(
-      bea.sharing.makePublic(deck.id, description: 'about'),
-      throwsA(
-        isA<SharingRejected>().having(
-          (failure) => failure.cause.toString(),
-          'cause',
-          contains('held'),
-        ),
-      ),
+    final screening = await bea.sharing.makePublic(
+      deck.id,
+      description: 'about',
     );
 
+    expect(screening.state, DeckPublication.held);
     expect(
       (await bea.device.deck.getDeck(deck.id)).visibility,
-      isA<PrivateDeck>(),
+      isA<HeldDeck>(),
+    );
+    // The push and the pull after it leave the state as the server has it.
+    await bea.sync();
+    expect(
+      (await bea.device.deck.getDeck(deck.id)).visibility,
+      isA<HeldDeck>(),
     );
     // Control: the server did take the request, and still shows nobody the note.
     expect(await listOurs(ada), isEmpty);
