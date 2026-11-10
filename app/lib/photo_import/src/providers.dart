@@ -53,3 +53,10 @@ final photoImportProvider = Provider<PhotoImport?>((ref) => null);
 /// client. The composition site overrides it with the one [photoImportProvider]
 /// starts imports in.
 final photoImportsProvider = Provider<PhotoImports?>((ref) => null);
+
+/// Opens the offer of a plan with a higher limit over a context, or null where
+/// none is to be made: an admin, a 무제한 holder and a plan that has no
+/// higher one are never offered it. The composition site overrides it.
+final photoLimitOfferProvider = Provider<Future<void> Function(BuildContext)?>(
+  (ref) => null,
+);

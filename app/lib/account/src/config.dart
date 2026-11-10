@@ -5,6 +5,11 @@ abstract final class AccountConfigKey {
   static const supabasePublishableKey = 'SUPABASE_PUBLISHABLE_KEY';
   static const googleWebClientId = 'GOOGLE_WEB_CLIENT_ID';
   static const googleIosClientId = 'GOOGLE_IOS_CLIENT_ID';
+
+  /// RevenueCat's public SDK keys, one per store. Either may be empty: the app
+  /// then builds and runs, and says purchases are not ready yet.
+  static const revenueCatAppleKey = 'REVENUECAT_APPLE_API_KEY';
+  static const revenueCatGoogleKey = 'REVENUECAT_GOOGLE_API_KEY';
 }
 
 /// The values the build received through `--dart-define-from-file`; a key
@@ -21,6 +26,12 @@ Map<String, String> accountDefines() => const {
   ),
   AccountConfigKey.googleIosClientId: String.fromEnvironment(
     AccountConfigKey.googleIosClientId,
+  ),
+  AccountConfigKey.revenueCatAppleKey: String.fromEnvironment(
+    AccountConfigKey.revenueCatAppleKey,
+  ),
+  AccountConfigKey.revenueCatGoogleKey: String.fromEnvironment(
+    AccountConfigKey.revenueCatGoogleKey,
   ),
 };
 

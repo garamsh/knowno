@@ -929,7 +929,7 @@ void main() {
     expect(brightness(tester), Brightness.light);
 
     await showSettings(tester);
-    await tester.ensureVisible(shownText('Theme'));
+    await tester.scrollUntilVisible(shownText('Theme'), 200);
     await tester.pumpAndSettle();
     await tester.tap(shownText('Theme'));
     await tester.pumpAndSettle();
@@ -940,6 +940,7 @@ void main() {
     expect(brightness(tester), Brightness.dark);
 
     await showSettings(tester);
+    await tester.scrollUntilVisible(shownText('Theme'), 200);
     await tester.tap(shownText('Theme'));
     await tester.pumpAndSettle();
     await tester.tap(shownText('Light'));

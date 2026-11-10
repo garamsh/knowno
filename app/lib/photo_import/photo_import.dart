@@ -36,6 +36,7 @@ export 'src/photo_import_screen.dart'
     show importFromPhoto, openPhotoImport, photoImportStorageKeys;
 export 'src/photo_imports.dart'
     show PhotoImportBar, PhotoImportFrame, PhotoImports, offerPhotoImportResume;
+export 'src/providers.dart' show photoLimitOfferProvider;
 export 'src/photo_source.dart'
     show DevicePhotoSource, PhotoOrigin, PhotoSource, PickedPhoto;
 export 'src/providers.dart'
