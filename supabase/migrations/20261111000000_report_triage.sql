@@ -4,23 +4,29 @@
 -- verdicts and changes nothing until an admin switches `private.triage_settings.mode` to `acting`.
 --
 -- Adds, in `private`, `triage_settings` (one row), `triage_configurations` (append-only) with
--- `triage_configuration_labels`, `triage_verdicts`, `triage_actions` and `triage_appeals`; the
--- service-role-only `triage_due`, `triage_claim`, `record_triage` and `save_triage_configuration`;
--- the admin functions of the queue, the actions, the undo, the sample, the settings, agreement,
--- appeals and the configuration; the owner's `appeal_ai_hidden_note` and `my_triage_state`; a
--- trigger on `deck_reports` that asks the function to judge a severe report at once; and the
--- sweeper `private.sweep_report_triage()`, run every 5 minutes by the cron job
--- `sweep-report-triage`. Replaces no function and changes no row, so it is additive; the function
--- it ships spends money once an admin activates a configuration, which is the Gate's cost case.
+-- `triage_configuration_labels`, `triage_verdicts`, `triage_spend` (every provider call's cost),
+-- `triage_attempts` (a note's lease and its failures), `triage_actions`, `triage_appeals` and
+-- `report_log` (every report ever made, for the reporter's daily cap and weight); the
+-- service-role-only `triage_due`, `triage_claim`, `triage_release`, `record_triage_spend`,
+-- `record_triage` and `save_triage_configuration`; the admin functions of the queue, the actions,
+-- the undo, the sample, the settings, agreement, appeals and the configuration; the owner's
+-- `appeal_ai_hidden_note` and `my_triage_state`; triggers on `deck_reports` that cap a reporter's
+-- day, keep the log, and ask the function to judge a severe report (reason `sexual`) at once; and
+-- the sweeper `private.sweep_report_triage()`, run every 5 minutes by the cron job
+-- `sweep-report-triage`. It adds the report reason `sexual` to `deck_reports.reason`'s check and
+-- replaces `admin_remove_provider_key` and `admin_provider_keys`, which now count the triage
+-- configuration's providers as in use; no row changes. The function it ships spends money once an
+-- admin activates a configuration, which is the Gate's cost case.
 --
 -- The sweeper and the trigger read two Vault secrets by name and do nothing while either is
 -- missing: `triage_function_url`, `https://<project ref>.supabase.co/functions/v1/triage-reports`,
 -- and the existing `assistant_service_role_key`. The migration stores neither.
 --
 -- Revert, run once against production: `select private.revert_report_triage();`, then
--- `drop function private.revert_report_triage();`. It unschedules the cron job and drops the
--- trigger, functions and tables; a note an AI action hid stays hidden until an admin unhides it,
--- and the Vault secrets stay.
+-- `drop function private.revert_report_triage();`. It unschedules the cron job, drops the
+-- triggers, functions and tables, restores the two replaced functions and the four-reason check
+-- (a `sexual` report becomes `inappropriate`); a note an AI action hid stays hidden until an admin
+-- unhides it, and the Vault secrets stay.
 
 create table private.triage_settings (
   only_row boolean primary key default true check (only_row),
@@ -35,6 +41,11 @@ create table private.triage_settings (
   undo_min_actions integer not null default 5 check (undo_min_actions >= 1),
   paused_at timestamptz,
   paused_reason text,
+  resumed_at timestamptz,
+  reporter_daily_cap integer not null default 20 check (reporter_daily_cap between 1 and 1000),
+  lease_minutes integer not null default 10 check (lease_minutes between 1 and 120),
+  max_failures integer not null default 3 check (max_failures between 1 and 20),
+  retry_minutes integer not null default 15 check (retry_minutes between 1 and 1440),
   updated_by uuid references auth.users on delete set null,
   updated_at timestamptz not null default now()
 );
@@ -142,20 +153,68 @@ create index triage_actions_created_at on private.triage_actions (created_at);
 create index triage_actions_rechecked_by on private.triage_actions (rechecked_by);
 create index triage_actions_undone_by on private.triage_actions (undone_by);
 
--- An owner's one appeal of an AI action, decided by an admin.
+-- An owner's one appeal of each AI action, decided by an admin. `undo_outcome` is what the undo
+-- answered when the admin restored; `restored` is whether the note is restored.
 create table private.triage_appeals (
-  deck_id uuid primary key references public.decks on delete cascade,
-  action_id bigint not null references private.triage_actions on delete cascade,
+  action_id bigint primary key references private.triage_actions on delete cascade,
+  deck_id uuid not null references public.decks on delete cascade,
   owner_id uuid not null references auth.users on delete cascade,
   created_at timestamptz not null default now(),
   resolved_at timestamptz,
   resolved_by uuid references auth.users on delete set null,
-  restored boolean
+  restored boolean,
+  undo_outcome text
 );
 
-create index triage_appeals_action_id on private.triage_appeals (action_id);
+create index triage_appeals_deck_id on private.triage_appeals (deck_id);
 create index triage_appeals_owner_id on private.triage_appeals (owner_id);
 create index triage_appeals_resolved_by on private.triage_appeals (resolved_by);
+
+-- Every provider call's cost, whatever became of the verdict: the daily spend reads this ledger.
+-- `estimated` marks a call charged at its ceiling because the provider reported no usage or the
+-- call may have run without an answer.
+create table private.triage_spend (
+  id bigint generated always as identity primary key,
+  deck_id uuid references public.decks on delete set null,
+  content_hash text not null,
+  tier text not null check (tier in ('cheap', 'strong')),
+  provider text not null,
+  model text not null,
+  tokens_in integer not null check (tokens_in >= 0),
+  tokens_out integer not null check (tokens_out >= 0),
+  cost_usd numeric not null check (cost_usd >= 0),
+  estimated boolean not null,
+  created_at timestamptz not null default now()
+);
+
+create index triage_spend_created_at on private.triage_spend (created_at);
+create index triage_spend_deck_id on private.triage_spend (deck_id);
+
+-- A note in one worker's hands: `claimed_at` is the lease, and a note whose judging failed waits
+-- until `next_attempt_at`, then is left to people after `max_failures`. Bound to one content hash.
+create table private.triage_attempts (
+  deck_id uuid primary key references public.decks on delete cascade,
+  content_hash text not null,
+  claimed_at timestamptz,
+  failures integer not null default 0 check (failures >= 0),
+  next_attempt_at timestamptz
+);
+
+-- Every report ever made, kept after the report is dismissed: a reporter's reports of the day for
+-- the daily cap, and the share of them dismissed for the reporter's weight. No foreign key to the
+-- deck, so a deleted note's reports still count.
+create table private.report_log (
+  id bigint generated always as identity primary key,
+  reporter_id uuid not null references auth.users on delete cascade,
+  deck_id uuid not null,
+  reason text not null,
+  created_at timestamptz not null default now(),
+  dismissed_at timestamptz
+);
+
+create index report_log_reporter_id on private.report_log (reporter_id, created_at);
+insert into private.report_log (reporter_id, deck_id, reason, created_at)
+  select r.reporter_id, r.deck_id, r.reason, r.created_at from public.deck_reports as r;
 
 alter table private.triage_settings enable row level security;
 alter table private.triage_configurations enable row level security;
@@ -163,9 +222,19 @@ alter table private.triage_configuration_labels enable row level security;
 alter table private.triage_verdicts enable row level security;
 alter table private.triage_actions enable row level security;
 alter table private.triage_appeals enable row level security;
+alter table private.triage_spend enable row level security;
+alter table private.triage_attempts enable row level security;
+alter table private.report_log enable row level security;
 revoke all on private.triage_settings, private.triage_configurations,
   private.triage_configuration_labels, private.triage_verdicts, private.triage_actions,
-  private.triage_appeals from public, anon, authenticated, service_role;
+  private.triage_appeals, private.triage_spend, private.triage_attempts, private.report_log
+  from public, anon, authenticated, service_role;
+
+-- The reason `sexual`, with minors, is the severe category judged at once; the report screens
+-- keep sending the four others.
+alter table public.deck_reports drop constraint deck_reports_reason_check;
+alter table public.deck_reports add constraint deck_reports_reason_check
+  check (reason in ('inappropriate', 'sexual', 'spam', 'copyright', 'other'));
 
 -- The start of the current UTC day, which the spend cap and the day's notes count from.
 create function private.triage_day_start() returns timestamptz
@@ -180,8 +249,8 @@ stable
 security definer
 set search_path = ''
 as $$
-  select coalesce(sum(v.cost_usd), 0) from private.triage_verdicts as v
-  where v.created_at >= private.triage_day_start();
+  select coalesce(sum(x.cost_usd), 0) from private.triage_spend as x
+  where x.created_at >= private.triage_day_start();
 $$;
 
 create function private.triage_judged_today() returns bigint
@@ -207,8 +276,34 @@ as $$
   from private.triage_settings as s;
 $$;
 
--- Whether [deck_id] is due: a live public note (shown or held) reported by at least two distinct
--- users, with no verdict for its current content. [severe] also needs an `inappropriate` report.
+-- A reporter's weight: 1, or half once the reporter has made five reports in 90 days and more than
+-- half of them were dismissed.
+create function private.reporter_weight(p_reporter uuid) returns numeric
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case when count(*) >= 5 and count(l.dismissed_at)::numeric / count(*) > 0.5 then 0.5 else 1 end
+  from private.report_log as l
+  where l.reporter_id = p_reporter and l.created_at >= now() - interval '90 days';
+$$;
+
+-- The weight of the reporters of [p_deck]: a note is judged from a weight of 2, which two reporters
+-- of full weight make.
+create function private.note_report_weight(p_deck uuid) returns numeric
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(sum(private.reporter_weight(r.reporter_id)), 0) from public.deck_reports as r
+  where r.deck_id = p_deck;
+$$;
+
+-- Whether [deck_id] is due: a live public note (shown or held) whose reporters weigh 2, with no
+-- verdict for its current content, not waiting out a failed judging and not given up on after
+-- `max_failures`. [severe] also needs a `sexual` report.
 create function private.triage_is_due(p_deck uuid, severe boolean) returns boolean
 language sql
 stable
@@ -220,12 +315,14 @@ as $$
       select from public.decks as d
       where d.id = p_deck and d.deleted_at is null and d.visibility = 'public'
         and d.publication in ('public', 'held')
-        and (select count(distinct r.reporter_id) from public.deck_reports as r
-          where r.deck_id = d.id) >= 2
+        and private.note_report_weight(d.id) >= 2
         and (not triage_is_due.severe or exists (select from public.deck_reports as r
-          where r.deck_id = d.id and r.reason = 'inappropriate'))
+          where r.deck_id = d.id and r.reason = 'sexual'))
         and not exists (select from private.triage_verdicts as v
-          where v.content_hash = private.note_content_hash(d.id)));
+          where v.content_hash = private.note_content_hash(d.id))
+        and not exists (select from private.triage_attempts as a, private.triage_settings as s
+          where a.deck_id = d.id and a.content_hash = private.note_content_hash(d.id)
+            and (a.failures >= s.max_failures or a.next_attempt_at > now())));
 $$;
 
 -- The notes to judge now, the most recently reported first, at most [max_notes], the batch size
@@ -246,14 +343,31 @@ as $$
     (select s.daily_notes from private.triage_settings as s) - private.triage_judged_today()), 0);
 $$;
 
--- Everything the function needs to judge [deck_id], read in one statement so the hash names the
--- cards it holds; null when the note is not due, so a spent day makes no call.
+-- Everything the function needs to judge [deck_id], and a lease on the note for `lease_minutes`
+-- so one worker holds it at a time; null when the note is not due, so a spent day makes no call,
+-- and while another worker's lease stands. The lease ends at `record_triage` or `triage_release`.
 create function public.triage_claim(deck_id uuid) returns jsonb
-language sql
-stable
+language plpgsql
 security definer
 set search_path = ''
 as $$
+begin
+  if not private.triage_is_due(triage_claim.deck_id, false) then
+    return null;
+  end if;
+  insert into private.triage_attempts as t (deck_id, content_hash, claimed_at)
+    values (triage_claim.deck_id, private.note_content_hash(triage_claim.deck_id), now())
+    on conflict on constraint triage_attempts_pkey do update
+      set content_hash = excluded.content_hash, claimed_at = now(),
+        failures = case when t.content_hash = excluded.content_hash then t.failures else 0 end,
+        next_attempt_at = case when t.content_hash = excluded.content_hash then t.next_attempt_at end
+      where t.claimed_at is null
+        or t.claimed_at <= now() - make_interval(mins => (select s.lease_minutes
+          from private.triage_settings as s));
+  if not found then
+    return null;
+  end if;
+  return (
   select jsonb_build_object(
     'hash', private.note_content_hash(d.id),
     'name', d.name,
@@ -277,7 +391,64 @@ as $$
       join private.triage_configurations as c on c.id = l.configuration_id
       where l.label = 'active'))
   from public.decks as d
-  where d.id = triage_claim.deck_id and private.triage_is_due(d.id, false);
+  where d.id = triage_claim.deck_id);
+end;
+$$;
+
+-- Ends the lease on [deck_id]. A [failed] judging counts a failure and sets the note's next attempt
+-- to `retry_minutes` doubled for each earlier failure; the failures so far, null for no lease.
+create function public.triage_release(deck_id uuid, failed boolean) returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  s private.triage_settings;
+  total integer;
+begin
+  select * into s from private.triage_settings;
+  update private.triage_attempts as t set claimed_at = null,
+      failures = t.failures + case when triage_release.failed then 1 else 0 end,
+      next_attempt_at = case when triage_release.failed
+        then now() + make_interval(mins => s.retry_minutes * (2 ^ least(t.failures, 10))::integer)
+        else t.next_attempt_at end
+    where t.deck_id = triage_release.deck_id
+    returning t.failures into total;
+  return total;
+end;
+$$;
+
+-- Records one provider call's cost in the ledger, whatever becomes of the verdict, and answers
+-- whether the day's spend cap is still open.
+create function public.record_triage_spend(
+  deck_id uuid, content_hash text, tier text, provider text, model text, tokens_in integer,
+  tokens_out integer, cost_usd numeric, estimated boolean)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into private.triage_spend (deck_id, content_hash, tier, provider, model, tokens_in,
+      tokens_out, cost_usd, estimated)
+    values (record_triage_spend.deck_id, record_triage_spend.content_hash, record_triage_spend.tier,
+      record_triage_spend.provider, record_triage_spend.model, record_triage_spend.tokens_in,
+      record_triage_spend.tokens_out, record_triage_spend.cost_usd, record_triage_spend.estimated);
+  return private.triage_spent_today() < (select s.daily_cap_usd from private.triage_settings as s);
+end;
+$$;
+
+-- The start of the undo-rate window: `undo_window_hours` back, never before the last resume, so a
+-- resumed automation is judged on what it does after it.
+create function private.triage_window_start() returns timestamptz
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select greatest(now() - make_interval(hours => s.undo_window_hours),
+    coalesce(s.resumed_at, '-infinity'::timestamptz))
+  from private.triage_settings as s;
 $$;
 
 -- Pauses the automation when, over the window, at least `undo_min_actions` actions stand and the
@@ -297,7 +468,7 @@ begin
     return true;
   end if;
   select count(*), count(a.undone_at) into total, undone from private.triage_actions as a
-    where a.created_at >= now() - make_interval(hours => s.undo_window_hours);
+    where a.created_at >= private.triage_window_start();
   if total >= s.undo_min_actions and undone::numeric / total > s.undo_threshold then
     update private.triage_settings as t set paused_at = now(), paused_reason = 'undo_rate';
     insert into private.admin_audit (admin_id, admin_email, action, target_kind, target_id, detail)
@@ -310,10 +481,10 @@ end;
 $$;
 
 -- Acts on the verdict of [content_hash] when the mode allows it, and answers `hidden`,
--- `dismissed` or `paused`, null for no action. Only a note judged spam or an ad is hidden and only
--- a note judged ok has its reports dismissed, each at or above the threshold; copyright, severe,
--- inappropriate, other and unjudged are never acted on, and nothing is ever unpublished,
--- removed or suspended.
+-- `dismissed` or `paused`, null for no action. Only a note judged spam or an ad, and holding no
+-- hold, is hidden; only a note judged ok has its reports dismissed, and never while a `copyright`
+-- or `sexual` report stands; each at or above the threshold. Copyright, severe, inappropriate,
+-- other and unjudged are never acted on, and nothing is ever unpublished, removed or suspended.
 create function private.triage_apply(p_deck uuid, p_hash text) returns text
 language plpgsql
 security definer
@@ -344,10 +515,19 @@ begin
   else
     return null;
   end if;
+  if kind = 'dismiss' and exists (select from public.deck_reports as r
+    where r.deck_id = p_deck and r.reason in ('copyright', 'sexual'))
+  then
+    return null;
+  end if;
   if private.triage_check_pause() then
     return 'paused';
   end if;
   if kind = 'hide' then
+    perform 1 from private.deck_screening as x where x.deck_id = p_deck and x.hold is not null for update;
+    if found then
+      return null;
+    end if;
     update public.decks as d set hidden = true, publication = 'held'
       where d.id = p_deck and d.deleted_at is null and d.visibility = 'public'
         and d.publication = 'public' and not d.hidden;
@@ -356,7 +536,7 @@ begin
       return null;
     end if;
     insert into private.deck_screening as x (deck_id, hold) values (p_deck, 'ai')
-      on conflict on constraint deck_screening_pkey do update set hold = coalesce(x.hold, 'ai');
+      on conflict on constraint deck_screening_pkey do update set hold = 'ai';
     archive := '[]'::jsonb;
   else
     select coalesce(jsonb_agg(jsonb_build_object('reporter_id', r.reporter_id, 'reason', r.reason,
@@ -382,8 +562,9 @@ begin
 end;
 $$;
 
--- Stores the verdict on [content_hash]: `changed` while the note no longer has that hash, `exists`
--- while a verdict stands, otherwise `recorded`, or what the verdict made the database do.
+-- Stores the verdict on [content_hash] and ends the note's lease: `changed` while the note no
+-- longer has that hash, `exists` while a verdict stands, otherwise `recorded`, or what the verdict
+-- made the database do. The verdict's cost is the note's display; the ledger holds the spend.
 create function public.record_triage(
   deck_id uuid, content_hash text, category text, confidence numeric, passage text, field text,
   card_hash text, tier text, provider text, model text, configuration_id bigint, tokens_in integer,
@@ -396,6 +577,8 @@ as $$
 declare
   stored boolean;
 begin
+  delete from private.triage_attempts as t
+    where t.deck_id = record_triage.deck_id and t.content_hash = record_triage.content_hash;
   if private.note_content_hash(record_triage.deck_id) is distinct from record_triage.content_hash then
     return 'changed';
   end if;
@@ -495,8 +678,9 @@ begin
 end;
 $$;
 
--- A severe report, an `inappropriate` one among two reporters, is judged at once, not at the next
--- batch: the trigger asks the worker as it arrives, when the note is due.
+-- A severe report, a `sexual` one among two reporters, is judged at once, not at the next batch:
+-- the trigger asks the worker as it arrives, when the note is due. A Vault or pg_net error never
+-- fails the reporter's insert.
 create function private.triage_severe_report() returns trigger
 language plpgsql
 security definer
@@ -506,15 +690,60 @@ declare
   function_url text;
   service_role_key text;
 begin
-  if not private.triage_is_due(new.deck_id, true) then
+  begin
+    if not private.triage_is_due(new.deck_id, true) then
+      return null;
+    end if;
+    select d.decrypted_secret into function_url from vault.decrypted_secrets as d
+      where d.name = 'triage_function_url';
+    select d.decrypted_secret into service_role_key from vault.decrypted_secrets as d
+      where d.name = 'assistant_service_role_key';
+    if function_url is not null and service_role_key is not null then
+      perform private.request_triage_worker(function_url, service_role_key, true);
+    end if;
+  exception when others then
     return null;
+  end;
+  return null;
+end;
+$$;
+
+-- A reporter's day is capped: `reporter_daily_cap` reports per UTC day, then the insert is refused.
+-- Every report is logged, and a restoring undo (`knowno.restoring_reports`) is neither capped nor
+-- logged again. The lock makes one reporter's concurrent reports count one after another.
+create function private.log_report() returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if coalesce(current_setting('knowno.restoring_reports', true), '') = 'on' then
+    return new;
   end if;
-  select d.decrypted_secret into function_url from vault.decrypted_secrets as d
-    where d.name = 'triage_function_url';
-  select d.decrypted_secret into service_role_key from vault.decrypted_secrets as d
-    where d.name = 'assistant_service_role_key';
-  if function_url is not null and service_role_key is not null then
-    perform private.request_triage_worker(function_url, service_role_key, true);
+  perform pg_advisory_xact_lock(hashtextextended(new.reporter_id::text, 9));
+  if (select count(*) from private.report_log as l
+      where l.reporter_id = new.reporter_id and l.created_at >= private.triage_day_start())
+    >= (select s.reporter_daily_cap from private.triage_settings as s)
+  then
+    raise exception 'the reporter has reached the daily report limit' using errcode = '53400';
+  end if;
+  insert into private.report_log (reporter_id, deck_id, reason) values (new.reporter_id, new.deck_id, new.reason);
+  return new;
+end;
+$$;
+
+-- A report deleted while its note stands is a dismissal, kept in the log for the reporter's weight;
+-- one removed with its note or its reporter is not.
+create function private.log_report_dismissed() returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if exists (select from public.decks as d where d.id = old.deck_id) then
+    update private.report_log as l set dismissed_at = now()
+      where l.id = (select max(x.id) from private.report_log as x
+        where x.reporter_id = old.reporter_id and x.deck_id = old.deck_id and x.dismissed_at is null);
   end if;
   return null;
 end;
@@ -522,20 +751,30 @@ $$;
 
 create trigger triage_severe_report after insert on public.deck_reports
   for each row execute function private.triage_severe_report();
+create trigger deck_reports_log before insert on public.deck_reports
+  for each row execute function private.log_report();
+create trigger deck_reports_dismissed after delete on public.deck_reports
+  for each row execute function private.log_report_dismissed();
 
 revoke all on function private.triage_day_start(), private.triage_spent_today(),
   private.triage_judged_today(), private.triage_open(), private.triage_is_due(uuid, boolean),
+  private.reporter_weight(uuid), private.note_report_weight(uuid), private.triage_window_start(),
   private.triage_check_pause(), private.triage_apply(uuid, text),
   private.keep_triage_configuration(), private.request_triage_worker(text, text, boolean),
-  private.sweep_report_triage(), private.triage_severe_report()
+  private.sweep_report_triage(), private.triage_severe_report(), private.log_report(),
+  private.log_report_dismissed()
   from public, anon, authenticated;
 revoke all on function public.triage_due(integer, boolean), public.triage_claim(uuid),
+  public.triage_release(uuid, boolean),
+  public.record_triage_spend(uuid, text, text, text, text, integer, integer, numeric, boolean),
   public.record_triage(uuid, text, text, numeric, text, text, text, text, text, text, bigint,
     integer, integer, numeric, boolean),
   public.save_triage_configuration(uuid, text, text, text, text, text, numeric, numeric, numeric,
     numeric, numeric, integer, integer)
   from public, anon, authenticated;
 grant execute on function public.triage_due(integer, boolean), public.triage_claim(uuid),
+  public.triage_release(uuid, boolean),
+  public.record_triage_spend(uuid, text, text, text, text, integer, integer, numeric, boolean),
   public.record_triage(uuid, text, text, numeric, text, text, text, text, text, text, bigint,
     integer, integer, numeric, boolean),
   public.save_triage_configuration(uuid, text, text, text, text, text, numeric, numeric, numeric,
@@ -543,7 +782,8 @@ grant execute on function public.triage_due(integer, boolean), public.triage_cla
   to service_role;
 
 -- Reverses an AI action: unhides a note it hid while the `ai` hold stands, or restores the reports
--- it archived. `undone`, `already` or `not_found`. The undo counts toward the undo rate.
+-- it archived. `undone`, `already`, `not_found`, or `superseded` for a hide whose `ai` hold no
+-- longer stands, which changes and records nothing. Only `undone` counts toward the undo rate.
 create function private.triage_undo(p_action bigint, by uuid) returns text
 language plpgsql
 security definer
@@ -564,16 +804,25 @@ begin
     update private.deck_screening as s set hold = null, decided_by = triage_undo.by, decided_at = now()
       where s.deck_id = a.deck_id and s.hold = 'ai';
     held := found;
-    if held then
-      update public.decks as d set hidden = false, publication = 'public'
-        where d.id = a.deck_id and d.hidden and d.publication = 'held' and d.deleted_at is null;
+    if not held then
+      return 'superseded';
     end if;
+    update public.decks as d set hidden = false, publication = 'public'
+      where d.id = a.deck_id and d.hidden and d.publication = 'held' and d.deleted_at is null;
   else
-    insert into public.deck_reports (deck_id, reporter_id, reason, created_at)
-      select a.deck_id, (e ->> 'reporter_id')::uuid, e ->> 'reason', (e ->> 'created_at')::timestamptz
-      from jsonb_array_elements(a.archived) as e
-      where exists (select from auth.users as u where u.id = (e ->> 'reporter_id')::uuid)
-      on conflict do nothing;
+    perform set_config('knowno.restoring_reports', 'on', true);
+    with restored as (
+      insert into public.deck_reports (deck_id, reporter_id, reason, created_at)
+        select a.deck_id, (e ->> 'reporter_id')::uuid, e ->> 'reason', (e ->> 'created_at')::timestamptz
+        from jsonb_array_elements(a.archived) as e
+        where exists (select from auth.users as u where u.id = (e ->> 'reporter_id')::uuid)
+        on conflict do nothing
+        returning reporter_id)
+    update private.report_log as l set dismissed_at = null
+      where l.id in (select max(x.id) from private.report_log as x
+        join restored as r on r.reporter_id = x.reporter_id
+        where x.deck_id = a.deck_id and x.dismissed_at is not null group by x.reporter_id);
+    perform set_config('knowno.restoring_reports', 'off', true);
   end if;
   update private.triage_actions as x set undone_at = now(), undone_by = triage_undo.by
     where x.id = p_action;
@@ -597,13 +846,14 @@ end;
 $$;
 
 -- The notes two or more users reported, with the model's verdict on their current text, severe
--- first and then the latest report.
+-- first and then the latest report. `failures` counts the failed judgings of the current text, which
+-- are left to people from `max_failures`.
 create function public.admin_triage_queue()
 returns table (
   deck_id uuid, name text, owner_id uuid, hidden boolean, publication text, reporters bigint,
   reasons text[], last_reported_at timestamptz, category text, confidence numeric, passage text,
   field text, tier text, model text, cost_usd numeric, judged_at timestamptz, action_id bigint,
-  appealed boolean)
+  appealed boolean, failures integer)
 language plpgsql
 stable
 security definer
@@ -615,7 +865,11 @@ begin
   select d.id, d.name, d.user_id, d.hidden, d.publication, r.reporters, r.reasons, r.last_reported_at,
     v.category, v.confidence, v.passage, v.field, v.tier, v.model, v.cost_usd, v.created_at,
     (select max(a.id) from private.triage_actions as a where a.deck_id = d.id and a.undone_at is null),
-    exists (select from private.triage_appeals as p where p.deck_id = d.id)
+    exists (select from private.triage_appeals as p where p.deck_id = d.id
+      and p.action_id = (select max(a.id) from private.triage_actions as a
+        where a.deck_id = d.id and a.action = 'hide' and a.undone_at is null)),
+    (select t.failures from private.triage_attempts as t
+      where t.deck_id = d.id and t.content_hash = private.note_content_hash(d.id))
   from (
     select x.deck_id, count(distinct x.reporter_id) as reporters,
       array_agg(distinct x.reason order by x.reason) as reasons, max(x.created_at) as last_reported_at
@@ -623,7 +877,7 @@ begin
   ) as r
   join public.decks as d on d.id = r.deck_id and d.deleted_at is null
   left join private.triage_verdicts as v on v.content_hash = private.note_content_hash(d.id)
-  order by ('inappropriate' = any (r.reasons)) desc, r.last_reported_at desc, d.id;
+  order by ('sexual' = any (r.reasons)) desc, r.last_reported_at desc, d.id;
 end;
 $$;
 
@@ -704,7 +958,7 @@ returns table (
   mode text, act_threshold numeric, daily_cap_usd numeric, batch_notes integer, daily_notes integer,
   sample_percent integer, undo_window_hours integer, undo_threshold numeric,
   undo_min_actions integer, paused_at timestamptz, paused_reason text, spent_today_usd numeric,
-  judged_today bigint, actions_in_window bigint, undo_rate numeric)
+  judged_today bigint, actions_in_window bigint, undo_rate numeric, reporter_daily_cap integer)
 language plpgsql
 stable
 security definer
@@ -716,17 +970,18 @@ begin
   select s.mode, s.act_threshold, s.daily_cap_usd, s.batch_notes, s.daily_notes, s.sample_percent,
     s.undo_window_hours, s.undo_threshold, s.undo_min_actions, s.paused_at, s.paused_reason,
     private.triage_spent_today(), private.triage_judged_today(), w.total,
-    case when w.total > 0 then w.undone::numeric / w.total end
+    case when w.total > 0 then w.undone::numeric / w.total end, s.reporter_daily_cap
   from private.triage_settings as s,
     lateral (select count(*) as total, count(a.undone_at) as undone from private.triage_actions as a
-      where a.created_at >= now() - make_interval(hours => s.undo_window_hours)) as w;
+      where a.created_at >= private.triage_window_start()) as w;
 end;
 $$;
 
 -- Changes the settings given, a null leaving one as it is, and records the new values.
 create function public.admin_set_triage_settings(
   mode text default null, act_threshold numeric default null, daily_cap_usd numeric default null,
-  daily_notes integer default null, sample_percent integer default null)
+  daily_notes integer default null, sample_percent integer default null,
+  reporter_daily_cap integer default null)
 returns boolean
 language plpgsql
 security definer
@@ -741,17 +996,20 @@ begin
       daily_cap_usd = coalesce(admin_set_triage_settings.daily_cap_usd, s.daily_cap_usd),
       daily_notes = coalesce(admin_set_triage_settings.daily_notes, s.daily_notes),
       sample_percent = coalesce(admin_set_triage_settings.sample_percent, s.sample_percent),
+      reporter_daily_cap = coalesce(admin_set_triage_settings.reporter_daily_cap, s.reporter_daily_cap),
       updated_by = caller, updated_at = now();
   perform private.audit('set_triage_settings', 'triage', 'settings', jsonb_strip_nulls(jsonb_build_object(
     'mode', admin_set_triage_settings.mode, 'act_threshold', admin_set_triage_settings.act_threshold,
     'daily_cap_usd', admin_set_triage_settings.daily_cap_usd,
     'daily_notes', admin_set_triage_settings.daily_notes,
-    'sample_percent', admin_set_triage_settings.sample_percent)));
+    'sample_percent', admin_set_triage_settings.sample_percent,
+    'reporter_daily_cap', admin_set_triage_settings.reporter_daily_cap)));
   return true;
 end;
 $$;
 
--- Clears the pause the undo rate set; false when it was not paused.
+-- Clears the pause the undo rate set and starts the undo-rate window afresh, so only the actions
+-- after it are counted; false when it was not paused.
 create function public.admin_resume_triage() returns boolean
 language plpgsql
 security definer
@@ -760,7 +1018,7 @@ as $$
 declare
   caller uuid := private.require_admin();
 begin
-  update private.triage_settings as s set paused_at = null, paused_reason = null,
+  update private.triage_settings as s set paused_at = null, paused_reason = null, resumed_at = now(),
       updated_by = caller, updated_at = now()
     where s.paused_at is not null;
   if not found then
@@ -822,10 +1080,13 @@ begin
   join public.decks as d on d.id = p.deck_id
   left join private.triage_verdicts as v on v.content_hash = a.content_hash
   where p.resolved_at is null
-  order by p.created_at, p.deck_id;
+  order by p.created_at, p.action_id;
 end;
 $$;
 
+-- Decides the open appeal on [deck_id]: `upheld`; `restored` when the undo restored the note or it
+-- already was; `not_restored` when the undo answered otherwise, which the appeal records as
+-- `undo_outcome`; `not_found` without an open appeal.
 create function public.admin_resolve_triage_appeal(deck_id uuid, restore boolean) returns text
 language plpgsql
 security definer
@@ -834,21 +1095,26 @@ as $$
 declare
   caller uuid := private.require_admin();
   p private.triage_appeals;
+  outcome text;
+  done boolean := false;
 begin
   select * into p from private.triage_appeals as x
-    where x.deck_id = admin_resolve_triage_appeal.deck_id and x.resolved_at is null for update;
+    where x.deck_id = admin_resolve_triage_appeal.deck_id and x.resolved_at is null
+    order by x.created_at, x.action_id limit 1 for update;
   if not found then
     return 'not_found';
   end if;
   if admin_resolve_triage_appeal.restore then
-    perform private.triage_undo(p.action_id, caller);
+    outcome := private.triage_undo(p.action_id, caller);
+    done := outcome in ('undone', 'already');
   end if;
   update private.triage_appeals as x set resolved_at = now(), resolved_by = caller,
-      restored = admin_resolve_triage_appeal.restore
-    where x.deck_id = p.deck_id;
+      restored = done, undo_outcome = outcome
+    where x.action_id = p.action_id;
   perform private.audit('resolve_triage_appeal', 'deck', p.deck_id::text,
-    jsonb_build_object('restored', admin_resolve_triage_appeal.restore));
-  return case when admin_resolve_triage_appeal.restore then 'restored' else 'upheld' end;
+    jsonb_build_object('restored', done, 'undo_outcome', outcome));
+  return case when done then 'restored' when admin_resolve_triage_appeal.restore then 'not_restored'
+    else 'upheld' end;
 end;
 $$;
 
@@ -933,7 +1199,7 @@ begin
 end;
 $$;
 
--- The owner's one appeal of an AI action that hid the note: `appealed`, `already`, or
+-- The owner's one appeal of each AI action that hid the note: `appealed`, `already`, or
 -- `not_hidden_by_ai` for anyone but the owner and for a note no standing action hid.
 create function public.appeal_ai_hidden_note(deck_id uuid) returns text
 language plpgsql
@@ -952,8 +1218,8 @@ begin
   if standing is null then
     return 'not_hidden_by_ai';
   end if;
-  insert into private.triage_appeals (deck_id, action_id, owner_id)
-    values (appeal_ai_hidden_note.deck_id, standing, caller)
+  insert into private.triage_appeals (action_id, deck_id, owner_id)
+    values (standing, appeal_ai_hidden_note.deck_id, caller)
     on conflict on constraint triage_appeals_pkey do nothing;
   if not found then
     return 'already';
@@ -973,18 +1239,88 @@ as $$
     'hidden_by_ai', exists (select from private.triage_actions as a
       join private.deck_screening as s on s.deck_id = a.deck_id and s.hold = 'ai'
       where a.deck_id = d.id and a.action = 'hide' and a.undone_at is null and d.hidden),
-    'appealed', exists (select from private.triage_appeals as p where p.deck_id = d.id),
+    'appealed', exists (select from private.triage_appeals as p where p.deck_id = d.id
+      and p.action_id = (select max(a.id) from private.triage_actions as a
+        where a.deck_id = d.id and a.action = 'hide' and a.undone_at is null)),
     'resolved', exists (select from private.triage_appeals as p
-      where p.deck_id = d.id and p.resolved_at is not null))
+      where p.deck_id = d.id and p.resolved_at is not null
+        and p.action_id = (select max(a.id) from private.triage_actions as a
+          where a.deck_id = d.id and a.action = 'hide' and a.undone_at is null)))
   from public.decks as d
   where d.id = my_triage_state.deck_id and d.user_id = (select auth.uid());
+$$;
+
+-- Replaced from `20261102183518_ai_providers.sql`: a provider the active triage configuration names
+-- is in use too, so its key cannot be removed from under the function.
+create or replace function public.admin_provider_keys()
+returns table (
+  provider text, last_four text, set_at timestamptz, set_by_email text, in_use boolean
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.require_admin();
+  return query
+  select p.provider, k.last_four, k.set_at, u.email::text,
+    exists (select from private.ai_configuration_labels as l
+      join private.ai_configurations as c on c.id = l.configuration_id
+      where l.label = 'active' and c.provider = p.provider)
+    or exists (select from private.triage_configuration_labels as l
+      join private.triage_configurations as c on c.id = l.configuration_id
+      where l.label = 'active' and p.provider in (c.cheap_provider, c.strong_provider))
+  from (values ('openrouter'), ('openai'), ('anthropic')) as p (provider)
+  left join private.provider_keys as k on k.provider = p.provider
+  left join auth.users as u on u.id = k.set_by
+  order by array_position(array['openrouter', 'openai', 'anthropic'], p.provider);
+end;
+$$;
+
+create or replace function public.admin_remove_provider_key(provider text) returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  removed private.provider_keys;
+begin
+  perform private.require_admin();
+  if not private.signed_in_recently() then
+    return 'reauth';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('private.ai_configuration_labels', 6));
+  if exists (select from private.ai_configuration_labels as l
+    join private.ai_configurations as c on c.id = l.configuration_id
+    where l.label = 'active' and c.provider = admin_remove_provider_key.provider)
+  then
+    return 'in_use';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('private.triage_configuration_labels', 7));
+  if exists (select from private.triage_configuration_labels as l
+    join private.triage_configurations as c on c.id = l.configuration_id
+    where l.label = 'active'
+      and admin_remove_provider_key.provider in (c.cheap_provider, c.strong_provider))
+  then
+    return 'in_use';
+  end if;
+  delete from private.provider_keys as k where k.provider = admin_remove_provider_key.provider
+    returning * into removed;
+  if not found then
+    return 'none';
+  end if;
+  delete from vault.secrets as s where s.id = removed.secret_id;
+  perform private.audit('remove_provider_key', 'provider', removed.provider, '{}'::jsonb);
+  return 'removed';
+end;
 $$;
 
 revoke all on function private.triage_undo(bigint, uuid) from public, anon, authenticated;
 revoke all on function public.admin_undo_triage_action(bigint), public.admin_triage_queue(),
   public.admin_triage_actions(integer), public.admin_triage_sample(),
   public.admin_recheck_triage_action(bigint, boolean), public.admin_triage_settings(),
-  public.admin_set_triage_settings(text, numeric, numeric, integer, integer),
+  public.admin_set_triage_settings(text, numeric, numeric, integer, integer, integer),
   public.admin_resume_triage(), public.admin_triage_agreement(integer),
   public.admin_triage_appeals(), public.admin_resolve_triage_appeal(uuid, boolean),
   public.admin_triage_configurations(), public.admin_activate_triage_configuration(),
@@ -993,7 +1329,7 @@ revoke all on function public.admin_undo_triage_action(bigint), public.admin_tri
 grant execute on function public.admin_undo_triage_action(bigint), public.admin_triage_queue(),
   public.admin_triage_actions(integer), public.admin_triage_sample(),
   public.admin_recheck_triage_action(bigint, boolean), public.admin_triage_settings(),
-  public.admin_set_triage_settings(text, numeric, numeric, integer, integer),
+  public.admin_set_triage_settings(text, numeric, numeric, integer, integer, integer),
   public.admin_resume_triage(), public.admin_triage_agreement(integer),
   public.admin_triage_appeals(), public.admin_resolve_triage_appeal(uuid, boolean),
   public.admin_triage_configurations(), public.admin_activate_triage_configuration(),
@@ -1009,6 +1345,10 @@ set search_path = ''
 as $revert$
 begin
   perform cron.unschedule('sweep-report-triage');
+  drop trigger deck_reports_dismissed on public.deck_reports;
+  drop trigger deck_reports_log on public.deck_reports;
+  drop function private.log_report_dismissed();
+  drop function private.log_report();
   drop trigger triage_severe_report on public.deck_reports;
   drop function private.triage_severe_report();
   drop function private.sweep_report_triage();
@@ -1022,7 +1362,7 @@ begin
   drop function public.admin_triage_appeals();
   drop function public.admin_triage_agreement(integer);
   drop function public.admin_resume_triage();
-  drop function public.admin_set_triage_settings(text, numeric, numeric, integer, integer);
+  drop function public.admin_set_triage_settings(text, numeric, numeric, integer, integer, integer);
   drop function public.admin_triage_settings();
   drop function public.admin_recheck_triage_action(bigint, boolean);
   drop function public.admin_triage_sample();
@@ -1043,9 +1383,73 @@ begin
   drop function private.triage_judged_today();
   drop function private.triage_spent_today();
   drop function private.triage_day_start();
+  drop function private.note_report_weight(uuid);
+  drop function private.reporter_weight(uuid);
+  drop function public.record_triage_spend(uuid, text, text, text, text, integer, integer, numeric,
+    boolean);
+  drop function public.triage_release(uuid, boolean);
+  drop function private.triage_window_start();
+  drop table private.report_log, private.triage_spend, private.triage_attempts;
   drop table private.triage_appeals, private.triage_actions, private.triage_verdicts,
     private.triage_configuration_labels, private.triage_configurations, private.triage_settings;
   drop function private.keep_triage_configuration();
+  alter table public.deck_reports drop constraint deck_reports_reason_check;
+  update public.deck_reports set reason = 'inappropriate' where reason = 'sexual';
+  alter table public.deck_reports add constraint deck_reports_reason_check
+    check (reason in ('inappropriate', 'spam', 'copyright', 'other'));
+  execute $q$create or replace function public.admin_provider_keys()
+returns table (
+  provider text, last_four text, set_at timestamptz, set_by_email text, in_use boolean
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.require_admin();
+  return query
+  select p.provider, k.last_four, k.set_at, u.email::text,
+    exists (select from private.ai_configuration_labels as l
+      join private.ai_configurations as c on c.id = l.configuration_id
+      where l.label = 'active' and c.provider = p.provider)
+  from (values ('openrouter'), ('openai'), ('anthropic')) as p (provider)
+  left join private.provider_keys as k on k.provider = p.provider
+  left join auth.users as u on u.id = k.set_by
+  order by array_position(array['openrouter', 'openai', 'anthropic'], p.provider);
+end;
+$$
+  $q$;
+  execute $q$create or replace function public.admin_remove_provider_key(provider text) returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  removed private.provider_keys;
+begin
+  perform private.require_admin();
+  if not private.signed_in_recently() then
+    return 'reauth';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('private.ai_configuration_labels', 6));
+  if exists (select from private.ai_configuration_labels as l
+    join private.ai_configurations as c on c.id = l.configuration_id
+    where l.label = 'active' and c.provider = admin_remove_provider_key.provider)
+  then
+    return 'in_use';
+  end if;
+  delete from private.provider_keys as k where k.provider = admin_remove_provider_key.provider
+    returning * into removed;
+  if not found then
+    return 'none';
+  end if;
+  delete from vault.secrets as s where s.id = removed.secret_id;
+  perform private.audit('remove_provider_key', 'provider', removed.provider, '{}'::jsonb);
+  return 'removed';
+end;
+$$
+  $q$;
 end;
 $revert$;
 
