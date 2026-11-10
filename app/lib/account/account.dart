@@ -23,6 +23,7 @@ export 'src/failure.dart'
         AccountSuspended;
 export 'src/plan.dart' show PlanServer, UnavailablePlanServer;
 export 'src/profile_button.dart' show ProfileButton;
+export 'src/supabase_plan_server.dart' show SupabasePlanServer;
 export 'src/purchase_store.dart' show PurchaseStore, UnavailablePurchaseStore;
 export 'src/revenuecat_store.dart' show connectPurchases;
 export 'src/providers.dart' show accountServiceProvider, appVersionProvider;

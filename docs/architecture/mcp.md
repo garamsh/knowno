@@ -82,7 +82,7 @@ The `mcp` Edge Function, knowno's remote MCP server for Claude and ChatGPT: its 
 
 ### Settings entry
 
-- 설정 holds "AI 연결" between 학습 and 화면, drawn in the signed-in and the unreachable states, since it needs no server: one group with "서버 주소", `https://api.knowno.app/functions/v1/mcp` in every environment ([ADR 0133](adr/0133-serve-the-mcp-server-at-api-knowno-app-name-a-listed-host-as-its-resource-and-auth-s-issuer-as-its-authorization-server.md)), then "Claude" and "ChatGPT", each with how to add it, and under the group what a connection may do, "연결한 AI는 노트와 카드를 읽고, 추가하고, 고치고, 지울 수 있어요.", and that each service's plan limits it ([`web-account.md`](web-account.md)).
+- 설정 holds "AI 연결" between 학습 and 화면, drawn in the signed-in and the unreachable states, since it needs no server: one group with "서버 주소", `https://api.knowno.app/functions/v1/mcp` in every environment ([ADR 0133](adr/0133-serve-the-mcp-server-at-api-knowno-app-name-a-listed-host-as-its-resource-and-auth-s-issuer-as-its-authorization-server.md)), then "Claude" and "ChatGPT", each with how to add it, and under the group what a connection may do, "연결한 AI는 노트와 카드를 읽고, 추가하고, 고치고, 지울 수 있어요.", and that each service's plan limits it ([`web-account.md`](web-account.md)). On 무료 the group is locked: each row shows a lock, the address is withheld, and a tap opens the purchase sheet ([`account.md`](account.md)); on a paid plan, for a 무제한 holder or an admin, and while the plan is unknown, it is open as above.
 
 ### Tests
 

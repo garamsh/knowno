@@ -75,6 +75,10 @@ Future<void> main() async {
       },
       Directory('${support.path}/media'),
       package.version,
+      plans: switch (account.client) {
+        final client? => SupabasePlanServer.of(client),
+        null => null,
+      },
       purchases: connectPurchases(accountDefines()),
       assistant: switch (account.client) {
         final client? => HttpAssistantClient(
