@@ -26,7 +26,7 @@ import {
   STEP_LIMIT_MS,
   WORK_LIMIT_MS,
 } from "./worker.ts";
-import { readConfig } from "./config.ts";
+import { type Config, readConfig } from "./config.ts";
 import {
   ADAPTERS,
   ANTHROPIC_URL,
@@ -102,6 +102,11 @@ type Fake = {
   queueDown: boolean;
   /** Storage fails to sign a photo's address while set. */
   signDown: boolean;
+  /** The bodies Storage was asked to sign addresses with, and the waits the worker asked for. */
+  signed: Row[];
+  waited: number[];
+  /** `begin_assistant_message` answers no row, as for a plan with no configuration, while set. */
+  unconfigured: boolean;
   kicks: number;
   /** The background tasks the handler started. */
   tasks: Promise<void>[];
@@ -205,6 +210,9 @@ function seed(): Fake {
     storageDown: false,
     queueDown: false,
     signDown: false,
+    signed: [],
+    waited: [],
+    unconfigured: false,
     kicks: 0,
     tasks: [],
   };
@@ -391,6 +399,7 @@ function photoStorage(fake: Fake, url: URL, method: string, body: Row) {
   )?.[1];
   if (signed !== undefined && method === "POST") {
     if (fake.signDown) return Response.json({}, { status: 500 });
+    fake.signed.push(body);
     return fake.uploaded.has(signed)
       ? Response.json({
         signedURL: `/object/sign/assistant-photos/${signed}?token=t`,
@@ -597,6 +606,7 @@ function fakeFetch(fake: Fake): typeof fetch {
         case "provider_key":
           return Response.json(fake.keyed ? "sk-test" : null);
         case "begin_assistant_message": {
+          if (fake.unconfigured) return Response.json([]);
           const busy = fake.running;
           const allowed = fake.keyed && !busy &&
             (fake.budget === null || fake.charged < fake.budget);
@@ -740,10 +750,14 @@ let clock = Date.UTC(2026, 10, 4);
 function handlerOf(
   fake: Fake,
   logs: LogEntry[],
-  clocks: { now?: () => number; timeout?: (ms: number) => AbortSignal } = {},
+  clocks: {
+    now?: () => number;
+    timeout?: (ms: number) => AbortSignal;
+    config?: Config;
+  } = {},
 ) {
   return createHandler({
-    config: readConfig((name) =>
+    config: clocks.config ?? readConfig((name) =>
       ({
         SUPABASE_URL,
         SUPABASE_ANON_KEY: "anon-key",
@@ -763,6 +777,7 @@ function handlerOf(
     skills: cardFormSkills(() => clock),
     background: (task) => fake.tasks.push(task),
     wait: (ms) => {
+      fake.waited.push(ms);
       clock += ms;
       return Promise.resolve();
     },
@@ -778,6 +793,7 @@ async function send(
     method?: string;
     now?: () => number;
     timeout?: (ms: number) => AbortSignal;
+    config?: Config;
   } = {},
 ) {
   const logs: LogEntry[] = [];
@@ -3639,4 +3655,182 @@ Deno.test("a table read from a photo is shown as one table group, and an invalid
     assert.ok(!run.events.some((e) => e.event === "proposal"), name);
     assert.match(told, expected, name);
   }
+});
+
+const ENV: Record<string, string> = {
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY: "anon-key",
+  SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+};
+
+Deno.test("a request is refused not_configured, uncounted, while any platform variable is missing, against all three set", async () => {
+  for (const missing of Object.keys(ENV)) {
+    const fake = seed();
+    const config = readConfig((name) => name === missing ? "" : ENV[name]);
+    for (const path of ["/assistant", "/assistant/commit"]) {
+      const run = await send(fake, { path, config });
+      assert.equal(run.status, 503, `${missing} missing on ${path}`);
+      assert.deepEqual(run.json, { error: "not_configured" });
+    }
+    assert.equal(fake.begun, 0);
+    assert.equal(fake.requests.length, 0);
+  }
+  const set = seed();
+  set.replies.push(says("네"));
+  const run = await send(set, { config: readConfig((name) => ENV[name]) });
+  assert.equal(run.status, 200);
+});
+
+Deno.test("a message is refused not_configured and uncounted for a plan with no configuration, against the plan with one", async () => {
+  const none = seed();
+  none.unconfigured = true;
+  const run = await send(none);
+  assert.equal(run.status, 503);
+  assert.deepEqual(run.json, { error: "not_configured" });
+  assert.equal(none.begun, 0);
+  assert.equal(none.requests.length, 0);
+
+  const some = seed();
+  some.replies.push(says("네"));
+  assert.equal((await send(some)).status, 200);
+});
+
+Deno.test("a commit body over 512 KiB is refused too_large and writes nothing, against one at the cap", async () => {
+  const padded = (bytes: number) => {
+    const body = {
+      proposal: PROPOSAL,
+      checked: { [PROPOSAL.groups[0]!.id]: [PROPOSAL.groups[0]!.cards[1]!.id] },
+    };
+    const bare = JSON.stringify({ ...body, pad: "" });
+    return {
+      ...body,
+      pad: "x".repeat(bytes - new TextEncoder().encode(bare).length),
+    };
+  };
+  const over = seed();
+  const run = await send(over, {
+    path: "/assistant/commit",
+    body: padded(512 * 1024 + 1),
+  });
+  assert.equal(run.status, 413);
+  assert.deepEqual(run.json, { error: "too_large" });
+  assert.deepEqual(over.writes, []);
+
+  const at = seed();
+  const control = await send(at, {
+    path: "/assistant/commit",
+    body: padded(512 * 1024),
+  });
+  assert.equal(control.status, 200);
+  assert.deepEqual(control.json.added.map((a: Row) => a.front), ["cat"]);
+});
+
+Deno.test("ask_choice takes 2 to 6 options, a prompt of at most 200 and an option of at most 40 characters, each against the value just inside", async () => {
+  const text = (n: number) => "가".repeat(n);
+  const options = (n: number, length = 1) =>
+    Array.from({ length: n }, (_, i) => `${i}${text(length - 1)}`);
+  const choose = async (args: Row) => {
+    const fake = seed();
+    fake.replies.push(calls_("ask_choice", args), says("다시 물을게요."));
+    const run = await send(fake);
+    const shown = run.events.some((e) => e.event === "choice");
+    if (!shown) assert.match(answered(fake.requests[1]!), /ask_choice takes/);
+    return shown;
+  };
+  const fits = { prompt: "고르세요", options: options(2) };
+  assert.equal(await choose(fits), true, "setup: the choice is shown");
+  assert.equal(await choose({ ...fits, options: options(1) }), false);
+  assert.equal(await choose({ ...fits, options: options(6) }), true);
+  assert.equal(await choose({ ...fits, options: options(7) }), false);
+  assert.equal(await choose({ ...fits, prompt: text(200) }), true);
+  assert.equal(await choose({ ...fits, prompt: text(201) }), false);
+  assert.equal(await choose({ ...fits, options: options(2, 40) }), true);
+  assert.equal(await choose({ ...fits, options: options(2, 41) }), false);
+});
+
+Deno.test("a proposal holds 1 to 20 groups of a title of at most 60 characters, each against the value just inside", async () => {
+  const group = (title: string) => ({
+    title,
+    format: "text",
+    cards: [card("word", "뜻")],
+  });
+  const propose = async (groups: unknown) => {
+    const fake = seed();
+    fake.replies.push(
+      calls_("propose_deck", { name: "노트", groups }),
+      says("다시 만들게요."),
+    );
+    const run = await send(fake);
+    const shown = run.events.some((e) => e.event === "proposal");
+    if (!shown) assert.match(answered(fake.requests[1]!), /groups/);
+    return shown;
+  };
+  const many = (n: number) =>
+    Array.from({ length: n }, (_, i) => group(`${i + 1}단원`));
+  assert.equal(await propose(many(1)), true, "setup: the proposal is shown");
+  assert.equal(await propose([]), false);
+  assert.equal(await propose(many(20)), true);
+  assert.equal(await propose(many(21)), false);
+  assert.equal(await propose([group("가".repeat(60))]), true);
+  assert.equal(await propose([group("가".repeat(61))]), false);
+});
+
+Deno.test("start_photo_job refuses instructions over 4,000 characters, against 4,000", async () => {
+  const start = async (instructions: string) => {
+    const fake = seed();
+    fake.uploaded.add(`${ADA}/${photoOf(1)}`);
+    fake.replies.push(
+      calls_("start_photo_job", { instructions }),
+      says("읽고 있어요."),
+    );
+    await send(fake, {
+      body: {
+        messages: [{ role: "user", text: "읽어 줘", photos: [photoOf(1)] }],
+      },
+    });
+    return fake;
+  };
+  const at = await start("가".repeat(4000));
+  assert.equal(at.jobs.size, 1, "setup: 4,000 characters start a job");
+  assert.equal([...at.jobs.values()][0]!.instructions.length, 4000);
+  const over = await start("가".repeat(4001));
+  assert.equal(over.jobs.size, 0);
+  assert.match(answered(over.requests[1]!), /at most 4000 characters/);
+});
+
+Deno.test("a photo's address is signed for 600 seconds", async () => {
+  const fake = seed();
+  jobOf(fake, ADA, [photoOf(1)]);
+  fake.replies.push(reads);
+  await runWorker(fake);
+  assert.equal(fake.requests.length, 1, "setup: the photo was read");
+  assert.deepEqual(fake.signed, [{ expiresIn: 600 }]);
+});
+
+Deno.test("a photo's reading is cut at 50,000 characters, against one of 50,000", async () => {
+  const read = async (length: number) => {
+    const fake = seed();
+    const id = jobOf(fake, ADA, [photoOf(1)]);
+    fake.replies.push(() => says("가".repeat(length))());
+    await runWorker(fake);
+    const photo = fake.jobs.get(id)!.photos[0]!;
+    assert.equal(photo.status, "read", "setup: the photo was read");
+    return [...photo.reading!].length;
+  };
+  assert.equal(await read(50_000), 50_000);
+  assert.equal(await read(50_001), 50_000);
+});
+
+Deno.test("a lane waits 5 seconds while every queued photo is hidden, against an empty queue", async () => {
+  const hidden = seed();
+  const id = jobOf(hidden, ADA, [photoOf(1)]);
+  hidden.queue.forEach((message) => message.visible = false);
+  await runWorker(hidden);
+  assert.equal(hidden.jobs.get(id)!.photos[0]!.status, "queued");
+  assert.ok(hidden.waited.length > 0, "the lanes waited");
+  assert.deepEqual(new Set(hidden.waited), new Set([5_000]));
+
+  const empty = seed();
+  await runWorker(empty);
+  assert.deepEqual(empty.waited, []);
 });
