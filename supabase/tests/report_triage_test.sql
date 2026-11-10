@@ -787,7 +787,7 @@ insert into private.provider_keys (provider, secret_id, last_four)
 select pg_temp.sign_in_fresh('c');
 select is(public.admin_remove_provider_key('openrouter'), 'in_use', 'the strong tier''s provider keeps its key');
 select is(public.admin_remove_provider_key('anthropic'), 'in_use', 'and the cheap tier''s');
-select is((select in_use from public.admin_provider_keys() where provider = 'openrouter'), true, 'the list shows it in use');
+select is((select in_use from public.admin_provider_keys() where provider = 'anthropic'), true, 'the list shows it in use');
 select is((select in_use from public.admin_provider_keys() where provider = 'openai'), false, 'and a provider no configuration names not');
 select is(public.admin_remove_provider_key('openai'), 'removed', 'the control: an unused provider''s key is removed');
 reset role;
