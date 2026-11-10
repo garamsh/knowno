@@ -76,10 +76,7 @@ export function CardGrid({
           <span className="flex items-baseline gap-2 px-1">
             <h2 className="text-label">카드 {cards.length}</h2>
             <span className="text-secondary text-muted">
-              {[
-                `${String(mastered)}장 익힘`,
-                ...(word ? [word] : []),
-              ].join(" · ")}
+              {[`${String(mastered)}장 익힘`, ...(word ? [word] : [])].join(" · ")}
             </span>
           </span>
         </div>

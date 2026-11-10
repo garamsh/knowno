@@ -51,7 +51,11 @@ beforeEach(async () => {
   });
 });
 
-const french: Deck = { id: uuidOf("deck") as DeckId, name: "French", publication: "private" as const };
+const french: Deck = {
+  id: uuidOf("deck") as DeckId,
+  name: "French",
+  publication: "private" as const,
+};
 
 /** Renders 노트 설정 over [deck] and picks [item] from its menu. */
 async function choose(

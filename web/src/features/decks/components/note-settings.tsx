@@ -4,13 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { ankiNotes } from "../anki-export";
-import {
-  decorateDeck,
-  deleteDeck,
-  publishDeck,
-  renameDeck,
-  unpublishDeck,
-} from "../actions";
+import { decorateDeck, deleteDeck, publishDeck, renameDeck, unpublishDeck } from "../actions";
 import { parseDeckIcon } from "../deck-icon";
 import { deckColor } from "../deck-tint";
 import { type Card, type Deck, isOffered } from "../library";
