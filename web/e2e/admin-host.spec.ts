@@ -447,11 +447,11 @@ test.describe("signed in", () => {
 
     // A plan's 한도 바꾸기 opens its versions and its form in the sheet, the page under it unchanged.
     await page.goto(`${admin}/plans`);
-    const plan = page.getByRole("dialog", { name: "프로 한도 바꾸기", exact: true });
+    const plan = page.getByRole("dialog", { name: "플러스 한도 바꾸기", exact: true });
     await untilReacted(
       () =>
         page
-          .getByRole("row", { name: /^프로/ })
+          .getByRole("row", { name: /^플러스/ })
           .getByRole("button", { name: "한도 바꾸기", exact: true })
           .click(),
       () => plan.isVisible(),
@@ -511,7 +511,7 @@ test.describe("signed in", () => {
     await page.goto(`${admin}/ai`);
     await expect(page.getByRole("heading", { level: 1, name: "AI", exact: true })).toBeVisible();
     const panel = page.getByRole("region", {
-      name: "프로 · 초안 (관리자만 테스트 중)",
+      name: "플러스 · 초안 (관리자만 테스트 중)",
       exact: true,
     });
     await expect(panel.getByRole("button", { name: "모두에게 적용", exact: true })).toBeVisible();
@@ -559,7 +559,7 @@ test.describe("signed in", () => {
       page.getByRole("heading", { level: 1, name: "말랑이", exact: true }),
     ).toBeVisible();
     const panel = page.getByRole("region", {
-      name: "프로 · 초안 (관리자만 테스트 중)",
+      name: "플러스 · 초안 (관리자만 테스트 중)",
       exact: true,
     });
     await expect(panel.getByRole("button", { name: "모두에게 적용", exact: true })).toBeVisible();
@@ -569,7 +569,7 @@ test.describe("signed in", () => {
     ).toBeVisible();
     await expect(
       page
-        .getByRole("form", { name: "프로 하루 토큰 예산", exact: true })
+        .getByRole("form", { name: "플러스 하루 토큰 예산", exact: true })
         .getByRole("button", { name: "예산 저장", exact: true }),
     ).toBeVisible();
     await capture(page, "admin-assistant");

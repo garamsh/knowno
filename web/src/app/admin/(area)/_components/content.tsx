@@ -27,6 +27,9 @@ import {
   parseUserId,
   type PlanId,
   PlansView,
+  StoreSecretsView,
+  parseStoreSecretName,
+  readStoreSecrets,
   readAdmins,
   readAssistantConfigurations,
   readAssistantBudgets,
@@ -457,24 +460,34 @@ async function readPlanMembers(): Promise<Record<PlanId, number | null>> {
   return members;
 }
 
-export async function PlansContent() {
-  const [read, configurations, members, timeZone] = await Promise.all([
+export async function PlansContent({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const [read, configurations, members, secrets, timeZone] = await Promise.all([
     readPlanVersions(),
     readAiConfigurations(),
     readPlanMembers(),
+    readStoreSecrets(),
     adminTimeZone(),
   ]);
   if ("failure" in read) return <AdminFailureMessage failure={read.failure} />;
   if ("failure" in configurations) {
     return <AdminFailureMessage failure={configurations.failure} />;
   }
+  if ("failure" in secrets) return <AdminFailureMessage failure={secrets.failure} />;
   return (
-    <PlansView
-      versions={read.data}
-      configurations={configurations.data}
-      members={members}
-      timeZone={timeZone}
-    />
+    <>
+      <PlansView
+        versions={read.data}
+        configurations={configurations.data}
+        members={members}
+        timeZone={timeZone}
+      />
+      <StoreSecretsView
+        secrets={secrets.data}
+        editing={parseStoreSecretName(params.secret)}
+        timeZone={timeZone}
+      />
+    </>
   );
 }
 
