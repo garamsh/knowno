@@ -10,7 +10,7 @@
 -- no client reaching the service functions; and the revert. Each rule has a control that a near
 -- miss cannot pass.
 begin;
-select plan(303);
+select plan(306);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'a@example.com'),
@@ -809,6 +809,13 @@ select pg_temp.note('90', 'a');
 select lives_ok($$select pg_temp.report('90', 'd', 'sexual')$$, 'a first severe report is stored');
 select lives_ok($$select pg_temp.report('90', 'e', 'sexual')$$, 'the second severe report is stored though the worker call fails');
 select is(pg_temp.reports('90'), 2::bigint, 'both reports stand');
+
+-- The category migration's revert gives the owner the three keys back.
+select lives_ok($$select private.revert_state_category()$$, 'the category revert runs');
+select pg_temp.sign_in('a');
+select is(public.my_triage_state(pg_temp.id('88')) ? 'category', false, 'the owner is answered no category key');
+select is((public.my_triage_state(pg_temp.id('88')) ->> 'hidden_by_ai')::boolean, true, 'the control: the note is still hidden by the AI');
+reset role;
 
 -- The revert.
 select lives_ok($$select private.revert_report_triage()$$, 'the revert runs');
