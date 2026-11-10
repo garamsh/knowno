@@ -1,6 +1,6 @@
 # Assistant app
 
-The app's `assistant` domain: the chat with 말랑이 on the phone, its client of the `assistant` function, the conversation kept on the device, the proposals the user adds, the photos it reads, the character at a screen's edge, and how 홈 opens it. The function's contract is [`assistant.md`](assistant.md)'s; the web's chat is issue #722's.
+The app's `assistant` domain: the chat with 말랑이 on the phone, its client of the `assistant` function, the conversation kept on the device, the proposals the user adds, the photos it reads, the character at a screen's edge, and how 홈 opens it. The function's contract is [`assistant.md`](assistant.md)'s; the web's chat is [`web-assistant.md`](web-assistant.md)'s.
 
 ## Current decisions
 
