@@ -1999,6 +1999,12 @@ abstract class AppLocalizations {
   /// **'기타'**
   String get reportOther;
 
+  /// Report reason.
+  ///
+  /// In ko, this message translates to:
+  /// **'미성년자·성적인 내용'**
+  String get reportSexual;
+
   /// After a report was filed.
   ///
   /// In ko, this message translates to:
@@ -2010,6 +2016,30 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'이미 신고한 노트예요.'**
   String get alreadyReported;
+
+  /// On the owner's note screen: an AI hid the note after reports, and as what, by the category the server gives.
+  ///
+  /// In ko, this message translates to:
+  /// **'{category, select, spam{신고가 들어와 AI가 이 노트를 스팸으로 보고 숨겼어요} ad{신고가 들어와 AI가 이 노트를 광고로 보고 숨겼어요} other{신고가 들어와 AI가 이 노트를 숨겼어요}}'**
+  String aiHiddenWhy(String category);
+
+  /// The owner's one appeal of an AI's hiding; sent once.
+  ///
+  /// In ko, this message translates to:
+  /// **'사람에게 다시 확인 요청'**
+  String get aiHiddenAppeal;
+
+  /// After the owner appealed an AI's hiding, until a person decides.
+  ///
+  /// In ko, this message translates to:
+  /// **'사람이 확인하고 있어요'**
+  String get aiHiddenPending;
+
+  /// A person decided to keep the note an AI hid hidden.
+  ///
+  /// In ko, this message translates to:
+  /// **'사람이 확인했고 노트는 계속 숨겨져요'**
+  String get aiHiddenUpheld;
 
   /// Title of the block confirmation.
   ///

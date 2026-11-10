@@ -58,6 +58,12 @@ class FakeSharingServer implements SharingServer {
   /// What the screening answers to a publish.
   Screening screening = const Screening(DeckPublication.public);
 
+  /// What an AI did to the user's deck; null while none hides it.
+  AiHidden? hidden;
+
+  /// Every appeal asked of the server.
+  final appeals = <DeckId>[];
+
   final blocked = <UserId>{};
   final reports = <(DeckId, ReportReason)>[];
   final imports = <DeckId>[];
@@ -116,6 +122,23 @@ class FakeSharingServer implements SharingServer {
     }
     reports.add((deck, reason));
     return ReportOutcome.reported;
+  }
+
+  @override
+  Future<AiHidden?> aiHidden(DeckId deck) async {
+    _answer();
+    return hidden;
+  }
+
+  @override
+  Future<AppealOutcome> appeal(DeckId deck) async {
+    _answer();
+    appeals.add(deck);
+    final standing = hidden;
+    if (standing == null) return AppealOutcome.notHiddenByAi;
+    if (standing.appeal != AppealState.open) return AppealOutcome.already;
+    hidden = AiHidden(appeal: AppealState.pending, category: standing.category);
+    return AppealOutcome.appealed;
   }
 
   @override

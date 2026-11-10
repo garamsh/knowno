@@ -1101,10 +1101,32 @@ class AppLocalizationsKo extends AppLocalizations {
   String get reportOther => '기타';
 
   @override
+  String get reportSexual => '미성년자·성적인 내용';
+
+  @override
   String get reported => '신고했어요. 검토할게요.';
 
   @override
   String get alreadyReported => '이미 신고한 노트예요.';
+
+  @override
+  String aiHiddenWhy(String category) {
+    String _temp0 = intl.Intl.selectLogic(category, {
+      'spam': '신고가 들어와 AI가 이 노트를 스팸으로 보고 숨겼어요',
+      'ad': '신고가 들어와 AI가 이 노트를 광고로 보고 숨겼어요',
+      'other': '신고가 들어와 AI가 이 노트를 숨겼어요',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get aiHiddenAppeal => '사람에게 다시 확인 요청';
+
+  @override
+  String get aiHiddenPending => '사람이 확인하고 있어요';
+
+  @override
+  String get aiHiddenUpheld => '사람이 확인했고 노트는 계속 숨겨져요';
 
   @override
   String blockTitle(String name) {
