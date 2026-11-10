@@ -96,7 +96,7 @@ const sections: readonly LegalSection[] = [
         </li>
         <li>
           사진으로 카드를 만드는 것은 요금제마다 쓸 수 있는 사진 수가 정해져 있고, 요금제에 따라 한
-          달 또는 하루 단위로 세요(한국 시간 기준). 맥스 요금제는 사진 수에 제한이 없지만, 공정
+          달 또는 하루 단위로 세요(한국 시간 기준). 프로 요금제는 사진 수에 제한이 없지만, 공정
           이용을 위해 하루 1,000장까지 쓸 수 있어요.
         </li>
       </ul>
@@ -117,17 +117,16 @@ const sections: readonly LegalSection[] = [
           갱신되고 결제돼요.
         </li>
         <li>
-          해지는 구매한 곳에서 해요. 앱(App Store)에서 구매했다면 App Store의 구독 관리에서, 웹에서
-          구매했다면 Paddle의 고객 포털(paddle.net)에서 해지해요.
+          플러스는 앱에서 구매하고, 해지는 구매한 앱 스토어(예: App Store)의 구독 관리에서 해요.
+          운영자가 대신 해지할 수 없어요.
         </li>
         <li>
           해지하면 다음 갱신부터 결제되지 않고, 이미 결제한 기간이 끝날 때까지는 플러스를 그대로 쓸
           수 있어요.
         </li>
         <li>
-          가격을 바꾸면 적용하기 전에 구매 화면이나 구매한 곳(App Store, Paddle)을 통해 알려 드려요.
-          이미 결제한 기간에는 새 가격을 적용하지 않고, 새 가격이 맞지 않으면 갱신 전에 해지할 수
-          있어요.
+          가격을 바꾸면 적용하기 전에 구매 화면이나 구매한 앱 스토어를 통해 알려 드려요. 이미 결제한
+          기간에는 새 가격을 적용하지 않고, 새 가격이 맞지 않으면 갱신 전에 해지할 수 있어요.
         </li>
         <li>
           결제 기간이 끝나 플러스가 끝나면 무료 요금제로 돌아가요. 노트, 카드와 학습 기록은 지워지지
@@ -138,8 +137,7 @@ const sections: readonly LegalSection[] = [
           학습 기록은 그대로 남아요.
         </li>
         <li>
-          결제는 앱에서는 Apple이, 웹에서는 Paddle이 처리해요. 운영자는 카드 번호 같은 결제 수단
-          정보를 받지 않아요.
+          결제는 구매한 앱 스토어가 처리해요. 운영자는 카드 번호 같은 결제 수단 정보를 받지 않아요.
         </li>
       </ul>
     ),
@@ -169,18 +167,12 @@ const sections: readonly LegalSection[] = [
           </li>
           <li>이 약관은 법이 정한 이용자의 청약철회 권리를 줄이지 않아요.</li>
         </ul>
-        <p>환불은 구매한 곳의 절차로 요청해요.</p>
+        <p>환불은 구매한 앱 스토어의 절차로 요청해요.</p>
         <ul>
           <li>
-            앱(App Store)에서 구매했다면 Apple의 환불 절차로 요청해요. Apple의
-            reportaproblem.apple.com 에서 &ldquo;환불 요청&rdquo;을 고르면 Apple이 검토해서 승인
-            여부를 정해요.
-          </li>
-          <li>
-            웹에서 구매했다면 Paddle을 통해 환불을 요청해요. Paddle은 웹 결제를 판매자로서 처리하는
-            회사이고, paddle.net에서 &ldquo;Request refund&rdquo;를 골라 요청해요. Paddle이 환불을
-            처리하는 기준은{" "}
-            <a href="https://www.paddle.com/legal/refund-policy">Paddle의 환불 정책</a>에 있어요.
+            앱 스토어가 결제를 처리하므로 환불도 그 앱 스토어의 절차로 요청해요. App Store에서
+            구매했다면 Apple의 reportaproblem.apple.com에서 &ldquo;환불 요청&rdquo;을 고르면 Apple이
+            검토해서 승인 여부를 정해요.
           </li>
           <li>
             환불이 처리되면 그 결제로 받은 플러스는 끝나요(&ldquo;플러스 요금제와 구독&rdquo;).

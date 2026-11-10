@@ -95,20 +95,20 @@ describe.each(documents)("$name", ({ page, title, effectiveDate, effectiveSenten
 });
 
 describe("the terms of service", () => {
-  it("states that each plan limits photos by the month or the day, and 맥스's fair-use cap of 1,000 a day", async () => {
+  it("states that each plan limits photos by the month or the day, and 프로's fair-use cap of 1,000 a day", async () => {
     await render(TermsPage, {});
 
     const ai = within(screen.getByRole("region", { name: "AI로 만든 카드" }));
     expect(
       ai.getByText(
-        "사진으로 카드를 만드는 것은 요금제마다 쓸 수 있는 사진 수가 정해져 있고, 요금제에 따라 한 달 또는 하루 단위로 세요(한국 시간 기준). 맥스 요금제는 사진 수에 제한이 없지만, 공정 이용을 위해 하루 1,000장까지 쓸 수 있어요.",
+        "사진으로 카드를 만드는 것은 요금제마다 쓸 수 있는 사진 수가 정해져 있고, 요금제에 따라 한 달 또는 하루 단위로 세요(한국 시간 기준). 프로 요금제는 사진 수에 제한이 없지만, 공정 이용을 위해 하루 1,000장까지 쓸 수 있어요.",
       ),
     ).toBeInTheDocument();
   });
 });
 
 describe("the terms of service, for the paid plan", () => {
-  it("says 플러스 renews automatically until cancelled, and where each purchase is cancelled", async () => {
+  it("says 플러스 renews automatically until cancelled, and where it is cancelled", async () => {
     await render(TermsPage, {});
 
     const plus = within(screen.getByRole("region", { name: "플러스 요금제와 구독" }));
@@ -116,37 +116,41 @@ describe("the terms of service, for the paid plan", () => {
     expect(
       plus.getByText(/해지하기 전까지 매 결제 주기가 끝날 때 같은 가격으로 자동으로 갱신/),
     ).toBeInTheDocument();
-    expect(plus.getByText(/App Store의 구독 관리에서/)).toBeInTheDocument();
-    expect(plus.getByText(/Paddle의 고객 포털\(paddle\.net\)에서 해지/)).toBeInTheDocument();
+    expect(
+      plus.getByText(/구매한 앱 스토어\(예: App Store\)의 구독 관리에서 해요/),
+    ).toBeInTheDocument();
     expect(plus.getByText(/가격을 바꾸면 적용하기 전에/)).toBeInTheDocument();
     expect(
       plus.getByText(/환불이 처리되면 그 결제로 받은 플러스는 그때 끝나고/),
     ).toBeInTheDocument();
   });
 
-  it("cites 전자상거래법 제17조 for 청약철회 and sends each purchase to its refund process", async () => {
+  it("cites 전자상거래법 제17조 for 청약철회 and sends a refund to the app store it was bought in", async () => {
     await render(TermsPage, {});
 
     const refund = within(screen.getByRole("region", { name: "환불과 청약철회" }));
     expect(refund.getByText(/전자상거래법 제17조 제1항/)).toBeInTheDocument();
     expect(refund.getByText(/제17조 제2항 제5호/)).toBeInTheDocument();
-    expect(refund.getByText(/Apple의 환불 절차로 요청해요/)).toBeInTheDocument();
-    expect(refund.getByText(/웹에서 구매했다면 Paddle을 통해 환불을 요청해요/)).toBeInTheDocument();
-    expect(refund.getByRole("link", { name: "Paddle의 환불 정책" })).toHaveAttribute(
-      "href",
-      "https://www.paddle.com/legal/refund-policy",
-    );
+    expect(refund.getByText(/제17조 제6항/)).toBeInTheDocument();
+    expect(refund.getByText(/reportaproblem\.apple\.com/)).toBeInTheDocument();
+    expect(refund.queryByText(/Paddle/)).not.toBeInTheDocument();
   });
 });
 
 describe("the privacy policy", () => {
-  it("names RevenueCat, Apple and Paddle among the processors, each with what it receives", async () => {
+  it("names RevenueCat as a processor with what it receives, and Apple as the seller collecting its own data", async () => {
     await render(PrivacyPage, {});
 
     const processors = within(screen.getByRole("region", { name: "개인정보 처리의 위탁" }));
     expect(processors.getByText(/^RevenueCat: .*구독 상태/)).toBeInTheDocument();
-    expect(processors.getByText(/^Apple: .*결제와 환불을 처리/)).toBeInTheDocument();
-    expect(processors.getByText(/^Paddle: .*이메일 주소, 결제 수단 정보/)).toBeInTheDocument();
+    expect(processors.queryByText(/^Apple:/)).not.toBeInTheDocument();
+    const sharing = within(screen.getByRole("region", { name: "개인정보의 제3자 제공" }));
+    expect(sharing.getByText(/Apple\)가 판매자로서 결제와 환불을 처리하고/)).toBeInTheDocument();
+    const overseas = within(screen.getByRole("region", { name: "개인정보의 국외 이전" }));
+    expect(
+      overseas.getByText(/^RevenueCat\(revenuecat\.com\): 미국에 저장해요/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Paddle/)).not.toBeInTheDocument();
   });
 
   it("says a note is checked by rules before it is public, and that the operator may read it", async () => {
