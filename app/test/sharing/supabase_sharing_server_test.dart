@@ -140,7 +140,7 @@ void main() {
   }
 
   test('a refusal carries the layer and each finding by card, face, block, '
-      'field and offsets, and a name or description finding has no card', () async {
+      'field and offsets, a finding without a card has none', () async {
     final server = _publishing(
       [],
       _json({

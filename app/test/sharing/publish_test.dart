@@ -362,10 +362,7 @@ void main() {
         shownText('Front: "010-1234-5678", Looks like a phone number'),
         findsOneWidget,
       );
-      expect(
-        shownText('Front: Has a link or an address'),
-        findsOneWidget,
-      );
+      expect(shownText('Front: Has a link or an address'), findsOneWidget);
       await app.close();
     },
   );
