@@ -266,6 +266,33 @@ void main() {
   );
 
   testWidgets(
+    'a restore that the server answers with 무료 says there was no purchase to restore, not that it restored',
+    (tester) async {
+      await pumpScreen(tester, standing: _plus);
+
+      store.onRestored = () => plans.standing = _free;
+      await tapAndSettle(tester, shownText('Restore purchases'));
+
+      expect(plans.calls, ['read', 'sync', 'read']);
+      expect(shownText('No purchases to restore'), findsOneWidget);
+      expect(shownText('Purchases restored'), findsNothing);
+    },
+  );
+
+  testWidgets('a restore whose plan cannot be read says nothing new', (
+    tester,
+  ) async {
+    await pumpScreen(tester, standing: _plus);
+
+    store.onRestored = () => plans.standing = null;
+    await tapAndSettle(tester, shownText('Restore purchases'));
+
+    expect(shownText('No purchases to restore'), findsNothing);
+    expect(shownText('Purchases restored'), findsNothing);
+    expect(shownText("Couldn't load your plan. Tap to try again."), findsOne);
+  });
+
+  testWidgets(
     'buying shows the package at the store price, buys it, refreshes the plan and closes on 플러스',
     (tester) async {
       await pumpScreen(tester);
@@ -363,6 +390,21 @@ void main() {
       expect(shownText('Purchases restored'), findsOneWidget);
       expect(shownText('Plus'), findsOneWidget);
       expect(store.bought, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'a free account whose restore leaves the plan 무료 keeps the sheet and says there was no purchase to restore',
+    (tester) async {
+      await pumpScreen(tester);
+
+      await tapAndSettle(tester, shownText('Learn about Plus'));
+      await tapAndSettle(tester, shownText('Restore purchases'));
+
+      expect(store.restores, 1);
+      expect(find.byType(AppSheet), findsOneWidget);
+      expect(shownText('No purchases to restore'), findsOneWidget);
+      expect(shownText('Purchases restored'), findsNothing);
     },
   );
 

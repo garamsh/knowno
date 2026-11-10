@@ -613,6 +613,7 @@
   "planRestore": "Restore purchases",
   "planRestoring": "Restoring purchases",
   "planRestored": "Purchases restored",
+  "planRestoreNone": "No purchases to restore",
   "planRestoreFailed": "Couldn't restore purchases. Please try again.",
   "planLoadFailed": "Couldn't load your plan. Tap to try again.",
   "plusSheetTitle": "Plus",

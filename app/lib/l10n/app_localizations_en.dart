@@ -2461,6 +2461,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get planRestored => 'Purchases restored';
 
   @override
+  String get planRestoreNone => 'No purchases to restore';
+
+  @override
   String get planRestoreFailed =>
       'Couldn\'t restore purchases. Please try again.';
 

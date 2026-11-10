@@ -126,15 +126,12 @@ class _PlanGroupState extends ConsumerState<PlanGroup> {
     setState(() => _restoring = true);
     final outcome = await ref.read(planProvider.notifier).restore();
     if (mounted) setState(() => _restoring = false);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          outcome == RestoreOutcome.restored
-              ? l10n.planRestored
-              : l10n.planRestoreFailed,
-        ),
-      ),
-    );
+    final message = outcome == RestoreOutcome.restored
+        ? restoreMessage(l10n, ref.read(planProvider))
+        : l10n.planRestoreFailed;
+    if (message != null) {
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 }
 

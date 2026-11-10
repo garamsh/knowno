@@ -87,19 +87,18 @@ class _PlusSheetState extends ConsumerState<PlusSheet> {
     final outcome = await ref.read(planProvider.notifier).restore();
     if (!mounted) return;
     setState(() => _restoring = false);
-    if (outcome == RestoreOutcome.restored) {
-      final plan = ref.read(planProvider);
-      if (plan is PlanKnown && !plan.standing.canBuy) navigator.pop();
+    final plan = ref.read(planProvider);
+    if (outcome == RestoreOutcome.restored &&
+        plan is PlanKnown &&
+        !plan.standing.canBuy) {
+      navigator.pop();
     }
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          outcome == RestoreOutcome.restored
-              ? l10n.planRestored
-              : l10n.planRestoreFailed,
-        ),
-      ),
-    );
+    final message = outcome == RestoreOutcome.restored
+        ? restoreMessage(l10n, plan)
+        : l10n.planRestoreFailed;
+    if (message != null) {
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 
   String _price(AppLocalizations l10n, PlusPackage package) =>

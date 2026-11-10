@@ -3786,6 +3786,12 @@ abstract class AppLocalizations {
   /// **'구매를 복원했어요'**
   String get planRestored;
 
+  /// Snack bar after a restore when the server's plan is not from a store.
+  ///
+  /// In ko, this message translates to:
+  /// **'복원할 구매가 없어요'**
+  String get planRestoreNone;
+
   /// Snack bar after a restore that failed.
   ///
   /// In ko, this message translates to:
