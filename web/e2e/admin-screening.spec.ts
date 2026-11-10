@@ -168,15 +168,19 @@ test("an admin adds a banned word, imports the bundled list without doubling it,
   await page.getByRole("button", { name: "추가", exact: true }).click();
   const list = page.getByRole("list", { name: "금칙어 목록" });
   await expect(list.getByText(word, { exact: true })).toBeVisible();
+  const before = await list.getByRole("listitem").count();
 
   await page.getByRole("button", { name: "기본 목록 불러오기", exact: true }).click();
   await page.getByRole("button", { name: "불러오기", exact: true }).click();
-  await expect(page.getByText(/^금칙어 \d+개를 추가했어요\.$/u)).toBeVisible();
-  const count = await list.getByRole("listitem").count();
+  const toast = page.getByText(/^금칙어 \d+개를 추가했어요\.$/u);
+  await expect(toast).toBeVisible();
+  const added = Number(/\d+/u.exec((await toast.textContent()) ?? "")?.[0]);
+  const count = before + added;
+  await expect(list.getByRole("listitem")).toHaveCount(count);
   await page.getByRole("button", { name: "기본 목록 불러오기", exact: true }).click();
   await page.getByRole("button", { name: "불러오기", exact: true }).click();
   await expect(page.getByText("목록의 금칙어가 이미 모두 들어 있어요.")).toBeVisible();
-  expect(await list.getByRole("listitem").count()).toBe(count);
+  await expect(list.getByRole("listitem")).toHaveCount(count);
 
   await list.getByRole("button", { name: `'${word}' 삭제`, exact: true }).click();
   await list.getByRole("button", { name: "삭제", exact: true }).click();
