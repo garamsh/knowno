@@ -306,6 +306,67 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a refused note shows the passage of a finding in a block of several strings by its field',
+    (tester) async {
+      final server = FakeSharingServer(name: DisplayName.tryParse('Ada'))
+        ..screening = const Screening(
+          DeckPublication.refused,
+          refusal: 'rules',
+          findings: [
+            ScreeningFinding(
+              place: FindingPlace.front,
+              category: FindingCategory.phone,
+              card: CardId('id1'),
+              block: 0,
+              field: 'senses.1.meaning',
+              start: 5,
+              end: 18,
+            ),
+            ScreeningFinding(
+              place: FindingPlace.front,
+              category: FindingCategory.link,
+              card: CardId('id1'),
+              block: 0,
+              start: 0,
+              end: 3,
+            ),
+          ],
+        );
+      final app = await SharingApp.open(
+        tester,
+        server: server,
+        myDecks: {'French': {}},
+      );
+      await tester.runAsync(() async {
+        final deck = (await app.decks.watchDecks().first).single;
+        await app.decks.addCard(
+          deck.id,
+          front: [
+            const SensesContent([
+              CardSense(meaning: 'one'),
+              CardSense(meaning: 'call 010-1234-5678'),
+            ]),
+          ],
+          back: [],
+        );
+      });
+      await tester.pumpAndSettle();
+      await app.tapText('French');
+      await app.deckMenu('Publish');
+      await publishNow(app);
+
+      // With a field the passage shows; without one, the block holding
+      // several strings keeps its category and place.
+      expect(
+        shownText('Front: "010-1234-5678", Looks like a phone number'),
+        findsOneWidget,
+      );
+      expect(shownText('Front: Has a link or an address'), findsOneWidget);
+      await app.close();
+    },
+  );
+
   testWidgets('the 노트 tab shows each state of the screening as its chip', (
     tester,
   ) async {
