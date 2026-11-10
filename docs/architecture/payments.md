@@ -8,6 +8,7 @@ How a purchase becomes a plan: RevenueCat, the `store-webhook` Edge Function, st
 - RevenueCat posts every event to the `store-webhook` function with the `Authorization` value the owner set. The function treats the event as a trigger only (and the sync route, for the caller alone, does the same read): it reads the current entitlements of the user (of every user a `TRANSFER` names) with `GET /v1/subscribers/{app_user_id}` and sets or ends the user's store grant ([`server.md`](server.md) §Store plans).
 - A store grant never replaces an admin grant or 무제한, and a store event never ends one; each store change is in the audit log.
 - Sandbox events grant like production ones.
+- An account deleted while a store subscription is active keeps being billed by the store until the user cancels there, so the app's deletion confirmation says so and offers 구독 관리, and deletion is never blocked (#914, carried out in #912).
 - Right after a purchase or restore, the app calls the function's sync route so the plan does not wait on a webhook: `POST {SUPABASE_URL}/functions/v1/store-webhook/sync` with the user's session as `Authorization: Bearer <access token>` and the project's publishable key as `apikey` (`supabase_flutter`'s `functions.invoke('store-webhook/sync')` sends both). No body is read and the function acts on the caller alone. It answers `200` `{"outcome": "applied", "result": ...}`, then the app reads `my_plan()`; `401` for no valid session; `429` with `Retry-After: 600` past 10 calls in 10 minutes; `502` or `503` where a retry later may help. The app treats a failed call as non-fatal: RevenueCat's webhook still follows.
 - The app reads `my_plan()` for 내 플랜: plan, source, the store grant's end or renewal, and the period's photos used and limit.
 - The app holds only RevenueCat's public SDK keys, `REVENUECAT_APPLE_API_KEY` and `REVENUECAT_GOOGLE_API_KEY` in `app/config/dev.json` (added by #885), which are not secrets. The two secrets below are in Vault and never in the app, the web or a function secret.
@@ -26,7 +27,7 @@ Done once, outside the repository. Labels are RevenueCat's and Apple's and may d
    - URL: `https://<project ref>.supabase.co/functions/v1/store-webhook`, or `https://api.knowno.app/functions/v1/store-webhook`;
    - Authorization header value: a random value of 16 or more printable characters, for example `openssl rand -hex 24`; keep it for step 8;
    - send both environments, since sandbox events grant.
-8. **Vault, through admin.** Each secret is set in admin's store form (#886), which checks the role and a sign-in within 10 minutes and never shows a value back. Until #886 merges, or if its form is unavailable, call the RPC `admin_set_store_secret(name, value)` as an admin with a fresh session's access token: `curl -s -X POST https://<project ref>.supabase.co/rest/v1/rpc/admin_set_store_secret -H "apikey: <publishable key>" -H "Authorization: Bearer <admin access token>" -H 'Content-Type: application/json' -d '{"name": "knowno_store_webhook_authorization", "value": "<step 7 value>"}'` answers `"saved"`, then the same with `"name": "knowno_store_api_key"` and the step 6 key. `"reauth"` means sign in again. `admin_store_secrets()` lists which are set and when; `admin_clear_store_secret(name)` removes one.
+8. **Vault, through admin.** Set each secret in admin's 스토어 비밀값 form, which checks the role and a sign-in within 10 minutes and never shows a value back. Only if the form is unavailable, call the RPC `admin_set_store_secret(name, value)` as an admin with a fresh session's access token: `curl -s -X POST https://<project ref>.supabase.co/rest/v1/rpc/admin_set_store_secret -H "apikey: <publishable key>" -H "Authorization: Bearer <admin access token>" -H 'Content-Type: application/json' -d '{"name": "knowno_store_webhook_authorization", "value": "<step 7 value>"}'` answers `"saved"`, then the same with `"name": "knowno_store_api_key"` and the step 6 key. `"reauth"` means sign in again. `admin_store_secrets()` lists which are set and when; `admin_clear_store_secret(name)` removes one.
 9. **Where each key goes:**
 
    | Key | Goes to |
@@ -45,6 +46,4 @@ Merging the function's pull request deploys it; it reads no function secret. To 
 
 ## Open questions
 
-- #886's admin form for the two secrets, in place of the RPC call.
-- A deploy workflow or check for `store-webhook` in `.github/workflows/`, which the PM files for tooling.
 - Whether to add RevenueCat's optional HMAC signature to the header check.

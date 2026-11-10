@@ -1,5 +1,6 @@
 # Each program's grant, the narrowest it works with, which scripts/run.sh passes to deno run (ADR 0146);
 # <tmp> is the temporary directory by its real path.
+check-functions-declared: --allow-read=supabase/functions,supabase/config.toml
 check-generated: --allow-run=which,git,flutter_rust_bridge_codegen,dart,flutter,cargo,wasm-bindgen,uv,diff --allow-read=app,engine-wasm/pkg,engine-wasm/Cargo.lock,<tmp> --allow-write=<tmp> --allow-env=CI,CARGO_HOME,HOME
 check-ios-client-id: --allow-read=app/config/dev.json,app/ios/Runner/Info.plist
 check-markdown-links: --allow-run=git --allow-read=.

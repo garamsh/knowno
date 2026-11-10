@@ -89,6 +89,7 @@ docker run --rm -p 3000:3000 knowno-web
   - `scripts/run.sh check-secrets` — fails on a Supabase secret or service-role key in any file;
   - `scripts/run.sh check-ios-client-id` — the iOS URL scheme against the iOS client ID in `app/config/dev.json`;
   - `scripts/run.sh check-markdown-links` — fails on a relative link in a Markdown file whose target file does not exist, naming `file:line`; URLs and fragments are not checked;
+  - `scripts/run.sh check-functions-declared` — each function directory under `supabase/functions/` has a `[functions.<name>]` entry in `supabase/config.toml` and each entry a directory (`docs/architecture/server.md`);
   - `scripts/run.sh check-generated` — the app's committed generated code (flutter_rust_bridge's included) and `engine-wasm/pkg/` against their generators;
   - `scripts/run.sh check-migration-order` — each migration `main` lacks sorts after every migration on `main` (`docs/architecture/server.md`);
   - `scripts/run.sh deno lint` — lints and type-checks the TypeScript under `supabase/functions/`, `tools/eval/` and `scripts/`;
