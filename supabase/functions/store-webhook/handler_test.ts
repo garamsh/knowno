@@ -9,6 +9,7 @@ const SERVICE_ROLE_KEY = "service-role-key";
 const AUTHORIZATION = "Bearer webhook-value-from-vault";
 const API_KEY = "sk_revenuecat_secret";
 const USER = "00000000-0000-4000-8000-00000000000b";
+const OTHER = "00000000-0000-4000-8000-00000000000c";
 const NOW = Date.parse("2026-11-10T12:00:00Z");
 const FUTURE = "2026-12-10T12:00:00Z";
 const PAST = "2026-11-01T12:00:00Z";
@@ -28,6 +29,8 @@ type Fake = {
   revenuecat: unknown | number | "offline";
   /** What `apply_store_entitlement` answers, or a status. */
   apply: string | number | "offline";
+  /** RevenueCat's answer for another user id, by id; a user with none is not served. */
+  others?: Record<string, unknown>;
   calls: { url: string; headers: Headers; body: unknown }[];
 };
 
@@ -85,6 +88,10 @@ function respond(
     }
     return Response.json(state.revenuecat);
   }
+  const other = Object.entries(state.others ?? {}).find(([id]) =>
+    url === `https://api.revenuecat.com/v1/subscribers/${id}`
+  );
+  if (other !== undefined) return Response.json(other[1]);
   throw new Error(`unexpected request ${url}`);
 }
 
@@ -385,4 +392,70 @@ Deno.test("the log and the answers carry no secret and no user id", async () => 
   for (const secret of [AUTHORIZATION, API_KEY, SERVICE_ROLE_KEY, USER]) {
     assert.equal(everything.includes(secret), false, secret);
   }
+});
+
+const transfer = (from: unknown, to: unknown) => ({
+  api_version: "1.0",
+  event: { type: "TRANSFER", transferred_from: from, transferred_to: to },
+});
+
+Deno.test("a transfer reads and applies every id it names: the loser ends and the gainer is granted", async () => {
+  const state = fake({
+    revenuecat: subscriber(null),
+    others: { [OTHER]: subscriber({ expires_date: FUTURE }) },
+    apply: "ended",
+  });
+  const { response, logs } = await call(state, transfer([USER], [OTHER]));
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    reads(state).map((c) => c.url.split("/").pop()),
+    [USER, OTHER],
+  );
+  const bodies = applies(state).map((c) => c.body as Record<string, unknown>);
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].user_id, USER);
+  assert.equal(bodies[0].plan, null);
+  assert.equal(bodies[1].user_id, OTHER);
+  assert.equal(bodies[1].plan, "pro");
+  assert.deepEqual(logs, [{ outcome: "applied", result: "ended,ended" }]);
+});
+
+Deno.test("a transfer ignores an id that is not a user id and reads nothing for it, and one with none is ignored", async () => {
+  const state = fake({ revenuecat: subscriber(null), apply: "ended" });
+  const { response } = await call(
+    state,
+    transfer(["$RCAnonymousID:abc", USER, USER.toUpperCase()], [7, null]),
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(reads(state).map((c) => c.url.split("/").pop()), [USER]);
+  assert.equal(applies(state).length, 1);
+  for (const body of [transfer(["$RCAnonymousID:abc"], []), transfer(1, "x")]) {
+    const none = fake();
+    const { response: r } = await call(none, body);
+    assert.deepEqual(await r.json(), { outcome: "ignored" });
+    assert.equal(reads(none).length, 0);
+  }
+});
+
+Deno.test("a transfer whose read fails for one id answers non-200 and changes no grant", async () => {
+  const state = fake({ revenuecat: subscriber(null) });
+  const failing = fakeFetch(state);
+  const handler = createHandler({
+    config: readConfig((name) => ENV[name]),
+    fetch: (input, init) =>
+      String(input).endsWith(OTHER)
+        ? Promise.resolve(Response.json({}, { status: 500 }))
+        : failing(input, init),
+    now: () => NOW,
+    log: () => {},
+  });
+  const response = await handler(
+    new Request(`${SUPABASE_URL}/functions/v1/store-webhook`, {
+      method: "POST",
+      headers: { Authorization: AUTHORIZATION },
+      body: JSON.stringify(transfer([USER], [OTHER])),
+    }),
+  );
+  assert.equal(response.status, 502);
+  assert.equal(applies(state).length, 0);
 });

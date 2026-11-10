@@ -5,7 +5,7 @@ How a purchase becomes a plan: RevenueCat, the `store-webhook` Edge Function, st
 ## Current decisions
 
 - A store purchase is made in the app through RevenueCat, whose app user id is the Supabase user id (the app logs in to RevenueCat with it before any purchase). The entitlement `plus` is plan `pro`, shown 플러스; plan versions and limits are unchanged.
-- RevenueCat posts every event to the `store-webhook` function with the `Authorization` value the owner set. The function treats the event as a trigger only: it reads the user's current entitlements with `GET /v1/subscribers/{app_user_id}` and sets or ends the user's store grant ([`server.md`](server.md) §Store plans).
+- RevenueCat posts every event to the `store-webhook` function with the `Authorization` value the owner set. The function treats the event as a trigger only: it reads the current entitlements of the user (of every user a `TRANSFER` names) with `GET /v1/subscribers/{app_user_id}` and sets or ends the user's store grant ([`server.md`](server.md) §Store plans).
 - A store grant never replaces an admin grant or 무제한, and a store event never ends one; each store change is in the audit log.
 - Sandbox events grant like production ones.
 - The app reads `my_plan()` for 내 플랜: plan, source, the store grant's end or renewal, and the period's photos used and limit.
@@ -25,7 +25,7 @@ Done once, outside the repository. Labels are RevenueCat's and Apple's and may d
    - URL: `https://<project ref>.supabase.co/functions/v1/store-webhook`, or `https://api.knowno.app/functions/v1/store-webhook`;
    - Authorization header value: a random value of 16 or more printable characters, for example `openssl rand -hex 24`; keep it for step 8;
    - send both environments, since sandbox events grant.
-8. **Vault, through admin.** Each secret is set by `admin_set_store_secret(name, value)`, which needs an admin and a sign-in within 10 minutes, and is never readable back. No admin screen exists yet, so call it as an admin with a fresh session's access token: `curl -s -X POST https://<project ref>.supabase.co/rest/v1/rpc/admin_set_store_secret -H "apikey: <publishable key>" -H "Authorization: Bearer <admin access token>" -H 'Content-Type: application/json' -d '{"name": "knowno_store_webhook_authorization", "value": "<step 7 value>"}'` answers `"saved"`, then the same with `"name": "knowno_store_api_key"` and the step 6 key. `"reauth"` means sign in again. `admin_store_secrets()` lists which are set and when; `admin_clear_store_secret(name)` removes one.
+8. **Vault, through admin.** Each secret is set in admin's store form (#886), which checks the role and a sign-in within 10 minutes and never shows a value back. Until #886 merges, or if its form is unavailable, call the RPC `admin_set_store_secret(name, value)` as an admin with a fresh session's access token: `curl -s -X POST https://<project ref>.supabase.co/rest/v1/rpc/admin_set_store_secret -H "apikey: <publishable key>" -H "Authorization: Bearer <admin access token>" -H 'Content-Type: application/json' -d '{"name": "knowno_store_webhook_authorization", "value": "<step 7 value>"}'` answers `"saved"`, then the same with `"name": "knowno_store_api_key"` and the step 6 key. `"reauth"` means sign in again. `admin_store_secrets()` lists which are set and when; `admin_clear_store_secret(name)` removes one.
 9. **Where each key goes:**
 
    | Key | Goes to |
@@ -44,6 +44,6 @@ Merging the function's pull request deploys it; it reads no function secret. To 
 
 ## Open questions
 
-- An admin screen for the two secrets, in place of the RPC call.
+- #886's admin form for the two secrets, in place of the RPC call.
 - A deploy workflow or check for `store-webhook` in `.github/workflows/`, which the PM files for tooling.
 - Whether to add RevenueCat's optional HMAC signature to the header check.

@@ -54,20 +54,31 @@ export function status(outcome: Outcome): number {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** The app user id of an event that names a Supabase user, or null for any other body or event. */
-function userOf(body: unknown): string | null {
+/** The Supabase user ids an event concerns, none for any other body or event. */
+function usersOf(body: unknown): string[] {
   if (typeof body !== "object" || body === null || !("event" in body)) {
-    return null;
+    return [];
   }
   const event = body.event;
-  if (
-    typeof event !== "object" || event === null || !("type" in event) ||
-    event.type === "TEST" || !("app_user_id" in event) ||
-    typeof event.app_user_id !== "string" || !UUID.test(event.app_user_id)
-  ) {
-    return null;
+  if (typeof event !== "object" || event === null || !("type" in event)) {
+    return [];
   }
-  return event.app_user_id.toLowerCase();
+  if (event.type === "TEST") return [];
+  // A TRANSFER names no app_user_id: the entitlement moved from one set of ids to another.
+  const named: unknown[] = event.type === "TRANSFER"
+    ? [
+      ..."transferred_from" in event && Array.isArray(event.transferred_from)
+        ? event.transferred_from
+        : [],
+      ..."transferred_to" in event && Array.isArray(event.transferred_to)
+        ? event.transferred_to
+        : [],
+    ]
+    : ["app_user_id" in event ? event.app_user_id : null];
+  const ids = named.filter((id): id is string =>
+    typeof id === "string" && UUID.test(id)
+  ).map((id) => id.toLowerCase());
+  return [...new Set(ids)];
 }
 
 type Result = { readonly outcome: Outcome; readonly result?: string };
@@ -110,27 +121,33 @@ async function handle(request: Request, deps: HandlerDeps): Promise<Result> {
     if (!matches || vault.webhookAuthorization === null) {
       return { outcome: "unauthorized" };
     }
-    const userId = userOf(await request.json().catch(() => null));
-    if (userId === null) return { outcome: "ignored" };
+    const userIds = usersOf(await request.json().catch(() => null));
+    if (userIds.length === 0) return { outcome: "ignored" };
     if (vault.apiKey === null) return { outcome: "not_configured" };
-    const entitlement = await read(
-      userId,
-      vault.apiKey,
-      deps.now(),
-      deps.fetch,
-    );
-    const result = entitlement.plan === null
-      ? await apply(userId, null, null, false, supabase)
-      : await apply(
-        userId,
-        entitlement.plan,
-        entitlement.endsAt,
-        entitlement.renews,
-        supabase,
+    // Every read first, so one failure answers non-200 before any grant changes and RevenueCat retries.
+    const entitlements = [];
+    for (const userId of userIds) {
+      entitlements.push(
+        await read(userId, vault.apiKey, deps.now(), deps.fetch),
       );
-    return result === "no_user"
+    }
+    const results: string[] = [];
+    for (const [i, userId] of userIds.entries()) {
+      const entitlement = entitlements[i];
+      const result = entitlement.plan === null
+        ? await apply(userId, null, null, false, supabase)
+        : await apply(
+          userId,
+          entitlement.plan,
+          entitlement.endsAt,
+          entitlement.renews,
+          supabase,
+        );
+      if (result !== "no_user") results.push(result);
+    }
+    return results.length === 0
       ? { outcome: "no_user" }
-      : { outcome: "applied", result };
+      : { outcome: "applied", result: results.join(",") };
   } catch (error) {
     if (error instanceof SupabaseError || error instanceof RevenueCatError) {
       return { outcome: "unavailable" };
