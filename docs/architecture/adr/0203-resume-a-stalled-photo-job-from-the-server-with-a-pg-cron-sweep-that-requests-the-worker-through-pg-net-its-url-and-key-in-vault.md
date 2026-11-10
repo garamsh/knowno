@@ -1,6 +1,6 @@
 # ADR 0203: Resume a stalled photo job from the server with a pg_cron sweep that requests the worker through pg_net, its URL and key in Vault
 
-> Status: accepted
+> Status: accepted; its Vault secret `assistant_function_url` superseded by ADR 0245
 > Date: 2026-11-09
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
