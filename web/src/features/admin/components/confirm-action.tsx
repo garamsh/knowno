@@ -72,8 +72,12 @@ export function ConfirmAction({
               onClick={() => {
                 startTransition(async () => {
                   const result = await action();
-                  setMessage(result.message);
-                  setConfirming(false);
+                  // After an await a state update is no longer part of the transition, so it
+                  // would show the sentence before the page the action refreshed arrives.
+                  startTransition(() => {
+                    setMessage(result.message);
+                    setConfirming(false);
+                  });
                 });
               }}
               className={button.primary}

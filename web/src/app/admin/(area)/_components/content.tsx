@@ -15,6 +15,8 @@ import {
   DeckView,
   GrantAdminForm,
   NoteList,
+  ScreeningQueue,
+  ScreeningTermsView,
   type NoteView,
   listUsers,
   parsePlanFilter,
@@ -40,6 +42,9 @@ import {
   readNotes,
   readOpenReports,
   readPlanVersions,
+  readScreeningQueue,
+  readScreeningReview,
+  readScreeningTerms,
   readProviderKeys,
   readPromptVersion,
   readPromptVersions,
@@ -95,14 +100,17 @@ function utcToday(): string {
 }
 
 export async function TodoContent() {
-  const [reports, failures, week, breakdown, configurations] = await Promise.all([
+  const [reports, failures, week, breakdown, configurations, held, timeZone] = await Promise.all([
     readOpenReports(),
     readExtractionOutcomes(7),
     readWeekActivity(),
     readExtractionBreakdown(weekUsageDays),
     readAiConfigurations(),
+    readScreeningReview(),
+    adminTimeZone(),
   ]);
   if ("failure" in reports) return <AdminFailureMessage failure={reports.failure} />;
+  if ("failure" in held) return <AdminFailureMessage failure={held.failure} />;
   if ("failure" in failures) return <AdminFailureMessage failure={failures.failure} />;
   if ("failure" in week) return <AdminFailureMessage failure={week.failure} />;
   if ("failure" in breakdown) return <AdminFailureMessage failure={breakdown.failure} />;
@@ -120,11 +128,16 @@ export async function TodoContent() {
       drafts={configurations.data.filter((c) => c.label === "test").map((c) => c.plan)}
       week={week.data}
       usage={summarizeWeeks(breakdown.data, today, free)}
+      held={held.data}
+      timeZone={timeZone}
     />
   );
 }
 
-const noteViews: readonly { view: NoteView; label: string; empty: string }[] = [
+/** A view of 노트: one of the lists, 검토 중 (the held notes) or 금칙어 (the banned words). */
+type Tab = NoteView | "held" | "terms";
+
+const noteViews: readonly { view: Tab; label: string; empty: string }[] = [
   {
     view: "reported",
     label: "신고된 노트",
@@ -136,10 +149,16 @@ const noteViews: readonly { view: NoteView; label: string; empty: string }[] = [
     empty: "공개된 노트가 없어요. 사용자가 노트를 공개하면 여기에 보여요.",
   },
   { view: "hidden", label: "숨긴 노트", empty: "숨긴 노트가 없어요." },
+  {
+    view: "held",
+    label: "검토 중",
+    empty: "검토 중인 노트가 없어요. 공개 전 점검에서 걸린 노트가 여기에 보여요.",
+  },
+  { view: "terms", label: "금칙어", empty: "" },
 ];
 
 /** The 노트 section's address for [view] and [search]; the reported view is the section's own. */
-function notesHref(view: NoteView, search: string): string {
+function notesHref(view: Tab, search: string): string {
   const params = new URLSearchParams();
   if (view !== "reported") params.set("view", view);
   if (search !== "") params.set("q", search);
@@ -152,36 +171,68 @@ export async function NotesContent({ searchParams }: { searchParams: SearchParam
   const search = searchText(params.q);
   const shown = noteViews.find(({ view }) => view === params.view) ?? noteViews[0];
   if (shown === undefined) return null;
-  const [read, reports, timeZone] = await Promise.all([
-    readNotes(shown.view, search),
+  const listed = shown.view !== "held" && shown.view !== "terms" ? shown.view : null;
+  const [read, reports, review, queue, terms, timeZone] = await Promise.all([
+    listed === null ? null : readNotes(listed, search),
     readOpenReports(),
+    shown.view === "held" ? readScreeningReview() : null,
+    shown.view === "held" ? null : readScreeningQueue(),
+    shown.view === "terms" ? readScreeningTerms() : null,
     adminTimeZone(),
   ]);
+  /** A tab's name, with the count of what waits in it where the tab has one. */
+  const named = (view: Tab, label: string) => {
+    if (view === "reported" && !("failure" in reports)) {
+      return `${label} ${String(reports.data.notes)}`;
+    }
+    const held = review ?? queue;
+    if (view === "held" && held !== null && !("failure" in held)) {
+      return `${label} ${String(held.data.length)}`;
+    }
+    return label;
+  };
   return (
     <>
       <ViewSwitch
         label="노트 보기"
         views={noteViews.map(({ view, label }) => ({
           href: notesHref(view, search),
-          label:
-            view === "reported" && !("failure" in reports)
-              ? `${label} ${String(reports.data.notes)}`
-              : label,
+          label: named(view, label),
           current: view === shown.view,
         }))}
       />
-      <form role="search" action="/decks">
-        {shown.view !== "reported" && <input type="hidden" name="view" value={shown.view} />}
-        <SearchField label="노트 이름이나 만든 사람 이메일로 검색" name="q" defaultValue={search} />
-      </form>
-      {"failure" in read ? (
-        <AdminFailureMessage failure={read.failure} />
-      ) : (
-        <NoteList
-          timeZone={timeZone}
-          notes={read.data}
-          empty={search === "" ? shown.empty : "찾는 노트가 없어요. 다른 단어로 검색해 보세요."}
-        />
+      {review !== null &&
+        ("failure" in review ? (
+          <AdminFailureMessage failure={review.failure} />
+        ) : (
+          <ScreeningQueue notes={review.data} empty={shown.empty} timeZone={timeZone} />
+        ))}
+      {terms !== null &&
+        ("failure" in terms ? (
+          <AdminFailureMessage failure={terms.failure} />
+        ) : (
+          <ScreeningTermsView terms={terms.data} timeZone={timeZone} />
+        ))}
+      {read !== null && (
+        <>
+          <form role="search" action="/decks">
+            {shown.view !== "reported" && <input type="hidden" name="view" value={shown.view} />}
+            <SearchField
+              label="노트 이름이나 만든 사람 이메일로 검색"
+              name="q"
+              defaultValue={search}
+            />
+          </form>
+          {"failure" in read ? (
+            <AdminFailureMessage failure={read.failure} />
+          ) : (
+            <NoteList
+              timeZone={timeZone}
+              notes={read.data}
+              empty={search === "" ? shown.empty : "찾는 노트가 없어요. 다른 단어로 검색해 보세요."}
+            />
+          )}
+        </>
       )}
     </>
   );

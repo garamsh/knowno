@@ -76,6 +76,28 @@ describe("the deck page", () => {
     vi.useRealTimers();
   });
 
+  it("reads why a refused note was refused with the note and shows it in its publish sheet, and reads nothing for a note not refused", async () => {
+    postgrest.seed("decks", { ...deckRow("d-no", "Refused"), publication: "refused" });
+    postgrest.refusals.set(uuidOf("d-no"), {
+      refusal: "rules",
+      findings: [{ card_id: "c", where: "front", block: 0, category: "phone", start: 0, end: 4 }],
+    });
+    await open("d-no");
+    await userEvent.click(screen.getByRole("button", { name: "노트 설정" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "노트 공개" }));
+    const sheet = within(screen.getByRole("dialog", { name: '"Refused" 공개' }));
+    expect(sheet.getByText("전화번호가 들어 있어서 공개할 수 없어요.")).toBeVisible();
+    expect(postgrest.requests.filter((r) => r === "POST rpc/my_deck_screening")).toHaveLength(1);
+    cleanup();
+
+    postgrest.requests.length = 0;
+    await open("d-fr");
+    await userEvent.click(screen.getByRole("button", { name: "노트 설정" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "노트 공개" }));
+    expect(screen.queryByText(/공개할 수 없어요/)).not.toBeInTheDocument();
+    expect(postgrest.requests).not.toContain("POST rpc/my_deck_screening");
+  });
+
   it("shows the name, 이 노트 학습 at the top, and the live cards, oldest first", async () => {
     await open("d-fr");
 

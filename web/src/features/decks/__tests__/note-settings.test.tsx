@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { revalidatePath } from "next/cache";
 import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
@@ -51,7 +51,11 @@ beforeEach(async () => {
   });
 });
 
-const french: Deck = { id: uuidOf("deck") as DeckId, name: "French", public: false };
+const french: Deck = {
+  id: uuidOf("deck") as DeckId,
+  name: "French",
+  publication: "private" as const,
+};
 
 /** Renders 노트 설정 over [deck] and picks [item] from its menu. */
 async function choose(
@@ -251,18 +255,75 @@ describe("노트 설정", () => {
     await userEvent.click(sheet.getByRole("checkbox"));
     await userEvent.click(sheet.getByRole("button", { name: "공개" }));
     expect(await sheet.findByText("노트를 확인하고 있어요. 확인이 끝나면 공개돼요.")).toBeVisible();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("노트를 공개했어요")).not.toBeInTheDocument();
     expect(db.rows.decks[0]).toMatchObject({ visibility: "private" });
+    await userEvent.click(sheet.getByRole("button", { name: "확인" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     publishNote.state = "public";
-    await userEvent.click(sheet.getByRole("button", { name: "공개" }));
+    await userEvent.click(screen.getByRole("button", { name: "노트 설정" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "노트 공개" }));
+    const again = within(screen.getByRole("dialog", { name: '"French" 공개' }));
+    await userEvent.click(again.getByRole("checkbox"));
+    await userEvent.click(again.getByRole("button", { name: "공개" }));
     expect(await screen.findByRole("status")).toHaveTextContent("노트를 공개했어요");
     expect(db.rows.decks[0]).toMatchObject({ visibility: "public" });
   });
 
+  it("shows the reason it is given for a refused note in the publish sheet, none for a note given none", async () => {
+    db.seed("decks", { ...deckRow("deck", "French"), publication: "refused" });
+    await render(
+      () => (
+        <NoteSettings
+          deck={{ ...french, publication: "refused" }}
+          cardCount={2}
+          displayName={{ name: "가람" }}
+          refusal="전화번호가 들어 있어서 공개할 수 없어요."
+          cards={[]}
+        />
+      ),
+      {},
+    );
+    await userEvent.click(screen.getByRole("button", { name: "노트 설정" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "노트 공개" }));
+    const sheet = within(screen.getByRole("dialog", { name: '"French" 공개' }));
+    expect(sheet.getByText("전화번호가 들어 있어서 공개할 수 없어요.")).toBeVisible();
+    cleanup();
+
+    await choose("노트 공개", { displayName: { name: "가람" } });
+    const plain = within(screen.getByRole("dialog", { name: '"French" 공개' }));
+    expect(plain.queryByText(/공개할 수 없어요/)).not.toBeInTheDocument();
+    expect(db.requests).not.toContain("POST rpc/my_deck_screening");
+  });
+
+  it("offers 비공개로 전환 for a note being checked, against one refused", async () => {
+    db.seed("decks", {
+      ...deckRow("deck", "French"),
+      publication: "checking",
+      visibility: "public",
+    });
+    await render(
+      () => (
+        <NoteSettings
+          deck={{ ...french, publication: "checking" }}
+          cardCount={2}
+          displayName={{ name: "가람" }}
+          cards={[]}
+        />
+      ),
+      {},
+    );
+    await userEvent.click(screen.getByRole("button", { name: "노트 설정" }));
+    expect(screen.getByRole("menuitem", { name: "비공개로 전환" })).toBeVisible();
+    expect(screen.queryByRole("menuitem", { name: "노트 공개" })).not.toBeInTheDocument();
+    cleanup();
+    await choose("노트 공개", { deck: { ...french, publication: "refused" } });
+    expect(screen.queryByRole("menuitem", { name: "비공개로 전환" })).not.toBeInTheDocument();
+  });
+
   it("makes a published note private at once from 비공개로 전환, saying so", async () => {
     db.seed("decks", deckRow("deck", "French", false, "public"));
-    await choose("비공개로 전환", { deck: { ...french, public: true } });
+    await choose("비공개로 전환", { deck: { ...french, publication: "public" } });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(await screen.findByRole("status")).toHaveTextContent("노트를 비공개로 전환했어요");
     expect(db.rows.decks[0]).toMatchObject({ visibility: "private" });

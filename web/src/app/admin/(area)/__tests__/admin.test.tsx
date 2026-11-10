@@ -377,6 +377,8 @@ describe("노트", () => {
       "신고된 노트 1",
       "모든 공개 노트",
       "숨긴 노트",
+      "검토 중 0",
+      "금칙어",
     ]);
     expect(views.getByRole("link", { name: "신고된 노트 1" })).toHaveAttribute(
       "aria-current",

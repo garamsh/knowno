@@ -35,7 +35,7 @@ beforeEach(async () => {
 });
 const deckId = parseDeckId(uuidOf("deck"));
 if (!deckId) throw new Error("fixture deck id");
-const deck = { id: deckId, name: "단어장", public: false };
+const deck = { id: deckId, name: "단어장", publication: "private" as const };
 
 describe("authoring from the page", () => {
   it("closes a pristine draft directly and confirms dirty dismissal without losing a kept draft", async () => {

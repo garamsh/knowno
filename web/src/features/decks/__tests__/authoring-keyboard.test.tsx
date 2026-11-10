@@ -14,7 +14,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const deckId = parseDeckId(uuidOf("deck"));
 if (!deckId) throw new Error("fixture ids");
-const deck = { id: deckId, name: "단어장", public: false };
+const deck = { id: deckId, name: "단어장", publication: "private" as const };
 
 /** The part of the page a browser shows, which jsdom lacks: 844 px high from the top at first. */
 class VisibleArea extends EventTarget {

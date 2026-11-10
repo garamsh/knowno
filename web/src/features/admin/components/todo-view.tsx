@@ -6,9 +6,11 @@ import { usd } from "../format";
 import { planLabels } from "../labels";
 import { failureAlarm, failureRate, type OutcomeCounts, percent } from "../outcomes";
 import type { OpenReports, PlanId, WeekActivity, WeekPair } from "../read-admin";
+import type { ReviewedHold } from "../read-screening";
 import type { WeekUsage } from "../usage";
 import { Section } from "@/design/section";
 import { button, card, group } from "./admin-section";
+import { ScreeningQueue } from "./screening-queue";
 
 /** An age in whole days: "오늘" or "n일 전". */
 function ago(days: number): string {
@@ -91,6 +93,8 @@ export function TodoView({
   drafts,
   week,
   usage,
+  held,
+  timeZone,
 }: {
   reports: OpenReports;
   /** The last 7 UTC days' recorded extractions. */
@@ -99,6 +103,9 @@ export function TodoView({
   drafts: PlanId[];
   week: WeekActivity;
   usage: WeekUsage;
+  /** The notes held for a decision, with what was found in each. */
+  held: ReviewedHold[];
+  timeZone: string;
 }) {
   const rate = failureRate(failures);
   const photos = (amount: WeekUsage["current"]) =>
@@ -143,6 +150,14 @@ export function TodoView({
           />
         )}
       </div>
+      {held.length > 0 && (
+        <Section
+          label="검토 중인 노트"
+          note={`${String(held.length)}개 · 공개를 허용하거나 숨김을 유지해요.`}
+        >
+          <ScreeningQueue notes={held} empty="" timeZone={timeZone} />
+        </Section>
+      )}
       <Section
         label="이번 주"
         note={`최근 7일을 그 전 7일과 비교해요. 사진은 UTC 날짜로 세고, 예상 비용은 모델마다 eval로 잰 비용이에요.${

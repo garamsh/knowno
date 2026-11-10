@@ -99,6 +99,11 @@ const sections: readonly LegalSection[] = [
           보여요. 이것은 이용자가 직접 고른 공개이고, 언제든 &ldquo;비공개로 전환&rdquo;할 수
           있어요.
         </p>
+        <p>
+          공개하려는 노트는 다른 이용자에게 보이기 전에 자동으로 검사해요. 이름, 설명, 카드의 내용을
+          금칙어, 연락처와 링크, 자동 판별로 살펴보고, 걸린 노트는 공개되지 않거나 운영자가 확인할
+          때까지 기다려요. 운영자는 확인하려고 그 노트의 내용을 볼 수 있어요.
+        </p>
       </>
     ),
   },
@@ -230,7 +235,7 @@ const sections: readonly LegalSection[] = [
     heading: "시행일과 변경",
     body: (
       <>
-        <p>이 개인정보 처리방침은 2026년 10월 16일부터 시행해요.</p>
+        <p>이 개인정보 처리방침은 2026년 11월 17일부터 시행해요.</p>
         <p>내용이 바뀌면 시행하기 전에 이 페이지에서 바뀐 내용과 시행일을 알려 드려요.</p>
       </>
     ),
@@ -242,7 +247,7 @@ export default function PrivacyPage() {
   return (
     <LegalDocument
       title="개인정보 처리방침"
-      effectiveDate="2026년 10월 16일"
+      effectiveDate="2026년 11월 17일"
       intro={
         <p>
           알아몰라 운영자(이하 &ldquo;운영자&rdquo;)는 「개인정보 보호법」에 따라 이용자의

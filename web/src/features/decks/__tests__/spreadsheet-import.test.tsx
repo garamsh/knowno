@@ -25,7 +25,7 @@ beforeEach(async () => {
 });
 const deckId = parseDeckId(uuidOf("deck"));
 if (!deckId) throw new Error("fixture deck id");
-const deck = { id: deckId, name: "단어장", public: false };
+const deck = { id: deckId, name: "단어장", publication: "private" as const };
 
 async function openFile(file: File) {
   await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});

@@ -7,7 +7,7 @@ import { ankiNotes } from "../anki-export";
 import { decorateDeck, deleteDeck, publishDeck, renameDeck, unpublishDeck } from "../actions";
 import { parseDeckIcon } from "../deck-icon";
 import { deckColor } from "../deck-tint";
-import type { Card, Deck } from "../library";
+import { type Card, type Deck, isOffered } from "../library";
 import { leaveThen } from "@/design/use-back-entry";
 import { characters, maxDescriptionLength, parseDisplayName } from "../publishing";
 import { buttonClass } from "@/design/button";
@@ -39,6 +39,7 @@ export function NoteSettings({
   deck,
   cardCount,
   displayName,
+  refusal,
   adding = false,
   cards = [],
 }: {
@@ -46,6 +47,8 @@ export function NoteSettings({
   cardCount: number;
   cards?: Card[];
   displayName: DisplayNameRead;
+  /** Why the note was refused, in one sentence, as the note page read it; none for any other note. */
+  refusal?: string;
   adding?: boolean;
 }) {
   const [sheet, setSheet] = useState<Sheet | null>(null);
@@ -94,7 +97,7 @@ export function NoteSettings({
               setSheet("decorate");
             },
           },
-          deck.public
+          isOffered(deck.publication)
             ? {
                 label: "비공개로 전환",
                 pick: () => {
@@ -134,7 +137,13 @@ export function NoteSettings({
       {sheet === "rename" && <RenameSheet deck={deck} close={close} done={done} />}
       {sheet === "decorate" && <DecorateSheet deck={deck} close={close} done={done} />}
       {sheet === "publish" && (
-        <PublishSheet deck={deck} displayName={displayName} close={close} done={done} />
+        <PublishSheet
+          deck={deck}
+          displayName={displayName}
+          refusal={refusal}
+          close={close}
+          done={done}
+        />
       )}
       {sheet === "delete" && <DeleteSheet deck={deck} cardCount={cardCount} close={close} />}
       {snack && (
@@ -280,11 +289,13 @@ function DecorateSheet({ deck, close, done }: { deck: Deck; close: () => void; d
 function PublishSheet({
   deck,
   displayName,
+  refusal,
   close,
   done,
 }: {
   deck: Deck;
   displayName: DisplayNameRead;
+  refusal?: string;
   close: () => void;
   done: (said: string) => void;
 }) {
@@ -294,6 +305,7 @@ function PublishSheet({
   const [agreed, setAgreed] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [problem, setProblem] = useState("");
+  const [waiting, setWaiting] = useState(false);
   const [pending, start] = useTransition();
   const busy = useRef(false);
   const nameError = useId();
@@ -319,6 +331,20 @@ function PublishSheet({
       </Sheet>
     );
   }
+  if (waiting) {
+    return (
+      <Sheet title={title} close={close}>
+        <div className="flex flex-col gap-4 pb-2">
+          <p role="status" className="text-body text-ink">
+            {problem}
+          </p>
+          <button type="button" onClick={close} className={`${secondary} justify-center`}>
+            확인
+          </button>
+        </div>
+      </Sheet>
+    );
+  }
   const askName = displayName.name === null;
   const nameInvalid = showErrors && askName && parseDisplayName(name) === null;
   const tooLong = characters(description.trim()) > maxDescriptionLength;
@@ -338,11 +364,15 @@ function PublishSheet({
             const result = await publishDeck(deck.id, description, askName ? name : undefined);
             busy.current = false;
             if (result.saved) done("노트를 공개했어요");
-            else setProblem(result.message);
+            else {
+              setProblem(result.message);
+              setWaiting(result.waiting === true);
+            }
           });
         }}
         className="flex flex-col gap-4 pb-2"
       >
+        {refusal !== undefined && problem === "" && <Problem>{refusal}</Problem>}
         {askName && (
           <>
             <p className="text-secondary text-muted">

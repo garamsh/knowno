@@ -8,7 +8,9 @@ const id = "00000000-0000-4000-8000-000000000001" as DeckId;
 
 /** The one tile [deck] draws: its fill's theme utility and its icon's Lucide name. */
 function tile(deck: Partial<Deck>) {
-  const { container } = render(<DeckTile deck={{ id, name: "French", public: false, ...deck }} />);
+  const { container } = render(
+    <DeckTile deck={{ id, name: "French", publication: "private" as const, ...deck }} />,
+  );
   const box = container.firstElementChild;
   const icon = box?.querySelector("svg");
   return {

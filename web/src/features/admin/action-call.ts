@@ -40,10 +40,30 @@ export async function deckAction(
   return { changed: result.data, message: message(result.data) };
 }
 
+/**
+ * Calls the deck function [name] for [deckId] with [args], which answers a word, and returns the
+ * outcome [outcomes] has for it; a word it does not know is unreadable.
+ */
+export async function deckOutcomeAction(
+  name: string,
+  deckId: string,
+  args: Record<string, unknown>,
+  outcomes: Record<string, ActionResult>,
+): Promise<ActionResult> {
+  const id = parseDeckId(deckId);
+  if (id === null) return refused("malformed");
+  const result = await call(name, { deck_id: id, ...args });
+  if ("failure" in result) return refused(result.failure);
+  const outcome = typeof result.data === "string" ? outcomes[result.data] : undefined;
+  if (!outcome) return refused("unreadable");
+  if (outcome.changed) revalidatePath("/admin", "layout");
+  return outcome;
+}
+
 /** Calls the server function [name] with [args] as the signed-in user. */
 export async function call(
   name: string,
-  args: Record<string, unknown>,
+  args: Record<string, unknown> = {},
 ): Promise<{ data: unknown } | { failure: ServerFailure }> {
   const supabase = await createClient();
   const result = await supabase.rpc(name, args).abortSignal(AbortSignal.timeout(requestTimeoutMs));

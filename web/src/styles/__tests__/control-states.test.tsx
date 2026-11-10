@@ -153,7 +153,11 @@ describe("the controls' pointer, hover and pressed states", () => {
         <DeckList
           rows={[
             {
-              deck: { id: idOf(parseDeckId, "d-fr"), name: "French", public: false },
+              deck: {
+                id: idOf(parseDeckId, "d-fr"),
+                name: "French",
+                publication: "private" as const,
+              },
               cards: 1,
               today: 1,
               mastered: 0,
@@ -162,10 +166,14 @@ describe("the controls' pointer, hover and pressed states", () => {
           ]}
         />
         <CardGrid
-          deck={{ id: idOf(parseDeckId, "d-fr"), name: "French", public: false }}
+          deck={{ id: idOf(parseDeckId, "d-fr"), name: "French", publication: "private" as const }}
           settings={
             <NoteSettings
-              deck={{ id: idOf(parseDeckId, "d-fr"), name: "French", public: false }}
+              deck={{
+                id: idOf(parseDeckId, "d-fr"),
+                name: "French",
+                publication: "private" as const,
+              }}
               cardCount={1}
               displayName={{ name: null }}
             />

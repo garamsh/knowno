@@ -3,9 +3,10 @@ import Link from "next/link";
 import { switchLink } from "./admin-section";
 
 /**
- * A section's switch between its views, each an address of its own: 노트's three lists and
- * 설정's three pages. One solid surface on its edge, the current view marked by a flat fill, as a
- * segmented control draws it, so no edge but the bar's can hang past the bar.
+ * A section's switch between its views, each an address of its own: 노트's lists, 검토 중 and
+ * 금칙어, and 설정's three pages. One solid surface on its edge, the current view marked by a flat
+ * fill, as a segmented control draws it; the views wrap onto a second row where they do not fit, so
+ * nothing hangs past the page.
  */
 export function ViewSwitch({
   label,
@@ -15,8 +16,8 @@ export function ViewSwitch({
   views: readonly { href: string; label: string; current: boolean }[];
 }) {
   return (
-    <nav aria-label={label} className="max-w-full self-start overflow-x-auto pb-2">
-      <ul className="flex gap-1 rounded-button bg-surface p-1">
+    <nav aria-label={label} className="max-w-full self-start pb-2">
+      <ul className="flex flex-wrap gap-1 rounded-button bg-surface p-1">
         {views.map((view) => (
           <li key={view.href}>
             <Link
