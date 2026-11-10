@@ -20,9 +20,21 @@ class FakePlanServer implements PlanServer {
   PlanStanding? standing;
   final reads = <UserId>[];
 
+  /// The events in order, `sync` and `read`, so a test can see which came
+  /// first.
+  final calls = <String>[];
+  var syncs = 0;
+
+  @override
+  Future<void> sync() async {
+    syncs++;
+    calls.add('sync');
+  }
+
   @override
   Future<PlanStanding> read(UserId user) async {
     reads.add(user);
+    calls.add('read');
     return standing ?? (throw const PlanUnavailable());
   }
 }

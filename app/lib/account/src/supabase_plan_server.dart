@@ -7,15 +7,33 @@ import 'plan.dart';
 /// §Store plans).
 const myPlanFunction = 'my_plan';
 
+/// The Edge Function route the app calls right after a purchase or restore
+/// (`payments.md`): `POST /functions/v1/store-webhook/sync`, the user's
+/// session sent by the client, no body.
+const storeSyncFunction = 'store-webhook/sync';
+
 /// [PlanServer] over `public.my_plan()`. [call] makes the remote call and
 /// resolves to its raw answer.
 final class SupabasePlanServer implements PlanServer {
-  const SupabasePlanServer(this._call);
+  const SupabasePlanServer(this._call, this._syncCall);
 
   SupabasePlanServer.of(SupabaseClient client)
-    : _call = (() => client.rpc<Object?>(myPlanFunction));
+    : _call = (() => client.rpc<Object?>(myPlanFunction)),
+      _syncCall = (() => client.functions.invoke(storeSyncFunction));
 
   final Future<Object?> Function() _call;
+  final Future<Object?> Function() _syncCall;
+
+  /// A `401`, `429` or `5xx` raises a `FunctionException` and a lost
+  /// connection another exception; none stops the plan being read after.
+  @override
+  Future<void> sync() async {
+    try {
+      await _syncCall();
+    } on Exception {
+      // The webhook still follows.
+    }
+  }
 
   /// The server names the caller, so [user] is not sent.
   @override

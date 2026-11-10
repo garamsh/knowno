@@ -1,6 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show FunctionsClient;
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:knowno/account/account.dart';
 import 'package:knowno/account/src/plan.dart';
+import 'package:knowno/account/src/supabase_plan_server.dart';
 
 const _ada = UserId('00000000-0000-4000-8000-00000000000a');
 
@@ -23,7 +27,7 @@ Map<String, Object?> _row({
 
 void main() {
   Future<PlanStanding> read(Object? answer) =>
-      SupabasePlanServer(() async => answer).read(_ada);
+      SupabasePlanServer(() async => answer, () async => null).read(_ada);
 
   test(
     'the free plan with its photos used and limit is read from the row',
@@ -116,8 +120,69 @@ void main() {
       );
     }
     await expectLater(
-      SupabasePlanServer(() async => throw Exception('offline')).read(_ada),
+      SupabasePlanServer(
+        () async => throw Exception('offline'),
+        () async => null,
+      ).read(_ada),
       throwsA(isA<PlanUnavailable>()),
     );
+  });
+
+  group('sync', () {
+    late List<http.Request> requests;
+
+    /// A server over an Edge Functions client whose server answers [status].
+    SupabasePlanServer answering(int status) {
+      requests = [];
+      final functions = FunctionsClient(
+        'https://example.test/functions/v1',
+        const {},
+        httpClient: MockClient((request) async {
+          requests.add(request);
+          return http.Response('{"outcome": "applied"}', status);
+        }),
+      );
+      addTearDown(functions.dispose);
+      return SupabasePlanServer(
+        () async => [_row()],
+        () => functions.invoke(storeSyncFunction),
+      );
+    }
+
+    test('posts to the store-webhook sync route with no body', () async {
+      await answering(200).sync();
+
+      final request = requests.single;
+      expect(request.method, 'POST');
+      expect(
+        request.url.toString(),
+        'https://example.test/functions/v1/store-webhook/sync',
+      );
+      expect(request.body, isEmpty);
+    });
+
+    test(
+      'a 401, a 429 and a 5xx are not thrown, and the plan is still read after',
+      () async {
+        for (final status in [401, 429, 500, 502, 503]) {
+          final server = answering(status);
+
+          await server.sync();
+          final standing = await server.read(_ada);
+
+          expect(requests, hasLength(1), reason: '$status');
+          expect(standing.plan, Plan.free, reason: '$status');
+        }
+      },
+    );
+
+    test('a lost connection is not thrown either', () async {
+      final server = SupabasePlanServer(
+        () async => [_row()],
+        () async => throw http.ClientException('offline'),
+      );
+
+      await server.sync();
+    });
   });
 }

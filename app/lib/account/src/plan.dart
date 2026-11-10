@@ -62,6 +62,11 @@ abstract interface class PlanServer {
   /// The plan of the account signed in as [user]. Throws [PlanUnavailable]
   /// when the server cannot answer.
   Future<PlanStanding> read(UserId user);
+
+  /// Asks the server to read the store's entitlements of the signed-in
+  /// account now, so the plan does not wait on the store's webhook. It never
+  /// throws: a refusal or a failure leaves the webhook to catch up.
+  Future<void> sync();
 }
 
 /// The plan server of a build with no server to ask: every read fails.
@@ -70,4 +75,7 @@ final class UnavailablePlanServer implements PlanServer {
 
   @override
   Future<PlanStanding> read(UserId user) => throw const PlanUnavailable();
+
+  @override
+  Future<void> sync() async {}
 }

@@ -103,15 +103,22 @@ class PlanController extends Notifier<PlanView> {
   /// Buys [package], then refreshes the plan after a purchase.
   Future<PurchaseOutcome> buy(PlusPackage package) async {
     final outcome = await ref.read(purchaseStoreProvider).buy(package);
-    if (outcome is Purchased) await refresh();
+    if (outcome is Purchased) await _syncThenRefresh();
     return outcome;
   }
 
   /// Restores the store account's purchases, then refreshes the plan.
   Future<RestoreOutcome> restore() async {
     final outcome = await ref.read(purchaseStoreProvider).restore();
-    if (outcome == RestoreOutcome.restored) await refresh();
+    if (outcome == RestoreOutcome.restored) await _syncThenRefresh();
     return outcome;
+  }
+
+  /// Has the server read the store now, then reads the plan: whatever the
+  /// sync answered, the plan is read after it.
+  Future<void> _syncThenRefresh() async {
+    await ref.read(planServerProvider).sync();
+    await refresh();
   }
 }
 

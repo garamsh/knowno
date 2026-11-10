@@ -324,6 +324,28 @@ void main() {
   });
 
   testWidgets(
+    'a purchase and a restore each ask the server to sync before the plan is read; a cancelled purchase asks nothing',
+    (tester) async {
+      await pumpScreen(tester);
+      expect(plans.calls, ['read']);
+
+      store.purchase = const PurchaseCancelled();
+      await tapAndSettle(tester, shownText('Learn about Plus'));
+      await tapAndSettle(tester, shownText('Start Plus'));
+      expect(plans.syncs, 0, reason: 'nothing was bought');
+
+      store.purchase = const Purchased();
+      await tapAndSettle(tester, shownText('Start Plus'));
+      expect(plans.calls, ['read', 'sync', 'read']);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tapAndSettle(tester, shownText('Learn about Plus'));
+      await tapAndSettle(tester, shownText('Restore purchases'));
+      expect(plans.calls, ['read', 'sync', 'read', 'sync', 'read']);
+    },
+  );
+
+  testWidgets(
     'a purchase the server does not show yet says it may take a moment, and the plan stays as it was',
     (tester) async {
       await pumpScreen(tester);
