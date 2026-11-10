@@ -10,7 +10,7 @@
 -- no client reaching the service functions; and the revert. Each rule has a control that a near
 -- miss cannot pass.
 begin;
-select plan(297);
+select plan(303);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'a@example.com'),
@@ -419,10 +419,14 @@ insert into private.deck_screening (deck_id, hold) values (pg_temp.id('50'), 'ad
 select pg_temp.sign_in('b');
 select is(public.appeal_ai_hidden_note(pg_temp.id('36')), 'not_hidden_by_ai', 'another user cannot appeal');
 select is(public.my_triage_state(pg_temp.id('36')), null, 'and sees nothing of it');
+select is(public.my_triage_state(pg_temp.id('36')) ->> 'category', null, 'least of all the category it was hidden for');
 reset role;
 select pg_temp.sign_in('a');
 select is((public.my_triage_state(pg_temp.id('36')) ->> 'hidden_by_ai')::boolean, true, 'the owner sees the AI hid it');
 select is((public.my_triage_state(pg_temp.id('36')) ->> 'appealed')::boolean, false, 'with no appeal yet');
+select is(public.my_triage_state(pg_temp.id('36')) ->> 'category', 'spam', 'the owner sees the category it was hidden for');
+select is(public.my_triage_state(pg_temp.id('14')) ->> 'category', 'ad', 'an ad is named an ad');
+select is(public.my_triage_state(pg_temp.id('50')) ->> 'category', null, 'a note an admin hid has no category');
 select is(public.appeal_ai_hidden_note(pg_temp.id('50')), 'not_hidden_by_ai', 'a note an admin hid is not appealed here');
 select is(public.appeal_ai_hidden_note(pg_temp.id('36')), 'appealed', 'the owner appeals');
 select is(public.appeal_ai_hidden_note(pg_temp.id('36')), 'already', 'only once');
@@ -446,6 +450,9 @@ select pg_temp.sign_in('c');
 select is(public.admin_resolve_triage_appeal(pg_temp.id('32'), true), 'restored', 'a person restores it');
 select is(pg_temp.state('32'), 'public/false', 'the note is shown again');
 select is(pg_temp.undone('32'), true, 'the action is undone');
+reset role;
+select pg_temp.sign_in('a');
+select is(public.my_triage_state(pg_temp.id('32')) ->> 'category', null, 'an undone hide has no category');
 reset role;
 
 -- The configuration: saved as a draft, activated only with both providers' keys, never changed.
@@ -762,8 +769,9 @@ select is(public.admin_resolve_triage_appeal(pg_temp.id('88'), true), 'restored'
 reset role;
 update public.cards set front = jsonb_build_array(jsonb_build_object('type', 'text', 'v', 1, 'id', 'b1',
   'payload', jsonb_build_object('text', 'second text'))) where id = 'c0000000-0000-4000-8000-000000000088';
-select is(pg_temp.judge('88', 'spam', 0.99), 'hidden', 'the new text is hidden again');
+select is(pg_temp.judge('88', 'ad', 0.99), 'hidden', 'the new text is hidden again');
 select pg_temp.sign_in('a');
+select is(public.my_triage_state(pg_temp.id('88')) ->> 'category', 'ad', 'the state names the new hide, not the undone one');
 select is((public.my_triage_state(pg_temp.id('88')) ->> 'appealed')::boolean, false, 'the state shows no appeal of the new hide');
 select is((public.my_triage_state(pg_temp.id('88')) ->> 'resolved')::boolean, false, 'and none resolved');
 select is(public.appeal_ai_hidden_note(pg_temp.id('88')), 'appealed', 'the owner appeals the new hide');
