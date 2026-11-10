@@ -1,6 +1,6 @@
 # ADR 0244: Judge a reported note once by a model after two reporters, within a daily spend cap, ship it judge-only, and let it hide or dismiss only by an admin's switch with every action undoable
 
-> Status: accepted
+> Status: accepted; its Vault secret `triage_function_url` superseded by ADR 0245
 > Date: 2026-11-10
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

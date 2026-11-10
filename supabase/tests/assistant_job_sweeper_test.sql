@@ -10,7 +10,7 @@
 -- daily sweep of uploads no job names, older than 24 hours. pg_net is not sent to: its queue is read inside the
 -- transaction, which rolls back before the background worker sees a row.
 begin;
-select plan(35);
+select plan(42);
 
 create function pg_temp.queued() returns bigint language sql as $$
   select count(*) from net.http_request_queue;
@@ -44,16 +44,18 @@ select results_eq($$select j.status, p.status from private.assistant_jobs as j
 -- Without the secrets, nothing is requested, and nothing raised.
 select is(pg_temp.sweep(), 0::bigint, 'a stale job and no secrets: nothing requested');
 
+select vault.create_secret('https://example.supabase.co', 'project_url');
+select is(pg_temp.sweep(), 0::bigint, 'a stale job and no key: nothing requested');
+delete from vault.secrets where name = 'project_url';
+select vault.create_secret('service-key', 'assistant_service_role_key');
 select vault.create_secret('https://example.supabase.co/functions/v1/assistant',
   'assistant_function_url');
-select is(pg_temp.sweep(), 0::bigint, 'a stale job and no key: nothing requested');
+select is(pg_temp.sweep(), 0::bigint,
+  'a stale job, the key and only the old per-function URL: nothing requested');
 delete from vault.secrets where name = 'assistant_function_url';
-select vault.create_secret('service-key', 'assistant_service_role_key');
-select is(pg_temp.sweep(), 0::bigint, 'a stale job and no URL: nothing requested');
 
 -- The control: with both secrets the same job is requested once.
-select vault.create_secret('https://example.supabase.co/functions/v1/assistant',
-  'assistant_function_url');
+select vault.create_secret('https://example.supabase.co', 'project_url');
 select is(pg_temp.sweep(), 1::bigint, 'a stale job and both secrets: the worker requested once');
 select results_eq($$select method::text, url, headers ->> 'Authorization', headers ->> 'apikey'
     from net.http_request_queue$$,
@@ -162,6 +164,12 @@ select results_eq($$select name from public.assistant_unread_photos()$$,
 select is(pg_temp.sweep_unread(), 1::bigint, 'the daily sweep requests the worker for it');
 update storage.objects set created_at = now() where name like '%000000000101';
 select is(pg_temp.sweep_unread(), 0::bigint, 'and nothing once the object is no older than 24 hours');
+update storage.objects set created_at = now() - interval '30 hours' where name like '%000000000101';
+select is(pg_temp.sweep_unread(), 1::bigint, 'the control: with project_url set the aged object is requested');
+delete from vault.secrets where name = 'project_url';
+select is(pg_temp.sweep_unread(), 0::bigint, 'the same object, the key and no project_url: nothing requested');
+select vault.create_secret('https://example.supabase.co', 'project_url');
+update storage.objects set created_at = now() where name like '%000000000101';
 select is((select count(*) from storage.objects where bucket_id = 'assistant-photos'), 3::bigint,
   'the sweep deleted nothing itself');
 select results_eq($$select schedule, command from cron.job
@@ -185,6 +193,17 @@ select results_eq($$select count(*), count(*) filter (where has_function_privile
     and p.proname in ('sweep_assistant_jobs', 'request_assistant_job_worker')$$,
   $$values (2::bigint, 2::bigint, 0::bigint)$$,
   'both functions are found and the owner executes them, and no client role does');
+
+-- The project_url revert runs first: it restores the secret and the bodies the reverts below expect.
+select lives_ok($$select private.revert_project_url()$$, 'the project_url revert runs');
+select is((select count(*) from vault.secrets where name in ('assistant_function_url',
+    'screening_function_url', 'triage_function_url')), 3::bigint, 'the three per-function secrets are back');
+delete from vault.secrets where name = 'project_url';
+select is(pg_temp.sweep(), 1::bigint, 'the restored sweep requests the worker by the old secret alone');
+update storage.objects set created_at = now() - interval '30 hours' where name like '%000000000101';
+select is(pg_temp.sweep_unread(), 1::bigint, 'and so does the restored unread sweep');
+select is((select count(*) from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
+    where n.nspname = 'private' and p.proname = 'adopt_project_url'), 0::bigint, 'the adopting function is gone');
 
 -- The revert.
 select lives_ok($$select private.revert_assistant_photo_charges()$$, 'the charges revert runs');
