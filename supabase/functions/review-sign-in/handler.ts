@@ -5,6 +5,7 @@
  */
 
 import { type SupabaseDeps, SupabaseError } from "../_shared/auth.ts";
+import { digest, same } from "../_shared/same.ts";
 import type { Config } from "./config.ts";
 import { begin } from "./vault.ts";
 
@@ -82,24 +83,8 @@ async function parse(request: Request): Promise<Attempt | null> {
 /** An address as compared: trimmed and lower-cased. */
 export const normalize = (email: string): string => email.trim().toLowerCase();
 
-const digest = async (text: string): Promise<Uint8Array> =>
-  new Uint8Array(
-    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)),
-  );
-
 const hex = (bytes: Uint8Array): string =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-
-/**
- * Whether [a] and [b] are the same text, in time that depends on neither's content: both are
- * hashed to 32 bytes, and every byte is compared whatever the first difference.
- */
-export async function same(a: string, b: string): Promise<boolean> {
-  const [x, y] = await Promise.all([digest(a), digest(b)]);
-  let difference = 0;
-  for (let i = 0; i < x.length; i++) difference |= x[i]! ^ y[i]!;
-  return difference === 0;
-}
 
 export function createHandler(
   deps: HandlerDeps,

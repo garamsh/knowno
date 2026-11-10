@@ -1,13 +1,13 @@
 // The handler end to end, with the database and Supabase Auth replaced by a recording fake fetch.
 // The suite runs without write or network permission, so a write anywhere fails the run.
 import assert from "node:assert/strict";
+import { same } from "../_shared/same.ts";
 import { readConfig } from "./config.ts";
 import {
   createHandler,
   type LogEntry,
   MIN_CODE,
   normalize,
-  same,
 } from "./handler.ts";
 
 const SUPABASE_URL = "https://project.supabase.test";
