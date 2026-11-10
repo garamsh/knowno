@@ -31,6 +31,4 @@ Each line names a file and what it covers; the file holds the cases.
 
 ## Open questions
 
-- The owner supplies the seller's details in `seller-details.ts` before the paid launch (issue #893).
-
 - Whether the terms' change of issue #373 is unfavourable to users and so needs 30 days' notice, which would move the terms' date to 2026-11-26. The owner confirms (issue #373).
