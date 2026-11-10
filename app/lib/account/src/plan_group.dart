@@ -63,8 +63,9 @@ class _PlanGroupState extends ConsumerState<PlanGroup> {
       PlanKnown(:final standing) => [
         AppListRow(
           title: planName(l10n, standing.plan),
-          subtitle: _detail(l10n, standing),
+          subtitle: _photos(l10n, standing),
         ),
+        if (_end(l10n, standing) case final end?) AppListRow(title: end),
         if (standing.canBuy)
           AppChoiceRow(
             title: l10n.planLearnPlus,
@@ -72,7 +73,10 @@ class _PlanGroupState extends ConsumerState<PlanGroup> {
             onTap: () => showPlusSheet(context),
           ),
         if (standing.fromStore) ...[
-          AppListRow(title: l10n.planManage, onTap: _manage),
+          AppListRow(
+            title: l10n.planManage,
+            onTap: () => manageSubscription(context, ref),
+          ),
           AppListRow(
             title: l10n.planRestore,
             trailing: _restoring
@@ -98,26 +102,22 @@ class _PlanGroupState extends ConsumerState<PlanGroup> {
     );
   }
 
-  String? _detail(AppLocalizations l10n, PlanStanding standing) {
-    if (standing.fromStore && standing.renewsOn != null) {
-      return l10n.planRenews(standing.renewsOn!);
-    }
+  /// A store subscription's next renewal, or its end once it does not renew.
+  String? _end(AppLocalizations l10n, PlanStanding standing) {
+    if (!standing.fromStore) return null;
+    return switch ((standing.renewsOn, standing.endsOn)) {
+      (final renewsOn?, _) => l10n.planRenews(renewsOn),
+      (_, final endsOn?) => l10n.planEnds(endsOn),
+      _ => null,
+    };
+  }
+
+  String? _photos(AppLocalizations l10n, PlanStanding standing) {
     return switch ((standing.photosUsed, standing.photoLimit)) {
       (final used?, final limit?) => l10n.planPhotosUsed(used, limit),
       (_, null) => l10n.planNoLimit,
       _ => null,
     };
-  }
-
-  /// Opens the store's page that manages the subscription.
-  Future<void> _manage() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final l10n = AppLocalizations.of(context);
-    final url = await ref.read(purchaseStoreProvider).managementUrl();
-    if (!mounted) return;
-    if (url == null || !await ref.read(linkOpenerProvider)(url)) {
-      messenger.showSnackBar(SnackBar(content: Text(l10n.linkNotOpened)));
-    }
   }
 
   Future<void> _restore() async {
@@ -135,5 +135,17 @@ class _PlanGroupState extends ConsumerState<PlanGroup> {
         ),
       ),
     );
+  }
+}
+
+/// Opens the store's page that manages the subscription, and says so when
+/// none opens.
+Future<void> manageSubscription(BuildContext context, WidgetRef ref) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final l10n = AppLocalizations.of(context);
+  final url = await ref.read(purchaseStoreProvider).managementUrl();
+  if (!context.mounted) return;
+  if (url == null || !await ref.read(linkOpenerProvider)(url)) {
+    messenger.showSnackBar(SnackBar(content: Text(l10n.linkNotOpened)));
   }
 }

@@ -128,7 +128,8 @@ class AppSheet extends StatelessWidget {
 }
 
 /// Asks before an action that cannot be undone: a sheet titled [title] that
-/// states its [consequence] in one sentence, with a cancel, named
+/// states its [consequence], with [extra]'s quiet button first when given
+/// (it does not close the sheet), a cancel, named
 /// [cancelLabel] or "취소", and, last at the bottom, a red [confirmLabel]
 /// button, which gives a light haptic. Resolves to whether the user
 /// confirmed.
@@ -139,6 +140,7 @@ Future<bool> showAppConfirm(
   required String consequence,
   required String confirmLabel,
   String? cancelLabel,
+  ({String label, VoidCallback onPressed})? extra,
 }) async =>
     await showAppSheet<bool>(
       context,
@@ -147,6 +149,13 @@ Future<bool> showAppConfirm(
         titleWritten: titleWritten,
         body: consequence,
         actions: [
+          if (extra != null)
+            AppButton(
+              label: extra.label,
+              variant: AppButtonVariant.text,
+              size: AppButtonSize.cta,
+              onPressed: extra.onPressed,
+            ),
           AppButton(
             label: cancelLabel ?? AppLocalizations.of(context).cancel,
             variant: AppButtonVariant.secondary,

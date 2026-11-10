@@ -806,6 +806,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get deleteAccountTitle => '계정을 삭제할까요?';
 
   @override
+  String get deleteAccountStoreNote =>
+      '스토어 구독은 계정을 삭제해도 해지되지 않고, 스토어에서 해지하기 전까지 계속 결제돼요.';
+
+  @override
   String get deleteAccountBody =>
       '서버와 이 기기의 노트, 카드, 학습 기록이 모두 삭제되고, 다른 사람이 가져간 노트와 Google 계정은 남아요.';
 
@@ -2195,6 +2199,14 @@ class AppLocalizationsKo extends AppLocalizations {
     final String dateString = dateDateFormat.format(date);
 
     return '다음 갱신 $dateString';
+  }
+
+  @override
+  String planEnds(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMd(localeName);
+    final String dateString = dateDateFormat.format(date);
+
+    return '$dateString까지 쓸 수 있어요';
   }
 
   @override

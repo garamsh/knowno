@@ -1477,6 +1477,12 @@ abstract class AppLocalizations {
   /// **'계정을 삭제할까요?'**
   String get deleteAccountTitle;
 
+  /// Added to the account deletion confirmation while the plan is a store subscription: deleting does not cancel it.
+  ///
+  /// In ko, this message translates to:
+  /// **'스토어 구독은 계정을 삭제해도 해지되지 않고, 스토어에서 해지하기 전까지 계속 결제돼요.'**
+  String get deleteAccountStoreNote;
+
   /// Body of the account deletion confirmation: what is removed, and what stays.
   ///
   /// In ko, this message translates to:
@@ -3743,6 +3749,12 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'다음 갱신 {date}'**
   String planRenews(DateTime date);
+
+  /// Plan card: the date a store subscription that will not renew ends.
+  ///
+  /// In ko, this message translates to:
+  /// **'{date}까지 쓸 수 있어요'**
+  String planEnds(DateTime date);
 
   /// Row and button that open the purchase sheet.
   ///

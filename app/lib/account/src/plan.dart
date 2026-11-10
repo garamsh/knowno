@@ -25,6 +25,7 @@ final class PlanStanding {
     required this.plan,
     required this.source,
     this.renewsOn,
+    this.endsOn,
     this.photosUsed,
     this.photoLimit,
   });
@@ -32,8 +33,12 @@ final class PlanStanding {
   final Plan plan;
   final PlanSource source;
 
-  /// When a store subscription renews or ends; null without one.
+  /// When a store subscription renews next; null unless one renews.
   final DateTime? renewsOn;
+
+  /// When a store subscription that does not renew ends; null unless one
+  /// does not renew.
+  final DateTime? endsOn;
 
   /// The photos read in the period the limit counts, and the limit; null
   /// where the server names none.

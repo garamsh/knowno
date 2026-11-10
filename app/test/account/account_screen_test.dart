@@ -6,6 +6,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:knowno/account/account.dart';
 import 'package:knowno/account/src/legal.dart';
+import 'package:knowno/account/src/plan.dart';
 import 'package:knowno/design/app_button.dart';
 import 'package:knowno/design/app_choice.dart';
 import 'package:knowno/design/app_list_row.dart';
@@ -362,6 +363,91 @@ void main() {
         );
       },
     );
+
+    group('on a store plan', () {
+      const storePlan = PlanStanding(plan: Plan.plus, source: PlanSource.store);
+      const adminPlan = PlanStanding(plan: Plan.pro, source: PlanSource.admin);
+      const note =
+          'Deleting your account does not cancel your store subscription. The store keeps billing you until you cancel it there.';
+
+      testWidgets(
+        'says the subscription is not cancelled and offers 구독 관리, which opens the store page; an admin-given plan is the control',
+        (tester) async {
+          final store = FakePurchaseStore();
+          final opened = <Uri>[];
+          await pumpScreen(
+            tester,
+            signedIn(),
+            plans: FakePlanServer(storePlan),
+            store: store,
+            opener: (url) async {
+              opened.add(url);
+              return true;
+            },
+          );
+          expect(
+            find.text('Plus'),
+            findsOneWidget,
+            reason: 'the plan was read as a store plan',
+          );
+
+          await tapAndSettle(tester, 'Delete account');
+          expect(shownTextContaining(note), findsOneWidget);
+          final manage = find.descendant(
+            of: find.byType(AppSheet),
+            matching: shownText('Manage subscription'),
+          );
+          expect(manage, findsOneWidget);
+          await tester.tap(manage);
+          await tester.pumpAndSettle();
+          expect(opened, [store.management]);
+          expect(find.byType(AppSheet), findsOneWidget, reason: 'sheet stays');
+
+          // Deletion is not blocked: the sheet's delete still deletes.
+          await tapAndSettle(tester, 'Delete');
+          expect(find.byType(AppSheet), findsNothing);
+        },
+      );
+
+      testWidgets('is unchanged on an admin-given plan', (tester) async {
+        await pumpScreen(tester, signedIn(), plans: FakePlanServer(adminPlan));
+        expect(find.text('Pro'), findsOneWidget);
+
+        await tapAndSettle(tester, 'Delete account');
+        expect(shownTextContaining('store subscription'), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byType(AppSheet),
+            matching: shownText('Manage subscription'),
+          ),
+          findsNothing,
+        );
+      });
+
+      testWidgets('is unchanged while the plan is unknown', (tester) async {
+        await pumpScreen(tester, signedIn(), plans: FakePlanServer(null));
+        expect(
+          shownTextContaining("Couldn't load your plan"),
+          findsOneWidget,
+          reason: 'the plan read failed',
+        );
+
+        await tapAndSettle(tester, 'Delete account');
+        expect(shownTextContaining('store subscription'), findsNothing);
+        expect(shownText('Manage subscription'), findsNothing);
+      });
+
+      testWidgets('never blocks deleting', (tester) async {
+        final service = signedIn();
+        await pumpScreen(tester, service, plans: FakePlanServer(storePlan));
+
+        await tapAndSettle(tester, 'Delete account');
+        await tapAndSettle(tester, 'Delete');
+
+        expect(service.deletions, 1);
+        expect(service.state, isA<SignedOut>());
+      });
+    });
 
     testWidgets('cancelling keeps the account and its data', (tester) async {
       final service = signedIn();
