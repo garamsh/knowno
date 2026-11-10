@@ -59,24 +59,29 @@ void main() {
       expect(plus.plan, Plan.plus);
       expect(plus.fromStore, isTrue);
       expect(plus.renewsOn, DateTime.utc(2026, 12, 10).toLocal());
+      expect(plus.endsOn, isNull);
       expect(plus.canBuy, isFalse);
       expect(pro.plan, Plan.pro);
     },
   );
 
-  test('a store grant that does not renew shows no renewal date', () async {
-    final ended = await read([
-      _row(
-        plan: 'pro',
-        source: 'store',
-        endsAt: '2026-12-10T00:00:00+00:00',
-        renews: false,
-      ),
-    ]);
+  test(
+    'a store grant that does not renew is read as an end, not a renewal',
+    () async {
+      final ended = await read([
+        _row(
+          plan: 'pro',
+          source: 'store',
+          endsAt: '2026-12-10T00:00:00+00:00',
+          renews: false,
+        ),
+      ]);
 
-    expect(ended.fromStore, isTrue);
-    expect(ended.renewsOn, isNull);
-  });
+      expect(ended.fromStore, isTrue);
+      expect(ended.renewsOn, isNull);
+      expect(ended.endsOn, DateTime.utc(2026, 12, 10).toLocal());
+    },
+  );
 
   test(
     'an admin and a 무제한 holder are read as never to be offered a purchase',

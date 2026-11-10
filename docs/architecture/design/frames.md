@@ -84,7 +84,7 @@ Every modal on the phone: `AppSheet` opened by `showAppSheet`; the web's dialogs
 4. Content: rows (on `ground`), a field, a choice.
 5. Actions, pinned above the keyboard, full width, the primary last; no cancel.
 
-Insets `AppSpace.gutter` at the sides, `AppSpace.s12` above and `AppSpace.s16` below; the `sheet` radius; a blurred shadow, since a sheet floats. A confirmation is `showAppConfirm`: a question title, the consequence in one sentence, then a cancel and, last, the red `destructiveFinal` button.
+Insets `AppSpace.gutter` at the sides, `AppSpace.s12` above and `AppSpace.s16` below; the `sheet` radius; a blurred shadow, since a sheet floats. A confirmation is `showAppConfirm`: a question title, the consequence in one sentence, then a cancel and, last, the red `destructiveFinal` button. It may carry one optional quiet text button before the cancel, which does not close the sheet, used only where the consequence names something the user must act on elsewhere (today account deletion on a store plan, with 구독 관리); the consequence is then one sentence plus one naming it. The web's `Confirm` has no such button, since the web deletes no account.
 
 ### Form field
 
