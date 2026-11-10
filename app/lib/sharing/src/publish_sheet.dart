@@ -333,8 +333,7 @@ String? _passage(Card card, ScreeningFinding finding) {
   final (block, start, end) = (finding.block, finding.start, finding.end);
   if (block == null || start == null || end == null) return null;
   final text = switch (finding.field) {
-    final field? => _stringAt(card, finding.place, block, field),
-    null => _onlyString(card, finding.place, block),
+    _ => _onlyString(card, finding.place, block),
   };
   if (text == null || start < 0 || start >= end || end > text.length) {
     return null;
