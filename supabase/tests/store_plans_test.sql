@@ -4,7 +4,7 @@
 -- answers the plan, its source and the period's photos; and the two RevenueCat secrets are set and
 -- cleared by an admin who signed in recently, never read back, never recorded.
 begin;
-select plan(72);
+select plan(76);
 
 delete from private.admin_audit;
 
@@ -333,6 +333,33 @@ select is((select count(*) from private.store_sync_attempts
 select pg_temp.sign_in('b');
 select throws_ok($$select public.store_sync_begin('00000000-0000-4000-8000-00000000000b')$$,
   '42501', null, 'a user cannot reset or spend its own limit');
+reset role;
+
+-- my_plan reads its source from private.grant_source, and its revert restores the old answers.
+
+select is(pg_temp.apply('b', 'pro', now() + interval '30 days'), 'granted', 'B buys Pro again');
+reset role;
+create temp table mine_before as
+  select w.who, m.* from (values ('a'), ('b'), ('c'), ('d'), ('e')) as w (who),
+    lateral pg_temp.mine(w.who) as m;
+grant select on mine_before to public;
+reset role;
+select results_eq(
+  $$select b.who, b.source, b.ends_at, b.renews from mine_before as b
+    order by b.who$$,
+  $$select w.who, s.source, s.ends_at, s.renews
+    from (values ('a'), ('b'), ('c'), ('d'), ('e')) as w (who),
+      lateral private.grant_source(('00000000-0000-4000-8000-00000000000' || w.who)::uuid) as s
+    order by w.who$$,
+  'my_plan answers the source, end and renewal grant_source answers, for each source');
+select lives_ok($$select private.revert_my_plan_source()$$, 'the revert runs');
+select results_eq(
+  $$select w.who, m.plan, m.source, m.ends_at, m.renews, m.photo_limit, m.period, m.used
+    from (values ('a'), ('b'), ('c'), ('d'), ('e')) as w (who),
+      lateral pg_temp.mine(w.who) as m order by w.who$$,
+  $$select b.who, b.plan, b.source, b.ends_at, b.renews, b.photo_limit, b.period, b.used
+    from mine_before as b order by b.who$$,
+  'my_plan answers as before once reverted');
 reset role;
 
 select * from finish();
