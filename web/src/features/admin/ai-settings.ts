@@ -12,7 +12,7 @@ export type AiFormState = { message: string | null; reauth: boolean };
 /** How long a save waits for its function, which first makes one call to the provider. */
 const settingsTimeoutMs = 90_000;
 
-/** The sentence each refusal of the settings routes of extract-cards and the assistant shows (ADR 0162). */
+/** The sentence each refusal of the settings routes of extract-cards, the assistant and the triage show (ADR 0162). */
 const settingsMessages: Record<string, string> = {
   key_refused: "제공자가 이 키를 받지 않았어요. 키를 확인해 주세요.",
   model_not_found: "이 제공자에 없는 모델이에요. 모델 ID를 확인해 주세요.",
@@ -36,7 +36,8 @@ export async function postSettings(
   route:
     | "extract-cards/settings/key"
     | "extract-cards/settings/configuration"
-    | "assistant/settings/configuration",
+    | "assistant/settings/configuration"
+    | "triage-reports/settings/configuration",
   body: Record<string, unknown>,
 ): Promise<{ saved: true } | { saved: false; state: AiFormState }> {
   const refusal = (message: string, reauth = false) => ({

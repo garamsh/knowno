@@ -379,6 +379,8 @@ describe("노트", () => {
       "숨긴 노트",
       "검토 중 0",
       "금칙어",
+      "AI가 처리한 것",
+      "신고 AI 설정",
     ]);
     expect(views.getByRole("link", { name: "신고된 노트 1" })).toHaveAttribute(
       "aria-current",
@@ -397,7 +399,7 @@ describe("노트", () => {
         .slice(0, 6)
         .map((cell) => cell.textContent),
     ).toEqual([
-      "French사유: 저작권 침해, 스팸",
+      "French사유: 저작권 침해, 스팸AI가 아직 판단하지 않았어요.",
       "만든 사람 other@example.com",
       "카드 2장",
       "가져오기 3회",
