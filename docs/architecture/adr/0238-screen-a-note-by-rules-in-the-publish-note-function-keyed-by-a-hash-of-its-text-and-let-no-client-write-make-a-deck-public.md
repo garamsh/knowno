@@ -1,6 +1,6 @@
 # ADR 0238: Screen a note by rules in the `publish-note` function, keyed by a hash of its text, and let no client write make a deck public
 
-> Status: accepted
+> Status: accepted; its banned-term refusal and its `required_screening_layers` hand-off superseded by ADR 0239
 > Date: 2026-11-10
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
