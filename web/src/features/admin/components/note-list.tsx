@@ -6,11 +6,13 @@ import { Chip } from "@/design/chip";
 import { formatDate } from "../format";
 import { labelOf, reasonLabels } from "../labels";
 import type { NoteRow } from "../read-admin";
+import type { TriageNote } from "../read-triage";
 import { button, Email, Empty } from "./admin-section";
 import { AdminTable, CellLabel, cellClass, rowClass } from "./admin-table";
 import { DismissAction, HideAction, RemoveAction } from "./moderation-actions";
 import { SheetButton } from "./sheet-button";
 import { SheetLink } from "./sheet-link";
+import { TriageVerdict } from "./triage-verdict";
 
 const head = [
   { label: "노트" },
@@ -29,7 +31,15 @@ const head = [
  * removal from sharing, whose last step is red. The actions keep one width from 1024 px, so a
  * question opened in place wraps inside it rather than widening the table.
  */
-function NoteItem({ note, timeZone }: { note: NoteRow; timeZone: string }) {
+function NoteItem({
+  note,
+  timeZone,
+  triage,
+}: {
+  note: NoteRow;
+  timeZone: string;
+  triage: TriageNote | undefined;
+}) {
   return (
     <tr className={rowClass()}>
       <td className={`${cellClass({ lead: true })} lg:min-w-40`}>
@@ -48,6 +58,7 @@ function NoteItem({ note, timeZone }: { note: NoteRow; timeZone: string }) {
               사유: {note.reasons.map((reason) => labelOf(reasonLabels, reason)).join(", ")}
             </span>
           )}
+          {triage !== undefined && <TriageVerdict note={triage} />}
         </span>
       </td>
       <td className={`${cellClass()} break-words`}>
@@ -97,21 +108,35 @@ function NoteItem({ note, timeZone }: { note: NoteRow; timeZone: string }) {
   );
 }
 
+/** [notes] with those a `sexual` report names first, each group in the order it came. */
+function severeFirst(notes: NoteRow[]): NoteRow[] {
+  const severe = (note: NoteRow) => (note.reasons.includes("sexual") ? 0 : 1);
+  return [...notes].sort((a, b) => severe(a) - severe(b));
+}
+
 /** The notes of one view of 노트 as a table, each with its actions, or what is true when there are none. */
 export function NoteList({
   notes,
   empty,
   timeZone,
+  triage = [],
 }: {
   notes: NoteRow[];
   empty: string;
   timeZone: string;
+  /** The AI's verdicts on the reported notes, shown in the row of the note each is about. */
+  triage?: TriageNote[];
 }) {
   if (notes.length === 0) return <Empty>{empty}</Empty>;
   return (
     <AdminTable label="노트 목록" head={head}>
-      {notes.map((note) => (
-        <NoteItem key={note.id} note={note} timeZone={timeZone} />
+      {severeFirst(notes).map((note) => (
+        <NoteItem
+          key={note.id}
+          note={note}
+          timeZone={timeZone}
+          triage={triage.find((verdict) => verdict.id === note.id)}
+        />
       ))}
     </AdminTable>
   );

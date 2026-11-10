@@ -11,6 +11,8 @@ export { GrantAdminForm } from "./components/grant-admin-form";
 export { AiView } from "./components/ai-view";
 export { AssistantView } from "./components/assistant-view";
 export { NoteList } from "./components/note-list";
+export { TriageActionsView } from "./components/triage-actions-view";
+export { TriageSettingsView } from "./components/triage-settings-view";
 export { ScreeningQueue } from "./components/screening-queue";
 export { ScreeningTermsView } from "./components/screening-terms-view";
 export { TodoView } from "./components/todo-view";
@@ -56,6 +58,15 @@ export {
   listUsers,
 } from "./read-admin";
 export { readScreeningQueue, readScreeningReview, readScreeningTerms } from "./read-screening";
+export {
+  readTriageActions,
+  readTriageAgreement,
+  readTriageAppeals,
+  readTriageConfigurations,
+  readTriageQueue,
+  readTriageSample,
+  readTriageSettings,
+} from "./read-triage";
 export { screeningWords } from "./screening-words";
 export { parseCardForm } from "./labels";
 export {
