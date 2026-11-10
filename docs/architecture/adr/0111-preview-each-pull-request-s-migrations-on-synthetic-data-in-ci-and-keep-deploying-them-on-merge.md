@@ -1,6 +1,6 @@
 # ADR 0111: Preview each pull request's migrations on synthetic data in CI, and keep deploying them on merge
 
-> Status: accepted
+> Status: accepted; its owner approval before merge of a data-changing migration superseded by ADR-0246
 > Date: 2026-10-27
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

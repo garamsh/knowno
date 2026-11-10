@@ -1,6 +1,6 @@
 # ADR 0076: Ask prompt v8 for each sense's printed labels and examples, transcribed and never inferred, and eval labels on pages that print none
 
-> Status: accepted
+> Status: accepted; its owner approval of a cost change superseded by ADR-0246
 > Date: 2026-10-19
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

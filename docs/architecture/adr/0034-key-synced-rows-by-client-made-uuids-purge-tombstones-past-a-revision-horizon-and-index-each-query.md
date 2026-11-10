@@ -1,6 +1,6 @@
 # ADR 0034: Key synced rows by client-made uuids, keep time in `timestamptz` and UTC text, purge tombstones past a revision horizon, and index each query
 
-> Status: accepted; the cursor its horizon rebuild reads, and its local purge's deletion of unreferenced card and deck tombstones, superseded by ADR-0041; its order placing step 6 after step 4's store release superseded by ADR-0053; its card state tombstones, their purge index and the partial index on live reviews superseded by ADR-0077
+> Status: accepted; the cursor its horizon rebuild reads, and its local purge's deletion of unreferenced card and deck tombstones, superseded by ADR-0041; its order placing step 6 after step 4's store release superseded by ADR-0053; its card state tombstones, their purge index and the partial index on live reviews superseded by ADR-0077; its owner approval before an owner-marked step superseded by ADR-0246
 > Date: 2026-10-16
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

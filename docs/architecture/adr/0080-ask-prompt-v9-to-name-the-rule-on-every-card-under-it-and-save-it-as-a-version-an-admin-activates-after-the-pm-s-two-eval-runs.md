@@ -1,6 +1,6 @@
 # ADR 0080: Ask prompt v9 to name the rule on every card under it, and save it as a version an admin activates after the PM's two eval runs
 
-> Status: accepted
+> Status: accepted; its owner approval of a cost change or a migration superseded by ADR-0246
 > Date: 2026-10-19
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

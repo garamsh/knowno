@@ -1,6 +1,6 @@
 # ADR 0053: Purge tombstones before any store release, enable pg_cron in the purge's migration, and lock cards and reviews while it purges
 
-> Status: accepted
+> Status: accepted; its owner approval before merge superseded by ADR-0246
 > Date: 2026-10-18
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
