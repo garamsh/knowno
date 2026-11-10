@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:knowno/deck/deck.dart';
 import 'package:knowno/sharing/sharing.dart';
-import 'package:knowno/sharing/src/supabase_sharing_server.dart' show NotPublic;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _deckId = DeckId('0199f3b2-7c1e-7a00-8000-000000000001');
@@ -117,30 +116,86 @@ void main() {
     },
   );
 
-  for (final state in ['checking', 'held', 'refused']) {
-    test('a note publish-note answers $state is not public: the publish '
-        'is rejected', () async {
+  for (final (state, expected) in [
+    ('checking', DeckPublication.checking),
+    ('held', DeckPublication.held),
+    ('refused', DeckPublication.refused),
+    ('public', DeckPublication.public),
+  ]) {
+    test('a note publish-note answers $state is answered as $expected, '
+        'not thrown', () async {
       final server = _publishing(
         [],
         _json({'state': state, 'refusal': null, 'findings': <Object>[]}, 200),
       );
 
-      await expectLater(
-        server.writeVisibility(
-          _deck(),
-          PublicDeck(DateTime.utc(2026, 10, 17)),
-          at: DateTime.utc(2026, 10, 17),
-        ),
-        throwsA(
-          isA<SharingRejected>().having(
-            (failure) => failure.cause,
-            'cause',
-            isA<NotPublic>().having((it) => it.state, 'state', state),
-          ),
-        ),
+      final screening = await server.writeVisibility(
+        _deck(),
+        PublicDeck(DateTime.utc(2026, 10, 17)),
+        at: DateTime.utc(2026, 10, 17),
       );
+
+      expect(screening.state, expected);
     });
   }
+
+  test('a refusal carries the layer and each finding by card, face, block '
+      'and offsets, and a name or description finding has no card', () async {
+    final server = _publishing(
+      [],
+      _json({
+        'state': 'refused',
+        'refusal': 'rules',
+        'findings': [
+          {
+            'card_id': 'c1',
+            'where': 'front',
+            'block': 2,
+            'category': 'phone',
+            'start': 4,
+            'end': 17,
+          },
+          {
+            'card_id': null,
+            'where': 'description',
+            'block': null,
+            'category': 'a_future_category',
+            'start': 0,
+            'end': 3,
+          },
+        ],
+      }, 200),
+    );
+
+    final screening = await server.writeVisibility(
+      _deck(),
+      PublicDeck(DateTime.utc(2026, 10, 17)),
+      at: DateTime.utc(2026, 10, 17),
+    );
+
+    expect(screening.refusal, 'rules');
+    final [first, second] = screening.findings;
+    expect(first.card, const CardId('c1'));
+    expect(first.place, FindingPlace.front);
+    expect(first.category, FindingCategory.phone);
+    expect((first.block, first.start, first.end), (2, 4, 17));
+    expect(second.card, isNull);
+    expect(second.place, FindingPlace.description);
+    expect(second.category, FindingCategory.other);
+  });
+
+  test('a state publish-note cannot answer fails the publish', () async {
+    final server = _publishing([], _json({'state': 'private'}, 200));
+
+    await expectLater(
+      server.writeVisibility(
+        _deck(),
+        PublicDeck(DateTime.utc(2026, 10, 17)),
+        at: DateTime.utc(2026, 10, 17),
+      ),
+      throwsA(isA<SharingFailed>()),
+    );
+  });
 
   test('an answer with no state fails the publish', () async {
     final server = _publishing([], _json({'ok': true}, 200));

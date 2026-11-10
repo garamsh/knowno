@@ -36,10 +36,11 @@ abstract interface class SharingServer {
   /// Writes [deck]'s visibility to the server as an edit made [at], creating
   /// the deck's row there when sync has not pushed it yet. A [PublicDeck]
   /// takes [description] and is asked of the server's screening, which
-  /// answers before this returns; it throws [SharingRejected] when the note
-  /// is not public then, held or refused. A private one keeps the
-  /// description it had.
-  Future<void> writeVisibility(
+  /// answers before this returns with where it has the note: public,
+  /// checking, held or refused. A private one keeps the description it had
+  /// and answers [DeckPublication.private]. A state the server answers
+  /// ([CheckingDeck], [HeldDeck], [RefusedDeck]) is no request.
+  Future<Screening> writeVisibility(
     Deck deck,
     DeckVisibility visibility, {
     String? description,

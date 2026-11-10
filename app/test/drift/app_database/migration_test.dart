@@ -18,6 +18,8 @@ import 'generated/schema_v10.dart' as v10;
 import 'generated/schema_v11.dart' as v11;
 import 'generated/schema_v12.dart' as v12;
 import 'generated/schema_v13.dart' as v13;
+import 'generated/schema_v14.dart' as v14;
+import 'generated/schema_v15.dart' as v15;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -1111,5 +1113,49 @@ void main() {
     expect([
       for (final row in await db.select(db.reviews).get()) row.id,
     ], unorderedEquals(['least', 'greatest']));
+  });
+
+  test('the upgrade from 14 to 15 makes a public deck public and a private one private, and keeps each as it was', () async {
+    const at = '2026-10-01T00:00:00.000Z';
+    await verifier.testWithDataIntegrity(
+      oldVersion: 14,
+      newVersion: 15,
+      createOld: v14.DatabaseAtV14.new,
+      createNew: v15.DatabaseAtV15.new,
+      openTestedDatabase: AppDatabase.new,
+      createItems: (batch, old) {
+        batch.insert(
+          old.decks,
+          const v14.DecksData(
+            id: 'open',
+            name: 'Open',
+            visibility: 'public',
+            publishedAt: at,
+            createdAt: at,
+            updatedAt: at,
+            dirty: 0,
+          ),
+        );
+        batch.insert(
+          old.decks,
+          const v14.DecksData(
+            id: 'closed',
+            name: 'Closed',
+            visibility: 'private',
+            createdAt: at,
+            updatedAt: at,
+            dirty: 1,
+          ),
+        );
+      },
+      validateItems: (db) async {
+        final rows = {
+          for (final row in await db.select(db.decks).get()) row.id: row,
+        };
+        expect(rows['open']?.publication, 'public');
+        expect(rows['closed']?.publication, 'private');
+        expect((rows['open']?.dirty, rows['closed']?.dirty), (0, 1));
+      },
+    );
   });
 }

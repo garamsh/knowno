@@ -48,6 +48,21 @@ class $DecksTable extends Decks with TableInfo<$DecksTable, DeckRow> {
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       ).withConverter<DateTime?>($DecksTable.$converterpublishedAtn);
+  static const VerificationMeta _publicationMeta = const VerificationMeta(
+    'publication',
+  );
+  @override
+  late final GeneratedColumn<String> publication = GeneratedColumn<String>(
+    'publication',
+    aliasedName,
+    false,
+    check: () => const CustomExpression(
+      "publication IN ('private', 'checking', 'held', 'refused', 'public')",
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('private'),
+  );
   static const VerificationMeta _descriptionMeta = const VerificationMeta(
     'description',
   );
@@ -134,6 +149,7 @@ class $DecksTable extends Decks with TableInfo<$DecksTable, DeckRow> {
     name,
     visibility,
     publishedAt,
+    publication,
     description,
     icon,
     color,
@@ -172,6 +188,15 @@ class $DecksTable extends Decks with TableInfo<$DecksTable, DeckRow> {
       context.handle(
         _visibilityMeta,
         visibility.isAcceptableOrUnknown(data['visibility']!, _visibilityMeta),
+      );
+    }
+    if (data.containsKey('publication')) {
+      context.handle(
+        _publicationMeta,
+        publication.isAcceptableOrUnknown(
+          data['publication']!,
+          _publicationMeta,
+        ),
       );
     }
     if (data.containsKey('description')) {
@@ -237,6 +262,10 @@ class $DecksTable extends Decks with TableInfo<$DecksTable, DeckRow> {
           data['${effectivePrefix}published_at'],
         ),
       ),
+      publication: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}publication'],
+      )!,
       description: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}description'],
@@ -305,6 +334,10 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
   /// When the deck was last published; null while it never was, or once it
   /// was made private again.
   final DateTime? publishedAt;
+
+  /// Where the server's screening has the deck (ADR 0238): a deck the
+  /// device made public is `checking`, `held` or `public` there.
+  final String publication;
   final String? description;
 
   /// The key of the icon the owner chose for the deck's tile; null, or a key
@@ -327,6 +360,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
     required this.name,
     required this.visibility,
     this.publishedAt,
+    required this.publication,
     this.description,
     this.icon,
     this.color,
@@ -347,6 +381,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
         $DecksTable.$converterpublishedAtn.toSql(publishedAt),
       );
     }
+    map['publication'] = Variable<String>(publication);
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
     }
@@ -386,6 +421,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
       publishedAt: publishedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(publishedAt),
+      publication: Value(publication),
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
@@ -415,6 +451,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
       name: serializer.fromJson<String>(json['name']),
       visibility: serializer.fromJson<String>(json['visibility']),
       publishedAt: serializer.fromJson<DateTime?>(json['publishedAt']),
+      publication: serializer.fromJson<String>(json['publication']),
       description: serializer.fromJson<String?>(json['description']),
       icon: serializer.fromJson<String?>(json['icon']),
       color: serializer.fromJson<String?>(json['color']),
@@ -433,6 +470,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
       'name': serializer.toJson<String>(name),
       'visibility': serializer.toJson<String>(visibility),
       'publishedAt': serializer.toJson<DateTime?>(publishedAt),
+      'publication': serializer.toJson<String>(publication),
       'description': serializer.toJson<String?>(description),
       'icon': serializer.toJson<String?>(icon),
       'color': serializer.toJson<String?>(color),
@@ -449,6 +487,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
     String? name,
     String? visibility,
     Value<DateTime?> publishedAt = const Value.absent(),
+    String? publication,
     Value<String?> description = const Value.absent(),
     Value<String?> icon = const Value.absent(),
     Value<String?> color = const Value.absent(),
@@ -462,6 +501,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
     name: name ?? this.name,
     visibility: visibility ?? this.visibility,
     publishedAt: publishedAt.present ? publishedAt.value : this.publishedAt,
+    publication: publication ?? this.publication,
     description: description.present ? description.value : this.description,
     icon: icon.present ? icon.value : this.icon,
     color: color.present ? color.value : this.color,
@@ -481,6 +521,9 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
       publishedAt: data.publishedAt.present
           ? data.publishedAt.value
           : this.publishedAt,
+      publication: data.publication.present
+          ? data.publication.value
+          : this.publication,
       description: data.description.present
           ? data.description.value
           : this.description,
@@ -503,6 +546,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
           ..write('name: $name, ')
           ..write('visibility: $visibility, ')
           ..write('publishedAt: $publishedAt, ')
+          ..write('publication: $publication, ')
           ..write('description: $description, ')
           ..write('icon: $icon, ')
           ..write('color: $color, ')
@@ -521,6 +565,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
     name,
     visibility,
     publishedAt,
+    publication,
     description,
     icon,
     color,
@@ -538,6 +583,7 @@ class DeckRow extends DataClass implements Insertable<DeckRow> {
           other.name == this.name &&
           other.visibility == this.visibility &&
           other.publishedAt == this.publishedAt &&
+          other.publication == this.publication &&
           other.description == this.description &&
           other.icon == this.icon &&
           other.color == this.color &&
@@ -553,6 +599,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
   final Value<String> name;
   final Value<String> visibility;
   final Value<DateTime?> publishedAt;
+  final Value<String> publication;
   final Value<String?> description;
   final Value<String?> icon;
   final Value<String?> color;
@@ -567,6 +614,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
     this.name = const Value.absent(),
     this.visibility = const Value.absent(),
     this.publishedAt = const Value.absent(),
+    this.publication = const Value.absent(),
     this.description = const Value.absent(),
     this.icon = const Value.absent(),
     this.color = const Value.absent(),
@@ -582,6 +630,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
     required String name,
     this.visibility = const Value.absent(),
     this.publishedAt = const Value.absent(),
+    this.publication = const Value.absent(),
     this.description = const Value.absent(),
     this.icon = const Value.absent(),
     this.color = const Value.absent(),
@@ -600,6 +649,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
     Expression<String>? name,
     Expression<String>? visibility,
     Expression<DateTime>? publishedAt,
+    Expression<String>? publication,
     Expression<String>? description,
     Expression<String>? icon,
     Expression<String>? color,
@@ -615,6 +665,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
       if (name != null) 'name': name,
       if (visibility != null) 'visibility': visibility,
       if (publishedAt != null) 'published_at': publishedAt,
+      if (publication != null) 'publication': publication,
       if (description != null) 'description': description,
       if (icon != null) 'icon': icon,
       if (color != null) 'color': color,
@@ -632,6 +683,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
     Value<String>? name,
     Value<String>? visibility,
     Value<DateTime?>? publishedAt,
+    Value<String>? publication,
     Value<String?>? description,
     Value<String?>? icon,
     Value<String?>? color,
@@ -647,6 +699,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
       name: name ?? this.name,
       visibility: visibility ?? this.visibility,
       publishedAt: publishedAt ?? this.publishedAt,
+      publication: publication ?? this.publication,
       description: description ?? this.description,
       icon: icon ?? this.icon,
       color: color ?? this.color,
@@ -675,6 +728,9 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
       map['published_at'] = Variable<DateTime>(
         $DecksTable.$converterpublishedAtn.toSql(publishedAt.value),
       );
+    }
+    if (publication.present) {
+      map['publication'] = Variable<String>(publication.value);
     }
     if (description.present) {
       map['description'] = Variable<String>(description.value);
@@ -719,6 +775,7 @@ class DecksCompanion extends UpdateCompanion<DeckRow> {
           ..write('name: $name, ')
           ..write('visibility: $visibility, ')
           ..write('publishedAt: $publishedAt, ')
+          ..write('publication: $publication, ')
           ..write('description: $description, ')
           ..write('icon: $icon, ')
           ..write('color: $color, ')
@@ -3888,6 +3945,7 @@ typedef $$DecksTableCreateCompanionBuilder = DecksCompanion Function({
   required String name,
   Value<String> visibility,
   Value<DateTime?> publishedAt,
+  Value<String> publication,
   Value<String?> description,
   Value<String?> icon,
   Value<String?> color,
@@ -3903,6 +3961,7 @@ typedef $$DecksTableUpdateCompanionBuilder = DecksCompanion Function({
   Value<String> name,
   Value<String> visibility,
   Value<DateTime?> publishedAt,
+  Value<String> publication,
   Value<String?> description,
   Value<String?> icon,
   Value<String?> color,
@@ -3965,6 +4024,11 @@ class $$DecksTableFilterComposer extends Composer<_$AppDatabase, $DecksTable> {
   get publishedAt => $composableBuilder(
     column: $table.publishedAt,
     builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get publication => $composableBuilder(
+    column: $table.publication,
+    builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<String> get description => $composableBuilder(
@@ -4065,6 +4129,11 @@ class $$DecksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get publication => $composableBuilder(
+    column: $table.publication,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get description => $composableBuilder(
     column: $table.description,
     builder: (column) => ColumnOrderings(column),
@@ -4131,6 +4200,11 @@ class $$DecksTableAnnotationComposer
         column: $table.publishedAt,
         builder: (column) => column,
       );
+
+  GeneratedColumn<String> get publication => $composableBuilder(
+    column: $table.publication,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get description => $composableBuilder(
     column: $table.description,
@@ -4218,6 +4292,7 @@ class $$DecksTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> visibility = const Value.absent(),
                 Value<DateTime?> publishedAt = const Value.absent(),
+                Value<String> publication = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String?> icon = const Value.absent(),
                 Value<String?> color = const Value.absent(),
@@ -4232,6 +4307,7 @@ class $$DecksTableTableManager
                 name: name,
                 visibility: visibility,
                 publishedAt: publishedAt,
+                publication: publication,
                 description: description,
                 icon: icon,
                 color: color,
@@ -4248,6 +4324,7 @@ class $$DecksTableTableManager
                 required String name,
                 Value<String> visibility = const Value.absent(),
                 Value<DateTime?> publishedAt = const Value.absent(),
+                Value<String> publication = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String?> icon = const Value.absent(),
                 Value<String?> color = const Value.absent(),
@@ -4262,6 +4339,7 @@ class $$DecksTableTableManager
                 name: name,
                 visibility: visibility,
                 publishedAt: publishedAt,
+                publication: publication,
                 description: description,
                 icon: icon,
                 color: color,

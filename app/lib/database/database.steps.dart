@@ -2833,6 +2833,247 @@ final class Schema14 extends i0.VersionedSchema {
   );
 }
 
+final class Schema15 extends i0.VersionedSchema {
+  Schema15({required super.database}) : super(version: 15);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    decks,
+    cards,
+    reviews,
+    cardStates,
+    syncState,
+    studySettings,
+    mediaUploads,
+    mediaDeletions,
+    decksUnsynced,
+    cardsDeckIdCardKey,
+    cardsDeckIdCreatedAt,
+    cardsUnsynced,
+    reviewsCardIdReviewedAt,
+    reviewsReviewedAt,
+    reviewsUnsynced,
+    cardStatesUnsynced,
+  ];
+  late final Shape24 decks = Shape24(
+    source: i0.VersionedTable(
+      entityName: 'decks',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_26,
+        _column_31,
+        _column_49,
+        _column_28,
+        _column_40,
+        _column_41,
+        _column_44,
+        _column_32,
+        _column_33,
+        _column_34,
+        _column_19,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape20 cards = Shape20(
+    source: i0.VersionedTable(
+      entityName: 'cards',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_4,
+        _column_5,
+        _column_6,
+        _column_7,
+        _column_38,
+        _column_30,
+        _column_42,
+        _column_43,
+        _column_32,
+        _column_33,
+        _column_34,
+        _column_19,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape16 reviews = Shape16(
+    source: i0.VersionedTable(
+      entityName: 'reviews',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_9,
+        _column_10,
+        _column_35,
+        _column_12,
+        _column_17,
+        _column_33,
+        _column_19,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape17 cardStates = Shape17(
+    source: i0.VersionedTable(
+      entityName: 'card_states',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(card_id)'],
+      columns: [
+        _column_9,
+        _column_13,
+        _column_14,
+        _column_36,
+        _column_37,
+        _column_33,
+        _column_19,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape9 syncState = Shape9(
+    source: i0.VersionedTable(
+      entityName: 'sync_state',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_20,
+        _column_21,
+        _column_22,
+        _column_23,
+        _column_24,
+        _column_25,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape18 studySettings = Shape18(
+    source: i0.VersionedTable(
+      entityName: 'study_settings',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [_column_20, _column_39, _column_33, _column_19],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape22 mediaUploads = Shape22(
+    source: i0.VersionedTable(
+      entityName: 'media_uploads',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_45,
+        _column_46,
+        _column_47,
+        _column_48,
+        _column_32,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape23 mediaDeletions = Shape23(
+    source: i0.VersionedTable(
+      entityName: 'media_deletions',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [_column_0],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  final i1.Index decksUnsynced = i1.Index(
+    'decks_unsynced',
+    'CREATE INDEX decks_unsynced ON decks (id) WHERE dirty',
+  );
+  final i1.Index cardsDeckIdCardKey = i1.Index(
+    'cards_deck_id_card_key',
+    'CREATE INDEX cards_deck_id_card_key ON cards (deck_id, card_key) WHERE deleted_at IS NULL',
+  );
+  final i1.Index cardsDeckIdCreatedAt = i1.Index(
+    'cards_deck_id_created_at',
+    'CREATE INDEX cards_deck_id_created_at ON cards (deck_id, created_at)',
+  );
+  final i1.Index cardsUnsynced = i1.Index(
+    'cards_unsynced',
+    'CREATE INDEX cards_unsynced ON cards (id) WHERE dirty',
+  );
+  final i1.Index reviewsCardIdReviewedAt = i1.Index(
+    'reviews_card_id_reviewed_at',
+    'CREATE INDEX reviews_card_id_reviewed_at ON reviews (card_id, reviewed_at)',
+  );
+  final i1.Index reviewsReviewedAt = i1.Index(
+    'reviews_reviewed_at',
+    'CREATE INDEX reviews_reviewed_at ON reviews (reviewed_at)',
+  );
+  final i1.Index reviewsUnsynced = i1.Index(
+    'reviews_unsynced',
+    'CREATE INDEX reviews_unsynced ON reviews (id) WHERE dirty',
+  );
+  final i1.Index cardStatesUnsynced = i1.Index(
+    'card_states_unsynced',
+    'CREATE INDEX card_states_unsynced ON card_states (card_id) WHERE dirty',
+  );
+}
+
+class Shape24 extends i0.VersionedTable {
+  Shape24({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get name =>
+      columnsByName['name']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get visibility =>
+      columnsByName['visibility']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get publishedAt =>
+      columnsByName['published_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get publication =>
+      columnsByName['publication']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get description =>
+      columnsByName['description']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get icon =>
+      columnsByName['icon']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get color =>
+      columnsByName['color']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get imageMediaId =>
+      columnsByName['image_media_id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get createdAt =>
+      columnsByName['created_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get updatedAt =>
+      columnsByName['updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get deletedAt =>
+      columnsByName['deleted_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get dirty =>
+      columnsByName['dirty']! as i1.GeneratedColumn<int>;
+}
+
+i1.GeneratedColumn<String> _column_49(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'publication',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NOT NULL DEFAULT \'private\' CHECK (publication IN (\'private\', \'checking\', \'held\', \'refused\', \'public\'))',
+      defaultValue: const i1.CustomExpression('\'private\''),
+    );
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
@@ -2847,6 +3088,7 @@ i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema12 schema) from11To12,
   required Future<void> Function(i1.Migrator m, Schema13 schema) from12To13,
   required Future<void> Function(i1.Migrator m, Schema14 schema) from13To14,
+  required Future<void> Function(i1.Migrator m, Schema15 schema) from14To15,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -2915,6 +3157,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from13To14(migrator, schema);
         return 14;
+      case 14:
+        final schema = Schema15(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from14To15(migrator, schema);
+        return 15;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -2935,6 +3182,7 @@ i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema12 schema) from11To12,
   required Future<void> Function(i1.Migrator m, Schema13 schema) from12To13,
   required Future<void> Function(i1.Migrator m, Schema14 schema) from13To14,
+  required Future<void> Function(i1.Migrator m, Schema15 schema) from14To15,
 }) => i0.VersionedSchema.stepByStepHelper(
   step: migrationSteps(
     from1To2: from1To2,
@@ -2950,5 +3198,6 @@ i1.OnUpgrade stepByStep({
     from11To12: from11To12,
     from12To13: from12To13,
     from13To14: from13To14,
+    from14To15: from14To15,
   ),
 );

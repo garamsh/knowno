@@ -13,10 +13,14 @@ export 'src/model.dart'
     show
         BrowseSort,
         DisplayName,
+        FindingCategory,
+        FindingPlace,
         PublicCard,
         PublicDeckSummary,
         ReportOutcome,
-        ReportReason;
+        ReportReason,
+        Screening,
+        ScreeningFinding;
 export 'src/providers.dart' show onlineProvider, sharingServiceProvider;
 export 'src/reachability.dart' show DeviceReachability, Reachability;
 export 'src/server.dart' show SharingServer;
