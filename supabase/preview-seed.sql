@@ -193,6 +193,38 @@ insert into private.provider_keys (provider, secret_id, last_four, set_by)
 values ('openai', vault.create_secret('seed-not-a-real-key-0000', 'knowno_provider_key_openai'),
   '0000', '5eed0000-0000-4000-8000-0000000000a3');
 
+-- Report triage: the reports above are in the report log by their trigger. An active
+-- configuration on the seeded OpenAI key, a spam verdict the model gave the held advertisement
+-- note, its hide by the AI waiting for a person's re-check, the call's spend, one failed attempt
+-- and the owner's appeal of it. The settings keep their judge-only default.
+with cfg as (
+  insert into private.triage_configurations (cheap_provider, cheap_model, strong_provider,
+    strong_model, prompt, cheap_in_usd, cheap_out_usd, strong_in_usd, strong_out_usd, created_by)
+  values ('openai', 'gpt-seed-model', 'openai', 'gpt-seed-model', 'Judge the reported note.',
+    1, 5, 3, 15, '5eed0000-0000-4000-8000-0000000000a3')
+  returning id
+), label as (
+  insert into private.triage_configuration_labels (label, configuration_id, set_by)
+  select 'active', cfg.id, '5eed0000-0000-4000-8000-0000000000a3' from cfg
+)
+insert into private.triage_verdicts (content_hash, category, confidence, passage, field, tier,
+  provider, model, configuration_id, tokens_in, tokens_out, cost_usd, escalated, created_at)
+select repeat('c2', 32), 'ad', 0.95, 'Buy now at the link below', 'card 1 front', 'cheap', 'openai',
+  'gpt-seed-model', cfg.id, 2400, 120, 0.003, false, now() - interval '5 days' from cfg;
+insert into private.triage_spend (deck_id, content_hash, tier, provider, model, tokens_in,
+  tokens_out, cost_usd, estimated, created_at)
+values ('5eed0000-0000-4000-8000-0000000000d7', repeat('c2', 32), 'cheap', 'openai', 'gpt-seed-model',
+  2400, 120, 0.003, false, now() - interval '5 days');
+insert into private.triage_attempts (deck_id, content_hash, claimed_at, failures, next_attempt_at)
+values ('5eed0000-0000-4000-8000-0000000000d7', repeat('c2', 32), null, 1, now() - interval '5 days');
+insert into private.triage_actions (deck_id, content_hash, action, category, confidence, model,
+  reason, sampled, created_at)
+values ('5eed0000-0000-4000-8000-0000000000d7', repeat('c2', 32), 'hide', 'ad', 0.95, 'gpt-seed-model',
+  'judged ad at confidence 0.95', true, now() - interval '5 days');
+insert into private.triage_appeals (deck_id, action_id, owner_id, created_at)
+select '5eed0000-0000-4000-8000-0000000000d7', max(id), '5eed0000-0000-4000-8000-0000000000a2',
+  now() - interval '4 days' from private.triage_actions;
+
 -- A store grant for the Free learner on a renewing Pro, and the store's webhook value in Vault.
 insert into private.store_grants (user_id, plan, ends_at, renews, version_id)
 select '5eed0000-0000-4000-8000-0000000000a1', 'pro', now() + interval '20 days', true, max(id)
