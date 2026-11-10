@@ -725,7 +725,7 @@ test("each page that waits on the server shows its skeleton, still under reduced
       name: "account",
       status: "설정을 불러오는 중이에요.",
       content: '[aria-labelledby="account-section"]',
-      held: 0,
+      held: 1,
     },
   ];
   // Each page names its first block of content and the placeholder that holds its place.
