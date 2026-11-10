@@ -12,8 +12,8 @@ export type GrantPlanState = { message: string | null };
 
 /** What the form says once it granted each plan. */
 const granted = {
-  pro: "프로로 지정했어요.",
-  max: "맥스로 지정했어요.",
+  pro: "플러스로 지정했어요.",
+  max: "프로로 지정했어요.",
   special: "스페셜로 지정했어요.",
 } as const;
 
@@ -35,7 +35,7 @@ export async function grantPlan(
   if (typeof endsOn === "string" && endsOn !== "") {
     const date = /^(\d{4})-(\d{2})-(\d{2})$/.exec(endsOn);
     if (plan === "pro" || !date) {
-      return { message: "끝나는 날은 맥스와 스페셜에만 정할 수 있어요." };
+      return { message: "끝나는 날은 프로와 스페셜에만 정할 수 있어요." };
     }
     const timeZone = await adminTimeZone();
     // Noon UTC falls on the same calendar date in every zone within 11 hours of UTC.

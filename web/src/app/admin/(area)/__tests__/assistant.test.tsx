@@ -146,8 +146,8 @@ describe("말랑이's plans", () => {
       `${plan}제공자 OpenRouter모델 anthropic/claude-haiku-5.5프롬프트 v1웹 검색 ${search}추론 없음하루 토큰 ${budget}초안 ${draft}${action}`;
     expect(rows.map((entry) => entry.textContent)).toEqual([
       cells("무료", "끔", "200,000", "—", "바꾸기"),
-      cells("프로", "메시지당 3회", "2,000,000", "테스트 중", "초안 보기"),
-      cells("맥스", "메시지당 3회", "6,000,000", "—", "바꾸기"),
+      cells("플러스", "메시지당 3회", "2,000,000", "테스트 중", "초안 보기"),
+      cells("프로", "메시지당 3회", "6,000,000", "—", "바꾸기"),
       cells("스페셜", "메시지당 3회", "제한 없음", "—", "바꾸기"),
     ]);
     expect(table.getByRole("link", { name: "초안 보기" })).toHaveAttribute(
@@ -164,7 +164,7 @@ describe("말랑이's plans", () => {
   it("opens the first plan with a draft, names what it changes, shows its prompt's lines, and starts the form from it", async () => {
     seedDraft();
     await assistant();
-    const panel = within(screen.getByRole("region", { name: "프로 · 초안 (관리자만 테스트 중)" }));
+    const panel = within(screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }));
     expect(
       panel.getByRole("heading", {
         name: "제공자·모델 그대로 · 프롬프트 v1 → v2 · 웹 검색 메시지당 3회 → 끔 · 추론 없음 → 낮음",
@@ -173,7 +173,7 @@ describe("말랑이's plans", () => {
     expect(panel.getByText("프롬프트 v1 → v2 다른 점")).toBeInTheDocument();
     expect(panel.getByText("Ask before a long list.")).toBeInTheDocument();
     expect(panel.getByRole("button", { name: "모두에게 적용" })).toBeInTheDocument();
-    const draft = within(panel.getByRole("form", { name: "프로 새 초안" }));
+    const draft = within(panel.getByRole("form", { name: "플러스 새 초안" }));
     expect(draft.getByRole("combobox", { name: "제공자" })).toHaveValue("openrouter");
     expect(draft.getByRole("textbox", { name: "모델" })).toHaveValue("anthropic/claude-haiku-5.5");
     expect(draft.getByRole("combobox", { name: "프롬프트" })).toHaveValue("2");
@@ -185,7 +185,7 @@ describe("말랑이's plans", () => {
   it("opens the plan the address names, without a draft its active configuration and no action", async () => {
     seedDraft();
     await assistant({ plan: "max" });
-    const panel = within(screen.getByRole("region", { name: "맥스 · 사용 중인 구성" }));
+    const panel = within(screen.getByRole("region", { name: "프로 · 사용 중인 구성" }));
     expect(
       panel.getByRole("heading", {
         name: "OpenRouter · anthropic/claude-haiku-5.5 · 프롬프트 v1 · 웹 검색 메시지당 3회 · 추론 없음",
@@ -193,7 +193,7 @@ describe("말랑이's plans", () => {
     ).toBeInTheDocument();
     expect(panel.queryByRole("button", { name: "모두에게 적용" })).toBeNull();
     expect(
-      within(panel.getByRole("form", { name: "맥스 새 초안" })).getByRole("checkbox", {
+      within(panel.getByRole("form", { name: "프로 새 초안" })).getByRole("checkbox", {
         name: "웹 검색",
       }),
     ).toBeChecked();
@@ -285,7 +285,7 @@ describe("an assistant draft: saved after the assistant's check, applied to ever
     seedDraft();
     const user = userEvent.setup();
     await assistant();
-    const panel = within(screen.getByRole("region", { name: "프로 · 초안 (관리자만 테스트 중)" }));
+    const panel = within(screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }));
     await user.click(panel.getByRole("button", { name: "모두에게 적용" }));
     await user.click(panel.getByRole("button", { name: "취소" }));
     expect(admin.calls.some((call) => call.startsWith("admin_activate_assistant"))).toBe(false);
@@ -320,10 +320,10 @@ describe("an assistant draft: saved after the assistant's check, applied to ever
     await render(AdminsContent, {});
     const log = within(screen.getByRole("list", { name: "작업 기록" }));
     expect(log.getAllByRole("listitem").map((entry) => entry.firstChild?.textContent)).toEqual([
-      "말랑이 설정 테스트 끝 · 맥스",
-      "말랑이 설정 적용 · 프로",
+      "말랑이 설정 테스트 끝 · 프로",
+      "말랑이 설정 적용 · 플러스",
     ]);
-    expect(log.getByRole("link", { name: "프로" })).toHaveAttribute("href", "/assistant?plan=pro");
+    expect(log.getByRole("link", { name: "플러스" })).toHaveAttribute("href", "/assistant?plan=pro");
   });
 });
 
@@ -398,9 +398,9 @@ describe("a plan's daily token budget", () => {
   it("shows the plan's budget, sets a new one or none from its form, records each, and refuses one out of range before the server", async () => {
     const user = userEvent.setup();
     await assistant({ plan: "pro" });
-    const section = within(screen.getByRole("region", { name: "프로 · 하루 토큰 예산" }));
+    const section = within(screen.getByRole("region", { name: "플러스 · 하루 토큰 예산" }));
     expect(section.getByText("하루 2,000,000토큰")).toBeInTheDocument();
-    const budget = within(section.getByRole("form", { name: "프로 하루 토큰 예산" }));
+    const budget = within(section.getByRole("form", { name: "플러스 하루 토큰 예산" }));
     expect(budget.getByRole("spinbutton", { name: "하루 토큰" })).toHaveValue(2_000_000);
     expect(budget.getByRole("checkbox", { name: "제한 없음" })).not.toBeChecked();
     await user.clear(budget.getByRole("spinbutton", { name: "하루 토큰" }));
@@ -414,7 +414,7 @@ describe("a plan's daily token budget", () => {
     expect(section.queryByText(new RegExp(testUser.email))).toBeNull();
     cleanup();
     await assistant({ plan: "pro" });
-    const changed = within(screen.getByRole("region", { name: "프로 · 하루 토큰 예산" }));
+    const changed = within(screen.getByRole("region", { name: "플러스 · 하루 토큰 예산" }));
     expect(changed.getByText("하루 3,000,000토큰")).toBeInTheDocument();
     expect(changed.getByText(`2026-11-05 11:00 · ${testUser.email}`)).toBeInTheDocument();
 
@@ -452,9 +452,9 @@ describe("a plan's daily token budget", () => {
         .getAllByRole("listitem")
         .map((entry) => entry.firstChild?.textContent),
     ).toEqual([
-      "말랑이 하루 토큰 예산 · 맥스 · 제한 없음",
-      "말랑이 하루 토큰 예산 · 맥스 · 하루 1,000,000,000토큰",
-      "말랑이 하루 토큰 예산 · 프로 · 하루 3,000,000토큰",
+      "말랑이 하루 토큰 예산 · 프로 · 제한 없음",
+      "말랑이 하루 토큰 예산 · 프로 · 하루 1,000,000,000토큰",
+      "말랑이 하루 토큰 예산 · 플러스 · 하루 3,000,000토큰",
     ]);
   });
 });

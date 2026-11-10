@@ -253,7 +253,7 @@ describe("처리할 일", () => {
 
     const test = within(screen.getByRole("region", { name: "테스트 중인 초안" }));
     // In the plans' order, whichever draft was saved first.
-    expect(test.getByText("프로 · 맥스")).toBeInTheDocument();
+    expect(test.getByText("플러스 · 프로")).toBeInTheDocument();
     expect(test.getByRole("link", { name: "적용 또는 끝내기" })).toHaveAttribute(
       "href",
       "/ai?plan=pro",
@@ -1274,14 +1274,14 @@ describe("the plans page", () => {
         "한도 바꾸기",
       ],
       [
-        "프로",
+        "플러스",
         "사진 한도 하루 100장",
         "AI 구성 Anthropic · claude-sonnet-5 AI에서 보기",
         "가입자 0명",
         "한도 바꾸기",
       ],
       [
-        "맥스",
+        "프로",
         "사진 한도 무제한 (하루 1000장까지)",
         "AI 구성 OpenRouter · anthropic/claude-haiku-5.5 AI에서 보기",
         "가입자 0명",
@@ -1324,11 +1324,11 @@ describe("the plans page", () => {
       "하루 30장2026-10-19 00:00부터 · 기존 사용자는 갱신일부터",
     ]);
     await user.click(free.getByRole("button", { name: "닫기" }));
-    const pro = await open("프로");
+    const pro = await open("플러스");
     // The row carries its start and author after its terms, so a substring is right.
     expect(pro.getByText(/learner@example.com/)).toBeInTheDocument();
     await user.click(pro.getByRole("button", { name: "닫기" }));
-    const max = await open("맥스");
+    const max = await open("프로");
     expect(max.getByText(/기존 사용자도 적용/)).toBeInTheDocument();
   });
 
@@ -1465,8 +1465,8 @@ describe("스페셜", () => {
       }),
     );
     expect(choices.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "플러스",
       "프로",
-      "맥스",
       "스페셜",
     ]);
 
@@ -1524,7 +1524,7 @@ describe("스페셜", () => {
     expect(special).toHaveTextContent("사진 한도 제한 없음");
     expect(special).not.toHaveTextContent("숨김");
     expect(within(special).queryByRole("button")).not.toBeInTheDocument();
-    const max = within(screen.getByRole("row", { name: /^맥스/ }));
+    const max = within(screen.getByRole("row", { name: /^프로/ }));
     expect(
       max.getByRole("button", { name: "한도 바꾸기" }),
       "control: Max has its form",
@@ -1543,7 +1543,7 @@ describe("a user's plan", () => {
     const ends = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
     expect(
       await grantPlan({ message: null }, form({ user: otherUser.id, plan: "max", ends_on: ends })),
-    ).toEqual({ message: "맥스로 지정했어요." });
+    ).toEqual({ message: "프로로 지정했어요." });
     // The last day ends at the next study day's start, 04:00 in the admin's zone, UTC here.
     const next = new Date(Date.parse(`${ends}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
     expect(admin.userPlans.get(otherUser.id)).toEqual({
@@ -1556,7 +1556,7 @@ describe("a user's plan", () => {
     await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
     const granted = within(screen.getAllByRole("region", { name: "요금제" }).at(-1) as HTMLElement);
     expect(granted.getByText("지금").nextSibling).toHaveTextContent(
-      "맥스 · 무제한 (하루 1000장까지)",
+      "프로 · 무제한 (하루 1000장까지)",
     );
     expect(granted.getByText("마지막 날", { selector: "dt" }).nextSibling).toHaveTextContent(ends);
     // A row at the end of the plan's group while the grant stands.
@@ -1579,7 +1579,7 @@ describe("a user's plan", () => {
         { message: null },
         form({ user: otherUser.id, plan: "pro", ends_on: "2030-01-01" }),
       ),
-    ).toEqual({ message: "끝나는 날은 맥스와 스페셜에만 정할 수 있어요." });
+    ).toEqual({ message: "끝나는 날은 프로와 스페셜에만 정할 수 있어요." });
     expect(
       await grantPlan(
         { message: null },
@@ -1591,7 +1591,7 @@ describe("a user's plan", () => {
     ).toEqual({ message: "하지 못했어요. 잠시 후 다시 시도해 주세요." });
     expect(
       await grantPlan({ message: null }, form({ user: otherUser.id, plan: "pro", ends_on: "" })),
-    ).toEqual({ message: "프로로 지정했어요." });
+    ).toEqual({ message: "플러스로 지정했어요." });
 
     await signIn(otherUser);
     expect(
@@ -1617,9 +1617,9 @@ describe("a user's plan", () => {
     await grantPlan({ message: null }, form({ user: otherUser.id, plan: "pro", ends_on: "" }));
     await render(AdminsContent, {});
     expect(auditEntries()).toEqual([
-      "요금제 지정 · other@example.com · 프로",
-      "요금제 새 버전 · 프로 · 하루 200장",
+      "요금제 지정 · other@example.com · 플러스",
+      "요금제 새 버전 · 플러스 · 하루 200장",
     ]);
-    expect(screen.getByRole("link", { name: "프로" })).toHaveAttribute("href", "/plans");
+    expect(screen.getByRole("link", { name: "플러스" })).toHaveAttribute("href", "/plans");
   });
 });

@@ -89,8 +89,8 @@ export const effortLabels: Record<string, string> = {
  */
 export const planLabels: Record<string, string> = {
   free: "무료",
-  pro: "프로",
-  max: "맥스",
+  pro: "플러스",
+  max: "프로",
   special: "스페셜",
 };
 
