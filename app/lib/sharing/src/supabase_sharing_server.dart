@@ -111,6 +111,49 @@ final class SupabaseSharingServer implements SharingServer {
       });
 
   @override
+  Future<AiHidden?> aiHidden(DeckId deck) => _request(() async {
+    final state = await _client.rpc<Object?>(
+      'my_triage_state',
+      params: {'deck_id': deck.value},
+    );
+    if (state == null) return null;
+    if (state is! Map<String, dynamic>) {
+      throw const FormatException('my_triage_state returned no object');
+    }
+    final fields = _Fields(state);
+    if (!fields.boolean('hidden_by_ai')) return null;
+    return AiHidden(
+      appeal: switch ((
+        fields.boolean('appealed'),
+        fields.boolean('resolved'),
+      )) {
+        (true, true) => AppealState.upheld,
+        (true, false) => AppealState.pending,
+        (false, _) => AppealState.open,
+      },
+      category: switch (state['category']) {
+        'spam' => TriageCategory.spam,
+        'ad' => TriageCategory.ad,
+        _ => null,
+      },
+    );
+  });
+
+  @override
+  Future<AppealOutcome> appeal(DeckId deck) => _request(() async {
+    final answer = await _client.rpc<Object?>(
+      'appeal_ai_hidden_note',
+      params: {'deck_id': deck.value},
+    );
+    return switch (answer) {
+      'appealed' => AppealOutcome.appealed,
+      'already' => AppealOutcome.already,
+      'not_hidden_by_ai' => AppealOutcome.notHiddenByAi,
+      _ => throw FormatException('appeal_ai_hidden_note returned $answer'),
+    };
+  });
+
+  @override
   Future<void> block(UserId user) => _request(() async {
     try {
       await _client.from('user_blocks').insert({'blocked_id': user.value});
@@ -348,6 +391,8 @@ extension type _Fields(Map<String, dynamic> row) {
   String string(String key) => _read<String>(key);
 
   String? stringOrNull(String key) => _read<String?>(key);
+
+  bool boolean(String key) => _read<bool>(key);
 
   int integer(String key) => _read<int>(key);
 

@@ -17,6 +17,8 @@ import {
   NoteList,
   ScreeningQueue,
   ScreeningTermsView,
+  TriageActionsView,
+  TriageSettingsView,
   type NoteView,
   listUsers,
   parsePlanFilter,
@@ -48,6 +50,13 @@ import {
   readScreeningQueue,
   readScreeningReview,
   readScreeningTerms,
+  readTriageActions,
+  readTriageAgreement,
+  readTriageAppeals,
+  readTriageConfigurations,
+  readTriageQueue,
+  readTriageSample,
+  readTriageSettings,
   readProviderKeys,
   readPromptVersion,
   readPromptVersions,
@@ -137,8 +146,11 @@ export async function TodoContent() {
   );
 }
 
-/** A view of 노트: one of the lists, 검토 중 (the held notes) or 금칙어 (the banned words). */
-type Tab = NoteView | "held" | "terms";
+/**
+ * A view of 노트: one of the lists, 검토 중 (the held notes), 금칙어 (the banned words), 처리한 것
+ * (what the AI did, with its sample and appeals) or AI 설정 (the triage's switches, ADR 0244).
+ */
+type Tab = NoteView | "held" | "terms" | "triage" | "triage-settings";
 
 const noteViews: readonly { view: Tab; label: string; empty: string }[] = [
   {
@@ -158,6 +170,8 @@ const noteViews: readonly { view: Tab; label: string; empty: string }[] = [
     empty: "검토 중인 노트가 없어요. 공개 전 점검에서 걸린 노트가 여기에 보여요.",
   },
   { view: "terms", label: "금칙어", empty: "" },
+  { view: "triage", label: "AI가 처리한 것", empty: "" },
+  { view: "triage-settings", label: "신고 AI 설정", empty: "" },
 ];
 
 /** The 노트 section's address for [view] and [search]; the reported view is the section's own. */
@@ -169,20 +183,85 @@ function notesHref(view: Tab, search: string): string {
   return query === "" ? "/decks" : `/decks?${query}`;
 }
 
+/** 처리한 것: the AI's actions, its sample and the appeals, or why one could not be read. */
+function TriageActions({
+  reads,
+  timeZone,
+}: {
+  reads: [
+    Awaited<ReturnType<typeof readTriageActions>>,
+    Awaited<ReturnType<typeof readTriageSample>>,
+    Awaited<ReturnType<typeof readTriageAppeals>>,
+  ];
+  timeZone: string;
+}) {
+  const [actions, sample, appeals] = reads;
+  const failed = [actions, sample, appeals].find((read) => "failure" in read);
+  if (failed !== undefined && "failure" in failed) {
+    return <AdminFailureMessage failure={failed.failure} />;
+  }
+  if ("failure" in actions || "failure" in sample || "failure" in appeals) return null;
+  return (
+    <TriageActionsView
+      actions={actions.data}
+      sample={sample.data}
+      appeals={appeals.data}
+      timeZone={timeZone}
+    />
+  );
+}
+
+/** 신고 AI 설정: the switches, agreement and configurations, or why one could not be read. */
+function TriageSettings({
+  reads,
+  timeZone,
+}: {
+  reads: [
+    Awaited<ReturnType<typeof readTriageSettings>>,
+    Awaited<ReturnType<typeof readTriageAgreement>>,
+    Awaited<ReturnType<typeof readTriageConfigurations>>,
+  ];
+  timeZone: string;
+}) {
+  const [settings, agreement, configurations] = reads;
+  if ("failure" in settings) return <AdminFailureMessage failure={settings.failure} />;
+  if ("failure" in agreement) return <AdminFailureMessage failure={agreement.failure} />;
+  if ("failure" in configurations) return <AdminFailureMessage failure={configurations.failure} />;
+  return (
+    <TriageSettingsView
+      settings={settings.data}
+      agreement={agreement.data}
+      configurations={configurations.data}
+      timeZone={timeZone}
+    />
+  );
+}
+
 export async function NotesContent({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const search = searchText(params.q);
   const shown = noteViews.find(({ view }) => view === params.view) ?? noteViews[0];
   if (shown === undefined) return null;
-  const listed = shown.view !== "held" && shown.view !== "terms" ? shown.view : null;
-  const [read, reports, review, queue, terms, timeZone] = await Promise.all([
-    listed === null ? null : readNotes(listed, search),
-    readOpenReports(),
-    shown.view === "held" ? readScreeningReview() : null,
-    shown.view === "held" ? null : readScreeningQueue(),
-    shown.view === "terms" ? readScreeningTerms() : null,
-    adminTimeZone(),
-  ]);
+  const listed =
+    shown.view === "reported" || shown.view === "public" || shown.view === "hidden"
+      ? shown.view
+      : null;
+  const triaged = shown.view === "triage";
+  const triageSettings = shown.view === "triage-settings";
+  const [read, reports, review, queue, terms, verdicts, acted, configured, timeZone] =
+    await Promise.all([
+      listed === null ? null : readNotes(listed, search),
+      readOpenReports(),
+      shown.view === "held" ? readScreeningReview() : null,
+      shown.view === "held" ? null : readScreeningQueue(),
+      shown.view === "terms" ? readScreeningTerms() : null,
+      shown.view === "reported" ? readTriageQueue() : null,
+      triaged ? Promise.all([readTriageActions(), readTriageSample(), readTriageAppeals()]) : null,
+      triageSettings
+        ? Promise.all([readTriageSettings(), readTriageAgreement(), readTriageConfigurations()])
+        : null,
+      adminTimeZone(),
+    ]);
   /** A tab's name, with the count of what waits in it where the tab has one. */
   const named = (view: Tab, label: string) => {
     if (view === "reported" && !("failure" in reports)) {
@@ -216,6 +295,8 @@ export async function NotesContent({ searchParams }: { searchParams: SearchParam
         ) : (
           <ScreeningTermsView terms={terms.data} timeZone={timeZone} />
         ))}
+      {acted !== null && <TriageActions reads={acted} timeZone={timeZone} />}
+      {configured !== null && <TriageSettings reads={configured} timeZone={timeZone} />}
       {read !== null && (
         <>
           <form role="search" action="/decks">
@@ -226,11 +307,15 @@ export async function NotesContent({ searchParams }: { searchParams: SearchParam
               defaultValue={search}
             />
           </form>
+          {!("failure" in read) && verdicts !== null && "failure" in verdicts && (
+            <AdminFailureMessage failure={verdicts.failure} />
+          )}
           {"failure" in read ? (
             <AdminFailureMessage failure={read.failure} />
           ) : (
             <NoteList
               timeZone={timeZone}
+              triage={verdicts === null || "failure" in verdicts ? [] : verdicts.data}
               notes={read.data}
               empty={search === "" ? shown.empty : "찾는 노트가 없어요. 다른 단어로 검색해 보세요."}
             />

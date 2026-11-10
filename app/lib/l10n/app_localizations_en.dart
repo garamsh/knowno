@@ -1199,10 +1199,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reportOther => 'Other';
 
   @override
+  String get reportSexual => 'Minors or sexual content';
+
+  @override
   String get reported => 'Reported. We\'ll review it.';
 
   @override
   String get alreadyReported => 'You\'ve already reported this note.';
+
+  @override
+  String aiHiddenWhy(String category) {
+    String _temp0 = intl.Intl.selectLogic(category, {
+      'spam': 'After reports, an AI hid this note as spam.',
+      'ad': 'After reports, an AI hid this note as an ad.',
+      'other': 'After reports, an AI hid this note.',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get aiHiddenAppeal => 'Ask a person to review';
+
+  @override
+  String get aiHiddenPending => 'A person is reviewing your appeal.';
+
+  @override
+  String get aiHiddenUpheld => 'A person reviewed it and kept the note hidden.';
 
   @override
   String blockTitle(String name) {

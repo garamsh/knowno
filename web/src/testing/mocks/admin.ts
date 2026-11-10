@@ -246,6 +246,67 @@ export class FakeAdmin {
     { plan: string; endsAt: string | null; grantedBy: string | null }
   >();
   /** The functions called, as `<name> <args as JSON>`. */
+  /** The report triage's verdicts on decks of [decks], by deck id, as `private.triage_verdicts` keeps them. */
+  readonly triageVerdicts = new Map<
+    string,
+    {
+      category: string;
+      confidence: number;
+      passage: string | null;
+      field: string | null;
+      tier: string;
+      model: string;
+      cost_usd: number;
+      judged_at: string;
+    }
+  >();
+  /** What the triage did, as `private.triage_actions` keeps it. */
+  readonly triageActions: {
+    id: number;
+    deckId: string;
+    action: "hide" | "dismiss";
+    category: string;
+    confidence: number;
+    model: string;
+    reason: string;
+    createdAt: string;
+    sampled: boolean;
+    recheckedAt: string | null;
+    recheckAgreed: boolean | null;
+    undoneAt: string | null;
+  }[] = [];
+  /** The owners' appeals of AI actions, as `private.triage_appeals` keeps them. */
+  readonly triageAppeals: {
+    actionId: number;
+    deckId: string;
+    appealedAt: string;
+    resolved: boolean;
+  }[] = [];
+  /** `private.triage_settings`' one row as `admin_triage_settings` answers it: judge-only until an admin changes it. */
+  readonly triageSettings: Row = {
+    mode: "judge_only",
+    act_threshold: 0.9,
+    daily_cap_usd: 0.5,
+    batch_notes: 10,
+    daily_notes: 100,
+    sample_percent: 10,
+    undo_window_hours: 168,
+    undo_threshold: 0.2,
+    undo_min_actions: 5,
+    paused_at: null,
+    paused_reason: null,
+    spent_today_usd: 0,
+    judged_today: 0,
+    actions_in_window: 0,
+    undo_rate: null,
+    reporter_daily_cap: 20,
+  };
+  /** Failed tries of a claimed note, by deck id: the server answers null for a note not claimed. */
+  readonly triageFailures = new Map<string, number>();
+  /** What `admin_triage_agreement` answers. */
+  readonly triageAgreement: { category: string; compared: number; agreed: number }[] = [];
+  /** The triage's labelled configurations, as `admin_triage_configurations` answers them. */
+  readonly triageConfigurations: Row[] = [];
   readonly calls: string[] = [];
 
   /** Adds [deck] to the server. */
@@ -1037,6 +1098,183 @@ export class FakeAdmin {
         if (at === -1) return false;
         this.terms.splice(at, 1);
         this.record(admin, "remove_screening_term", "screening_term", String(args.id), {});
+        return true;
+      }
+      case "admin_triage_queue":
+        return this.decks
+          .filter(
+            (deck) => !deck.deleted && deck.visibility === "public" && deck.reports.length >= 2,
+          )
+          .map((deck) => {
+            const verdict = this.triageVerdicts.get(deck.id);
+            const standing = this.triageActions.findLast(
+              (action) => action.deckId === deck.id && action.undoneAt === null,
+            );
+            return {
+              deck_id: deck.id,
+              name: deck.name,
+              owner_id: deck.ownerId,
+              hidden: deck.hidden,
+              publication: deck.hidden ? "held" : "public",
+              reporters: deck.reports.length,
+              reasons: this.reasons(deck),
+              last_reported_at: deck.reports
+                .map((report) => report.at)
+                .sort()
+                .at(-1),
+              category: verdict?.category ?? null,
+              confidence: verdict?.confidence ?? null,
+              passage: verdict?.passage ?? null,
+              field: verdict?.field ?? null,
+              tier: verdict?.tier ?? null,
+              model: verdict?.model ?? null,
+              cost_usd: verdict?.cost_usd ?? null,
+              judged_at: verdict?.judged_at ?? null,
+              action_id: standing?.id ?? null,
+              appealed: this.triageAppeals.some(
+                (appeal) => appeal.deckId === deck.id && !appeal.resolved,
+              ),
+              failures: this.triageFailures.get(deck.id) ?? null,
+            };
+          })
+          .sort((a, b) => {
+            const severe = (row: { reasons: string[] }) => (row.reasons.includes("sexual") ? 0 : 1);
+            return (
+              severe(a) - severe(b) ||
+              String(b.last_reported_at).localeCompare(String(a.last_reported_at))
+            );
+          });
+      case "admin_triage_actions":
+      case "admin_triage_sample":
+        return this.triageActions
+          .filter(
+            (action) =>
+              name === "admin_triage_actions" || (action.sampled && action.recheckedAt === null),
+          )
+          .toReversed()
+          .map((action) => ({
+            action_id: action.id,
+            deck_id: action.deckId,
+            name: this.decks.find((deck) => deck.id === action.deckId)?.name ?? "",
+            action: action.action,
+            category: action.category,
+            confidence: action.confidence,
+            model: action.model,
+            reason: action.reason,
+            created_at: action.createdAt,
+            sampled: action.sampled,
+            rechecked_at: action.recheckedAt,
+            recheck_agreed: action.recheckAgreed,
+            undone_at: action.undoneAt,
+          }));
+      case "admin_undo_triage_action": {
+        const action = this.triageActions.find((entry) => entry.id === args.action_id);
+        if (!action) return "not_found";
+        if (action.undoneAt !== null) return "already";
+        const deck = this.decks.find((entry) => entry.id === action.deckId);
+        if (action.action === "hide") {
+          if (!deck?.hidden) return "superseded";
+          deck.hidden = false;
+        }
+        action.undoneAt = "2026-11-11T03:00:00Z";
+        this.record(admin, "undo_triage_action", "deck", action.deckId, { action_id: action.id });
+        return "undone";
+      }
+      case "admin_recheck_triage_action": {
+        const action = this.triageActions.find((entry) => entry.id === args.action_id);
+        if (!action) return "not_found";
+        if (!action.sampled) return "not_sampled";
+        if (action.recheckedAt !== null) return "already";
+        action.recheckedAt = "2026-11-11T03:00:00Z";
+        action.recheckAgreed = args.agreed === true;
+        this.record(admin, "recheck_triage_action", "deck", action.deckId, {
+          action_id: action.id,
+          agreed: args.agreed,
+        });
+        return "rechecked";
+      }
+      case "admin_triage_settings":
+        return [this.triageSettings];
+      case "admin_set_triage_settings": {
+        const changed: Row = {};
+        for (const [key, value] of Object.entries(args)) {
+          if (value === null || value === undefined) continue;
+          this.triageSettings[key] = value;
+          changed[key] = value;
+        }
+        this.record(admin, "set_triage_settings", "triage", "settings", changed);
+        return true;
+      }
+      case "admin_resume_triage":
+        if (this.triageSettings.paused_at === null) return false;
+        this.triageSettings.paused_at = null;
+        this.triageSettings.paused_reason = null;
+        this.record(admin, "resume_triage", "triage", "settings", {});
+        return true;
+      case "admin_triage_agreement":
+        return this.triageAgreement;
+      case "admin_triage_appeals":
+        return this.triageAppeals
+          .filter((appeal) => !appeal.resolved)
+          .map((appeal) => {
+            const action = this.triageActions.find((entry) => entry.id === appeal.actionId);
+            const deck = this.decks.find((entry) => entry.id === appeal.deckId);
+            const verdict = this.triageVerdicts.get(appeal.deckId);
+            return {
+              deck_id: appeal.deckId,
+              name: deck?.name ?? "",
+              owner_id: deck?.ownerId ?? "",
+              appealed_at: appeal.appealedAt,
+              action_id: appeal.actionId,
+              category: action?.category ?? "",
+              confidence: action?.confidence ?? 0,
+              passage: verdict?.passage ?? null,
+              field: verdict?.field ?? null,
+            };
+          });
+      case "admin_resolve_triage_appeal": {
+        const appeal = this.triageAppeals.find(
+          (entry) => entry.deckId === args.deck_id && !entry.resolved,
+        );
+        if (!appeal) return "not_found";
+        appeal.resolved = true;
+        let outcome = "upheld";
+        if (args.restore === true) {
+          const action = this.triageActions.find((entry) => entry.id === appeal.actionId);
+          const deck = this.decks.find((entry) => entry.id === appeal.deckId);
+          if (action && action.undoneAt === null && deck?.hidden) {
+            deck.hidden = false;
+            action.undoneAt = "2026-11-11T03:00:00Z";
+            outcome = "restored";
+          } else {
+            outcome = action?.undoneAt === null ? "not_restored" : "restored";
+          }
+        }
+        this.record(admin, "resolve_triage_appeal", "deck", appeal.deckId, { outcome });
+        return outcome;
+      }
+      case "admin_triage_configurations":
+        return this.triageConfigurations;
+      case "admin_activate_triage_configuration": {
+        const chosen = this.triageConfigurations.find((entry) => entry.label === "test");
+        if (!chosen) return "no_test";
+        const active = this.triageConfigurations.findIndex((entry) => entry.label === "active");
+        if (active >= 0) this.triageConfigurations.splice(active, 1);
+        chosen.label = "active";
+        this.record(
+          admin,
+          "activate_triage_configuration",
+          "triage_configuration",
+          String(chosen.configuration_id),
+          {},
+        );
+        return "activated";
+      }
+      case "admin_clear_triage_test": {
+        const draft = this.triageConfigurations.findIndex((entry) => entry.label === "test");
+        if (draft < 0) return false;
+        this.triageConfigurations.splice(draft, 1);
+        this.record(admin, "clear_triage_test", "triage_configuration", "", {});
         return true;
       }
       default:
