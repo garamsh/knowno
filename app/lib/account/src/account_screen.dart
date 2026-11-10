@@ -140,11 +140,25 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final service = ref.read(accountServiceProvider);
     final messenger = ScaffoldMessenger.of(context);
     final l10n = AppLocalizations.of(context);
+    // Deleting never waits on the plan: a plan not known leaves the
+    // confirmation as it is.
+    final storePlan = switch (ref.read(planProvider)) {
+      PlanKnown(:final standing) => standing.fromStore,
+      _ => false,
+    };
     if (!await showAppConfirm(
       context,
       title: l10n.deleteAccountTitle,
-      consequence: l10n.deleteAccountBody,
+      consequence: storePlan
+          ? '${l10n.deleteAccountBody} ${l10n.deleteAccountStoreNote}'
+          : l10n.deleteAccountBody,
       confirmLabel: l10n.delete,
+      extra: storePlan
+          ? (
+              label: l10n.planManage,
+              onPressed: () => manageSubscription(context, ref),
+            )
+          : null,
     )) {
       return;
     }

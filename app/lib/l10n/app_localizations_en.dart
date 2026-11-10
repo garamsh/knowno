@@ -836,6 +836,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteAccountTitle => 'Delete your account?';
 
   @override
+  String get deleteAccountStoreNote =>
+      'Deleting your account does not cancel your store subscription. The store keeps billing you until you cancel it there.';
+
+  @override
   String get deleteAccountBody =>
       'Your notes, cards and study history are deleted from the server and this device, while notes others copied and your Google account stay.';
 
@@ -2434,6 +2438,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String planEnds(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMd(localeName);
+    final String dateString = dateDateFormat.format(date);
+
+    return 'Available until $dateString';
+  }
+
+  @override
   String get planLearnPlus => 'Learn about Plus';
 
   @override
@@ -2447,6 +2459,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get planRestored => 'Purchases restored';
+
+  @override
+  String get planRestoreNone => 'No purchases to restore';
 
   @override
   String get planRestoreFailed =>

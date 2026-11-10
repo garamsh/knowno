@@ -41,6 +41,14 @@ final _plus = PlanStanding(
   photoLimit: 100,
 );
 
+final _plusEnding = PlanStanding(
+  plan: Plan.plus,
+  source: PlanSource.store,
+  endsOn: DateTime(2026, 12, 10),
+  photosUsed: 12,
+  photoLimit: 100,
+);
+
 const _mcpServer = 'https://api.knowno.app/functions/v1/mcp';
 
 const _admin = PlanStanding(plan: Plan.pro, source: PlanSource.admin);
@@ -156,12 +164,50 @@ void main() {
 
       expect(shownText('Plus'), findsOneWidget);
       expect(shownText('Renews 12/10/2026'), findsOneWidget);
+      expect(shownText('12/100 photos used'), findsOneWidget);
       expect(shownText('Manage subscription'), findsOneWidget);
       expect(shownText('Restore purchases'), findsOneWidget);
       expect(shownText('Learn about Plus'), findsNothing);
       expect(lock(), findsNothing);
     },
   );
+
+  testWidgets(
+    'a store plan that does not renew shows when it ends beside the photos used, and no renewal',
+    (tester) async {
+      await pumpScreen(tester, standing: _plusEnding);
+
+      expect(shownText('Available until 12/10/2026'), findsOneWidget);
+      expect(shownText('12/100 photos used'), findsOneWidget);
+      expect(find.textContaining('Renews'), findsNothing);
+      expect(shownText('Manage subscription'), findsOneWidget);
+    },
+  );
+
+  testWidgets('a store plan\'s end reads as the web\'s, in Korean', (
+    tester,
+  ) async {
+    await pumpScreen(tester, standing: _plusEnding, locale: const Locale('ko'));
+
+    expect(shownText('2026. 12. 10.까지 쓸 수 있어요'), findsOneWidget);
+    expect(shownText('사진 12/100장 사용'), findsOneWidget);
+  });
+
+  testWidgets('an admin-given plan with a date shows no end, as the control', (
+    tester,
+  ) async {
+    await pumpScreen(
+      tester,
+      standing: PlanStanding(
+        plan: Plan.plus,
+        source: PlanSource.admin,
+        endsOn: DateTime(2026, 12, 10),
+      ),
+    );
+
+    expect(shownText('Plus'), findsOneWidget);
+    expect(find.textContaining('Available until'), findsNothing);
+  });
 
   test('the plan is named 무료, 플러스 and 프로', () {
     final names = <Plan, String>{};
@@ -218,6 +264,33 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'a restore that the server answers with 무료 says there was no purchase to restore, not that it restored',
+    (tester) async {
+      await pumpScreen(tester, standing: _plus);
+
+      store.onRestored = () => plans.standing = _free;
+      await tapAndSettle(tester, shownText('Restore purchases'));
+
+      expect(plans.calls, ['read', 'sync', 'read']);
+      expect(shownText('No purchases to restore'), findsOneWidget);
+      expect(shownText('Purchases restored'), findsNothing);
+    },
+  );
+
+  testWidgets('a restore whose plan cannot be read says nothing new', (
+    tester,
+  ) async {
+    await pumpScreen(tester, standing: _plus);
+
+    store.onRestored = () => plans.standing = null;
+    await tapAndSettle(tester, shownText('Restore purchases'));
+
+    expect(shownText('No purchases to restore'), findsNothing);
+    expect(shownText('Purchases restored'), findsNothing);
+    expect(shownText("Couldn't load your plan. Tap to try again."), findsOne);
+  });
 
   testWidgets(
     'buying shows the package at the store price, buys it, refreshes the plan and closes on 플러스',
@@ -317,6 +390,21 @@ void main() {
       expect(shownText('Purchases restored'), findsOneWidget);
       expect(shownText('Plus'), findsOneWidget);
       expect(store.bought, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'a free account whose restore leaves the plan 무료 keeps the sheet and says there was no purchase to restore',
+    (tester) async {
+      await pumpScreen(tester);
+
+      await tapAndSettle(tester, shownText('Learn about Plus'));
+      await tapAndSettle(tester, shownText('Restore purchases'));
+
+      expect(store.restores, 1);
+      expect(find.byType(AppSheet), findsOneWidget);
+      expect(shownText('No purchases to restore'), findsOneWidget);
+      expect(shownText('Purchases restored'), findsNothing);
     },
   );
 

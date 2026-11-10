@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'account_state.dart';
 import 'plan.dart';
 import 'plus_sheet.dart';
@@ -121,6 +122,15 @@ class PlanController extends Notifier<PlanView> {
     await refresh();
   }
 }
+
+/// What to say after a restore that did not throw, from the plan the server
+/// answered after it: a store's plan restored, any other plan found nothing
+/// to restore, and a plan that cannot be read nothing, as its retry row says.
+String? restoreMessage(AppLocalizations l10n, PlanView view) => switch (view) {
+  PlanKnown(:final standing) when standing.fromStore => l10n.planRestored,
+  PlanKnown() => l10n.planRestoreNone,
+  PlanLoading() || PlanUnknown() => null,
+};
 
 /// Opens the purchase sheet for the photo import's limit, or null while the
 /// plan is not the free one: an admin, a 무제한 holder, a paid plan and an
