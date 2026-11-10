@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart' hide Card;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -325,13 +327,55 @@ class _PublishSheetState extends State<_PublishSheet> {
   }
 }
 
-/// The text a finding points at, when its block holds one string it can be
-/// read from; null where the block holds several (a 글's two sides) or none.
+/// The text a finding points at: the string at its field, or, for a finding
+/// without one, the block's only string; null where neither can be read.
 String? _passage(Card card, ScreeningFinding finding) {
   final (block, start, end) = (finding.block, finding.start, finding.end);
   if (block == null || start == null || end == null) return null;
+  final text = switch (finding.field) {
+    final field? => _stringAt(card, finding.place, block, field),
+    null => _onlyString(card, finding.place, block),
+  };
+  if (text == null || start < 0 || start >= end || end > text.length) {
+    return null;
+  }
+  return text.substring(start, end);
+}
+
+/// The string at [field] in the stored payload of [card]'s [block]; null
+/// where the path leads to none.
+String? _stringAt(Card card, FindingPlace place, int block, String field) {
+  final stored = switch ((card.cells, place)) {
+    (final cells?, _) => encodeCells(cells, newId: () => ''),
+    (null, FindingPlace.front) => encodeContent(card.front),
+    (null, FindingPlace.back) => encodeContent(card.back),
+    _ => null,
+  };
+  if (stored == null) return null;
+  Object? value = switch (jsonDecode(stored)) {
+    final List<Object?> blocks when block >= 0 && block < blocks.length =>
+      blocks[block],
+    _ => null,
+  };
+  value = value is Map<String, Object?> ? value['payload'] : null;
+  for (final key in field.split('.')) {
+    value = switch (value) {
+      final Map<String, Object?> map => map[key],
+      final List<Object?> list => switch (int.tryParse(key)) {
+        final index? when index >= 0 && index < list.length => list[index],
+        _ => null,
+      },
+      _ => null,
+    };
+  }
+  return value is String ? value : null;
+}
+
+/// The block's text when it holds one string; null where it holds several (a
+/// 글's two sides) or none.
+String? _onlyString(Card card, FindingPlace place, int block) {
   final cells = card.cells;
-  final text = switch ((cells, finding.place)) {
+  return switch ((cells, place)) {
     (final cells?, _) when block < cells.length => switch (cells[block]) {
       TextCell(:final front, back: '') => front,
       TextCell(front: '', :final back) => back,
@@ -349,8 +393,4 @@ String? _passage(Card card, ScreeningFinding finding) {
       },
     _ => null,
   };
-  if (text == null || start < 0 || start >= end || end > text.length) {
-    return null;
-  }
-  return text.substring(start, end);
 }

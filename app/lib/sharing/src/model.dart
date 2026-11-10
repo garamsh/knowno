@@ -121,6 +121,7 @@ final class ScreeningFinding {
     required this.category,
     this.card,
     this.block,
+    this.field,
     this.start,
     this.end,
   });
@@ -133,6 +134,11 @@ final class ScreeningFinding {
 
   /// The block of the face, or of the 칸 list, holding the finding.
   final int? block;
+
+  /// The path in the block's stored payload of the string [start] and [end]
+  /// index, as `senses.1.meaning`; null for the name and description, and
+  /// from a server that does not say.
+  final String? field;
   final int? start;
   final int? end;
 }

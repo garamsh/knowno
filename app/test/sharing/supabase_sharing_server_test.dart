@@ -139,8 +139,8 @@ void main() {
     });
   }
 
-  test('a refusal carries the layer and each finding by card, face, block '
-      'and offsets, and a name or description finding has no card', () async {
+  test('a refusal carries the layer and each finding by card, face, block, '
+      'field and offsets, and a name or description finding has no card', () async {
     final server = _publishing(
       [],
       _json({
@@ -151,6 +151,7 @@ void main() {
             'card_id': 'c1',
             'where': 'front',
             'block': 2,
+            'field': 'senses.1.meaning',
             'category': 'phone',
             'start': 4,
             'end': 17,
@@ -159,6 +160,7 @@ void main() {
             'card_id': null,
             'where': 'description',
             'block': null,
+            'field': null,
             'category': 'a_future_category',
             'start': 0,
             'end': 3,
@@ -179,6 +181,8 @@ void main() {
     expect(first.place, FindingPlace.front);
     expect(first.category, FindingCategory.phone);
     expect((first.block, first.start, first.end), (2, 4, 17));
+    expect(first.field, 'senses.1.meaning');
+    expect(second.field, isNull);
     expect(second.card, isNull);
     expect(second.place, FindingPlace.description);
     expect(second.category, FindingCategory.other);

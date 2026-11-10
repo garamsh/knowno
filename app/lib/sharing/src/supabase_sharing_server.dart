@@ -302,6 +302,7 @@ ScreeningFinding _decodeFinding(_Fields row) => ScreeningFinding(
     null => null,
   },
   block: row.integerOrNull('block'),
+  field: row.stringOrNull('field'),
   start: row.integerOrNull('start'),
   end: row.integerOrNull('end'),
 );
