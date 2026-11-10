@@ -445,6 +445,11 @@ verify_jwt = false
 [functions.publish-note]
 verify_jwt = true
 
+# Lets the scheduler's service-role key through on `/work`, which is not a JWT, and an admin's
+# token on the settings route; the function checks each itself (ADR 0244).
+[functions.triage-reports]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
