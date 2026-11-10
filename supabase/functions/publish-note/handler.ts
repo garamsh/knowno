@@ -1,11 +1,21 @@
 /**
- * The publish-note HTTP handler (ADR 0238). `POST /` is the owner asking to publish a note: it
+ * The publish-note HTTP handler (ADR 0238, ADR 0239). `POST /` is the owner asking to publish a note: it
  * records the request as the owner, screens the note at once and answers its state and findings.
  * `POST /work` is the sweeper's, with the service-role key: it screens every note that is due.
  * Nothing here logs or stores a note's text; the log holds ids, a route and an outcome.
  */
 
 import { authenticate, SupabaseError } from "../_shared/auth.ts";
+import type { Keys as ProviderKeys } from "../_shared/keys.ts";
+import {
+  buildPayload,
+  type Decision,
+  isDecided,
+  judgeNote,
+  openRouterJudge,
+  parseState,
+  unavailableDecision,
+} from "../_shared/screening/ai.ts";
 import {
   type Claim,
   RULES_VERSION,
@@ -16,6 +26,8 @@ import type { Config } from "./config.ts";
 export type Deps = {
   readonly config: Config;
   readonly fetch: typeof fetch;
+  /** The providers' keys; the AI layer asks OpenRouter's. */
+  readonly keys: ProviderKeys;
   readonly log: (entry: Record<string, unknown>) => void;
 };
 
@@ -154,8 +166,9 @@ export function createHandler(
 
 /**
  * Screens one note: claims it with its hash, runs the rules unless a verdict of this version
- * stands, records it and lets the database decide. Answers `apply_screening`'s word, or `skipped`
- * for a note that is no longer checking or public.
+ * stands, records it, asks the AI layer unless the rules refused the note or a verdict of it
+ * stands, and lets the database decide. Answers `apply_screening`'s word, or `skipped` for a note
+ * that is no longer checking or public.
  */
 export async function screenDeck(
   deckId: string,
@@ -171,8 +184,8 @@ export async function screenDeck(
   const stored = verdicts.some((v: unknown) =>
     isRecord(v) && v.layer === "rules" && v.version === version
   );
+  const verdict = screen(claim as unknown as Claim);
   if (!stored) {
-    const verdict = screen(claim as unknown as Claim);
     const recorded = await call(service, deps, "record_screening", {
       deck_id: deckId,
       content_hash: claim.hash,
@@ -183,11 +196,121 @@ export async function screenDeck(
     });
     if (recorded === "changed") return "changed";
   }
+  const asked = verdicts.some((v: unknown) =>
+    isRecord(v) && v.layer === "ai" && isDecided(v.version)
+  );
+  if ((verdict.outcome === "clean" || verdict.outcome === "unsure") && !asked) {
+    const decision = await askAi(
+      deckId,
+      claim,
+      verdict.findings,
+      service,
+      deps,
+    );
+    deps.log({
+      route: "ai",
+      deck: deckId,
+      outcome: decision.outcome,
+      version: decision.version,
+      unavailable: decision.unavailable,
+      findings: decision.findings.map((f) => f.category),
+    });
+    const recorded = await call(service, deps, "record_screening", {
+      deck_id: deckId,
+      content_hash: claim.hash,
+      layer: "ai",
+      version: decision.version,
+      outcome: decision.outcome,
+      findings: decision.findings,
+    });
+    if (recorded === "changed") return "changed";
+  }
   const applied = await call(service, deps, "apply_screening", {
     deck_id: deckId,
     content_hash: claim.hash,
   });
   return typeof applied === "string" ? applied : "unknown";
+}
+
+/** The photos' largest size sent to a model. */
+const MAX_PHOTO_BYTES = 5_000_000;
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+/** The AI layer's verdict on a claimed note; one the layer could not decide holds the note. */
+async function askAi(
+  deckId: string,
+  claim: Record<string, unknown>,
+  findings: readonly { readonly card: string | null }[],
+  service: Keys,
+  deps: Deps,
+): Promise<Decision> {
+  const state = parseState(await call(service, deps, "screening_ai_state", {}));
+  if (state === null) return unavailableDecision("no_settings");
+  const apiKey = await deps.keys.get("openrouter");
+  if (apiKey === null) return unavailableDecision("no_key");
+  const payload = buildPayload(
+    claim as unknown as Claim,
+    new Set(findings.flatMap((f) => f.card === null ? [] : [f.card])),
+    String(claim.hash),
+    state.settings,
+  );
+  const images = new Map<number, string>();
+  for (const item of payload.items) {
+    if (item.kind !== "photo") continue;
+    const url = await photoUrl(service, deps, String(claim.owner), item.media);
+    if (url === null) return unavailableDecision("failed");
+    images.set(item.n, url);
+  }
+  return await judgeNote({
+    state,
+    payload,
+    images,
+    judge: openRouterJudge({ fetch: deps.fetch, apiKey }),
+    spend: async (spent) => {
+      await call(service, deps, "record_screening_call", {
+        deck_id: deckId,
+        settings_id: state.settings.id,
+        tier: spent.tier,
+        model: spent.model,
+        prompt_tokens: spent.usage?.promptTokens ?? null,
+        completion_tokens: spent.usage?.completionTokens ?? null,
+        cost_usd: spent.costUsd,
+      });
+    },
+  });
+}
+
+/** A card's photo as a data URL read from the `media` bucket, or null when it cannot be. */
+async function photoUrl(
+  service: Keys,
+  deps: Deps,
+  owner: string,
+  media: string | null,
+): Promise<string | null> {
+  if (media === null || !UUID.test(owner) || !UUID.test(media)) return null;
+  const response = await deps.fetch(
+    `${service.url}/storage/v1/object/media/${owner}/${media}`,
+    {
+      headers: {
+        apikey: service.key,
+        Authorization: `Bearer ${service.bearer}`,
+      },
+    },
+  ).catch(() => null);
+  if (response === null || !response.ok) {
+    await response?.body?.cancel();
+    return null;
+  }
+  const type = response.headers.get("Content-Type")?.split(";")[0] ?? "";
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (!PHOTO_TYPES.includes(type) || bytes.length > MAX_PHOTO_BYTES) {
+    return null;
+  }
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return `data:${type};base64,${btoa(binary)}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

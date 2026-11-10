@@ -25,7 +25,35 @@ type Fake = {
   recorded: Record<string, unknown>[];
   applied: Record<string, unknown>[];
   calls: { name: string; bearer: string | null; key: string | null }[];
+  /** The settings and spend `screening_ai_state` answers; null answers no settings. */
+  state: Record<string, unknown> | null;
+  /** OpenRouter's key in Vault. */
+  openrouterKey: string | null;
+  /** What the fake provider answers, one per call in turn; the last is repeated. */
+  replies: ProviderReply[];
+  /** Each call the fake provider got: the model and the user content it was sent. */
+  provider: { model: string; content: unknown[]; auth: string | null }[];
+  spends: Record<string, unknown>[];
 };
+
+type ProviderReply =
+  | { verdict: string; confidence: number; flags?: unknown[]; cost?: number }
+  | "down"
+  | "garbage";
+
+const SETTINGS = {
+  id: 7,
+  cheap_model: "vendor/cheap",
+  strong_model: "vendor/strong",
+  confidence_floor: 0.8,
+  sample_cards: 30,
+  max_input_tokens: 6000,
+  max_images: 4,
+  daily_cap_usd: 5,
+  assumed_call_usd: 0.01,
+  prompt: "screen it",
+};
+const stateOf = (spent: number) => ({ settings: SETTINGS, spent_usd: spent });
 
 const text = (value: string) => [{
   type: "text",
@@ -34,14 +62,19 @@ const text = (value: string) => [{
   payload: { text: value },
 }];
 
-function claimOf(front: string, verdicts: unknown[] = []) {
+function claimOf(
+  front: string,
+  verdicts: unknown[] = [],
+  terms: string[] = [],
+) {
   return {
     hash: "hash-1",
     publication: "checking",
+    owner: USER,
     name: "단어",
     description: null,
     cards: [{ hash: "c1", front: text(front), back: text("답") }],
-    terms: [],
+    terms,
     terms_version: "0.0",
     verdicts,
   };
@@ -56,11 +89,52 @@ function setup(over: Partial<Fake> = {}) {
     recorded: [],
     applied: [],
     calls: [],
+    state: stateOf(0),
+    openrouterKey: "or-key",
+    replies: [{ verdict: "clean", confidence: 0.95, cost: 0.001 }],
+    provider: [],
+    spends: [],
     ...over,
   };
   const logs: Record<string, unknown>[] = [];
   const fetcher: typeof fetch = (input, init) => {
     const url = new URL(String(input));
+    if (url.host === "openrouter.ai") {
+      const sent = JSON.parse(String(init?.body));
+      fake.provider.push({
+        model: sent.model,
+        content: sent.messages[1].content,
+        auth: new Headers(init?.headers).get("Authorization"),
+      });
+      const reply = fake.replies[
+        Math.min(
+          fake.provider.length - 1,
+          fake.replies.length - 1,
+        )
+      ];
+      if (reply === "down") {
+        return Promise.resolve(new Response(null, { status: 503 }));
+      }
+      return Promise.resolve(Response.json({
+        choices: [{
+          message: {
+            content: reply === "garbage" ? "not json" : JSON.stringify({
+              verdict: reply.verdict,
+              confidence: reply.confidence,
+              flags: reply.flags ?? [],
+            }),
+          },
+          finish_reason: "stop",
+        }],
+        usage: {
+          prompt_tokens: 100,
+          completion_tokens: 10,
+          ...(reply === "garbage" || reply.cost === undefined
+            ? {}
+            : { cost: reply.cost }),
+        },
+      }));
+    }
     const headers = new Headers(init?.headers);
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
     if (url.pathname === "/auth/v1/user") {
@@ -97,6 +171,11 @@ function setup(over: Partial<Fake> = {}) {
       case "apply_screening":
         fake.applied.push(body);
         return Promise.resolve(Response.json("public"));
+      case "screening_ai_state":
+        return Promise.resolve(Response.json(fake.state));
+      case "record_screening_call":
+        fake.spends.push(body);
+        return Promise.resolve(new Response(null, { status: 204 }));
       case "my_deck_screening":
         return Promise.resolve(
           Response.json({ state: "public", refusal: null, findings: [] }),
@@ -107,6 +186,7 @@ function setup(over: Partial<Fake> = {}) {
   const handler = createHandler({
     config: readConfig((n) => ENV[n]),
     fetch: fetcher,
+    keys: { get: () => Promise.resolve(fake.openrouterKey), forget: () => {} },
     log: (e) => logs.push(e),
   });
   return { fake, logs, handler };
@@ -135,8 +215,7 @@ Deno.test("an owner's request is recorded as the owner, screened at once and ans
   const ask = fake.calls.find((c) => c.name === "request_deck_publication");
   assert.equal(ask?.bearer, "Bearer user-token");
   assert.equal(ask?.key, ANON);
-  assert.equal(fake.recorded.length, 1);
-  assert.equal(fake.recorded[0]?.layer, "rules");
+  assert.deepEqual(fake.recorded.map((r) => r.layer), ["rules", "ai"]);
   assert.equal(fake.recorded[0]?.outcome, "clean");
   assert.equal(fake.recorded[0]?.version, `${RULES_VERSION}+0.0`);
   assert.deepEqual(fake.applied, [{ deck_id: DECK, content_hash: "hash-1" }]);
@@ -147,6 +226,12 @@ Deno.test("a verdict of the rules records its findings and no text", async () =>
   await handler(post("", "user-token"));
   assert.equal(fake.recorded[0]?.outcome, "refused");
   assert.equal(JSON.stringify(fake.recorded[0]).includes("1234"), false);
+  assert.equal(
+    fake.recorded.length,
+    1,
+    "a refusal by the rules is not asked of the AI",
+  );
+  assert.equal(fake.provider.length, 0);
 });
 
 Deno.test("a verdict of this version is not made again", async () => {
@@ -158,7 +243,7 @@ Deno.test("a verdict of this version is not made again", async () => {
     }]),
   });
   await handler(post("", "user-token"));
-  assert.equal(fake.recorded.length, 0);
+  assert.deepEqual(fake.recorded.map((r) => r.layer), ["ai"]);
   assert.equal(fake.applied.length, 1);
 });
 
@@ -168,7 +253,7 @@ Deno.test("a verdict of an older rules version or of other terms is made again",
       claim: claimOf("apple", [{ layer: "rules", version, outcome: "clean" }]),
     });
     await handler(post("", "user-token"));
-    assert.equal(fake.recorded.length, 1, version);
+    assert.equal(fake.recorded[0]?.layer, "rules", version);
     assert.equal(fake.recorded[0]?.version, `${RULES_VERSION}+0.0`);
   }
 });
@@ -251,7 +336,194 @@ Deno.test("only POST is served, and an unconfigured function answers 503", async
   const bare = createHandler({
     config: readConfig(() => undefined),
     fetch,
+    keys: { get: () => Promise.resolve(null), forget: () => {} },
     log: () => {},
   });
   assert.equal((await bare(post("", "user-token"))).status, 503);
+});
+
+const aiOf = (fake: Fake) => fake.recorded.find((r) => r.layer === "ai");
+const models = (fake: Fake) => fake.provider.map((p) => p.model);
+
+Deno.test("a clean note is asked of the cheap model alone and its clean verdict is recorded with the call's cost", async () => {
+  const { fake, handler } = setup();
+  await handler(post("", "user-token"));
+  assert.deepEqual(models(fake), ["vendor/cheap"]);
+  assert.equal(fake.provider[0]?.auth, "Bearer or-key");
+  assert.equal(aiOf(fake)?.outcome, "clean");
+  assert.equal(aiOf(fake)?.version, "ai:7");
+  assert.deepEqual(aiOf(fake)?.findings, []);
+  assert.equal(fake.spends.length, 1);
+  assert.equal(fake.spends[0]?.tier, "cheap");
+  assert.equal(fake.spends[0]?.settings_id, 7);
+  assert.equal(fake.spends[0]?.cost_usd, 0.001);
+  assert.equal(fake.spends[0]?.prompt_tokens, 100);
+});
+
+Deno.test("a verdict the strong model is unsure of is recorded unsure, which holds the note", async () => {
+  const { fake, handler } = setup({
+    replies: [{ verdict: "unsure", confidence: 0.9 }, {
+      verdict: "unsure",
+      confidence: 0.9,
+      flags: [{ item: 1, category: "spam" }],
+    }],
+  });
+  await handler(post("", "user-token"));
+  assert.equal(aiOf(fake)?.outcome, "unsure");
+  assert.equal(aiOf(fake)?.version, "ai:7");
+  assert.deepEqual(aiOf(fake)?.findings, [{
+    card: "c1",
+    where: "front",
+    block: null,
+    field: null,
+    category: "spam",
+    start: null,
+    end: null,
+  }]);
+});
+
+Deno.test("a clear severe verdict is recorded severe, with where it was found and no text", async () => {
+  const { fake, handler, logs } = setup({
+    claim: claimOf("secret front"),
+    replies: [{
+      verdict: "severe",
+      confidence: 0.97,
+      flags: [{ item: 2, category: "sexual" }],
+    }],
+  });
+  await handler(post("", "user-token"));
+  assert.deepEqual(models(fake), ["vendor/cheap"]);
+  assert.equal(aiOf(fake)?.outcome, "severe");
+  assert.equal(
+    (aiOf(fake)?.findings as { category: string }[])[0]?.category,
+    "sexual",
+  );
+  assert.equal(JSON.stringify(aiOf(fake)).includes("secret"), false);
+  assert.equal(JSON.stringify(fake.spends).includes("secret"), false);
+  assert.equal(JSON.stringify(logs).includes("secret"), false);
+  assert.equal(
+    logs.some((l) => l.route === "ai" && l.outcome === "severe"),
+    true,
+  );
+});
+
+Deno.test("the strong model is asked only of what the cheap one is unsure of", async () => {
+  for (
+    const first of [
+      { verdict: "unsure", confidence: 0.99 },
+      { verdict: "clean", confidence: 0.5 },
+      { verdict: "severe", confidence: 0.6 },
+    ]
+  ) {
+    const { fake, handler } = setup({
+      replies: [first, { verdict: "clean", confidence: 0.95 }],
+    });
+    await handler(post("", "user-token"));
+    assert.deepEqual(models(fake), ["vendor/cheap", "vendor/strong"]);
+    assert.equal(
+      aiOf(fake)?.outcome,
+      "clean",
+      "the strong model's verdict stands",
+    );
+    assert.deepEqual(fake.spends.map((s) => s.tier), ["cheap", "strong"]);
+  }
+  const confident = setup({
+    replies: [{ verdict: "clean", confidence: 0.8 }],
+  });
+  await confident.handler(post("", "user-token"));
+  assert.deepEqual(models(confident.fake), ["vendor/cheap"]);
+});
+
+Deno.test("a note with a verdict of the AI layer on its hash is not asked again", async () => {
+  const { fake, handler } = setup({
+    claim: claimOf("apple", [
+      { layer: "rules", version: `${RULES_VERSION}+0.0`, outcome: "clean" },
+      { layer: "ai", version: "ai:3", outcome: "clean" },
+    ]),
+  });
+  await handler(post("", "user-token"));
+  assert.deepEqual(fake.provider, []);
+  assert.deepEqual(fake.recorded, []);
+  assert.deepEqual(fake.spends, []);
+  assert.equal(fake.calls.some((c) => c.name === "screening_ai_state"), false);
+  assert.equal(fake.applied.length, 1);
+});
+
+Deno.test("a verdict that could not decide is asked again", async () => {
+  const { fake, handler } = setup({
+    claim: claimOf("apple", [
+      { layer: "ai", version: "unavailable", outcome: "unsure" },
+    ]),
+  });
+  await handler(post("", "user-token"));
+  assert.deepEqual(models(fake), ["vendor/cheap"]);
+  assert.equal(aiOf(fake)?.version, "ai:7");
+});
+
+Deno.test("past the daily cap no model is called and the note is held for a person", async () => {
+  const { fake, handler, logs } = setup({ state: stateOf(5) });
+  await handler(post("", "user-token"));
+  assert.deepEqual(fake.provider, []);
+  assert.deepEqual(fake.spends, []);
+  assert.equal(aiOf(fake)?.outcome, "unsure");
+  assert.equal(aiOf(fake)?.version, "unavailable");
+  assert.equal(fake.applied.length, 1);
+  assert.equal(
+    logs.some((l) => l.route === "ai" && l.unavailable === "capped"),
+    true,
+  );
+});
+
+Deno.test("the cap is checked before the strong call too, with an unreported cost charged as assumed", async () => {
+  const { fake, handler } = setup({
+    state: stateOf(4.995),
+    replies: [{ verdict: "unsure", confidence: 0.9 }],
+  });
+  await handler(post("", "user-token"));
+  assert.deepEqual(models(fake), ["vendor/cheap"]);
+  assert.equal(fake.spends[0]?.cost_usd, 0.01);
+  assert.equal(aiOf(fake)?.version, "unavailable");
+});
+
+Deno.test("a banned term alone goes to the AI layer instead of refusing", async () => {
+  const claim = claimOf("도박사이트", [], ["도박사이트"]);
+  const { fake, handler } = setup({ claim });
+  await handler(post("", "user-token"));
+  assert.equal(fake.recorded[0]?.layer, "rules");
+  assert.equal(fake.recorded[0]?.outcome, "unsure");
+  assert.deepEqual(models(fake), ["vendor/cheap"]);
+  assert.equal(aiOf(fake)?.outcome, "clean");
+  const flagged = (fake.provider[0]?.content[0] as { text: string }).text;
+  assert.equal(
+    flagged.includes("도박사이트"),
+    true,
+    "the flagged card is sent",
+  );
+});
+
+Deno.test("a banned term alone is held when the AI layer is unavailable", async () => {
+  const claim = claimOf("도박사이트", [], ["도박사이트"]);
+  const cases: Partial<Fake>[] = [
+    { state: null },
+    { openrouterKey: null },
+    { state: stateOf(5) },
+    { replies: ["down"] },
+    { replies: ["garbage"] },
+  ];
+  for (const over of cases) {
+    const { fake, handler } = setup({ claim, ...over });
+    await handler(post("", "user-token"));
+    assert.equal(fake.recorded[0]?.outcome, "unsure", JSON.stringify(over));
+    assert.equal(aiOf(fake)?.outcome, "unsure", JSON.stringify(over));
+    assert.equal(aiOf(fake)?.version, "unavailable", JSON.stringify(over));
+  }
+});
+
+Deno.test("a banned term beside another finding refuses at once, without the AI", async () => {
+  const claim = claimOf("도박사이트 010-1234-5678", [], ["도박사이트"]);
+  const { fake, handler } = setup({ claim });
+  await handler(post("", "user-token"));
+  assert.equal(fake.recorded[0]?.outcome, "refused");
+  assert.deepEqual(fake.provider, []);
+  assert.equal(aiOf(fake), undefined);
 });

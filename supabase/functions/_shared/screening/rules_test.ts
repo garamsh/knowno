@@ -175,3 +175,17 @@ Deno.test("findings stop at the cap", () => {
   const many = Array.from({ length: 80 }, () => "010-1234-5678").join(" ");
   assertEquals(screen(claim(many)).findings.length, 50);
 });
+
+Deno.test("a banned term alone is unsure, and with any other finding the note is still refused", () => {
+  const terms = ["도박사이트"];
+  assertEquals(screen(claim("도박사이트", { terms })).outcome, "unsure");
+  assertEquals(
+    screen(claim("도박사이트 010-1234-5678", { terms })).outcome,
+    "refused",
+  );
+  assertEquals(
+    screen(claim("도박사이트 880101-1234568", { terms })).outcome,
+    "severe",
+  );
+  assertEquals(screen(claim("010-1234-5678")).outcome, "refused");
+});

@@ -108,7 +108,7 @@ function jsonSchemaFormat(provider: Provider, form: ReplyForm): unknown {
 }
 
 /** The first choice's message text of a chat completion, cut when it finished at the cap. */
-function chatReply(body: unknown): ReplyText | null {
+export function chatReply(body: unknown): ReplyText | null {
   if (!isRecord(body) || !Array.isArray(body.choices)) return null;
   const choice: unknown = body.choices[0];
   if (!isRecord(choice) || !isRecord(choice.message)) return null;
@@ -118,7 +118,7 @@ function chatReply(body: unknown): ReplyText | null {
 }
 
 /** A chat completion's usage; OpenAI reports no cost, so its cost is null. */
-function chatUsage(body: unknown): Usage | null {
+export function chatUsage(body: unknown): Usage | null {
   if (!isRecord(body) || !isRecord(body.usage)) return null;
   const { prompt_tokens, completion_tokens, cost, cost_details } = body.usage;
   if (

@@ -1,14 +1,17 @@
 /**
- * The rules layer of a note's screening before it is public (ADR 0238): personal data, ads and
+ * The rules layer of a note's screening before it is public (ADR 0238, ADR 0239): personal data, ads and
  * spam, and the banned words. It reads a claim of `public.screening_claim` and answers a verdict
  * whose findings point at the text by card hash, face, block and UTF-16 offsets in the original
  * text, and never hold the text itself. Bump [RULES_VERSION] with any change to a pattern, so
  * the stored verdicts of the old rules are checked again.
  */
 
-export const RULES_VERSION = "2";
+export const RULES_VERSION = "3";
 
-/** A rule's category. `resident_number` and `account` are severe; the others refuse the note. */
+/**
+ * A rule's category. `resident_number` and `account` are severe; the others but `term` refuse the
+ * note. A banned `term` alone refuses nothing: the AI layer reads the note for it (ADR 0239).
+ */
 export type Category =
   | "resident_number"
   | "account"
@@ -34,7 +37,7 @@ export type Finding = {
 };
 
 export type Verdict = {
-  readonly outcome: "clean" | "refused" | "severe";
+  readonly outcome: "clean" | "unsure" | "refused" | "severe";
   readonly findings: readonly Finding[];
 };
 
@@ -375,8 +378,10 @@ export function screen(claim: Claim): Verdict {
   const findings = found.slice(0, MAX_FINDINGS);
   const outcome = found.some((f) => SEVERE.includes(f.category))
     ? "severe"
-    : found.length > 0
+    : found.some((f) => f.category !== "term")
     ? "refused"
+    : found.length > 0
+    ? "unsure"
     : "clean";
   return { outcome, findings };
 }
