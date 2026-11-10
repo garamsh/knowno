@@ -146,9 +146,12 @@ export type PlanVersion = Terms & {
 /**
  * A user's plan now: the version's terms and the photos counted in its period, null while the plan
  * has no version, and the grant behind it, when there is one; an ended Max or 스페셜 grant shows
- * beside Free, and an admin is on 스페셜 beside any grant.
+ * beside Free, and an admin is on 스페셜 beside any grant. [source] is where the plan comes from
+ * (`none` on Free with no live grant), and [store] a store grant's end, the next renewal while it renews.
  */
 export type UserPlan = {
+  source: PlanSource;
+  store: { endsAt: number; renews: boolean } | null;
   entitlement:
     | (Terms & {
         plan: PlanId;
@@ -166,6 +169,8 @@ export type UserPlan = {
     grantedByEmail: string | null;
   } | null;
 };
+
+export type PlanSource = "admin" | "store" | "unlimited" | "none";
 
 export type AdminUser = {
   id: string;
@@ -755,7 +760,22 @@ function parseUserPlan(row: unknown, now: number): UserPlan | null {
     }
     entitlement = { plan: id, ...kind, serving, used };
   }
-  if (granted === null) return { entitlement, grant: null };
+  const source = field(row, "source");
+  if (source !== "admin" && source !== "store" && source !== "unlimited" && source !== "none") {
+    return null;
+  }
+  // A store grant's end and renewal are both set, and null for any other source.
+  const storeEndsAt = field(row, "store_ends_at");
+  const storeRenews = field(row, "store_renews");
+  let store: UserPlan["store"] = null;
+  if (source === "store") {
+    const storeEnd = parseTime(storeEndsAt);
+    if (storeEnd === null || typeof storeRenews !== "boolean") return null;
+    store = { endsAt: storeEnd, renews: storeRenews };
+  } else if (storeEndsAt !== null || storeRenews !== null) {
+    return null;
+  }
+  if (granted === null) return { source, store, entitlement, grant: null };
   const endsAt = endsAtValue === null ? null : parseTime(endsAtValue);
   const grantedAt = parseTime(grantedAtValue);
   if (granted !== "pro" && granted !== "max" && granted !== "special") return null;
@@ -763,6 +783,8 @@ function parseUserPlan(row: unknown, now: number): UserPlan | null {
   if (grantedBy !== null && typeof grantedBy !== "string") return null;
   const ended = endsAt !== null && endsAt <= now;
   return {
+    source,
+    store,
     entitlement,
     grant: { plan: granted, endsAt, ended, grantedAt, grantedByEmail: grantedBy },
   };
