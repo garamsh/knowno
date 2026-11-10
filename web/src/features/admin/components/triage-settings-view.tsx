@@ -117,7 +117,7 @@ export function TriageSettingsView({
             {mode === "judge_only" ? (
               <ConfirmAction
                 label="직접 처리하기로 바꾸기"
-                question={`AI가 확신 ${percent(settings.actThreshold)} 이상인 노트를 직접 숨기거나 신고를 정리하게 할까요? 처리한 것은 모두 되돌릴 수 있어요.`}
+                question={`AI가 확신 ${String(settings.actThreshold)} 이상인 노트를 직접 숨기거나 신고를 정리하게 할까요? 처리한 것은 모두 되돌릴 수 있어요.`}
                 confirmLabel="직접 처리하기"
                 action={setTriageMode.bind(null, "acting")}
               />

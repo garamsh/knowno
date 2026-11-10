@@ -4,6 +4,15 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  readTriageActions,
+  readTriageAgreement,
+  readTriageAppeals,
+  readTriageConfigurations,
+  readTriageQueue,
+  readTriageSample,
+  readTriageSettings,
+} from "@/features/admin";
+import {
   activateTriageConfiguration,
   clearTriageTest,
   recheckTriageAction,
@@ -685,5 +694,214 @@ describe("노트's 신고 AI 설정", () => {
       { name: "smartman-tz", value: "UTC" },
     ]);
     expect((await save({})).message).toBe("관리자만 할 수 있어요.");
+  });
+});
+
+describe("노트's triage reads against the server's real answers", () => {
+  it("reads a null failures as none, for a judged note and for one not claimed, and shows the failed tries of a claimed one", async () => {
+    // The server answers null where no attempt row stands: the common case.
+    expect(admin.triageFailures.size).toBe(0);
+    await view("reported");
+    expect(noteRow("Buy now").getByText("AI 판단: 스팸")).toBeVisible();
+    expect(noteRow("Fresh note").getByText("AI가 아직 판단하지 않았어요.")).toBeVisible();
+    cleanup();
+    admin.triageFailures.set(fresh, 2);
+    await view("reported");
+    expect(
+      noteRow("Fresh note").getByText("AI가 판단하지 못했어요 (2번 실패). 사람이 확인해 주세요."),
+    ).toBeVisible();
+    // Control: the unclaimed note beside it still reads as not yet judged.
+    expect(noteRow("Buy now").queryByText(/번 실패/)).not.toBeInTheDocument();
+    expect(noteRow("Buy now").getByText("AI 판단: 스팸")).toBeVisible();
+  });
+
+  it("names a deleted note in the actions, the sample and the appeals, beside a live one", async () => {
+    seedActions();
+    admin.triageActions[0]!.sampled = true;
+    admin.triageActions[1]!.sampled = true;
+    // The tombstone purge empties a deleted deck's name; the server's joins keep its rows.
+    admin.decks.find((deck) => deck.id === hiddenByAi)!.name = "";
+    admin.triageAppeals.push({
+      actionId: 1,
+      deckId: hiddenByAi,
+      appealedAt: "2026-11-10T09:00:00Z",
+      resolved: false,
+    });
+    admin.triageAppeals.push({
+      actionId: 2,
+      deckId: dismissed,
+      appealedAt: "2026-11-10T09:30:00Z",
+      resolved: false,
+    });
+    await view("triage");
+    for (const list of ["AI가 처리한 것", "다시 확인할 것", "이의 신청"]) {
+      const items = within(screen.getByRole("list", { name: list })).getAllByRole("listitem");
+      expect(items).toHaveLength(2);
+      expect(
+        within(items.find((item) => /삭제된 노트/.test(item.textContent))!).getByRole("link"),
+      ).toBeVisible();
+      // Control: the live note keeps its own name.
+      expect(
+        items.some(
+          (item) => within(item).queryByRole("link", { name: "Dismissed by AI" }) !== null,
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("shows the threshold as stored in the sentence that switches the AI to acting", async () => {
+    admin.triageSettings.act_threshold = 0.905;
+    await view("triage-settings");
+    await userEvent.click(screen.getByRole("button", { name: "직접 처리하기로 바꾸기" }));
+    expect(screen.getByRole("group")).toHaveTextContent("확신 0.905 이상인 노트를");
+  });
+
+  it("says that the AI's hiding no longer applies when an undo or an appeal finds the note not hidden", async () => {
+    seedActions();
+    // An admin's own hold may still hide the note: the AI's has ended, which is all it says.
+    admin.decks.find((deck) => deck.id === hiddenByAi)!.hidden = false;
+    expect(await undoTriageAction(1)).toEqual({
+      changed: false,
+      message: "AI가 숨긴 상태는 이미 아니라서 바뀐 것이 없어요. 운영자가 숨긴 노트는 그대로예요.",
+    });
+    admin.triageAppeals.push({
+      actionId: 1,
+      deckId: hiddenByAi,
+      appealedAt: "2026-11-10T09:00:00Z",
+      resolved: false,
+    });
+    expect(await resolveTriageAppeal(hiddenByAi, true)).toEqual({
+      changed: true,
+      message: "이의 신청은 처리했지만 노트는 되돌리지 못했어요. AI가 숨긴 상태는 이미 아니에요.",
+    });
+    // Control: a note still hidden is restored, and says so.
+    admin.decks.find((deck) => deck.id === hiddenByAi)!.hidden = true;
+    admin.triageActions[0]!.undoneAt = null;
+    expect(await undoTriageAction(1)).toEqual({ changed: true, message: "되돌렸어요." });
+  });
+});
+
+describe("노트's triage reads of a malformed row", () => {
+  const answer = (name: string, rows: unknown) => {
+    server.use(http.post(`${supabaseUrl}/rest/v1/rpc/${name}`, () => HttpResponse.json(rows)));
+  };
+  const note = {
+    deck_id: spam,
+    name: "Buy now",
+    owner_id: testUser.id,
+    hidden: false,
+    publication: "public",
+    reporters: 2,
+    reasons: ["spam"],
+    last_reported_at: "2026-11-10T03:00:00Z",
+    category: "spam",
+    confidence: 0.9,
+    passage: "싸게 팝니다",
+    field: "description",
+    tier: "cheap",
+    model: "google/gemini-flash",
+    cost_usd: 0.0002,
+    judged_at: "2026-11-10T04:00:00Z",
+    action_id: null,
+    appealed: false,
+    failures: null,
+  };
+  const action = {
+    action_id: 1,
+    deck_id: spam,
+    name: "Buy now",
+    action: "hide",
+    category: "spam",
+    confidence: 0.9,
+    model: "google/gemini-flash",
+    reason: "광고예요",
+    created_at: "2026-11-10T05:00:00Z",
+    sampled: true,
+    rechecked_at: null,
+    recheck_agreed: null,
+    undone_at: null,
+  };
+  const appeal = {
+    deck_id: spam,
+    name: "Buy now",
+    owner_id: testUser.id,
+    appealed_at: "2026-11-10T09:00:00Z",
+    action_id: 1,
+    category: "spam",
+    confidence: 0.9,
+    passage: null,
+    field: null,
+  };
+  const agreement = { category: "spam", compared: 4, agreed: 3 };
+  const configuration = {
+    label: "active",
+    configuration_id: 1,
+    cheap_provider: "openrouter",
+    cheap_model: "google/gemini-flash",
+    cheap_in_usd: 0.1,
+    cheap_out_usd: 0.4,
+    strong_provider: "openrouter",
+    strong_model: "anthropic/claude-haiku-5.5",
+    strong_in_usd: 0.1,
+    strong_out_usd: 0.4,
+    prompt: "Judge.",
+    escalate_below: 0.7,
+    payload_tokens: 3000,
+    sample_cards: 5,
+    set_at: "2026-11-10T01:00:00Z",
+    set_by_email: null,
+  };
+  const cases: [string, string, () => Promise<unknown>, unknown, unknown][] = [
+    ["the queue", "admin_triage_queue", readTriageQueue, note, { ...note, confidence: 5 }],
+    [
+      "the actions",
+      "admin_triage_actions",
+      readTriageActions,
+      action,
+      { ...action, confidence: 5 },
+    ],
+    [
+      "the sample",
+      "admin_triage_sample",
+      readTriageSample,
+      action,
+      { ...action, confidence: -0.1 },
+    ],
+    [
+      "the appeals",
+      "admin_triage_appeals",
+      readTriageAppeals,
+      appeal,
+      { ...appeal, confidence: 5 },
+    ],
+    [
+      "the agreement",
+      "admin_triage_agreement",
+      readTriageAgreement,
+      agreement,
+      { ...agreement, compared: "many" },
+    ],
+    [
+      "the configurations",
+      "admin_triage_configurations",
+      readTriageConfigurations,
+      configuration,
+      { ...configuration, label: "draft" },
+    ],
+  ];
+  it.each(cases)("reads %s whole or not at all", async (_name, rpc, read, good, bad) => {
+    // Control: the well-formed row is read.
+    answer(rpc, [good]);
+    expect(await read()).toHaveProperty("data");
+    answer(rpc, [good, bad]);
+    expect(await read()).toEqual({ failure: "unreadable" });
+  });
+
+  it("reads the settings row whole or not at all", async () => {
+    const good = { ...admin.triageSettings };
+    answer("admin_triage_settings", [good]);
+    expect(await readTriageSettings()).toHaveProperty("data");
+    answer("admin_triage_settings", [{ ...good, act_threshold: "high" }]);
+    expect(await readTriageSettings()).toEqual({ failure: "unreadable" });
   });
 });

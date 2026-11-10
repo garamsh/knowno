@@ -26,7 +26,7 @@ export async function resolveTriageAppeal(deckId: string, restore: boolean): Pro
       revalidatePath("/admin", "layout");
       return {
         changed: true,
-        message: "이의 신청은 처리했지만 노트는 되돌리지 못했어요. 숨김이 이미 풀려 있어요.",
+        message: "이의 신청은 처리했지만 노트는 되돌리지 못했어요. AI가 숨긴 상태는 이미 아니에요.",
       };
     case "not_found":
       return { changed: false, message: "처리할 이의 신청이 없어요." };

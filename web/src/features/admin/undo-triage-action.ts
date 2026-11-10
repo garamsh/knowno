@@ -21,7 +21,11 @@ export async function undoTriageAction(actionId: number): Promise<ActionResult> 
     case "already":
       return { changed: false, message: "이미 되돌렸어요." };
     case "superseded":
-      return { changed: false, message: "숨김이 이미 풀려 있어 바뀐 것이 없어요." };
+      return {
+        changed: false,
+        message:
+          "AI가 숨긴 상태는 이미 아니라서 바뀐 것이 없어요. 운영자가 숨긴 노트는 그대로예요.",
+      };
     case "not_found":
       return { changed: false, message: "찾을 수 없는 기록이에요." };
     default:

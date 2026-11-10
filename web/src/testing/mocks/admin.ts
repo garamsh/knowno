@@ -301,6 +301,8 @@ export class FakeAdmin {
     undo_rate: null,
     reporter_daily_cap: 20,
   };
+  /** Failed tries of a claimed note, by deck id: the server answers null for a note not claimed. */
+  readonly triageFailures = new Map<string, number>();
   /** What `admin_triage_agreement` answers. */
   readonly triageAgreement: { category: string; compared: number; agreed: number }[] = [];
   /** The triage's labelled configurations, as `admin_triage_configurations` answers them. */
@@ -1132,7 +1134,7 @@ export class FakeAdmin {
               appealed: this.triageAppeals.some(
                 (appeal) => appeal.deckId === deck.id && !appeal.resolved,
               ),
-              failures: 0,
+              failures: this.triageFailures.get(deck.id) ?? null,
             };
           })
           .sort((a, b) => {

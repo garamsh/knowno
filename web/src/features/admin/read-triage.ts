@@ -112,6 +112,15 @@ export type TriageConfiguration = {
   setByEmail: string | null;
 };
 
+/**
+ * A deck's name where the server joins decks without leaving out the deleted: the purge empties a
+ * deleted deck's name, which reads as "삭제된 노트" rather than as an unreadable row.
+ */
+function deckName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  return value === "" ? "삭제된 노트" : value;
+}
+
 function text(value: unknown): string | null {
   return typeof value === "string" && value !== "" ? value : null;
 }
@@ -124,6 +133,12 @@ function num(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+/** [value] as a confidence: a number from 0 to 1. */
+function confidenceOf(value: unknown): number | null {
+  const parsed = num(value);
+  return parsed !== null && parsed >= 0 && parsed <= 1 ? parsed : null;
 }
 
 function whole(value: unknown): number | null {
@@ -167,7 +182,10 @@ function parseTriageNote(row: unknown): TriageNote | null {
   const reasons = field(row, "reasons");
   const lastReportedAt = parseTime(field(row, "last_reported_at"));
   const appealed = field(row, "appealed");
-  const failures = whole(field(row, "failures"));
+  // The server counts failed tries from a row that stands only while a note is claimed, so a note
+  // not claimed and one judged both answer null: no failure.
+  const failuresRaw = field(row, "failures");
+  const failures = failuresRaw === null || failuresRaw === undefined ? 0 : whole(failuresRaw);
   const actionRaw = field(row, "action_id");
   const actionId = actionRaw === null || actionRaw === undefined ? null : whole(actionRaw);
   if (id === null || name === null || ownerId === null || publication === null) return null;
@@ -180,7 +198,7 @@ function parseTriageNote(row: unknown): TriageNote | null {
   if (judgedAt !== null && judgedAt !== undefined) {
     const at = parseTime(judgedAt);
     const category = text(field(row, "category"));
-    const confidence = num(field(row, "confidence"));
+    const confidence = confidenceOf(field(row, "confidence"));
     const passage = optionalText(field(row, "passage"));
     const where = optionalText(field(row, "field"));
     const tier = text(field(row, "tier"));
@@ -218,24 +236,18 @@ function parseTriageNote(row: unknown): TriageNote | null {
   };
 }
 
-/**
- * The reported notes with a verdict each, the server's order kept (those with a `sexual` report
- * first, then the latest report) and made firm here: a stable sort puts a `sexual` one first.
- */
+/** The reported notes with a verdict each, as the server answers them. The list's order is `NoteList`'s. */
 export async function readTriageQueue(): Promise<AdminRead<TriageNote[]>> {
-  const read = parsedList(await call("admin_triage_queue"), parseTriageNote);
-  if ("failure" in read) return read;
-  const severe = (note: TriageNote) => (note.reasons.includes("sexual") ? 0 : 1);
-  return { data: [...read.data].sort((a, b) => severe(a) - severe(b)) };
+  return parsedList(await call("admin_triage_queue"), parseTriageNote);
 }
 
 function parseTriageAction(row: unknown): TriageAction | null {
   const actionId = whole(field(row, "action_id"));
   const deckId = text(field(row, "deck_id"));
-  const name = text(field(row, "name"));
+  const name = deckName(field(row, "name"));
   const action = text(field(row, "action"));
   const category = text(field(row, "category"));
-  const confidence = num(field(row, "confidence"));
+  const confidence = confidenceOf(field(row, "confidence"));
   const model = text(field(row, "model"));
   const reason = typeof field(row, "reason") === "string" ? (field(row, "reason") as string) : null;
   const createdAt = parseTime(field(row, "created_at"));
@@ -356,12 +368,12 @@ export async function readTriageAgreement(days = 30): Promise<AdminRead<Agreemen
 export async function readTriageAppeals(): Promise<AdminRead<TriageAppeal[]>> {
   return parsedList(await call("admin_triage_appeals"), (row) => {
     const deckId = text(field(row, "deck_id"));
-    const name = text(field(row, "name"));
+    const name = deckName(field(row, "name"));
     const ownerId = text(field(row, "owner_id"));
     const appealedAt = parseTime(field(row, "appealed_at"));
     const actionId = whole(field(row, "action_id"));
     const category = text(field(row, "category"));
-    const confidence = num(field(row, "confidence"));
+    const confidence = confidenceOf(field(row, "confidence"));
     const passage = optionalText(field(row, "passage"));
     const where = optionalText(field(row, "field"));
     if (deckId === null || name === null || ownerId === null || appealedAt === null) return null;
