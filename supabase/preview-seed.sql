@@ -101,7 +101,7 @@ insert into public.user_blocks (blocker_id, blocked_id) values
   ('5eed0000-0000-4000-8000-0000000000a1', '5eed0000-0000-4000-8000-0000000000a4');
 
 -- A note being screened, one held for its AI check and one refused for severe content, each with
--- the content hash its screening reads, the verdicts of both layers, a banned word and the
+-- the content hash its screening reads, the verdicts of both layers, the model calls that made them, a banned word and the
 -- violation the refusal recorded.
 insert into public.decks (id, user_id, name, created_at, updated_at, visibility, published_at, hidden, publication) values
   ('5eed0000-0000-4000-8000-0000000000d6', '5eed0000-0000-4000-8000-0000000000a2', '세포 소기관', now() - interval '2 hours',
@@ -120,6 +120,10 @@ insert into private.screening_verdicts (content_hash, layer, version, outcome, f
   (repeat('c2', 32), 'ai', 'seed-model', 'unsure', '[{"kind":"advertising"}]', now() - interval '5 days'),
   (repeat('c3', 32), 'rules', '2', 'clean', '[]', now() - interval '4 days'),
   (repeat('c3', 32), 'ai', 'seed-model', 'severe', '[{"kind":"spam"}]', now() - interval '4 days');
+insert into private.screening_calls (deck_id, settings_id, tier, model, prompt_tokens, completion_tokens, cost_usd, created_at) values
+  ('5eed0000-0000-4000-8000-0000000000d7', 1, 'cheap', 'seed-cheap-model', 1200, 40, 0.0006, now() - interval '5 days'),
+  ('5eed0000-0000-4000-8000-0000000000d7', 1, 'strong', 'seed-strong-model', 1200, 60, 0.012, now() - interval '5 days'),
+  ('5eed0000-0000-4000-8000-0000000000d8', 1, 'cheap', 'seed-cheap-model', null, null, 0.01, now() - interval '4 days');
 insert into private.screening_terms (term, created_by, created_at, removed_at) values
   ('seed-banned-word', '5eed0000-0000-4000-8000-0000000000a3', now() - interval '20 days', null),
   ('seed-removed-word', '5eed0000-0000-4000-8000-0000000000a3', now() - interval '30 days', now() - interval '10 days');

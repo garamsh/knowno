@@ -5,7 +5,7 @@
 -- hidden, each audited; the banned-word list and the suspension candidates; the reports' hold;
 -- the sweeper; no client reaching the service functions; and the revert.
 begin;
-select plan(142);
+select plan(164);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'a@example.com'),
@@ -267,7 +267,10 @@ select is(public.record_screening('d0000000-0000-4000-8000-000000000004',
   pg_temp.hash('04'), 'rules', 'r1+0.0', 'clean', '[]'),
   'recorded', 'a verdict on the note''s hash is stored');
 select is(public.apply_screening('d0000000-0000-4000-8000-000000000004', pg_temp.hash('04')),
-  'public', 'a clean verdict makes the note public');
+  'pending', 'the rules alone do not decide it: the AI layer has no verdict');
+select public.record_screening('d0000000-0000-4000-8000-000000000004', pg_temp.hash('04'), 'ai', 'ai:1', 'clean', '[]');
+select is(public.apply_screening('d0000000-0000-4000-8000-000000000004', pg_temp.hash('04')),
+  'public', 'a clean verdict of both layers makes the note public');
 reset role;
 select is(pg_temp.state('04'), 'public/public/false', 'it is public and shown');
 select results_eq(
@@ -321,7 +324,7 @@ set local role service_role;
 select public.record_screening('d0000000-0000-4000-8000-000000000007', pg_temp.hash('07'),
   'rules', 'r1+0.0', 'refused', jsonb_build_array(jsonb_build_object('card', pg_temp.card_hash(
     (select front from public.cards where id = 'c0000000-0000-4000-8000-000000000007'), '[]', null, null),
-    'where', 'front', 'block', 0, 'category', 'phone', 'start', 3, 'end', 9)));
+    'where', 'front', 'block', 0, 'field', 'text', 'category', 'phone', 'start', 3, 'end', 9)));
 select is(public.apply_screening('d0000000-0000-4000-8000-000000000007', pg_temp.hash('07')),
   'refused', 'a refused verdict refuses the note');
 select public.record_screening('d0000000-0000-4000-8000-000000000008', pg_temp.hash('08'),
@@ -355,10 +358,10 @@ select results_eq($$select deck_id, owner_id, kind from private.screening_violat
 select pg_temp.sign_in('e');
 select results_eq(
   $$select r ->> 'state', r ->> 'refusal', r -> 'findings' -> 0 ->> 'card_id', r -> 'findings' -> 0 ->> 'category',
-    (r -> 'findings' -> 0 ->> 'start')::int, (r -> 'findings' -> 0 ->> 'end')::int, r::text ~ 'front 07'
+    r -> 'findings' -> 0 ->> 'field', (r -> 'findings' -> 0 ->> 'start')::int, (r -> 'findings' -> 0 ->> 'end')::int, r::text ~ 'front 07'
     from (select public.my_deck_screening('d0000000-0000-4000-8000-000000000007') as r) as x$$,
-  $$values ('refused', 'rules', 'c0000000-0000-4000-8000-000000000007', 'phone', 3, 9, false)$$,
-  'the owner reads the refusal, the card and the span of the finding, and none of the text');
+  $$values ('refused', 'rules', 'c0000000-0000-4000-8000-000000000007', 'phone', 'text', 3, 9, false)$$,
+  'the owner reads the refusal, the card, the field and the span of the finding, and none of the text');
 select is(public.my_deck_screening('d0000000-0000-4000-8000-000000000001') is null, true,
   'another owner''s note answers nothing');
 reset role;
@@ -590,13 +593,82 @@ select pg_temp.sign_in('a');
 select throws_ok($$select private.sweep_deck_screening()$$, '42501', null, 'no client reaches the sweep');
 reset role;
 
+
+-- The AI layer (#863, ADR 0239): a banned term alone is the rules' `unsure`, which only the AI layer decides.
+select pg_temp.deck('30', 'e');
+select pg_temp.deck('31', 'e');
+select pg_temp.sign_in('e');
+select public.request_deck_publication('d0000000-0000-4000-8000-000000000030');
+select public.request_deck_publication('d0000000-0000-4000-8000-000000000031');
+reset role;
+set local role service_role;
+select public.record_screening('d0000000-0000-4000-8000-000000000030', pg_temp.hash('30'), 'rules', 'r3+0.0', 'unsure', '[]');
+select is(public.apply_screening('d0000000-0000-4000-8000-000000000030', pg_temp.hash('30')), 'pending',
+  'a banned term alone neither holds nor refuses: the note waits for the AI layer');
+select public.record_screening('d0000000-0000-4000-8000-000000000030', pg_temp.hash('30'), 'ai', 'ai:1', 'clean', '[]');
+select is(public.apply_screening('d0000000-0000-4000-8000-000000000030', pg_temp.hash('30')), 'public',
+  'and the AI layer''s clean verdict makes it public');
+select public.record_screening('d0000000-0000-4000-8000-000000000031', pg_temp.hash('31'), 'rules', 'r3+0.0', 'unsure', '[]');
+select public.record_screening('d0000000-0000-4000-8000-000000000031', pg_temp.hash('31'), 'ai', 'unavailable', 'unsure', '[]');
+select is(public.apply_screening('d0000000-0000-4000-8000-000000000031', pg_temp.hash('31')), 'held',
+  'an AI layer that could not decide holds the note');
+reset role;
+
+-- The settings, the spend and the admin's save.
+set local role service_role;
+select results_eq($$select (s ->> 'id')::bigint, s ->> 'cheap_model', (s ->> 'daily_cap_usd')::numeric, (s ->> 'prompt') ~ 'personal_data', (j ->> 'spent_usd')::numeric
+    from (select public.screening_ai_state() as j, public.screening_ai_state() -> 'settings' as s) as x$$,
+  $$values (1::bigint, 'anthropic/claude-haiku-5.5', 5::numeric, true, 0::numeric)$$,
+  'the seeded settings are in force and nothing is spent');
+select public.record_screening_call('d0000000-0000-4000-8000-000000000030', 1, 'cheap', 'anthropic/claude-haiku-5.5', 900, 20, 0.25);
+select public.record_screening_call('d0000000-0000-4000-8000-000000000030', 1, 'strong', 'anthropic/claude-sonnet-5.5', 900, 20, 0.5);
+select is((public.screening_ai_state() ->> 'spent_usd')::numeric, 0.75, 'the day''s spend sums the calls');
+reset role;
+update private.screening_calls set created_at = now() - interval '2 days' where tier = 'strong';
+set local role service_role;
+select is((public.screening_ai_state() ->> 'spent_usd')::numeric, 0.25, 'a call of an earlier Seoul day is not counted');
+reset role;
+select pg_temp.sign_in('a');
+select throws_ok($$select public.screening_ai_state()$$, '42501', null, 'a client cannot read the settings or the spend');
+select throws_ok($$select public.record_screening_call('d0000000-0000-4000-8000-000000000030', 1, 'cheap', 'm', 1, 1, 0)$$,
+  '42501', null, 'a client cannot record a call');
+select throws_ok($$select public.admin_save_screening_settings('a/b', 'a/c', 0.8, 10, 5000, 2, 5, 0.01, 'p')$$,
+  '42501', null, 'a signed-in user who is not an admin cannot save settings');
+reset role;
+select pg_temp.sign_in('c');
+select is(public.admin_save_screening_settings('openai/gpt-x', 'anthropic/claude-sonnet-5.5', 0.7, 10, 5000, 2, 9, 0.02, 'the new prompt', 'tune'),
+  2::bigint, 'the admin saves a new version');
+select throws_ok($$select public.admin_save_screening_settings('has space', 'a/c', 0.8, 10, 5000, 2, 5, 0.01, 'p')$$,
+  '23514', null, 'a model name that does not fit is refused');
+select throws_ok($$select public.admin_save_screening_settings('a/b', 'a/c', 1.5, 10, 5000, 2, 5, 0.01, 'p')$$,
+  '23514', null, 'a floor above 1 is refused');
+reset role;
+set local role service_role;
+select results_eq($$select (j -> 'settings' ->> 'id')::bigint, j -> 'settings' ->> 'cheap_model', (j -> 'settings' ->> 'daily_cap_usd')::numeric
+    from (select public.screening_ai_state() as j) as x$$,
+  $$values (2::bigint, 'openai/gpt-x', 9::numeric)$$, 'the latest version is in force');
+reset role;
+select results_eq($$select action, target_id, detail ->> 'cheap_model', detail::text ~ 'new prompt' from private.admin_audit where action = 'save_screening_settings'$$,
+  $$values ('save_screening_settings', '2', 'openai/gpt-x', false)$$, 'the save is audited with the models and cap, not the prompt');
+select throws_ok($$update private.screening_settings set daily_cap_usd = 100 where id = 2$$, '55000', null, 'a version is never changed');
+select throws_ok($$delete from private.screening_settings where id = 1$$, '55000', null, 'nor removed');
+
+-- The revert of this migration, before the first one's.
+select lives_ok($$select private.revert_screening_ai()$$, 'the AI layer revert runs');
+select is((select count(*) from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
+    where n.nspname in ('public', 'private') and p.proname in ('screening_ai_state', 'record_screening_call',
+      'admin_save_screening_settings', 'keep_screening_settings')), 0::bigint, 'its functions are gone');
+select is(to_regclass('private.screening_settings') is null and to_regclass('private.screening_calls') is null, true, 'and its tables');
+select is(private.required_screening_layers(), array['rules'], 'the rules alone are required again');
+select is(private.screening_findings('d0000000-0000-4000-8000-000000000007', pg_temp.hash('07')) -> 0 ? 'field', false, 'and a finding drops its field as before');
+
 -- The revert.
 select lives_ok($$select private.revert_publish_screening()$$, 'the revert runs');
 select is((select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'decks' and column_name = 'publication'),
   0::bigint, 'the column is gone');
 select is((select count(*) from cron.job where jobname = 'sweep-deck-screening'), 0::bigint, 'the job is gone');
 select is((select count(*) from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
-    where n.nspname in ('public', 'private') and (p.proname like '%screening%' and p.proname <> 'revert_publish_screening'
+    where n.nspname in ('public', 'private') and (p.proname like '%screening%' and p.proname not in ('revert_publish_screening', 'revert_screening_ai')
       or p.proname in ('guard_deck_publication', 'recheck_decks', 'note_content_hash', 'card_hash'))),
   0::bigint, 'and its functions');
 select is((select count(*) from pg_trigger where tgname in ('decks_guard_publication', 'decks_stamp_screening', 'cards_recheck_inserted', 'cards_recheck_updated')),
