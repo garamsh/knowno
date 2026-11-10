@@ -782,7 +782,7 @@ describe("노트's triage reads against the server's real answers", () => {
 });
 
 describe("노트's triage reads of a malformed row", () => {
-  const answer = (name: string, rows: unknown) => {
+  const answer = (name: string, rows: object[]) => {
     server.use(http.post(`${supabaseUrl}/rest/v1/rpc/${name}`, () => HttpResponse.json(rows)));
   };
   const note = {
