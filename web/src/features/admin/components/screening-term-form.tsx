@@ -16,8 +16,12 @@ export function ScreeningTermForm() {
         event.preventDefault();
         startTransition(async () => {
           const result = await addScreeningTerm(term);
-          setMessage(result.message);
-          if (result.changed) setTerm("");
+          // After an await a state update is no longer part of the transition, so it would show
+          // the sentence before the page the action refreshed arrives.
+          startTransition(() => {
+            setMessage(result.message);
+            if (result.changed) setTerm("");
+          });
         });
       }}
       className="flex flex-col gap-2"
