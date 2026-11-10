@@ -7,7 +7,7 @@
 -- with the providers' keys; the sweeper and the severe trigger; no client reaching the service
 -- functions; and the revert. Each rule has a control that a near miss cannot pass.
 begin;
-select plan(79);
+select plan(182);
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'a@example.com'),
@@ -254,5 +254,265 @@ select is(pg_temp.audited('undo_triage_action'), 2::bigint, 'each undo is audite
 reset role;
 select is(pg_temp.judge('12', 'spam', 0.99), 'exists', 'an undone note is not judged again for the same text');
 select is(pg_temp.due(), '01,02,03', 'an undone note is not due again: only the notes never judged are');
+
+-- The agreement with the admins' own decisions, in judge-only mode so that nothing acts.
+update private.triage_settings set mode = 'judge_only';
+create function pg_temp.decide(n text, act text, ago interval default '0 seconds') returns void
+language sql security definer as $$
+  insert into private.admin_audit (admin_id, admin_email, action, target_kind, target_id, created_at)
+    values ('00000000-0000-4000-8000-00000000000c', 'admin@example.com', act, 'deck',
+      pg_temp.id(n)::text, now() - ago);
+$$;
+select pg_temp.reported('40');
+select pg_temp.reported('41');
+select pg_temp.reported('42');
+select pg_temp.reported('43');
+select pg_temp.reported('44');
+select pg_temp.judge('40', 'spam', 0.99);
+select pg_temp.judge('41', 'spam', 0.99);
+select pg_temp.judge('42', 'ok', 0.99);
+select pg_temp.judge('43', 'other', 0.99);
+select pg_temp.judge('44', 'spam', 0.99);
+select pg_temp.decide('40', 'hide_deck');
+select pg_temp.decide('40', 'allow_deck');
+select pg_temp.decide('41', 'allow_deck');
+select pg_temp.decide('42', 'dismiss_reports');
+select pg_temp.decide('43', 'hide_deck');
+select pg_temp.decide('44', 'hide_deck', '1 day');
+select pg_temp.sign_in('c');
+select results_eq($$select category, compared, agreed from public.admin_triage_agreement()$$,
+  $$values ('ok'::text, 1::bigint, 1::bigint), ('spam'::text, 2::bigint, 1::bigint)$$,
+  'agreement: the first decision after the verdict counts, other and an earlier decision do not');
+select pg_temp.sign_in('b');
+select throws_ok($$select * from public.admin_triage_agreement()$$, '42501', null, 'a user who is not an admin cannot read it');
+reset role;
+
+-- The settings.
+select pg_temp.sign_in('c');
+select is((select mode || '/' || daily_cap_usd || '/' || act_threshold from public.admin_triage_settings()),
+  'judge_only/0.5/0.9', 'the settings are read');
+select is(public.admin_set_triage_settings(mode => 'acting', daily_cap_usd => 0.75), true, 'an admin sets the mode and the cap');
+select is((select mode || '/' || daily_cap_usd || '/' || act_threshold from public.admin_triage_settings()),
+  'acting/0.75/0.9', 'what was given changed, the rest stayed');
+select is(pg_temp.audited('set_triage_settings'), 1::bigint, 'the change is audited');
+select throws_ok($$select public.admin_set_triage_settings(mode => 'wild')$$, '23514', null, 'an unknown mode is refused');
+select throws_ok($$select public.admin_set_triage_settings(act_threshold => 0.2)$$, '23514', null, 'a threshold under a half is refused');
+select throws_ok($$select public.admin_set_triage_settings(sample_percent => 101)$$, '23514', null, 'a sample over a hundred percent is refused');
+select throws_ok($$select public.admin_set_triage_settings(daily_cap_usd => -1)$$, '23514', null, 'a negative cap is refused');
+select pg_temp.sign_in('b');
+select throws_ok($$select * from public.admin_triage_settings()$$, '42501', null, 'a user who is not an admin cannot read the settings');
+select throws_ok($$select public.admin_set_triage_settings(mode => 'acting')$$, '42501', null, 'nor change them');
+reset role;
+
+-- The sample: a sampled action waits for a person, an unsampled one does not.
+update private.triage_settings set undo_threshold = 1, sample_percent = 100, daily_cap_usd = 5;
+select pg_temp.reported('30');
+select is(pg_temp.judge('30', 'spam', 0.99), 'hidden', 'acting hides note 30');
+update private.triage_settings set sample_percent = 0;
+select pg_temp.reported('31');
+select is(pg_temp.judge('31', 'spam', 0.99), 'hidden', 'acting hides note 31');
+select pg_temp.sign_in('c');
+select is((select count(*) from public.admin_triage_sample() where deck_id = pg_temp.id('30')), 1::bigint,
+  'the sampled action is queued for a person');
+select is((select count(*) from public.admin_triage_sample() where deck_id = pg_temp.id('31')), 0::bigint,
+  'the unsampled one is not');
+select is(public.admin_recheck_triage_action(pg_temp.action('31'), true), 'not_sampled', 'an unsampled action is not rechecked');
+select is(public.admin_recheck_triage_action(0, true), 'not_found', 'an unknown action is not found');
+select is(public.admin_recheck_triage_action(pg_temp.action('30'), true), 'rechecked', 'a person rechecks the sampled action');
+select is(public.admin_recheck_triage_action(pg_temp.action('30'), false), 'already', 'only once');
+select is((select count(*) from public.admin_triage_sample() where deck_id = pg_temp.id('30')), 0::bigint,
+  'a rechecked action leaves the queue');
+select is(pg_temp.audited('recheck_triage_action'), 1::bigint, 'the recheck is audited');
+select pg_temp.sign_in('b');
+select throws_ok($$select * from public.admin_triage_sample()$$, '42501', null, 'a user who is not an admin cannot read the sample');
+reset role;
+
+create function pg_temp.undone(n text) returns boolean language sql security definer as $$
+  select undone_at is not null from private.triage_actions where id = pg_temp.action(n);
+$$;
+
+-- The undo-rate pause. Six actions stand, two undone; undoing one more makes it exactly a half.
+select pg_temp.sign_in('c');
+select is(public.admin_undo_triage_action(pg_temp.action('25')), 'undone', 'a third action is undone');
+reset role;
+update private.triage_settings set undo_threshold = 0.5;
+select pg_temp.reported('32');
+select is(pg_temp.judge('32', 'spam', 0.99), 'hidden', 'exactly at the threshold: not above it, still acting');
+update private.triage_settings set undo_min_actions = 8, undo_threshold = 0.1;
+select pg_temp.reported('33');
+select is(pg_temp.judge('33', 'spam', 0.99), 'hidden', 'seven actions, under the minimum of eight: still acting');
+select pg_temp.reported('34');
+select is(pg_temp.judge('34', 'spam', 0.99), 'paused', 'eight actions and the rate above the threshold: paused');
+select is(pg_temp.state('34'), 'public/false', 'the note is not hidden');
+select is((select paused_reason from private.triage_settings), 'undo_rate', 'the reason is kept');
+select is(pg_temp.audited('pause_triage'), 1::bigint, 'the pause is audited');
+select is((select admin_id is null and admin_email = 'ai' from private.admin_audit where action = 'pause_triage'), true,
+  'as the automation');
+select pg_temp.reported('35');
+select is(pg_temp.judge('35', 'spam', 0.99), 'recorded', 'while paused the verdict is recorded and nothing acts');
+select is(pg_temp.state('35'), 'public/false', 'and the note is not hidden');
+select pg_temp.sign_in('b');
+select throws_ok($$select public.admin_resume_triage()$$, '42501', null, 'a user who is not an admin cannot resume');
+reset role;
+update private.triage_settings set undo_threshold = 0.9;
+select pg_temp.sign_in('c');
+select is(public.admin_resume_triage(), true, 'an admin resumes it');
+select is(public.admin_resume_triage(), false, 'a second resume does nothing');
+select is(pg_temp.audited('resume_triage'), 1::bigint, 'the resume is audited');
+select is((select round(undo_rate, 2) from public.admin_triage_settings()), 0.38, 'the settings show the undo rate');
+reset role;
+select pg_temp.reported('36');
+select is(pg_temp.judge('36', 'spam', 0.99), 'hidden', 'with the threshold raised and resumed, it acts again');
+
+-- The appeal: once, by the owner, of a note the AI hid.
+select pg_temp.note('50', 'a');
+update public.decks set hidden = true, publication = 'held' where id = pg_temp.id('50');
+insert into private.deck_screening (deck_id, hold) values (pg_temp.id('50'), 'admin');
+select pg_temp.sign_in('b');
+select is(public.appeal_ai_hidden_note(pg_temp.id('36')), 'not_hidden_by_ai', 'another user cannot appeal');
+select is(public.my_triage_state(pg_temp.id('36')), null, 'and sees nothing of it');
+reset role;
+select pg_temp.sign_in('a');
+select is((public.my_triage_state(pg_temp.id('36')) ->> 'hidden_by_ai')::boolean, true, 'the owner sees the AI hid it');
+select is((public.my_triage_state(pg_temp.id('36')) ->> 'appealed')::boolean, false, 'with no appeal yet');
+select is(public.appeal_ai_hidden_note(pg_temp.id('50')), 'not_hidden_by_ai', 'a note an admin hid is not appealed here');
+select is(public.appeal_ai_hidden_note(pg_temp.id('36')), 'appealed', 'the owner appeals');
+select is(public.appeal_ai_hidden_note(pg_temp.id('36')), 'already', 'only once');
+select is((public.my_triage_state(pg_temp.id('36')) ->> 'appealed')::boolean, true, 'the state shows the appeal');
+reset role;
+select pg_temp.sign_in('c');
+select is((select count(*) from public.admin_triage_appeals() where deck_id = pg_temp.id('36')), 1::bigint,
+  'a person sees the appeal');
+select is((select category || coalesce(passage, '') from public.admin_triage_appeals()), 'spama passage', 'with the verdict and its passage');
+select is(public.admin_resolve_triage_appeal(pg_temp.id('36'), false), 'upheld', 'a person upholds the hide');
+select is(pg_temp.state('36'), 'held/true', 'the note stays hidden');
+select is(public.admin_resolve_triage_appeal(pg_temp.id('36'), false), 'not_found', 'a resolved appeal is not open');
+select is((select count(*) from public.admin_triage_appeals()), 0::bigint, 'the list is empty');
+reset role;
+select pg_temp.sign_in('a');
+select is(public.appeal_ai_hidden_note(pg_temp.id('36')), 'already', 'a resolved appeal is not made again');
+select is((public.my_triage_state(pg_temp.id('36')) ->> 'resolved')::boolean, true, 'the state shows it resolved');
+select is(public.appeal_ai_hidden_note(pg_temp.id('32')), 'appealed', 'another AI-hidden note is appealed');
+reset role;
+select pg_temp.sign_in('c');
+select is(public.admin_resolve_triage_appeal(pg_temp.id('32'), true), 'restored', 'a person restores it');
+select is(pg_temp.state('32'), 'public/false', 'the note is shown again');
+select is(pg_temp.undone('32'), true, 'the action is undone');
+reset role;
+
+-- The configuration: saved as a draft, activated only with both providers' keys, never changed.
+select throws_ok($$select public.save_triage_configuration('00000000-0000-4000-8000-00000000000b',
+  'anthropic', 'claude-haiku-5-5', 'openrouter', 'acme/strong', 'p', 1, 5, 3, 15, 0.7, 3000, 5)$$,
+  '42501', null, 'an id that is not an admin saves nothing');
+select throws_ok($$select public.save_triage_configuration('00000000-0000-4000-8000-00000000000c',
+  'anthropic', 'bad model', 'openrouter', 'acme/strong', 'p', 1, 5, 3, 15, 0.7, 3000, 5)$$,
+  '23514', null, 'a model that does not fit its provider is refused');
+select lives_ok($$select public.save_triage_configuration('00000000-0000-4000-8000-00000000000c',
+  'anthropic', 'claude-haiku-5-5', 'openrouter', 'acme/strong', 'New prompt', 1, 5, 3, 15, 0.7, 3000, 5)$$,
+  'an admin saves a draft');
+select pg_temp.sign_in('c');
+select is((select count(*) from public.admin_triage_configurations() where label = 'test' and prompt = 'New prompt'),
+  1::bigint, 'the draft is listed');
+select is(public.admin_activate_triage_configuration(), 'no_key', 'no key at all: not activated');
+reset role;
+insert into private.provider_keys (provider, secret_id, last_four)
+  values ('anthropic', vault.create_secret('sk-ant-test-0000'), '0000');
+select pg_temp.sign_in('c');
+select is(public.admin_activate_triage_configuration(), 'no_key', 'the strong tier''s key missing: not activated');
+reset role;
+insert into private.provider_keys (provider, secret_id, last_four)
+  values ('openrouter', vault.create_secret('sk-or-test-0000'), '0000');
+select pg_temp.sign_in('b');
+select throws_ok($$select public.admin_activate_triage_configuration()$$, '42501', null, 'a user who is not an admin cannot activate');
+select pg_temp.sign_in('c');
+select is(public.admin_activate_triage_configuration(), 'activated', 'both keys present: activated');
+select is((select count(*) from public.admin_triage_configurations() where label = 'test'), 0::bigint, 'the draft label is gone');
+select is((select prompt from public.admin_triage_configurations() where label = 'active'), 'New prompt', 'the draft is active');
+select is(public.admin_activate_triage_configuration(), 'no_test', 'nothing left to activate');
+select is(pg_temp.audited('activate_triage_configuration'), 1::bigint, 'the activation is audited');
+reset role;
+select throws_ok($$update private.triage_configurations set prompt = 'x'$$, '55000', null, 'a saved configuration is never changed');
+select throws_ok($$delete from private.triage_configurations$$, '55000', null, 'or removed');
+select public.save_triage_configuration('00000000-0000-4000-8000-00000000000c',
+  'anthropic', 'claude-haiku-5-5', 'anthropic', 'claude-sonnet-5-5', 'Another', 1, 5, 3, 15, 0.7, 3000, 5);
+select pg_temp.sign_in('c');
+select is(public.admin_clear_triage_test(), true, 'an admin clears the draft');
+select is(public.admin_clear_triage_test(), false, 'a second clear does nothing');
+select is((select count(*) from public.admin_triage_configurations()), 1::bigint, 'only the active one is left');
+reset role;
+
+-- No client reaches the service functions or the admin ones without being an admin.
+select pg_temp.sign_in('a');
+select throws_ok($$select * from public.triage_due()$$, '42501', null, 'a signed-in user cannot list the due notes');
+select throws_ok($$select public.triage_claim(gen_random_uuid())$$, '42501', null, 'nor claim one');
+select throws_ok($$select public.record_triage(null::uuid, null, null, null, null, null, null, null, null, null, null, null, null, null, null)$$,
+  '42501', null, 'nor record a verdict');
+select throws_ok($$select public.save_triage_configuration(null::uuid, null, null, null, null, null, null, null, null, null, null, null, null)$$,
+  '42501', null, 'nor save a configuration');
+select throws_ok($$select public.admin_recheck_triage_action(1, true)$$, '42501', null, 'nor recheck an action');
+select throws_ok($$select * from public.admin_triage_appeals()$$, '42501', null, 'nor read the appeals');
+reset role;
+set local role anon;
+select throws_ok($$select * from public.admin_triage_queue()$$, '42501', null, 'a visitor cannot read the queue');
+select throws_ok($$select public.appeal_ai_hidden_note(gen_random_uuid())$$, '42501', null, 'nor appeal');
+reset role;
+
+-- The sweeper and the severe trigger.
+create function pg_temp.sweep() returns bigint language plpgsql security definer as $$
+begin
+  delete from net.http_request_queue;
+  perform private.sweep_report_triage();
+  return (select count(*) from net.http_request_queue);
+end;
+$$;
+create function pg_temp.queued() returns bigint language sql security definer as $$
+  select count(*) from net.http_request_queue;
+$$;
+select is(pg_temp.due(), '01,02,03', 'three notes are due');
+select is(pg_temp.sweep(), 0::bigint, 'a due note and no secrets: nothing requested');
+select vault.create_secret('https://example.supabase.co/functions/v1/triage-reports', 'triage_function_url');
+select is(pg_temp.sweep(), 0::bigint, 'a due note and no key: nothing requested');
+select vault.create_secret('service-key', 'assistant_service_role_key');
+select is(pg_temp.sweep(), 1::bigint, 'a due note and both secrets: the worker requested once');
+select results_eq($$select method::text, url, headers ->> 'Authorization', convert_from(body, 'utf8')::jsonb ->> 'severe' from net.http_request_queue$$,
+  $$values ('POST', 'https://example.supabase.co/functions/v1/triage-reports/work', 'Bearer service-key', 'false')$$,
+  'a POST to the work route with the service key, not severe');
+update private.triage_settings set daily_cap_usd = 0;
+select is(pg_temp.sweep(), 0::bigint, 'the spend cap closed: nothing requested');
+update private.triage_settings set daily_cap_usd = 5;
+select is(pg_temp.sweep(), 1::bigint, 'the cap open again: requested');
+select is((select schedule from cron.job where jobname = 'sweep-report-triage'), '*/5 * * * *', 'cron runs it every five minutes');
+select pg_temp.sign_in('a');
+select throws_ok($$select private.sweep_report_triage()$$, '42501', null, 'no client reaches the sweep');
+reset role;
+
+delete from net.http_request_queue;
+select pg_temp.note('60', 'a');
+select pg_temp.report('60', 'd', 'inappropriate');
+select is(pg_temp.queued(), 0::bigint, 'one inappropriate report: nothing requested');
+select pg_temp.report('60', 'e', 'inappropriate');
+select is(pg_temp.queued(), 1::bigint, 'the second reporter of an inappropriate report: the worker requested at once');
+select is((select convert_from(body, 'utf8')::jsonb ->> 'severe' from net.http_request_queue), 'true', 'as severe');
+delete from net.http_request_queue;
+select pg_temp.note('61', 'a');
+select pg_temp.report('61', 'd', 'spam');
+select pg_temp.report('61', 'e', 'spam');
+select is(pg_temp.queued(), 0::bigint, 'two spam reports wait for the batch');
+update private.triage_settings set daily_cap_usd = 0;
+select pg_temp.note('62', 'a');
+select pg_temp.report('62', 'd', 'inappropriate');
+select pg_temp.report('62', 'e', 'inappropriate');
+select is(pg_temp.queued(), 0::bigint, 'a severe report with the spend cap closed requests nothing');
+
+-- The revert.
+select lives_ok($$select private.revert_report_triage()$$, 'the revert runs');
+select is((select count(*) from cron.job where jobname = 'sweep-report-triage'), 0::bigint, 'the job is gone');
+select is((select count(*) from pg_class as c join pg_namespace as n on n.oid = c.relnamespace
+    where n.nspname = 'private' and c.relname like 'triage\_%'), 0::bigint, 'its tables are gone');
+select is((select count(*) from pg_proc as p join pg_namespace as n on n.oid = p.pronamespace
+    where n.nspname in ('public', 'private') and p.proname like '%triage%' and p.proname <> 'revert_report_triage'),
+  0::bigint, 'and its functions');
+select is((select count(*) from pg_trigger where tgname = 'triage_severe_report'), 0::bigint, 'and its trigger');
+
 select * from finish();
 rollback;
