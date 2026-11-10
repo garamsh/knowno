@@ -42,7 +42,7 @@ describe("the admin area's pages", () => {
     expect(headingOf(<DecksPage {...props} />)).toBe("노트");
     expect(headingOf(<AiPage {...props} />)).toBe("AI");
     expect(headingOf(<AssistantPage {...props} />)).toBe("말랑이");
-    expect(headingOf(<PlansPage />)).toBe("요금제");
+    expect(headingOf(<PlansPage {...props} />)).toBe("요금제");
     expect(headingOf(<AdminsPage />)).toBe("관리자");
   });
 });

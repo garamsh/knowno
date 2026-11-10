@@ -18,6 +18,7 @@ export { ViewSwitch } from "./components/view-switch";
 export { summarizeOutcomes } from "./outcomes";
 export { summarizeWeeks, weekUsageDays } from "./usage";
 export { PlansView } from "./components/plans-view";
+export { StoreSecretsView } from "./components/store-secrets-view";
 export { PromptForm } from "./components/prompt-form";
 export { UserFilters } from "./components/user-filters";
 export { UserTable } from "./components/user-table";
@@ -45,6 +46,8 @@ export {
   readOpenReports,
   readPlanVersions,
   readProviderKeys,
+  readStoreSecrets,
+  parseStoreSecretName,
   readConfigurationResults,
   readPromptVersion,
   readPromptVersions,
