@@ -213,6 +213,7 @@ export async function screenDeck(
       outcome: decision.outcome,
       version: decision.version,
       unavailable: decision.unavailable,
+      failure: decision.failure,
       findings: decision.findings.map((f) => f.category),
     });
     const recorded = await call(service, deps, "record_screening", {

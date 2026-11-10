@@ -38,7 +38,9 @@ type Fake = {
 
 type ProviderReply =
   | { verdict: string; confidence: number; flags?: unknown[]; cost?: number }
+  | { status: number }
   | "down"
+  | "timeout"
   | "garbage";
 
 const SETTINGS = {
@@ -112,8 +114,14 @@ function setup(over: Partial<Fake> = {}) {
           fake.replies.length - 1,
         )
       ];
+      if (reply === "timeout") {
+        return Promise.reject(new DOMException("aborted", "AbortError"));
+      }
       if (reply === "down") {
         return Promise.resolve(new Response(null, { status: 503 }));
+      }
+      if (reply !== "garbage" && "status" in reply) {
+        return Promise.resolve(new Response(null, { status: reply.status }));
       }
       return Promise.resolve(Response.json({
         choices: [{
@@ -526,4 +534,59 @@ Deno.test("a banned term beside another finding refuses at once, without the AI"
   assert.equal(fake.recorded[0]?.outcome, "refused");
   assert.deepEqual(fake.provider, []);
   assert.equal(aiOf(fake), undefined);
+});
+
+Deno.test("a call the provider refused is not charged to the cap, and the log says which status", async () => {
+  for (const status of [401, 429, 503]) {
+    const { fake, handler, logs } = setup({
+      claim: claimOf("도박사이트", [], ["도박사이트"]),
+      replies: [{ status }],
+    });
+    await handler(post("", "user-token"));
+    assert.deepEqual(fake.spends, [], `${status} is no spend`);
+    assert.equal(aiOf(fake)?.version, "unavailable");
+    assert.equal(
+      logs.some((l) =>
+        l.route === "ai" && l.unavailable === "failed" &&
+        l.failure === `http_${status}`
+      ),
+      true,
+      `${status} reaches the log`,
+    );
+  }
+});
+
+Deno.test("a call that timed out or answered no verdict may have been billed: it is charged and the log says why", async () => {
+  const cases: [ProviderReply, string][] = [
+    ["timeout", "timeout"],
+    ["garbage", "unparseable"],
+  ];
+  for (const [reply, failure] of cases) {
+    const { fake, handler, logs } = setup({ replies: [reply] });
+    await handler(post("", "user-token"));
+    assert.equal(fake.spends.length, 1, failure);
+    assert.equal(fake.spends[0]?.cost_usd, 0.01, failure);
+    assert.equal(
+      logs.some((l) => l.route === "ai" && l.failure === failure),
+      true,
+      failure,
+    );
+  }
+});
+
+Deno.test("a flagged card too large to send holds the note instead of judging the rest", async () => {
+  const claim = claimOf("도박사이트" + "가".repeat(20000), [], ["도박사이트"]);
+  const { fake, handler, logs } = setup({ claim });
+  await handler(post("", "user-token"));
+  assert.deepEqual(fake.provider, [], "no model reads a note it cannot read whole");
+  assert.deepEqual(fake.spends, []);
+  assert.equal(aiOf(fake)?.outcome, "unsure");
+  assert.equal(aiOf(fake)?.version, "unavailable");
+  assert.equal(
+    logs.some((l) => l.route === "ai" && l.unavailable === "oversized"),
+    true,
+  );
+  const control = setup({ claim: claimOf("도박사이트", [], ["도박사이트"]) });
+  await control.handler(post("", "user-token"));
+  assert.equal(aiOf(control.fake)?.outcome, "clean", "a card that fits is judged");
 });

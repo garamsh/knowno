@@ -106,8 +106,14 @@ export type Item = {
   readonly media: string | null;
 };
 
-/** What goes to the model: the items, bounded by the settings. */
-export type Payload = { readonly items: readonly Item[] };
+/**
+ * What goes to the model: the items, bounded by the settings. It is [complete] unless a card the
+ * rules flagged did not fit the token cap, which no model reads for the note then.
+ */
+export type Payload = {
+  readonly items: readonly Item[];
+  readonly complete: boolean;
+};
 
 /** A rough count of tokens in [text]: one for every two characters, high for Korean and English alike. */
 const tokensOf = (text: string) => Math.ceil(text.length / 2);
@@ -127,7 +133,8 @@ function seeded(seed: string): () => number {
 /**
  * The note's name and description, then the cards the rules flagged, then a fixed random
  * sample of the others (the same one for the same [hash]), until the token cap or the sample
- * size is reached. A card goes whole or not at all. Photos are kept up to the settings' cap.
+ * size is reached. A card goes whole or not at all, and a flagged card that does not fit makes
+ * the payload incomplete. Photos are kept up to the settings' cap.
  */
 export function buildPayload(
   claim: Claim,
@@ -139,6 +146,7 @@ export function buildPayload(
   const items: Item[] = [];
   let used = tokensOf(settings.prompt);
   let photos = 0;
+  let complete = true;
   const push = (item: Omit<Item, "n">) => {
     items.push({ ...item, n: items.length });
   };
@@ -166,7 +174,10 @@ export function buildPayload(
   for (const card of chosen) {
     const parts = all.filter((s) => s.card === card.hash);
     const cost = parts.reduce((sum, s) => sum + tokensOf(s.text), 0);
-    if (used + cost > settings.maxInputTokens) continue;
+    if (used + cost > settings.maxInputTokens) {
+      if (flagged.has(card.hash)) complete = false;
+      continue;
+    }
     used += cost;
     for (const part of parts) {
       push({
@@ -198,7 +209,7 @@ export function buildPayload(
       }
     }
   }
-  return { items };
+  return { items, complete };
 }
 
 /** A model's reading of the note. */
@@ -213,14 +224,29 @@ export type Reply = {
   readonly usage: Usage | null;
 };
 
-/** One model call. Answers null when the model could not be reached or answered no usable verdict. */
+/**
+ * What one model call came to: a verdict, or a failure with its [reason] (an HTTP status as
+ * `http_<status>`, `timeout`, `network` or `unparseable`; never content). A failure is [charged]
+ * when the provider may have billed it: a non-2xx answer or no connection was not, a timeout or an
+ * unusable 2xx was. [usage] is what a 2xx reported.
+ */
+export type Answer =
+  | { readonly kind: "reply"; readonly reply: Reply }
+  | {
+    readonly kind: "failed";
+    readonly reason: string;
+    readonly charged: boolean;
+    readonly usage: Usage | null;
+  };
+
+/** One model call. */
 export type Judge = (request: {
   readonly model: string;
   readonly prompt: string;
   readonly payload: Payload;
   /** Each photo item's bytes as a data URL, by item number. */
   readonly images: ReadonlyMap<number, string>;
-}) => Promise<Reply | null>;
+}) => Promise<Answer>;
 
 const REPLY_SCHEMA = {
   type: "object",
@@ -280,6 +306,12 @@ export function parseReply(
   return { verdict, confidence, flags, usage };
 }
 
+const failed = (
+  reason: string,
+  charged: boolean,
+  usage: Usage | null,
+): Answer => ({ kind: "failed", reason, charged, usage });
+
 /** The [Judge] that asks OpenRouter with [apiKey]; the same path as the card extraction's. */
 export function openRouterJudge(
   deps: { readonly fetch: typeof fetch; readonly apiKey: string },
@@ -333,15 +365,21 @@ export function openRouterJudge(
       });
       if (!response.ok) {
         await response.body?.cancel();
-        return null;
+        return failed(`http_${response.status}`, false, null);
       }
-      const body: unknown = await response.json();
+      const body: unknown = await response.json().catch(() => null);
+      const usage = chatUsage(body);
       const text = chatReply(body);
-      return text === null || text.cut
+      const reply = text === null || text.cut
         ? null
-        : parseReply(text.text, request.payload, chatUsage(body));
-    } catch {
-      return null;
+        : parseReply(text.text, request.payload, usage);
+      return reply === null
+        ? failed("unparseable", true, usage)
+        : { kind: "reply", reply };
+    } catch (error) {
+      return error instanceof DOMException && error.name === "AbortError"
+        ? failed("timeout", true, null)
+        : failed("network", false, null);
     } finally {
       clearTimeout(timer);
     }
@@ -365,16 +403,26 @@ export type Decision = {
   readonly findings: readonly AiFinding[];
   readonly version: string;
   /** Null when a model decided; otherwise why none did. */
-  readonly unavailable: "no_settings" | "no_key" | "capped" | "failed" | null;
+  readonly unavailable:
+    | "no_settings"
+    | "no_key"
+    | "capped"
+    | "oversized"
+    | "failed"
+    | null;
+  /** For `failed`, what failed: a call's reason (see [Answer]) or `photo`. Never content. */
+  readonly failure: string | null;
 };
 
 export const unavailableDecision = (
   why: NonNullable<Decision["unavailable"]>,
+  failure: string | null = null,
 ): Decision => ({
   outcome: "unsure",
   findings: [],
   version: UNAVAILABLE,
   unavailable: why,
+  failure,
 });
 
 /** One call as the cap and the record see it. */
@@ -388,8 +436,10 @@ export type Spend = {
 /**
  * Judges the note: the cheap model first, and the strong one only when the first is unsure or
  * under the confidence floor. A verdict under the floor from the strong model is unsure. No call
- * is made once the day's spend has reached the cap, the strong one included; a call that reported
- * no cost is charged the settings' assumed price. [spend] is told of each call.
+ * is made once the day's spend has reached the cap, the strong one included, nor for a payload
+ * that left out a flagged card. A call that reported no cost is charged the settings' assumed
+ * price, unless it failed uncharged (see [Answer]), which is not recorded. [spend] is told of
+ * each charged call.
  */
 export async function judgeNote(input: {
   readonly state: AiState;
@@ -399,6 +449,7 @@ export async function judgeNote(input: {
   readonly spend: (call: Spend) => Promise<void>;
 }): Promise<Decision> {
   const { settings } = input.state;
+  if (!input.payload.complete) return unavailableDecision("oversized");
   let spent = input.state.spentUsd;
   const findingsOf = (reply: Reply): AiFinding[] =>
     reply.flags.map((flag) => {
@@ -421,16 +472,22 @@ export async function judgeNote(input: {
     ] as const
   ) {
     if (spent >= settings.dailyCapUsd) return unavailableDecision("capped");
-    const reply = await input.judge({
+    const answer = await input.judge({
       model,
       prompt: settings.prompt,
       payload: input.payload,
       images: input.images,
     });
-    const costUsd = reply?.usage?.costUsd ?? settings.assumedCallUsd;
-    spent += costUsd;
-    await input.spend({ tier, model, usage: reply?.usage ?? null, costUsd });
-    if (reply === null) return unavailableDecision("failed");
+    const usage = answer.kind === "reply" ? answer.reply.usage : answer.usage;
+    if (answer.kind === "reply" || answer.charged) {
+      const costUsd = usage?.costUsd ?? settings.assumedCallUsd;
+      spent += costUsd;
+      await input.spend({ tier, model, usage, costUsd });
+    }
+    if (answer.kind === "failed") {
+      return unavailableDecision("failed", answer.reason);
+    }
+    const reply = answer.reply;
     last = reply;
     if (
       reply.verdict !== "unsure" && reply.confidence >= settings.confidenceFloor
@@ -440,6 +497,7 @@ export async function judgeNote(input: {
         findings: reply.verdict === "clean" ? [] : findingsOf(reply),
         version: aiVersion(settings.id),
         unavailable: null,
+        failure: null,
       };
     }
   }
@@ -448,5 +506,6 @@ export async function judgeNote(input: {
     findings: last === null ? [] : findingsOf(last),
     version: aiVersion(settings.id),
     unavailable: null,
+    failure: null,
   };
 }

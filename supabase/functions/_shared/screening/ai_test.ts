@@ -155,3 +155,21 @@ Deno.test("the state is read strictly", () => {
     null,
   );
 });
+
+Deno.test("a flagged card that does not fit the token cap makes the payload incomplete, a sampled one does not", () => {
+  const big = text("가".repeat(20000));
+  const small = { ...SETTINGS, maxInputTokens: 6000, sampleCards: 10 };
+  const flagged = buildPayload(
+    claim(3, { 1: big }),
+    new Set(["h1"]),
+    "hash",
+    small,
+  );
+  assert.equal(flagged.complete, false);
+  assert.equal(flagged.items.some((i) => i.card === "h1"), false);
+  const sampled = buildPayload(claim(3, { 1: big }), new Set(), "hash", small);
+  assert.equal(sampled.complete, true, "a sampled card may be left out");
+  assert.equal(sampled.items.some((i) => i.card === "h1"), false);
+  const fits = buildPayload(claim(3), new Set(["h1"]), "hash", small);
+  assert.equal(fits.complete, true);
+});
