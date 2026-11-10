@@ -2,6 +2,8 @@ import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { SellerInfo } from "./seller-info";
+
 /** One numbered section of a legal document: its anchor, its heading and its text. */
 export type LegalSection = { id: string; heading: string; body: ReactNode };
 
@@ -63,6 +65,7 @@ export function LegalDocument({
           </div>
         </section>
       ))}
+      <SellerInfo />
     </main>
   );
 }

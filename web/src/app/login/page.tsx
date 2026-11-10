@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { BrandMark } from "@/design/brand";
-import { LegalLinks } from "@/features/legal";
+import { LegalLinks, SellerInfo } from "@/features/legal";
 import { AppleSignInButton, CallbackError, EmailSignIn, SignInButton } from "@/features/account";
 
 export const metadata: Metadata = { title: "로그인 · 알아몰라" };
@@ -38,6 +38,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
           </p>
           <LegalLinks />
         </div>
+        <SellerInfo />
       </div>
     </main>
   );
