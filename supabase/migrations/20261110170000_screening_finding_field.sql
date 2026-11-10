@@ -3,9 +3,10 @@
 -- `my_deck_screening` and `admin_screening_findings` could not place a finding in a block that
 -- holds several strings. The function keeps its signature, owner and privileges.
 --
--- Revert, run once against production: `select private.revert_finding_field();`, then
--- `drop function private.revert_finding_field();`. It puts `private.screening_findings`
--- back as `20261110130000_publish_screening.sql` made it. It changes no row.
+-- Revert, run once against production before `private.revert_publish_screening()`, which drops
+-- `private.screening_findings` and so leaves this revert nothing to drop:
+-- `select private.revert_finding_field();`, then `drop function private.revert_finding_field();`.
+-- It puts `private.screening_findings` back as `20261110130000_publish_screening.sql` made it. It changes no row.
 
 create or replace function private.screening_findings(p_deck uuid, p_hash text) returns jsonb
 language sql
