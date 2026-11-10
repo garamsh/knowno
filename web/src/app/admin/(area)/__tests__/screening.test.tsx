@@ -23,6 +23,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const memo = "d0000000-0000-4000-8000-0000000000a1";
 const plain = "d0000000-0000-4000-8000-0000000000a2";
 const contact = "문의는 010-1234-5678 로";
+const phone = "010-9999-8888";
 
 let admin: FakeAdmin;
 beforeEach(async () => {
@@ -37,6 +38,11 @@ beforeEach(async () => {
     cards: [
       { id: "c1", front: contact, back: "답" },
       { id: "c2", front: "plain", back: "ok" },
+      {
+        id: "c3",
+        front: [{ type: "senses", payload: { senses: ["하나", `전화 ${phone}`], note: "메모" } }],
+        back: "답",
+      },
     ],
   });
   admin.seedDeck({ id: plain, name: "Plain", visibility: "public", hidden: true });
@@ -56,6 +62,18 @@ beforeEach(async () => {
           end: contact.indexOf("010") + 13,
         },
         { card_id: null, where: "description", block: null, category: "contact", start: 0, end: 6 },
+        // A block of several strings: the finding's field says which one its offsets index.
+        {
+          card_id: "c3",
+          where: "front",
+          block: 0,
+          field: "senses.1",
+          category: "phone",
+          start: 3,
+          end: 3 + phone.length,
+        },
+        // The same block without a field, as a server before it answered: no passage is guessed.
+        { card_id: "c3", where: "front", block: 0, category: "link", start: 0, end: 2 },
         // A block the deck does not hold: the category shows, no passage.
         { card_id: "c2", where: "back", block: 7, category: "link", start: 0, end: 2 },
       ],
@@ -92,11 +110,14 @@ describe("노트's 검토 중", () => {
     ).toEqual([
       "전화번호 · 카드 앞면문의는 010-1234-5678 로",
       "연락처 안내 · 설명연락 주세요 kakao",
+      `전화번호 · 카드 앞면전화 ${phone}`,
+      "링크 · 카드 앞면",
       "링크 · 카드 뒷면",
     ]);
     expect(Array.from(found.querySelectorAll("mark"), (mark) => mark.textContent)).toEqual([
       "010-1234-5678",
       "연락 주세요",
+      phone,
     ]);
     expect(note.getByRole("button", { name: "공개 허용" })).toBeVisible();
     expect(note.getByRole("button", { name: "숨김 유지" })).toBeVisible();
