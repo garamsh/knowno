@@ -435,10 +435,20 @@ verify_jwt = true
 [functions.review-sign-in]
 verify_jwt = false
 
+# Lets RevenueCat's webhook through, since it sends no Supabase JWT; the function refuses every call
+# whose Authorization differs from the value kept in Vault (ADR 0241).
+[functions.store-webhook]
+verify_jwt = false
+
 # Refuses a request without a valid JWT before the function runs: the owner's token on `/`, the
 # service-role key on `/work`; the function checks which each route got.
 [functions.publish-note]
 verify_jwt = true
+
+# Lets the scheduler's service-role key through on `/work`, which is not a JWT, and an admin's
+# token on the settings route; the function checks each itself (ADR 0244).
+[functions.triage-reports]
+verify_jwt = false
 
 [analytics]
 enabled = true

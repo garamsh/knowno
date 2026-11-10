@@ -1,6 +1,7 @@
 /** What a deck report's reason reads as, the app's words for each (`app_ko.arb`'s `report*`). */
 export const reasonLabels: Record<string, string> = {
   inappropriate: "부적절한 내용",
+  sexual: "성적인 내용·미성년자",
   spam: "스팸",
   copyright: "저작권 침해",
   other: "기타",
@@ -45,6 +46,21 @@ export const actionLabels: Record<string, string> = {
   activate_card_form_skill: "카드 형식 스킬 적용",
   clear_card_form_skill_test: "카드 형식 스킬 테스트 끝",
   set_card_markup: "카드 마크업 스위치",
+  set_store_secret: "스토어 비밀값 저장",
+  clear_store_secret: "스토어 비밀값 삭제",
+  store_grant_plan: "스토어 구독 시작",
+  store_change_plan: "스토어 구독 변경",
+  store_end_plan: "스토어 구독 끝",
+  ai_hide_deck: "AI가 노트 숨김",
+  ai_dismiss_reports: "AI가 신고 정리",
+  undo_triage_action: "AI가 한 일 되돌리기",
+  recheck_triage_action: "AI가 한 일 다시 확인",
+  resolve_triage_appeal: "이의 신청 처리",
+  set_triage_settings: "신고 AI 설정 바꾸기",
+  resume_triage: "신고 AI 다시 켜기",
+  save_triage_configuration: "신고 AI 구성 테스트로 저장",
+  activate_triage_configuration: "신고 AI 구성 적용",
+  clear_triage_test: "신고 AI 구성 테스트 끝",
 };
 
 /** The card forms a skill is written for, in the order the assistant lists them (ADR 0197). */
@@ -89,8 +105,8 @@ export const effortLabels: Record<string, string> = {
  */
 export const planLabels: Record<string, string> = {
   free: "무료",
-  pro: "프로",
-  max: "맥스",
+  pro: "플러스",
+  max: "프로",
   special: "스페셜",
 };
 
@@ -148,4 +164,28 @@ export const holdLabels: Record<string, string> = {
   reports: "신고가 쌓여 자동으로 숨겼어요",
   admin: "운영자가 보류했어요",
   ai: "자동 검토가 사람의 확인을 요청했어요",
+};
+
+/** What the triage model's verdict on a reported note reads as to an admin. */
+export const triageCategoryLabels: Record<string, string> = {
+  spam: "스팸",
+  ad: "광고",
+  inappropriate: "부적절한 내용",
+  copyright: "저작권 침해",
+  severe: "심각한 위반",
+  other: "기타",
+  ok: "문제없음",
+  unjudged: "판단하지 못함",
+};
+
+/** What the AI did to a note, as the log of its actions names it. */
+export const triageActionLabels: Record<string, string> = {
+  hide: "숨김",
+  dismiss: "신고 정리",
+};
+
+/** What the triage's two modes read as. */
+export const triageModeLabels: Record<string, string> = {
+  judge_only: "판단만 하기",
+  acting: "직접 처리하기",
 };

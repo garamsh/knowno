@@ -492,6 +492,41 @@ export type AiConfiguration = {
   createdByEmail: string | null;
 };
 
+/** The RevenueCat secrets the store routes read from Vault (ADR 0241). */
+export const storeSecretNames = [
+  "knowno_store_webhook_authorization",
+  "knowno_store_api_key",
+] as const;
+
+/** A RevenueCat secret's Vault name. */
+export type StoreSecretName = (typeof storeSecretNames)[number];
+
+/** [value], which crossed the network or an address, as a store secret's name; null otherwise. */
+export function parseStoreSecretName(value: unknown): StoreSecretName | null {
+  return storeSecretNames.find((known) => known === value) ?? null;
+}
+
+/** One RevenueCat secret as the admin area sees it: whether it is set, when and by whom. Never its value. */
+export type StoreSecret = {
+  name: StoreSecretName;
+  set: { at: number; byEmail: string | null } | null;
+};
+
+/** Each RevenueCat secret's state, the webhook's first. */
+export async function readStoreSecrets(): Promise<AdminRead<StoreSecret[]>> {
+  return parsed(await call("admin_store_secrets"), (row) => {
+    const name = parseStoreSecretName(field(row, "name"));
+    const isSet = field(row, "is_set");
+    const setAt = field(row, "set_at");
+    const setBy = field(row, "set_by_email");
+    if (name === null || typeof isSet !== "boolean") return null;
+    if (!isSet) return { name, set: null };
+    const at = parseTime(setAt);
+    if (at === null || (setBy !== null && typeof setBy !== "string")) return null;
+    return { name, set: { at, byEmail: setBy } };
+  });
+}
+
 /** Each provider's key state, OpenRouter's first. */
 export async function readProviderKeys(): Promise<AdminRead<ProviderKey[]>> {
   return parsed(await call("admin_provider_keys"), (row) => {

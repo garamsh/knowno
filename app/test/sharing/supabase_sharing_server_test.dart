@@ -62,6 +62,106 @@ SupabaseSharingServer _publishing(
 );
 
 void main() {
+  test('a report sends its reason by name, sexual as its own', () async {
+    for (final reason in [ReportReason.sexual, ReportReason.spam]) {
+      final sent = <http.Request>[];
+      final server = SupabaseSharingServer(
+        _clientAnswering(sent, (_) => http.Response('', 201)),
+      );
+
+      expect(await server.report(_deckId, reason), ReportOutcome.reported);
+
+      expect(jsonDecode(sent.single.body), {
+        'deck_id': _deckId.value,
+        'reason': reason.name,
+      });
+    }
+  });
+
+  group("the owner's view of an AI action", () {
+    Future<AiHidden?> read(Object state) {
+      final sent = <http.Request>[];
+      return SupabaseSharingServer(
+        _clientAnswering(sent, (_) => _json(state, 200)),
+      ).aiHidden(_deckId);
+    }
+
+    test('reads the category it knows and the appeal from the flags', () async {
+      final spam = await read({
+        'hidden_by_ai': true,
+        'appealed': false,
+        'resolved': false,
+        'category': 'spam',
+      });
+      expect(spam?.category, TriageCategory.spam);
+      expect(spam?.appeal, AppealState.open);
+      final pending = await read({
+        'hidden_by_ai': true,
+        'appealed': true,
+        'resolved': false,
+        'category': 'ad',
+      });
+      expect(pending?.category, TriageCategory.ad);
+      expect(pending?.appeal, AppealState.pending);
+      final upheld = await read({
+        'hidden_by_ai': true,
+        'appealed': true,
+        'resolved': true,
+      });
+      expect(upheld?.appeal, AppealState.upheld);
+    });
+
+    test('has no category when the key is absent, null or unknown', () async {
+      const flags = {
+        'hidden_by_ai': true,
+        'appealed': false,
+        'resolved': false,
+      };
+      for (final state in [
+        flags,
+        {...flags, 'category': null},
+        {...flags, 'category': 'severe'},
+      ]) {
+        final hidden = await read(state);
+        expect(hidden, isNotNull);
+        expect(hidden?.category, isNull);
+      }
+    });
+
+    test('is none when no AI action hides the note', () async {
+      expect(
+        await read({
+          'hidden_by_ai': false,
+          'appealed': false,
+          'resolved': false,
+        }),
+        isNull,
+      );
+    });
+  });
+
+  test('an appeal sends the deck and reads each answer', () async {
+    for (final (answer, outcome) in [
+      ('appealed', AppealOutcome.appealed),
+      ('already', AppealOutcome.already),
+      ('not_hidden_by_ai', AppealOutcome.notHiddenByAi),
+    ]) {
+      final sent = <http.Request>[];
+      final server = SupabaseSharingServer(
+        _clientAnswering(sent, (_) => _json(answer, 200)),
+      );
+
+      expect(await server.appeal(_deckId), outcome);
+
+      expect(sent.single.url.path, endsWith('/rpc/appeal_ai_hidden_note'));
+      expect(jsonDecode(sent.single.body), {'deck_id': _deckId.value});
+    }
+    final server = SupabaseSharingServer(
+      _clientAnswering([], (_) => _json('later', 200)),
+    );
+    await expectLater(server.appeal(_deckId), throwsA(isA<SharingFailed>()));
+  });
+
   test('a publish sends every time in UTC, truncated to the millisecond, '
       'and no visibility, then asks publish-note', () async {
     final sent = <http.Request>[];

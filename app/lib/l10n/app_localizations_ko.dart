@@ -1101,10 +1101,32 @@ class AppLocalizationsKo extends AppLocalizations {
   String get reportOther => '기타';
 
   @override
+  String get reportSexual => '미성년자·성적인 내용';
+
+  @override
   String get reported => '신고했어요. 검토할게요.';
 
   @override
   String get alreadyReported => '이미 신고한 노트예요.';
+
+  @override
+  String aiHiddenWhy(String category) {
+    String _temp0 = intl.Intl.selectLogic(category, {
+      'spam': '신고가 들어와 AI가 이 노트를 스팸으로 보고 숨겼어요',
+      'ad': '신고가 들어와 AI가 이 노트를 광고로 보고 숨겼어요',
+      'other': '신고가 들어와 AI가 이 노트를 숨겼어요',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get aiHiddenAppeal => '사람에게 다시 확인 요청';
+
+  @override
+  String get aiHiddenPending => '사람이 확인하고 있어요';
+
+  @override
+  String get aiHiddenUpheld => '사람이 확인했고 노트는 계속 숨겨져요';
 
   @override
   String blockTitle(String name) {
@@ -2146,4 +2168,122 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get pasteImageFailed => '붙여넣은 사진을 가져오지 못했어요';
+
+  @override
+  String get planTitle => '내 플랜';
+
+  @override
+  String get planFree => '무료';
+
+  @override
+  String get planPlus => '플러스';
+
+  @override
+  String get planPro => '프로';
+
+  @override
+  String planPhotosUsed(int used, int limit) {
+    return '사진 $used/$limit장 사용';
+  }
+
+  @override
+  String get planNoLimit => '제한 없이 쓸 수 있어요';
+
+  @override
+  String planRenews(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMd(localeName);
+    final String dateString = dateDateFormat.format(date);
+
+    return '다음 갱신 $dateString';
+  }
+
+  @override
+  String get planLearnPlus => '플러스 알아보기';
+
+  @override
+  String get planManage => '구독 관리';
+
+  @override
+  String get planRestore => '구매 복원';
+
+  @override
+  String get planRestoring => '구매 복원 중';
+
+  @override
+  String get planRestored => '구매를 복원했어요';
+
+  @override
+  String get planRestoreFailed => '구매를 복원하지 못했어요. 다시 시도해 주세요.';
+
+  @override
+  String get planLoadFailed => '플랜을 불러오지 못했어요. 눌러서 다시 시도해요.';
+
+  @override
+  String get plusSheetTitle => '플러스';
+
+  @override
+  String get plusSheetBody => '사진으로 더 많은 카드를 만들고, AI 연결을 쓸 수 있어요.';
+
+  @override
+  String plusPricePerWeek(String price) {
+    return '주 $price';
+  }
+
+  @override
+  String plusPricePerMonth(String price) {
+    return '월 $price';
+  }
+
+  @override
+  String plusPricePerYear(String price) {
+    return '연 $price';
+  }
+
+  @override
+  String get plusAutoRenew =>
+      '구독은 취소하기 전까지 매 기간 자동으로 갱신돼요. 스토어의 구독 설정에서 언제든 취소할 수 있어요.';
+
+  @override
+  String get plusSheetStart => '플러스 시작하기';
+
+  @override
+  String get plusNotReady => '구매는 아직 준비 중이에요. 조금만 기다려 주세요.';
+
+  @override
+  String get plusUnavailable => '지금은 구매할 수 없어요. 잠시 후 다시 시도해 주세요.';
+
+  @override
+  String get plusPending => '결제 승인을 기다리고 있어요. 끝나면 플랜이 바뀌어요.';
+
+  @override
+  String get plusFailed => '결제하지 못했어요. 다시 시도해 주세요.';
+
+  @override
+  String get plusStarted => '플러스를 시작했어요';
+
+  @override
+  String get plusStartedSlow => '결제가 끝났어요. 플랜에 반영되는 데 잠시 걸릴 수 있어요.';
+
+  @override
+  String get aiSection => 'AI 연결';
+
+  @override
+  String get aiServerAddress => '서버 주소';
+
+  @override
+  String get aiServerCopied => '서버 주소를 복사했어요';
+
+  @override
+  String get aiLocked => '플러스에서 쓸 수 있어요';
+
+  @override
+  String get aiClaudeHow => '커넥터 설정에서 커스텀 커넥터를 추가하고 서버 주소를 넣은 뒤 알아몰라로 로그인해요';
+
+  @override
+  String get aiChatGptHow =>
+      'chatgpt.com/plugins에서 커스텀 MCP 서버를 추가하고 서버 주소를 넣은 뒤 알아몰라로 로그인해요';
+
+  @override
+  String get aiNote =>
+      '연결한 AI는 노트와 카드를 읽고, 추가하고, 고치고, 지울 수 있어요. 연결할 수 있는 AI의 수와 기능은 각 서비스의 요금제에 따라 달라요.';
 }

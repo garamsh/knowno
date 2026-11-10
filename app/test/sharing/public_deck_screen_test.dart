@@ -332,6 +332,24 @@ void main() {
     await app.close();
   });
 
+  for (final (label, reason) in [
+    ('Minors or sexual content', ReportReason.sexual),
+    ('Spam', ReportReason.spam),
+  ]) {
+    testWidgets('the report choice "$label" is sent as $reason', (
+      tester,
+    ) async {
+      final app = await _openSpanish(tester);
+
+      await app.deckMenu('Report note');
+      await app.tapText(label);
+      await app.tap(widgetWithShownText(FilledButton, 'Report'));
+
+      expect(app.server.reports, [(_spanish.id, reason)]);
+      await app.close();
+    });
+  }
+
   testWidgets(
     "blocking the owner returns to browse without the owner's decks",
     (tester) async {

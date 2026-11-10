@@ -9,8 +9,8 @@ import { Section } from "@/design/section";
 import { type Fact, Facts } from "./admin-section";
 
 /**
- * A user's plan now, the provider serving it with its model under it, the grant behind it and the
- * next renewal, ended by [children], the rows that change it (`user-view.tsx`).
+ * A user's plan now, the provider serving it with its model under it, the admin's grant behind it
+ * (a store grant is not in this read; the log shows it) and the next renewal, ended by [children], the rows that change it (`user-view.tsx`).
  */
 export function UserPlan({
   plan,
@@ -49,6 +49,7 @@ export function UserPlan({
             `${planLabels[grant.plan] ?? grant.plan} 지정`,
             `${formatTime(grant.grantedAt, timeZone)}${grant.grantedByEmail === null ? "" : ` · ${grant.grantedByEmail}`}`,
           ] as const,
+          ["지정한 곳", "관리자"] as const,
           ...(grant.endsAt === null
             ? []
             : [

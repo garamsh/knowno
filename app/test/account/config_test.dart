@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:knowno/account/src/config.dart';
+import 'package:knowno/account/src/purchase_store.dart';
+import 'package:knowno/account/src/revenuecat_store.dart';
 
 void main() {
   const valid = {
@@ -71,5 +74,48 @@ void main() {
             .map((key, value) => MapEntry(key, value is String ? value : ''));
 
     expect(problemsOf(values), isEmpty);
+  });
+
+  test('the committed dev configuration holds both RevenueCat keys, empty', () {
+    final values = jsonDecode(
+      File('config/dev.json').readAsStringSync(),
+    ) as Map<String, Object?>;
+
+    expect(values[AccountConfigKey.revenueCatAppleKey], '');
+    expect(values[AccountConfigKey.revenueCatGoogleKey], '');
+  });
+
+  group('the store a build buys through', () {
+    const keys = {
+      AccountConfigKey.revenueCatAppleKey: 'appl_key',
+      AccountConfigKey.revenueCatGoogleKey: 'goog_key',
+    };
+
+    test('is RevenueCat with the key of the platform when one is set', () {
+      for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
+        final store = connectPurchases(keys, platform: platform);
+
+        expect(store, isA<RevenueCatPurchaseStore>(), reason: '$platform');
+        expect(store.ready, isTrue);
+      }
+    });
+
+    test('sells nothing without the key of the platform', () {
+      for (final (defines, platform) in [
+        (const <String, String>{}, TargetPlatform.iOS),
+        (const {AccountConfigKey.revenueCatAppleKey: ' '}, TargetPlatform.iOS),
+        (const {AccountConfigKey.revenueCatAppleKey: ''}, TargetPlatform.iOS),
+        (
+          const {AccountConfigKey.revenueCatAppleKey: 'appl_key'},
+          TargetPlatform.android,
+        ),
+        (keys, TargetPlatform.linux),
+      ]) {
+        final store = connectPurchases(defines, platform: platform);
+
+        expect(store, isA<UnavailablePurchaseStore>(), reason: '$platform');
+        expect(store.ready, isFalse);
+      }
+    });
   });
 }

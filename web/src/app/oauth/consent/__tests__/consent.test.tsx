@@ -11,6 +11,8 @@ import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 import { typeSizesOf } from "@/testing/type-sizes";
 
+import { myPlan, planRow } from "@/testing/mocks/my-plan";
+
 import { Consent } from "../_components/consent";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
@@ -128,6 +130,42 @@ describe("the consent page", () => {
     expect(approveAuthorization).toHaveBeenCalledWith(pending, { skipBrowserRedirect: true });
     expect(denyAuthorization).not.toHaveBeenCalled();
     expect(assign).toHaveBeenCalledWith(back);
+  });
+
+  it("shows MCP locked on 무료, with only 취소, and grants nothing even if 연결 is pressed", async () => {
+    server.use(myPlan(planRow("free")));
+    await open(pending);
+
+    expect(screen.getByText(/AI 연결은 플러스부터 쓸 수 있어요/)).toBeVisible();
+    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual(["취소"]);
+    expect(screen.queryByRole("button", { name: "연결" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(approveAuthorization).not.toHaveBeenCalled();
+  });
+
+  it("refuses a 무료 user's 취소 through Supabase Auth", async () => {
+    const refused = "https://claude.ai/api/mcp/auth_callback?error=access_denied";
+    denyAuthorization.mockResolvedValue({ data: { redirect_url: refused }, error: null });
+    server.use(myPlan(planRow("free")));
+    await open(pending);
+
+    await userEvent.click(screen.getByRole("button", { name: "취소" }));
+
+    expect(denyAuthorization).toHaveBeenCalledWith(pending, { skipBrowserRedirect: true });
+    expect(approveAuthorization).not.toHaveBeenCalled();
+  });
+
+  it("offers 연결 as before to a paid user, a 무제한 user and an admin", async () => {
+    for (const kind of ["plus-store", "unlimited", "admin"] as const) {
+      server.use(myPlan(planRow(kind)));
+      const { unmount } = await open(pending);
+      expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
+        "취소",
+        "연결",
+      ]);
+      expect(screen.queryByText(/AI 연결은 플러스부터/)).not.toBeInTheDocument();
+      unmount();
+    }
   });
 
   it("refuses through Supabase Auth when 취소 is pressed, and grants nothing", async () => {
