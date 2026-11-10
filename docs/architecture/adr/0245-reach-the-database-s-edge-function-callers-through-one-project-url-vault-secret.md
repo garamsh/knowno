@@ -1,6 +1,6 @@
 # ADR 0245: Reach the database's Edge Function callers through one project_url Vault secret and a path each
 
-> Status: accepted
+> Status: accepted; its owner approval before merge superseded by ADR-0246
 > Date: 2026-11-11
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

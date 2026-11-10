@@ -1,6 +1,6 @@
 # ADR 0097: Give each plan versions of its terms with a start, Free 10 a month, Pro 100 a day and Max unlimited to 1,000 a day, each grant taking the latest at its monthly renewal
 
-> Status: accepted; its model on each version and the same-model condition of its favour rule superseded by ADR-0162
+> Status: accepted; its model on each version and the same-model condition of its favour rule superseded by ADR-0162; its change of model as the owner's superseded by ADR-0246
 > Date: 2026-10-26
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
