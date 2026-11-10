@@ -1247,7 +1247,7 @@ describe("the plans page", () => {
       provider: "anthropic",
       model: "claude-sonnet-5",
     };
-    await render(PlansContent, {});
+    await render(PlansContent, { searchParams: Promise.resolve({}) });
     const table = within(screen.getByRole("table", { name: "요금제 목록" }));
     expect(table.getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual([
       "요금제",
@@ -1407,7 +1407,7 @@ describe("the plans page", () => {
       ),
     ).toEqual({ message: "관리자만 할 수 있어요." });
     expect(admin.planVersions).toHaveLength(versions);
-    await render(PlansContent, {});
+    await render(PlansContent, { searchParams: Promise.resolve({}) });
     expect(screen.getByRole("alert")).toHaveTextContent("관리자만 볼 수 있어요.");
   });
 
@@ -1490,6 +1490,9 @@ describe("스페셜", () => {
     expect(granted.getByText("스페셜 지정", { selector: "dt" }).nextSibling).toHaveTextContent(
       testUser.email,
     );
+    expect(granted.getByText("지정한 곳", { selector: "dt" }).nextSibling).toHaveTextContent(
+      "관리자",
+    );
     expect(granted.getByText("마지막 날", { selector: "dt" }).nextSibling).toHaveTextContent(ends);
     const account = within(screen.getAllByRole("region", { name: "계정" }).at(-1) as HTMLElement);
     expect(account.getByText("오늘 사진 추출").nextSibling).toHaveTextContent("4장 / 제한 없음");
@@ -1517,8 +1520,15 @@ describe("스페셜", () => {
     expect(plan.getByText("끝난 날", { selector: "dt" })).toBeInTheDocument();
   });
 
+  it("names no grant's source for a user with no grant", async () => {
+    await render(UserContent, { params: Promise.resolve({ id: otherUser.id }) });
+    const plan = within(screen.getByRole("region", { name: "요금제" }));
+    expect(plan.getByText("지금")).toBeInTheDocument();
+    expect(plan.queryByText("지정한 곳")).not.toBeInTheDocument();
+  });
+
   it("lists 스페셜 on the plans page with no limit and no form for a new version", async () => {
-    await render(PlansContent, {});
+    await render(PlansContent, { searchParams: Promise.resolve({}) });
     const special = screen.getByRole("row", { name: /^스페셜/ });
     // The row carries every cell, so a substring is right.
     expect(special).toHaveTextContent("사진 한도 제한 없음");

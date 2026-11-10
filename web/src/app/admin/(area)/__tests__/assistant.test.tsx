@@ -164,7 +164,9 @@ describe("말랑이's plans", () => {
   it("opens the first plan with a draft, names what it changes, shows its prompt's lines, and starts the form from it", async () => {
     seedDraft();
     await assistant();
-    const panel = within(screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }));
+    const panel = within(
+      screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }),
+    );
     expect(
       panel.getByRole("heading", {
         name: "제공자·모델 그대로 · 프롬프트 v1 → v2 · 웹 검색 메시지당 3회 → 끔 · 추론 없음 → 낮음",
@@ -285,7 +287,9 @@ describe("an assistant draft: saved after the assistant's check, applied to ever
     seedDraft();
     const user = userEvent.setup();
     await assistant();
-    const panel = within(screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }));
+    const panel = within(
+      screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }),
+    );
     await user.click(panel.getByRole("button", { name: "모두에게 적용" }));
     await user.click(panel.getByRole("button", { name: "취소" }));
     expect(admin.calls.some((call) => call.startsWith("admin_activate_assistant"))).toBe(false);
@@ -323,7 +327,10 @@ describe("an assistant draft: saved after the assistant's check, applied to ever
       "말랑이 설정 테스트 끝 · 프로",
       "말랑이 설정 적용 · 플러스",
     ]);
-    expect(log.getByRole("link", { name: "플러스" })).toHaveAttribute("href", "/assistant?plan=pro");
+    expect(log.getByRole("link", { name: "플러스" })).toHaveAttribute(
+      "href",
+      "/assistant?plan=pro",
+    );
   });
 });
 

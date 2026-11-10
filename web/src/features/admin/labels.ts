@@ -45,6 +45,11 @@ export const actionLabels: Record<string, string> = {
   activate_card_form_skill: "카드 형식 스킬 적용",
   clear_card_form_skill_test: "카드 형식 스킬 테스트 끝",
   set_card_markup: "카드 마크업 스위치",
+  set_store_secret: "스토어 비밀값 저장",
+  clear_store_secret: "스토어 비밀값 삭제",
+  store_grant_plan: "스토어 구독 시작",
+  store_change_plan: "스토어 구독 변경",
+  store_end_plan: "스토어 구독 끝",
 };
 
 /** The card forms a skill is written for, in the order the assistant lists them (ADR 0197). */

@@ -162,7 +162,9 @@ describe("AI's plans", () => {
 describe("AI's panel", () => {
   it("opens the first plan with a draft, saying what the draft changes, and its prompt's lines collapsed, in words as well as colour", async () => {
     await ai();
-    const panel = within(screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }));
+    const panel = within(
+      screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }),
+    );
     expect(
       panel.getByRole("heading", { name: "제공자·모델 그대로 · 프롬프트 v1 → v2" }),
     ).toBeInTheDocument();
@@ -209,7 +211,9 @@ describe("AI's panel", () => {
     draft.provider = "anthropic";
     draft.model = "claude-haiku-5-5";
     await ai({ plan: "pro" });
-    const panel = within(screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }));
+    const panel = within(
+      screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }),
+    );
     expect(
       panel.getByRole("heading", {
         name: `제공자 OpenRouter → Anthropic · 모델 ${haiku} → claude-haiku-5-5 · 프롬프트 v1 → v2`,
@@ -349,7 +353,9 @@ describe("AI", () => {
     expect(document.querySelectorAll(".break-all")).toHaveLength(0);
     const table = within(screen.getByRole("table", { name: "요금제별 사용 중인 구성" }));
     for (const model of table.getAllByText(haiku)) expect(model).toHaveClass("inline-block");
-    const panel = within(screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }));
+    const panel = within(
+      screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }),
+    );
     expect(panel.getByText(haiku)).toHaveClass("inline-block");
   });
 });

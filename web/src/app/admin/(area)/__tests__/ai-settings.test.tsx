@@ -249,7 +249,9 @@ describe("a plan's draft: its provider, model and prompt saved after a check, tr
 
     const user = userEvent.setup();
     await ai();
-    const panel = within(screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }));
+    const panel = within(
+      screen.getByRole("region", { name: "플러스 · 초안 (관리자만 테스트 중)" }),
+    );
     expect(
       panel.getByRole("heading", {
         name: "제공자 OpenRouter → Anthropic · 모델 anthropic/claude-haiku-5.5 → claude-haiku-5-5 · 프롬프트 v1 → v2",

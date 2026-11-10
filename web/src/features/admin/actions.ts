@@ -18,6 +18,8 @@ export { clearAiTest } from "./clear-ai-test";
 export { removeProviderKey } from "./remove-provider-key";
 export { saveAiConfiguration } from "./save-ai-configuration";
 export { saveProviderKey } from "./save-provider-key";
+export { clearStoreSecret } from "./clear-store-secret";
+export { saveStoreSecret } from "./save-store-secret";
 export { tryAiConfiguration } from "./try-ai-configuration";
 export { activateAssistantConfiguration } from "./activate-assistant-configuration";
 export { clearAssistantTest } from "./clear-assistant-test";
