@@ -40,6 +40,7 @@ lint-repo:
 	scripts/run.sh check-secrets
 	scripts/run.sh check-ios-client-id
 	scripts/run.sh check-markdown-links
+	scripts/run.sh check-functions-declared
 
 lint-code:
 	scripts/run.sh check-generated
