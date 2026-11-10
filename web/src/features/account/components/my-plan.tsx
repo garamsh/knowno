@@ -29,7 +29,7 @@ export function MyPlan({ plan, timeZone }: { plan: Plan; timeZone: string }) {
         <p className="px-4 py-3 text-body">
           {plan.photoLimit === null
             ? "제한 없이 쓸 수 있어요"
-            : `사진 ${plan.used}/${plan.photoLimit}장 사용`}
+            : `사진 ${String(plan.used)}/${String(plan.photoLimit)}장 사용`}
         </p>
         {store && plan.endsAt !== null && (
           <p className="px-4 py-3 text-body">
