@@ -74,8 +74,6 @@ type Fake = {
   skills: Row[];
   /** Whether `card_form_skills` answers 500. */
   skillsDown: boolean;
-  /** What `card_markup_enabled` answers the caller (ADR 0216). */
-  markup: boolean;
   /** What `assistant_study_record` reads, each row a user's; the bodies it was called with. */
   studyDecks: Row[];
   studyMissed: Row[];
@@ -190,7 +188,6 @@ function seed(): Fake {
       text: SEED[form].text,
     })),
     skillsDown: false,
-    markup: false,
     unreadDecks: 0,
     studyDecks: [],
     studyMissed: [],
@@ -539,10 +536,6 @@ function fakeFetch(fake: Fake): typeof fetch {
       return user !== undefined && fake.admins.has(user)
         ? Response.json(true)
         : Response.json({ code: "42501" }, { status: 403 });
-    }
-    if (rpc === "card_markup_enabled") {
-      assert.equal(headers.get("apikey"), "anon-key");
-      return Response.json(fake.markup);
     }
     if (rpc === "card_form_skills") {
       // Called as the user, as the tools read.
@@ -1147,7 +1140,7 @@ Deno.test("regenerating a group remakes it alone, the other group kept as it was
       group_id: PROPOSAL.groups[1]!.id,
       format: "cloze",
       cards: [{
-        blocks: [{ type: "cloze", text: "I ___ every day", answers: ["run"] }],
+        blocks: [{ type: "cloze", text: "I {{c1::run}} every day" }],
       }],
     }),
     says("빈칸으로 바꿨어요."),
@@ -1173,7 +1166,7 @@ Deno.test("regenerating a group remakes it alone, the other group kept as it was
   assert.equal(remade.groups[1]!.id, PROPOSAL.groups[1]!.id);
   assert.equal(remade.groups[1]!.format, "cloze");
   assert.deepEqual(remade.groups[1]!.cards.map((c) => c.card), [
-    { blocks: [{ type: "cloze", text: "I ___ every day", answers: ["run"] }] },
+    { blocks: [{ type: "cloze", text: "I {{c1::run}} every day" }] },
   ]);
 });
 
@@ -1186,7 +1179,7 @@ const SENSES_CARD = {
   }],
 };
 const CLOZE_CARD = {
-  blocks: [{ type: "cloze", text: "A ___ is a fruit.", answers: ["plum"] }],
+  blocks: [{ type: "cloze", text: "A {{c1::plum}} is a fruit." }],
 };
 
 Deno.test("the system prompt is the configuration's prompt, then the card forms index with every form's summary", async () => {
@@ -1283,7 +1276,7 @@ Deno.test("a mixed group holds only cards that combine forms, and a text block b
   const combined = {
     blocks: [
       ...SENSES_CARD.blocks,
-      { type: "cloze", text: "I ate a ___.", answers: ["pear"] },
+      { type: "cloze", text: "I ate a {{c1::pear}}." },
     ],
   };
   const named = {
@@ -3521,13 +3514,13 @@ Deno.test("a zone Intl knows and Postgres does not is read again in Asia/Seoul, 
   assert.match(answered(seoul.requests[1]!), /did not answer/);
 });
 
-Deno.test("a commit writes a proposed cloze as version 1 while the switch is off and as version 2 while it is on, whichever form the model proposed", async () => {
+Deno.test("a commit writes a proposed cloze as version 2 and a proposed text card as version 3, the marks in it kept", async () => {
   const proposal: Proposal = {
     ...PROPOSAL,
     groups: [{
       id: PROPOSAL.groups[0]!.id,
-      title: "빈칸",
-      format: "cloze",
+      title: "섞어서",
+      format: "text",
       cards: [
         {
           id: "00000000-0000-7000-8000-0000000000c4",
@@ -3538,45 +3531,140 @@ Deno.test("a commit writes a proposed cloze as version 1 while the switch is off
         {
           id: "00000000-0000-7000-8000-0000000000c5",
           card: {
-            blocks: [{
-              type: "cloze",
-              text: "She ___ daily",
-              answers: ["runs"],
-            }],
+            blocks: [{ type: "text", front: "pear", back: "**배**\n- 과일" }],
           },
         },
       ],
     }],
   };
-  const commit = async (markup: boolean) => {
-    const fake = seed();
-    fake.markup = markup;
-    const run = await send(fake, {
-      path: "/assistant/commit",
-      body: {
-        proposal,
-        checked: {
-          [proposal.groups[0]!.id]: proposal.groups[0]!.cards.map((c) => c.id),
-        },
+  const fake = seed();
+  const run = await send(fake, {
+    path: "/assistant/commit",
+    body: {
+      proposal,
+      checked: {
+        [proposal.groups[0]!.id]: proposal.groups[0]!.cards.map((c) => c.id),
       },
-    });
-    assert.equal(run.status, 200);
-    return fake.cards.filter((c) => c.deck_id === ADA_DECK).flatMap((c) =>
-      (c.front as Row[]).map(({ type, v, payload }) => ({ type, v, payload }))
-    ).filter(({ type }) => type === "cloze");
-  };
-  assert.deepEqual(await commit(false), [
-    { type: "cloze", v: 1, payload: { text: "I ___ daily", answers: ["run"] } },
+    },
+  });
+  assert.equal(run.status, 200);
+  const stored = fake.cards.filter((c) => c.deck_id === ADA_DECK).flatMap((c) =>
+    (c.front as Row[]).map(({ type, v, payload }) => ({ type, v, payload }))
+  ).filter(({ payload }) => (payload as Row).front !== "apple");
+  assert.deepEqual(stored, [
+    { type: "cloze", v: 2, payload: { text: "I {{c1::run}} daily" } },
     {
-      type: "cloze",
-      v: 1,
-      payload: { text: "She ___ daily", answers: ["runs"] },
+      type: "text",
+      v: 3,
+      payload: { front: "pear", back: "**배**\n- 과일" },
     },
   ]);
-  assert.deepEqual(await commit(true), [
-    { type: "cloze", v: 2, payload: { text: "I {{c1::run}} daily" } },
-    { type: "cloze", v: 2, payload: { text: "She {{c1::runs}} daily" } },
-  ]);
+});
+
+/** What a model's reply holds: a mark, a list and an Anki cloze, each in the form the markup stores. */
+const MARKED = {
+  note: "**광합성**\n- 빛\n- 물",
+  cloze: "물은 {{c1::수소}}와 {{c2::산소}}로 이뤄져요.",
+};
+
+/** The blocks of every card [fake] holds beyond those [before] names. */
+const writtenBlocks = (fake: Fake, before: ReadonlySet<unknown>) =>
+  fake.cards.filter((c) => !before.has(c.id)).flatMap((c) =>
+    (c.front as Row[]).map(({ type, v, payload }) => ({ type, v, payload }))
+  );
+
+/** Commits [proposal] as the app's 만들기 does, every card checked. */
+async function commitAll(fake: Fake, proposal: Proposal) {
+  const run = await send(fake, {
+    path: "/assistant/commit",
+    body: {
+      proposal,
+      checked: Object.fromEntries(
+        proposal.groups.map((g) => [g.id, g.cards.map((c) => c.id)]),
+      ),
+    },
+  });
+  assert.equal(run.status, 200);
+}
+
+const MARKED_PROPOSAL = () =>
+  calls_("propose_deck", {
+    name: "광합성",
+    groups: [
+      {
+        title: "개념",
+        format: "text",
+        cards: [{
+          blocks: [{
+            type: "text",
+            front: "식물의 양분 만들기",
+            back: MARKED.note,
+          }],
+        }],
+      },
+      {
+        title: "빈칸",
+        format: "cloze",
+        cards: [{ blocks: [{ type: "cloze", text: MARKED.cloze }] }],
+      },
+    ],
+  });
+
+Deno.test("a chat reply holding a mark, a list and an Anki cloze is proposed and, committed, stored as text version 3 and cloze version 2", async () => {
+  const fake = seed();
+  const before = new Set(fake.cards.map((c) => c.id));
+  fake.replies.push(MARKED_PROPOSAL(), says("만들었어요."));
+  const run = await send(fake);
+  const proposal = run.events.find((e) => e.event === "proposal")!
+    .data as unknown as Proposal;
+  await commitAll(fake, proposal);
+  assert.deepEqual(
+    writtenBlocks(fake, before).sort((a, b) =>
+      String(a.type).localeCompare(String(b.type))
+    ),
+    [
+      { type: "cloze", v: 2, payload: { text: MARKED.cloze } },
+      {
+        type: "text",
+        v: 3,
+        payload: { front: "식물의 양분 만들기", back: MARKED.note },
+      },
+    ],
+  );
+});
+
+Deno.test("a photo job's reading holding a mark, a list and an Anki cloze reaches the chat whole and the cards made from it are stored as text version 3 and cloze version 2", async () => {
+  const fake = seed();
+  const before = new Set(fake.cards.map((c) => c.id));
+  const id = jobOf(fake, ADA, [photoOf(1)]);
+  const reading = `# 광합성\n${MARKED.note}\n${MARKED.cloze}`;
+  fake.replies.push(() => says(reading)());
+  await runWorker(fake);
+  assert.equal(fake.jobs.get(id)!.photos[0]!.reading, reading);
+  fake.replies.push(
+    calls_("read_photo_job", { job_id: id }),
+    MARKED_PROPOSAL(),
+    says("만들었어요."),
+  );
+  const run = await send(fake);
+  const read = JSON.parse(String(input(fake.requests.at(-2)!).at(-1)!.output));
+  assert.equal(read.readings[0].text, reading);
+  const proposal = run.events.find((e) => e.event === "proposal")!
+    .data as unknown as Proposal;
+  await commitAll(fake, proposal);
+  assert.deepEqual(
+    writtenBlocks(fake, before).sort((a, b) =>
+      String(a.type).localeCompare(String(b.type))
+    ),
+    [
+      { type: "cloze", v: 2, payload: { text: MARKED.cloze } },
+      {
+        type: "text",
+        v: 3,
+        payload: { front: "식물의 양분 만들기", back: MARKED.note },
+      },
+    ],
+  );
 });
 
 const THREE_KINGDOMS = {

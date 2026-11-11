@@ -1,6 +1,6 @@
 # Server data migrations
 
-The data migrations of stored rows that reach production with the schema: of vocabulary backs to senses blocks, of the plans to versions, of 무제한 grants to 스페셜, of the prompt labels into each plan's AI configuration and of every card's template and frame, each with its backup and revert.
+The data migrations of stored rows that reach production with the schema: of vocabulary backs to senses blocks, of the plans to versions, of 무제한 grants to 스페셜, of the prompt labels into each plan's AI configuration and of every card's template and frame and of the card text to the markup, each with its backup and revert.
 
 ## Current decisions
 
@@ -105,8 +105,24 @@ The data migrations of stored rows that reach production with the schema: of voc
   - Each takes a new revision and keeps `card_key` and `updated_at`. A tombstone stays, and so does a card a build has since written outside the frame.
 - Every function revokes `execute` from `public`, `anon` and `authenticated`, and runs as `security invoker`: only the migration and the PM call them.
 
+### Card markup migration
+
+- Migration `20261112120000_card_markup_only.sql` converts every stored `text` block below version 3 and `cloze` block below version 2, in live cards and tombstones, in `front` and `back` ([ADR 0254](adr/0254-write-only-the-card-text-markup-and-anki-cloze-everywhere-convert-stored-cards-and-remove-the-switch.md)). Production held, on 2026-11-12, live `text` v2 417, `cloze` v1 12 and `cloze` with no version 3, and tombstones `text` with no version 280, v1 3 and v2 111, `cloze` v1 236 and with no version 1.
+- **Migration.** `private.migrate_card_markup()` converts, and the migration calls it once, holding `public.cards` in `share row exclusive` mode from before it reads a row until commit, as the frame migration does.
+  - A `text` block of `{front, back}`, version 2 or with none, becomes version 3 with each string through `private.markup_escape`, the escape of [ADR 0208](adr/0208-escape-card-text-with-a-backslash-keep-its-lines-and-store-the-markup-as-text-version-3.md): a backslash before `\ * _ ` { } :`, one before a line's `-` or digits and a point, newlines normalised. It reads back as exactly the text it replaced.
+  - A `text` block of `{text}`, version 1, is converted on a tombstone, the text as `front` on the front and as `back` on the back; on a live card it is left, since the template that reads it reads that shape. The notice names how many were left.
+  - A `cloze` block below version 2 becomes version 2 through `private.cloze_from_v1`, which is `cloze_from_v1` of the engine: blank k becomes `{{ck::answer}}`, each run through the escape. One whose blanks and answers differ in number, or with an empty answer, is left, as the engine refuses it, and counted.
+  - Card ids, `card_key`, notes and study history are unchanged. A converted row's `updated_at` moves to now, or one millisecond past its own when a device wrote it later.
+  - A second run converts nothing.
+- **Backups.** Each row changed is copied first into `private.card_markup_backup`: `card_id`, `user_id`, `front`, `back`, `updated_at`, the `front` and `back` it was given as `written_front` and `written_back`, and `migrated_at`. It enables row-level security with no policy and grants nothing to a client role; a row goes with its card's delete, so with its account. A later migration drops it once the owner closes the window.
+- **How it reaches devices.** The update draws a new `revision` through the trigger, so every device pulls the card and reads it as `text` version 3 or `cloze` version 2. The screening triggers ignore it, since it runs as no client role. `private.note_content_hash` of a deck changes with its converted cards, so a public deck's content hash is new. A phone build that predates the markup shows such a card as unsupported ([`deck.md`](deck.md)).
+- **Tests.** `supabase/tests/card_markup_only_test.sql` holds the SQL conversion to the markup fixtures of `engine/tests/fixtures/markup/`, `escape.json` and `v1.json`, embedded in the file, since the pgTAP runner passes no file to a test; `supabase/functions/_shared/markup_only_fixtures_test.ts` fails when the embedded copy differs from those files. It also runs the conversion over every card shape above, the backup, a second run, the revert and the removal of the switch.
+- **Revert.** `select private.revert_card_markup_only();` and then `drop function private.revert_card_markup_only();`, run once by the PM against production, returns how many cards it changed. A card still as the migration wrote it takes back its `front`, `back` and `updated_at`, with a new revision; a card edited since, and a card with no backup, stays. The `assistant`, `mcp` and `extract-cards` bundles go back with it. The switch and the skills' labels are not reverted, and the migration says why: the switch was off and never set, and skill versions are append-only. A card written as version 3 or 2 after the migration reads as unsupported on a build that predates the markup.
+- Every function revokes `execute` from `public`, `anon` and `authenticated` and runs as `security invoker`.
+
 ## Rationale
 
+- [ADR 0254](adr/0254-write-only-the-card-text-markup-and-anki-cloze-everywhere-convert-stored-cards-and-remove-the-switch.md) records why every stored card is converted to the markup, why a live version 1 text is left, and why the switch and the skills' labels have no revert.
 - [ADR 0137](adr/0137-frame-a-card-by-its-blocks-each-block-type-deciding-whether-it-has-a-front-and-a-back.md) and [ADR 0140](adr/0140-keep-every-back-that-differs-from-the-filled-text-show-a-back-blank-beside-a-front-blank-after-the-answer-and-keep-a-front-word-s-meanings-first.md) record the card frame's rule, its migration, its backup and its revert.
 - [ADR 0114](adr/0114-write-every-card-as-a-free-block-list-remove-the-flip-cloze-and-table-forms-and-migrate-every-card-to-free.md) records why every card's template became `free`, why its content and `updated_at` were kept, and how the migration meets each device's own schema step through sync.
 

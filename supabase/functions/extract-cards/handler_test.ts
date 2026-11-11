@@ -486,7 +486,8 @@ Deno.test("a table card and a cloze card are answered with their table and blank
     }, {
       ...twoCards[2],
       type: "cloze",
-      front: "3인칭 재귀칭: 높임 당신 · 예사 ___ · 낮춤 ___",
+      front:
+        "3인칭 재귀칭: 높임 당신 · 예사 {{c1::자기, 자신}} · 낮춤 {{c2::저, 저희}}",
       answer: null,
       examples: [],
       cloze: { answers: ["자기, 자신", "저, 저희"] },
@@ -503,11 +504,46 @@ Deno.test("a table card and a cloze card are answered with their table and blank
   }, {
     kind: "note",
     type: "cloze",
-    front: "3인칭 재귀칭: 높임 당신 · 예사 ___ · 낮춤 ___",
+    front:
+      "3인칭 재귀칭: 높임 당신 · 예사 {{c1::자기, 자신}} · 낮춤 {{c2::저, 저희}}",
     answer: "자기, 자신\n저, 저희",
     topic: "연역과 귀납",
     cloze: { answers: ["자기, 자신", "저, 저희"] },
   }]);
+});
+
+Deno.test("a reply holding a mark, a list and an Anki cloze is answered as written, the contract asks for that form, and a cloze written with ___ is dropped", async () => {
+  const note = {
+    ...twoCards[2],
+    front: "**광합성**",
+    answer: "빛으로 양분을 만든다\n- 빛\n- 물",
+    examples: [],
+  };
+  const cloze = {
+    ...twoCards[2],
+    type: "cloze",
+    front: "물은 {{c1::수소}}와 {{c2::산소}}로 이뤄져요.",
+    answer: null,
+    examples: [],
+    cloze: { answers: ["수소", "산소"] },
+  };
+  const old = {
+    ...cloze,
+    front: "물은 ___와 ___로 이뤄져요.",
+  };
+  const r = await run({ replies: [cardsReply([note, cloze, old])] });
+  assert.equal(r.status, 200);
+  const cards = r.body.cards as Record<string, unknown>[];
+  assert.equal(cards.length, 2);
+  assert.equal(cards[0]!.front, "**광합성**");
+  assert.equal(cards[0]!.answer, "빛으로 양분을 만든다\n- 빛\n- 물");
+  assert.equal(cards[1]!.front, cloze.front);
+  assert.equal(cards[1]!.answer, "수소\n산소");
+  assert.deepEqual(cards[1]!.cloze, { answers: ["수소", "산소"] });
+  // The model was asked for the markup and the Anki cloze, after the served prompt.
+  const sent = JSON.stringify(r.modelCalls[0]);
+  assert.match(sent, /## Card text/);
+  assert.match(sent, /\{\{c1::answer\}\}/);
 });
 
 Deno.test("a reply with a malformed table is invalid output, answered 502 after its retry", async () => {
@@ -546,7 +582,7 @@ Deno.test("a reply whose cards break a rule keeps the valid cards, drops the bro
   const broken = [{ ...twoCards[0], answer: "사과" }, {
     ...twoCards[2],
     type: "cloze",
-    front: "3인칭 재귀칭: ___",
+    front: "3인칭 재귀칭: {{c1::자기}}",
     answer: null,
     examples: [],
     cloze: { answers: ["자기", "저"] },

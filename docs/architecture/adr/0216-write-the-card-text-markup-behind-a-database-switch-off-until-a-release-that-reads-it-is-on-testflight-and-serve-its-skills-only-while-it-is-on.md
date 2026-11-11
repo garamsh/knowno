@@ -1,6 +1,6 @@
 # ADR 0216: Write the card text markup behind a database switch, off until a release that reads it is on TestFlight, and serve its skills only while it is on
 
-> Status: accepted
+> Status: superseded by [ADR 0254](0254-write-only-the-card-text-markup-and-anki-cloze-everywhere-convert-stored-cards-and-remove-the-switch.md)
 > Date: 2026-11-09
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

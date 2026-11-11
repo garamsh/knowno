@@ -6,7 +6,6 @@
 
 import { SupabaseError } from "../_shared/auth.ts";
 import {
-  cardMarkupEnabled,
   DatabaseRefusal,
   type Store,
   studyRecordRows,
@@ -146,7 +145,6 @@ export async function readStudyRecord(
       "No deck of the signed-in user has this id, or it was deleted. Call list_decks for the ids of the user's decks.",
     );
   }
-  const markup = await cardMarkupEnabled(store);
   const missed = rowsAt(record, "missed").map((row) => ({
     ...cardOf({
       id: textAt(row, "id"),
@@ -154,7 +152,7 @@ export async function readStudyRecord(
       back: row.back,
       template: row.template,
       template_version: row.template_version,
-    }, markup),
+    }),
     deck_id: textAt(row, "deck_id"),
     missed: numberAt(row, "misses"),
     answers: numberAt(row, "answers"),

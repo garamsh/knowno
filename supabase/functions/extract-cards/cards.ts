@@ -1,5 +1,11 @@
 /** The candidate cards a model returns, their JSON schema, and the parser that proves them. */
 
+import {
+  clozeNumbers,
+  parseMarkup,
+  unfinishedClozes,
+} from "../_shared/markup.ts";
+
 export const MAX_CARDS = 100;
 export const MAX_FIELD_CHARS = 500;
 export const MAX_ANSWER_CHARS = 1000;
@@ -108,7 +114,7 @@ export type Table = {
   readonly blanks: readonly TableBlank[];
 };
 
-/** A cloze card's blanks: what fills each "___" of its front, in order. */
+/** A cloze card's blanks: what fills each `{{cN::answer}}` of its front, in order. */
 export type Cloze = { readonly answers: readonly string[] };
 
 type NoteFields = SharedCard & { readonly kind: "note" };
@@ -133,7 +139,11 @@ const nullableField = { ...field, type: ["string", "null"] } as const;
 /** A table's header or cell, which may be empty where the page leaves it so. */
 const cell = { type: "string", maxLength: MAX_FIELD_CHARS } as const;
 
-/** How a cloze card's front writes each blank. */
+/**
+ * How the version 1 cloze wrote each blank. The model no longer writes it: a cloze card's front
+ * holds Anki `{{cN::answer}}` spans (ADR 0254). It stays exported for the eval's samples, which
+ * `tools/eval/shapes.ts` still builds in that form.
+ */
 export const CLOZE_BLANK = "___";
 
 /** The keys of a card as the model writes it, in the schema's order. */
@@ -290,11 +300,11 @@ const FIELD_MEANINGS: Readonly<Record<(typeof MODEL_KEYS)[number], string>> = {
   kind:
     `"vocabulary" for an entry of a vocabulary list, glossary, bilingual table or dictionary: a word or phrase to learn and its meanings. "note" for any other point to learn.`,
   type:
-    `what the card asks. "concept": the front names a term, concept, rule or exception, and the answer states it. "cloze": the front is a line or sentence of the material with each part to recall written "${CLOZE_BLANK}", and "cloze" holds what fills each blank. "identify": the front is an example the material gives, with the item to judge in single quotes, and the answer is its category and the reason. "table": a whole table of the material on one card, in "table", with the cells to recall as blanks.`,
+    `what the card asks. "concept": the front names a term, concept, rule or exception, and the answer states it. "cloze": the front is a line or sentence of the material with each part to recall written as an Anki cloze, {{c1::answer}}, the number after c counting from 1 in order, one for each part, and "cloze" holds the answers in that order. "identify": the front is an example the material gives, with the item to judge in single quotes, and the answer is its category and the reason. "table": a whole table of the material on one card, in "table", with the cells to recall as blanks.`,
   front:
-    `what the learner sees first. On a vocabulary card, the word or phrase being learned, exactly as written; on a "concept" note, the name of what it states; on a "cloze" or "identify" card, its line or sentence; on a "table" card, the table's name.`,
+    `what the learner sees first. On a vocabulary card, the word or phrase being learned, exactly as written; on a "concept" note, the name of what it states; on a "cloze" or "identify" card, its line or sentence, a "cloze" card's with its {{c1::answer}} spans; on a "table" card, the table's name. A "concept", "cloze" or "identify" card's front is card text in the markup.`,
   answer:
-    `what the learner recalls on a "concept" or "identify" note: the definition, rule, exception or judgment, in a sentence or a few, in the material's language. Every other card's answer is composed from its "senses", "cloze" or "table", so it is null there.`,
+    `what the learner recalls on a "concept" or "identify" note: the definition, rule, exception or judgment, in a sentence or a few, in the material's language, card text in the markup. Every other card's answer is composed from its "senses", "cloze" or "table", so it is null there.`,
   topic:
     `the name of the section of the material the card comes from: its heading without numbering, or the material's title where it has no headings. Cards of one section share one topic, written the same way.`,
   senses:
@@ -308,7 +318,7 @@ const FIELD_MEANINGS: Readonly<Record<(typeof MODEL_KEYS)[number], string>> = {
   table:
     `a "table" card's table as the material gives it, {"columns": [...], "rows": [[...], ...], "blanks": [{"row": r, "column": c}, ...]}: "columns" its column headers left to right, the top-left corner included; "rows" its rows top to bottom, each its cells left to right, starting with the row's header; "blanks" the cells to recall, counted from 0 within "rows". A header or cell the material leaves empty is "". It is null on every other card.`,
   cloze:
-    `a "cloze" card's blanks, {"answers": [...]}: what fills each "${CLOZE_BLANK}" of its front, in order. It is null on every other card.`,
+    `a "cloze" card's blanks, {"answers": [...]}: what fills each {{cN::answer}} of its front, in order, one answer for each. It is null on every other card.`,
 };
 
 /**
@@ -364,13 +374,20 @@ export const CARD_RULES = {
   cloze_card:
     `A "cloze" card has its "cloze", and its "answer" and "table" are null.`,
   cloze_blanks:
-    `A "cloze" card's front holds exactly one "${CLOZE_BLANK}" for each of its answers.`,
+    `A "cloze" card's front holds exactly one finished {{cN::answer}} span for each of its answers, each number once, and no other {{ in it.`,
   concept_card:
     `A "concept" or "identify" note has its "answer", and its "table" and "cloze" are null.`,
 } as const;
 
 /** A rule of `CARD_RULES`, which a refused card breaks. */
 export type CardRule = keyof typeof CARD_RULES;
+
+/**
+ * What the contract says of the text a card is written in: the markup every card of the app and the
+ * web reads (ADR 0208, ADR 0254), so a card made from the reply is stored as written.
+ */
+export const CARD_TEXT =
+  'The "front" and "answer" of a "concept", "cloze" or "identify" card are card text in this markup: **bold**, *italic*, `code`, and lists whose lines start with "- " or "1. ", each line on its own line. Where the material prints one of the characters \\ * _ ` { } : as itself, write a backslash before it, and before a "-" or a number and a full stop that starts a line and is not a list item. A cloze card hides each part to recall as {{c1::answer}}, then {{c2::answer}}, counting from 1, with a hint after the answer when the material gives one, {{c1::answer::hint}}, and never writes a blank as ___. Every other field is plain text.';
 
 /**
  * The output contract, fixed in the function and sent after whichever prompt version is served,
@@ -385,6 +402,10 @@ export const OUTPUT_CONTRACT = [
   "",
   "Every card has these fields:",
   ...MODEL_KEYS.map((key) => `- "${key}": ${FIELD_MEANINGS[key]}`),
+  "",
+  "## Card text",
+  "",
+  CARD_TEXT,
   "",
   "## Rules",
   "",
@@ -560,11 +581,14 @@ export function parseCard(item: unknown): Card | Refusal {
       return { ...shared, kind, type, answer: composed, table };
     }
     if (type === "cloze") {
-      // A cloze card's answer is what fills its blanks, one for each "___" of its front.
+      // A cloze card's answer is what fills its blanks, one for each {{cN::}} span of its front.
       if (cloze === null || table !== null || answer !== null) {
         return new Refusal("cloze_card");
       }
-      if (front.split(CLOZE_BLANK).length - 1 !== cloze.answers.length) {
+      if (
+        unfinishedClozes(front) > 0 ||
+        clozeNumbers(parseMarkup(front)).length !== cloze.answers.length
+      ) {
         return new Refusal("cloze_blanks");
       }
       const composed = composeClozeAnswer(cloze);

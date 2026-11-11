@@ -1,5 +1,5 @@
 /**
- * Card text markup as the server reads it (ADR 0202, ADR 0208, ADR 0216): a TypeScript reader of
+ * Card text markup as the server reads it (ADR 0202, ADR 0208, ADR 0254): a TypeScript reader of
  * the Markdown subset and Anki's cloze syntax, ported from `engine/src/markup.rs` and held to the
  * fixtures in `engine/tests/fixtures/markup/` by `markup_test.ts`. The document it returns has the
  * fixtures' JSON shape. Every text yields a document, and what the grammar cannot close is literal
@@ -540,68 +540,6 @@ export function clozeFromV1(
     }
   }
   return source;
-}
-
-/** Whether [document] holds only text and line breaks, in paragraphs. */
-function isLiteral(document: Document): boolean {
-  return document.every((block) =>
-    block.type === "paragraph" &&
-    block.content.every((item) =>
-      item.type === "text" || item.type === "lineBreak"
-    )
-  );
-}
-
-/**
- * The literal text [markup] reads as, when it holds no mark, list or cloze and writing that text
- * through [escapeLiteral] reads back as the same document; null when no literal text is the same.
- */
-export function literalOf(markup: string): string | null {
-  const document = parseMarkup(markup);
-  if (!isLiteral(document)) return null;
-  const text = plainText(document);
-  return JSON.stringify(parseMarkup(escapeLiteral(text))) ===
-      JSON.stringify(document)
-    ? text
-    : null;
-}
-
-/**
- * The version 1 form of a cloze text of version 2, when one reads as the same document: its
- * clozes numbered 1 to k in order with no hint, mark or list, holding text alone, and the text
- * with `___` for each. Null when none does, and the text stays version 2.
- */
-export function clozeToV1(
-  source: string,
-): { readonly text: string; readonly answers: string[] } | null {
-  const document = parseMarkup(source);
-  const answers: string[] = [];
-  const parts: string[] = [];
-  for (const block of document) {
-    if (block.type !== "paragraph") return null;
-    let line = "";
-    for (const item of block.content) {
-      if (item.type === "text") line += item.text;
-      else if (item.type === "lineBreak") line += "\n";
-      else if (
-        item.type === "cloze" &&
-        item.number === answers.length + 1 && isLiteral([{
-          type: "paragraph",
-          content: item.answer,
-        }])
-      ) {
-        line += "___";
-        answers.push(plain(item.answer));
-      } else return null;
-    }
-    parts.push(line);
-  }
-  const text = parts.join("\n");
-  const written = clozeFromV1(text, answers);
-  return answers.length > 0 && written !== null &&
-      JSON.stringify(parseMarkup(written)) === JSON.stringify(document)
-    ? { text, answers }
-    : null;
 }
 
 /**

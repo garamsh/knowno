@@ -675,7 +675,7 @@ Deno.test("a notes page naming table and cloze blanks is scored on the blanks it
   }, {
     ...noteCards[0],
     type: "cloze",
-    front: "연역 논증: 전제가 참이면 결론이 ___ 참",
+    front: "연역 논증: 전제가 참이면 결론이 {{c1::반드시}} 참",
     answer: null,
     examples: [],
     cloze: { answers: ["반드시"] },

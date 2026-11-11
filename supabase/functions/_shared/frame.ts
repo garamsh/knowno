@@ -8,9 +8,7 @@
 import { cardKey, isPartOfSpeech, type Label, labelShown } from "./cards.ts";
 import {
   clozeNumbers,
-  escapeLiteral,
   fillCloze as fillMarkup,
-  literalOf,
   parseMarkup,
   plainText as markupPlainText,
 } from "./markup.ts";
@@ -739,14 +737,6 @@ export function searchText(cells: readonly Cell[]): string {
   }).join("\n");
 }
 
-/**
- * A literal text as the markup that reads back as it: itself when the markup reads it unchanged,
- * and otherwise [escapeLiteral]'s, so that a model that sends it back keeps its meaning.
- */
-export function markupOfLiteral(text: string): string {
-  return literalOf(text) === text ? text : escapeLiteral(text);
-}
-
 const senseOut = ({ labels, meaning, examples }: Sense) => ({
   labels: labels.map(labelShown),
   meaning,
@@ -794,21 +784,14 @@ function blockOut(block: Content, side?: CellSide): Record<string, unknown> {
   }
 }
 
-/** [cells] in the union `add_cards` takes, a literal text escaped while [markup] says text is read as markup; a stored photo names its `media` in place of a url. */
+/** [cells] in the union `add_cards` takes, each text as stored; a stored photo names its `media` in place of a url. */
 export function blocksOut(
   cells: readonly Cell[],
-  markup: boolean,
 ): Record<string, unknown>[] {
   return cells.map((cell) => {
     switch (cell.kind) {
       case "text":
-        return cell.markup || !markup
-          ? { type: "text", front: cell.front, back: cell.back }
-          : {
-            type: "text",
-            front: markupOfLiteral(cell.front),
-            back: markupOfLiteral(cell.back),
-          };
+        return { type: "text", front: cell.front, back: cell.back };
       case "word":
         return {
           type: "senses",

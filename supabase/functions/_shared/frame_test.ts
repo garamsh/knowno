@@ -74,7 +74,7 @@ Deno.test("a block of a later version reads as an unknown block, which counts fo
     template_version: 3,
   });
   assert.ok(cells !== null);
-  assert.deepEqual(blocksOut(cells, false), [{
+  assert.deepEqual(blocksOut(cells), [{
     type: "unknown",
     stored_type: "text",
   }]);

@@ -1,11 +1,10 @@
--- The card-form skills (#751, ADR 0197): each form's seeded version active (migration
--- 20261109150000_card_markup_switch.sql adds the markup's two versions, labelled markup, which
--- card_markup_switch_test.sql tests); `card_form_skills`
+-- The card-form skills (#751, ADR 0197): each form's seeded version active, but for `text`, `cloze`
+-- and `mixed`, whose markup versions (#955, ADR 0254) are the active ones; `card_form_skills`
 -- serving a signed-in user the active versions and an admin a form's test version while one is
 -- set; a version saved as the form's test, applied and ended by an admin alone, each write
 -- recorded; versions append-only; no client reaching the tables; the assistant's prompt v2 as each
--- 스페셜's draft beside its unchanged active configuration, and no other plan's; and the revert, which runs before the
--- assistant's and fails after it.
+-- 스페셜's draft beside its unchanged active configuration, and no other plan's; and the revert,
+-- which runs before the assistant's and fails after it.
 begin;
 select plan(32);
 
@@ -44,23 +43,27 @@ end;
 $$;
 grant execute on function pg_temp.served(text) to public;
 
-create function pg_temp.seeded(form text) returns bigint language sql stable as $$
-  select id from private.card_form_skills as s where s.form = seeded.form and s.note = 'seed (#751)';
+-- The version each form is served at the start: the seeded one, or the markup's for `text`,
+-- `cloze` and `mixed`.
+create function pg_temp.starting(form text) returns bigint language sql stable as $$
+  select id from private.card_form_skills as s where s.form = starting.form
+    and s.note = case when starting.form in ('text', 'cloze', 'mixed') then 'markup only (#955)'
+      else 'seed (#751)' end;
 $$;
-grant execute on function pg_temp.seeded(text) to public;
+grant execute on function pg_temp.starting(text) to public;
 
 -- The seed.
 
 select results_eq(
   $$select l.form, l.label, v.note from private.card_form_skill_labels as l
     join private.card_form_skills as v on v.id = l.version_id order by l.form, l.label$$,
-  $$values ('cloze', 'active', 'seed (#751)'), ('cloze', 'markup', 'markup (#763)'),
-    ('image', 'active', 'seed (#751)'), ('mixed', 'active', 'seed (#751)'),
+  $$values ('cloze', 'active', 'markup only (#955)'),
+    ('image', 'active', 'seed (#751)'), ('mixed', 'active', 'markup only (#955)'),
     ('senses', 'active', 'seed (#751)'), ('table', 'active', 'seed (#751)'),
-    ('text', 'active', 'seed (#751)'), ('text', 'markup', 'markup (#763)')$$,
-  'each form has one seeded version, active, the markup''s two versions labelled markup, and none in test');
+    ('text', 'active', 'markup only (#955)')$$,
+  'each form has one version, active, the markup''s for text, cloze and mixed, and none in test or markup');
 select results_eq(
-  $$select form, version_id = pg_temp.seeded(form) from pg_temp.served('b')$$,
+  $$select form, version_id = pg_temp.starting(form) from pg_temp.served('b')$$,
   $$values ('cloze', true), ('image', true), ('mixed', true), ('senses', true), ('table', true),
     ('text', true)$$,
   'a signed-in user is served every form''s active version');
@@ -89,7 +92,7 @@ select throws_ok($$select public.admin_activate_card_form_skill('cloze')$$, '425
 select throws_ok($$select public.admin_clear_card_form_skill_test('cloze')$$, '42501', null,
   'a user ends no test');
 select pg_temp.sign_in('a');
-select is((select count(*) from public.admin_card_form_skills()), 8::bigint,
+select is((select count(*) from public.admin_card_form_skills()), 11::bigint,
   'control: an admin lists every version');
 select is(public.admin_activate_card_form_skill('cloze'), 'no_test',
   'a form without a test version has nothing to apply');
@@ -110,10 +113,10 @@ reset role;
 select results_eq(
   $$select form, summary from pg_temp.served('a') where form in ('cloze', 'table')$$,
   $$values ('cloze', 'Blanks in a sentence.'),
-    ('table', (select summary from private.card_form_skills where id = pg_temp.seeded('table')))$$,
+    ('table', (select summary from private.card_form_skills where id = pg_temp.starting('table')))$$,
   'an admin is served the test version, and the active one of a form without a test');
 select is((select version_id from pg_temp.served('b') where form = 'cloze'),
-  pg_temp.seeded('cloze'), 'a user is still served the active version');
+  pg_temp.starting('cloze'), 'a user is still served the active version');
 select pg_temp.sign_in('a');
 select throws_ok($$select public.admin_save_card_form_skill('flip', 'S.', 'T.', '')$$, '23514',
   null, 'a form that is none is refused');
@@ -141,7 +144,7 @@ select results_eq(
 
 -- Append-only.
 
-select throws_ok($$update private.card_form_skills set text = 'x' where id = pg_temp.seeded('text')$$,
+select throws_ok($$update private.card_form_skills set text = 'x' where id = pg_temp.starting('text')$$,
   '55000', null, 'a version is never changed');
 select lives_ok($$update private.card_form_skills set created_by = null
     where created_by = '00000000-0000-4000-8000-00000000000a'$$,
