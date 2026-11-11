@@ -198,51 +198,52 @@ void main() {
     expect(merged.back, isEmpty);
   });
 
-  test('every block written carries v1 and an id, and keeps its id through an '
-      'edit of its content', () async {
-    final card = await storeSides(
+  test('a card of two sides edited, and one added from two sides in a batch, '
+      'are stored as text v3 in the frame, with no side stored', () async {
+    final sides = await storeSides(
       db,
       repository,
       deck.id,
-      front: [const TextContent('chat')],
-      back: [
-        const SensesContent([CardSense(meaning: 'cat')]),
-        const TextContent('extras'),
-      ],
+      front: const [TextContent('chien')],
+      back: const [TextContent('dog')],
     );
-    final before = await stored(card.id.value);
-    expect(before.front, [
-      {
-        'type': 'text',
-        'v': 1,
-        'id': 'block-0',
-        'payload': {'text': 'chat'},
-      },
-    ]);
-    expect([for (final block in before.back) (block! as Map)['v']], [1, 1]);
-
-    saved(
-      await repository.editCard(
-        card,
-        front: [const TextContent('chatte')],
-        back: [
-          const SensesContent([CardSense(meaning: 'she-cat')]),
-          const TextContent('extras'),
-        ],
-      ),
+    await repository.editCard(
+      sides,
+      front: const [TextContent('chien')],
+      back: const [TextContent('a dog')],
     );
-    final after = await stored(card.id.value);
+    final edited = await stored(sides.id.value);
+    expect((edited.template, edited.templateVersion), ('free', 2));
     expect(
       [
-        for (final block in [...after.front, ...after.back])
-          (block! as Map)['id'],
+        for (final block in edited.front)
+          ((block! as Map)['type'], (block as Map)['v']),
       ],
-      [
-        for (final block in [...before.front, ...before.back])
-          (block! as Map)['id'],
-      ],
-      reason: 'each block keeps its id though its content changed',
+      [('text', 3)],
     );
+    expect(edited.back, isEmpty);
+
+    await repository.addCards(AddToDeck(deck.id), [
+      const IncomingCard(
+        front: [TextContent('lait')],
+        back: [TextContent('milk')],
+        onDuplicate: DuplicateChoice.addNew,
+      ),
+    ]);
+    final row = await stored(
+      (await db.select(db.cards).get())
+          .singleWhere((row) => row.cardKey == 'lait')
+          .id,
+    );
+    expect((row.template, row.templateVersion), ('free', 2));
+    expect(
+      [
+        for (final block in row.front)
+          ((block! as Map)['type'], (block as Map)['v']),
+      ],
+      [('text', 3)],
+    );
+    expect(row.back, isEmpty);
   });
 
   test('a card from before templates is editable and gets the free template, '
@@ -262,8 +263,8 @@ void main() {
 
     saved(await repository.editCard(card, front: card.front, back: card.back));
     final after = await stored('old');
-    expect((after.template, after.templateVersion), ('free', 1));
-    expect((after.front.single! as Map)['v'], 1);
+    expect((after.template, after.templateVersion), ('free', 2));
+    expect((after.front.single! as Map)['v'], 3);
     expect((after.front.single! as Map)['id'], isA<String>());
   });
 
@@ -416,7 +417,7 @@ void main() {
 
   test(
     'a photo-imported card, one from a file and a copied one are stored with '
-    'the free template, the cloze at v2 and the text at v1',
+    'the free template, the cloze at v2 in the frame and no back stored',
     () async {
       for (final source in [
         const FromPhoto(),
@@ -437,13 +438,13 @@ void main() {
         ['import', 'import', 'copy'],
       );
       for (final row in rows) {
-        expect((row.template, row.templateVersion), ('free', 1));
+        expect((row.template, row.templateVersion), ('free', 2));
         expect(
           [
             for (final side in [row.front, row.back])
               for (final block in jsonDecode(side) as List) block['v'],
           ],
-          [2, 1],
+          [2],
         );
       }
     },

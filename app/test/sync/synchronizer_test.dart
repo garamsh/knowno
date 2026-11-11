@@ -671,7 +671,7 @@ void main() {
       );
     });
 
-    test('a card added from a file reaches the server and the other device as a free v1 import', () async {
+    test('a card added from a file reaches the server and the other device as a free v2 import', () async {
       final deck = await a.deck.createDeck('French');
       await a.deck.addCards(AddToDeck(deck.id), source: const FromFile(), [
         const IncomingCard(
@@ -686,7 +686,7 @@ void main() {
       final onServer = server.cards.values.single.row;
       expect(
         (onServer.template, onServer.templateVersion, onServer.source),
-        ('free', 1, 'import'),
+        ('free', 2, 'import'),
       );
       final onB = (await b.deck.listCards(deck.id)).single;
       expect(plainText(onB.front), 'chat');

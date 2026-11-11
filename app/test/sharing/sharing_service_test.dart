@@ -221,9 +221,12 @@ void main() {
       final imported = await sharing.copy(source, const CopyIntoNewDeck());
 
       final [table, text] = await decks.listCards(imported.deck.id);
-      expect(table.front, front);
-      // Control: a text card is copied as its text.
-      expect(text.front, [const TextContent('perro')]);
+      expect(table.front, [
+        const TextContent('Capitals', markup: true),
+        front.last,
+      ]);
+      // A text card is copied in the frame too.
+      expect(text.front, [const TextContent('perro', markup: true)]);
     });
 
     Future<Deck> mine() async {

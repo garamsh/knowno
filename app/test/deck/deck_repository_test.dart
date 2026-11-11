@@ -220,7 +220,7 @@ void main() {
         final cards = await cardsOf(deck.id);
         expect(cards.map((card) => card.front), [
           _shown('chat'),
-          _text('Chien'),
+          _shown('Chien'),
         ]);
       });
     });
@@ -238,8 +238,8 @@ void main() {
       );
 
       final stored = (await cardsOf(deck.id)).single;
-      expect(stored.front, _text('Pomme'));
-      expect(stored.back, _text('apple'));
+      expect(stored.front, _shown('Pomme'));
+      expect(stored.back, _shown('apple'));
       expect(stored.cardKey, CardKey.fromFront('pomme'));
       expect(stored.source, CardSource.manual);
     });
@@ -383,7 +383,7 @@ void main() {
         expect(stored.cardKey, frameKey(cells).value);
         expect((await cardsOf(deck.id)).single.cells, cells);
 
-        // Control: a card of two sides stays at free v1.
+        // A card of two sides is taken into the frame as well.
         final other = await repository.createDeck('Other');
         await repository.addCards(AddToDeck(other.id), [
           const IncomingCard(
@@ -392,7 +392,7 @@ void main() {
             onDuplicate: DuplicateChoice.addNew,
           ),
         ]);
-        expect((await row(other.id)).templateVersion, 1);
+        expect((await row(other.id)).templateVersion, 2);
       });
 
       test('a merged back joins a stored 칸 list as a 글 with a back alone, '

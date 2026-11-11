@@ -67,7 +67,7 @@ void main() {
 
   test('a failed card rolls back the whole import, deck included', () async {
     await db.customStatement(
-      "CREATE TEMP TRIGGER refuse BEFORE INSERT ON cards WHEN NEW.back LIKE '%refused%' "
+      "CREATE TEMP TRIGGER refuse BEFORE INSERT ON cards WHEN NEW.front LIKE '%refused%' "
       "BEGIN SELECT RAISE(ABORT, 'refused'); END",
     );
     // Control: the trigger lets an ordinary import through.

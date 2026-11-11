@@ -461,7 +461,7 @@ void main() {
       );
       expect(added, isA<Card>());
 
-      for (final ((:front, :back), kept) in [
+      for (final ((:front, back: _), kept) in [
         (imported, const <Content>[]),
         (oldEditor, oldEditor.back),
       ]) {
@@ -469,7 +469,11 @@ void main() {
           (card) => plainText([card.front.first]) == plainText([front.first]),
         );
         final card = await stored();
-        expect(card.back, back, reason: 'the setup stores the back asked');
+        expect(
+          card.back,
+          kept,
+          reason: 'the setup: a back equal to the filled text is not stored',
+        );
         await screens.push(
           (deck) =>
               CardEditorScreen(preview: studyPreview, deck: deck, card: card),

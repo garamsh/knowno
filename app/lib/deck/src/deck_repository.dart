@@ -331,6 +331,10 @@ class DeckRepository {
     List<Cell>? cells,
     bool allowDuplicate = false,
   }) {
+    final framed = cells ?? cellsFromSides(front, back);
+    if (framed == null) {
+      throw ArgumentError.value(back, 'back', 'holds a block with no 칸');
+    }
     final key = CardKey.fromFront(plainText(front));
     return _guard(
       () => _db.transaction(() async {
@@ -348,21 +352,11 @@ class DeckRepository {
           _db.cards,
         )..where((row) => row.id.equals(card.id.value))).write(
           CardsCompanion(
-            front: Value(
-              cells == null
-                  ? encodeContent(_withIds(front, card.front))
-                  : encodeCells(cells, newId: _newBlockId),
-            ),
-            back: Value(
-              cells == null
-                  ? encodeContent(_withIds(back, card.back))
-                  : encodeContent(const []),
-            ),
+            front: Value(encodeCells(framed, newId: _newBlockId)),
+            back: Value(encodeContent(const [])),
             cardKey: Value(key.value),
             template: const Value(freeTemplate),
-            templateVersion: Value(
-              cells == null ? cardTemplateVersion : cardFrameVersion,
-            ),
+            templateVersion: const Value(cardFrameVersion),
             updatedAt: Value(now),
             dirty: const Value(true),
           ),
@@ -482,25 +476,26 @@ class DeckRepository {
               final back = await own(card.back);
               final cells = switch (card.cells) {
                 final cells? => await ownCells(cells),
-                null => null,
+                null => cellsFromSides(front, back),
               };
+              if (cells == null) {
+                throw ArgumentError.value(
+                  card.back,
+                  'back',
+                  'holds a block with no 칸',
+                );
+              }
               await _db
                   .into(_db.cards)
                   .insert(
                     CardRow(
                       id: _newId(),
                       deckId: deck.id.value,
-                      front: cells == null
-                          ? encodeContent(_withIds(front, const []))
-                          : encodeCells(cells, newId: _newBlockId),
-                      back: cells == null
-                          ? encodeContent(_withIds(back, const []))
-                          : encodeContent(const []),
+                      front: encodeCells(cells, newId: _newBlockId),
+                      back: encodeContent(const []),
                       cardKey: key.value,
                       template: freeTemplate,
-                      templateVersion: cells == null
-                          ? cardTemplateVersion
-                          : cardFrameVersion,
+                      templateVersion: cardFrameVersion,
                       source: switch (source) {
                         FromPhoto() || FromFile() => CardSource.import.name,
                         FromCopy() => CardSource.copy.name,
@@ -597,31 +592,6 @@ class DeckRepository {
     updatedAt: Value(at),
     dirty: const Value(true),
   );
-
-  /// [blocks] as written: each keeps its id, or takes the id of the next
-  /// block of its kind in [previous] not yet taken, or a new one, so a block
-  /// keeps its id across edits and every block has one once written
-  /// (ADR 0106). A block this build cannot read is kept as it is.
-  List<Content> _withIds(List<Content> blocks, List<Content> previous) {
-    final unused = [
-      for (final block in previous)
-        if (block.id != null && block is! UnsupportedContent) block,
-    ];
-    final taken = {for (final block in blocks) ?block.id};
-    return [
-      for (final block in blocks)
-        switch (block) {
-          UnsupportedContent() || Content(id: _?) => block,
-          _ => withBlockId(block, switch (unused.indexWhere(
-            (old) =>
-                old.runtimeType == block.runtimeType && !taken.contains(old.id),
-          )) {
-            -1 => _newBlockId(),
-            final index => unused.removeAt(index).id!,
-          }),
-        },
-    ];
-  }
 
   /// One lookup on the `(deck_id, card_key)` index.
   Future<Card?> _findByKey(DeckId deckId, CardKey key, {CardId? except}) async {
