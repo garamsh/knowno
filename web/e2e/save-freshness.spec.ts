@@ -64,7 +64,12 @@ async function choose(page: Page, item: string) {
   await page.getByRole("menuitem", { name: item, exact: true }).click();
 }
 
-const text = (id: string, value: string) => ({ type: "text", v: 3, id, payload: { text: value } });
+const text = (id: string, front: string, back = "") => ({
+  type: "text",
+  v: 3,
+  id,
+  payload: { front, back },
+});
 
 /**
  * A fresh user's notes "Kept" and, given [fresh], "Fresh" holding [cards] cards; then 홈 and the
@@ -96,8 +101,8 @@ async function seeded(
       id: randomUUID(),
       deck_id: freshId,
       user_id: userId,
-      front: [text(`f${String(at)}`, `word ${String(at)}`)],
-      back: [text(`b${String(at)}`, "뜻")],
+      front: [text(`f${String(at)}`, `word ${String(at)}`, "뜻")],
+      back: [],
       card_key: `word ${String(at)}`,
       source: "manual",
       template: "free",

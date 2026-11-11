@@ -86,7 +86,7 @@ test("draws 기록, 노트, a note and 설정 in one screen skeleton: the header
           id: randomUUID(),
           deck_id: deckId,
           user_id: userId,
-          front: [{ type: "text", v: 3, id: "f", payload: { text: front } }],
+          front: [{ type: "text", v: 3, id: "f", payload: { front, back: "" } }],
           back: [],
           card_key: front,
           source: "manual",
