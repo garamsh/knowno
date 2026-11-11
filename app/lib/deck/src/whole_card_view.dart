@@ -336,6 +336,8 @@ class WholeCardView extends StatelessWidget {
     final span = markupSpan(
       markupEngine.parse(cloze.text),
       wrap: keepWords,
+      // A box keeps to the word or punctuation it touches (#635).
+      joined: _boxed,
       cloze: (run) => _blank(context, answerText(run), style, hint: run.hint),
     );
     final width = this.width;
@@ -598,8 +600,11 @@ int faceLength(List<Cell> cells) => [
 ].fold(0, (sum, length) => sum + length);
 
 /// [cloze]'s text with each blank a box, as study's cards measure it.
-String boxedText(ClozeContent cloze) =>
-    markupPlain(markupEngine.parse(cloze.text), cloze: (_) => _boxMeasure);
+String boxedText(ClozeContent cloze) => markupPlain(
+  markupEngine.parse(cloze.text),
+  joined: true,
+  cloze: (_) => _boxMeasure,
+);
 
 /// A whole card's 칸 as the current card and the card preview draw them: in
 /// the largest of [cardSteps] from [style] at which its text fits a box
