@@ -1949,7 +1949,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get assistantInviteCards => '오늘 배운 거, 같이 카드로 만들까요?';
 
   @override
-  String get assistantInviteDone => '수고했어요. 얘기 좀 할래요?';
+  String get assistantInviteDone => '오늘도 수고 많았어요!';
 
   @override
   String get assistantInvite => '말랑이와 대화해요';

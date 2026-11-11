@@ -1,6 +1,6 @@
 # ADR 0248: Meet 말랑이 on 홈 alone, offer the chat once a day in a bubble over the mascot and open it naming no note
 
-> Status: accepted
+> Status: accepted; its done-day line superseded by ADR-0249
 > Date: 2026-11-11
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.

@@ -2119,7 +2119,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Want to turn what you learned today into cards?';
 
   @override
-  String get assistantInviteDone => 'Nice work. Want to chat?';
+  String get assistantInviteDone => 'Great work today.';
 
   @override
   String get assistantInvite => 'Let\'s talk with Malangi';

@@ -535,7 +535,7 @@
   "assistantFirstNote": "Make your first note with Malangi",
   "assistantReady": "{count, plural, =1{1 card ready} other{{count} cards ready}}",
   "assistantInviteCards": "Want to turn what you learned today into cards?",
-  "assistantInviteDone": "Nice work. Want to chat?",
+  "assistantInviteDone": "Great work today.",
   "assistantInvite": "Let's talk with Malangi",
   "assistantName": "Malangi",
   "assistantEmpty": "What shall we memorise?",
