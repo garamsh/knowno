@@ -1,7 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
-export const clozeFromV1: (a: number, b: number, c: number, d: number, e: number) => void;
 export const clozeNumbers: (a: number, b: number, c: number) => void;
 export const escapeLiteral: (a: number, b: number, c: number) => void;
 export const fillCloze: (a: number, b: number, c: number) => void;

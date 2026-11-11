@@ -342,15 +342,6 @@ pub fn plain_text(text: &str) -> String {
     engine::parse_markup(text).plain_text()
 }
 
-/// A version 1 cloze block as a text of this syntax, blank k as `{{ck::answer_k}}`, the text
-/// and answers escaped; absent when the blanks and answers differ in number or an answer is
-/// empty or has a line of only whitespace, and the block stays version 1.
-#[wasm_bindgen(js_name = clozeFromV1)]
-pub fn cloze_from_v1(text: &str, answers: Vec<String>) -> Option<String> {
-    let answers: Vec<&str> = answers.iter().map(String::as_str).collect();
-    engine::cloze_from_v1(text, &answers)
-}
-
 /// A text written as markup that reads back as exactly that text, `\r\n` and `\r` as `\n`:
 /// the form every literal run is saved in.
 #[wasm_bindgen(js_name = escapeLiteral)]

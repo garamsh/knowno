@@ -1,35 +1,6 @@
 /* @ts-self-types="./knowno_engine_wasm.d.ts" */
 
 /**
- * A version 1 cloze block as a text of this syntax, blank k as `{{ck::answer_k}}`, the text
- * and answers escaped; absent when the blanks and answers differ in number or an answer is
- * empty or has a line of only whitespace, and the block stays version 1.
- * @param {string} text
- * @param {string[]} answers
- * @returns {string | undefined}
- */
-export function clozeFromV1(text, answers) {
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        const ptr0 = passStringToWasm0(text, wasm.__wbindgen_export, wasm.__wbindgen_export2);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passArrayJsValueToWasm0(answers, wasm.__wbindgen_export);
-        const len1 = WASM_VECTOR_LEN;
-        wasm.clozeFromV1(retptr, ptr0, len0, ptr1, len1);
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        let v3;
-        if (r0 !== 0) {
-            v3 = getStringFromWasm0(r0, r1);
-            wasm.__wbindgen_export4(r0, r1 * 1, 1);
-        }
-        return v3;
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(16);
-    }
-}
-
-/**
  * The cloze numbers a card text holds, ascending, each once.
  * @param {string} text
  * @returns {Uint32Array}

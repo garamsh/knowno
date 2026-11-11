@@ -209,38 +209,6 @@ impl Document {
 }
 
 /// A version 1 cloze block, its text with `___` for each blank and its answers in order, as a
-/// text of this syntax: blank k becomes `{{ck::answer_k}}`, the text and the answers written
-/// through [`escape_literal`] so that they read back as themselves.
-///
-/// `None` when the number of blanks differs from the number of answers, or when an answer is
-/// empty or has a line of only whitespace, which a cloze answer cannot hold: the caller keeps
-/// the version 1 block.
-pub fn cloze_from_v1(text: &str, answers: &[&str]) -> Option<String> {
-    let text = normalize_newlines(text);
-    let parts: Vec<&str> = text.split("___").collect();
-    if parts.len() != answers.len() + 1 {
-        return None;
-    }
-    let mut source = String::new();
-    for (index, part) in parts.iter().enumerate() {
-        source.push_str(&escape(part, index == 0));
-        if let Some(answer) = answers.get(index) {
-            let answer = normalize_newlines(answer);
-            if answer.split('\n').any(|line| line.trim().is_empty()) {
-                return None;
-            }
-            source.push_str(&format!(
-                "{{{{c{}::{}}}}}",
-                index + 1,
-                escape(&answer, false)
-            ));
-        }
-    }
-    Some(source)
-}
-
-/// `text` written as markup that reads back as exactly that text, with `\r\n` and `\r` as `\n`:
-/// each character the syntax gives meaning to is preceded by a backslash, and so is a line's
 /// first `-` or digit run followed by `.`. The parsed result holds no mark, list or cloze.
 pub fn escape_literal(text: &str) -> String {
     escape(&normalize_newlines(text), true)

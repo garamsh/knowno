@@ -3,7 +3,7 @@
 
 use knowno_engine_wasm::Block;
 use knowno_engine_wasm::{
-    cloze_from_v1, cloze_numbers, escape_literal, fill_cloze, hide_cloze, parse_markup, plain_text,
+    cloze_numbers, escape_literal, fill_cloze, hide_cloze, parse_markup, plain_text,
 };
 use serde_json::Value;
 use tsify::Ts;
@@ -14,7 +14,6 @@ const PARSE: &str = include_str!("../../engine/tests/fixtures/markup/parse.json"
 const CLOZE: &str = include_str!("../../engine/tests/fixtures/markup/cloze.json");
 const PLAIN: &str = include_str!("../../engine/tests/fixtures/markup/plain.json");
 const ESCAPE: &str = include_str!("../../engine/tests/fixtures/markup/escape.json");
-const V1: &str = include_str!("../../engine/tests/fixtures/markup/v1.json");
 
 #[wasm_bindgen(inline_js = r#"
 export function stringify(value) {
@@ -90,27 +89,6 @@ fn plain_text_returns_each_fixture_s_card_key_text() {
             case["name"]
         );
     }
-}
-
-#[wasm_bindgen_test]
-fn cloze_from_v1_returns_each_fixture_s_source_or_nothing() {
-    let (mut converted, mut refused) = (0, 0);
-    for case in &cases(V1) {
-        let answers = case["answers"]
-            .as_array()
-            .expect("answers")
-            .iter()
-            .map(|answer| answer.as_str().expect("an answer").to_owned())
-            .collect();
-        let got = cloze_from_v1(&text(case, "text"), answers);
-        assert_eq!(got.as_deref(), case["source"].as_str(), "{}", case["name"]);
-        if got.is_some() {
-            converted += 1;
-        } else {
-            refused += 1;
-        }
-    }
-    assert!(converted >= 20 && refused >= 5);
 }
 
 #[wasm_bindgen_test]
