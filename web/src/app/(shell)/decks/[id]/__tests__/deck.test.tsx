@@ -127,14 +127,16 @@ describe("the deck page", () => {
     expect(screen.queryByRole("navigation", { name: "위치" })).not.toBeInTheDocument();
   });
 
-  it("puts 노트 설정 alone over the name on its own line and the card search, always shown, with no magnifier, leaving 이 노트 학습 the one primary", async () => {
+  it("puts 카드 추가 and 노트 설정 over the name on its own line and the card search, always shown, with no magnifier, leaving 이 노트 학습 the one primary", async () => {
     await open("d-fr");
 
     const header = screen.getByRole("heading", { level: 1, name: "French" }).closest("header");
     const settings = screen.getByRole("button", { name: "노트 설정" });
     expect(settings.closest("header")).toBe(header);
-    // Adding by hand is in its menu (#722), and no button of its own is in the header.
-    expect(screen.queryByRole("button", { name: "카드 추가" })).not.toBeInTheDocument();
+    // "카드 추가" is a button of the header beside it (#925), not an item of its menu.
+    const add = screen.getByRole("button", { name: "카드 추가" });
+    expect(add.closest("header")).toBe(header);
+    expect(add).toHaveClass("bg-brand-tint");
     // The name has its own line under the actions, two lines at most.
     const name = screen.getByRole("heading", { level: 1, name: "French" });
     expect(settings.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -147,12 +149,12 @@ describe("the deck page", () => {
     expect([...document.querySelectorAll(".bg-primary")]).toEqual([studyLink()]);
     const search = screen.getByRole("searchbox", { name: "카드 검색" });
     expect(search.closest("header")).toBeNull();
-    // Control: the header's one button is 노트 설정; there is no magnifier.
+    // Control: the header's buttons are 카드 추가 and 노트 설정; there is no magnifier.
     expect(
       within(header ?? document.body)
         .getAllByRole("button")
         .map((b) => b.getAttribute("aria-label")),
-    ).toEqual(["노트 설정"]);
+    ).toEqual([null, "노트 설정"]);
     expect(screen.queryByRole("button", { name: "카드 검색" })).not.toBeInTheDocument();
   });
 
@@ -174,7 +176,7 @@ describe("the deck page", () => {
         within(screen.getByRole("menu", { name: "노트 설정" }))
           .getAllByRole("menuitem")
           .map((item) => item.textContent),
-      ).toEqual(["직접 추가", "이름 바꾸기", "노트 꾸미기", "노트 공개", ...exported, "노트 삭제"]);
+      ).toEqual(["이름 바꾸기", "노트 꾸미기", "노트 공개", ...exported, "노트 삭제"]);
     }
   });
 
@@ -203,25 +205,18 @@ describe("the deck page", () => {
     ).toEqual(["사진 찍기", "앨범에서 고르기"]);
   });
 
-  it("opens the 카드 추가 sheet from 노트 설정's 직접 추가", async () => {
+  it("opens the 카드 추가 sheet from the header's 카드 추가", async () => {
     await open("d-fr");
     expect(screen.queryByRole("dialog", { name: "카드 추가" })).not.toBeInTheDocument();
     await addByHand();
     expect(screen.getByRole("dialog", { name: "카드 추가" })).toBeInTheDocument();
   });
 
-  it("draws 말랑이 at the edge, which opens the chat from this note, with its one-time hint", async () => {
+  it("draws no 말랑이 at the edge, and no way to a chat from this note", async () => {
     window.localStorage.clear();
-    testRouter.push.mockClear();
-    await open("d-fr");
-    expect(screen.getByText("말랑이를 누르면 언제든 대화할 수 있어요")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "말랑이와 대화하기" }));
-    expect(testRouter.push).toHaveBeenCalledWith(`/assistant?note=${uuidOf("d-fr")}`);
-    // Control: it is the page's alone: a note that cannot be read draws none.
-    cleanup();
-    server.use(supabaseUnreachable);
     await open("d-fr");
     expect(screen.queryByRole("button", { name: "말랑이와 대화하기" })).not.toBeInTheDocument();
+    expect(screen.queryByText("말랑이를 누르면 언제든 대화할 수 있어요")).not.toBeInTheDocument();
   });
 
   it("draws the cards as one group of rows, each whole with its back on the hatch, and names the deck once", async () => {
@@ -310,14 +305,14 @@ describe("the deck page", () => {
     expect(screen.queryByRole("link", { name: /^이 노트 학습/ })).not.toBeInTheDocument();
   });
 
-  it("shows an empty deck as the first run does, with the phone's words, 노트 설정 in the header and no search", async () => {
+  it("shows an empty deck as the first run does, with the phone's words, 카드 추가 and 노트 설정 in the header and no search", async () => {
     postgrest.seed("decks", deckRow("d-empty", "Empty"));
     await open("d-empty");
 
     const empty = screen.getByRole("region", { name: "아직 카드가 없어요" });
-    // Its way to add by hand is 노트 설정's, as on a note with cards.
+    // Its way to add is the header's 카드 추가, as on a note with cards.
     expect(screen.getByRole("button", { name: "노트 설정" }).closest("header")).not.toBeNull();
-    expect(screen.queryByRole("button", { name: "카드 추가" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "카드 추가" }).closest("header")).not.toBeNull();
     expect(screen.queryByRole("searchbox", { name: "카드 검색" })).not.toBeInTheDocument();
     // The sleepy mascot over the words (ADR 0141).
     expect(empty.querySelector('img[src*="knowno-sleepy"]')).not.toBeNull();

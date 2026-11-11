@@ -62,11 +62,10 @@ type Motion = "blink" | "full";
 const blinks = (expression: MascotExpression) => mascotDrawings[expression].includes('class="eye"');
 
 /**
- * What a mascot of [expression] [width] px across does, or null where it holds still; with
- * [breathes] it breathes though it is under 128 across, if it is over 40.
+ * What a mascot of [expression] [width] px across does, or null where it holds still.
  */
-function motionOf(expression: MascotExpression, width: number, breathes: boolean): Motion | null {
-  if (width >= 128 || (breathes && width > 40)) return "full";
+function motionOf(expression: MascotExpression, width: number): Motion | null {
+  if (width >= 128) return "full";
   if (width > 40 && blinks(expression)) return "blink";
   return null;
 }
@@ -74,7 +73,7 @@ function motionOf(expression: MascotExpression, width: number, breathes: boolean
 const reduceMotion = "(prefers-reduced-motion: reduce)";
 
 /** Whether the system asks for reduced motion; the server, knowing nothing, holds still. */
-function useReducedMotion(): boolean {
+export function useReducedMotion(): boolean {
   return useSyncExternalStore(
     (changed) => {
       if (typeof window.matchMedia !== "function") return () => undefined;
@@ -97,23 +96,21 @@ const ahead: { shut: boolean; glance: [number, number] | null } = { shut: false,
  *
  * On screen it moves, drawn inline from the parts `make brand` writes (ADR 0152): at 128 px and
  * more it blinks and breathes, the happy one wobbles and the sleepy one dozes; from 41 to 127 px it
- * only blinks, unless it [breathes], as the character at a screen's edge does at 72 px (#722). At 40 px or less, under reduce motion, off screen, and where its expression has
+ * only blinks. At 40 px or less, under reduce motion, off screen, and where its expression has
  * nothing to move at its size, it is the still image.
  */
 export function Mascot({
   expression,
   className,
-  breathes = false,
 }: {
   expression: MascotExpression;
   className: string;
-  breathes?: boolean;
 }) {
   const reduced = useReducedMotion();
   const [element, setElement] = useState<Element | null>(null);
   const [seen, setSeen] = useState({ onScreen: false, width: 0 });
   const [eyes, setEyes] = useState(ahead);
-  const motion = reduced || !seen.onScreen ? null : motionOf(expression, seen.width, breathes);
+  const motion = reduced || !seen.onScreen ? null : motionOf(expression, seen.width);
 
   // One observer tells whether the mascot is on screen, and how wide it is drawn.
   useEffect(() => {

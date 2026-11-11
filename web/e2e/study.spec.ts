@@ -1428,5 +1428,5 @@ test("creates a deck and a card on mobile, warns on a duplicate and keeps saved 
   await addByHand(page);
   await expect(page.getByLabel("앨범에서 고르기", { exact: true })).toBeAttached();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "노트 설정", exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: "카드 추가", exact: true })).toBeFocused();
 });

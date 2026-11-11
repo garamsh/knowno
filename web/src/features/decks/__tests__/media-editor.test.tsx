@@ -15,6 +15,7 @@ import { render } from "@/testing/render";
 import { signedInCookies } from "@/testing/session";
 
 import { parseCardContent, parseCells } from "../card-content";
+import { AuthoringButton } from "../components/authoring-button";
 import { NoteSettings } from "../components/note-settings";
 import { CardEditor } from "../components/card-editor";
 import { type Card, parseCardId, parseDeckId } from "../library";
@@ -76,7 +77,15 @@ function microphone(getUserMedia: () => Promise<unknown>) {
 
 /** Opens direct entry and adds a 칸 of [name] after its 글 of both sides. */
 async function newCardWith(name: string) {
-  await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+  await render(
+    () => (
+      <>
+        <AuthoringButton deck={deck} />
+        <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />
+      </>
+    ),
+    {},
+  );
   await addByHand();
   await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
   await userEvent.type(screen.getByRole("textbox", { name: "앞면" }), "dog");

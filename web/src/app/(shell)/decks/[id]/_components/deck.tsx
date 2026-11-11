@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 
 import { ScreenSkeleton } from "@/design/screen-skeleton";
-import { EdgeAssistant } from "@/features/assistant";
 import {
+  AuthoringButton,
   CardGrid,
   type LibraryFailure,
   NoteSettings,
@@ -25,9 +25,9 @@ import { readDeck } from "./read-deck";
 
 /**
  * The note [params] names, read on the server, as the final screens draw it (ADR 0150): its name
- * with 노트 설정, whose "직접 추가" opens the 카드 추가 sheet, open on arrival when [searchParams]
- * hold `adding=1`, then the card search, "이 노트 학습 · n장" while it holds a card, and its cards. A note that
- * does not exist, or an id that names none, is not found.
+ * with "+ 카드 추가", open on arrival when [searchParams] hold `adding=1`, and 노트 설정, then the
+ * card search, "이 노트 학습 · n장" while it holds a card, and its cards. A note that does not
+ * exist, or an id that names none, is not found.
  */
 export async function Deck({
   params,
@@ -63,6 +63,7 @@ export async function Deck({
         deck={deck}
         cards={cards}
         mastered={mastered}
+        add={<AuthoringButton deck={deck} adding={adding} />}
         settings={
           <NoteSettings
             deck={deck}
@@ -70,7 +71,6 @@ export async function Deck({
             cards={cards}
             displayName={displayName}
             {...(refusal !== null && { refusal })}
-            adding={adding}
           />
         }
         study={
@@ -80,7 +80,6 @@ export async function Deck({
           />
         }
       />
-      <EdgeAssistant noteId={deck.id} hint />
     </>
   );
 }

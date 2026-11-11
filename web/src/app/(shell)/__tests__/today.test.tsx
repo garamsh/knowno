@@ -475,8 +475,10 @@ describe("홈 and the 노트 page", () => {
     expect(menu.closest("header")).toBe(header);
     expect(menu).toHaveClass("rounded-chip", "bg-surface", "size-tap-target");
     expect(menu.querySelector("svg")).not.toBeNull();
-    // Making a note by hand is its one item, where 새 노트 was a button (#722).
-    expect(screen.queryByRole("button", { name: "새 노트" })).not.toBeInTheDocument();
+    // 새 노트 is a button beside it, on the tonal fill (#925), not a primary one.
+    const add = screen.getByRole("button", { name: "새 노트" });
+    expect(add.closest("header")).toBe(header);
+    expect(add).toHaveClass("bg-brand-tint");
     expect(document.querySelector(".bg-primary")).toBeNull();
     // Control: the selector finds a primary fill where the page draws one, 홈's first run.
     cleanup();
@@ -824,6 +826,36 @@ describe("홈 and the 노트 page", () => {
     window.localStorage.clear();
   });
 
+  it("offers 말랑이's chat over the mascot once a day, its line by 홈's state, inside the link that opens the chat", async () => {
+    window.localStorage.clear();
+    const offered = async (words: string) => {
+      const bubble = await screen.findByText(words, undefined, { timeout: 3000 });
+      expect(bubble.closest("a")).toHaveAttribute("href", "/assistant");
+      expect(bubble).toHaveAttribute("aria-hidden", "true");
+    };
+    // Cards left today: offered to make cards from what was learned.
+    postgrest.seed("decks", deckRow("d-fr", "French"));
+    postgrest.seed("cards", cardRow("c-chat", "d-fr", "chat"));
+    postgrest.seed("card_states", stateRow("c-chat", due));
+    await render(Today, {});
+    await offered("오늘 배운 거, 같이 카드로 만들까요?");
+    cleanup();
+
+    // Control: the day is spent, so the next open of 홈 offers nothing.
+    await render(Today, {});
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    expect(screen.queryByText("오늘 배운 거, 같이 카드로 만들까요?")).not.toBeInTheDocument();
+    cleanup();
+
+    // With no note, the plain line.
+    window.localStorage.clear();
+    postgrest = new FakePostgrest();
+    server.use(...postgrest.handlers);
+    await render(Today, {});
+    await offered("말랑이와 대화해요");
+    window.localStorage.clear();
+  }, 15_000);
+
   it("shows how to start in the sky when the notes hold no card, leading to the one note's 카드 추가 or to the notes", async () => {
     const title = "첫 카드를 만들어 볼까요?";
     postgrest.seed("decks", deckRow("d-fr", "French"));
@@ -918,9 +950,8 @@ describe("홈 and the 노트 page", () => {
       await renderNotes();
       expect({ state, notes: typeSizesOf(document.body) }).toEqual({
         state,
-        // With no note, the title alone: ⋯ and 말랑이 at the edge draw no words, and the
-        // one-time hint waits for a first note.
-        notes: state === "첫 노트를 만들어 볼까요?" ? [28] : [13, 16, 28],
+        // With no note, the title and the "새 노트" button: ⋯ draws no words.
+        notes: state === "첫 노트를 만들어 볼까요?" ? [16, 28] : [13, 16, 28],
       });
       cleanup();
     }

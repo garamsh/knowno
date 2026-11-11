@@ -642,28 +642,8 @@ const progress = (
 
 const photoFile = (name: string) => new File([name], name, { type: "image/png" });
 
-describe("the note a chat opens from", () => {
-  it("names the note once in the thread and sends its id with each message, and none from nowhere", async () => {
-    const { client, requests } = fakeClient([[{ type: "text", delta: "네" }]]);
-    const note = { id: "d1", name: "영단어" };
-    render(<AssistantChat allowance={null} note={note} client={client} />);
-    expect(await screen.findByText("영단어 노트에서")).toBeInTheDocument();
-    // Back from a note opens the chat from the same note again: its line is not said twice.
-    cleanup();
-    render(<AssistantChat allowance={null} note={note} client={client} />);
-    expect(await screen.findAllByText("영단어 노트에서")).toHaveLength(1);
-
-    await say("카드 더 만들어 줘");
-    await screen.findByText("네");
-    expect(requests).toEqual([
-      {
-        messages: [{ role: "user", text: "카드 더 만들어 줘" }],
-        context: { deck_id: "d1", time_zone: browserZone },
-      },
-    ]);
-  });
-
-  it("sends only the time zone when it is opened from nowhere, and says no note's name", async () => {
+describe("what a chat sends", () => {
+  it("sends only the time zone, and says no note's name", async () => {
     const { client, requests } = fakeClient([[{ type: "text", delta: "네" }]]);
     render(<AssistantChat allowance={null} client={client} />);
     await say("안녕");
@@ -672,7 +652,7 @@ describe("the note a chat opens from", () => {
     expect(screen.queryByText(/노트에서$/)).not.toBeInTheDocument();
   });
 
-  it("sends no context when it is opened from nowhere and the browser names no zone", async () => {
+  it("sends no context when the browser names no zone", async () => {
     vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue(
       {} as Intl.ResolvedDateTimeFormatOptions,
     );
@@ -688,10 +668,10 @@ describe("the note a chat opens from", () => {
       timeZone: "Pacific/Auckland",
     } as Intl.ResolvedDateTimeFormatOptions);
     const { client, requests } = fakeClient([[{ type: "text", delta: "네" }]]);
-    render(<AssistantChat allowance={null} note={{ id: "d1", name: "영단어" }} client={client} />);
+    render(<AssistantChat allowance={null} client={client} />);
     await say("안녕");
     await screen.findByText("네");
-    expect(requests[0]?.context).toEqual({ deck_id: "d1", time_zone: "Pacific/Auckland" });
+    expect(requests[0]?.context).toEqual({ time_zone: "Pacific/Auckland" });
   });
 });
 

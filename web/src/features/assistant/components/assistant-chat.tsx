@@ -33,7 +33,6 @@ import {
   checkedCount,
   type Conversation,
   emptyConversation,
-  enteredFrom,
   jobDoneMessage,
   lastMessage,
   loadConversation,
@@ -132,12 +131,9 @@ function faceOf(status: Status, last: Turn | undefined): MascotExpression {
  */
 export function AssistantChat({
   allowance: readAllowance,
-  note = null,
   client = httpAssistantClient,
 }: {
   allowance: Allowance | null;
-  /** The note the chat was opened from, named once in the thread and sent with each message. */
-  note?: { id: string; name: string } | null;
   client?: AssistantClient;
 }) {
   const router = useRouter();
@@ -180,11 +176,6 @@ export function AssistantChat({
 
   // What a poll that outlives a render reads: whether a message is under way.
   const working = useRef(false);
-
-  // Opened from a note, the thread names it once, unless its last line already does.
-  useEffect(() => {
-    if (hydrated && note) update((before) => enteredFrom(before, note, newId()));
-  }, [hydrated, note, update]);
 
   useEffect(() => {
     if (hydrated) storeConversation(conversation);
@@ -231,14 +222,10 @@ export function AssistantChat({
       }
       try {
         const timeZone = browserTimeZone();
-        const context = {
-          ...(note && { deck_id: note.id }),
-          ...(timeZone !== null && { time_zone: timeZone }),
-        };
         result = await client.send(
           {
             messages: requestTurns(turns),
-            ...(Object.keys(context).length > 0 && { context }),
+            ...(timeZone !== null && { context: { time_zone: timeZone } }),
           },
           controller.signal,
         );
@@ -289,7 +276,7 @@ export function AssistantChat({
       change((turn) => ended(turn, controller.signal.aborted ? "stopped" : "model_error"));
     }
     setStatus({ kind: "idle" });
-  }, [client, note, update]);
+  }, [client, update]);
 
   const busy =
     status.kind === "uploading" || status.kind === "streaming" || status.kind === "waiting";

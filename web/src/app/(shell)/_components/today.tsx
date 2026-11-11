@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { ReadyBubble } from "@/features/assistant";
+import { type ChatLine, ChatBubble, ReadyBubble } from "@/features/assistant";
 import { type Deck, type LibraryFailure, ReadFailure, readDeckList } from "@/features/decks";
 import {
   countDay,
@@ -63,6 +63,7 @@ export async function Today() {
       <Home
         initial={initial}
         mascot="thinking"
+        line="other"
         words={<Title>첫 노트를 만들어 볼까요?</Title>}
         actions={
           <Link href="/assistant" className={`${buttonClass("primary", "cta")} w-full`}>
@@ -77,6 +78,7 @@ export async function Today() {
     <Home
       initial={initial}
       mascot="thinking"
+      line="other"
       words={
         <h2 id="hero-title" className="sr-only">
           오늘 할 카드
@@ -96,6 +98,7 @@ export async function Today() {
       <Home
         initial={initial}
         mascot="thinking"
+        line="other"
         words={<Title>첫 카드를 만들어 볼까요?</Title>}
         actions={<AddCards decks={decks} />}
       />
@@ -127,6 +130,7 @@ export async function Today() {
       <Home
         initial={initial}
         mascot="sleepy"
+        line="done"
         words={
           <>
             <Figure>다 했어요</Figure>
@@ -150,6 +154,7 @@ export async function Today() {
     <Home
       initial={initial}
       mascot="thinking"
+      line="cards"
       words={
         count.backlog ? (
           <>
@@ -235,18 +240,21 @@ function Hill() {
 /**
  * 홈's one screen (`home-frame.ts`): the sky, under "알아몰라" and, below 1024 px, the profile
  * button with the account's [initial], holding [words] over the hill, the [mascot] in that
- * expression on its crest, the link to 말랑이's chat with what it has ready beside it; on the
+ * expression on its crest, the link to 말랑이's chat with what it has ready over its head, or the
+ * day's offer of [line]; on the
  * ground [ground], the streak or why the day cannot be read, centred over the [actions].
  */
 function Home({
   initial,
   mascot,
+  line,
   words,
   ground,
   actions,
 }: {
   initial: string | null;
   mascot: MascotExpression;
+  line: ChatLine;
   words: ReactNode;
   ground?: ReactNode;
   actions: ReactNode;
@@ -267,10 +275,14 @@ function Home({
           {/* The mascot is 말랑이, the assistant's entry on 홈 (#722), its bubble over its head. */}
           <Link
             href="/assistant"
-            className="flex flex-col items-center gap-1 rounded-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero"
+            className="relative flex flex-col items-center gap-1 rounded-row focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-hero"
           >
             <span className="sr-only">말랑이와 대화하기</span>
             <ReadyBubble className="rounded-row bg-surface px-3 py-2 text-center text-secondary break-keep text-ink" />
+            <ChatBubble
+              line={line}
+              className="absolute bottom-full left-1/2 mb-1 w-max max-w-64 -translate-x-1/2 rounded-row bg-surface px-3 py-2 text-center text-secondary break-keep text-ink"
+            />
             <Mascot expression={mascot} className={homeMascot} />
           </Link>
         </div>

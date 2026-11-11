@@ -235,23 +235,6 @@ export function readyProposal(conversation: Conversation): ShownProposal | null 
   return last?.ending && proposal && proposal.added === null ? proposal : null;
 }
 
-/**
- * [conversation] opened from [note]: its name said once in the thread, unless the thread's last
- * line already says it (#711).
- */
-export function enteredFrom(
-  conversation: Conversation,
-  note: { id: string; name: string },
-  id: string,
-): Conversation {
-  const last = conversation.turns.at(-1);
-  if (last?.role === "context" && last.deckId === note.id) return conversation;
-  return {
-    ...conversation,
-    turns: [...conversation.turns, { role: "context", id, deckId: note.id, name: note.name }],
-  };
-}
-
 const storageKey = "knowno.assistant";
 
 type Fields = Record<string, unknown>;

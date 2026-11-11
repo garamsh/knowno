@@ -17,12 +17,12 @@ import {
 export type { CommitResult };
 
 /**
- * A message: the turns, oldest first, the last the user's, and its context: the note the chat was
- * opened in and the browser's time zone, each where known.
+ * A message: the turns, oldest first, the last the user's, and its context: the browser's time
+ * zone, where known.
  */
 export type MessageRequest = {
   messages: RequestTurn[];
-  context?: { deck_id?: string; time_zone?: string };
+  context?: { time_zone?: string };
 };
 
 /** A photo made ready to attach: its id, which names its object, and its JPEG. */

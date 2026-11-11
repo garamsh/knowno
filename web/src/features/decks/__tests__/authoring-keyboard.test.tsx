@@ -6,6 +6,7 @@ import { uuidOf } from "@/testing/library";
 import { addByHand } from "@/testing/add-by-hand";
 import { render } from "@/testing/render";
 
+import { AuthoringButton } from "../components/authoring-button";
 import { NoteSettings } from "../components/note-settings";
 import { parseDeckId } from "../library";
 
@@ -45,7 +46,15 @@ const placeOf = (dialog: HTMLElement) => ({
 
 describe("an authoring screen and sheet over an on-screen keyboard", () => {
   it("keep their foot in the part of the page shown, which the keyboard shrinks, as the phone's sit above it", async () => {
-    await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+    await render(
+      () => (
+        <>
+          <AuthoringButton deck={deck} />
+          <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />
+        </>
+      ),
+      {},
+    );
     await addByHand();
     const sheet = screen.getByRole("dialog", { name: "카드 추가" });
     // Control: with no keyboard, the whole page.
