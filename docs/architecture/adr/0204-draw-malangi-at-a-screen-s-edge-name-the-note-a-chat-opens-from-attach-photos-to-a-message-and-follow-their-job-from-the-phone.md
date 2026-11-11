@@ -1,6 +1,6 @@
 # ADR 0204: Draw 말랑이 at a screen's edge, name the note a chat opens from, attach photos to a message and follow their job from the phone
 
-> Status: accepted
+> Status: accepted; superseded in part by [ADR 0248](0248-meet-malangi-on-home-alone-offer-the-chat-once-a-day-in-a-bubble-over-the-mascot-and-open-it-naming-no-note.md) where it places the edge character and names the note a chat opens from
 > Date: 2026-11-09
 
 Append-only: once merged, the body below is not rewritten. A fact later found wrong is corrected in an appended note, not edited out; a revised decision is a new ADR that supersedes this one.
