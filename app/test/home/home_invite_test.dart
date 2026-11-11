@@ -189,6 +189,19 @@ void main() {
         reason: 'the day is not spent unseen',
       );
       await home.close();
+      // Control: the same 홈 with no proposal ready says its line and spends
+      // the day.
+      final clear = await openHome(
+        tester,
+        decks: ['Alpha'],
+        client: FakeAssistantClient(),
+        clock: () => now,
+      );
+      await _untilShown(tester);
+      expect(shownText(_plain), findsOneWidget);
+      expect(shownText('3 cards ready'), findsNothing);
+      expect(clear.storage.getString('assistant.inviteDay'), '2026-10-15');
+      await clear.close();
     },
   );
 
@@ -197,6 +210,16 @@ void main() {
     await _wait(tester, _wait1 + _stay);
     expect(_any, findsNothing);
     await home.close();
+    // Control: the same 홈 with an assistant says its line.
+    final withOne = await openHome(
+      tester,
+      decks: ['Alpha'],
+      client: FakeAssistantClient(),
+      clock: () => now,
+    );
+    await _untilShown(tester);
+    expect(shownText(_plain), findsOneWidget);
+    await withOne.close();
   });
 
   testWidgets('waits while another tab shows, and comes when 홈 is back', (
