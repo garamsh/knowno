@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -146,16 +147,48 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
     final open = lastReply?.ending == null
         ? null
         : lastReply!.proposals.where((one) => one.added == null).lastOrNull;
+    final status = chat.status;
+    // A run of 말랑이's turns shows its profile and name once, on its first
+    // item; a turn that draws nothing takes no part in a run.
+    final starts = <String>{};
+    var inRun = false;
+    for (final turn in turns) {
+      switch (turn) {
+        case UserTurn(auto: true):
+          break;
+        case UserTurn() || ContextTurn():
+          inRun = false;
+        case AssistantTurn() when _drawsAnything(turn):
+          if (!inRun) starts.add(turn.id);
+          inRun = true;
+        case AssistantTurn():
+          break;
+      }
+    }
+    // From the send until the reply's first text.
+    final typing =
+        (status is ChatStreaming || status is ChatWaiting) &&
+        (last is UserTurn ||
+            (last is AssistantTurn &&
+                last.ending == null &&
+                last.text.isEmpty));
+    final refused = status is ChatRefused;
+    // Only the last run's profile takes the face of the state.
+    final lastProfile = last == null
+        ? _emptyProfile
+        : refused && !inRun
+        ? _refusalProfile
+        : typing && !inRun
+        ? _typingProfile
+        : starts.isEmpty
+        ? null
+        : [for (final turn in turns) turn.id].lastWhere(starts.contains);
+    final face = _faceOf(chat, last);
+    MascotExpression faceOf(String profile) =>
+        profile == lastProfile ? face : MascotExpression.thinking;
     final items = <Widget>[
       if (last == null)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpace.s40),
-          child: Text(
-            l10n.assistantEmpty,
-            textAlign: TextAlign.center,
-            style: AppType.bodyStrong.copyWith(color: colors.ink),
-          ),
-        ),
+        _EmptyChat(face: faceOf(_emptyProfile), text: l10n.assistantEmpty),
       for (final turn in turns)
         switch (turn) {
           ContextTurn() => _Notice(
@@ -166,11 +199,13 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
           // job's own line says so.
           UserTurn(auto: true) => const SizedBox.shrink(),
           UserTurn() => _UserBubble(turn: turn),
+          AssistantTurn() when !_drawsAnything(turn) => const SizedBox.shrink(),
           AssistantTurn() => _ReplyView(
             key: ValueKey(turn.id),
             turn: turn,
             isLast: identical(turn, last),
             busy: chat.busy,
+            face: starts.contains(turn.id) ? faceOf(turn.id) : null,
             onSend: _send,
             onCheck: (proposalId, groupId, ids) =>
                 _chat.check(turn.id, proposalId, groupId, ids),
@@ -179,14 +214,24 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
             onCancelJob: _chat.cancelJob,
           ),
         },
+      if (typing)
+        _Typing(
+          face: inRun ? null : faceOf(_typingProfile),
+          line: switch (last) {
+            AssistantTurn(interim: final interim?) => plainLine(interim),
+            _ => '',
+          },
+        ),
       if (chat.status is ChatUploading)
         _Notice(text: l10n.assistantUploading, status: true),
       if (chat.status is ChatWaiting)
         _Notice(text: l10n.assistantWaiting, status: true),
       if (chat.status case ChatRefused(:final refusal))
-        _RefusalView(refusal: refusal, onRetry: _chat.retryRefused),
+        _Beside(
+          face: inRun ? null : faceOf(_refusalProfile),
+          child: _RefusalView(refusal: refusal, onRetry: _chat.retryRefused),
+        ),
     ];
-    final status = chat.status;
     final spent = status is ChatRefused && status.refusal is RateLimited;
     return Scaffold(
       backgroundColor: colors.ground,
@@ -194,7 +239,6 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
         child: Column(
           children: [
             _Header(
-              face: _faceOf(chat, last),
               share: chat.allowance?.leftShare,
               onClear: turns.isNotEmpty && !chat.busy ? _clear : null,
             ),
@@ -286,12 +330,11 @@ MascotExpression _faceOf(ChatState chat, Turn? last) {
   return MascotExpression.thinking;
 }
 
-/// The bar of the way back, the mascot in [face] with "말랑이" and the day's
-/// [share] left, and ⋯ with "대화 지우기" while [onClear] is given.
+/// The bar of the way back, "말랑이" with the day's [share] left under it,
+/// centred, and ⋯ with "대화 지우기" while [onClear] is given.
 class _Header extends StatelessWidget {
-  const _Header({required this.face, required this.share, this.onClear});
+  const _Header({required this.share, this.onClear});
 
-  final MascotExpression face;
   final int? share;
   final VoidCallback? onClear;
 
@@ -308,10 +351,8 @@ class _Header extends StatelessWidget {
         spacing: AppSpace.s8,
         children: [
           const BackButton(),
-          Mascot(expression: face, size: 40),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Semantics(
                   header: true,
@@ -341,12 +382,258 @@ class _Header extends StatelessWidget {
               onPressed: () =>
                   controller.isOpen ? controller.close() : controller.open(),
               style: IconButton.styleFrom(
-                minimumSize: const Size.square(AppSize.tapTarget),
+                minimumSize: const Size.square(kMinInteractiveDimension),
                 foregroundColor: colors.ink,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+const _emptyProfile = 'empty';
+const _typingProfile = 'typing';
+const _refusalProfile = 'refusal';
+
+/// Whether [turn] draws any of its content: its text, job, sources,
+/// proposals, question or an ending to tell.
+bool _drawsAnything(AssistantTurn turn) =>
+    turn.text.isNotEmpty ||
+    turn.job != null ||
+    turn.citations.isNotEmpty ||
+    turn.proposals.isNotEmpty ||
+    turn.choice != null ||
+    (turn.ending != null && turn.ending != Ending.ok);
+
+/// 말랑이's profile: its mascot in [face] on a rounded square of light coral.
+class _Profile extends StatelessWidget {
+  const _Profile({required this.face, this.large = false});
+
+  final MascotExpression face;
+  final bool large;
+
+  /// How wide the profile is beside a bubble, and in the empty chat.
+  static const small = 40.0;
+  static const _large = 96.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final side = large ? _large : small;
+    return ExcludeSemantics(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.of(context).deckPeach,
+          borderRadius: BorderRadius.circular(
+            large ? AppRadius.card : AppRadius.field,
+          ),
+        ),
+        child: SizedBox.square(
+          dimension: side,
+          child: Center(
+            child: Mascot(expression: face, size: side * 0.8),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The empty chat: the large profile, "말랑이" and what to memorise.
+class _EmptyChat extends StatelessWidget {
+  const _EmptyChat({required this.face, required this.text});
+
+  final MascotExpression face;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpace.s40),
+      child: Column(
+        spacing: AppSpace.s8,
+        children: [
+          _Profile(face: face, large: true),
+          ExcludeSemantics(
+            child: Text(
+              AppLocalizations.of(context).assistantName,
+              style: AppType.bodyStrong.copyWith(color: colors.ink),
+            ),
+          ),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: AppType.body.copyWith(color: colors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// [child] beside 말랑이's profile with its name above, where [face] is
+/// given, and in the profile's place, bare, where it is null: a later item of
+/// the same run.
+class _Beside extends StatelessWidget {
+  const _Beside({required this.face, required this.child});
+
+  final MascotExpression? face;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final face = this.face;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: AppSpace.s8,
+      children: [
+        SizedBox(
+          width: _Profile.small,
+          child: face == null ? null : _Profile(face: face),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: AppSpace.s4,
+            children: [
+              if (face != null)
+                ExcludeSemantics(
+                  child: Text(
+                    AppLocalizations.of(context).assistantName,
+                    style: AppType.secondary.copyWith(color: colors.muted),
+                  ),
+                ),
+              child,
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The sign that a reply is being made: a bubble of three dots rising in
+/// turn, with the passing [line] beside it where the server sent one.
+class _Typing extends StatelessWidget {
+  const _Typing({required this.face, required this.line});
+
+  final MascotExpression? face;
+  final String line;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final colors = AppColors.of(context);
+    return _Beside(
+      face: face,
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: AppSpace.s12,
+          children: [
+            Semantics(
+              liveRegion: true,
+              label: l10n.assistantThinking,
+              excludeSemantics: true,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  border: Border.all(color: colors.hairline),
+                  borderRadius: BorderRadius.circular(AppRadius.row),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppSpace.s16,
+                    vertical: AppSpace.s16,
+                  ),
+                  child: _TypingDots(),
+                ),
+              ),
+            ),
+            if (line.isNotEmpty)
+              Flexible(child: _Notice(text: line, status: true, oneLine: true)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Three dots that rise in turn, standing still under reduce motion.
+class _TypingDots extends StatefulWidget {
+  const _TypingDots();
+
+  @override
+  State<_TypingDots> createState() => _TypingDotsState();
+}
+
+class _TypingDotsState extends State<_TypingDots>
+    with SingleTickerProviderStateMixin {
+  static const _dot = 8.0;
+  static const _rise = 4.0;
+  static const _delay = 0.15;
+
+  late final _loop = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _loop.stop();
+      _loop.value = 0;
+    } else if (!_loop.isAnimating) {
+      unawaited(_loop.repeat());
+    }
+  }
+
+  @override
+  void dispose() {
+    _loop.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return AnimatedBuilder(
+      animation: _loop,
+      builder: (context, _) => SizedBox(
+        height: _dot + _rise,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          spacing: AppSpace.s4,
+          children: [
+            for (var at = 0; at < 3; at++)
+              Transform.translate(
+                offset: Offset(
+                  0,
+                  -_rise *
+                      math.max(
+                        0.0,
+                        math.sin(
+                          2 * math.pi * ((_loop.value - at * _delay) % 1),
+                        ),
+                      ),
+                ),
+                child: DecoratedBox(
+                  key: ValueKey('typing-dot-$at'),
+                  decoration: BoxDecoration(
+                    color: colors.muted,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const SizedBox.square(dimension: _dot),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -452,6 +739,7 @@ class _ReplyView extends StatelessWidget {
     required this.turn,
     required this.isLast,
     required this.busy,
+    required this.face,
     required this.onSend,
     required this.onCheck,
     required this.onOpenNote,
@@ -462,6 +750,10 @@ class _ReplyView extends StatelessWidget {
   final AssistantTurn turn;
   final bool isLast;
   final bool busy;
+
+  /// The face of the profile this turn begins a run with; null for a later
+  /// turn of the run.
+  final MascotExpression? face;
   final ValueChanged<String> onSend;
   final void Function(String proposalId, String groupId, List<String> ids)
   onCheck;
@@ -475,100 +767,94 @@ class _ReplyView extends StatelessWidget {
     final colors = AppColors.of(context);
     final ending = turn.ending;
     final choice = turn.choice;
-    // A remark of marks alone has no words to show.
-    final line = switch (turn.interim) {
-      final interim? => plainLine(interim),
-      null => '',
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: AppSpace.s12,
-      children: [
-        if (turn.text.isNotEmpty)
-          _ReplyBubble(
-            label: l10n.assistantName,
-            child: ReplyMarkdown(
-              turn.text,
-              onLink: (uri) => _openLink(context, uri),
+    return _Beside(
+      face: face,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: AppSpace.s12,
+        children: [
+          if (turn.text.isNotEmpty)
+            _ReplyBubble(
+              label: l10n.assistantName,
+              child: ReplyMarkdown(
+                turn.text,
+                onLink: (uri) => _openLink(context, uri),
+              ),
             ),
-          ),
-        if (ending == null && turn.text.isEmpty)
-          _Notice(
-            text: line.isEmpty ? l10n.assistantThinking : line,
-            status: true,
-            oneLine: line.isNotEmpty,
-          ),
-        if (turn.job case final job?) _JobView(job: job, onCancel: onCancelJob),
-        if (turn.citations.isNotEmpty)
-          Semantics(
-            container: true,
-            label: l10n.assistantSources,
-            child: Column(
+          if (turn.job case final job?)
+            _JobView(job: job, onCancel: onCancelJob),
+          if (turn.citations.isNotEmpty)
+            Semantics(
+              container: true,
+              label: l10n.assistantSources,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final citation in turn.citations)
+                    _CitationLink(citation: citation),
+                ],
+              ),
+            ),
+          for (final one in turn.proposals)
+            ProposalView(
+              key: ValueKey(one.proposal.id),
+              shown: one,
+              disabled: busy || ending == null,
+              onCheck: (groupId, ids) => onCheck(one.proposal.id, groupId, ids),
+              onRemake: (group, form) => onSend(
+                l10n.assistantRemake(group.title, formName(l10n, form)),
+              ),
+              onOpenNote: onOpenNote,
+            ),
+          if (choice != null)
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: AppSpace.s8,
               children: [
-                for (final citation in turn.citations)
-                  _CitationLink(citation: citation),
+                Text(
+                  keepWords(choice.prompt),
+                  semanticsLabel: choice.prompt,
+                  style: AppType.bodyStrong.copyWith(color: colors.ink),
+                ),
+                if (isLast && !busy)
+                  Wrap(
+                    spacing: AppSpace.s8,
+                    runSpacing: AppSpace.s8,
+                    children: [
+                      for (final option in choice.options)
+                        AppChip.action(
+                          label: option,
+                          onPressed: () => onSend(option),
+                        ),
+                    ],
+                  ),
               ],
             ),
-          ),
-        for (final one in turn.proposals)
-          ProposalView(
-            key: ValueKey(one.proposal.id),
-            shown: one,
-            disabled: busy || ending == null,
-            onCheck: (groupId, ids) => onCheck(one.proposal.id, groupId, ids),
-            onRemake: (group, form) =>
-                onSend(l10n.assistantRemake(group.title, formName(l10n, form))),
-            onOpenNote: onOpenNote,
-          ),
-        if (choice != null)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: AppSpace.s8,
-            children: [
-              Text(
-                keepWords(choice.prompt),
-                semanticsLabel: choice.prompt,
-                style: AppType.bodyStrong.copyWith(color: colors.ink),
-              ),
-              if (isLast && !busy)
-                Wrap(
-                  spacing: AppSpace.s8,
-                  runSpacing: AppSpace.s8,
-                  children: [
-                    for (final option in choice.options)
-                      AppChip.action(
-                        label: option,
-                        onPressed: () => onSend(option),
-                      ),
-                  ],
+          if (ending != null && ending != Ending.ok)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Notice(
+                  text: switch (ending) {
+                    Ending.modelError => l10n.assistantModelError,
+                    Ending.cut => l10n.assistantCut,
+                    Ending.limit => l10n.assistantLimit,
+                    _ => l10n.assistantStopped,
+                  },
                 ),
-            ],
-          ),
-        if (ending != null && ending != Ending.ok)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _Notice(
-                text: switch (ending) {
-                  Ending.modelError => l10n.assistantModelError,
-                  Ending.cut => l10n.assistantCut,
-                  Ending.limit => l10n.assistantLimit,
-                  _ => l10n.assistantStopped,
-                },
-              ),
-              if ((ending == Ending.modelError || ending == Ending.limit) &&
-                  isLast &&
-                  !busy)
-                AppButton(
-                  label: l10n.retry,
-                  variant: AppButtonVariant.text,
-                  size: AppButtonSize.header,
-                  onPressed: onRetry,
-                ),
-            ],
-          ),
-      ],
+                if ((ending == Ending.modelError || ending == Ending.limit) &&
+                    isLast &&
+                    !busy)
+                  AppButton(
+                    label: l10n.retry,
+                    variant: AppButtonVariant.text,
+                    size: AppButtonSize.header,
+                    onPressed: onRetry,
+                  ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }

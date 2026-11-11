@@ -392,10 +392,18 @@ void main() {
         await largest(tester, 'assistant-$name');
       }
 
-      Future<void> send(String text) async {
+      /// Sends [text]; a reply still open goes with [settle] false, as the
+      /// typing dots never settle.
+      Future<void> send(String text, {bool settle = true}) async {
         await tester.enterText(find.byType(EditableText).last, text);
         await tester.pump();
-        await tap(tester, find.byTooltip(ko.assistantSend));
+        if (settle) {
+          await tap(tester, find.byTooltip(ko.assistantSend));
+        } else {
+          await tester.tap(find.byTooltip(ko.assistantSend));
+          await tester.pump();
+          await tester.pump();
+        }
       }
 
       // 홈: the first run's way in, and the bubble over the mascot.
@@ -435,7 +443,7 @@ void main() {
       final live = LiveReply();
       await open(client: FakeAssistantClient(scripts: [live.script]));
       await tap(tester, shownText(ko.assistantFirstNote));
-      await send('토익 단어를 만들어 줘');
+      await send('토익 단어를 만들어 줘', settle: false);
       live.text('좋아요. 토익에 자주 나오는 단어를 ');
       live.text('단원별로 나눠서 만들어 볼게요.');
       await tester.pump();
@@ -480,12 +488,16 @@ void main() {
       await unmount(tester);
       await open(client: FakeAssistantClient(scripts: [busyRefusal()]));
       await tap(tester, shownText(ko.assistantFirstNote));
-      await tester.enterText(find.byType(EditableText).last, '안녕');
-      await tester.pump();
-      await tester.tap(find.byTooltip(ko.assistantSend));
-      await tester.pump();
-      await tester.pump();
+      // The typing dots stand still under reduce motion, so the frame is
+      // the same each run and the screen can settle.
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await send('안녕', settle: false);
       await take('14-chat-busy-waiting');
+      tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
       await unmount(tester);
       await open(client: FakeAssistantClient(scripts: [failedReply('음…')]));
       await tap(tester, shownText(ko.assistantFirstNote));

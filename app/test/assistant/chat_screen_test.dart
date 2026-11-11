@@ -19,10 +19,21 @@ Future<void> _type(WidgetTester tester, String text) async {
   await tester.pump();
 }
 
-Future<void> _send(WidgetTester tester, String text) async {
+/// Sends [text]. The typing dots never settle, so a reply still open goes
+/// with [settle] false.
+Future<void> _send(
+  WidgetTester tester,
+  String text, {
+  bool settle = true,
+}) async {
   await _type(tester, text);
   await tester.tap(find.byTooltip('Send'));
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+    await tester.pump();
+  }
 }
 
 Finder _text(String text) => shownText(text);
@@ -34,8 +45,16 @@ AssistantTurn _lastReply(ProviderContainer container) => container
     .whereType<AssistantTurn>()
     .last;
 
+/// The face of the lowest profile on screen: the last run's.
 MascotExpression _face(WidgetTester tester) =>
-    tester.widget<Mascot>(find.byType(Mascot)).expression;
+    (tester.widgetList<Mascot>(find.byType(Mascot)).toList()..sort(
+          (a, b) => tester
+              .getTopLeft(find.byWidget(b))
+              .dy
+              .compareTo(tester.getTopLeft(find.byWidget(a)).dy),
+        ))
+        .first
+        .expression;
 
 final _threeGroups = proposalOf(
   groups: [
@@ -69,9 +88,9 @@ void main() {
     final client = FakeAssistantClient(scripts: [streaming(feed)]);
     final storage = await openAssistantStorage(tester);
     final container = await pumpChat(tester, client, storage);
-    await _send(tester, '영단어 만들어 줘');
+    await _send(tester, '영단어 만들어 줘', settle: false);
     expect(_text('영단어 만들어 줘'), findsOneWidget);
-    expect(_text('Malangi is thinking'), findsOneWidget);
+    expect(find.byKey(const ValueKey('typing-dot-0')), findsOneWidget);
     expect(client.sent.single, [
       {'role': 'user', 'text': '영단어 만들어 줘'},
     ]);
@@ -483,7 +502,7 @@ void main() {
     final client = FakeAssistantClient(scripts: [streaming(feed)]);
     final storage = await openAssistantStorage(tester);
     final container = await pumpChat(tester, client, storage);
-    await _send(tester, '영단어 만들어 줘');
+    await _send(tester, '영단어 만들어 줘', settle: false);
     Future<void> deliver(AssistantEvent event) async {
       feed.add(event);
       await tester.pump();
@@ -493,7 +512,7 @@ void main() {
     await deliver(const TextDelta('찾아볼게요'));
     await deliver(const InterimEvent());
     expect(_text('찾아볼게요'), findsOneWidget);
-    expect(_text('Malangi is thinking'), findsNothing);
+    expect(find.byKey(const ValueKey('typing-dot-0')), findsOneWidget);
     await deliver(const TextDelta('\n\n'));
     await deliver(const TextDelta('만들어 볼게요'));
     await deliver(const InterimEvent());
@@ -504,6 +523,7 @@ void main() {
     await deliver(const TextDelta('다 만들었어요'));
     // The reply begins, and the line goes.
     expect(_text('만들어 볼게요'), findsNothing);
+    expect(find.byKey(const ValueKey('typing-dot-0')), findsNothing);
     expect(shownTextContaining('다 만들었어요'), findsOneWidget);
     await feed.close();
     await tester.pumpAndSettle();
@@ -521,7 +541,7 @@ void main() {
     final client = FakeAssistantClient(scripts: [streaming(feed)]);
     final storage = await openAssistantStorage(tester);
     await pumpChat(tester, client, storage);
-    await _send(tester, '영단어 만들어 줘');
+    await _send(tester, '영단어 만들어 줘', settle: false);
     Future<void> deliver(AssistantEvent event) async {
       feed.add(event);
       await tester.pump();
@@ -540,7 +560,7 @@ void main() {
     await deliver(const TextDelta('\n\n'));
     await deliver(const TextDelta('---'));
     await deliver(const InterimEvent());
-    expect(_text('Malangi is thinking'), findsOneWidget);
+    expect(find.byKey(const ValueKey('typing-dot-0')), findsOneWidget);
     await feed.close();
     await tester.pumpAndSettle();
   });
@@ -552,7 +572,7 @@ void main() {
     final client = FakeAssistantClient(scripts: [streaming(feed)]);
     final storage = await openAssistantStorage(tester);
     await pumpChat(tester, client, storage);
-    await _send(tester, '영단어 만들어 줘');
+    await _send(tester, '영단어 만들어 줘', settle: false);
     feed.add(const TextDelta('찾아볼게요'));
     feed.add(const InterimEvent());
     await tester.pump();
@@ -572,7 +592,7 @@ void main() {
       client,
       await openAssistantStorage(tester),
     );
-    await _send(tester, '길게 말해 줘');
+    await _send(tester, '길게 말해 줘', settle: false);
     feed.add(const TextDelta('음, 먼저'));
     await tester.pump();
     await tester.tap(find.byTooltip('Stop'));
@@ -644,7 +664,7 @@ void main() {
       client,
       await openAssistantStorage(tester),
     );
-    await _send(tester, '길게 말해 줘');
+    await _send(tester, '길게 말해 줘', settle: false);
     feed.add(const TextDelta('음, 먼저'));
     await tester.pump();
     await tester.pump();
