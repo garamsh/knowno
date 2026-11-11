@@ -1,3 +1,7 @@
+// @vitest-environment node
+// The action runs on the server, where Supabase Auth has no browser: under jsdom each client it
+// makes listens on a BroadcastChannel, and a sign-out elsewhere, this file's own included, reaches
+// the clients earlier calls left and clears the cookies of a later test.
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
