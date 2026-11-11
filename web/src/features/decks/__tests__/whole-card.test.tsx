@@ -247,6 +247,40 @@ describe("a whole card on study's cards", () => {
     }
   });
 
+  it("keeps each box on one line with the word or punctuation it touches, inside bold and italic too", () => {
+    const units = (container: HTMLElement) =>
+      [...container.querySelectorAll<HTMLElement>("[data-blank]")].map(
+        (box) => box.closest(".whitespace-nowrap")?.textContent,
+      );
+    const drawn = (text: string, revealed: boolean, studied: boolean) =>
+      render(
+        <WholeCells
+          cells={[{ kind: "blank", block: clozeContent(text) }]}
+          revealed={revealed}
+          studied={studied}
+        />,
+      ).container;
+
+    const plain = drawn("모음: {{c1::ㅏ}}, {{c2::ㅗ}}이다 끝.", false, true);
+    expect(plain.querySelectorAll("[data-blank='boxed']")).toHaveLength(2);
+    expect(units(plain)).toEqual([",", "이다"]);
+    expect(plain.textContent).toBe("모음: , 이다 끝.");
+
+    const marked = drawn("**가{{c1::ㅏ}}**, *{{c2::ㅗ}}*이다 끝", false, true);
+    expect(units(marked)).toEqual(["가,", "이다"]);
+    expect(marked.querySelector("strong")?.textContent).toBe("가");
+    expect(marked.querySelector("em")?.textContent).toBe("");
+
+    // Control: revealed, and in the card editor's look, the same card is not held together.
+    for (const container of [
+      drawn("모음: {{c1::ㅏ}}, {{c2::ㅗ}}이다 끝.", true, true),
+      drawn("모음: {{c1::ㅏ}}, {{c2::ㅗ}}이다 끝.", false, false),
+    ]) {
+      expect(container.querySelectorAll("[data-blank]")).toHaveLength(2);
+      expect(container.querySelectorAll(".whitespace-nowrap")).toHaveLength(0);
+    }
+  });
+
   it("counts a front's length with each blank as its box's width", () => {
     expect(faceLength([textContent("사과")])).toBe(2);
     expect(faceLength([clozeContent("Le {{c1::un chat très grand}} dort")])).toBe(

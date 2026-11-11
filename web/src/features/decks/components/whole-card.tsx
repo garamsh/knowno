@@ -205,6 +205,7 @@ function WholeParts({
               <span key={index} aria-hidden className={listed ? "line-clamp-2 break-keep" : ""}>
                 <MarkupText
                   document={block.markup.document}
+                  joined={look === "studied" && !revealed}
                   cloze={(span) => (
                     <Blank
                       answer={<MarkupRuns content={span.answer} />}
