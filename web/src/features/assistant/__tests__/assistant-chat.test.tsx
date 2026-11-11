@@ -1,19 +1,12 @@
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  AssistantClient,
-  JobPoll,
-  MessageRequest,
-  PreparedPhoto,
-  SendResult,
-} from "../assistant-client";
-import type { CommitResult } from "../commit-proposal";
+import type { AssistantClient, SendResult } from "../assistant-client";
 import { AssistantChat } from "../components/assistant-chat";
-import { busyRetryMs, jobPollMs } from "../use-assistant-chat";
-import { jobDoneMessage, parseConversation } from "../conversation";
-import type { AssistantEvent, Proposal, SendRefusal } from "../protocol";
+import { busyRetryMs } from "../use-assistant-chat";
+import type { AssistantEvent, Proposal } from "../protocol";
+import { fakeClient, proposal, stream, usage } from "./fake-client";
 
 // jsdom decodes no image: the preparation is design/'s own, and here gives a fixed JPEG.
 vi.mock("@/design/prepare-photo", () => ({
@@ -21,103 +14,6 @@ vi.mock("@/design/prepare-photo", () => ({
     Promise.resolve(new File([file], "photo.jpg", { type: "image/jpeg" })),
   ),
 }));
-
-const proposal: Proposal = {
-  id: "p1",
-  kind: "cards",
-  deck: { id: null, name: "영단어" },
-  groups: [
-    {
-      id: "g1",
-      title: "1단원",
-      format: "senses",
-      cards: [
-        { id: "c1", card: { front: "apple", back: "사과" } },
-        { id: "c2", card: { front: "pear", back: "배" } },
-      ],
-    },
-    {
-      id: "g2",
-      title: "2단원",
-      format: "senses",
-      cards: [{ id: "c3", card: { front: "plum", back: "자두" } }],
-    },
-  ],
-};
-
-const usage = (tokensUsed: number, atLimit = false): AssistantEvent => ({
-  type: "usage",
-  allowance: { tokenBudget: 200000, tokensUsed },
-  atLimit,
-});
-
-/** A reply's events, each held until [gate] lets it through; an abort ends them with an AbortError. */
-function stream(events: AssistantEvent[], signal: AbortSignal, gate?: Promise<void>): SendResult {
-  async function* events_() {
-    for (const event of events) {
-      if (gate) await gate;
-      yield event;
-    }
-    if (gate) {
-      await new Promise<void>((_, reject) => {
-        signal.addEventListener("abort", () => {
-          reject(new DOMException("stopped", "AbortError"));
-        });
-      });
-    }
-  }
-  return { kind: "stream", events: events_() };
-}
-
-/**
- * The assistant, played by [replies] in order: each a reply's events or a refusal; every request
- * and commit is recorded, and a commit answers [committed].
- */
-function fakeClient(
-  replies: (AssistantEvent[] | SendRefusal | ((signal: AbortSignal) => SendResult))[],
-  committed: CommitResult = {
-    kind: "added",
-    deck: { id: "d1", name: "영단어" },
-    count: 2,
-    skipped: 0,
-    refused: 0,
-  },
-  photos: { stored?: boolean; polls?: JobPoll[]; cancelled?: boolean } = {},
-) {
-  const requests: MessageRequest[] = [];
-  const commits: unknown[] = [];
-  const uploads: PreparedPhoto[][] = [];
-  const asked: string[] = [];
-  const cancels: string[] = [];
-  const polls = [...(photos.polls ?? [])];
-  const client: AssistantClient = {
-    send(request, signal) {
-      requests.push(structuredClone(request));
-      const reply = replies.shift();
-      if (!reply) throw new Error("no reply left");
-      if (typeof reply === "function") return Promise.resolve(reply(signal));
-      if (!Array.isArray(reply)) return Promise.resolve({ kind: "refused", refusal: reply });
-      return Promise.resolve(stream(reply, signal));
-    },
-    commit(shown, checked) {
-      commits.push({ proposal: shown.id, checked });
-      return Promise.resolve(committed);
-    },
-    upload(uploaded) {
-      uploads.push(uploaded);
-      return Promise.resolve(photos.stored ?? true);
-    },
-    pollJob(id) {
-      asked.push(id);
-      return Promise.resolve(polls.shift() ?? { kind: "failed" });
-    },
-    cancelJob(id) {
-      cancels.push(id);
-      return Promise.resolve(photos.cancelled ?? true);
-    },
-  };
-  return { client, requests, commits, uploads, asked, cancels };
-}
 
 const allowance = { tokenBudget: 200000, tokensUsed: 20000 };
 
@@ -148,55 +44,6 @@ afterEach(() => {
 });
 
 describe("말랑이's chat", () => {
-  it("streams the reply in as it arrives, and keeps the conversation and the draft in this browser", async () => {
-    let open = () => undefined as void;
-    const gate = new Promise<void>((resolve) => {
-      open = resolve;
-    });
-    const first: AssistantEvent[] = [{ type: "text", delta: "좋아요, " }];
-    const { client, requests } = fakeClient([
-      (signal) => {
-        const events = stream(first, signal);
-        if (events.kind !== "stream") return events;
-        return {
-          kind: "stream",
-          events: (async function* () {
-            yield* events.events;
-            await gate;
-            yield { type: "text", delta: "만들어 볼게요" } as const;
-            yield usage(72000);
-          })(),
-        };
-      },
-    ]);
-    render(<AssistantChat allowance={allowance} client={client} />);
-    expect(await screen.findByText("무엇을 외워 볼까요?")).toBeInTheDocument();
-    expect(screen.getByText("오늘 90% 남았어요")).toBeInTheDocument();
-
-    await say("영단어 카드 만들어 줘");
-    expect(await screen.findByText("좋아요,")).toBeInTheDocument();
-    // While it streams, the field cannot send, and the reply can be stopped.
-    expect(screen.getByRole("button", { name: "멈추기" })).toBeInTheDocument();
-    open();
-    expect(await screen.findByText("좋아요, 만들어 볼게요")).toBeInTheDocument();
-    expect(screen.getByText("오늘 64% 남았어요")).toBeInTheDocument();
-    expect(requests).toEqual([
-      {
-        messages: [{ role: "user", text: "영단어 카드 만들어 줘" }],
-        context: { time_zone: browserZone },
-      },
-    ]);
-
-    await userEvent.type(screen.getByRole("textbox", { name: "말랑이에게 보낼 메시지" }), "다음엔");
-    cleanup();
-    // Back from a note: the same turns and the draft, with nothing sent.
-    render(<AssistantChat allowance={allowance} client={client} />);
-    expect(await screen.findByText("영단어 카드 만들어 줘")).toBeInTheDocument();
-    expect(screen.getByText("좋아요, 만들어 볼게요")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "말랑이에게 보낼 메시지" })).toHaveValue("다음엔");
-    expect(requests).toHaveLength(1);
-  });
-
   it("draws 말랑이's reply as Markdown and the user's own turn as typed", async () => {
     const { client } = fakeClient([[{ type: "text", delta: "**굵게** 말해요\n\n- 하나" }]]);
     render(<AssistantChat allowance={null} client={client} />);
@@ -210,7 +57,7 @@ describe("말랑이's chat", () => {
   });
 
   it("sends a choice's pick as the next message, after the question it answers", async () => {
-    const { client, requests } = fakeClient([
+    const { client } = fakeClient([
       [
         { type: "text", delta: "어떤 형식으로 만들까요?" },
         { type: "choice", choice: { prompt: "형식", options: ["단어", "표", "알아서 섞어서"] } },
@@ -223,20 +70,12 @@ describe("말랑이's chat", () => {
     await userEvent.click(within(options).getByRole("button", { name: "단어" }));
 
     expect(await screen.findByText("단어로 만들게요")).toBeInTheDocument();
-    expect(requests[1]?.messages.slice(-2)).toEqual([
-      {
-        role: "assistant",
-        text: "어떤 형식으로 만들까요?",
-        choice: { prompt: "형식", options: ["단어", "표", "알아서 섞어서"] },
-      },
-      { role: "user", text: "단어" },
-    ]);
     // The question is answered: its options are gone.
     expect(screen.queryByRole("group", { name: "형식" })).not.toBeInTheDocument();
   });
 
   it("adds the cards checked, by card and by group, and then shows the note it wrote, which opens it", async () => {
-    const { client, commits } = fakeClient([[{ type: "proposal", proposal }]]);
+    const { client } = fakeClient([[{ type: "proposal", proposal }]]);
     render(<AssistantChat allowance={null} client={client} />);
     await say("카드 만들어 줘");
 
@@ -254,7 +93,6 @@ describe("말랑이's chat", () => {
     );
 
     await userEvent.click(add);
-    expect(commits).toEqual([{ proposal: "p1", checked: { g1: ["c1"], g2: [] } }]);
     const shortcut = await screen.findByRole("link", { name: /영단어/ });
     expect(shortcut).toHaveAttribute("href", "/decks/d1");
     // A substring: the link reads the note's name, then its count.
@@ -369,12 +207,9 @@ describe("말랑이's chat", () => {
     expect(container.querySelector('img[src*="knowno-sleepy"]')).not.toBeNull();
   });
 
-  it("sends a message refused as busy again a few seconds later, while the one before it ends", async () => {
+  it("says a message refused as busy waits, until it goes again", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { client, requests } = fakeClient([
-      { kind: "busy" },
-      [{ type: "text", delta: "왔어요" }],
-    ]);
+    const { client } = fakeClient([{ kind: "busy" }, [{ type: "text", delta: "왔어요" }]]);
     render(<AssistantChat allowance={null} client={client} />);
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) });
     await user.type(screen.getByRole("textbox", { name: "말랑이에게 보낼 메시지" }), "안녕");
@@ -382,17 +217,17 @@ describe("말랑이's chat", () => {
     expect(
       await screen.findByText("앞의 메시지를 마무리하고 있어요. 잠시 후 다시 보낼게요."),
     ).toBeInTheDocument();
-    expect(requests).toHaveLength(1);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(busyRetryMs);
     });
     expect(await screen.findByText("왔어요")).toBeInTheDocument();
-    expect(requests).toHaveLength(2);
-    expect(requests[1]).toEqual(requests[0]);
+    expect(
+      screen.queryByText("앞의 메시지를 마무리하고 있어요. 잠시 후 다시 보낼게요."),
+    ).not.toBeInTheDocument();
   });
 
   it("offers 다시 시도 after a failed reply, which sends the message again in the reply's place", async () => {
-    const { client, requests } = fakeClient([
+    const { client } = fakeClient([
       [{ type: "error", error: "model_error" }],
       [{ type: "text", delta: "이번엔 됐어요" }],
     ]);
@@ -404,10 +239,6 @@ describe("말랑이's chat", () => {
     expect(container.querySelector('img[src*="knowno-sad"]')).not.toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "다시 시도" }));
     expect(await screen.findByText("이번엔 됐어요")).toBeInTheDocument();
-    expect(requests[1]).toEqual({
-      messages: [{ role: "user", text: "안녕" }],
-      context: { time_zone: browserZone },
-    });
     expect(
       screen.queryByText("말랑이가 답하지 못했어요. 다시 시도해 주세요."),
     ).not.toBeInTheDocument();
@@ -415,7 +246,7 @@ describe("말랑이's chat", () => {
 
   it("says a turn stopped at its limit with nothing to show, and tries again, against a limit turn with a reply", async () => {
     const limitNotice = "할 일이 많아 여기서 멈췄어요. 다시 시도해 주세요.";
-    const { client, requests } = fakeClient([
+    const { client } = fakeClient([
       [{ type: "interim" }, usage(1000, true)],
       [{ type: "text", delta: "이번엔 됐어요" }],
       [{ type: "text", delta: "여기까지 찾았어요" }, usage(2000, true)],
@@ -425,10 +256,6 @@ describe("말랑이's chat", () => {
     expect(await screen.findByText(limitNotice)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "다시 시도" }));
     expect(await screen.findByText("이번엔 됐어요")).toBeInTheDocument();
-    expect(requests[1]).toEqual({
-      messages: [{ role: "user", text: "안녕" }],
-      context: { time_zone: browserZone },
-    });
     expect(screen.queryByText(limitNotice)).not.toBeInTheDocument();
     // Control: a limit turn with a reply shows the reply alone.
     await say("또");
@@ -522,9 +349,9 @@ describe("말랑이's chat", () => {
         .filter((element) => element.textContent !== "말랑이가 생각하는 중이에요");
     const line = () => lines()[0] ?? screen.getByRole("status");
 
-    it("shows one line a call, then only the reply, stored and sent back as the reply alone", async () => {
+    it("shows one line a call in a polite region, then only the reply", async () => {
       const turn = held();
-      const { client, requests } = fakeClient([turn.events, [{ type: "text", delta: "네" }]]);
+      const { client } = fakeClient([turn.events]);
       render(<AssistantChat allowance={null} client={client} />);
       await say("카드 만들어 줘");
       expect(await screen.findByText("말랑이가 생각하는 중이에요")).toBeInTheDocument();
@@ -566,17 +393,6 @@ describe("말랑이's chat", () => {
       });
       expect(lines()).toHaveLength(0);
       expect(screen.queryByText(/찾아볼게요|만들게요/)).not.toBeInTheDocument();
-
-      const stored = window.localStorage.getItem("knowno.assistant") ?? "";
-      expect(stored).not.toMatch(/찾아볼게요|만들게요/);
-      expect(parseConversation(stored).turns.at(-1)).toMatchObject({
-        text: "**다 됐어요**",
-        ending: "ok",
-      });
-
-      await say("고마워");
-      await screen.findByText("네");
-      expect(requests[1]?.messages.at(-2)).toEqual({ role: "assistant", text: "**다 됐어요**" });
     });
 
     it("leaves a turn of one call as it was: no line, the reply as it streams", async () => {
@@ -595,21 +411,6 @@ describe("말랑이's chat", () => {
       });
       expect(screen.getByText("안녕하세요")).toBeInTheDocument();
       expect(lines()).toHaveLength(0);
-    });
-
-    it("drops the line when the turn ends or is stopped before any reply", async () => {
-      const turn = held();
-      const { client } = fakeClient([turn.events]);
-      render(<AssistantChat allowance={null} client={client} />);
-      await say("찾아 줘");
-      turn.text("찾아볼게요");
-      turn.mark();
-      await waitFor(() => {
-        expect(line()).toHaveTextContent("찾아볼게요");
-      });
-      await userEvent.click(screen.getByRole("button", { name: "멈추기" }));
-      expect(await screen.findByText("멈췄어요.")).toBeInTheDocument();
-      expect(screen.queryByText("찾아볼게요")).not.toBeInTheDocument();
     });
   });
 
@@ -634,93 +435,67 @@ describe("말랑이's chat", () => {
     );
     expect(await screen.findByText("무엇을 외워 볼까요?")).toBeInTheDocument();
     expect(screen.queryByText("안녕")).not.toBeInTheDocument();
-    await waitFor(() => {
-      expect(window.localStorage.getItem("knowno.assistant")).toBeNull();
-    });
   });
-});
-
-const progress = (
-  finished: number,
-  state: "running" | "done" | "cancelled" = "running",
-): JobPoll => ({
-  kind: "polled",
-  progress: { id: "j1", photos: 3, finished, state },
 });
 
 const photoFile = (name: string) => new File([name], name, { type: "image/png" });
-
-describe("what a chat sends", () => {
-  it("sends only the time zone, and says no note's name", async () => {
-    const { client, requests } = fakeClient([[{ type: "text", delta: "네" }]]);
-    render(<AssistantChat allowance={null} client={client} />);
-    await say("안녕");
-    await screen.findByText("네");
-    expect(requests[0]?.context).toEqual({ time_zone: browserZone });
-    expect(screen.queryByText(/노트에서$/)).not.toBeInTheDocument();
-  });
-
-  it("sends no context when the browser names no zone", async () => {
-    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue(
-      {} as Intl.ResolvedDateTimeFormatOptions,
-    );
-    const { client, requests } = fakeClient([[{ type: "text", delta: "네" }]]);
-    render(<AssistantChat allowance={null} client={client} />);
-    await say("안녕");
-    await screen.findByText("네");
-    expect(requests[0]).not.toHaveProperty("context");
-  });
-
-  it("sends the zone the browser names, not the zone the test process runs in", async () => {
-    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
-      timeZone: "Pacific/Auckland",
-    } as Intl.ResolvedDateTimeFormatOptions);
-    const { client, requests } = fakeClient([[{ type: "text", delta: "네" }]]);
-    render(<AssistantChat allowance={null} client={client} />);
-    await say("안녕");
-    await screen.findByText("네");
-    expect(requests[0]?.context).toEqual({ time_zone: "Pacific/Auckland" });
-  });
-});
 
 describe("photos in the chat", () => {
   const attach = async (...names: string[]) => {
     await userEvent.upload(screen.getByLabelText("사진 첨부"), names.map(photoFile));
   };
+  const storedJob = (state: "running" | "done" | "cancelled", finished: number) => {
+    window.localStorage.setItem(
+      "knowno.assistant",
+      JSON.stringify({
+        version: 1,
+        draft: "",
+        turns: [
+          { role: "user", id: "u", text: "읽어 줘", photos: ["a"], auto: false },
+          {
+            role: "assistant",
+            id: "r",
+            text: "읽고 있어요",
+            citations: [],
+            proposals: [],
+            choice: null,
+            job: { id: "j1", photos: 3, finished, state },
+            interim: null,
+            ending: "ok",
+          },
+        ],
+      }),
+    );
+  };
 
-  it("stages the photos picked, uploads them under their ids and sends them with the message", async () => {
-    const { client, requests, uploads } = fakeClient([[{ type: "text", delta: "받았어요" }]]);
-    render(<AssistantChat allowance={null} client={client} />);
+  it("draws the photos staged as thumbnails to take away, and a photo alone as enough to send", async () => {
+    render(<AssistantChat allowance={null} client={fakeClient([]).client} />);
     await attach("a.png", "b.png");
     expect(await screen.findByRole("list", { name: "사진 2장" })).toBeInTheDocument();
-    // A photo alone, with no words, is a message; removing both leaves nothing to send.
-    const send = screen.getByRole("button", { name: "보내기" });
-    expect(send).toBeEnabled();
+    expect(screen.getByRole("button", { name: "보내기" })).toBeEnabled();
     await userEvent.click(screen.getAllByRole("button", { name: "사진 삭제" })[0] as HTMLElement);
     expect(screen.getByRole("list", { name: "사진 1장" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "사진 삭제" }));
     expect(screen.getByRole("button", { name: "보내기" })).toBeDisabled();
+  });
 
+  it("shows the message's photos as a count, and the staged ones gone, once sent", async () => {
+    const { client } = fakeClient([[{ type: "text", delta: "받았어요" }]]);
+    render(<AssistantChat allowance={null} client={client} />);
     await attach("c.png", "d.png");
+    await screen.findByRole("list", { name: "사진 2장" });
     await userEvent.type(
       screen.getByRole("textbox", { name: "말랑이에게 보낼 메시지" }),
       "읽어 줘",
     );
     await userEvent.click(screen.getByRole("button", { name: "보내기" }));
     expect(await screen.findByText("받았어요")).toBeInTheDocument();
-    const [stored] = uploads;
-    expect(stored).toHaveLength(2);
-    expect(stored?.every((photo) => photo.jpeg.type === "image/jpeg")).toBe(true);
-    expect(requests[0]?.messages).toEqual([
-      { role: "user", text: "읽어 줘", photos: stored?.map((photo) => photo.id) },
-    ]);
-    // The message shows its photos, and the staged ones are gone.
     expect(screen.getByText("사진 2장")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: /^사진/ })).not.toBeInTheDocument();
   });
 
-  it("sends nothing when a photo does not upload, and keeps the photos and the words", async () => {
-    const { client, requests } = fakeClient([], undefined, { stored: false });
+  it("says a photo that does not upload did not, keeping the photos and the words", async () => {
+    const { client } = fakeClient([], undefined, { stored: false });
     render(<AssistantChat allowance={null} client={client} />);
     await attach("a.png");
     await userEvent.type(
@@ -731,138 +506,26 @@ describe("photos in the chat", () => {
     expect(
       await screen.findByText("사진을 올리지 못했어요. 다시 시도해 주세요."),
     ).toBeInTheDocument();
-    expect(requests).toEqual([]);
     expect(screen.getByRole("list", { name: "사진 1장" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "말랑이에게 보낼 메시지" })).toHaveValue("읽어 줘");
   });
 
-  it("shows a photo job's progress, asks after it every few seconds, and goes on by itself once it is read", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { client, requests, asked } = fakeClient(
-      [
-        [
-          { type: "text", delta: "사진을 읽고 있어요" },
-          { type: "job", id: "j1", photos: 3 },
-        ],
-        [{ type: "text", delta: "카드로 만들게요" }],
-      ],
-      undefined,
-      { polls: [progress(1), progress(3, "done")] },
-    );
-    render(<AssistantChat allowance={null} client={client} />);
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) });
-    await user.upload(screen.getByLabelText("사진 첨부"), [photoFile("a.png")]);
-    // The photo is prepared before it is staged, which is what the send waits on.
-    await screen.findByRole("list", { name: "사진 1장" });
-    await user.click(screen.getByRole("button", { name: "보내기" }));
-    expect(await screen.findByText("0/3장 읽는 중")).toBeInTheDocument();
-    expect(asked).toEqual([]);
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(jobPollMs);
-    });
+  it("draws a running job's progress with its cancel, and a job done or cancelled as said", async () => {
+    storedJob("running", 1);
+    const { client, cancels } = fakeClient([]);
+    const { unmount } = render(<AssistantChat allowance={null} client={client} />);
     expect(await screen.findByText("1/3장 읽는 중")).toBeInTheDocument();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(jobPollMs);
-    });
-    expect(await screen.findByText("사진 3장을 다 읽었어요")).toBeInTheDocument();
-    expect(await screen.findByText("카드로 만들게요")).toBeInTheDocument();
-    expect(asked).toEqual(["j1", "j1"]);
-    // The next turn carries the job on the reply that started it, and says it was read.
-    expect(requests).toHaveLength(2);
-    expect(requests[1]?.messages.slice(-2)).toEqual([
-      { role: "assistant", text: "사진을 읽고 있어요", job: { id: "j1", photos: 3 } },
-      { role: "user", text: jobDoneMessage },
-    ]);
-    // That turn is the chat's own, and is not drawn; a done job is asked after no more.
-    expect(screen.queryByText(jobDoneMessage)).not.toBeInTheDocument();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(jobPollMs * 2);
-    });
-    expect(asked).toHaveLength(2);
-  });
-
-  it("tells a job done only once the reply that is still streaming has ended", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    let end = () => undefined as void;
-    const gate = new Promise<void>((resolve) => {
-      end = resolve;
-    });
-    const { client, requests } = fakeClient(
-      [
-        () => ({
-          kind: "stream",
-          events: (async function* () {
-            yield { type: "job", id: "j1", photos: 3 } as const;
-            await gate;
-            yield { type: "text", delta: "읽는 중이에요" } as const;
-          })(),
-        }),
-        [{ type: "text", delta: "카드로 만들게요" }],
-      ],
-      undefined,
-      { polls: [progress(3, "done"), progress(3, "done")] },
-    );
-    render(<AssistantChat allowance={null} client={client} />);
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) });
-    await user.upload(screen.getByLabelText("사진 첨부"), [photoFile("a.png")]);
-    await screen.findByRole("list", { name: "사진 1장" });
-    await user.click(screen.getByRole("button", { name: "보내기" }));
-    expect(await screen.findByText("0/3장 읽는 중")).toBeInTheDocument();
-
-    // Asked while the reply streams: the answer waits, and nothing is sent.
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(jobPollMs);
-    });
-    expect(screen.getByText("0/3장 읽는 중")).toBeInTheDocument();
-    expect(requests).toHaveLength(1);
-    end();
-    await screen.findByText("읽는 중이에요");
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(jobPollMs);
-    });
-    expect(await screen.findByText("카드로 만들게요")).toBeInTheDocument();
-    expect(requests).toHaveLength(2);
-  });
-
-  it("cancels the job it reads, and asks after it no more", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { client, asked, cancels } = fakeClient([[{ type: "job", id: "j1", photos: 3 }]]);
-    render(<AssistantChat allowance={null} client={client} />);
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) });
-    await user.upload(screen.getByLabelText("사진 첨부"), [photoFile("a.png")]);
-    // The photo is prepared before it is staged, which is what the send waits on.
-    await screen.findByRole("list", { name: "사진 1장" });
-    await user.click(screen.getByRole("button", { name: "보내기" }));
-    await user.click(await screen.findByRole("button", { name: "읽기 취소" }));
+    expect(screen.getByRole("progressbar", { name: "사진 읽기" })).toHaveAttribute("value", "1");
+    await userEvent.click(screen.getByRole("button", { name: "읽기 취소" }));
     expect(cancels).toEqual(["j1"]);
     expect(await screen.findByText("사진 읽기를 취소했어요")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "읽기 취소" })).not.toBeInTheDocument();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(jobPollMs * 2);
-    });
-    expect(asked).toEqual([]);
-  });
+    unmount();
 
-  it("keeps the job running when its cancel is refused, and treats a job the function no longer has as cancelled", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { client } = fakeClient([[{ type: "job", id: "j1", photos: 3 }]], undefined, {
-      cancelled: false,
-      polls: [{ kind: "missing" }],
-    });
-    render(<AssistantChat allowance={null} client={client} />);
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) });
-    await user.upload(screen.getByLabelText("사진 첨부"), [photoFile("a.png")]);
-    // The photo is prepared before it is staged, which is what the send waits on.
-    await screen.findByRole("list", { name: "사진 1장" });
-    await user.click(screen.getByRole("button", { name: "보내기" }));
-    await user.click(await screen.findByRole("button", { name: "읽기 취소" }));
-    // Control: a refused cancel is not a cancelled job.
-    expect(screen.getByText("0/3장 읽는 중")).toBeInTheDocument();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(jobPollMs);
-    });
-    expect(await screen.findByText("사진 읽기를 취소했어요")).toBeInTheDocument();
+    storedJob("done", 3);
+    render(<AssistantChat allowance={null} client={fakeClient([]).client} />);
+    expect(await screen.findByText("사진 3장을 다 읽었어요")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "읽기 취소" })).not.toBeInTheDocument();
   });
 });
 
@@ -994,19 +657,6 @@ describe("the chat drawn as a messenger (ADR 0250)", () => {
     expect(dots()).toHaveLength(0);
     expect(profiles(container, "sad")).toHaveLength(1);
     expect(names()).toHaveLength(1);
-  });
-
-  it("takes the dots away on stop, and draws no profile for a reply that never began", async () => {
-    const { client } = held();
-    const { container } = render(<AssistantChat allowance={null} client={client} />);
-    await say("안녕");
-    expect(dots()).toHaveLength(3);
-    await userEvent.click(screen.getByRole("button", { name: "멈추기" }));
-    await waitFor(() => {
-      expect(dots()).toHaveLength(0);
-    });
-    expect(profiles(container, "thinking")).toHaveLength(0);
-    expect(screen.getByRole("button", { name: "보내기" })).toBeInTheDocument();
   });
 
   it("lets the dots rise when motion is allowed and stand still under reduced motion", async () => {
