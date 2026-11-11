@@ -6,6 +6,7 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/study/study.dart';
 import 'package:knowno/sync/sync.dart';
 
+import '../deck/two_sides.dart';
 import '../media/fakes.dart';
 import 'device.dart';
 import 'fake_sync_server.dart';
@@ -607,7 +608,7 @@ void main() {
 
   group('templates and block versions (ADR 0106)', () {
     test('a card a newer build wrote keeps its unknown template and blocks '
-        'unchanged through this build, a merged back included', () async {
+        'unchanged through this build, a merge into it refused', () async {
       // The newer build: a template this build does not know, at a version
       // above its own, and a block of a type and version it does not know.
       final newer = Device('newer', server, scheduler);
@@ -639,15 +640,16 @@ void main() {
       expect((onA.template, onA.templateVersion), ('image_occlusion', 2));
       expect(onA.front.every((block) => block is UnsupportedContent), isTrue);
 
-      // A merges a photo's back into it, the one write this build makes.
+      // A photo's back merges into no card this build cannot edit.
       a.now = a.now.add(const Duration(minutes: 1));
-      await a.deck.addCards(AddToDeck(deck.id), [
+      final merged = await a.deck.addCards(AddToDeck(deck.id), [
         const IncomingCard(
           front: [TextContent('chat')],
           back: [TextContent('a cat')],
           onDuplicate: DuplicateChoice.mergeBack,
         ),
       ]);
+      expect(merged.merged, 0);
       await a.sync(_ada);
       await b.sync(_ada);
 
@@ -657,7 +659,11 @@ void main() {
         ('image_occlusion', 2),
       );
       expect(onServer.front, front, reason: 'byte for byte');
-      expect(onServer.back, contains('a cat'), reason: 'the merge arrived');
+      expect(
+        onServer.back,
+        '[{"type":"text","v":1,"id":"t","payload":{"text":"cat"}}]',
+        reason: 'as the newer build wrote it',
+      );
       final onB = await b.db.select(b.db.cards).getSingle();
       expect(
         (onB.template, onB.templateVersion, onB.front),
@@ -665,7 +671,7 @@ void main() {
       );
     });
 
-    test('a card added from a file reaches the server and the other device as a free v1 import', () async {
+    test('a card added from a file reaches the server and the other device as a free v2 import', () async {
       final deck = await a.deck.createDeck('French');
       await a.deck.addCards(AddToDeck(deck.id), source: const FromFile(), [
         const IncomingCard(
@@ -680,7 +686,7 @@ void main() {
       final onServer = server.cards.values.single.row;
       expect(
         (onServer.template, onServer.templateVersion, onServer.source),
-        ('free', 1, 'import'),
+        ('free', 2, 'import'),
       );
       final onB = (await b.deck.listCards(deck.id)).single;
       expect(plainText(onB.front), 'chat');
@@ -689,7 +695,9 @@ void main() {
 
     test('a template set on one device reaches the other', () async {
       final deck = await a.deck.createDeck('French');
-      await a.deck.addCard(
+      await storeSides(
+        a.db,
+        a.deck,
         deck.id,
         front: [const ClozeContent('{{c1::Paris}} is in France')],
         back: _text('Paris is in France'),

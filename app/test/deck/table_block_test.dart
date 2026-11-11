@@ -12,6 +12,7 @@ import '../home/deck_screens.dart';
 import 'editor.dart';
 import 'whole_cards.dart';
 import '../word_breaks.dart';
+import 'two_sides.dart';
 
 /// The front's first block, a Text block holding the table's name.
 final _name = blockField();
@@ -395,7 +396,9 @@ void main() {
     (tester) async {
       final screens = await DeckScreens.open(tester);
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [const TextContent('Capitals'), _capitals],
           back: [TextContent(_capitals.filled)],
@@ -448,15 +451,17 @@ void main() {
         ]),
       );
       final added = await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: oldEditor.front,
           back: oldEditor.back,
         ),
       );
-      expect(added, isA<CardSaved>());
+      expect(added, isA<Card>());
 
-      for (final ((:front, :back), kept) in [
+      for (final ((:front, back: _), kept) in [
         (imported, const <Content>[]),
         (oldEditor, oldEditor.back),
       ]) {
@@ -464,7 +469,11 @@ void main() {
           (card) => plainText([card.front.first]) == plainText([front.first]),
         );
         final card = await stored();
-        expect(card.back, back, reason: 'the setup stores the back asked');
+        expect(
+          card.back,
+          kept,
+          reason: 'the setup: a back equal to the filled text is not stored',
+        );
         await screens.push(
           (deck) =>
               CardEditorScreen(preview: studyPreview, deck: deck, card: card),
@@ -513,7 +522,9 @@ void main() {
     (tester) async {
       final screens = await DeckScreens.open(tester);
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [const TextContent('Capitals'), _capitals],
           back: [TextContent(_capitals.filled)],

@@ -275,9 +275,10 @@ class DeckRepository {
     };
   });
 
-  /// Adds a manual card, in the frame when given its [cells], of which [front]
-  /// and [back] are then the projection. A card in the same deck with an
-  /// equal key blocks the save unless [allowDuplicate] is set.
+  /// Adds a manual card in the frame, of the [cells] it is given or else of
+  /// [front] and [back] converted, which are then the projection. A card in
+  /// the same deck with an equal key blocks the save unless [allowDuplicate]
+  /// is set.
   Future<SaveCardResult> addCard(
     DeckId deckId, {
     required List<Content> front,
@@ -285,7 +286,11 @@ class DeckRepository {
     List<Cell>? cells,
     bool allowDuplicate = false,
   }) {
-    final key = CardKey.fromFront(plainText(front));
+    final framed = cells ?? cellsFromSides(front, back);
+    if (framed == null) {
+      throw ArgumentError.value(back, 'back', 'holds a block with no 칸');
+    }
+    final key = frameKey(framed);
     return _guard(
       () => _db.transaction(() async {
         if (!allowDuplicate) {
@@ -298,18 +303,12 @@ class DeckRepository {
         final row = CardRow(
           id: _newId(),
           deckId: deckId.value,
-          front: cells == null
-              ? encodeContent(_withIds(front, const []))
-              : encodeCells(cells, newId: _newBlockId),
-          back: cells == null
-              ? encodeContent(_withIds(back, const []))
-              : encodeContent(const []),
+          front: encodeCells(framed, newId: _newBlockId),
+          back: encodeContent(const []),
           cardKey: key.value,
           source: CardSource.manual.name,
           template: freeTemplate,
-          templateVersion: cells == null
-              ? cardTemplateVersion
-              : cardFrameVersion,
+          templateVersion: cardFrameVersion,
           createdAt: now,
           updatedAt: now,
           dirty: true,
@@ -332,6 +331,10 @@ class DeckRepository {
     List<Cell>? cells,
     bool allowDuplicate = false,
   }) {
+    final framed = cells ?? cellsFromSides(front, back);
+    if (framed == null) {
+      throw ArgumentError.value(back, 'back', 'holds a block with no 칸');
+    }
     final key = CardKey.fromFront(plainText(front));
     return _guard(
       () => _db.transaction(() async {
@@ -349,21 +352,11 @@ class DeckRepository {
           _db.cards,
         )..where((row) => row.id.equals(card.id.value))).write(
           CardsCompanion(
-            front: Value(
-              cells == null
-                  ? encodeContent(_withIds(front, card.front))
-                  : encodeCells(cells, newId: _newBlockId),
-            ),
-            back: Value(
-              cells == null
-                  ? encodeContent(_withIds(back, card.back))
-                  : encodeContent(const []),
-            ),
+            front: Value(encodeCells(framed, newId: _newBlockId)),
+            back: Value(encodeContent(const [])),
             cardKey: Value(key.value),
             template: const Value(freeTemplate),
-            templateVersion: Value(
-              cells == null ? cardTemplateVersion : cardFrameVersion,
-            ),
+            templateVersion: const Value(cardFrameVersion),
             updatedAt: Value(now),
             dirty: const Value(true),
           ),
@@ -483,25 +476,26 @@ class DeckRepository {
               final back = await own(card.back);
               final cells = switch (card.cells) {
                 final cells? => await ownCells(cells),
-                null => null,
+                null => cellsFromSides(front, back),
               };
+              if (cells == null) {
+                throw ArgumentError.value(
+                  card.back,
+                  'back',
+                  'holds a block with no 칸',
+                );
+              }
               await _db
                   .into(_db.cards)
                   .insert(
                     CardRow(
                       id: _newId(),
                       deckId: deck.id.value,
-                      front: cells == null
-                          ? encodeContent(_withIds(front, const []))
-                          : encodeCells(cells, newId: _newBlockId),
-                      back: cells == null
-                          ? encodeContent(_withIds(back, const []))
-                          : encodeContent(const []),
+                      front: encodeCells(cells, newId: _newBlockId),
+                      back: encodeContent(const []),
                       cardKey: key.value,
                       template: freeTemplate,
-                      templateVersion: cells == null
-                          ? cardTemplateVersion
-                          : cardFrameVersion,
+                      templateVersion: cardFrameVersion,
                       source: switch (source) {
                         FromPhoto() || FromFile() => CardSource.import.name,
                         FromCopy() => CardSource.copy.name,
@@ -518,25 +512,21 @@ class DeckRepository {
               added++;
             case (final existing?, DuplicateChoice.mergeBack):
               final incoming = plainText(card.back);
-              final cells = existing.cells;
-              if (mergeBack(existing.back, incoming) case final back?) {
+              final cells = cellsOf(existing);
+              if (cells != null && mergeBack(existing.back, incoming) != null) {
                 await (_db.update(
                   _db.cards,
                 )..where((row) => row.id.equals(existing.id.value))).write(
                   CardsCompanion(
-                    front: cells == null
-                        ? const Value.absent()
-                        : Value(
-                            encodeCells([
-                              ...cells,
-                              TextCell.literal(back: incoming),
-                            ], newId: _newBlockId),
-                          ),
-                    back: cells == null
-                        ? Value(encodeContent(_withIds(back, existing.back)))
-                        : const Value.absent(),
-                    template: Value(_mergedTemplate(existing).$1),
-                    templateVersion: Value(_mergedTemplate(existing).$2),
+                    front: Value(
+                      encodeCells([
+                        ...cells,
+                        TextCell.literal(back: incoming),
+                      ], newId: _newBlockId),
+                    ),
+                    back: Value(encodeContent(const [])),
+                    template: const Value(freeTemplate),
+                    templateVersion: const Value(cardFrameVersion),
                     updatedAt: Value(_clock()),
                     dirty: const Value(true),
                   ),
@@ -602,40 +592,6 @@ class DeckRepository {
     updatedAt: Value(at),
     dirty: const Value(true),
   );
-
-  /// [blocks] as written: each keeps its id, or takes the id of the next
-  /// block of its kind in [previous] not yet taken, or a new one, so a block
-  /// keeps its id across edits and every block has one once written
-  /// (ADR 0106). A block this build cannot read is kept as it is.
-  List<Content> _withIds(List<Content> blocks, List<Content> previous) {
-    final unused = [
-      for (final block in previous)
-        if (block.id != null && block is! UnsupportedContent) block,
-    ];
-    final taken = {for (final block in blocks) ?block.id};
-    return [
-      for (final block in blocks)
-        switch (block) {
-          UnsupportedContent() || Content(id: _?) => block,
-          _ => withBlockId(block, switch (unused.indexWhere(
-            (old) =>
-                old.runtimeType == block.runtimeType && !taken.contains(old.id),
-          )) {
-            -1 => _newBlockId(),
-            final index => unused.removeAt(index).id!,
-          }),
-        },
-    ];
-  }
-
-  /// The template and version a merged back records on [card]: a card of two
-  /// side lists is written in the one this build gives them; a framed card
-  /// keeps the frame, and a later build's template is kept (ADR 0106,
-  /// ADR 0114, ADR 0137).
-  static (String?, int?) _mergedTemplate(Card card) =>
-      canEdit(card) && card.cells == null
-      ? (freeTemplate, cardTemplateVersion)
-      : (card.template, card.templateVersion);
 
   /// One lookup on the `(deck_id, card_key)` index.
   Future<Card?> _findByKey(DeckId deckId, CardKey key, {CardId? except}) async {

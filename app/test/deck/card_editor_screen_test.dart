@@ -23,6 +23,7 @@ import '../media/fakes.dart';
 import '../word_breaks.dart';
 import 'editor.dart';
 import 'frame_fixtures.dart';
+import 'two_sides.dart';
 
 /// The text the preview screen's card shows, its word joiners left out.
 List<String> _previewText(WidgetTester tester) => [
@@ -512,7 +513,9 @@ void main() {
       ) async {
         final screens = await DeckScreens.open(tester, overrides: media());
         await tester.runAsync(
-          () => screens.repository.addCard(
+          () => storeSides(
+            screens.db,
+            screens.repository,
             screens.deck.id,
             front: blocks(fixture['front']),
             back: blocks(fixture['back']),
@@ -545,7 +548,9 @@ void main() {
         );
         final screens = await DeckScreens.open(tester);
         await tester.runAsync(
-          () => screens.repository.addCard(
+          () => storeSides(
+            screens.db,
+            screens.repository,
             screens.deck.id,
             front: blocks(fixture['front']),
             back: blocks(fixture['back']),
@@ -567,7 +572,9 @@ void main() {
       testWidgets('opens read-only: ${fixture['name']}', (tester) async {
         final screens = await DeckScreens.open(tester);
         await tester.runAsync(
-          () => screens.repository.addCard(
+          () => storeSides(
+            screens.db,
+            screens.repository,
             screens.deck.id,
             front: blocks(fixture['front']),
             back: blocks(fixture['back']),
@@ -603,7 +610,9 @@ void main() {
         ('table', [name, table], true),
       ]) {
         await tester.runAsync(
-          () => screens.repository.addCard(
+          () => storeSides(
+            screens.db,
+            screens.repository,
             screens.deck.id,
             front: front,
             back: [const TextContent('a back')],
@@ -658,7 +667,9 @@ void main() {
               ).single
               as UnsupportedContent;
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [const TextContent('apple')],
           back: [unknown],
