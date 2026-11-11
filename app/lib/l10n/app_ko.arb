@@ -1171,7 +1171,7 @@
   "@assistantReady": {"description": "The bubble over 홈's mascot while 말랑이 has new cards ready to add.", "placeholders": {"count": {"type": "int"}}},
   "assistantInviteCards": "오늘 배운 거, 같이 카드로 만들까요?",
   "@assistantInviteCards": {"description": "홈's chat bubble once a day while cards are left to study."},
-  "assistantInviteDone": "수고했어요. 얘기 좀 할래요?",
+  "assistantInviteDone": "오늘도 수고 많았어요!",
   "@assistantInviteDone": {"description": "홈's chat bubble once a day when the day's cards are done."},
   "assistantInvite": "말랑이와 대화해요",
   "@assistantInvite": {"description": "홈's chat bubble once a day in any other state."},

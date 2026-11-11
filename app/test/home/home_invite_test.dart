@@ -7,7 +7,7 @@ import '../word_breaks.dart';
 import 'assistant_home.dart';
 
 const _cards = 'Want to turn what you learned today into cards?';
-const _done = 'Nice work. Want to chat?';
+const _done = 'Great work today.';
 const _plain = 'Let\'s talk with Malangi';
 
 /// The bubble's lines, any of which on screen is the chat bubble.

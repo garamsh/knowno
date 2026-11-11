@@ -3321,7 +3321,7 @@ abstract class AppLocalizations {
   /// 홈's chat bubble once a day when the day's cards are done.
   ///
   /// In ko, this message translates to:
-  /// **'수고했어요. 얘기 좀 할래요?'**
+  /// **'오늘도 수고 많았어요!'**
   String get assistantInviteDone;
 
   /// 홈's chat bubble once a day in any other state.
