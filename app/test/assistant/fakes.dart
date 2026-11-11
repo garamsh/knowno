@@ -17,7 +17,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 /// What a scripted message does when it is sent: answers with an outcome.
-typedef Script = SendOutcome Function(Future<void> abort);
+typedef Script = FutureOr<SendOutcome> Function(Future<void> abort);
 
 /// A reply that streams [events] and ends.
 Script reply(List<AssistantEvent> events) =>
@@ -85,7 +85,7 @@ final class FakeAssistantClient implements AssistantClient {
     required Future<void> abort,
   }) async {
     sent.add(messages);
-    return scripts.removeAt(0)(abort);
+    return await scripts.removeAt(0)(abort);
   }
 
   @override

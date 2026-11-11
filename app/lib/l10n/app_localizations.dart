@@ -3330,7 +3330,7 @@ abstract class AppLocalizations {
   /// **'말랑이와 대화해요'**
   String get assistantInvite;
 
-  /// The chat's title, beside the mascot.
+  /// The chat's title, and the name above 말랑이's first bubble of a run.
   ///
   /// In ko, this message translates to:
   /// **'말랑이'**
@@ -3396,7 +3396,7 @@ abstract class AppLocalizations {
   /// **'멈추기'**
   String get assistantStop;
 
-  /// Under a reply that has not begun.
+  /// The name a screen reader gives the typing bubble while a reply is made.
   ///
   /// In ko, this message translates to:
   /// **'말랑이가 생각하는 중이에요'**

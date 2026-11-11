@@ -21,10 +21,21 @@ Future<void> _type(WidgetTester tester, String text) async {
   await tester.pump();
 }
 
-Future<void> _send(WidgetTester tester, String text) async {
+/// Sends [text]; a reply still open goes with [settle] false, as the typing
+/// dots never settle.
+Future<void> _send(
+  WidgetTester tester,
+  String text, {
+  bool settle = true,
+}) async {
   await _type(tester, text);
   await tester.tap(find.byTooltip('Send'));
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+    await tester.pump();
+  }
 }
 
 /// A poll's time passes and its answer is drawn.
@@ -412,7 +423,7 @@ void main() {
         client,
         await openAssistantStorage(tester),
       );
-      await _send(tester, '읽어 줘');
+      await _send(tester, '읽어 줘', settle: false);
       feed.add(const JobEvent(id: 'job-1', photos: 3));
       await tester.pump();
       await tester.pump();
