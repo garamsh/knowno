@@ -4,7 +4,6 @@ import {
   type CardRule,
   cardsSchema,
   closeCutReply,
-  CLOZE_BLANK,
   composeAnswer,
   composeClozeAnswer,
   composeInstructions,
@@ -106,7 +105,8 @@ const table = (fields: Record<string, unknown> = {}) =>
 const cloze = (fields: Record<string, unknown> = {}) =>
   note({
     type: "cloze",
-    front: "3인칭 재귀칭: 높임 당신 · 예사 ___ · 낮춤 ___",
+    front:
+      "3인칭 재귀칭: 높임 당신 · 예사 {{c1::자기, 자신}} · 낮춤 {{c2::저, 저희}}",
     answer: null,
     topic: "대명사",
     cloze: CLOZE,
@@ -714,17 +714,17 @@ Deno.test("a cloze card returns what fills each blank, and its answer is those a
   assert.deepEqual(card, {
     kind: "note",
     type: "cloze",
-    front: "3인칭 재귀칭: 높임 당신 · 예사 ___ · 낮춤 ___",
+    front:
+      "3인칭 재귀칭: 높임 당신 · 예사 {{c1::자기, 자신}} · 낮춤 {{c2::저, 저희}}",
     answer: "자기, 자신\n저, 저희",
     topic: "대명사",
     cloze: { answers: ["자기, 자신", "저, 저희"] },
   });
-  assert.equal(CLOZE_BLANK, "___");
 });
 
 Deno.test("parseCards refuses a cloze whose answers do not match its front's blanks one for one, or that has none, too many or an empty one", () => {
   const blanks = (n: number) =>
-    Array.from({ length: n }, () => CLOZE_BLANK).join(" ");
+    Array.from({ length: n }, (_, i) => `{{c${i + 1}::a${i}}}`).join(" ");
   const answers = (n: number) => Array.from({ length: n }, (_, i) => `a${i}`);
   assert.equal(
     parseCards(
@@ -753,6 +753,18 @@ Deno.test("parseCards refuses a cloze whose answers do not match its front's bla
     },
     "a front with no blank": {
       front: "3인칭 재귀칭",
+      cloze: { answers: answers(1) },
+    },
+    "a blank written ___ as before": {
+      front: "3인칭 재귀칭: ___",
+      cloze: { answers: answers(1) },
+    },
+    "a span never closed": {
+      front: "3인칭 재귀칭: {{c1::자기",
+      cloze: { answers: answers(1) },
+    },
+    "a span with no answer": {
+      front: "3인칭 재귀칭: {{c1::}}",
       cloze: { answers: answers(1) },
     },
     "no answer": { front: "3인칭 재귀칭", cloze: { answers: [] } },
@@ -963,7 +975,7 @@ const BREAKING: Record<CardRule, unknown> = {
   vocabulary_type: item({ type: "cloze" }),
   table_card: table({ answer: "표" }),
   cloze_card: cloze({ table: TABLE }),
-  cloze_blanks: cloze({ front: "3인칭 재귀칭: ___" }),
+  cloze_blanks: cloze({ front: "3인칭 재귀칭: {{c1::자기}}" }),
   concept_card: note({ answer: null }),
 };
 
@@ -1069,4 +1081,15 @@ Deno.test("closeCutReply closes a cut reply after its last whole card, braces in
   );
   // Control: a cut before any card is whole closes nothing.
   assert.equal(closeCutReply(reply([item()]).slice(0, -20)), null);
+});
+
+Deno.test("the output contract asks for card text in the markup and an Anki cloze, and never a blank written ___", () => {
+  assert.match(OUTPUT_CONTRACT, /## Card text/);
+  assert.match(OUTPUT_CONTRACT, /\*\*bold\*\*/);
+  assert.match(OUTPUT_CONTRACT, /\{\{c1::answer\}\}/);
+  assert.match(OUTPUT_CONTRACT, /write a backslash before it/);
+  assert.doesNotMatch(
+    OUTPUT_CONTRACT.replace("never writes a blank as ___", ""),
+    /___/,
+  );
 });

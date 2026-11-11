@@ -17,13 +17,7 @@ import {
   type StoredSides,
   tableReason,
 } from "./frame.ts";
-import {
-  clozeFromV1,
-  clozeNumbers,
-  clozeToV1,
-  parseMarkup,
-  unfinishedClozes,
-} from "./markup.ts";
+import { clozeNumbers, parseMarkup, unfinishedClozes } from "./markup.ts";
 
 /** The longest a card's text may be. */
 export const MAX_TEXT = 2000;
@@ -64,13 +58,6 @@ export type ReadCard = {
 };
 
 type Args = Record<string, unknown>;
-
-/**
- * How a call reads and writes text (ADR 0216). With `markup` off, a text is literal and written at
- * version 2 as given, and a cloze is written at version 1. With it on, a text is markup written at
- * version 3 and a cloze at version 2. A cloze is accepted in either form whichever it says.
- */
-export type Writes = { readonly markup: boolean };
 
 function isRecord(value: unknown): value is Args {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -128,16 +115,14 @@ type Built =
   }
   | string;
 
-/** A text block: its front and back are markup while [writes] says so, and literal otherwise. */
-function textBlock(value: Args, writes: Writes): Built {
+/** A text block: its front and back are markup, written at version 3 (ADR 0254). */
+function textBlock(value: Args): Built {
   const front = optionalText(value.front ?? "");
   const back = optionalText(value.back ?? "");
   if (front === null || back === null) {
     return `a text block's front and back must be text of at most ${MAX_TEXT} characters.`;
   }
-  return writes.markup
-    ? { payload: { front, back }, v: MARKUP_TEXT_VERSION }
-    : { payload: { front, back } };
+  return { payload: { front, back }, v: MARKUP_TEXT_VERSION };
 }
 
 function sensesBlock(value: Args): Built {
@@ -165,45 +150,25 @@ function withinLimit(value: unknown): boolean {
 
 const NO_CLOZE =
   "a cloze's text needs at least one {{c1::answer}} or {{c1::answer::hint}}, each with an answer that is not blank.";
-const NO_V1 =
-  "a cloze in {{c1::answer}} form cannot be written yet when it has a hint, a number used twice or out of order from 1, a mark or a list: give each blank its own number from 1 in order, with plain text, or the form with ___ and answers.";
 const UNFINISHED =
   "a cloze's text has a {{cN:: that is no cloze: give it an answer that is not blank and a closing }}, and no cloze inside another; write a literal { or : after a backslash.";
 
-/**
- * A cloze: `text` with `answers`, one `___` for each, or `text` alone in Anki's syntax. Written at
- * version 2 while [writes] says so, and otherwise at version 1; an Anki cloze with no version 1 form
- * is refused.
- */
-function clozeBlock(value: Args, writes: Writes): Built {
-  const { text, answers } = value;
-  if (!withinLimit([text]) || !withinLimit(answers)) {
-    return `a cloze's text and answers must be at most ${MAX_TEXT} characters each.`;
-  }
-  if (answers === undefined) {
-    if (typeof text !== "string") return NO_CLOZE;
-    if (clozeNumbers(parseMarkup(text)).length === 0) {
-      return unfinishedClozes(text) > 0 ? UNFINISHED : NO_CLOZE;
-    }
-    if (unfinishedClozes(text) > 0) return UNFINISHED;
-    if (writes.markup) {
-      return { payload: { text }, v: MARKUP_CLOZE_VERSION };
-    }
-    const v1 = clozeToV1(text);
-    return v1 === null ? NO_V1 : { payload: v1 };
-  }
-  if (!writes.markup || typeof text !== "string" || !isStrings(answers)) {
-    return { payload: { text, answers } };
-  }
-  const source = clozeFromV1(text, answers);
-  return source === null
-    ? { payload: { text, answers } }
-    : { payload: { text: source }, v: MARKUP_CLOZE_VERSION };
-}
+const OLD_CLOZE =
+  'a cloze takes its text alone, with each hidden part written {{c1::answer}} or {{c1::answer::hint}} (the number after c starts at 1): send {"type":"cloze","text":"The capital is {{c1::Paris}}."} and no answers, not ___ with answers.';
 
-function isStrings(value: unknown): value is string[] {
-  return Array.isArray(value) &&
-    value.every((item) => typeof item === "string");
+/** A cloze: `text` in Anki's syntax, written at version 2 (ADR 0254). One with `answers` is refused. */
+function clozeBlock(value: Args): Built {
+  const { text, answers } = value;
+  if (!withinLimit([text])) {
+    return `a cloze's text must be at most ${MAX_TEXT} characters.`;
+  }
+  if (answers !== undefined) return OLD_CLOZE;
+  if (typeof text !== "string") return NO_CLOZE;
+  if (clozeNumbers(parseMarkup(text)).length === 0) {
+    return unfinishedClozes(text) > 0 ? UNFINISHED : NO_CLOZE;
+  }
+  if (unfinishedClozes(text) > 0) return UNFINISHED;
+  return { payload: { text }, v: MARKUP_CLOZE_VERSION };
 }
 
 function tableBlock(value: Args): Built {
@@ -273,7 +238,6 @@ function built(
   value: Args,
   ids: IdSource,
   kept: Kept | null,
-  writes: Writes,
 ): Built {
   if (
     kept !== null &&
@@ -284,11 +248,11 @@ function built(
   const type = BLOCK_TYPES.find((known) => known === value.type);
   switch (type) {
     case "text":
-      return textBlock(value, writes);
+      return textBlock(value);
     case "senses":
       return sensesBlock(value);
     case "cloze":
-      return clozeBlock(value, writes);
+      return clozeBlock(value);
     case "table":
       return tableBlock(value);
     case "image":
@@ -305,8 +269,7 @@ const SHAPES: Record<string, string> = {
   text: "a text block needs a front or a back.",
   senses:
     "a senses block needs one or more senses, each with a meaning, and ask must be term or meaning.",
-  cloze:
-    "a cloze needs text with one ___ for each of its answers, each answer holding text; or text alone with a {{c1::answer}} in it.",
+  cloze: "a cloze needs text with a {{c1::answer}} in it, and no answers.",
   table:
     "a table needs columns, rows of as many cells as columns, and a blank or a span: each blank a distinct cell holding text, each span a run of a cell's text that overlaps no other span and is in no blank cell.",
   image:
@@ -339,7 +302,6 @@ function readBlocks(
   values: unknown,
   ids: IdSource,
   kept: Kept | null,
-  writes: Writes,
 ): ReadCard | string {
   if (
     !Array.isArray(values) || values.length === 0 ||
@@ -353,7 +315,7 @@ function readBlocks(
   for (const [index, value] of values.entries()) {
     const where = `block ${index}: `;
     if (!isRecord(value)) return `${where}a block must be an object.`;
-    const read = built(value, ids, kept, writes);
+    const read = built(value, ids, kept);
     if (typeof read === "string") return where + read;
     const type = value.type as string;
     const block = {
@@ -391,7 +353,6 @@ function readPlain(
   value: Args,
   ids: IdSource,
   kept: Kept | null,
-  writes: Writes,
 ): ReadCard | string {
   const front = requiredText(value.front);
   if (front === null) {
@@ -414,7 +375,6 @@ function readPlain(
     ],
     ids,
     kept,
-    writes,
   );
 }
 
@@ -426,7 +386,6 @@ export function readCard(
   value: unknown,
   ids: IdSource,
   kept: Kept | null = null,
-  writes: Writes = { markup: false },
 ): ReadCard | string {
   if (!isRecord(value)) {
     return "the card must be an object with blocks, or with front and back.";
@@ -434,12 +393,12 @@ export function readCard(
   if ("blocks" in value) {
     return "front" in value || "back" in value
       ? "give a card blocks, or front and back, not both."
-      : readBlocks(value.blocks, ids, kept, writes);
+      : readBlocks(value.blocks, ids, kept);
   }
   if (typeof value.type === "string") {
     return `a card is {"blocks":[...]}, a list of blocks, and this is a block of type ${value.type}: send {"blocks":[{"type":"${value.type}", ...}]}.`;
   }
-  return readPlain(value, ids, kept, writes);
+  return readPlain(value, ids, kept);
 }
 
 /** What a stored card holds that an update may keep. */

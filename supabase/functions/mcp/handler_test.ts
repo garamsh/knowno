@@ -73,8 +73,6 @@ type Fake = {
   calls: { url: string; method: string; headers: Headers }[];
   /** What `card_form_skills` answers: one served version of each form. */
   skills: Row[];
-  /** What `card_markup_enabled` answers: whether the markup's forms are written (ADR 0216). */
-  markup: boolean;
   /** The plan `my_plan` answers for the caller, "broken" an answer without one, "down" a 500. */
   plan: "free" | "pro" | "max" | "broken" | "down";
 };
@@ -111,7 +109,6 @@ function seed(): Fake {
   return {
     rest: "up",
     calls: [],
-    markup: false,
     plan: "pro",
     skills: FORMS.map((form, index) => ({
       form,
@@ -272,9 +269,6 @@ function rest(
   if (url.pathname.endsWith("/rpc/my_plan") && method === "POST") {
     if (fake.plan === "down") return Response.json({}, { status: 500 });
     return Response.json([fake.plan === "broken" ? {} : { plan: fake.plan }]);
-  }
-  if (url.pathname.endsWith("/rpc/card_markup_enabled") && method === "POST") {
-    return Response.json(fake.markup);
   }
   if (url.pathname.endsWith("/rpc/card_form_skills") && method === "POST") {
     return Response.json(fake.skills);
@@ -967,7 +961,7 @@ Deno.test("add_cards stores the plain form as free v2: one 글, or a 단어 with
   const [{ id: _c, ...glue }] = cat.front as Row[];
   assert.deepEqual(glue, {
     type: "text",
-    v: 2,
+    v: 3,
     payload: { front: "cat", back: "고양이" },
   });
   assert.deepEqual(cat.back, []);
@@ -998,8 +992,7 @@ Deno.test("add_cards stores each 칸 as the web's encodeCells writes it, a mixed
       {
         blocks: [{
           type: "cloze",
-          text: "The capital is ___.",
-          answers: ["Paris"],
+          text: "The capital is {{c1::Paris}}.",
         }],
       },
       {
@@ -1017,7 +1010,7 @@ Deno.test("add_cards stores each 칸 as the web's encodeCells writes it, a mixed
     (a) => fake.cards.find((row) => row.id === a.id)!,
   );
   assert.deepEqual(storedBlocks(mixed!), [
-    { type: "text", v: 2, payload: { front: "Organs", back: "" } },
+    { type: "text", v: 3, payload: { front: "Organs", back: "" } },
     {
       type: "table",
       v: 2,
@@ -1028,13 +1021,13 @@ Deno.test("add_cards stores each 칸 as the web's encodeCells writes it, a mixed
         spans: table.spans,
       },
     },
-    { type: "text", v: 2, payload: { front: "", back: "see p. 3" } },
+    { type: "text", v: 3, payload: { front: "", back: "see p. 3" } },
   ]);
   assert.equal(mixed!.card_key, "organs organ | job heart | pumps blood");
   assert.deepEqual(storedBlocks(cloze!), [{
     type: "cloze",
-    v: 1,
-    payload: { text: "The capital is ___.", answers: ["Paris"] },
+    v: 2,
+    payload: { text: "The capital is {{c1::Paris}}." },
   }]);
   assert.equal(cloze!.card_key, "the capital is paris.");
   assert.equal(cloze!.template_version, 2);
@@ -1045,6 +1038,17 @@ Deno.test("add_cards stores each 칸 as the web's encodeCells writes it, a mixed
 Deno.test("add_cards refuses what the shared validity refuses, over the fixtures, and adds what it accepts", async () => {
   const toInput = (block: { type: string; payload: Row }) => {
     const { media: _m, width: _w, height: _h, ...payload } = block.payload;
+    // The fixture holds the version 1 cloze the app still shares; the tool takes the Anki form.
+    if (block.type === "cloze") {
+      const answers = [...(payload.answers as string[])];
+      return {
+        type: "cloze",
+        text: String(payload.text).replace(
+          /___/g,
+          () => `{{c1::${answers.shift()}}}`,
+        ),
+      };
+    }
     return {
       type: block.type,
       ...payload,
@@ -1075,7 +1079,7 @@ Deno.test("add_cards refuses what the shared validity refuses, over the fixtures
 
 Deno.test("add_cards says how to fix each refused 칸, by its index, and adds the rest", async () => {
   const cards = [
-    { blocks: [{ type: "cloze", text: "no blank", answers: ["x"] }] },
+    { blocks: [{ type: "cloze", text: "The ___ is red", answers: ["x"] }] },
     {
       blocks: [{
         type: "table",
@@ -1110,7 +1114,10 @@ Deno.test("add_cards says how to fix each refused 칸, by its index, and adds th
     reason: string;
   }[];
   const reasons = Object.fromEntries(refused.map((r) => [r.index, r.reason]));
-  assert.match(reasons[0]!, /^block 0: a cloze needs text with one ___/);
+  assert.match(
+    reasons[0]!,
+    /^block 0: a cloze takes its text alone, with each hidden part written \{\{c1::answer\}\}/,
+  );
   assert.match(reasons[1]!, /^block 0: a table needs/);
   assert.match(reasons[2]!, /adds nothing at the reveal/);
   assert.match(reasons[3]!, /shows nothing before the reveal/);
@@ -1993,7 +2000,7 @@ Deno.test("update_cards refuses a card by its index and the block's, with add_ca
         id: CELL,
         blocks: [
           { type: "text", front: "a", back: "b" },
-          { type: "cloze", text: "no blank here", answers: ["x"] },
+          { type: "cloze", text: "no blank here" },
         ],
       },
       // A photo or a sound of another card's is not this card's to keep.
@@ -2021,7 +2028,10 @@ Deno.test("update_cards refuses a card by its index and the block's, with add_ca
     refused: { index: number; reason: string }[];
   };
   assert.deepEqual(refused.map((r) => r.index), [0, 1, 2, 3]);
-  assert.match(refused[0]!.reason, /^block 1: a cloze needs text with one ___/);
+  assert.match(
+    refused[0]!.reason,
+    /^block 1: a cloze's text needs at least one/,
+  );
   assert.match(
     refused[1]!.reason,
     /^block 0: an image block by media must name a photo this card already holds/,
@@ -2366,13 +2376,10 @@ Deno.test("update_cards whose update fails releases the photo it stored for the 
 const MARKUP_CARDS = [
   { blocks: [{ type: "text", front: "Capital?", back: "Paris" }] },
   {
-    blocks: [{ type: "text", front: "준비물\n- 여권\n- 지갑", back: "2*3*4" }],
-  },
-  {
     blocks: [{
-      type: "cloze",
-      text: "The capital of France is ___.",
-      answers: ["Paris"],
+      type: "text",
+      front: "준비물\n- 여권\n- 지갑",
+      back: "**2*3*4**",
     }],
   },
   { blocks: [{ type: "cloze", text: "{{c1::Seoul}} is the capital" }] },
@@ -2382,67 +2389,40 @@ const MARKUP_CARDS = [
       text: "{{c1::Seoul::city}} is the capital of Korea",
     }],
   },
+  {
+    blocks: [{
+      type: "cloze",
+      text: "The capital of France is ___.",
+      answers: ["Paris"],
+    }],
+  },
   { blocks: [{ type: "cloze", text: "no cloze here" }] },
 ];
 
-Deno.test("add_cards reads and writes text as the switch says: literal at version 2 as given and clozes at version 1 while off, markup at version 3 and clozes at version 2 while on, an Anki cloze with no version 1 form refused only while off", async () => {
-  const off = await call("add_cards", {
+Deno.test("add_cards writes text at version 3 as given, marks kept, and a cloze at version 2, refusing the older cloze with the form to send", async () => {
+  const done = await call("add_cards", {
     deck_id: ADA_DECK,
     cards: MARKUP_CARDS,
-  }, seed());
-  const on = seed();
-  on.markup = true;
-  const written = await call("add_cards", {
-    deck_id: ADA_DECK,
-    cards: MARKUP_CARDS,
-  }, on);
-  const stored = (done: Awaited<ReturnType<typeof call>>) =>
-    (done.result.structuredContent?.added as Row[]).map((added) =>
-      storedBlocks(done.fake.cards.find((row) => row.id === added.id)!)
-    );
-  const refused = (
-    done: Awaited<ReturnType<typeof call>>,
-  ) => (done.result.structuredContent?.refused as Row[]);
-  assert.deepEqual(refused(off).map((r) => r.index), [4, 5]);
+  });
+  const refused = done.result.structuredContent?.refused as Row[];
+  assert.deepEqual(refused.map((r) => r.index), [4, 5]);
   assert.match(
-    refused(off)[0]!.reason as string,
-    /block 0: a cloze in \{\{c1::answer\}\} form cannot be written yet/,
+    refused[0]!.reason as string,
+    /^block 0: a cloze takes its text alone, with each hidden part written \{\{c1::answer\}\}.*send \{"type":"cloze","text":"The capital is \{\{c1::Paris\}\}\."\} and no answers/,
   );
   assert.match(
-    refused(off)[1]!.reason as string,
+    refused[1]!.reason as string,
     /block 0: a cloze's text needs at least one \{\{c1::answer\}\}/,
   );
-  assert.deepEqual(refused(written).map((r) => r.index), [5]);
-  assert.deepEqual(stored(off), [
-    [{ type: "text", v: 2, payload: { front: "Capital?", back: "Paris" } }],
-    // A list and an asterisk pair stay literal while off, byte for byte.
-    [{
-      type: "text",
-      v: 2,
-      payload: { front: "준비물\n- 여권\n- 지갑", back: "2*3*4" },
-    }],
-    [{
-      type: "cloze",
-      v: 1,
-      payload: { text: "The capital of France is ___.", answers: ["Paris"] },
-    }],
-    [{
-      type: "cloze",
-      v: 1,
-      payload: { text: "___ is the capital", answers: ["Seoul"] },
-    }],
-  ]);
-  assert.deepEqual(stored(written), [
+  const stored = (done.result.structuredContent?.added as Row[]).map((added) =>
+    storedBlocks(done.fake.cards.find((row) => row.id === added.id)!)
+  );
+  assert.deepEqual(stored, [
     [{ type: "text", v: 3, payload: { front: "Capital?", back: "Paris" } }],
     [{
       type: "text",
       v: 3,
-      payload: { front: "준비물\n- 여권\n- 지갑", back: "2*3*4" },
-    }],
-    [{
-      type: "cloze",
-      v: 2,
-      payload: { text: "The capital of France is {{c1::Paris}}." },
+      payload: { front: "준비물\n- 여권\n- 지갑", back: "**2*3*4**" },
     }],
     [{
       type: "cloze",
@@ -2457,69 +2437,51 @@ Deno.test("add_cards reads and writes text as the switch says: literal at versio
   ]);
 });
 
-Deno.test("the switch is read as the caller, once for each add_cards, update_cards, list_cards and search_cards call", async () => {
-  const asked = (fake: Fake) =>
-    fake.calls.filter((one) => one.url.endsWith("/rpc/card_markup_enabled"));
-  const { fake } = await call("add_cards", {
-    deck_id: ADA_DECK,
-    cards: [{ front: "pear", back: "배" }],
-  });
-  assert.equal(asked(fake).length, 1);
-  assert.equal(
-    asked(fake)[0]!.headers.get("Authorization"),
-    `Bearer ${ADA_TOKEN}`,
-  );
-  assert.equal(asked(fake)[0]!.headers.get("apikey"), ANON_KEY);
-  const calls = [
-    ["update_cards", {
-      cards: [{ id: FREE_CARD, blocks: [{ type: "text", front: "a" }] }],
+Deno.test("update_cards writes a card's text as version 3 and refuses the older cloze, and list_cards shows each stored block as stored", async () => {
+  const fake = withFreeCard();
+  const { result } = await call("update_cards", {
+    cards: [{
+      id: FREE_CARD,
+      blocks: [{ type: "text", front: "2*3*4\n- a", back: "**x**" }],
     }],
-    ["list_cards", { deck_id: ADA_OTHER_DECK }],
-    ["search_cards", { query: "heart" }],
-  ] as const;
-  for (const [name, args] of calls) {
-    const done = await call(name, args, withFreeCard());
-    assert.equal(asked(done.fake).length, 1, name);
-  }
-});
-
-Deno.test("update_cards writes a card's text as version 3 while the switch is on and as version 2 as given while it is off, and list_cards shows a stored literal as stored while off and escaped while on", async () => {
-  const stored = async (markup: boolean) => {
-    const fake = withFreeCard();
-    fake.markup = markup;
-    const { result } = await call("update_cards", {
-      cards: [{
-        id: FREE_CARD,
-        blocks: [{ type: "text", front: "2*3*4\n- a", back: "x" }],
-      }],
-    }, fake);
-    assert.deepEqual(result.structuredContent?.refused, []);
-    return fake;
-  };
-  const off = await stored(false);
-  assert.deepEqual(storedBlocks(off.cards.find((c) => c.id === FREE_CARD)!), [{
-    type: "text",
-    v: 2,
-    payload: { front: "2*3*4\n- a", back: "x" },
-  }]);
-  const on = await stored(true);
-  assert.deepEqual(storedBlocks(on.cards.find((c) => c.id === FREE_CARD)!), [{
+  }, fake);
+  assert.deepEqual(result.structuredContent?.refused, []);
+  assert.deepEqual(storedBlocks(fake.cards.find((c) => c.id === FREE_CARD)!), [{
     type: "text",
     v: 3,
-    payload: { front: "2*3*4\n- a", back: "x" },
+    payload: { front: "2*3*4\n- a", back: "**x**" },
   }]);
-  const shown = async (fake: Fake) => {
-    const listed = await call("list_cards", { deck_id: ADA_OTHER_DECK }, fake);
-    const card = (listed.result.structuredContent?.cards as {
-      id: string;
-      blocks: Row[];
-    }[]).find((one) => one.id === FREE_CARD)!;
-    return card.blocks[0]!.front;
+  const old = await call("update_cards", {
+    cards: [{
+      id: FREE_CARD,
+      blocks: [{ type: "cloze", text: "A ___ b", answers: ["x"] }],
+    }],
+  }, withFreeCard());
+  const refused = old.result.structuredContent?.refused as Row[];
+  assert.equal(refused.length, 1);
+  assert.match(refused[0]!.reason as string, /send \{"type":"cloze"/);
+  const listed = await call("list_cards", { deck_id: ADA_OTHER_DECK }, fake);
+  const card = (listed.result.structuredContent?.cards as {
+    id: string;
+    blocks: Row[];
+  }[]).find((one) => one.id === FREE_CARD)!;
+  assert.equal(card.blocks[0]!.front, "2*3*4\n- a");
+  assert.equal(card.blocks[0]!.back, "**x**");
+  // A card stored below the markup is shown as stored, not rewritten.
+  const legacy = withFreeCard();
+  const row = legacy.cards.find((c) => c.id === FREE_CARD)!;
+  (row.front as Row[])[0] = {
+    ...(row.front as Row[])[0],
+    type: "text",
+    v: 2,
+    payload: { front: "2*3*4", back: "x" },
   };
-  assert.equal(await shown(off), "2*3*4\n- a");
-  // The same stored version 2 text, read while on, is shown escaped so that update_cards keeps its meaning.
-  off.markup = true;
-  assert.equal(await shown(off), "2\\*3\\*4\n\\- a");
+  const shown = await call("list_cards", { deck_id: ADA_OTHER_DECK }, legacy);
+  const old2 = (shown.result.structuredContent?.cards as {
+    id: string;
+    blocks: Row[];
+  }[]).find((one) => one.id === FREE_CARD)!;
+  assert.equal(old2.blocks[0]!.front, "2*3*4");
 });
 
 const makePublic = (fake: Fake) => {

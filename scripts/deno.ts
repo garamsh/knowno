@@ -30,7 +30,8 @@ const READS = [
   "supabase/migrations/20261019230003_activate_prompt_v9.sql",
   "supabase/tests/prompt_v9_activation_test.sql",
   "supabase/migrations/20261105150000_card_form_skills.sql",
-  "supabase/migrations/20261109150000_card_markup_switch.sql",
+  "supabase/migrations/20261112120000_card_markup_only.sql",
+  "supabase/tests/card_markup_only_test.sql",
   "supabase/migrations/20261109210000_assistant_photo_charges.sql",
 ].join(",");
 
