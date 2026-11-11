@@ -203,10 +203,11 @@ describe("노트 설정", () => {
     expect(sheet.getByRole("radio", { name: "책" })).toBeChecked();
     expect(sheet.getByLabelText("사진 찍기")).toBeInTheDocument();
     await userEvent.click(sheet.getByRole("button", { name: "저장" }));
+    // The note is written first and the photo's file removed after, so the file is waited on too.
     await waitFor(() => {
       expect(db.rows.decks[0]).toMatchObject({ image_media_id: null });
+      expect(storage.objects.size).toBe(0);
     });
-    expect(storage.objects.size).toBe(0);
   });
 
   it("asks for a display name the first time, and publishes once the agreement is checked, saying so", async () => {

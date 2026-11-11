@@ -128,15 +128,16 @@ describe("a new card", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "앞면" }), "apple");
     await userEvent.type(screen.getByRole("textbox", { name: "뒷면" }), "사과");
     await userEvent.click(screen.getByRole("button", { name: "저장하고 다음 카드" }));
+    // The next card's empty 앞면 renders first and takes focus in an effect after it.
     await waitFor(() => {
       expect(screen.getByRole("textbox", { name: "앞면" })).toHaveValue("");
+      expect(screen.getByRole("textbox", { name: "앞면" })).toHaveFocus();
     });
     expect(db.rows.cards[0]).toMatchObject({
       template_version: 2,
       back: [],
       front: [{ type: "text", v: 3, payload: { front: "apple", back: "사과" } }],
     });
-    expect(screen.getByRole("textbox", { name: "앞면" })).toHaveFocus();
     // A second card is one of its own, not the first saved again.
     await userEvent.type(screen.getByRole("textbox", { name: "앞면" }), "pear");
     await userEvent.type(screen.getByRole("textbox", { name: "뒷면" }), "배");
