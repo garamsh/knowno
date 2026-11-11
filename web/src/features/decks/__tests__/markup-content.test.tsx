@@ -40,14 +40,13 @@ function cells(...blocks: unknown[]): Cell[] {
 }
 
 describe("a 글 of version 3", () => {
-  it("is read as markup, and one of version 2 as written, though both hold the same text", () => {
+  it("is read as markup, and one of version 2 as one this build does not know", () => {
     const [markup] = cells(text(3, "**apple**", "- a\n- b"));
-    const [literal] = cells(text(2, "**apple**", "- a\n- b"));
+    const [earlier] = cells(text(2, "**apple**", "- a\n- b"));
 
     expect(markup).toMatchObject({ kind: "text", front: "**apple**", marks: { front: {} } });
-    expect(literal).toEqual({ kind: "text", front: "**apple**", back: "- a\n- b", id: "t" });
+    expect(earlier).toMatchObject({ kind: "unknown" });
     expect(describeContent(sidesOf([markup as Cell]).front)).toBe("apple");
-    expect(describeContent(sidesOf([literal as Cell]).front)).toBe("**apple**");
   });
 
   it("draws bold, italic and code in a card, a list on lines with markers and its back once revealed", () => {
@@ -65,14 +64,14 @@ describe("a 글 of version 3", () => {
     ).toEqual(["bold it code", "• one", "• two", "  ◦ nested"]);
   });
 
-  it("draws a version 2 글 as written, its asterisks and hyphens kept", () => {
+  it("draws a version 2 글 as a placeholder, not as its text", () => {
     const { container } = render(
       <WholeCells cells={cells(text(2, "**bold**", "- one"))} revealed />,
     );
 
     expect(container.querySelector("strong")).toBeNull();
-    expect(container).toHaveTextContent("**bold**");
-    expect(container).toHaveTextContent("- one");
+    expect(container).toHaveTextContent("이 버전에서 표시할 수 없는 내용: text");
+    expect(container).not.toHaveTextContent("one");
   });
 
   it("keeps every newline of the text as a line of its own", () => {
@@ -86,7 +85,6 @@ describe("a 글 of version 3", () => {
   it("keys the card by its plain text, so a marked front and a plain one are duplicates", () => {
     expect(frameKey(cells(text(3, "**Apple**")))).toBe("apple");
     expect(frameKey(cells(text(3, "- Apple")))).toBe("apple");
-    expect(frameKey(cells(text(2, "**Apple**")))).toBe("**apple**");
     expect(plainText(sidesOf(cells(text(3, "a *b*", "c"))).front)).toBe("a b");
   });
 
@@ -98,8 +96,8 @@ describe("a 글 of version 3", () => {
     expect(faceLength(sidesOf([plain as Cell]).front)).toBe(2);
   });
 
-  it("is stored again as version 3 with its text as read, and a version 2 as version 2", () => {
-    const stored = [text(3, "**a**", "b"), text(2, "*c*")];
+  it("is stored again as version 3 with its text as read", () => {
+    const stored = [text(3, "**a**", "b")];
 
     expect(
       encodeCells(cells(...stored).flatMap((cell) => (cell.kind === "unknown" ? [] : [cell]))),
@@ -117,7 +115,7 @@ describe("a 글 of version 3", () => {
 describe("a cloze of version 2", () => {
   const source = "{{c1::Paris::city}} is {{c2::the capital}} of {{c1::France}}";
 
-  it("is read from its text in Anki's syntax, answers none", () => {
+  it("is read from its text in Anki's syntax", () => {
     const [read] = cells(cloze(2, { text: source }));
 
     expect(read).toMatchObject({
@@ -125,7 +123,6 @@ describe("a cloze of version 2", () => {
       block: {
         kind: "cloze",
         text: source,
-        answers: [],
         markup: { plain: "Paris is the capital of France" },
       },
     });
@@ -146,11 +143,10 @@ describe("a cloze of version 2", () => {
     ]);
   });
 
-  it("leaves a version 1 cloze as it was drawn, its blanks in place", () => {
+  it("does not read a version 1 cloze, which is one this build does not know", () => {
     const [read] = cells(cloze(1, { text: "___ is red", answers: ["Rose"] }));
 
-    expect(read).toMatchObject({ kind: "blank", block: { text: "___ is red", answers: ["Rose"] } });
-    expect(read).not.toMatchObject({ block: { markup: expect.anything() as unknown } });
+    expect(read).toMatchObject({ kind: "unknown", block: { kind: "unsupported", type: "cloze" } });
   });
 
   it("is stored again as its text alone, version 2", () => {

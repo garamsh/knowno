@@ -13,6 +13,8 @@ import { readAllowance } from "../read-allowance";
 import { parseCandidates } from "../photo-candidates";
 import { parseCardContent, parseCells, parseContent } from "../card-content";
 import { cardsOf, defaultForm } from "../section-form";
+import { textContent } from "@/testing/content";
+import { textCell } from "../card-content";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -133,7 +135,7 @@ describe("web authoring writes", () => {
 describe("a photo's cards saved over cards the deck holds", () => {
   const incoming = (id: string, front: string, back: string) => ({
     id: uuidOf(id),
-    blocks: encodeCells([{ kind: "text", front, back }]),
+    blocks: encodeCells([textCell(front, back)]),
   });
   const twoMeanings = {
     id: uuidOf("incoming"),
@@ -168,7 +170,7 @@ describe("a photo's cards saved over cards the deck holds", () => {
     return row;
   }
 
-  it("appends the back as a text block, keeping the card's id, front and key, beside a new card inserted", async () => {
+  it("appends the back as a 글 of the 칸 list, keeping the card's id and key, beside a new card inserted", async () => {
     const before = hold({ template: "free", template_version: 1 });
     const result = await savePhotoCards(uuidOf("deck"), [
       incoming("incoming", "  수도 ", "서울"),
@@ -177,17 +179,21 @@ describe("a photo's cards saved over cards the deck holds", () => {
     expect(result).toEqual({ saved: true });
     expect(db.rows.cards.map((row) => row.id)).toEqual([uuidOf("held"), uuidOf("other")]);
     const after = stored("held");
-    expect(after?.back).toEqual([
-      ...side("수도 back"),
-      expect.objectContaining({ type: "text", v: 1, payload: { text: "서울" } }),
+    expect(after?.back).toEqual([]);
+    expect(after?.front).toEqual([
+      expect.objectContaining({
+        type: "text",
+        v: 3,
+        payload: { front: "수도", back: "수도 back" },
+      }),
+      expect.objectContaining({ type: "text", v: 3, payload: { front: "", back: "서울" } }),
     ]);
     expect(after).toMatchObject({
-      front: before.front,
       card_key: "수도",
       source: "manual",
       created_at: before.created_at,
       template: "free",
-      template_version: 1,
+      template_version: 2,
     });
     expect(after?.updated_at).not.toBe(before.updated_at);
     expect(Number(after?.revision)).toBeGreaterThan(Number(before.revision));
@@ -208,33 +214,36 @@ describe("a photo's cards saved over cards the deck holds", () => {
       saved: true,
     });
     expect(db.rows.cards).toHaveLength(1);
-    expect(parseContent(stored("held")?.back)).toHaveLength(3);
+    expect(added(stored("held"))).toHaveLength(3);
   });
   it("adds nothing for an empty back, against a back of text", async () => {
     const before = hold();
     const cloze = {
       id: uuidOf("cloze"),
-      blocks: [block("cloze", { text: "___", answers: ["수도"] })],
+      blocks: [block("cloze", { text: "{{c1::수도}}" })],
     };
     expect(await savePhotoCards(uuidOf("deck"), [cloze])).toEqual({ saved: true });
     expect(stored("held")).toEqual(before);
     expect(db.rows.cards).toHaveLength(1);
     const card = incoming("incoming", "수도", "서울");
     expect(await savePhotoCards(uuidOf("deck"), [card])).toEqual({ saved: true });
-    expect(parseContent(stored("held")?.back)).toHaveLength(2);
+    expect(added(stored("held"))).toHaveLength(2);
   });
   it("holds a back of several lines that one stored line spells, as the phone's whole-back key does", async () => {
     const before = hold({ back: side("서울 도시") });
     expect(await savePhotoCards(uuidOf("deck"), [twoMeanings])).toEqual({ saved: true });
     expect(stored("held")).toEqual(before);
   });
-  it("records free version 1 on a card of no template or an earlier one, and keeps a later build's", async () => {
+  it("records free version 2 on a card of no template or an earlier one, and keeps a later build's", async () => {
     hold();
     await savePhotoCards(uuidOf("deck"), [incoming("incoming", "수도", "서울")]);
-    expect(stored("held")).toMatchObject({ template: "free", template_version: 1 });
-    expect(parseContent(stored("held")?.back)).toHaveLength(2);
+    expect(stored("held")).toMatchObject({ template: "free", template_version: 2 });
+    expect(added(stored("held"))).toHaveLength(2);
+    db.seed("cards", { ...cardRow("flip", "deck", "flip"), template: "flip", template_version: 1 });
+    await savePhotoCards(uuidOf("deck"), [incoming("in-flip", "flip", "서울")]);
+    expect(added(stored("flip"))).toHaveLength(2);
+    expect(stored("flip")).toMatchObject({ template: "free", template_version: 2 });
     for (const [name, template, version] of [
-      ["flip", "flip", 1],
       ["later", "later", 1],
       ["free-3", "free", 3],
     ] as const) {
@@ -243,37 +252,17 @@ describe("a photo's cards saved over cards the deck holds", () => {
         template,
         template_version: version,
       });
-      await savePhotoCards(uuidOf("deck"), [incoming(`in-${name}`, name, "서울")]);
-      expect(parseContent(stored(name)?.back)).toHaveLength(2);
-      expect(stored(name)).toMatchObject({
-        template: name === "flip" ? "free" : template,
-        template_version: name === "flip" ? 1 : version,
-      });
+      const before = stored(name);
+      expect(
+        await savePhotoCards(uuidOf("deck"), [incoming(`in-${name}`, name, "서울")]),
+      ).toMatchObject({ saved: false });
+      expect(stored(name)).toEqual(before);
     }
-  });
-  it("compares against a v1 card's stored back, not the back its 칸 show", async () => {
-    const filled = "서울은 한국의 수도";
-    const before = hold({
-      front: [block("cloze", { text: "서울은 ___의 수도", answers: ["한국"] })],
-      back: side(filled),
-      template: "free",
-      template_version: 1,
-      card_key: "서울은 한국의 수도",
-    });
-    const repeat = {
-      id: uuidOf("incoming"),
-      blocks: [
-        block("cloze", { text: "서울은 ___의 수도", answers: ["한국"] }),
-        ...encodeCells([{ kind: "text", front: "", back: filled }]),
-      ],
-    };
-    expect(await savePhotoCards(uuidOf("deck"), [repeat])).toEqual({ saved: true });
-    expect(stored("held")).toEqual(before);
   });
   it("appends a 글 of a back alone to a free v2 card's 칸, its v2 and empty back kept, against a back it holds", async () => {
     const before = hold({
       front: [
-        { type: "text", v: 2, id: "cell", payload: { front: "수도", back: "서울" } },
+        { type: "text", v: 3, id: "cell", payload: { front: "수도", back: "서울" } },
         { type: "later", v: 1, id: "kept", payload: { what: "unknown" } },
       ],
       back: [],
@@ -291,7 +280,7 @@ describe("a photo's cards saved over cards the deck holds", () => {
     expect(after).toMatchObject({ back: [], template: "free", template_version: 2 });
     expect(after?.front).toEqual([
       ...(before.front as unknown[]),
-      expect.objectContaining({ type: "text", v: 2, payload: { front: "", back: "부산" } }),
+      expect.objectContaining({ type: "text", v: 3, payload: { front: "", back: "부산" } }),
     ]);
     expect(added(after)).toEqual(["서울", "부산"]);
   });
@@ -320,17 +309,12 @@ describe("a photo's cards saved over cards the deck holds", () => {
       ]),
     ).toEqual({ saved: true });
     expect(db.rows.cards).toHaveLength(1);
-    expect(parseContent(stored("held")?.back)).toEqual(
-      ["수도 back", "서울", "부산"].map((text) => ({ kind: "text", text })),
-    );
+    expect(added(stored("held"))).toEqual(["수도 back", "서울", "부산"]);
   });
   it("merges a back of several lines once across a retry, as one that names each line", async () => {
     hold();
     expect(await savePhotoCards(uuidOf("deck"), [twoMeanings])).toEqual({ saved: true });
-    expect(parseContent(stored("held")?.back)).toEqual([
-      { kind: "text", text: "수도 back" },
-      { kind: "text", text: "서울\n도시" },
-    ]);
+    expect(added(stored("held"))).toEqual(["수도 back", "서울\n도시"]);
     const merged = stored("held");
     expect(await savePhotoCards(uuidOf("deck"), [twoMeanings])).toEqual({ saved: true });
     expect(stored("held")).toEqual(merged);
@@ -380,9 +364,9 @@ describe("a photo's cards saved over cards the deck holds", () => {
       }),
     );
     expect(await savePhotoCards(uuidOf("deck"), [card])).toMatchObject({ saved: false });
-    expect(parseContent(stored("held")?.back)).toHaveLength(1);
+    expect(added(stored("held"))).toHaveLength(1);
     expect(await savePhotoCards(uuidOf("deck"), [card])).toEqual({ saved: true });
-    expect(parseContent(stored("held")?.back)).toHaveLength(2);
+    expect(added(stored("held"))).toHaveLength(2);
   });
   it("leaves saveCards refusing the same duplicate, unchanged", async () => {
     const before = hold();
@@ -405,6 +389,26 @@ describe("a photo's cards saved over cards the deck holds", () => {
 });
 
 describe("photo candidates and allowance", () => {
+  it("stores a photo's note card as a text of version 3 and its cloze card as a cloze of version 2 holding its front as read, with no answers", async () => {
+    const cards = parseCandidates({
+      cards: [
+        { kind: "note", type: "concept", front: "수도", topic: "도시", answer: "서울" },
+        { kind: "note", type: "cloze", front: "서울은 {{c1::수도}}", topic: "도시" },
+      ],
+    });
+    if (!cards) throw new Error("expected candidates");
+    db.rows.decks.push(deckRow("own", "Own"));
+    const saving = cards.flatMap((card) => cardsOf(card, defaultForm(card.kind, card.identify)));
+    expect(await saveCards(uuidOf("own"), saving, "import")).toEqual({ saved: true });
+    const fronts = db.rows.cards.flatMap((row) => row.front as { type: string; v: number }[]);
+    expect(fronts.map(({ type, v }) => [type, v])).toEqual([
+      ["text", 3],
+      ["cloze", 2],
+    ]);
+    expect(fronts[0]).toMatchObject({ payload: { front: "수도", back: "서울" } });
+    expect(fronts[1]).toMatchObject({ payload: { text: "서울은 {{c1::수도}}" } });
+    expect(fronts[1]).not.toHaveProperty("payload.answers");
+  });
   it("merges a photo's later back on a line of its text unless a line holds it", () => {
     const note = { kind: "note", type: "concept", front: "수도", topic: "도시" };
     const cards = parseCandidates({
@@ -415,7 +419,7 @@ describe("photo candidates and allowance", () => {
       ],
     });
     expect(cards).toHaveLength(1);
-    expect(parseContent(cards?.[0]?.back)).toEqual([{ kind: "text", text: "서울\n서울특별시" }]);
+    expect(parseContent(cards?.[0]?.back)).toEqual([textContent("서울\n서울특별시")]);
   });
   it("maps vocabulary senses and examples and whole cloze/table cards into existing content readers, saving only reviewed cards", async () => {
     const cards = parseCandidates({
@@ -431,9 +435,8 @@ describe("photo candidates and allowance", () => {
         {
           kind: "note",
           type: "cloze",
-          front: "서울은 ___",
+          front: "서울은 {{c1::수도}}",
           topic: "도시",
-          cloze: { answers: ["수도"] },
         },
         {
           kind: "note",
@@ -453,7 +456,10 @@ describe("photo candidates and allowance", () => {
     db.rows.decks.push(deckRow("own", "Own"));
     if (!cards) throw new Error("expected candidates");
     expect(cards.map((card) => card.topic)).toEqual(["과일", "도시", "도시"]);
-    expect(parseContent(cards[1]?.front)?.[0]).toMatchObject({ kind: "cloze", answers: ["수도"] });
+    expect(parseContent(cards[1]?.front)?.[0]).toMatchObject({
+      kind: "cloze",
+      text: "서울은 {{c1::수도}}",
+    });
     expect(parseContent(cards[2]?.front)?.[1]).toMatchObject({ kind: "table", spans: [] });
     expect(parseContent(cards[1]?.back)).toEqual([]);
     const saving = cards
@@ -468,14 +474,13 @@ describe("photo candidates and allowance", () => {
           {
             kind: "note",
             type: "cloze",
-            front: "___ ___",
+            front: "no blank here",
             topic: "x",
-            cloze: { answers: ["one"] },
           },
         ],
       }),
     ).toBeNull();
-    expect(cardKey([{ kind: "text", text: "  Ａpple\n PIE " }])).toBe("apple pie");
+    expect(cardKey([textContent("  Ａpple\n PIE ")])).toBe("apple pie");
   });
   it("reads the current period's remaining quota and refuses malformed rows beside a valid exhausted allowance", async () => {
     server.use(

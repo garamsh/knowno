@@ -1,14 +1,35 @@
 "use client";
 
-import { type RefObject, useLayoutEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { type CellDraft, type Span } from "../authoring";
 import { type PastePart, splitPaste } from "../markdown-paste";
 import { clozeAt, continueList, type Edit, hideSelection, removeCloze } from "../markup-editing";
 import { hasFormatting, parse } from "@/design/markup-engine";
 import { MarkupRuns, MarkupText } from "@/design/markup-text";
-import { usePressing } from "./cloze-fields";
 import { chip, type Draft, Field } from "./editor-field";
+
+/** Whether a pointer is pressed anywhere on the page, read as a blur its press caused happens. */
+export function usePressing() {
+  const pressing = useRef(false);
+  useEffect(() => {
+    const down = () => {
+      pressing.current = true;
+    };
+    const up = () => {
+      pressing.current = false;
+    };
+    window.addEventListener("pointerdown", down, true);
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", up, true);
+    return () => {
+      window.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", up, true);
+    };
+  }, []);
+  return pressing;
+}
 
 /**
  * The text of [input] an edit leaves selected once the render that carries it is in: a controlled

@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { markupFixtures } from "@/testing/markup-fixtures";
-
 import { builtCells, cellDraft, type CellDraft, cellProblem, encodeCells } from "../authoring";
-import { parseCells, sidesOf } from "../card-content";
+import { parseCells } from "../card-content";
 import { splitPaste } from "../markdown-paste";
 import {
   clozeAt,
@@ -12,7 +10,6 @@ import {
   nextClozeNumber,
   removeCloze,
 } from "../markup-editing";
-import { plainText } from "@/design/markup-engine";
 
 const text = (v: number, front: string, back = "") => ({
   type: "text",
@@ -36,57 +33,42 @@ function opened(block: unknown): CellDraft {
 }
 
 describe("a 글 the editor saves", () => {
-  it("is markup as typed when it is new, version 3", () => {
-    const draft: CellDraft = {
-      kind: "text",
-      id: "t",
-      front: "**apple** and a_b",
-      back: "- x",
-      markup: true,
-    };
+  it("is markup as typed, version 3", () => {
+    const draft: CellDraft = { kind: "text", id: "t", front: "**apple** and a_b", back: "- x" };
 
     expect(saved(draft)).toEqual([text(3, "**apple** and a_b", "- x")]);
   });
 
-  it("is written as it was while a version 2 글 is unchanged", () => {
-    expect(saved(opened(text(2, "2*3*4", "- a")))).toEqual([text(2, "2*3*4", "- a")]);
-  });
-
-  it("is written as version 3 once edited, each part through the escape, so its words stay the same", () => {
-    const draft = opened(text(2, "2*3*4", "- a"));
-    if (draft.kind !== "text") throw new Error("not a 글");
-
-    const [block] = saved({ ...draft, front: "2*3*4 {{c1::x}}" });
-
-    expect(block).toMatchObject({
-      type: "text",
-      v: 3,
-      payload: { front: "2\\*3\\*4 \\{\\{c1\\:\\:x\\}\\}", back: "\\- a" },
-    });
-    // Control: what it stores reads back as the typed text.
-    const payload = (block?.payload ?? {}) as { front: string; back: string };
-    expect(plainText(payload.front)).toBe("2*3*4 {{c1::x}}");
-    expect(plainText(payload.back)).toBe("- a");
-  });
-
-  // A part of only spaces is saved empty, so those texts are not a front a card can hold.
-  it.each(markupFixtures.escape.filter(({ text: typed }) => typed.trim() !== ""))(
-    "keeps $name as typed through the escape and reads it back",
-    ({ text: typed }) => {
-      const draft = opened(text(2, "x", "y"));
-      if (draft.kind !== "text") throw new Error("not a 글");
-      const [block] = saved({ ...draft, front: typed });
-      const payload = block?.payload as { front: string };
-
-      expect(plainText(payload.front)).toBe(typed.replaceAll(/\r\n?/gu, "\n"));
-    },
-  );
-
-  it("keeps a version 3 글 as markup when edited", () => {
+  it("keeps a version 3 글 as markup when opened and when edited", () => {
     const draft = opened(text(3, "**a**", "c"));
     if (draft.kind !== "text") throw new Error("not a 글");
 
+    expect(saved(draft)).toEqual([text(3, "**a**", "c")]);
     expect(saved({ ...draft, front: "**b**" })).toEqual([text(3, "**b**", "c")]);
+  });
+
+  it.each([1, 2])(
+    "does not open a version %i 글, which the build reads as one it does not know",
+    (v) => {
+      const [cell] = parseCells([text(v, "2*3*4", "- a")]) ?? [];
+
+      expect(cell?.kind).toBe("unknown");
+    },
+  );
+
+  it("does not open a version 1 cloze, which the build reads as one it does not know", () => {
+    const [cell] =
+      parseCells([
+        { type: "cloze", v: 1, id: "c", payload: { text: "___ is red", answers: ["Rose"] } },
+      ]) ?? [];
+
+    expect(cell?.kind).toBe("unknown");
+  });
+
+  it("is typed text as markup: a typed `*` marks and is not escaped, as the editor shows it", () => {
+    const [block] = saved({ kind: "text", id: "t", front: "2*3*4", back: "x" });
+
+    expect(block).toMatchObject({ v: 3, payload: { front: "2*3*4" } });
   });
 });
 
@@ -116,42 +98,6 @@ describe("a 빈칸 문장 the editor saves", () => {
       source: "{{c2::a}}",
     });
   });
-
-  it("keeps a stored version 1 cloze as it was while it is unchanged, and writes version 2 once edited", () => {
-    const stored = {
-      type: "cloze",
-      v: 1,
-      id: "c",
-      payload: { text: "___ is *red*", answers: ["Rose"] },
-    };
-    const draft = opened(stored);
-    if (draft.kind !== "cloze") throw new Error("not a version 1 line");
-
-    expect(saved(draft)).toEqual([stored]);
-    expect(saved({ ...draft, line: `${draft.line}!` })).toEqual([
-      {
-        type: "cloze",
-        v: 2,
-        id: "c",
-        payload: { text: "{{c1::Rose}} is \\*red\\*!" },
-      },
-    ]);
-  });
-
-  it.each(markupFixtures.v1.filter(({ source, answers }) => source !== null && answers.length > 0))(
-    "writes the version 1 cloze $name as the fixture's source once edited",
-    ({ text: v1, answers, source }) => {
-      const draft = opened({ type: "cloze", v: 1, id: "c", payload: { text: v1, answers } });
-      if (draft.kind !== "cloze") throw new Error("not a version 1 line");
-      // Moving the first blank's edge by nothing, a retyped line, is an edit by comparison only
-      // where the built text differs; a line changed and changed back stays as stored.
-      const [block] = saved({ ...draft, stored: { text: `${v1}x`, answers } });
-
-      expect(block).toMatchObject({ v: 2, payload: { text: source } });
-      const [read] = sidesOf(parseCells(block ? [block] : []) ?? []).front;
-      expect(read).toMatchObject({ kind: "cloze", markup: expect.anything() as unknown });
-    },
-  );
 });
 
 describe("the editor's actions on a cloze text", () => {

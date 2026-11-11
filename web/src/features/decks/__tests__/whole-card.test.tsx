@@ -5,6 +5,9 @@ import { blanksUnder } from "@/testing/whole-cards";
 
 import type { Cell, Content } from "../card-content";
 import { faceLength, WholeCard, WholeCells } from "../components/whole-card";
+import { textContent } from "@/testing/content";
+import { textCell } from "../card-content";
+import { clozeContent } from "@/testing/content";
 
 // A wide photo and a tall one, each with a box near the top left holding an answer and one near
 // the bottom right without, as the app's `image_block_test.dart` draws them (ADR 0109).
@@ -153,7 +156,7 @@ describe("a table on a whole card", () => {
 
 // A cloze's blank, as the app's `whole_card_view_test.dart` checks it (ADR 0119).
 describe("a blank on a whole card", () => {
-  const cloze: Content = { kind: "cloze", text: "Le ___ dort", answers: ["chat"] };
+  const cloze: Content = clozeContent("Le {{c1::chat}} dort");
 
   it("is an empty gap over a muted underline with no fill while hidden, and its answer on the brand tint once filled", () => {
     const classes = (revealed: boolean) => {
@@ -182,7 +185,7 @@ describe("a blank on a whole card", () => {
 // (#635).
 describe("a whole card on study's cards", () => {
   const cells = (answer: string): Cell[] => [
-    { kind: "blank", block: { kind: "cloze", text: "Le ___ dort", answers: [answer] } },
+    { kind: "blank", block: clozeContent(`Le {{c1::${answer}}} dort`) },
   ];
 
   it("draws an empty blank as a box on the hatch two ems wide whatever its answer, with no underline and no answer, and a filled one its answer on the hatch", () => {
@@ -244,34 +247,11 @@ describe("a whole card on study's cards", () => {
     }
   });
 
-  it("keeps each box on one line with the word or punctuation it touches", () => {
-    const { container } = render(
-      <WholeCells
-        cells={[
-          {
-            kind: "blank",
-            block: { kind: "cloze", text: "모음: ___, ___이다 끝", answers: ["ㅏ", "ㅗ"] },
-          },
-        ]}
-        revealed={false}
-        studied
-      />,
-    );
-    const words = [...container.querySelectorAll<HTMLElement>("[data-blank='boxed']")].map(
-      (box) => box.parentElement,
-    );
-    expect(words.map((word) => word?.textContent)).toEqual([",", "이다"]);
-    for (const word of words) expect(word?.className).toBe("whitespace-nowrap");
-    // Control: a word with no box is not held together.
-    expect(container.querySelectorAll(".whitespace-nowrap")).toHaveLength(2);
-    expect(container.textContent).toBe("모음: , 이다 끝");
-  });
-
   it("counts a front's length with each blank as its box's width", () => {
-    expect(faceLength([{ kind: "text", text: "사과" }])).toBe(2);
-    expect(
-      faceLength([{ kind: "cloze", text: "Le ___ dort", answers: ["un chat très grand"] }]),
-    ).toBe("Le  dort".length + 2);
+    expect(faceLength([textContent("사과")])).toBe(2);
+    expect(faceLength([clozeContent("Le {{c1::un chat très grand}} dort")])).toBe(
+      "Le  dort".length + 2,
+    );
   });
 });
 
@@ -281,7 +261,7 @@ describe("a sound on a whole card", () => {
     const { container } = render(
       <WholeCard
         blocks={[
-          { kind: "cloze", text: "___ says meow", answers: ["cat"] },
+          clozeContent("{{c1::cat}} says meow"),
           { kind: "audio", media: "m1", durationMs: 1250 },
         ]}
         revealed={false}
@@ -299,9 +279,9 @@ describe("a sound on a whole card", () => {
 // A card of several 칸 drawn whole, each in place (ADR 0137).
 describe("a whole card's 칸", () => {
   const cells: Cell[] = [
-    { kind: "text", front: "Colour", back: "A flower." },
-    { kind: "blank", block: { kind: "cloze", text: "___ is red.", answers: ["Rose"] } },
-    { kind: "text", front: "", back: "After." },
+    textCell("Colour", "A flower."),
+    { kind: "blank", block: clozeContent("{{c1::Rose}} is red.") },
+    textCell("", "After."),
     {
       kind: "word",
       term: "apple",

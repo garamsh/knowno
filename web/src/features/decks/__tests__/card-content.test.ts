@@ -13,9 +13,10 @@ import {
   spokenContent,
   upcastPayload,
 } from "../card-content";
+import { clozeContent, textContent } from "@/testing/content";
 
 // The cases of the app's `app/test/deck/content_test.dart`: both clients read one stored shape.
-const cloze = { type: "cloze", payload: { text: "___ is in ___", answers: ["Paris", "France"] } };
+const cloze = { type: "cloze", v: 2, payload: { text: "{{c1::Paris}} is in {{c2::France}}" } };
 const table = (rows: unknown, blanks: unknown) => ({
   type: "table",
   payload: { columns: ["Capital", "Country"], rows, blanks },
@@ -28,18 +29,20 @@ const cell = [{ row: 0, column: 0 }];
 describe("a card side's blocks", () => {
   it("read a cloze and a table as typed blocks beside text", () => {
     expect(
-      parseContent([{ type: "text", payload: { text: "Capitals" } }, cloze, table(rows, cell)]),
+      parseContent([
+        { type: "text", v: 3, payload: { text: "Capitals" } },
+        cloze,
+        table(rows, cell),
+      ]),
     ).toEqual([
-      { kind: "text", text: "Capitals" },
-      { kind: "cloze", text: "___ is in ___", answers: ["Paris", "France"] },
+      textContent("Capitals"),
+      clozeContent("{{c1::Paris}} is in {{c2::France}}"),
       { kind: "table", columns: ["Capital", "Country"], rows, blanks: cell, spans: [] },
     ]);
   });
 
   it("refuse a cloze or a table that breaks its shape, where a whole one is read", () => {
     for (const broken of [
-      { type: "cloze", payload: { text: "___ and ___", answers: ["one"] } },
-      { type: "cloze", payload: { text: "___", answers: [" "] } },
       table([["1"]], cell),
       table(rows, []),
       table(rows, [{ row: 1, column: 0 }]),
@@ -55,7 +58,8 @@ describe("a card side's blocks", () => {
 
   it("read as their filled text, or as a screen reader reads them, and a cloze or a table makes a whole card where text does not", () => {
     const blocks =
-      parseContent([{ type: "text", payload: { text: "Capitals" } }, table(rows, cell)]) ?? [];
+      parseContent([{ type: "text", v: 3, payload: { text: "Capitals" } }, table(rows, cell)]) ??
+      [];
     const sentence = parseContent([cloze]) ?? [];
 
     expect(describeContent(sentence)).toBe("Paris is in France");
@@ -65,7 +69,7 @@ describe("a card side's blocks", () => {
     expect(spokenContent(blocks, true)).toBe("Capitals. Capital, Country. Paris, France");
     expect(isWhole(sentence)).toBe(true);
     // Control: text alone, a v6 cloze's "___" included, is split.
-    expect(isWhole([{ kind: "text", text: "___ is in France" }])).toBe(false);
+    expect(isWhole([textContent("___ is in France")])).toBe(false);
   });
 });
 
@@ -73,7 +77,7 @@ describe("a card side's blocks", () => {
 describe("a card side's plain text", () => {
   it("gives each block's text on lines of its own, as the phone's plainText, leaving out an unknown block", () => {
     const side = parseContent([
-      { type: "text", payload: { text: "first" } },
+      { type: "text", v: 3, payload: { text: "first" } },
       cloze,
       table(rows, cell),
       { type: "senses", payload: { senses: [{ labels: [], meaning: "뜻", examples: [] }] } },
@@ -223,7 +227,7 @@ describe("a senses block", () => {
 // ADR 0106's block versions, as the app's `content_test.dart` states them.
 describe("a block's version and id", () => {
   const known = [
-    { type: "text", payload: { text: "bonjour" } },
+    { type: "text", v: 3, payload: { text: "bonjour" } },
     cloze,
     table(rows, cell),
     {
@@ -234,18 +238,39 @@ describe("a block's version and id", () => {
     { type: "audio", payload: { media: "m2", duration_ms: 1250 } },
   ];
 
-  it("reads each known type at v1 with or without the field, and with an id", () => {
+  it("reads each known type at the version it is written, with or without the field where that is v1, and with an id", () => {
     for (const block of known) {
       const read = parseContent([block]);
       expect(read, block.type).not.toBeNull();
-      expect(parseContent([{ ...block, v: 1 }]), block.type).toEqual(read);
-      expect(parseContent([{ ...block, v: 1, id: "b1" }]), block.type).toEqual(read);
+      if (block.type !== "text" && block.type !== "cloze") {
+        expect(parseContent([{ ...block, v: 1 }]), block.type).toEqual(read);
+      }
+      expect(parseContent([{ ...block, id: "b1" }]), block.type).toEqual(read);
     }
+  });
+
+  it("shows a text below version 3 and a cloze of version 1 as a placeholder, as it no longer reads them", () => {
+    for (const block of [
+      { type: "text", payload: { text: "bonjour" } },
+      { type: "text", v: 1, payload: { text: "bonjour" } },
+      { type: "text", v: 2, payload: { front: "bonjour", back: "" } },
+      { type: "cloze", v: 1, payload: { text: "___ is red", answers: ["Rose"] } },
+    ]) {
+      expect(parseContent([block]), JSON.stringify(block)).toEqual([
+        { kind: "unsupported", type: block.type },
+      ]);
+    }
+  });
+
+  it("keeps a cloze holding no cloze as a placeholder, not refused", () => {
+    expect(parseContent([{ type: "cloze", v: 2, payload: { text: "no cloze here" } }])).toEqual([
+      { kind: "unsupported", type: "cloze" },
+    ]);
   });
 
   it("shows a known type above the version it reads, or an unknown type, as a placeholder", () => {
     for (const block of known) {
-      const above = block.type === "table" ? 3 : 2;
+      const above = { text: 4, cloze: 3, table: 3 }[block.type] ?? 2;
       expect(parseContent([{ ...block, v: above }]), block.type).toEqual([
         { kind: "unsupported", type: block.type },
       ]);
@@ -256,7 +281,7 @@ describe("a block's version and id", () => {
   });
 
   it("refuses a v that is not a positive integer, or an id that is not text", () => {
-    const text = { type: "text", payload: { text: "cat" } };
+    const text = { type: "text", v: 3, payload: { text: "cat" } };
     for (const broken of [
       { ...text, v: 0 },
       { ...text, v: "1" },
@@ -284,10 +309,11 @@ describe("a block's version and id", () => {
     expect(upcastPayload("text", 1, { text: " cat " }, steps)).toEqual({ body: "cat" });
     expect(upcastPayload("text", 2, { body: " cat " }, steps)).toEqual({ body: "cat" });
     expect(upcastPayload("text", 3, { body: "cat" }, steps)).toEqual({ body: "cat" });
-    // Today a table and a cloze are read at v2, after one step, and every other type at v1, with none.
+    // Today a text is read at v3, a table and a cloze at v2, and every other type at v1, with no step.
+    expect(blockVersion("text")).toBe(3);
     expect(blockVersion("table")).toBe(2);
     expect(blockVersion("cloze")).toBe(2);
-    for (const type of ["text", "senses", "image", "audio"] as const) {
+    for (const type of ["senses", "image", "audio"] as const) {
       expect(blockVersion(type), type).toBe(1);
     }
   });
@@ -394,7 +420,7 @@ describe("an audio block", () => {
   it("reads as 소리, makes no whole card, and is found among a side's blocks with its length rounded up", () => {
     const side =
       parseContent([
-        { type: "text", payload: { text: "cat" } },
+        { type: "text", v: 3, payload: { text: "cat" } },
         audio({ media: "m1", duration_ms: 1250 }),
       ]) ?? [];
 

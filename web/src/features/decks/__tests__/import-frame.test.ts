@@ -9,11 +9,13 @@ import { frameProblem, parseCells } from "../card-content";
 import { parseCandidates } from "../photo-candidates";
 import { cardsOf, defaultForm, formFor, sectionsOf } from "../section-form";
 import { cardsOfRows, type Columns } from "../spreadsheet-cards";
+import { textContent } from "@/testing/content";
+import { inCurrentForms } from "@/testing/frame-fixtures";
 
 /** The cases the app's two `import_frame_test.dart` read, so both save equal 칸 (ADR 0137). */
 const root = path.join(import.meta.dirname, "../../../../..");
-const fixture = JSON.parse(
-  readFileSync(path.join(root, "supabase/fixtures/card-frame/import.json"), "utf8"),
+const fixture = inCurrentForms(
+  JSON.parse(readFileSync(path.join(root, "supabase/fixtures/card-frame/import.json"), "utf8")),
 ) as {
   photo: { name: string; cards: unknown[]; form?: unknown; saved: unknown }[];
   sheet: { name: string; rows: string[][]; columns: Columns; saved: unknown }[];
@@ -44,6 +46,6 @@ describe("the shared import cases", () => {
     expect(cards.map(({ blocks }) => stored(blocks))).toEqual(saved);
   });
   it.each(fixture.held)("held: $name", ({ stored, back, held }) => {
-    expect(holdsBack([{ kind: "text", text: stored }], back)).toBe(held);
+    expect(holdsBack([textContent(stored)], back)).toBe(held);
   });
 });

@@ -1,4 +1,5 @@
 import { v7 } from "uuid";
+import { clozeNumbers } from "@/design/markup-engine";
 import { field } from "@/supabase/row";
 import { block, type Block, type CardDraft, cardKey, holdsBack, textBlocks } from "./authoring";
 import { describeContent, parseContent } from "./card-content";
@@ -55,8 +56,8 @@ export function parseCandidates(body: unknown, resumed = false): Candidate[] | n
       if (type !== "concept") return null;
       back = [block("senses", { senses: field(card, "senses") })];
     } else if (type === "cloze") {
-      const cloze = field(card, "cloze");
-      frontBlocks = [block("cloze", { text: front, answers: field(cloze, "answers") })];
+      if (clozeNumbers(front).length === 0) return null;
+      frontBlocks = [block("cloze", { text: front })];
     } else if (type === "table") {
       const table = field(card, "table");
       frontBlocks.push(

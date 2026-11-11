@@ -472,9 +472,7 @@ describe("the deck page", () => {
   it("shows a whole card's sentence with its blank filled on the hatch", async () => {
     postgrest.seed("cards", {
       ...cardRow("c-cloze", "d-fr", "cloze", day / 2),
-      front: [
-        { type: "cloze", payload: { text: "The capital of France is ___", answers: ["Paris"] } },
-      ],
+      front: [{ type: "cloze", v: 2, payload: { text: "The capital of France is {{c1::Paris}}" } }],
       back: side("The capital of France is Paris"),
     });
     await open("d-fr");
@@ -489,9 +487,7 @@ describe("the deck page", () => {
     // A back beside a blank that differs from the filled text is kept (ADR 0140).
     postgrest.seed("cards", {
       ...cardRow("c-cloze", "d-fr", "cloze", day / 2),
-      front: [
-        { type: "cloze", payload: { text: "The capital of Italy is ___", answers: ["Rome"] } },
-      ],
+      front: [{ type: "cloze", v: 2, payload: { text: "The capital of Italy is {{c1::Rome}}" } }],
       back: side("The capital of France is Paris"),
     });
     await open("d-fr");
@@ -523,7 +519,7 @@ describe("the deck page", () => {
       front: side("Fill it"),
       back: [
         { type: "chart", payload: {} },
-        { type: "cloze", v: 1, payload: { text: "___ is blue.", answers: ["Sky"] } },
+        { type: "cloze", v: 2, payload: { text: "{{c1::Sky}} is blue." } },
       ],
     });
     await open("d-fr");
@@ -538,7 +534,7 @@ describe("the deck page", () => {
   it("lists and searches a free v2 card by its 칸, split and whole, as the same card stored earlier", async () => {
     const glue = (front: string, back: string) => ({
       type: "text",
-      v: 2,
+      v: 3,
       payload: { front, back },
     });
     postgrest.seed(
@@ -554,7 +550,7 @@ describe("the deck page", () => {
         ...cardRow("c-blank", "d-fr", "blank", day / 2),
         front: [
           glue("Colour", "A hue."),
-          { type: "cloze", v: 1, payload: { text: "___ is red.", answers: ["Rose"] } },
+          { type: "cloze", v: 2, payload: { text: "{{c1::Rose}} is red." } },
           glue("", "A flower."),
         ],
         back: [],
@@ -565,7 +561,7 @@ describe("the deck page", () => {
       {
         ...cardRow("c-earlier", "d-fr", "earlier", day / 2),
         front: side("Fill it"),
-        back: [{ type: "cloze", v: 1, payload: { text: "___ is blue.", answers: ["Sky"] } }],
+        back: [{ type: "cloze", v: 2, payload: { text: "{{c1::Sky}} is blue." } }],
       },
     );
     await open("d-fr");

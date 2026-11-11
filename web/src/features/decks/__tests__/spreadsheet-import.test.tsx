@@ -11,7 +11,7 @@ import { signedInCookies } from "@/testing/session";
 import { xlsxOf } from "@/testing/xlsx";
 import { AuthoringButton } from "../components/authoring-button";
 import { NoteSettings } from "../components/note-settings";
-import { parseCells, sidesOf } from "../card-content";
+import { parseCardContent, parseCells } from "../card-content";
 import { parseDeckId } from "../library";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
@@ -49,7 +49,13 @@ async function openFile(file: File) {
 }
 const fronts = () =>
   db.rows.cards.map((row) => {
-    const [first] = sidesOf(parseCells(row.front) ?? []).front;
+    const [first] =
+      parseCardContent({
+        front: row.front,
+        back: row.back,
+        template: row.template,
+        templateVersion: row.template_version,
+      })?.front ?? [];
     return first?.kind === "text" ? first.text : null;
   });
 

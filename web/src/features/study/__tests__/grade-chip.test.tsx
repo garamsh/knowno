@@ -6,6 +6,7 @@ import { chipTone } from "@/testing/chip";
 import type { CardId, DeckId } from "@/features/decks";
 
 import { GradedCard, GradeChip } from "../components/graded-card";
+import { textContent } from "@/testing/content";
 
 describe("a grade's chip", () => {
   it("draws 안다 and 모른다 in the one chip, each in its grade's tone, hidden from screen readers", () => {
@@ -30,8 +31,8 @@ describe("the previous card's focus ring", () => {
           card: {
             id: "c" as CardId,
             deckId: "d" as DeckId,
-            front: [{ kind: "text", text: "chat" }],
-            back: [{ kind: "text", text: "cat" }],
+            front: [textContent("chat")],
+            back: [textContent("cat")],
             createdAt: 0,
             text: { front: "chat", back: "cat" },
             frontLength: 4,

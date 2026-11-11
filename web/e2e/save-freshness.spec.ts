@@ -64,7 +64,7 @@ async function choose(page: Page, item: string) {
   await page.getByRole("menuitem", { name: item, exact: true }).click();
 }
 
-const text = (id: string, value: string) => ({ type: "text", v: 1, id, payload: { text: value } });
+const text = (id: string, value: string) => ({ type: "text", v: 3, id, payload: { text: value } });
 
 /**
  * A fresh user's notes "Kept" and, given [fresh], "Fresh" holding [cards] cards; then 홈 and the

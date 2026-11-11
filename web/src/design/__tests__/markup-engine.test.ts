@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { markupFixtures } from "@/testing/markup-fixtures";
 
 import {
-  clozeFromV1,
   clozeNumbers,
   documentText,
   escapeLiteral,
@@ -47,10 +46,6 @@ describe("the markup engine, as the browser's module answers", () => {
       expect(clozeNumbers(escaped)).toEqual([]);
     },
   );
-
-  it.each(markupFixtures.v1)("converts the version 1 cloze $name", ({ text, answers, source }) => {
-    expect(clozeFromV1(text, answers)).toBe(source);
-  });
 
   it("reads a text of marks as formatting and a plain one as written", () => {
     expect(hasFormatting(parse("**bold**"))).toBe(true);

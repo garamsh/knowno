@@ -1,6 +1,5 @@
 import init, {
   type Block,
-  clozeFromV1 as engineClozeFromV1,
   clozeNumbers as engineClozeNumbers,
   escapeLiteral as engineEscapeLiteral,
   type Inline,
@@ -108,12 +107,6 @@ export function plainText(text: string): string {
 export function escapeLiteral(text: string): string {
   engine();
   return engineEscapeLiteral(text);
-}
-
-/** A version 1 cloze's [text] and [answers] as `{{ck::answer_k}}`, or null where it would not read back. */
-export function clozeFromV1(text: string, answers: string[]): string | null {
-  engine();
-  return engineClozeFromV1(text, answers) ?? null;
 }
 
 /** [text] read: its document and its plain text. */

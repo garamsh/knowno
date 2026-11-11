@@ -28,7 +28,7 @@ import { WholeCells } from "./whole-card";
 const cellChoices = [
   { kind: "text", Icon: Type, name: "글", line: "앞면과 뒷면에 글을 적어요" },
   { kind: "word", Icon: BookA, name: "단어", line: "단어와 뜻을 함께 적어요" },
-  { kind: "cloze", Icon: TextCursorInput, name: "빈칸 문장", line: "문장 속 단어를 가려요" },
+  { kind: "anki", Icon: TextCursorInput, name: "빈칸 문장", line: "문장 속 단어를 가려요" },
   { kind: "table", Icon: Table, name: "표", line: "가릴 부분을 골라요" },
   { kind: "image", Icon: Image, name: "사진", line: "사진 위에 가릴 곳을 그려요" },
   { kind: "audio", Icon: AudioLines, name: "소리", line: "녹음하거나 파일을 넣어요" },

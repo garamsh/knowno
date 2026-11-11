@@ -49,7 +49,7 @@ const png = Buffer.from(
   "base64",
 );
 
-const text = (id: string, value: string) => ({ type: "text", v: 1, id, payload: { text: value } });
+const text = (id: string, value: string) => ({ type: "text", v: 3, id, payload: { text: value } });
 
 /**
  * Saves [page] at 390 and 1280 px in both themes, when E2E_SCREENSHOTS names a directory, and,

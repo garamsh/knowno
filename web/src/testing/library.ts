@@ -24,8 +24,8 @@ export function uuidOf(name: string): string {
   return [8, 12, 16, 20].reduceRight((id, at) => `${id.slice(0, at)}-${id.slice(at)}`, digits);
 }
 
-/** A text card side, as the phone stores it. */
-export const side = (text: string) => [{ type: "text", payload: { text } }];
+/** A text card side, as the phone stores it: a `text` block of version 3, its text markup. */
+export const side = (text: string) => [{ type: "text", v: 3, payload: { text } }];
 
 /** A deck row as the phone's sync pushes it, under [uuidOf] [id], private unless [visibility] says otherwise. */
 export function deckRow(

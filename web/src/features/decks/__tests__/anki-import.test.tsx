@@ -88,6 +88,26 @@ describe("notes from an Anki package", () => {
     expect(fronts.every((count) => count > 0)).toBe(true);
   });
 
+  it("writes every 글 as version 3 and every cloze as version 2 holding its text alone", async () => {
+    await pick(fixture("spanish-legacy.apkg"));
+    await userEvent.click(await screen.findByRole("button", { name: "노트 2개, 카드 4장 추가" }));
+    await waitFor(() => {
+      expect(db.rows.cards).toHaveLength(4);
+    });
+    const blocks = db.rows.cards.flatMap(
+      (row) => row.front as { type: string; v: number; payload: object }[],
+    );
+    const versions = (type: string) => [
+      ...new Set(blocks.filter((block) => block.type === type).map(({ v }) => v)),
+    ];
+    expect(versions("text")).toEqual([3]);
+    // Control: the cloze is written, so its version is not read from an empty list.
+    expect(versions("cloze")).toEqual([2]);
+    for (const block of blocks.filter(({ type }) => type === "cloze")) {
+      expect(Object.keys(block.payload)).toEqual(["text"]);
+    }
+  });
+
   it("says which photos and cards were left out after the write, and none when every photo reads", async () => {
     // Control: every photo readable, nothing left out, the sheet goes on to the notes.
     await pick(fixture("spanish-legacy.apkg"));

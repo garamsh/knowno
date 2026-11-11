@@ -39,7 +39,7 @@ async function capture(page: Page, name: string) {
   await page.emulateMedia({ colorScheme: "light" });
 }
 
-const text = (id: string, value: string) => ({ type: "text", v: 1, id, payload: { text: value } });
+const text = (id: string, value: string) => ({ type: "text", v: 3, id, payload: { text: value } });
 
 /** Signs a new user up, hands the browser its session, and returns a client signed in as it. */
 async function signUp(context: BrowserContext, baseURL: string) {

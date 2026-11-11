@@ -8,6 +8,7 @@ export {
   parseContent,
   sidesOf,
   spokenCells,
+  textCell,
 } from "./card-content";
 export { AuthoringButton } from "./components/authoring-button";
 export { CardGrid } from "./components/card-grid";

@@ -1,6 +1,6 @@
 import { type Cell, describeContent, type Content } from "./card-content";
 import type { Card } from "./library";
-import { clozeFromV1, type Inline, parse } from "@/design/markup-engine";
+import { type Inline, parse } from "@/design/markup-engine";
 
 /** The notes of a note as Anki's "Notes in Plain Text" file, and how many cards each way became. */
 export type AnkiNotes = {
@@ -83,7 +83,7 @@ export function markupHtml(markup: string): string {
   return html;
 }
 
-/** A literal text, a 글 of version 1 or 2, as HTML: written as typed, its lines apart by `<br>`. */
+/** A plain text as HTML: written as typed, its lines apart by `<br>`. */
 export function literalHtml(text: string): string {
   return htmlText(text.replace(/\r\n?/gu, "\n"), false).replaceAll("\n", "<br>");
 }
@@ -110,14 +110,11 @@ function noteOf(card: Card): Note | null {
 
 function noteOfCell(cell: Cell): Note | null {
   if (cell.kind === "text") {
-    const html = cell.marks ? markupHtml : literalHtml;
-    return { type: basicType, fields: [html(cell.front), html(cell.back)], flattened: false };
+    const fields: [string, string] = [markupHtml(cell.front), markupHtml(cell.back)];
+    return { type: basicType, fields, flattened: false };
   }
   if (cell.kind === "blank" && cell.block.kind === "cloze") {
-    const { text, answers, markup } = cell.block;
-    const source = markup ? text : clozeFromV1(text, answers);
-    if (source !== null)
-      return { type: clozeType, fields: [markupHtml(source), ""], flattened: false };
+    return { type: clozeType, fields: [markupHtml(cell.block.text), ""], flattened: false };
   }
   return null;
 }
