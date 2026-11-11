@@ -16,6 +16,7 @@ import 'package:knowno/home/src/deck_screen.dart';
 import 'package:knowno/photo_import/photo_import.dart';
 import 'package:knowno/study/study.dart' show StudyScreen;
 
+import '../deck/two_sides.dart';
 import '../deck/whole_cards.dart';
 import '../study/minutes_sheet.dart';
 import '../word_breaks.dart';
@@ -548,7 +549,9 @@ void main() {
       const cloze = ClozeContent('The capital of France is {{c1::Paris}}');
       final screens = await DeckScreens.open(tester, cards: {'Chat': 'cat'});
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [cloze],
           back: [const TextContent('The capital of France is Paris')],
@@ -610,7 +613,9 @@ void main() {
         const cloze = ClozeContent('The capital of France is {{c1::Paris}}');
         final screens = await DeckScreens.open(tester);
         await tester.runAsync(
-          () => screens.repository.addCard(
+          () => storeSides(
+            screens.db,
+            screens.repository,
             screens.deck.id,
             front: [cloze],
             back: back,
@@ -639,7 +644,9 @@ void main() {
       final screens = await DeckScreens.open(tester, cards: {'Chat': 'cat'});
       // A 빈칸 card whose back differs from its filled text, which study shows.
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [cloze],
           back: [const TextContent('The capital of Italy is Rome')],

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 192244209;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1008841349;
 
 // Section: executor
 
@@ -47,38 +47,6 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
-fn wire__crate__api__markup__cloze_from_v1_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "cloze_from_v1",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_text = <String>::sse_decode(&mut deserializer);
-            let api_answers = <Vec<String>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let output_ok =
-                    Ok::<_, ()>(crate::api::markup::cloze_from_v1(api_text, api_answers))?;
-                std::result::Result::Ok(output_ok)
-            })())
-        },
-    )
-}
 fn wire__crate__api__markup__cloze_numbers_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -564,18 +532,6 @@ impl SseDecode for i64 {
     }
 }
 
-impl SseDecode for Vec<String> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<String>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
 impl SseDecode for Vec<Vec<crate::api::markup::MarkupInline>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -956,11 +912,11 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        6 => wire__crate__api__engine__init_app_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__engine__replay_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__engine__retrievability_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__engine__review_card_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__engine__review_new_card_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__engine__init_app_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__engine__replay_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__engine__retrievability_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__engine__review_card_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__engine__review_new_card_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -973,14 +929,13 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__api__markup__cloze_from_v1_impl(ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__markup__cloze_numbers_impl(ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__markup__escape_literal_impl(ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__markup__fill_cloze_impl(ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__markup__hide_cloze_impl(ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__markup__parse_markup_impl(ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__markup__plain_text_impl(ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__engine__todays_list_impl(ptr, rust_vec_len, data_len),
+        1 => wire__crate__api__markup__cloze_numbers_impl(ptr, rust_vec_len, data_len),
+        2 => wire__crate__api__markup__escape_literal_impl(ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__markup__fill_cloze_impl(ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__markup__hide_cloze_impl(ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__markup__parse_markup_impl(ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__markup__plain_text_impl(ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__engine__todays_list_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1361,16 +1316,6 @@ impl SseEncode for i64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_i64::<NativeEndian>(self).unwrap();
-    }
-}
-
-impl SseEncode for Vec<String> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <String>::sse_encode(item, serializer);
-        }
     }
 }
 

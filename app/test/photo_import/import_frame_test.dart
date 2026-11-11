@@ -9,6 +9,7 @@ import 'package:knowno/photo_import/src/extraction_client.dart';
 import 'package:knowno/photo_import/src/import_list.dart';
 
 import '../deck/frame_fixtures.dart';
+import '../deck/two_sides.dart';
 
 /// The cases `web/src/features/decks/__tests__/import-frame.test.ts` reads, so
 /// the app and the web save equal 칸 for the same candidates (ADR 0137);
@@ -188,7 +189,9 @@ void main() {
     test('the same two senses repeated after a merge onto a card of two sides '
         'stay one back', () async {
       final deck = await repository.createDeck('노트');
-      await repository.addCard(
+      await storeSides(
+        db,
+        repository,
         deck.id,
         front: const [TextContent('face')],
         back: const [TextContent('낯')],
@@ -207,8 +210,9 @@ void main() {
       expect(first.merged, 1);
       expect(again.merged, 0);
       final row = await single();
-      expect((row.template, row.templateVersion), ('free', 1));
-      expect(plainText(decodeContent(row.back)), '낯\n얼굴\n직면하다');
+      expect((row.template, row.templateVersion), ('free', 2));
+      expect(row.back, '[]');
+      expect(plainText(sidesOf(decodeCells(row.front)).back), '낯\n얼굴\n직면하다');
     });
 
     test('a cloze saved again over a card of two sides writes nothing: it has '
@@ -220,7 +224,9 @@ void main() {
         type: 'cloze',
       );
       final deck = await repository.createDeck('노트');
-      await repository.addCard(
+      await storeSides(
+        db,
+        repository,
         deck.id,
         front: const [ClozeContent('수도는 {{c1::서울}}이다')],
         back: const [TextContent('수도는 서울이다')],

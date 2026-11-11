@@ -12,6 +12,7 @@ import '../contrast.dart';
 import '../home/deck_screens.dart';
 import '../word_breaks.dart';
 import 'editor.dart';
+import 'two_sides.dart';
 
 /// The [index]th sense's label field.
 Finder _labelField([int index = 0]) => find
@@ -58,7 +59,9 @@ void main() {
     (tester) async {
       final screens = await DeckScreens.open(tester);
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [const TextContent('present')],
           back: [
@@ -119,7 +122,9 @@ void main() {
       final screens = await DeckScreens.open(tester);
       const extras = TextContent('extras');
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [const TextContent('face')],
           back: [
@@ -186,7 +191,9 @@ void main() {
         ),
       ]);
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [const TextContent('face')],
           back: [printed],
@@ -218,7 +225,9 @@ void main() {
     (tester) async {
       final screens = await DeckScreens.open(tester);
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [const TextContent('present')],
           back: [
@@ -346,7 +355,9 @@ void main() {
     (tester) async {
       final screens = await DeckScreens.open(tester);
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [const TextContent('present')],
           back: [
@@ -382,7 +393,9 @@ void main() {
       final screens = await DeckScreens.open(tester);
       const extras = TextContent('유의어 confront');
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [const TextContent('face')],
           back: [
@@ -414,7 +427,9 @@ void main() {
         CardSense(labels: [_noun], meaning: '얼굴', examples: ['a face']),
       ];
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [const TextContent('face')],
           back: const [
@@ -675,7 +690,9 @@ void main() {
     (tester) async {
       final screens = await DeckScreens.open(tester);
       await tester.runAsync(
-        () => screens.repository.addCard(
+        () => storeSides(
+          screens.db,
+          screens.repository,
           screens.deck.id,
           front: [const TextContent('face')],
           back: const [

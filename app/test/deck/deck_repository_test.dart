@@ -9,8 +9,12 @@ import 'package:knowno/deck/src/card_template.dart';
 import 'package:knowno/media/media.dart';
 
 import '../media/fakes.dart';
+import 'two_sides.dart';
 
 List<Content> _text(String text) => [TextContent(text)];
+
+/// [text] as a card of the frame shows it.
+List<Content> _shown(String text) => [TextContent(text, markup: true)];
 
 DeckRepository _repository(AppDatabase db) {
   var nextId = 0;
@@ -177,8 +181,8 @@ void main() {
         expect(result, isA<CardSaved>());
         final cards = await cardsOf(deck.id);
         expect(cards.map((card) => card.back), [
-          _text('cat'),
-          _text('chat (talk)'),
+          _shown('cat'),
+          _shown('chat (talk)'),
         ]);
       });
 
@@ -215,7 +219,7 @@ void main() {
         expect(ownKey, isA<CardSaved>());
         final cards = await cardsOf(deck.id);
         expect(cards.map((card) => card.front), [
-          _text('chat'),
+          _shown('chat'),
           _text('Chien'),
         ]);
       });
@@ -456,12 +460,13 @@ void main() {
         expect(decodeCells(stored.front), saved);
 
         final other = await repository.createDeck('Other');
-        await repository.addCard(
+        final card = await storeSides(
+          db,
+          repository,
           other.id,
           front: const [TextContent('Rose')],
           back: const [TextContent('A flower.')],
         );
-        final card = (await cardsOf(other.id)).single;
         expect(card.templateVersion, 1, reason: 'the setup: two side lists');
         await repository.editCard(
           card,
@@ -584,13 +589,16 @@ void main() {
         final second = await media.addAudio(preparedAudio(2000));
         AudioContent sound(MediaId id) =>
             AudioContent(media: id, duration: const Duration(seconds: 1));
-        final saved = await repository.addCard(
+        final card = await storeSides(
+          db,
+          repository,
           deck.id,
           front: [const TextContent('listen'), sound(first)],
           back: const [TextContent('cat')],
         );
-        final card = (saved as CardSaved).card;
-        final other = await repository.addCard(
+        final other = await storeSides(
+          db,
+          repository,
           deck.id,
           front: const [TextContent('dog')],
           back: [sound(second)],
@@ -609,7 +617,7 @@ void main() {
         );
         expect(await releasedIds(), [first.value]);
 
-        await repository.deleteCard((other as CardSaved).card.id);
+        await repository.deleteCard(other.id);
         expect(await releasedIds(), [first.value, second.value]);
       });
 
@@ -621,17 +629,14 @@ void main() {
           boxes: const [ImageBox(id: '1', x: 0, y: 0, w: 0.5, h: 0.5)],
         );
 
-        Future<Card> cardWith(Deck deck, MediaId media, String front) async {
-          final saved = await repository.addCard(
-            deck.id,
-            front: [TextContent(front), photo(media)],
-            back: const [TextContent('back')],
-          );
-          return switch (saved) {
-            CardSaved(:final card) => card,
-            DuplicateFront() => fail('the deck held no duplicate'),
-          };
-        }
+        Future<Card> cardWith(Deck deck, MediaId media, String front) =>
+            storeSides(
+              db,
+              repository,
+              deck.id,
+              front: [TextContent(front), photo(media)],
+              back: const [TextContent('back')],
+            );
 
         test('is kept through an edit that keeps it, and released by one that drops it', () async {
           final deck = await repository.createDeck('French');
@@ -677,12 +682,12 @@ void main() {
         test('an edit releases what the stored card held, not what the given copy holds', () async {
           final deck = await repository.createDeck('French');
           final image = await media.addImage(preparedImage(1));
-          final stale = _saved(
-            await repository.addCard(
-              deck.id,
-              front: _text('no photo yet'),
-              back: _text('back'),
-            ),
+          final stale = await storeSides(
+            db,
+            repository,
+            deck.id,
+            front: _text('no photo yet'),
+            back: _text('back'),
           );
           // Another writer, as sync would, gives the stored card a photo.
           await repository.editCard(
@@ -996,8 +1001,8 @@ void main() {
 
       expect((await reopened.watchDecks().first).single.name, 'French');
       final card = (await reopened.watchCards(deck.id).first).single;
-      expect(card.front, _text('chat'));
-      expect(card.back, _text('cat'));
+      expect(card.front, _shown('chat'));
+      expect(card.back, _shown('cat'));
     },
   );
 }

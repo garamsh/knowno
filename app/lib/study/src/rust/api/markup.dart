@@ -33,14 +33,6 @@ Uint32List clozeNumbers({required String text}) =>
 String plainText({required String text}) =>
     RustLib.instance.api.crateApiMarkupPlainText(text: text);
 
-/// A version 1 cloze's `___` and answers as `{{ck::answer_k}}`, or `None` when it would not read
-/// back as the same text.
-String? clozeFromV1({required String text, required List<String> answers}) =>
-    RustLib.instance.api.crateApiMarkupClozeFromV1(
-      text: text,
-      answers: answers,
-    );
-
 /// `text` written as markup that reads back as itself: the text of a literal 글 or cloze that
 /// is saved as markup keeps its meaning.
 String escapeLiteral({required String text}) =>

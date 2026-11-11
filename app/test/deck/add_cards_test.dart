@@ -6,6 +6,9 @@ import 'package:knowno/deck/deck.dart';
 
 List<Content> _text(String text) => [TextContent(text)];
 
+/// [text] as a card of the frame shows it.
+List<Content> _shown(String text) => [TextContent(text, markup: true)];
+
 IncomingCard _card(
   String front,
   String back, [
@@ -115,8 +118,8 @@ void main() {
       expect((result.added, result.merged), (0, 1));
       final after = (await repository.listCards(deck.id)).single;
       expect(after.id, before.id);
-      expect(after.front, _text('chat'));
-      expect(after.back, [const TextContent('cat'), const TextContent('talk')]);
+      expect(after.front, _shown('chat'));
+      expect(after.back, [..._shown('cat'), ..._shown('talk')]);
       expect(after.source, CardSource.manual);
     },
   );
@@ -135,7 +138,7 @@ void main() {
 
       expect((result.added, result.merged), (0, 1));
       final after = (await repository.listCards(deck.id)).single;
-      expect(after.back, [const TextContent('cat'), const TextContent('talk')]);
+      expect(after.back, [..._shown('cat'), ..._shown('talk')]);
       expect(after.createdAt, before.createdAt);
     },
   );
@@ -169,7 +172,7 @@ void main() {
 
       expect((result.added, result.merged), (1, 1));
       final card = (await repository.listCards(deck.id)).single;
-      expect(card.back, [const TextContent('cat'), const TextContent('talk')]);
+      expect(card.back, [..._shown('cat'), ..._shown('talk')]);
     },
   );
 

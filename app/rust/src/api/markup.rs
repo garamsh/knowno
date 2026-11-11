@@ -117,14 +117,6 @@ pub fn plain_text(text: String) -> String {
     engine::parse_markup(&text).plain_text()
 }
 
-/// A version 1 cloze's `___` and answers as `{{ck::answer_k}}`, or `None` when it would not read
-/// back as the same text.
-#[flutter_rust_bridge::frb(sync)]
-pub fn cloze_from_v1(text: String, answers: Vec<String>) -> Option<String> {
-    let answers: Vec<&str> = answers.iter().map(String::as_str).collect();
-    engine::cloze_from_v1(&text, &answers)
-}
-
 /// `text` written as markup that reads back as itself: the text of a literal 글 or cloze that
 /// is saved as markup keeps its meaning.
 #[flutter_rust_bridge::frb(sync)]

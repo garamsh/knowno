@@ -36,6 +36,7 @@ import 'package:knowno/study/src/study_style.dart';
 import 'package:knowno/study/src/today_overview.dart';
 
 import '../contrast.dart';
+import '../deck/two_sides.dart';
 import '../deck/whole_cards.dart';
 import '../media/fakes.dart';
 import '../word_breaks.dart';
@@ -324,12 +325,14 @@ Future<_Study> _open(
       final (front, back) =
           sides[name] ??
           ([TextContent('$name front')], [TextContent('$name back')]);
-      final saved = await deckRepository.addCard(
+      final card = await storeSides(
+        db,
+        deckRepository,
         deck.id,
         front: front,
         back: back,
       );
-      if (saved case CardSaved(:final card) when states.containsKey(name)) {
+      if (states.containsKey(name)) {
         await seeding.record(
           card.id,
           [
@@ -1142,7 +1145,7 @@ void main() {
       );
       expect(
         {for (final review in reviews!) review.cardId: review.rating},
-        {'id1': 'good', 'id2': 'again'},
+        {'sides-0': 'good', 'sides-1': 'again'},
       );
 
       // Control: a drag on the current card moves it alone, and answers it.
@@ -1700,7 +1703,7 @@ void main() {
       await study.know();
 
       expect(study.current, 'b front');
-      expect(stalled.records, [const CardId('id1')]);
+      expect(stalled.records, [const CardId('sides-0')]);
       await study.know();
       expect(study.current, 'c front');
     },
@@ -2110,7 +2113,7 @@ void main() {
     final deleted = await tester.runAsync(
       () => (study.db.delete(
         study.db.cards,
-      )..where((card) => card.id.equals('id1'))).go(),
+      )..where((card) => card.id.equals('sides-0'))).go(),
     );
     expect(deleted, 1);
 
