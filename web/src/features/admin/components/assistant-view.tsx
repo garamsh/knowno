@@ -17,7 +17,6 @@ import {
 import type {
   AssistantBudget,
   AssistantConfiguration,
-  CardMarkup,
   PlanId,
   PromptDetail,
   SkillVersion,
@@ -28,7 +27,6 @@ import { AdminTable, CellLabel, cellClass, rowClass } from "./admin-table";
 import { AssistantBudgetForm } from "./assistant-budget-form";
 import { AssistantConfigurationForm } from "./assistant-configuration-form";
 import { ConfirmAction } from "./confirm-action";
-import { MarkupSwitch } from "./markup-switch";
 import { PromptChanges } from "./prompt-changes";
 import { PromptForm } from "./prompt-form";
 import { PromptVersions } from "./prompt-versions";
@@ -124,7 +122,6 @@ export function AssistantView({
   write,
   skills,
   skill,
-  markup,
   timeZone,
 }: {
   configurations: AssistantConfiguration[];
@@ -139,8 +136,6 @@ export function AssistantView({
   skills: SkillVersion[];
   /** The card form whose skill panel is open, from the version it starts with or none; null while closed. */
   skill: { form: CardForm; from: SkillVersion | null } | null;
-  /** The card markup switch (ADR 0216). */
-  markup: CardMarkup;
   timeZone: string;
 }) {
   const find = (of: PlanId, label: "active" | "test") =>
@@ -237,7 +232,6 @@ export function AssistantView({
             writeHref={(from) => assistantHref(plan, from)}
             timeZone={timeZone}
           />
-          <MarkupSwitch markup={markup} timeZone={timeZone} />
           <SkillList skills={skills} href={(form) => skillHref(plan, form)} />
         </div>
       </div>
