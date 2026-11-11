@@ -25,12 +25,12 @@ describe("the account page", () => {
     server.use(...new FakePostgrest().handlers);
   });
 
-  it("reads the session on the server and shows who is signed in, with sign-out", async () => {
+  it("reads the session on the server and shows who is signed in, with sign-out and account deletion", async () => {
     await render(Profile, {});
 
     // The email alone, with no avatar beside it, then 로그아웃, in the one group of 계정.
     expect(screen.getByRole("region", { name: "계정" })).toHaveTextContent(
-      new RegExp(`^계정${testUser.email}로그아웃$`),
+      new RegExp(`^계정${testUser.email}로그아웃계정 삭제$`),
     );
     expect(screen.getByRole("button", { name: "로그아웃" })).toBeEnabled();
   });
