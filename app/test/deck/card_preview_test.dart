@@ -7,6 +7,8 @@ import 'package:knowno/design/theme.dart';
 import 'package:knowno/design/word_break.dart';
 import 'package:knowno/l10n/app_localizations.dart';
 
+import '../word_breaks.dart';
+
 void main() {
   testWidgets('a short side sits vertically centred in its half', (
     tester,
@@ -110,15 +112,13 @@ void main() {
         supportedLocales: AppLocalizations.supportedLocales,
         home: const Scaffold(
           body: CardPreview(
-            front: [
-              ClozeContent('___ is red.', ['Rose']),
-            ],
+            front: [ClozeContent('{{c1::Rose}} is red.')],
             back: [TextContent('A flower.')],
           ),
         ),
       ),
     );
-    expect(find.text('A flower.'), findsOneWidget);
+    expect(shownText('A flower.'), findsOneWidget);
     expect(find.byType(VerticalDivider), findsNothing);
   });
 }

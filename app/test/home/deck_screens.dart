@@ -21,12 +21,19 @@ import '../word_breaks.dart';
 /// A deck named "French" in an in-memory database, shown by the deck screens
 /// with study over the same database and a stand-in for photo import.
 class DeckScreens {
-  DeckScreens._(this.tester, this.repository, this.deck, this.navigator);
+  DeckScreens._(
+    this.tester,
+    this.repository,
+    this.deck,
+    this.navigator,
+    this.db,
+  );
 
   final WidgetTester tester;
   final DeckRepository repository;
   final Deck deck;
   final GlobalKey<NavigatorState> navigator;
+  final AppDatabase db;
 
   /// The decks of the study session open on top.
   Set<DeckId> get session =>
@@ -38,6 +45,12 @@ class DeckScreens {
   /// The deck's cards as stored.
   Future<List<Card>> cards() async =>
       (await tester.runAsync(() => repository.listCards(deck.id)))!;
+
+  /// The `front` column of every stored card, as the database holds it.
+  Future<List<String>> storedFronts() async =>
+      (await tester.runAsync(() => db.select(db.cards).get()))!
+          .map((row) => row.front)
+          .toList();
 
   /// Pushes the screen [build] makes over the home route.
   Future<void> push(Widget Function(Deck deck) build) async {
@@ -140,6 +153,7 @@ class DeckScreens {
       repository,
       deck,
       GlobalKey<NavigatorState>(),
+      db,
     );
     final storage = await openStudyStorage(tester, minutesAsked: minutesAsked);
     await tester.pumpWidget(

@@ -9,7 +9,7 @@ void main() {
   testWidgets('the deck screen draws a framed card by the 칸 it stores, a back '
       'under the 글 it was written on', (tester) async {
     const cells = [
-      BlankCell(ClozeContent('___ is red.', ['Rose'])),
+      BlankCell(ClozeContent('{{c1::Rose}} is red.')),
       TextCell(front: 'one'),
       TextCell(front: 'two', back: 'of two'),
     ];

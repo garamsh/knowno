@@ -35,14 +35,12 @@ void main() {
   final parse = _fixture('parse');
   final cloze = _fixture('cloze');
   final plain = _fixture('plain');
-  final v1 = _fixture('v1');
   final escape = _fixture('escape');
 
   test('the fixtures are read from the repository, and there are some', () {
     expect(parse.length, greaterThan(20));
     expect(cloze, isNotEmpty);
     expect(plain, isNotEmpty);
-    expect(v1, isNotEmpty);
   });
 
   group('the bridge reads the text as the fixture says', () {
@@ -67,16 +65,6 @@ void main() {
         expect(
           markupEngine.plainText(one['input']! as String),
           one['plainText'],
-        );
-      });
-    }
-    for (final one in v1) {
-      test('version 1: ${one['name']}', () {
-        expect(
-          markupEngine.clozeFromV1(one['text']! as String, [
-            ...(one['answers']! as List<Object?>).cast<String>(),
-          ]),
-          one['source'],
         );
       });
     }

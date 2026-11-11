@@ -545,7 +545,7 @@ void main() {
   testWidgets(
     'a cloze card shows its sentence with its blank filled on the hatch, read with its back',
     (tester) async {
-      const cloze = ClozeContent('The capital of France is ___', ['Paris']);
+      const cloze = ClozeContent('The capital of France is {{c1::Paris}}');
       final screens = await DeckScreens.open(tester, cards: {'Chat': 'cat'});
       await tester.runAsync(
         () => screens.repository.addCard(
@@ -607,7 +607,7 @@ void main() {
     testWidgets(
       '$name is read on its row as its 칸 revealed, its kept back after them',
       (tester) async {
-        const cloze = ClozeContent('The capital of France is ___', ['Paris']);
+        const cloze = ClozeContent('The capital of France is {{c1::Paris}}');
         final screens = await DeckScreens.open(tester);
         await tester.runAsync(
           () => screens.repository.addCard(
@@ -635,7 +635,7 @@ void main() {
   testWidgets(
     'search reads every 칸 revealed, so a cloze card\'s kept back is found',
     (tester) async {
-      const cloze = ClozeContent('The capital of France is ___', ['Paris']);
+      const cloze = ClozeContent('The capital of France is {{c1::Paris}}');
       final screens = await DeckScreens.open(tester, cards: {'Chat': 'cat'});
       // A 빈칸 card whose back differs from its filled text, which study shows.
       await tester.runAsync(

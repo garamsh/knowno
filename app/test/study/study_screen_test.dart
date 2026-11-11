@@ -2615,9 +2615,7 @@ void main() {
   );
 
   group('a whole card', () {
-    const cloze = [
-      ClozeContent('The capital of France is ___', ['Paris']),
-    ];
+    const cloze = [ClozeContent('The capital of France is {{c1::Paris}}')];
     const table = [
       TextContent('Capitals'),
       TableContent(
@@ -2793,7 +2791,7 @@ void main() {
       'a cloze of version 2 hides each of its blanks, a number\'s spans together, with its hint in the box, and is graded as one card (ADR 0207)',
       (tester) async {
         const markup = [
-          ClozeContent.markup(
+          ClozeContent(
             'The capital of {{c1::France}} is {{c2::Paris::city}}, {{c1::France}}',
           ),
         ];
@@ -3174,9 +3172,7 @@ void main() {
         ],
       ),
       '빈칸': (
-        [
-          const ClozeContent('___ is red.', ['Rose']),
-        ],
+        [const ClozeContent('{{c1::Rose}} is red.')],
         [const TextContent('A flower.')],
       ),
       '표': (

@@ -529,7 +529,7 @@ class DeckRepository {
                         : Value(
                             encodeCells([
                               ...cells,
-                              TextCell(back: incoming),
+                              TextCell.literal(back: incoming),
                             ], newId: _newBlockId),
                           ),
                     back: cells == null

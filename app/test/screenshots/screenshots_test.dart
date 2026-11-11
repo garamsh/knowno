@@ -904,9 +904,7 @@ void main() {
               ),
               SizedBox(height: 24),
               WholeCardView(
-                [
-                  ClozeContent('서울은 ___의 수도예요', ['한국']),
-                ],
+                [ClozeContent('서울은 {{c1::한국}}의 수도예요')],
                 revealed: false,
                 style: AppType.back,
               ),
@@ -931,9 +929,7 @@ void main() {
                 ),
                 const SizedBox(height: 24),
                 WholeCardView(
-                  const [
-                    ClozeContent.markup('{{c1::서울::도시}}은 {{c2::한국}}의 수도예요'),
-                  ],
+                  const [ClozeContent('{{c1::서울::도시}}은 {{c2::한국}}의 수도예요')],
                   revealed: revealed,
                   style: AppType.back,
                 ),
@@ -1350,9 +1346,7 @@ void main() {
       await tester.runAsync(() async {
         final deck = await repository.createDeck('국어 문법');
         for (final front in [
-          [
-            const ClozeContent('3인칭 재귀칭: 높임 ___ · 예사 ___ · 낮춤 저', ['당신', '자기']),
-          ],
+          [const ClozeContent('3인칭 재귀칭: 높임 {{c1::당신}} · 예사 {{c2::자기}} · 낮춤 저')],
           [
             const TextContent('불규칙 활용'),
             const TableContent(
@@ -1852,7 +1846,7 @@ void main() {
           ],
           ask: WordAsk.term,
         ),
-        BlankCell(ClozeContent('The capital of France is ___.', ['Paris'])),
+        BlankCell(ClozeContent('The capital of France is {{c1::Paris}}.')),
         BlankCell(
           TableContent(
             columns: ['나라', '수도'],

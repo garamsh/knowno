@@ -78,7 +78,6 @@ export 'src/content.dart'
         TextContent,
         UnsupportedContent,
         audioOf,
-        clozeBlank,
         decodeContent,
         encodeContent,
         decodeSense,

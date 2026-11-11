@@ -88,9 +88,7 @@ void main() {
       final cloze = saved(
         await repository.addCard(
           deck.id,
-          front: [
-            const ClozeContent('___ is in France', ['Paris']),
-          ],
+          front: [const ClozeContent('{{c1::Paris}} is in France')],
           back: const [],
         ),
       );
@@ -186,9 +184,8 @@ void main() {
       'and ids on its blocks, on its next write', () async {
     final card = await legacy(
       'old',
-      '[{"type":"cloze","payload":{"text":"___ is in France",'
-          '"answers":["Paris"]}}]',
-      '[{"type":"text","payload":{"text":"Paris is in France"}}]',
+      '[{"type":"text","payload":{"text":"France"}}]',
+      '[{"type":"text","payload":{"text":"Paris"}}]',
     );
     expect((card.template, card.templateVersion), (null, null));
     expect(canEdit(card), isTrue);
@@ -337,33 +334,38 @@ void main() {
     expect((after.template, after.templateVersion), ('free', 1));
   });
 
-  test('a photo-imported card, one from a file and a copied one are stored with v1 on every '
-      'block and the free template', () async {
-    for (final source in [
-      const FromPhoto(),
-      const FromFile(),
-      FromCopy(deck.id, owner: 'owner'),
-    ]) {
-      await repository.addCards(AddToDeck(deck.id), source: source, [
-        const IncomingCard(
-          front: [
-            ClozeContent('___ is in France', ['Paris']),
-          ],
-          back: [TextContent('Paris is in France')],
-          onDuplicate: DuplicateChoice.addNew,
-        ),
-      ]);
-    }
-    final rows = await db.select(db.cards).get();
-    expect([for (final row in rows) row.source], ['import', 'import', 'copy']);
-    for (final row in rows) {
-      expect((row.template, row.templateVersion), ('free', 1));
-      for (final side in [row.front, row.back]) {
-        expect(side, contains('"v":1'));
-        for (final block in jsonDecode(side) as List) {
-          expect(block['v'], 1, reason: side);
-        }
+  test(
+    'a photo-imported card, one from a file and a copied one are stored with '
+    'the free template, the cloze at v2 and the text at v1',
+    () async {
+      for (final source in [
+        const FromPhoto(),
+        const FromFile(),
+        FromCopy(deck.id, owner: 'owner'),
+      ]) {
+        await repository.addCards(AddToDeck(deck.id), source: source, [
+          const IncomingCard(
+            front: [ClozeContent('{{c1::Paris}} is in France')],
+            back: [TextContent('Paris is in France')],
+            onDuplicate: DuplicateChoice.addNew,
+          ),
+        ]);
       }
-    }
-  });
+      final rows = await db.select(db.cards).get();
+      expect(
+        [for (final row in rows) row.source],
+        ['import', 'import', 'copy'],
+      );
+      for (final row in rows) {
+        expect((row.template, row.templateVersion), ('free', 1));
+        expect(
+          [
+            for (final side in [row.front, row.back])
+              for (final block in jsonDecode(side) as List) block['v'],
+          ],
+          [2, 1],
+        );
+      }
+    },
+  );
 }

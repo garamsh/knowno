@@ -1883,7 +1883,7 @@ void main() {
         final card = saved.firstWhere(
           (card) => card.front.any((block) => block is TableContent),
         );
-        expect(card.front, [const TextContent('인칭 대명사'), table]);
+        expect(card.front, [const TextContent('인칭 대명사', markup: true), table]);
         expect(card.back, isEmpty);
         expect(card.cells, const [TextCell(front: '인칭 대명사'), BlankCell(table)]);
         await import.close();

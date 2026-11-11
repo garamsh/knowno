@@ -8,14 +8,23 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/deck/src/spreadsheet.dart';
 import 'package:knowno/deck/src/spreadsheet_cards.dart';
 
+import 'frame_fixtures.dart';
+
 /// The sheet's and the merge's cases of the file
 /// `web/src/features/decks/__tests__/import-frame.test.ts` reads (ADR 0137).
 final _fixture = jsonDecode(
   File('../supabase/fixtures/card-frame/import.json').readAsStringSync(),
 ) as Map<String, Object?>;
 
-List<Map<String, Object?>> _cases(String part) =>
-    (_fixture[part]! as List<Object?>).cast<Map<String, Object?>>();
+List<Map<String, Object?>> _cases(String part) => [
+  for (final one
+      in (_fixture[part]! as List<Object?>).cast<Map<String, Object?>>())
+    {
+      ...one,
+      if (one['cards'] != null) 'cards': returned(one['cards']),
+      if (one['saved'] != null) 'saved': migrated(one['saved']),
+    },
+];
 
 /// [cells] as stored, without the ids a save draws.
 List<Object?> _stored(List<Cell> cells) => [
@@ -94,5 +103,7 @@ void main() {
     final row = await db.select(db.cards).getSingle();
     expect((row.template, row.templateVersion, row.back), ('free', 2, '[]'));
     expect(decodeCells(row.front), [const TextCell(front: '수도', back: '서울')]);
+    final block = (jsonDecode(row.front) as List<Object?>).single! as Map;
+    expect((block['type'], block['v']), ('text', 3));
   });
 }

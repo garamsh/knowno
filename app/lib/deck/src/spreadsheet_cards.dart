@@ -165,7 +165,7 @@ Cell _cellOf(
   String label,
   String example,
 ) => columns.label == null && columns.example == null
-    ? TextCell(front: front, back: back)
+    ? TextCell.literal(front: front, back: back)
     : WordCell(
         term: front,
         senses: [

@@ -284,41 +284,11 @@ abstract class AppLocalizations {
   /// **'카드'**
   String get wholeCard;
 
-  /// A 빈칸 문장 block's one action, above the keyboard: makes the selected characters a blank, or inserts an empty blank at the cursor.
-  ///
-  /// In ko, this message translates to:
-  /// **'빈칸 넣기'**
-  String get clozeInsertBlank;
-
-  /// A 빈칸 문장 block's one action while the caret or the selection is inside a blank: turns that blank back into text.
-  ///
-  /// In ko, this message translates to:
-  /// **'빈칸 풀기'**
-  String get clozeUndoBlank;
-
-  /// Screen-reader name of a 빈칸 문장 block's action while the caret is inside a blank, naming the blank it turns back into text.
-  ///
-  /// In ko, this message translates to:
-  /// **'빈칸 풀기, {answer}'**
-  String clozeRemoveBlank(String answer);
-
-  /// What the screen-reader name of 빈칸 풀기 says for a blank while nothing is typed into it yet.
-  ///
-  /// In ko, this message translates to:
-  /// **'빈칸'**
-  String get clozeEmptyBlank;
-
   /// Error under the cloze line on save when it has no blank holding text.
   ///
   /// In ko, this message translates to:
   /// **'빈칸을 하나 이상 넣어 주세요'**
   String get clozeBlankRequired;
-
-  /// Error under a 빈칸 문장 block's line when the line holds underscores that would read as a blank of its own.
-  ///
-  /// In ko, this message translates to:
-  /// **'줄에서 ___를 빼 주세요'**
-  String get clozeBlankMarker;
 
   /// The row after the card editor's last group, after a +, the sheet of 칸 types it opens, and what a screen reader reads for it.
   ///

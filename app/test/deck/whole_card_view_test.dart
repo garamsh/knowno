@@ -9,9 +9,10 @@ import 'package:knowno/media/media.dart';
 
 import '../design/harness.dart';
 import 'whole_cards.dart';
+import '../word_breaks.dart';
 
 void main() {
-  const cloze = ClozeContent('The capital is $clozeBlank today', ['Paris']);
+  const cloze = ClozeContent('The capital is {{c1::Paris}} today');
 
   /// The blank's span under the card.
   TextSpan blankSpan(WidgetTester tester) {
@@ -73,11 +74,12 @@ void main() {
         'ems wide at its line\'s height whatever its answer, with no '
         'underline and no answer, and a filled one its answer on the hatch, '
         'in ${themeMode.name} (#635)', (tester) async {
-      const short = ClozeContent('$clozeBlank is short', ['A']);
-      const long = ClozeContent('$clozeBlank is long', [
-        'A much longer answer',
-      ]);
-      for (final block in [short, long]) {
+      const short = ClozeContent('{{c1::A}} is short');
+      const long = ClozeContent('{{c1::A much longer answer}} is long');
+      for (final (block, answer) in [
+        (short, 'A'),
+        (long, 'A much longer answer'),
+      ]) {
         await pumpComponent(
           tester,
           WholeCardView.studied(
@@ -107,7 +109,7 @@ void main() {
         );
         // No underline and no answer anywhere in the sentence.
         expect(blanksUnder(card), isEmpty);
-        expect(find.textContaining(block.answers.single), findsNothing);
+        expect(find.textContaining(answer), findsNothing);
       }
 
       // Control: revealed, the answer is drawn on the hatch's paint, and the
@@ -131,8 +133,7 @@ void main() {
   testWidgets('a Korean cloze sentence breaks only between words, its blank '
       'included, and reads as written (#454)', (tester) async {
     const korean = ClozeContent(
-      '낮에는 친구들과 함께 춤을 추고 밤에는 $clozeBlank 노래를 부르며 하루를 보냈어요',
-      ['조용히'],
+      '낮에는 친구들과 함께 춤을 추고 밤에는 {{c1::조용히}} 노래를 부르며 하루를 보냈어요',
     );
     await pumpComponent(
       tester,
@@ -207,7 +208,7 @@ void main() {
     ];
 
     TextStyle styleOf(WidgetTester tester, String text) =>
-        tester.widget<Text>(find.text(text)).style!;
+        tester.widget<Text>(shownText(text)).style!;
 
     testWidgets('before the reveal it draws a 글\'s front as a title, a 단어\'s '
         'asked side and the blank empty, in order', (tester) async {
@@ -222,7 +223,7 @@ void main() {
       expect(order(tester), ['Title', 'apple', 'The capital is Paris today']);
       expect(styleOf(tester, 'Title').fontSize, AppType.wholeFront.fontSize);
       expect(blanksUnder(find.byType(WholeCardView)), {'Paris': false});
-      expect(find.text('Added'), findsNothing);
+      expect(shownText('Added'), findsNothing);
       expect(find.textContaining('사과'), findsNothing);
     });
 
@@ -280,7 +281,7 @@ void main() {
         ),
       );
       expect(order(tester), hasLength(1));
-      expect(find.text('Only after'), findsNothing);
+      expect(shownText('Only after'), findsNothing);
     });
 
     testWidgets('in a list row\'s style an added part keeps the row\'s size', (

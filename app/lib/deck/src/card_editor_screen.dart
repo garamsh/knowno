@@ -63,7 +63,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   /// editor shows read-only and never writes (ADR 0106).
   late final _opened = switch (widget.card) {
     final card? => cellsOf(card),
-    null => const <Cell>[TextCell(markup: true)],
+    null => const <Cell>[TextCell()],
   };
 
   /// The card's 칸.

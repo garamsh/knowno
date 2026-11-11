@@ -36,7 +36,7 @@ void main() {
                 CardBackRow(
                   key: Key('whole'),
                   front: [
-                    ClozeContent('The capital of France is ___', ['Paris']),
+                    ClozeContent('The capital of France is {{c1::Paris}}'),
                   ],
                   back: [TextContent('The capital of France is Paris')],
                 ),
@@ -149,10 +149,9 @@ void main() {
                 CardBackRow(
                   front: const [
                     ClozeContent(
-                      '3인칭 재귀칭은 높임에서 $clozeBlank 를 쓰고 예사에서는 '
-                      '$clozeBlank 를 쓰며 낮춤에서는 저를 쓰는데 이는 문장의 '
+                      '3인칭 재귀칭은 높임에서 {{c1::당신}} 를 쓰고 예사에서는 '
+                      '{{c2::자기}} 를 쓰며 낮춤에서는 저를 쓰는데 이는 문장의 '
                       '주어를 다시 가리킬 때 쓰인다',
-                      ['당신', '자기'],
                     ),
                   ],
                   back: const [],
@@ -206,7 +205,7 @@ void main() {
   );
 
   group('a whole card with a kept back', () {
-    const cloze = ClozeContent('The capital is $clozeBlank', ['Paris']);
+    const cloze = ClozeContent('The capital is {{c1::Paris}}');
     const front = [cloze];
     const back = [TextContent('on the Seine')];
 
@@ -328,12 +327,7 @@ void main() {
     testWidgets('a 빈칸 shows its sentence with each blank filled on the '
         'hatch, none empty', (tester) async {
       await pumpRow(tester, const [
-        BlankCell(
-          ClozeContent('세종대왕은 $clozeBlank년에 $clozeBlank을 창제했다.', [
-            '1443',
-            '훈민정음',
-          ]),
-        ),
+        BlankCell(ClozeContent('세종대왕은 {{c1::1443}}년에 {{c2::훈민정음}}을 창제했다.')),
       ]);
       final row = find.byType(CardBackRow);
       expect(hatchedBlanksUnder(row), ['1443', '훈민정음']);

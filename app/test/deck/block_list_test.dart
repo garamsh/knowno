@@ -163,9 +163,9 @@ void main() {
       final card = await _stored(screens);
       expect((card.template, card.templateVersion), ('free', 2));
       expect(card.cells, const [
-        TextCell(front: 'apple', back: '사과', markup: true),
-        TextCell(front: 'red', back: '빨강', markup: true),
-        TextCell(front: 'a fruit', markup: true),
+        TextCell(front: 'apple', back: '사과'),
+        TextCell(front: 'red', back: '빨강'),
+        TextCell(front: 'a fruit'),
       ]);
 
       await screens.push(
@@ -247,7 +247,7 @@ void main() {
         expect(shownText(before), findsNothing, reason: 'answered as typed');
         await tapVisible(screens, shownText('Save'));
         expect((await _stored(screens)).cells, const [
-          TextCell(front: 'apple', back: '사과', markup: true),
+          TextCell(front: 'apple', back: '사과'),
         ], reason: 'control: a front and a back save');
       },
     );
@@ -268,7 +268,7 @@ void main() {
         await tapVisible(screens, shownText('Save'));
         final card = await _stored(screens);
         expect(card.cells, const [
-          BlankCell(ClozeContent.markup('I like {{c1::tea}}')),
+          BlankCell(ClozeContent('I like {{c1::tea}}')),
         ], reason: 'control: a blank alone saves');
       },
     );
@@ -288,7 +288,7 @@ void main() {
         await typeBlock(tester, '사과', 1);
         await tapVisible(screens, shownText('Save'));
         expect((await _stored(screens)).cells, const [
-          TextCell(front: 'apple', back: '사과', markup: true),
+          TextCell(front: 'apple', back: '사과'),
         ], reason: 'the empty 글 is dropped');
       },
     );
@@ -476,7 +476,7 @@ void main() {
       expect(shownText('Undo'), findsNothing, reason: 'the bar went');
       await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).cells, const [
-        TextCell(front: 'Chat', back: 'Cat', markup: true),
+        TextCell(front: 'Chat', back: 'Cat'),
       ]);
     },
   );
