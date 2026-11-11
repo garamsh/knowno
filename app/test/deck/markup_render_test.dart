@@ -53,7 +53,7 @@ void main() {
     '**bold** and *slanted* and `code`\n- one\n- two\n\n1. first',
     markup: true,
   );
-  const cloze = ClozeContent.markup(
+  const cloze = ClozeContent(
     'The {{c1::cat::animal}} sat on the {{c2::mat}}, {{c1::cat}}',
   );
 
@@ -90,7 +90,7 @@ void main() {
         await pumpComponent(
           tester,
           WholeCardView.listed(const [
-            TextCell(front: '**bold** line', markup: true),
+            TextCell(front: '**bold** line'),
           ], style: AppType.body),
         );
         expect(_plain(find.byType(WholeCardView)), 'bold line');
@@ -213,9 +213,7 @@ void main() {
         await pumpComponent(
           tester,
           const WholeCardView(
-            [
-              ClozeContent('The ___ sat', ['cat']),
-            ],
+            [ClozeContent('The {{c1::cat}} sat')],
             revealed: true,
             style: AppType.back,
           ),

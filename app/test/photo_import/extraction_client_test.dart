@@ -375,7 +375,7 @@ void main() {
           ],
         },
       });
-      final clozeCard = _note('높임 ___ · 낮춤 ___', '당신\n너', {
+      final clozeCard = _note('높임 {{c1::당신}} · 낮춤 {{c2::너}}', '당신\n너', {
         'type': 'cloze',
         'cloze': {
           'answers': ['당신', '너'],
@@ -401,7 +401,7 @@ void main() {
         ),
       ]);
       expect(cloze.wholeFront, [
-        const ClozeContent('높임 ___ · 낮춤 ___', ['당신', '너']),
+        const ClozeContent('높임 {{c1::당신}} · 낮춤 {{c2::너}}'),
       ]);
       // Prompt v6's cloze card, without its cloze, and a table card without
       // its table, are refused.
@@ -423,41 +423,49 @@ void main() {
     },
   );
 
-  test('a cloze whose answers do not match its blanks, or a table with a blank '
-      'outside it, is a service failure', () async {
-    Future<List<CandidateCard>?> extract(Map<String, Object?> fields) =>
-        _extract(
-          _client(
-            (_) async => _json(200, {
-              'cards': [_note('높임 ___', '당신', fields)],
-            }),
-          ),
-        );
+  test('a cloze front with no blank, or a table with a blank outside it, is a '
+      'service failure', () async {
+    Future<List<CandidateCard>?> extract(
+      Map<String, Object?> fields, {
+      String front = '높임 {{c1::당신}}',
+    }) => _extract(
+      _client(
+        (_) async => _json(200, {
+          'cards': [_note(front, '당신', fields)],
+        }),
+      ),
+    );
     final table = {
       'columns': ['구분', '높임'],
       'rows': [
         ['2인칭', '당신'],
       ],
     };
-    for (final fields in <Map<String, Object?>>[
-      {
-        'type': 'cloze',
-        'cloze': {
-          'answers': ['당신', '너'],
+    for (final (fields, front) in <(Map<String, Object?>, String)>[
+      (
+        {
+          'type': 'cloze',
+          'cloze': {
+            'answers': ['당신'],
+          },
         },
-      },
-      {
-        'type': 'table',
-        'table': {
-          ...table,
-          'blanks': [
-            {'row': 1, 'column': 1},
-          ],
+        '높임 ___',
+      ),
+      (
+        {
+          'type': 'table',
+          'table': {
+            ...table,
+            'blanks': [
+              {'row': 1, 'column': 1},
+            ],
+          },
         },
-      },
+        '높임',
+      ),
     ]) {
       await expectLater(
-        extract(fields),
+        extract(fields, front: front),
         throwsA(isA<ServiceFailed>()),
         reason: '$fields',
       );

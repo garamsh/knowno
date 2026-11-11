@@ -144,24 +144,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wholeCard => 'Card';
 
   @override
-  String get clozeInsertBlank => 'Insert blank';
-
-  @override
-  String get clozeUndoBlank => 'Undo blank';
-
-  @override
-  String clozeRemoveBlank(String answer) {
-    return 'Undo blank, $answer';
-  }
-
-  @override
-  String get clozeEmptyBlank => 'Blank';
-
-  @override
   String get clozeBlankRequired => 'Insert at least one blank';
-
-  @override
-  String get clozeBlankMarker => 'Remove ___ from the line';
 
   @override
   String get addBlock => 'Add block';

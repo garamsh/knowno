@@ -55,18 +55,9 @@ CardPreview _block(Map<String, Object?> block) => switch (block['type']) {
     },
     photo: false,
   ),
-  'cloze' => switch (block['answers']) {
-    final List<Object?> answers => (
-      front: _text(block['text']),
-      back: answers
-          .map((a) => a is List<Object?> ? _texts(a).join('/') : _text(a))
-          .join(', '),
-      photo: false,
-    ),
-    // A cloze of version 2: Anki's syntax, each cloze a blank, its hint after
-    // it, and the answers after the reveal.
-    _ => _clozeMarkup(_text(block['text'])),
-  },
+  // Anki's syntax: each cloze a blank, its hint after it, and the answers
+  // after the reveal.
+  'cloze' => _clozeMarkup(_text(block['text'])),
   'table' => (
     front: _texts(block['columns']).join(' · '),
     back: switch (block['rows']) {

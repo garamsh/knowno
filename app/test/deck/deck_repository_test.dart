@@ -141,24 +141,20 @@ void main() {
 
         final same = await repository.addCard(
           french.id,
-          front: [
-            const ClozeContent('___ is in France', ['Paris']),
-          ],
+          front: [const ClozeContent('{{c1::Paris}} is in France')],
           back: _text('Paris is in France'),
         );
         // Control: a cloze filling to another text is a new card.
         final other = await repository.addCard(
           french.id,
-          front: [
-            const ClozeContent('___ is in France', ['Lyon']),
-          ],
+          front: [const ClozeContent('{{c1::Lyon}} is in France')],
           back: _text('Lyon is in France'),
         );
 
         expect(same, isA<DuplicateFront>());
         expect(other, isA<CardSaved>());
         expect((await cardsOf(french.id)).last.front, [
-          const ClozeContent('___ is in France', ['Lyon']),
+          const ClozeContent('{{c1::Lyon}} is in France'),
         ]);
       });
 
@@ -352,7 +348,7 @@ void main() {
     });
 
     group('adding a framed card', () {
-      const cloze = ClozeContent('___ is red.', ['Rose']);
+      const cloze = ClozeContent('{{c1::Rose}} is red.');
       const cells = [BlankCell(cloze), TextCell(back: 'A flower.')];
       final sides = sidesOf(cells);
       final incoming = IncomingCard(
@@ -386,9 +382,9 @@ void main() {
         // Control: a card of two sides stays at free v1.
         final other = await repository.createDeck('Other');
         await repository.addCards(AddToDeck(other.id), [
-          IncomingCard(
-            front: sides.front,
-            back: sides.back,
+          const IncomingCard(
+            front: [TextContent('Rose')],
+            back: [TextContent('red')],
             onDuplicate: DuplicateChoice.addNew,
           ),
         ]);
@@ -934,21 +930,25 @@ void main() {
       final deck = await repository.createDeck('French');
       final saved = await repository.addCard(
         deck.id,
-        front: [
-          const ClozeContent('a ___ b', ['x']),
-        ],
+        front: [const ClozeContent('a {{c1::x}} b')],
         back: [const TextContent('a x b')],
       );
       final card = (saved as CardSaved).card;
 
-      // Two blank markers for one answer: a shape the decoder refuses.
+      // A table with a blank outside it: a shape the decoder refuses.
       await expectLater(
         repository.editCard(
           card,
           front: [
-            const ClozeContent('a ___ b ___ c', ['x']),
+            const TableContent(
+              columns: ['a'],
+              rows: [
+                ['1'],
+              ],
+              blanks: [(row: 3, column: 0)],
+            ),
           ],
-          back: [const TextContent('a x b ___ c')],
+          back: [const TextContent('a x b c')],
         ),
         throwsA(isA<UnreadableCard>()),
       );
@@ -957,13 +957,11 @@ void main() {
       // Control: a readable edit of the same card is stored.
       await repository.editCard(
         card,
-        front: [
-          const ClozeContent('a ___ b c', ['x']),
-        ],
+        front: [const ClozeContent('a {{c1::x}} b c')],
         back: [const TextContent('a x b c')],
       );
       expect((await cardsOf(deck.id)).single.front, [
-        const ClozeContent('a ___ b c', ['x']),
+        const ClozeContent('a {{c1::x}} b c'),
       ]);
     });
 

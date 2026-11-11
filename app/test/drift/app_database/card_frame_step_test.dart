@@ -12,6 +12,7 @@ import 'package:knowno/deck/deck.dart'
 import 'package:knowno/study/study.dart';
 import 'package:knowno/sync/sync.dart';
 
+import '../../deck/frame_fixtures.dart';
 import '../../sync/fake_sync_server.dart';
 import 'generated/schema.dart';
 import 'generated/schema_v13.dart' as v13;
@@ -124,9 +125,11 @@ void main() {
           final row = rows['$index']!;
           final reason = fixture['name'] as String;
           final expected = fixture['cells'];
+          // The step writes the forms it did when it shipped; the server's
+          // migration then converts them, and the build reads the result.
           final frame = cellsFromSides(
-            decodeContent(jsonEncode(fixture['front'])),
-            decodeContent(jsonEncode(fixture['back'])),
+            decodeContent(jsonEncode(migrated(fixture['front']))),
+            decodeContent(jsonEncode(migrated(fixture['back']))),
           );
           expect(
             (row.cardKey, row.updatedAt, row.dirty),
@@ -153,7 +156,11 @@ void main() {
             ('[]', 'free', 2),
             reason: reason,
           );
-          expect(decodeCells(row.front), frame, reason: reason);
+          expect(
+            decodeCells(jsonEncode(migrated(jsonDecode(row.front)))),
+            frame,
+            reason: reason,
+          );
         }
       },
     );
@@ -362,8 +369,11 @@ void main() {
         final framed = frameSides(stored.$1, stored.$2);
         expect(framed, isNotNull, reason: '$stored');
         expect(
-          decodeCells(framed!),
-          cellsFromSides(decodeContent(stored.$1), decodeContent(stored.$2)),
+          decodeCells(jsonEncode(migrated(jsonDecode(framed!)))),
+          cellsFromSides(
+            decodeContent(jsonEncode(migrated(front))),
+            decodeContent(jsonEncode(migrated(back))),
+          ),
           reason: '$stored',
         );
       }

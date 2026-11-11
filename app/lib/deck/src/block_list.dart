@@ -12,7 +12,6 @@ import '../../media/media.dart';
 import 'audio_block.dart';
 import 'block_draft.dart';
 import 'card_frame.dart';
-import 'cloze_block.dart';
 import 'content.dart';
 import 'editor_group.dart';
 import 'image_block.dart';
@@ -66,7 +65,7 @@ class BlockList extends StatelessWidget {
     for (final part in parts) {
       switch (part) {
         case PasteText(:final text):
-          made.add(TextBlockDraft(TextCell(front: text, markup: true)));
+          made.add(TextBlockDraft(TextCell(front: text)));
         case PasteTable(:final columns, :final rows):
           made.add(
             TableBlockDraft(
@@ -282,7 +281,6 @@ class _Block extends StatelessWidget {
       SensesBlockDraft(:final type) ||
       TableBlockDraft(:final type) ||
       ClozeBlockDraft(:final type) ||
-      ClozeMarkupBlockDraft(:final type) ||
       ImageBlockDraft(:final type) ||
       AudioBlockDraft(:final type) => type.title(l10n),
     };
@@ -294,13 +292,13 @@ class _Block extends StatelessWidget {
     );
     final rows = switch (block) {
       KeptBlockDraft() => const <Widget>[],
-      TextBlockDraft(:final markup) => [
+      TextBlockDraft() => [
         _NamedField(
           name: l10n.cardFront,
           controller: block.front,
           focusNode: block.focus,
           multiline: true,
-          markup: markup,
+          markup: true,
           onPaste: onPaste,
           onChanged: _edited,
         ),
@@ -308,7 +306,7 @@ class _Block extends StatelessWidget {
           name: l10n.cardBack,
           controller: block.back,
           multiline: true,
-          markup: markup,
+          markup: true,
           onPaste: onPaste,
           onChanged: _edited,
         ),
@@ -358,10 +356,7 @@ class _Block extends StatelessWidget {
         ),
       ],
       ClozeBlockDraft() => [
-        _ClozeFields(draft: block, showErrors: showErrors, onChanged: _edited),
-      ],
-      ClozeMarkupBlockDraft() => [
-        _ClozeMarkupFields(
+        _ClozeFields(
           draft: block,
           showErrors: showErrors,
           onChanged: _edited,
@@ -559,92 +554,20 @@ class _ChoiceRow extends StatelessWidget {
   }
 }
 
-/// A 빈칸 문장's line, borderless in its group, and right under it, while the
-/// line has focus, its one action as a small outlined chip that follows the
-/// caret, "빈칸 넣기" or "빈칸 풀기" (ADR 0101, ADR 0117); then what keeps it
-/// from being saved, with [showErrors].
-class _ClozeFields extends StatelessWidget {
-  const _ClozeFields({
-    required this.draft,
-    required this.showErrors,
-    required this.onChanged,
-  });
-
-  final ClozeBlockDraft draft;
-  final bool showErrors;
-  final VoidCallback onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final draft = this.draft;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(groupInset, 0, groupInset, groupInset),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ClozeEmptyBlanks(
-            controller: draft.line,
-            child: AppTextField(
-              controller: draft.line,
-              focusNode: draft.focus,
-              hint: l10n.blockClozeDescription,
-              minLines: 2,
-              maxLines: null,
-              onChanged: (_) {
-                draft.edited = true;
-                onChanged();
-              },
-            ),
-          ),
-          if (draft.focus.hasFocus)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpace.s12),
-              child: ListenableBuilder(
-                listenable: draft.line,
-                builder: (context, _) => ClozeAction(
-                  draft: draft.cloze,
-                  blank: draft.cloze.blankAt(draft.line.selection),
-                  onInsert: () {
-                    draft.cloze.insert(draft.line.selection);
-                    draft.edited = true;
-                    onChanged();
-                  },
-                  onUndo: (blank) {
-                    draft.cloze.remove(blank);
-                    draft.edited = true;
-                    onChanged();
-                  },
-                ),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpace.s16),
-            child: ClozeProblemText(
-              draft: draft.cloze,
-              showError: showErrors && !draft.isComplete,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A 빈칸 문장 of version 2: its text in Anki's syntax, borderless in its
+/// A 빈칸 문장: its text in Anki's syntax, borderless in its
 /// group, and under it, while the text has focus, its one action as a small
 /// outlined chip that follows the caret, "가리기" or, in a cloze, "가리기 풀기";
 /// then the text as study draws it, each cloze a blank with its hint, and what
 /// keeps it from being saved, with [showErrors].
-class _ClozeMarkupFields extends StatelessWidget {
-  const _ClozeMarkupFields({
+class _ClozeFields extends StatelessWidget {
+  const _ClozeFields({
     required this.draft,
     required this.showErrors,
     required this.onChanged,
     required this.onPaste,
   });
 
-  final ClozeMarkupBlockDraft draft;
+  final ClozeBlockDraft draft;
   final bool showErrors;
   final VoidCallback onChanged;
   final ValueChanged<List<PastePart>> onPaste;

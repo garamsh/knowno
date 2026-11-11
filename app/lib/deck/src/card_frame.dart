@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show listEquals;
 import 'card_key.dart';
 import 'card_template.dart';
 import 'content.dart';
+import 'markup.dart';
 import 'model.dart';
 
 /// A side a placed 칸 sits on.
@@ -25,32 +26,29 @@ sealed class Cell {
 /// A 글: its [front] shows before the reveal and its [back] is added by it.
 /// Either may be empty.
 ///
-/// A 글 of version 3 reads its parts as markup, a Markdown subset the engine
-/// parses (ADR 0202); one of version 2, or drawn from a side block, reads
-/// them as written.
+/// A 글 reads its parts as markup, a Markdown subset the engine parses
+/// (ADR 0202), and is stored as version 3.
 final class TextCell extends Cell {
-  const TextCell({
-    this.front = '',
-    this.back = '',
-    this.markup = false,
-    super.id,
-  });
+  const TextCell({this.front = '', this.back = '', super.id});
+
+  /// A 글 of [front] and [back] as literal text, each written as markup that
+  /// reads back as itself (ADR 0208).
+  factory TextCell.literal({String front = '', String back = '', String? id}) =>
+      TextCell(
+        front: markupEngine.escapeLiteral(front),
+        back: markupEngine.escapeLiteral(back),
+        id: id,
+      );
 
   final String front;
   final String back;
 
-  /// Whether [front] and [back] are read as markup: the 글 is version 3.
-  final bool markup;
-
   @override
   bool operator ==(Object other) =>
-      other is TextCell &&
-      other.front == front &&
-      other.back == back &&
-      other.markup == markup;
+      other is TextCell && other.front == front && other.back == back;
 
   @override
-  int get hashCode => Object.hash(front, back, markup);
+  int get hashCode => Object.hash(front, back);
 }
 
 /// A 단어: a word and its meanings, [ask] naming the one shown first.
@@ -120,14 +118,12 @@ final class UnknownCell extends Cell {
   int get hashCode => block.type.hashCode;
 }
 
-const _frameVersions = {'text': 2, 'senses': 2, 'image': 2, 'audio': 2};
-
-/// The version of a 글 whose text is markup.
-const _markupTextVersion = 3;
+const _frameVersions = {'text': 3, 'senses': 2, 'image': 2, 'audio': 2};
 
 /// Decodes a stored 칸 list. A block of the frame's versions reads its own
-/// fields, and one of an earlier version reads as it was drawn on a front;
-/// an unknown type or version is kept. Throws [FormatException] for a block
+/// fields, and one of an earlier version reads as it was drawn on a front,
+/// where a 글 below version 3 is a block this build cannot read; an unknown
+/// type or version is kept. Throws [FormatException] for a block
 /// that breaks its shape, as [decodeContent] does.
 List<Cell> decodeCells(String encoded) {
   final decoded = jsonDecode(encoded);
@@ -144,18 +140,13 @@ Cell _decodeCell(Object? block, String source) {
         'v': final int version,
         'payload': final Map<String, Object?> payload,
       }
-      when version == _frameVersions[type] ||
-          type == 'text' && version == _markupTextVersion) {
+      when version == _frameVersions[type]) {
     final id = block['id'];
     if (id != null && id is! String) {
       throw FormatException('a $type block has an id that is not text', source);
     }
     final cell = switch (type) {
-      'text' => _decodeText(
-        payload,
-        id as String?,
-        markup: version == _markupTextVersion,
-      ),
+      'text' => _decodeText(payload, id as String?),
       'senses' => _decodeWord(payload, id as String?),
       _ => _decodePlaced(type, payload, block, source),
     };
@@ -170,16 +161,13 @@ Cell _decodeCell(Object? block, String source) {
   };
 }
 
-TextCell? _decodeText(
-  Map<String, Object?> payload,
-  String? id, {
-  required bool markup,
-}) => switch (payload) {
-  {'front': final String front, 'back': final String back}
-      when front.trim().isNotEmpty || back.trim().isNotEmpty =>
-    TextCell(front: front, back: back, markup: markup, id: id),
-  _ => null,
-};
+TextCell? _decodeText(Map<String, Object?> payload, String? id) =>
+    switch (payload) {
+      {'front': final String front, 'back': final String back}
+          when front.trim().isNotEmpty || back.trim().isNotEmpty =>
+        TextCell(front: front, back: back, id: id),
+      _ => null,
+    };
 
 WordCell? _decodeWord(Map<String, Object?> payload, String? id) {
   if (payload
@@ -226,7 +214,7 @@ Cell? _decodePlaced(
 
 /// [block] as a 칸 drawn where it was on a front.
 Cell _frontCell(Content block) => switch (block) {
-  TextContent(:final text, :final id) => TextCell(front: text, id: id),
+  TextContent(:final id) => TextCell(front: _markupOf(block), id: id),
   SensesContent(:final senses, :final id) => WordCell(
     term: '',
     senses: senses,
@@ -242,6 +230,11 @@ Cell _frontCell(Content block) => switch (block) {
   AudioContent() => PlacedCell(block, CellSide.front, id: block.id),
   final UnsupportedContent kept => UnknownCell(kept),
 };
+
+/// [text] as markup: itself, or, for a plain text, through the escape so that
+/// it reads back as written (ADR 0208).
+String _markupOf(TextContent text) =>
+    text.markup ? text.text : markupEngine.escapeLiteral(text.text);
 
 /// Whether [back] is the filled text photo import and a copy wrote beside a
 /// blanked [front], the one back the frame drops (ADR 0140).
@@ -264,9 +257,9 @@ String encodeCells(List<Cell> cells, {required String Function() newId}) =>
     jsonEncode([
       for (final cell in cells)
         switch (cell) {
-          TextCell(:final front, :final back, :final markup) => {
+          TextCell(:final front, :final back) => {
             'type': 'text',
-            'v': markup ? _markupTextVersion : _frameVersions['text'],
+            'v': _frameVersions['text'],
             'id': cell.id ?? newId(),
             'payload': {'front': front, 'back': back},
           },
@@ -342,13 +335,13 @@ List<Cell>? cellsFromSides(List<Content> front, List<Content> back) {
   final frontBlank = front.any(hasBlank);
   for (final block in back) {
     switch (block) {
-      case TextContent(:final text):
-        _addBackText(cells, text, block.id);
+      case final TextContent text:
+        _addBackText(cells, _markupOf(text), block.id);
       case SensesContent(:final senses):
         _addBackSenses(cells, senses, block.id);
       case ClozeContent(:final filled) || TableContent(:final filled)
           when frontBlank:
-        cells.add(TextCell(back: filled, id: block.id));
+        cells.add(TextCell.literal(back: filled, id: block.id));
       case final ImageContent image when frontBlank && image.boxes.isNotEmpty:
         cells.addAll(_placedOnBack(image));
       case ClozeContent() || TableContent():
@@ -379,7 +372,7 @@ void _addBackText(List<Cell> cells, String text, String? id) {
 void _addBackSenses(List<Cell> cells, List<CardSense> senses, String? id) {
   if (cells case [TextCell(:final front, back: '', id: final textId)]) {
     cells[0] = WordCell(
-      term: front,
+      term: markupEngine.plainText(front),
       senses: senses,
       ask: WordAsk.term,
       id: textId,
@@ -406,7 +399,7 @@ List<Cell> _placedOnBack(ImageContent image) {
       CellSide.back,
       id: image.id,
     ),
-    if (answers.isNotEmpty) TextCell(back: answers.join('\n')),
+    if (answers.isNotEmpty) TextCell.literal(back: answers.join('\n')),
   ];
 }
 
@@ -425,9 +418,9 @@ List<Cell>? cellsOf(Card card) =>
   final back = <Content>[];
   for (final cell in cells) {
     switch (cell) {
-      case TextCell(front: final text, back: final added, :final markup):
-        if (text.isNotEmpty) front.add(TextContent(text, markup: markup));
-        if (added.isNotEmpty) back.add(TextContent(added, markup: markup));
+      case TextCell(front: final text, back: final added):
+        if (text.isNotEmpty) front.add(TextContent(text, markup: true));
+        if (added.isNotEmpty) back.add(TextContent(added, markup: true));
       case WordCell(:final term, :final senses, :final ask):
         final word = [if (term.isNotEmpty) TextContent(term)];
         final meanings = [SensesContent(senses)];

@@ -106,11 +106,7 @@ void main() {
       await _save(screens);
       final card = (await screens.cards()).single;
       expect(card.cells, const [
-        TextCell(
-          front: '**apple** is a *fruit*',
-          back: '- red\n- green',
-          markup: true,
-        ),
+        TextCell(front: '**apple** is a *fruit*', back: '- red\n- green'),
       ]);
       await screens.close();
     });
@@ -189,49 +185,31 @@ void main() {
     }
 
     testWidgets(
-      'is shown as written, with no preview, and stored as it was while unchanged',
+      'opens as the markup that reads as the text, with no preview, and is '
+      'stored as that markup while unchanged',
       (tester) async {
         final screens = await openStored(tester, '*not italic* {{c1::x}}');
-        expect(_controller(tester).text, '*not italic* {{c1::x}}');
-        expect(_preview(tester), isNull);
+        final markup = markupEngine.escapeLiteral('*not italic* {{c1::x}}');
+        expect(markup, isNot('*not italic* {{c1::x}}'), reason: 'control');
+        expect(_controller(tester).text, markup);
+        expect(_preview(tester), isNull, reason: 'it reads as written');
         await _save(screens);
-        expect((await screens.cards()).single.cells, const [
-          TextCell(front: '*not italic* {{c1::x}}', back: 'back'),
-        ], reason: 'a literal 글 as it was, in the frame');
+        expect((await screens.cards()).single.cells, [
+          TextCell(front: markup, back: 'back'),
+        ], reason: 'a plain text as markup, in the frame');
         await screens.close();
       },
     );
 
-    for (final (name, typed) in [
-      ('a literal asterisk', '2 * 3 and *a* **b**'),
-      ('a cloze opener', 'type {{c1::x}} as text'),
-      ('a run of blank lines', 'one\n\n\n\ntwo'),
-      ('CRLF line ends', 'one\r\ntwo'),
-      ('a line that reads as a list', '- not a list\n1. nor this'),
-      ('an underscore word and a backtick', 'snake_case `x`'),
-    ]) {
-      testWidgets(
-        'edited, it is written as version 3 and reads back as the same text: $name',
-        (tester) async {
-          final screens = await openStored(tester, 'old');
-          await typeBlock(tester, typed);
-          await typeBlock(tester, 'b $typed', 1);
-          await _save(screens);
-          final cell = (await screens.cards()).single.cells!.single as TextCell;
-          expect(cell.back, markupEngine.escapeLiteral('b $typed'));
-          expect(cell.markup, isTrue, reason: 'version 3');
-          expect(cell.front, markupEngine.escapeLiteral(typed));
-          expect(
-            markupEngine.plainText(cell.front),
-            typed.replaceAll('\r\n', '\n'),
-            reason: 'it says what the user typed',
-          );
-          // Control: a text that needs no escape is written as typed.
-          expect(markupEngine.escapeLiteral('plain'), 'plain');
-          await screens.close();
-        },
-      );
-    }
+    testWidgets('edited, what is typed is the markup stored', (tester) async {
+      final screens = await openStored(tester, 'old');
+      await typeBlock(tester, '**new** text');
+      await _save(screens);
+      expect((await screens.cards()).single.cells, const [
+        TextCell(front: '**new** text', back: 'back'),
+      ]);
+      await screens.close();
+    });
   });
 
   group('a new Cloze sentence (cloze version 2)', () {
@@ -298,9 +276,7 @@ void main() {
         final card = (await screens.cards()).single;
         expect(card.cells, const [
           BlankCell(
-            ClozeContent.markup(
-              'The {{c1::cat::animal}} sat on the {{c2::mat}}',
-            ),
+            ClozeContent('The {{c1::cat::animal}} sat on the {{c2::mat}}'),
           ),
         ]);
         await screens.close();

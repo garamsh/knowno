@@ -1,42 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
-import '../../design/app_chip.dart';
 import '../../design/theme.dart';
-import '../../design/word_break.dart';
-import '../../l10n/app_localizations.dart';
-import 'content.dart';
 
 /// A run of a line's characters: where it starts and where it ends.
 typedef Span = ({int start, int end});
 
-/// What the preview draws for an empty blank, so it shows as a block before
-/// anything is typed into it.
-const _emptyAnswer = '  ';
-
-/// A cloze as a 빈칸 문장 block edits it: the line, and its blanks, each a span
-/// of the line's characters (ADR 0092, ADR 0101).
+/// A line and its blanks, each a span of the line's characters, as a table
+/// cell's text is edited (ADR 0092, ADR 0101).
 class ClozeDraft {
   ClozeDraft._(this._line, this._blanks);
 
   /// An empty line with no blank.
   ClozeDraft() : this._('', []);
-
-  /// The line of [cloze] filled, each blank where the card has it.
-  factory ClozeDraft.of(ClozeContent cloze) {
-    final parts = cloze.text.split(clozeBlank);
-    final blanks = <Span>[];
-    final line = StringBuffer();
-    for (final (index, part) in parts.indexed) {
-      line.write(part);
-      if (index < cloze.answers.length) {
-        final start = line.length;
-        line.write(cloze.answers[index]);
-        blanks.add((start: start, end: line.length));
-      }
-    }
-    return ClozeDraft._(line.toString(), blanks);
-  }
 
   String _line;
 
@@ -167,57 +142,7 @@ class ClozeDraft {
       ..add(blank)
       ..sort((a, b) => a.start.compareTo(b.start));
   }
-
-  /// The line with each of [blanks] as `___`, and their answers in order.
-  (String, List<String>) _built(Iterable<Span> blanks, {String empty = ''}) {
-    final text = StringBuffer();
-    final answers = <String>[];
-    var at = 0;
-    for (final blank in blanks) {
-      text
-        ..write(_line.substring(at, blank.start))
-        ..write(clozeBlank);
-      answers.add(blank.start == blank.end ? empty : textOf(blank));
-      at = blank.end;
-    }
-    text.write(_line.substring(at));
-    return (text.toString(), answers);
-  }
-
-  /// The blanks that hold text, the ones a save keeps.
-  Iterable<Span> get _filled =>
-      _blanks.where((blank) => blank.start < blank.end);
-
-  /// Why the line cannot be saved yet: no blank holding text, or underscores
-  /// in the line that would read as more blanks than it has answers; null
-  /// once it can.
-  ClozeProblem? get problem {
-    final (text, answers) = _built(_filled);
-    if (answers.isEmpty) return ClozeProblem.noBlank;
-    if (text.split(clozeBlank).length - 1 != answers.length) {
-      return ClozeProblem.blankMarker;
-    }
-    return null;
-  }
-
-  /// The cloze the line and its blanks that hold text make, each blank `___`
-  /// with its answer, or null while it has a [problem].
-  ClozeContent? get content {
-    if (problem != null) return null;
-    final (text, answers) = _built(_filled);
-    return ClozeContent(text, answers);
-  }
-
-  /// The cloze as the preview draws it: every blank in place, an empty one
-  /// as a block of its own.
-  ClozeContent get preview {
-    final (text, answers) = _built(_blanks, empty: _emptyAnswer);
-    return ClozeContent(text, answers);
-  }
 }
-
-/// Why a cloze cannot be saved yet.
-enum ClozeProblem { noBlank, blankMarker }
 
 /// The line's controller, which draws each blank of [blanks] as a block in
 /// the line: its text on `brandTint`, in ink.
@@ -282,184 +207,6 @@ class ClozeLineController extends TextEditingController {
       text.codeUnitAt(text.length - 1) & 0xFC00 == 0xDC00;
 }
 
-/// How wide an empty blank is drawn in the line: its gap and the underline
-/// under it. At the line's start, where no character makes room, the gap is
-/// the field's own inset.
+/// How wide an empty blank is drawn in the line: its gap. At the line's
+/// start, where no character makes room, the gap is the field's own inset.
 const emptyBlankWidth = AppSpace.s12;
-
-/// The line's field, [child], with each empty blank of [controller] drawn
-/// in it as a hidden blank is drawn (ADR 0119): a gap, which the controller
-/// leaves before the blank, over a `muted` underline ending at the caret's
-/// place. Nothing is added to the line's text.
-class ClozeEmptyBlanks extends SingleChildRenderObjectWidget {
-  const ClozeEmptyBlanks({
-    super.key,
-    required this.controller,
-    required super.child,
-  });
-
-  final ClozeLineController controller;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      RenderClozeEmptyBlanks(controller, AppColors.of(context).muted);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderClozeEmptyBlanks renderObject,
-  ) => renderObject
-    ..controller = controller
-    ..color = AppColors.of(context).muted;
-}
-
-/// What [ClozeEmptyBlanks] draws with.
-class RenderClozeEmptyBlanks extends RenderProxyBox {
-  RenderClozeEmptyBlanks(this._controller, this._color);
-
-  ClozeLineController _controller;
-  set controller(ClozeLineController value) {
-    if (identical(value, _controller)) return;
-    if (attached) _controller.removeListener(markNeedsPaint);
-    _controller = value;
-    if (attached) _controller.addListener(markNeedsPaint);
-    markNeedsPaint();
-  }
-
-  Color _color;
-  set color(Color value) {
-    if (value == _color) return;
-    _color = value;
-    markNeedsPaint();
-  }
-
-  @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _controller.addListener(markNeedsPaint);
-  }
-
-  @override
-  void detach() {
-    _controller.removeListener(markNeedsPaint);
-    super.detach();
-  }
-
-  /// The field's text layout, the one render editable under it.
-  RenderEditable? get _editable {
-    RenderEditable? found;
-    void visit(RenderObject child) {
-      if (found != null) return;
-      if (child is RenderEditable) {
-        found = child;
-      } else {
-        child.visitChildren(visit);
-      }
-    }
-
-    child?.visitChildren(visit);
-    return found;
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    super.paint(context, offset);
-    final editable = _editable;
-    if (editable == null || !editable.hasSize) return;
-    final empty = [
-      for (final blank in _controller.blanks())
-        if (blank.start == blank.end) blank.start,
-    ];
-    if (empty.isEmpty) return;
-    final transform = editable.getTransformTo(this);
-    final paint = Paint()
-      ..color = _color
-      ..strokeWidth = 1;
-    for (final at in empty) {
-      final caret = editable.getLocalRectForCaret(TextPosition(offset: at));
-      final end = MatrixUtils.transformPoint(transform, caret.bottomLeft);
-      context.canvas.drawLine(
-        offset + end - const Offset(emptyBlankWidth, 0),
-        offset + end,
-        paint,
-      );
-    }
-  }
-}
-
-/// What keeps the cloze from being saved, in a line under it while
-/// [showError]; nothing otherwise.
-class ClozeProblemText extends StatelessWidget {
-  const ClozeProblemText({
-    super.key,
-    required this.draft,
-    required this.showError,
-  });
-
-  final ClozeDraft draft;
-  final bool showError;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final problem = showError ? draft.problem : null;
-    if (problem == null) return const SizedBox.shrink();
-    final message = switch (problem) {
-      ClozeProblem.noBlank => l10n.clozeBlankRequired,
-      ClozeProblem.blankMarker => l10n.clozeBlankMarker,
-    };
-    return Text(
-      keepWords(message),
-      semanticsLabel: message,
-      style: AppType.caption.copyWith(
-        color: AppColors.of(context).dontKnowText,
-      ),
-    );
-  }
-}
-
-/// A 빈칸 문장's one action, a small outlined chip right under its line. With
-/// the caret or the selection inside [blank], it reads "빈칸 풀기", is named
-/// for a screen reader with the blank's answer, and turns that blank back
-/// into text; elsewhere it reads "빈칸 넣기" (ADR 0101). It is never a
-/// primary fill, which the bottom bar holds (ADR 0117).
-class ClozeAction extends StatelessWidget {
-  const ClozeAction({
-    super.key,
-    required this.draft,
-    required this.blank,
-    required this.onInsert,
-    required this.onUndo,
-  });
-
-  final ClozeDraft draft;
-
-  /// The blank the caret or the selection is in, or null.
-  final Span? blank;
-  final VoidCallback onInsert;
-  final ValueChanged<Span> onUndo;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final blank = this.blank;
-    Widget chip(String label, VoidCallback onPressed) =>
-        AppChip.action(label: label, onPressed: onPressed);
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: blank == null
-          ? chip(l10n.clozeInsertBlank, onInsert)
-          : Semantics(
-              label: l10n.clozeRemoveBlank(
-                blank.start == blank.end
-                    ? l10n.clozeEmptyBlank
-                    : draft.textOf(blank),
-              ),
-              button: true,
-              excludeSemantics: true,
-              onTap: () => onUndo(blank),
-              child: chip(l10n.clozeUndoBlank, () => onUndo(blank)),
-            ),
-    );
-  }
-}

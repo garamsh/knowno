@@ -137,7 +137,7 @@ void main() {
       await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).back, [
         const SensesContent([CardSense(meaning: 'x')]),
-        extras,
+        TextContent(extras.text, markup: true),
       ], reason: 'saved unchanged');
 
       await openCard(screens, await _stored(screens));
@@ -145,7 +145,7 @@ void main() {
       await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).back, [
         const SensesContent([CardSense(meaning: 'y')]),
-        extras,
+        TextContent(extras.text, markup: true),
       ], reason: 'edited, still senses with its extras');
       await screens.close();
     },
@@ -400,7 +400,7 @@ void main() {
         const SensesContent([
           CardSense(labels: [_noun], meaning: '얼굴, 표면'),
         ]),
-        extras,
+        TextContent(extras.text, markup: true),
       ]);
       await screens.close();
     },
@@ -461,7 +461,7 @@ void main() {
       await tapVisible(screens, shownText('Save'));
       expect((await _stored(screens)).cells, const [
         WordCell(term: 'face', senses: senses, ask: WordAsk.term),
-        TextCell(back: '유의어 confront, encounter', markup: true),
+        TextCell(back: '유의어 confront, encounter'),
       ]);
       await screens.close();
     },

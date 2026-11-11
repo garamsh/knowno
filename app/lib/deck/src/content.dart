@@ -19,8 +19,9 @@ sealed class Content {
   final String? id;
 }
 
-/// A block of text: plain, or, when [markup], a Markdown subset the engine
-/// reads (ADR 0202), which only a 글 of the 칸 frame's version 3 is.
+/// A block of text: markup, a Markdown subset the engine reads (ADR 0202),
+/// when [markup], and otherwise a plain text shown as written, which a text
+/// of version 1, `{text}`, and a word are.
 final class TextContent extends Content {
   const TextContent(this.text, {this.markup = false, super.id});
 
@@ -41,52 +42,25 @@ final class TextContent extends Content {
   int get hashCode => Object.hash(text, markup);
 }
 
-/// How a cloze's [ClozeContent.text] writes each blank.
-const clozeBlank = '___';
-
-/// A line or sentence with blanks. Version 1 writes each blank in its [text]
-/// as [clozeBlank], and [answers] fill them in order, one each (ADR 0068).
-/// Version 2, [ClozeContent.markup], holds [text] in Anki's syntax,
-/// `{{c1::answer}}` or `{{c1::answer::hint}}`, read by the engine (ADR 0202),
-/// and no answers.
+/// A line or sentence with blanks: [text] in Anki's syntax,
+/// `{{c1::answer}}` or `{{c1::answer::hint}}`, read by the engine
+/// (ADR 0202), stored as a `cloze` block of version 2.
 final class ClozeContent extends Content {
-  const ClozeContent(this.text, this.answers, {super.id}) : markup = false;
-
-  /// A cloze of version 2: [source] in Anki's syntax.
-  const ClozeContent.markup(String source, {super.id})
-    : text = source,
-      answers = const [],
-      markup = true;
+  const ClozeContent(this.text, {super.id});
 
   final String text;
-  final List<String> answers;
 
-  /// Whether [text] is Anki's syntax, version 2, rather than `___`.
-  final bool markup;
+  /// The cloze numbers [text] holds, ascending.
+  List<int> get numbers => markupEngine.clozeNumbers(text);
 
-  /// The cloze numbers a version 2 text holds, ascending.
-  List<int> get numbers => markup ? markupEngine.clozeNumbers(text) : const [];
-
-  /// [text] with each blank filled by its answer.
-  String get filled {
-    if (markup) return markupEngine.plainText(text);
-    final parts = text.split(clozeBlank);
-    return [
-      for (final (index, part) in parts.indexed) ...[
-        part,
-        if (index < answers.length) answers[index],
-      ],
-    ].join();
-  }
+  /// [text] with each cloze filled by its answer.
+  String get filled => markupEngine.plainText(text);
 
   @override
-  bool operator ==(Object other) =>
-      other is ClozeContent &&
-      other.markup == markup &&
-      jsonEncode(_payload(other)) == jsonEncode(_payload(this));
+  bool operator ==(Object other) => other is ClozeContent && other.text == text;
 
   @override
-  int get hashCode => jsonEncode(_payload(this)).hashCode;
+  int get hashCode => text.hashCode;
 }
 
 /// A cell of a [TableContent]'s rows to recall whole: its row and column,
@@ -472,8 +446,8 @@ String _type(Content block) => switch (block) {
 
 /// The steps that upgrade each known type's payload, one per version: the
 /// first turns a v1 payload into a v2 one, and so on. The version a type is
-/// written at is one more than its steps: a table at v2, every other type
-/// at v1.
+/// written at is one more than its steps: a cloze and a table at v2, every
+/// other type at v1.
 const Map<String, List<Object? Function(Object? payload)>> blockUpcasters = {
   _textType: [],
   _clozeType: [_unchanged],
@@ -483,8 +457,8 @@ const Map<String, List<Object? Function(Object? payload)>> blockUpcasters = {
   _audioType: [],
 };
 
-/// A step that leaves the payload as it is: a version 2 cloze is read by its
-/// version, not upgraded from version 1.
+/// A step that leaves the payload as it is: a cloze below version 2 is not
+/// read, so the step only counts the version.
 Object? _unchanged(Object? payload) => payload;
 
 /// A v1 table's payload as v2's: its blanks stay whole cells, and it holds
@@ -495,15 +469,12 @@ Object? _tableWithSpans(Object? payload) => switch (payload) {
   _ => payload,
 };
 
-/// The version [block] is written at: a version 2 cloze at 2, any other
-/// cloze at 1, and otherwise the version this build writes its type at. A
-/// markup text is written only in the 칸 frame, at its version 3.
+/// The version [block] is written at: the version this build writes its type
+/// at. A markup text is written only in the 칸 frame, at its version 3.
 int _writtenVersion(Content block) => switch (block) {
   TextContent(markup: true) => throw StateError(
     'a markup text is written only as a 글 of the 칸 frame',
   ),
-  ClozeContent(markup: true) => 2,
-  ClozeContent() => 1,
   _ => blockVersion(_type(block)),
 };
 
@@ -537,12 +508,7 @@ Content withBlockId(Content block, String id) => switch (block) {
     markup: markup,
     id: id,
   ),
-  ClozeContent(:final text, markup: true) => ClozeContent.markup(text, id: id),
-  ClozeContent(:final text, :final answers) => ClozeContent(
-    text,
-    answers,
-    id: id,
-  ),
+  ClozeContent(:final text) => ClozeContent(text, id: id),
   TableContent(:final columns, :final rows, :final blanks, :final spans) =>
     TableContent(
       columns: columns,
@@ -571,11 +537,7 @@ Content withBlockId(Content block, String id) => switch (block) {
 
 Object? _payload(Content block) => switch (block) {
   TextContent(:final text) => {'text': text},
-  ClozeContent(:final text, markup: true) => {'text': text},
-  ClozeContent(:final text, :final answers) => {
-    'text': text,
-    'answers': answers,
-  },
+  ClozeContent(:final text) => {'text': text},
   TableContent(:final columns, :final rows, :final blanks, :final spans) => {
     'columns': columns,
     'rows': rows,
@@ -668,22 +630,24 @@ Content decodeBlock(Object? block, String source) {
   if (id != null && id is! String) {
     throw FormatException('a $type block has an id that is not text', source);
   }
-  if (!blockUpcasters.containsKey(type) || version > blockVersion(type)) {
+  // A cloze below version 2 is not read: it is a block this build cannot
+  // read, kept as stored.
+  if (!blockUpcasters.containsKey(type) ||
+      version > blockVersion(type) ||
+      type == _clozeType && version < 2) {
     return UnsupportedContent(type, block['payload'], stored: block);
   }
   final payload = upcastPayload(type, version, block['payload']);
   // A version 2 cloze that is not Anki's syntax, such as a version 1 payload
   // marked 2, is a block this build cannot read, kept as stored.
   if (type == _clozeType &&
-      version >= 2 &&
       payload is Map<String, Object?> &&
-      _decodeClozeMarkup(payload) == null) {
+      _decodeCloze(payload) == null) {
     return UnsupportedContent(type, block['payload'], stored: block);
   }
   final decoded = switch ((type, payload)) {
     (_textType, {'text': final String text}) => TextContent(text),
-    (_clozeType, final Map<String, Object?> fields) =>
-      version >= 2 ? _decodeClozeMarkup(fields) : _decodeCloze(fields),
+    (_clozeType, final Map<String, Object?> fields) => _decodeCloze(fields),
     (_tableType, final Map<String, Object?> fields) => _decodeTable(fields),
     (_sensesType, {'senses': final List<Object?> senses}) => _decodeSenses(
       senses,
@@ -698,30 +662,13 @@ Content decodeBlock(Object? block, String source) {
   return id is String ? withBlockId(decoded, id) : decoded;
 }
 
-/// A cloze of version 2: a text in Anki's syntax holding at least one cloze;
-/// null otherwise.
-ClozeContent? _decodeClozeMarkup(Map<String, Object?> fields) =>
-    switch (fields) {
-      {'text': final String text}
-          when markupEngine.clozeNumbers(text).isNotEmpty =>
-        ClozeContent.markup(text),
-      _ => null,
-    };
-
-/// A cloze of text with one or more blanks, each with a non-empty answer;
-/// null otherwise.
-ClozeContent? _decodeCloze(Map<String, Object?> fields) {
-  if (fields
-      case {'text': final String text, 'answers': final List<Object?> answers}
-      when answers.isNotEmpty &&
-          answers.every(
-            (answer) => answer is String && answer.trim().isNotEmpty,
-          ) &&
-          text.split(clozeBlank).length - 1 == answers.length) {
-    return ClozeContent(text, answers.cast<String>());
-  }
-  return null;
-}
+/// A cloze: a text in Anki's syntax holding at least one cloze; null
+/// otherwise.
+ClozeContent? _decodeCloze(Map<String, Object?> fields) => switch (fields) {
+  {'text': final String text} when markupEngine.clozeNumbers(text).isNotEmpty =>
+    ClozeContent(text),
+  _ => null,
+};
 
 /// A table of one or more columns and rows, each row as many cells as there
 /// are columns, and one or more blanks inside it, whole cells and spans

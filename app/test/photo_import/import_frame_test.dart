@@ -8,6 +8,8 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/photo_import/src/extraction_client.dart';
 import 'package:knowno/photo_import/src/import_list.dart';
 
+import '../deck/frame_fixtures.dart';
+
 /// The cases `web/src/features/decks/__tests__/import-frame.test.ts` reads, so
 /// the app and the web save equal 칸 for the same candidates (ADR 0137);
 /// `test/deck/import_frame_test.dart` holds the sheet's and the merge's.
@@ -15,8 +17,15 @@ final _fixture = jsonDecode(
   File('../supabase/fixtures/card-frame/import.json').readAsStringSync(),
 ) as Map<String, Object?>;
 
-List<Map<String, Object?>> _cases(String part) =>
-    (_fixture[part]! as List<Object?>).cast<Map<String, Object?>>();
+List<Map<String, Object?>> _cases(String part) => [
+  for (final one
+      in (_fixture[part]! as List<Object?>).cast<Map<String, Object?>>())
+    {
+      ...one,
+      if (one['cards'] != null) 'cards': returned(one['cards']),
+      if (one['saved'] != null) 'saved': migrated(one['saved']),
+    },
+];
 
 /// [cells] as stored, without the ids a save draws.
 List<Object?> _stored(List<Cell> cells) => [
@@ -109,6 +118,44 @@ void main() {
       expect((decodeCells(row.front).single as WordCell).ask, WordAsk.term);
     });
 
+    /// The blocks of the stored card's front, as the database holds them.
+    Future<List<Map<String, Object?>>> storedBlocks() async => [
+      for (final block in jsonDecode((await single()).front) as List<Object?>)
+        block! as Map<String, Object?>,
+    ];
+
+    test('a text candidate is stored as text version 3, its markup as the '
+        'service returned it and not escaped again', () async {
+      await repository.addCards(
+        const AddToNewDeck('노트'),
+        _list([_rowCard(front: '**굵게** 2 * 3', answer: '여섯', kind: 'note')])
+            .toImport(),
+      );
+
+      final [block] = await storedBlocks();
+      expect((block['type'], block['v']), ('text', 3));
+      expect(block['payload'], {'front': '**굵게** 2 * 3', 'back': '여섯'});
+    });
+
+    test('a cloze candidate is stored as cloze version 2, its Anki text as '
+        'written and without answers', () async {
+      await repository.addCards(
+        const AddToNewDeck('노트'),
+        _list([
+          _rowCard(
+            front: '{{c1::서울}}은 한국의 *수도*',
+            answer: '서울',
+            kind: 'note',
+            type: 'cloze',
+          ),
+        ]).toImport(),
+      );
+
+      final [block] = await storedBlocks();
+      expect((block['type'], block['v']), ('cloze', 2));
+      expect(block['payload'], {'text': '{{c1::서울}}은 한국의 *수도*'});
+    });
+
     test('a repeated import of two senses merges nothing, against a new '
         'sense, which appends a 글 of a back alone', () async {
       final first = await repository.addCards(
@@ -132,6 +179,9 @@ void main() {
       expect((merged.added, merged.merged), (0, 1));
       final cells = decodeCells((await single()).front);
       expect(cells.last, const TextCell(back: '얼굴\n마주하다'));
+      final blocks = await storedBlocks();
+      expect(blocks.last['type'], 'text');
+      expect(blocks.last['v'], 3, reason: 'the merge writes version 3');
       expect((await single()).back, '[]');
     });
 
@@ -164,7 +214,7 @@ void main() {
     test('a cloze saved again over a card of two sides writes nothing: it has '
         'no back to merge', () async {
       final cloze = _rowCard(
-        front: '수도는 ___이다',
+        front: '수도는 {{c1::서울}}이다',
         answer: '서울',
         kind: 'note',
         type: 'cloze',
@@ -172,9 +222,7 @@ void main() {
       final deck = await repository.createDeck('노트');
       await repository.addCard(
         deck.id,
-        front: const [
-          ClozeContent('수도는 ___이다', ['서울']),
-        ],
+        front: const [ClozeContent('수도는 {{c1::서울}}이다')],
         back: const [TextContent('수도는 서울이다')],
       );
 

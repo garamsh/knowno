@@ -691,9 +691,7 @@ void main() {
       final deck = await a.deck.createDeck('French');
       await a.deck.addCard(
         deck.id,
-        front: [
-          const ClozeContent('___ is in France', ['Paris']),
-        ],
+        front: [const ClozeContent('{{c1::Paris}} is in France')],
         back: _text('Paris is in France'),
       );
       await a.sync(_ada);

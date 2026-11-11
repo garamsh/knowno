@@ -324,10 +324,8 @@ void main() {
       tester.view.physicalSize = const Size(_phoneWidth, 844);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      const b = clozeBlank;
       const cloze = ClozeContent(
-        '양성모음: $b, $b, $b, $b\n음성모음: $b, $b, $b, $b\n중성모음: $b',
-        ['ㅏ', 'ㅗ', 'ㅑ', 'ㅛ', 'ㅓ', 'ㅜ', 'ㅕ', 'ㅠ', 'ㅣ'],
+        '양성모음: {{c1::ㅏ}}, {{c2::ㅗ}}, {{c3::ㅑ}}, {{c4::ㅛ}}\n음성모음: {{c5::ㅓ}}, {{c6::ㅜ}}, {{c7::ㅕ}}, {{c8::ㅠ}}\n중성모음: {{c9::ㅣ}}',
       );
       final card = Card(
         id: const CardId('c'),
@@ -497,10 +495,8 @@ void main() {
       const width = _phoneWidth - 2 * StudyStyle.cardMargin;
       const inner = width - 2 * StudyStyle.cardPadding;
       const innerHeight = _cardHeight - 2 * StudyStyle.cardPadding;
-      const b = clozeBlank;
       const owner = ClozeContent(
-        '양성모음: $b, $b, $b, $b\n음성모음: $b, $b, $b, $b\n중성모음: $b',
-        ['ㅏ', 'ㅗ', 'ㅑ', 'ㅛ', 'ㅓ', 'ㅜ', 'ㅕ', 'ㅠ', 'ㅣ'],
+        '양성모음: {{c1::ㅏ}}, {{c2::ㅗ}}, {{c3::ㅑ}}, {{c4::ㅛ}}\n음성모음: {{c5::ㅓ}}, {{c6::ㅜ}}, {{c7::ㅕ}}, {{c8::ㅠ}}\n중성모음: {{c9::ㅣ}}',
       );
       Future<double> frontSize(
         List<Content> front,

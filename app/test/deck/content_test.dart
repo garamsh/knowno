@@ -46,7 +46,7 @@ void main() {
       () {
         const blocks = [
           TextContent('Capitals'),
-          ClozeContent('___ is in France', ['Paris']),
+          ClozeContent('{{c1::Paris}} is in France'),
           TableContent(
             columns: ['Capital', 'Country'],
             rows: [
@@ -61,8 +61,7 @@ void main() {
         expect(
           encoded,
           '[{"type":"text","v":1,"payload":{"text":"Capitals"}},'
-          '{"type":"cloze","v":1,"payload":{"text":"___ is in France",'
-          '"answers":["Paris"]}},'
+          '{"type":"cloze","v":2,"payload":{"text":"{{c1::Paris}} is in France"}},'
           '{"type":"table","v":2,"payload":{"columns":["Capital","Country"],'
           '"rows":[["Paris","France"]],"blanks":[{"row":0,"column":0}],'
           '"spans":[]}}]',
@@ -73,12 +72,6 @@ void main() {
 
     test('rejects a cloze or a table that breaks its shape, where a whole one '
         'decodes', () {
-      String cloze(Object? answers) => jsonEncode([
-        {
-          'type': 'cloze',
-          'payload': {'text': '___ and ___', 'answers': answers},
-        },
-      ]);
       String table(Object? rows, Object? blanks) => jsonEncode([
         {
           'type': 'table',
@@ -96,9 +89,6 @@ void main() {
         {'row': 0, 'column': 1},
       ];
       for (final broken in [
-        cloze(['one']),
-        cloze(['one', ' ']),
-        cloze('one'),
         table([
           ['1'],
         ], cell),
@@ -118,13 +108,40 @@ void main() {
         );
       }
       // Control: each whole.
-      expect(decodeContent(cloze(['one', 'two'])).single, isA<ClozeContent>());
       expect(decodeContent(table(ok, cell)).single, isA<TableContent>());
+    });
+
+    test('a cloze below version 2, or with no blank, is kept as unsupported, '
+        'where one of version 2 with a blank decodes', () {
+      String cloze(int version, String text) => jsonEncode([
+        {
+          'type': 'cloze',
+          'v': version,
+          'payload': {'text': text},
+        },
+      ]);
+
+      for (final stored in [
+        cloze(1, '___ and ___'),
+        cloze(2, 'no blank here'),
+      ]) {
+        expect(
+          decodeContent(stored).single,
+          isA<UnsupportedContent>(),
+          reason: stored,
+        );
+        expect(encodeContent(decodeContent(stored)), stored);
+      }
+      // Control: a blank, at version 2.
+      expect(
+        decodeContent(cloze(2, '{{c1::one}} and {{c2::two}}')).single,
+        isA<ClozeContent>(),
+      );
     });
 
     test('a cloze and a table read as their filled text, which the card key '
         'takes, and only they make a whole card', () {
-      const cloze = ClozeContent('___ is in ___', ['Paris', 'France']);
+      const cloze = ClozeContent('{{c1::Paris}} is in {{c2::France}}');
       const table = TableContent(
         columns: ['Capital', 'Country'],
         rows: [
@@ -303,9 +320,9 @@ void main() {
       ('text', 1, TextContent('bonjour'), '{"text":"bonjour"}'),
       (
         'cloze',
-        1,
-        ClozeContent('___ is in France', ['Paris']),
-        '{"text":"___ is in France","answers":["Paris"]}',
+        2,
+        ClozeContent('{{c1::Paris}} is in France'),
+        '{"text":"{{c1::Paris}} is in France"}',
       ),
       (
         'table',
@@ -447,7 +464,7 @@ void main() {
 
   group('the face a card is studied on (ADR 0106)', () {
     const text = TextContent('Paris');
-    const cloze = ClozeContent('___ is in France', ['Paris']);
+    const cloze = ClozeContent('{{c1::Paris}} is in France');
     const table = TableContent(
       columns: ['Capital'],
       rows: [

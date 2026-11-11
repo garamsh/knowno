@@ -108,10 +108,6 @@ abstract interface class MarkupEngine {
   /// [text] written as markup that reads back as itself: a literal text
   /// saved as version 3 keeps its meaning (ADR 0208).
   String escapeLiteral(String text);
-
-  /// A version 1 cloze's [text] and [answers] as `{{ck::answer_k}}`, or null
-  /// where it would not read back as the same text.
-  String? clozeFromV1(String text, List<String> answers);
 }
 
 MarkupEngine? _engine;

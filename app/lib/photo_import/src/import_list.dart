@@ -172,7 +172,9 @@ final class ImportRow {
     ];
     return [
       if (shown.isEmpty)
-        ask == WordAsk.term ? TextCell(front: front) : TextCell(back: front)
+        ask == WordAsk.term
+            ? TextCell.literal(front: front)
+            : TextCell.literal(back: front)
       else
         WordCell(
           term: front,
@@ -189,7 +191,7 @@ final class ImportRow {
           ],
           ask: ask,
         ),
-      if (added.isNotEmpty) TextCell(back: added.join('\n')),
+      if (added.isNotEmpty) TextCell.literal(back: added.join('\n')),
     ];
   }
 

@@ -40,17 +40,10 @@ void main() {
     expect(
       previewOf({
         'blocks': [
-          {
-            'type': 'cloze',
-            'text': '{{c1::서울}}은 수도',
-            'answers': [
-              ['서울', 'Seoul'],
-              '수도',
-            ],
-          },
+          {'type': 'cloze', 'text': '{{c1::서울::Seoul}}은 {{c2::수도}}'},
         ],
       }),
-      (front: '{{c1::서울}}은 수도', back: '서울/Seoul, 수도', photo: false),
+      (front: '___(Seoul)은 ___', back: '서울, 수도', photo: false),
     );
     expect(
       previewOf({
