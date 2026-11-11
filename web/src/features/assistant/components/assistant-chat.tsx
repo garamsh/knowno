@@ -15,7 +15,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import { Mascot, type MascotExpression } from "@/design/brand";
+import type { MascotExpression } from "@/design/brand";
 import { buttonClass } from "@/design/button";
 import { Confirm } from "@/design/confirm";
 import { RowMenu } from "@/design/row-menu";
@@ -46,6 +46,7 @@ import {
   withEvent,
 } from "../conversation";
 import { type Allowance, type JobProgress, leftShare, type SendRefusal } from "../protocol";
+import { Beside, EmptyChat, Typing } from "./malangi-profile";
 import { formatNames, ProposalView } from "./proposal-view";
 
 /** The Markdown renderer is a chunk of its own: a reply shows as plain text until it has loaded (ADR 0227). */
@@ -70,8 +71,6 @@ const maxPhotos = 50;
 
 /** A photo staged for the next message: prepared as a JPEG, with the address its thumbnail shows. */
 type StagedPhoto = PreparedPhoto & { url: string };
-
-const waiting = "말랑이가 생각하는 중이에요";
 
 /** What the chat is doing: nothing, photos uploading, a reply streaming, waiting to resend, or refused. */
 type Status =
@@ -113,6 +112,23 @@ const wait = (ms: number) =>
 
 /** A store that never changes, so its snapshot tells the server's render from the browser's. */
 const noChange = () => () => undefined;
+
+/** Whether a reply has anything to draw: a turn without it takes no part in a run (ADR 0250). */
+function drawsAnything(turn: AssistantTurn): boolean {
+  return (
+    turn.text !== "" ||
+    turn.job !== null ||
+    turn.citations.length > 0 ||
+    turn.proposals.length > 0 ||
+    turn.choice !== null ||
+    (turn.ending !== null && turn.ending !== "ok")
+  );
+}
+
+/** The profiles the chat can draw apart from a reply's own, named so the last one takes the face. */
+const emptyProfile = "empty";
+const typingProfile = "typing";
+const refusalProfile = "refusal";
 
 /** The mascot's face for what the chat shows (#711): sleepy once the day is used, sad on a failure. */
 function faceOf(status: Status, last: Turn | undefined): MascotExpression {
@@ -431,7 +447,7 @@ export function AssistantChat({
     [update],
   );
 
-  if (!hydrated) return <ChatFrame face="thinking" allowance={allowance} />;
+  if (!hydrated) return <ChatFrame allowance={allowance} />;
 
   const { turns, draft } = conversation;
   const last = lastMessage(turns);
@@ -440,6 +456,37 @@ export function AssistantChat({
   const open = lastReply?.ending ? lastReply.proposals.findLast((one) => !one.added) : undefined;
   const openCount = open ? checkedCount(open) : 0;
   const canSend = (draft.trim() !== "" || staged.length > 0) && !busy;
+
+  // A run of 말랑이's turns shows its profile and name once, on its first item; a message the chat
+  // sent itself does not end a run (ADR 0250).
+  const starts = new Set<string>();
+  let inRun = false;
+  for (const turn of turns) {
+    if (turn.role === "user" && !turn.auto) inRun = false;
+    else if (turn.role === "context") inRun = false;
+    else if (turn.role === "assistant" && drawsAnything(turn)) {
+      if (!inRun) starts.add(turn.id);
+      inRun = true;
+    }
+  }
+  // From the send until the reply's first text, drawn from the status and the last turn: the reply's
+  // turn does not exist until the route's headers have arrived.
+  const typing =
+    (status.kind === "streaming" || status.kind === "waiting") &&
+    (last?.role === "user" || (last?.role === "assistant" && last.ending === null && !last.text));
+  const refused = status.kind === "refused";
+  // Only the last run's profile takes the face of the state; an earlier one shows thinking.
+  const lastProfile =
+    last === undefined
+      ? emptyProfile
+      : refused && !inRun
+        ? refusalProfile
+        : typing && !inRun
+          ? typingProfile
+          : (turns.findLast((turn) => starts.has(turn.id))?.id ?? null);
+  const face = faceOf(status, last);
+  const faceFor = (profile: string): MascotExpression =>
+    profile === lastProfile ? face : "thinking";
 
   const commit = async () => {
     if (!open || !lastReply || openCount === 0) return;
@@ -464,7 +511,6 @@ export function AssistantChat({
 
   return (
     <ChatFrame
-      face={faceOf(status, last)}
       allowance={allowance}
       onBack={() => {
         if (window.history.length > 1) router.back();
@@ -497,11 +543,7 @@ export function AssistantChat({
           aria-label="대화"
           className="mx-auto flex w-full max-w-study flex-col gap-4 px-gutter py-4"
         >
-          {last === undefined && (
-            <li className="py-12 text-center">
-              <p className="text-body-strong break-keep">무엇을 외워 볼까요?</p>
-            </li>
-          )}
+          {last === undefined && <EmptyChat face={faceFor(emptyProfile)} />}
           {turns.map((turn) =>
             turn.role === "context" ? (
               <li key={turn.id} className="text-secondary text-center break-keep text-muted">
@@ -520,113 +562,120 @@ export function AssistantChat({
                   </p>
                 </li>
               )
-            ) : (
-              <li key={turn.id} className="flex flex-col gap-3">
-                <span className="sr-only">말랑이: </span>
-                {turn.text && (
-                  <div className="max-w-[92%] min-w-0 self-start rounded-row border border-hairline bg-surface px-4 py-3">
-                    <Suspense
-                      fallback={
-                        <p className="text-body break-keep whitespace-pre-wrap">{turn.text}</p>
-                      }
-                    >
-                      <ReplyMarkdown text={turn.text} />
-                    </Suspense>
-                  </div>
-                )}
-                {turn.ending === null && !turn.text && (
+            ) : !drawsAnything(turn) ? null : (
+              <Beside key={turn.id} face={starts.has(turn.id) ? faceFor(turn.id) : null}>
+                <div className="flex flex-col gap-3">
+                  <span className="sr-only">말랑이: </span>
+                  {turn.text && (
+                    <div className="max-w-[92%] min-w-0 self-start rounded-row border border-hairline bg-surface px-4 py-3">
+                      <Suspense
+                        fallback={
+                          <p className="text-body break-keep whitespace-pre-wrap">{turn.text}</p>
+                        }
+                      >
+                        <ReplyMarkdown text={turn.text} />
+                      </Suspense>
+                    </div>
+                  )}
+                  {turn.citations.length > 0 && (
+                    <ul aria-label="출처" className="flex flex-col gap-1">
+                      {turn.citations.map((citation) => (
+                        <li key={citation.url}>
+                          <a
+                            href={citation.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-secondary break-all text-muted underline"
+                          >
+                            {citation.title || citation.url}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {turn.job && <JobLine job={turn.job} onCancel={() => void cancelJob()} />}
+                  {turn.proposals.map((one) => (
+                    <ProposalView
+                      key={one.proposal.id}
+                      shown={one}
+                      disabled={busy || turn.ending === null}
+                      onCheck={(groupId, ids) => {
+                        editProposal(turn.id, one.proposal.id, (before) => ({
+                          ...before,
+                          checked: { ...before.checked, [groupId]: ids },
+                        }));
+                      }}
+                      onRemake={(group, format) => {
+                        send(
+                          `${group.title} 부분은 ${formatNames[format]} 형식으로 다시 만들어 줘`,
+                        );
+                      }}
+                    />
+                  ))}
+                  {turn.choice && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-body-strong break-keep">{turn.choice.prompt}</p>
+                      {turn === last && !busy && (
+                        <div
+                          role="group"
+                          aria-label={turn.choice.prompt}
+                          className="flex flex-wrap gap-2"
+                        >
+                          {turn.choice.options.map((option) => (
+                            <button
+                              key={option}
+                              type="button"
+                              onClick={() => {
+                                send(option);
+                              }}
+                              className={buttonClass("secondary", "header")}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {turn.ending && turn.ending !== "ok" && (
+                    <div className="flex flex-col items-start gap-2">
+                      <p className="text-secondary break-keep text-muted">
+                        {endingNotices[turn.ending]}
+                      </p>
+                      {(turn.ending === "model_error" || turn.ending === "limit") &&
+                        turn === last &&
+                        !busy && (
+                          <button
+                            type="button"
+                            onClick={retry}
+                            className={buttonClass("text", "header")}
+                          >
+                            다시 시도
+                          </button>
+                        )}
+                    </div>
+                  )}
+                </div>
+              </Beside>
+            ),
+          )}
+          {typing && (
+            <Typing
+              face={inRun ? null : faceFor(typingProfile)}
+              line={
+                last.role === "assistant" && last.interim !== null ? (
                   <p
                     role="status"
                     aria-live="polite"
-                    className="text-secondary truncate text-muted"
+                    className="text-secondary min-w-0 truncate text-muted"
                   >
-                    {turn.interim === null ? (
-                      waiting
-                    ) : (
-                      <Suspense fallback={waiting}>
-                        <ReplyLine text={turn.interim} />
-                      </Suspense>
-                    )}
+                    <Suspense fallback={null}>
+                      <ReplyLine text={last.interim} />
+                    </Suspense>
                   </p>
-                )}
-                {turn.citations.length > 0 && (
-                  <ul aria-label="출처" className="flex flex-col gap-1">
-                    {turn.citations.map((citation) => (
-                      <li key={citation.url}>
-                        <a
-                          href={citation.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-secondary break-all text-muted underline"
-                        >
-                          {citation.title || citation.url}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {turn.job && <JobLine job={turn.job} onCancel={() => void cancelJob()} />}
-                {turn.proposals.map((one) => (
-                  <ProposalView
-                    key={one.proposal.id}
-                    shown={one}
-                    disabled={busy || turn.ending === null}
-                    onCheck={(groupId, ids) => {
-                      editProposal(turn.id, one.proposal.id, (before) => ({
-                        ...before,
-                        checked: { ...before.checked, [groupId]: ids },
-                      }));
-                    }}
-                    onRemake={(group, format) => {
-                      send(`${group.title} 부분은 ${formatNames[format]} 형식으로 다시 만들어 줘`);
-                    }}
-                  />
-                ))}
-                {turn.choice && (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-body-strong break-keep">{turn.choice.prompt}</p>
-                    {turn === last && !busy && (
-                      <div
-                        role="group"
-                        aria-label={turn.choice.prompt}
-                        className="flex flex-wrap gap-2"
-                      >
-                        {turn.choice.options.map((option) => (
-                          <button
-                            key={option}
-                            type="button"
-                            onClick={() => {
-                              send(option);
-                            }}
-                            className={buttonClass("secondary", "header")}
-                          >
-                            {option}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {turn.ending && turn.ending !== "ok" && (
-                  <div className="flex flex-col items-start gap-2">
-                    <p className="text-secondary break-keep text-muted">
-                      {endingNotices[turn.ending]}
-                    </p>
-                    {(turn.ending === "model_error" || turn.ending === "limit") &&
-                      turn === last &&
-                      !busy && (
-                        <button
-                          type="button"
-                          onClick={retry}
-                          className={buttonClass("text", "header")}
-                        >
-                          다시 시도
-                        </button>
-                      )}
-                  </div>
-                )}
-              </li>
-            ),
+                ) : null
+              }
+            />
           )}
           {status.kind === "uploading" && (
             <li role="status" className="text-secondary text-muted">
@@ -646,27 +695,29 @@ export function AssistantChat({
             </li>
           )}
           {status.kind === "refused" && (
-            <li className="flex flex-col items-start gap-2">
-              <p role="alert" className="text-body break-keep">
-                {refusalNotices[status.refusal.kind].text}
-              </p>
-              {refusalNotices[status.refusal.kind].retry && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void replyTo();
-                  }}
-                  className={buttonClass("text", "header")}
-                >
-                  다시 시도
-                </button>
-              )}
-              {status.refusal.kind === "signIn" && (
-                <Link href="/login" className={buttonClass("text", "header")}>
-                  로그인
-                </Link>
-              )}
-            </li>
+            <Beside face={inRun ? null : faceFor(refusalProfile)}>
+              <div className="flex flex-col items-start gap-2">
+                <p role="alert" className="text-body break-keep">
+                  {refusalNotices[status.refusal.kind].text}
+                </p>
+                {refusalNotices[status.refusal.kind].retry && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void replyTo();
+                    }}
+                    className={buttonClass("text", "header")}
+                  >
+                    다시 시도
+                  </button>
+                )}
+                {status.refusal.kind === "signIn" && (
+                  <Link href="/login" className={buttonClass("text", "header")}>
+                    로그인
+                  </Link>
+                )}
+              </div>
+            </Beside>
           )}
         </ol>
       </div>
@@ -830,17 +881,15 @@ export function AssistantChat({
 
 /**
  * The chat's frame: below 1024 px the whole screen, from 1024 px the space beside the side menu,
- * under a bar of the way back, the mascot in [face] with "말랑이" and the day's share left, and ⋯
- * with "대화 지우기" while [onClear] is given.
+ * under a bar of the way back, "말랑이" with the day's share left under it, centred, and ⋯ with
+ * "대화 지우기" while [onClear] is given; the bar holds no mascot (ADR 0250).
  */
 function ChatFrame({
-  face,
   allowance,
   onBack,
   onClear,
   children,
 }: {
-  face: MascotExpression;
   allowance: Allowance | null;
   onBack?: () => void;
   onClear?: () => void;
@@ -859,8 +908,7 @@ function ChatFrame({
         >
           <ChevronLeft aria-hidden className="size-6" />
         </button>
-        <Mascot expression={face} className="size-10 shrink-0" />
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col items-center text-center">
           <h1 className="text-body-strong">말랑이</h1>
           {share !== null && <p className="text-secondary text-muted">오늘 {share}% 남았어요</p>}
         </div>

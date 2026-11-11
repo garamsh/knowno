@@ -456,3 +456,39 @@ test("draws a Markdown reply in a bubble in both themes, its wide table scrollin
   expect(light.text).not.toBe(dark.text);
   await capture(page, "assistant-markdown");
 });
+
+test("shows the typing dots from the send, while the route has not answered, until the reply's first text", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("E2E_BASE_URL is unset");
+  await signUp(context, baseURL);
+  let answer: () => void = () => undefined;
+  const answered = new Promise<void>((resolve) => {
+    answer = resolve;
+  });
+  await page.route("**/api/assistant", async (route) => {
+    await answered;
+    await route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body: events(["text", { delta: "네, 해 볼게요." }], usage(20000)),
+    });
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/assistant");
+  await expect(page.getByText("무엇을 외워 볼까요?")).toBeVisible();
+  await say(page, "안녕");
+  const typing = page.getByRole("status").filter({ hasText: "말랑이가 생각하는 중이에요" });
+  await expect(typing).toBeVisible();
+  // The bar draws no mascot; the profile beside the dots is the chat's only one.
+  const title = page.getByRole("heading", { name: "말랑이", exact: true });
+  await expect(title).toBeVisible();
+  await expect(title.locator("xpath=ancestor::header").locator("img")).toHaveCount(0);
+  await expect(page.locator("ol[aria-label='대화'] img")).toHaveCount(1);
+  answer();
+  await expect(page.getByText("네, 해 볼게요.")).toBeVisible();
+  await expect(typing).toHaveCount(0);
+});

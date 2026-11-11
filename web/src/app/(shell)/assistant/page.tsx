@@ -25,8 +25,10 @@ export default function AssistantPage() {
         >
           <div className="mx-auto flex w-full max-w-study items-center gap-2 px-gutter py-2">
             <span className="size-tap-target" />
-            <span className="size-10 rounded-full bg-hairline" />
-            <SkeletonLine text="text-body-strong" width="w-16" />
+            <span className="flex flex-1 justify-center">
+              <SkeletonLine text="text-body-strong" width="w-16" />
+            </span>
+            <span className="size-tap-target" />
           </div>
           <div className="mx-auto w-full max-w-study px-gutter pb-4">
             <span className="block min-h-cta rounded-field bg-surface" />
