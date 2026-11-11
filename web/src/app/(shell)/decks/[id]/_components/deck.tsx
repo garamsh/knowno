@@ -25,8 +25,9 @@ import { readDeck } from "./read-deck";
 
 /**
  * The note [params] names, read on the server, as the final screens draw it (ADR 0150): its name
- * with "+ 카드 추가", open on arrival when [searchParams] hold `adding=1`, and 노트 설정, then the card search, "이 노트 학습 · n장" while it holds a card, and its cards. A note that
- * does not exist, or an id that names none, is not found.
+ * with "+ 카드 추가", open on arrival when [searchParams] hold `adding=1`, and 노트 설정, then the
+ * card search, "이 노트 학습 · n장" while it holds a card, and its cards. A note that does not
+ * exist, or an id that names none, is not found.
  */
 export async function Deck({
   params,

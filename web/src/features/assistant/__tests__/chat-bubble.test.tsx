@@ -146,6 +146,14 @@ describe("the offer over 홈's mascot", () => {
     await pass(2000);
     expect(bubble()).toBeNull();
     expect(window.localStorage.getItem(shownKey)).toBeNull();
+    // Control: once nothing is ready, the offer shows after the delay and spends the day.
+    act(() => {
+      window.localStorage.removeItem("knowno.assistant");
+      window.dispatchEvent(new StorageEvent("storage", { key: "knowno.assistant" }));
+    });
+    await pass(1100);
+    expect(bubble()).toHaveTextContent(words.cards);
+    expect(window.localStorage.getItem(shownKey)).toBe("2026-11-11");
   });
 
   it("is never drawn once the ready bubble appears while it shows", async () => {
