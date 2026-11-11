@@ -146,6 +146,7 @@ class HomeTab extends ConsumerWidget {
         mascot: MascotExpression.sleepy,
         eyebrow: l10n.dayToday,
         title: l10n.todayDone,
+        invite: l10n.assistantInviteDone,
         figure: true,
         // The cards done today, or, where none was due, the next review.
         line: switch (week.last.cards) {
@@ -157,6 +158,7 @@ class HomeTab extends ConsumerWidget {
       TodayOverview(count: TodayCounted(backlog: true, :final total)) => _Face(
         mascot: MascotExpression.thinking,
         title: l10n.backlogTitle,
+        invite: l10n.assistantInviteCards,
         line: l10n.backlogBody(total),
         actions: [start()],
       ),
@@ -164,6 +166,7 @@ class HomeTab extends ConsumerWidget {
         mascot: MascotExpression.thinking,
         eyebrow: l10n.dayToday,
         title: l10n.homeCards(count.total),
+        invite: l10n.assistantInviteCards,
         figure: true,
         line: l10n.homeMinutes(count.minutes),
         actions: [start()],
@@ -220,12 +223,14 @@ final class _Assistant {
 }
 
 /// What 홈 says: the [mascot], and in the sky [eyebrow] over [title], large
-/// as a figure while [figure], over [line]; on the ground the [actions].
+/// as a figure while [figure], over [line]; on the ground the [actions]. The
+/// chat bubble says [invite], or its plain line where that is null.
 final class _Face {
   const _Face({
     required this.mascot,
     this.eyebrow,
     this.title,
+    this.invite,
     this.figure = false,
     this.line,
     required this.actions,
@@ -234,6 +239,7 @@ final class _Face {
   final MascotExpression mascot;
   final String? eyebrow;
   final String? title;
+  final String? invite;
   final bool figure;
   final String? line;
   final List<Widget> actions;
@@ -412,7 +418,11 @@ class _Sky extends StatelessWidget {
                   ),
                 ),
                 if (assistant != null && assistant.ready > 0)
-                  _ReadyBubble(count: assistant.ready, onTap: assistant.onOpen),
+                  _SpeechBubble(
+                    text: AppLocalizations.of(context)
+                        .assistantReady(assistant.ready),
+                    onTap: assistant.onOpen,
+                  ),
               ],
             ),
           ),
@@ -430,6 +440,23 @@ class _Sky extends StatelessWidget {
                     ),
             ),
           ),
+          // Over the mascot, where the ready bubble stands, and never while
+          // that shows.
+          if (assistant != null && assistant.ready == 0 && face != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: _hill - _sink + AppSize.mascotHero,
+              child: Center(
+                heightFactor: 1,
+                child: _ChatInvite(
+                  text:
+                      face.invite ??
+                      AppLocalizations.of(context).assistantInvite,
+                  onTap: assistant.onOpen,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -468,13 +495,109 @@ class _AssistantEntry extends StatelessWidget {
   }
 }
 
-/// The speech bubble over the mascot's head while 말랑이 has [count] cards
-/// ready, which opens the chat as the mascot does; its words are read with
-/// the mascot's name.
-class _ReadyBubble extends StatelessWidget {
-  const _ReadyBubble({required this.count, required this.onTap});
+/// How long after 홈 shows its chat bubble comes, how long it stays and how
+/// long it takes to fade.
+const _inviteDelay = Duration(milliseconds: 1500);
+const _inviteStay = Duration(seconds: 6);
+const _inviteFade = Duration(milliseconds: 300);
 
-  final int count;
+/// 홈's chat bubble: [text] over the mascot, once per local day
+/// ([ChatInvite]), a moment after 홈 is first visible with its route on top
+/// that day, faded after a few seconds; a tap opens the chat. Under reduce
+/// motion it appears and goes without a fade. It waits while another tab is
+/// selected or a screen is open over 홈.
+class _ChatInvite extends ConsumerStatefulWidget {
+  const _ChatInvite({required this.text, required this.onTap});
+
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  ConsumerState<_ChatInvite> createState() => _ChatInviteState();
+}
+
+enum _InvitePhase { waiting, shown, fading, gone }
+
+class _ChatInviteState extends ConsumerState<_ChatInvite> {
+  var _phase = _InvitePhase.waiting;
+  var _opaque = false;
+  Timer? _timer;
+
+  bool get _still => MediaQuery.disableAnimationsOf(context);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_phase != _InvitePhase.waiting) return;
+    final visible =
+        Visibility.of(context) && (ModalRoute.isCurrentOf(context) ?? true);
+    if (!visible) {
+      _timer?.cancel();
+      _timer = null;
+    } else if (_timer == null && ref.read(assistantInviteProvider).due()) {
+      _timer = Timer(_inviteDelay, _show);
+    }
+  }
+
+  void _show() {
+    if (!mounted) return;
+    ref.read(assistantInviteProvider).spend();
+    setState(() {
+      _phase = _InvitePhase.shown;
+      _opaque = _still;
+    });
+    if (!_opaque) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _phase == _InvitePhase.shown) {
+          setState(() => _opaque = true);
+        }
+      });
+    }
+    _timer = Timer(_inviteStay, _fade);
+  }
+
+  void _fade() {
+    if (!mounted) return;
+    if (_still) {
+      setState(() => _phase = _InvitePhase.gone);
+      return;
+    }
+    setState(() {
+      _phase = _InvitePhase.fading;
+      _opaque = false;
+    });
+    _timer = Timer(_inviteFade, () {
+      if (mounted) setState(() => _phase = _InvitePhase.gone);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => switch (_phase) {
+    _InvitePhase.waiting || _InvitePhase.gone => const SizedBox.shrink(),
+    _ => IgnorePointer(
+      ignoring: _phase == _InvitePhase.fading,
+      child: AnimatedOpacity(
+        opacity: _opaque ? 1 : 0,
+        duration: _still ? Duration.zero : _inviteFade,
+        child: _SpeechBubble(text: widget.text, onTap: widget.onTap),
+      ),
+    ),
+  };
+}
+
+/// A speech bubble over the mascot's head, which opens the chat as the
+/// mascot does; its words are read with the mascot's name. It says "카드 n장
+/// 만들어 뒀어요" while 말랑이 has cards ready, and else [_ChatInvite]'s line.
+class _SpeechBubble extends StatelessWidget {
+  const _SpeechBubble({required this.text, required this.onTap});
+
+  final String text;
   final VoidCallback onTap;
 
   @override
@@ -497,7 +620,7 @@ class _ReadyBubble extends StatelessWidget {
                   vertical: AppSpace.s8,
                 ),
                 child: Text(
-                  keepWords(AppLocalizations.of(context).assistantReady(count)),
+                  keepWords(text),
                   textAlign: TextAlign.center,
                   style: AppType.label.copyWith(color: colors.ink),
                 ),

@@ -76,12 +76,10 @@ final class JobPollFailed extends JobPollOutcome {
 /// What the chat asks of the assistant: a seam, so its tests stand a fake in
 /// for the function.
 abstract interface class AssistantClient {
-  /// Sends [messages], oldest first, the last the user's, with the note
-  /// [deckId] the chat was opened in; [abort] completing stops the message
-  /// and the stream it started.
+  /// Sends [messages], oldest first, the last the user's; [abort] completing
+  /// stops the message and the stream it started.
   Future<SendOutcome> send(
     List<Map<String, Object?>> messages, {
-    String? deckId,
     required Future<void> abort,
   });
 
@@ -144,7 +142,6 @@ final class HttpAssistantClient implements AssistantClient {
   @override
   Future<SendOutcome> send(
     List<Map<String, Object?>> messages, {
-    String? deckId,
     required Future<void> abort,
   }) async {
     final token = await accessToken();
@@ -159,8 +156,7 @@ final class HttpAssistantClient implements AssistantClient {
     final zone = await timeZone();
     request.body = jsonEncode({
       'messages': messages,
-      if (deckId != null || zone != null)
-        'context': {'deck_id': ?deckId, 'time_zone': ?zone},
+      if (zone != null) 'context': {'time_zone': zone},
     });
     final http.StreamedResponse response;
     try {

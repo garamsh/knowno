@@ -2115,6 +2115,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get assistantInviteCards =>
+      'Want to turn what you learned today into cards?';
+
+  @override
+  String get assistantInviteDone => 'Nice work. Want to chat?';
+
+  @override
+  String get assistantInvite => 'Let\'s talk with Malangi';
+
+  @override
   String get assistantName => 'Malangi';
 
   @override
@@ -2322,29 +2332,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'The note has not loaded yet. Try again in a moment.';
 
   @override
-  String assistantReadyShort(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count cards ready',
-      one: '1 card ready',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get assistantHint => 'Tap Malangi to chat any time';
-
-  @override
-  String get assistantHintClose => 'Dismiss the hint';
-
-  @override
   String assistantFromNote(String name) {
     return 'From the note $name';
   }
-
-  @override
-  String get assistantAddByHand => 'Add by hand';
 
   @override
   String get assistantPhotoAttach => 'Attach photos';

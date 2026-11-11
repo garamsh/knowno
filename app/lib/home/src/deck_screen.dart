@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../assistant/assistant.dart';
 import '../../deck/deck.dart';
 import '../../design/app_button.dart';
 import '../../design/app_choice.dart';
@@ -16,7 +15,6 @@ import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import 'above_menu.dart';
 import 'list_header.dart';
-import 'open_assistant.dart';
 import '../../l10n/app_localizations.dart';
 import '../../photo_import/photo_import.dart';
 import '../../sharing/sharing.dart';
@@ -30,18 +28,9 @@ import '../../study/study.dart';
 /// renames, decorates, publishes or deletes the deck. While the deck holds no
 /// card there is nothing to study.
 class DeckScreen extends ConsumerStatefulWidget {
-  const DeckScreen({
-    super.key,
-    required this.deck,
-    this.addingCard = false,
-    this.assistantEdge = true,
-  });
+  const DeckScreen({super.key, required this.deck, this.addingCard = false});
 
   final Deck deck;
-
-  /// Whether the assistant's character is drawn on the screen: not where the
-  /// screen was opened from the chat itself.
-  final bool assistantEdge;
 
   /// Whether the screen opens on adding a card, as when the 오늘 tab's
   /// "카드 추가" opened it.
@@ -78,8 +67,6 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
       AsyncData(:final value) => value,
       _ => false,
     };
-    // With an assistant, adding a card by hand is in the ⋯, behind 말랑이.
-    final assistant = ref.watch(assistantClientProvider) != null;
     final current = _stored(ref.watch(deckProvider(widget.deck.id)));
     final public = current.visibility.requested;
     final empty = switch (cards) {
@@ -89,19 +76,12 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
     return ScreenSkeleton(
       title: current.name,
       userTitle: true,
-      bottomReserve: assistant && widget.assistantEdge ? edgeReserve : 0,
-      wrapBody: (body) => _edge(assistant, body),
       actions: ListHeaderActions(
-        label: assistant ? null : l10n.newCard,
-        onPressed: assistant ? null : _addCard,
+        label: l10n.newCard,
+        onPressed: _addCard,
         menu: (
           tooltip: l10n.deckActions,
           items: [
-            if (assistant)
-              MenuItemButton(
-                onPressed: _addCard,
-                child: Text(l10n.assistantAddByHand),
-              ),
             MenuItemButton(onPressed: _rename, child: Text(l10n.rename)),
             MenuItemButton(
               onPressed: () => _customize(current),
@@ -215,22 +195,6 @@ class _DeckScreenState extends ConsumerState<DeckScreen> {
       },
     );
   }
-
-  /// [body] with the assistant's character at the screen's edge, in this
-  /// note's name, where the app has an assistant and the screen draws it.
-  Widget _edge(bool assistant, Widget body) =>
-      !assistant || !widget.assistantEdge
-      ? body
-      : EdgeAssistant(
-          onOpen: () => unawaited(
-            openAssistant(
-              context,
-              note: (id: widget.deck.id.value, name: _name),
-            ),
-          ),
-          hint: true,
-          child: body,
-        );
 
   /// The pinned row of the cards' count and how many are mastered, then, as
   /// one group, a row for each card whose studied text holds the search,

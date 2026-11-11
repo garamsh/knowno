@@ -5,15 +5,16 @@ library;
 
 export 'src/assistant_client.dart'
     show AssistantClient, HttpAssistantClient, assistantUrl;
-export 'src/assistant_controller.dart' show ChatNote, assistantStorageKeys;
+export 'src/assistant_controller.dart' show assistantStorageKeys;
 export 'src/chat_screen.dart' show AssistantChatScreen, OpenNote;
 export 'src/device_time_zone.dart' show deviceTimeZone;
-export 'src/edge_assistant.dart'
-    show EdgeAssistant, edgeReserve, edgeReturnDelay, edgeSize;
 export 'src/supabase_photo_store.dart' show SupabasePhotoStore;
 export 'src/providers.dart'
     show
+        ChatInvite,
         assistantClientProvider,
+        assistantClockProvider,
+        assistantInviteProvider,
         assistantPhotoSourceProvider,
         assistantReadyCardsProvider,
         assistantStorageProvider;

@@ -10,19 +10,12 @@ import 'protocol.dart';
 import 'providers.dart';
 
 /// Where the turns and the draft are kept in the app's preferences.
-const assistantStorageKeys = {
-  _turnsKey,
-  _draftKey,
-  edgeSideKey,
-  edgeHintShownKey,
-};
+const assistantStorageKeys = {_turnsKey, _draftKey, inviteDayKey};
 const _turnsKey = 'assistant.conversation';
 const _draftKey = 'assistant.draft';
 
-/// Which edge the character rests at, and whether its one-time hint has
-/// shown, kept per device.
-const edgeSideKey = 'assistant.edge';
-const edgeHintShownKey = 'assistant.hintShown';
+/// The local day 홈's chat bubble last showed, kept per device.
+const inviteDayKey = 'assistant.inviteDay';
 
 /// How often a running photo job is asked how far it has read.
 const jobPollEvery = Duration(seconds: 3);
@@ -30,9 +23,6 @@ const jobPollEvery = Duration(seconds: 3);
 /// What the chat sends in the user's place when a photo job is done; the
 /// thread draws a line of its own for it.
 const jobDoneMessage = '사진 읽기가 끝났어요. 이어서 해 주세요.';
-
-/// The note a chat was opened from, to which its messages are tied.
-typedef ChatNote = ({String id, String name});
 
 /// How long a message refused as `busy` waits before it is sent again, and
 /// how many times it is.
@@ -114,9 +104,6 @@ class AssistantController extends Notifier<ChatState> {
   Completer<void>? _abort;
   Timer? _poll;
 
-  /// The note the chat is open from, whose id goes with each message.
-  String? _context;
-
   @override
   ChatState build() {
     final storage = ref.watch(assistantStorageProvider);
@@ -155,30 +142,6 @@ class AssistantController extends Notifier<ChatState> {
     if (read != null && ref.mounted) {
       state = state.copyWith(allowance: read);
     }
-  }
-
-  /// Opens the chat from [note], or from nowhere: its id goes with each
-  /// message, and the thread names the note once, unless its last line
-  /// already does.
-  void enter(ChatNote? note) {
-    _context = note?.id;
-    if (note == null) return;
-    final last = state.conversation.turns.lastOrNull;
-    if (last is ContextTurn && last.deckId == note.id) return;
-    _set(
-      state.copyWith(
-        conversation: state.conversation.copyWith(
-          turns: [
-            ...state.conversation.turns,
-            ContextTurn(
-              id: const Uuid().v4(),
-              deckId: note.id,
-              text: note.name,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void setDraft(String draft) => _set(
@@ -277,11 +240,7 @@ class AssistantController extends Notifier<ChatState> {
         _set(state.copyWith(status: const ChatIdle()), store: false);
         return;
       }
-      outcome = await _client.send(
-        messages,
-        deckId: _context,
-        abort: abort.future,
-      );
+      outcome = await _client.send(messages, abort: abort.future);
       if (!ref.mounted) return;
       if (outcome is! SendRefused ||
           outcome.refusal is! Busy ||

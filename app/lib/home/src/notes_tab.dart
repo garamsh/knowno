@@ -1,10 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../assistant/assistant.dart';
 import '../../deck/deck.dart';
 import '../../design/app_chip.dart';
 import '../../design/app_search_field.dart';
@@ -18,7 +15,6 @@ import 'above_menu.dart';
 import 'deck_screen.dart';
 import 'list_header.dart';
 import 'new_deck.dart';
-import 'open_assistant.dart';
 import 'progress_bar.dart';
 
 /// The 노트 tab, the first screen of its own navigator: "노트" with "새 노트"
@@ -55,39 +51,25 @@ class _NotesTabState extends ConsumerState<NotesTab> {
       for (final deck in decks)
         if (deck.name.toLowerCase().contains(query)) deck,
     ];
-    // With an assistant, writing a note by hand is in the ⋯, behind 말랑이.
-    final assistant = ref.watch(assistantClientProvider) != null;
     return ScreenSkeleton(
       topLevel: true,
       title: l10n.tabNotes,
-      bottomReserve: assistant ? edgeReserve : 0,
-      wrapBody: (body) => EdgeAssistant(
-        onOpen: () => unawaited(openAssistant(context)),
-        hint: decks.isNotEmpty,
-        child: body,
-      ),
       actions: ListHeaderActions(
-        label: assistant ? null : l10n.newDeck,
-        onPressed: assistant ? null : () => openNewDeck(context, _open),
-        menu: sharing == null && !assistant
+        label: l10n.newDeck,
+        onPressed: () => openNewDeck(context, _open),
+        menu: sharing == null
             ? null
             : (
                 tooltip: l10n.notesActions,
                 items: [
-                  if (assistant)
-                    MenuItemButton(
-                      onPressed: () => openNewDeck(context, _open),
-                      child: Text(l10n.assistantAddByHand),
-                    ),
-                  if (sharing != null)
-                    MenuItemButton(
-                      onPressed: () => Navigator.of(aboveMenu(context)).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => sharing.browseScreen(),
-                        ),
+                  MenuItemButton(
+                    onPressed: () => Navigator.of(aboveMenu(context)).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => sharing.browseScreen(),
                       ),
-                      child: Text(l10n.browsePublicDecks),
                     ),
+                    child: Text(l10n.browsePublicDecks),
+                  ),
                 ],
               ),
       ),

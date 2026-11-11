@@ -24,8 +24,6 @@ class ScreenSkeleton extends StatelessWidget {
     this.actions,
     this.search,
     this.bottom,
-    this.bottomReserve = 0,
-    this.wrapBody,
   });
 
   /// The screen's name, a header to a screen reader.
@@ -49,12 +47,6 @@ class ScreenSkeleton extends StatelessWidget {
 
   /// The screen's primary, in `BottomActions`.
   final Widget? bottom;
-
-  /// Space left under the body for something drawn over it.
-  final double bottomReserve;
-
-  /// Draws something over the scrolling body, as the assistant's character.
-  final Widget Function(Widget body)? wrapBody;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +72,7 @@ class ScreenSkeleton extends StatelessWidget {
             AppSpace.gutter,
             topLevel ? AppSpace.s16 : 0,
             AppSpace.gutter,
-            AppSpace.s24 + bottomReserve,
+            AppSpace.s24,
           ),
           sliver: SliverMainAxisGroup(
             slivers: [
@@ -109,9 +101,7 @@ class ScreenSkeleton extends StatelessWidget {
         ),
       ],
     );
-    final wrap = wrapBody;
     if (topLevel) scroll = SafeArea(bottom: false, child: scroll);
-    if (wrap != null) scroll = wrap(scroll);
     return Scaffold(
       appBar: topLevel
           ? null

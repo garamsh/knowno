@@ -203,54 +203,21 @@ void main() {
     );
   });
 
-  test(
-    'sends the note the chat was opened in as the message\'s context',
-    () async {
-      late String body;
-      final inner = MockClient.streaming((request, bodyStream) async {
-        body = await bodyStream.bytesToString();
-        return _stream(200, const Stream.empty());
-      });
-      final client = _client(inner);
-      await client.send(
-        const [],
-        deckId: 'deck-1',
-        abort: Completer<void>().future,
-      );
-      expect(jsonDecode(body), containsPair('context', {'deck_id': 'deck-1'}));
-      await client.send(const [], abort: Completer<void>().future);
-      // Control: a chat opened from nowhere sends no context.
-      expect(jsonDecode(body), isNot(contains('context')));
-    },
-  );
-
-  test('sends the device\'s time zone in the context, with the note when the chat was opened in one', () async {
+  test('sends the device\'s time zone in the context and no note', () async {
     late String body;
     final inner = MockClient.streaming((request, bodyStream) async {
       body = await bodyStream.bytesToString();
       return _stream(200, const Stream.empty());
     });
     final client = _client(inner, timeZone: () async => 'America/New_York');
-    await client.send(
-      const [],
-      deckId: 'deck-1',
-      abort: Completer<void>().future,
-    );
-    expect(
-      jsonDecode(body),
-      containsPair('context', {
-        'deck_id': 'deck-1',
-        'time_zone': 'America/New_York',
-      }),
-    );
     await client.send(const [], abort: Completer<void>().future);
     expect(
       jsonDecode(body),
       containsPair('context', {'time_zone': 'America/New_York'}),
-      reason: 'a chat opened from nowhere still names its zone',
+      reason: 'a chat names its zone and no note (ADR 0248)',
     );
-    // Control: a zone the platform cannot name sends none, and the server
-    // counts the day as it does for a message that names no zone.
+    // Control: a zone the platform cannot name sends no context at all, and
+    // the server counts the day as it does for a message that names no zone.
     final unknown = _client(inner, timeZone: () async => null);
     await unknown.send(const [], abort: Completer<void>().future);
     expect(jsonDecode(body), isNot(contains('context')));

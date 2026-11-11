@@ -18,7 +18,6 @@ import 'package:knowno/deck/deck.dart';
 import 'package:knowno/design/app_chip.dart';
 import 'package:knowno/design/app_text_field.dart';
 import 'package:knowno/design/keyboard_dismissal.dart';
-import 'package:knowno/design/mascot.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/design/theme_choice.dart';
 import 'package:knowno/home/home.dart';
@@ -338,10 +337,6 @@ void main() {
 
     testWidgets('the assistant in $mode', (tester) async {
       final theme = mode == 'dark' ? ThemeMode.dark : ThemeMode.light;
-      // The edge character: the one mascot that breathes at its size.
-      final edge = find.byWidgetPredicate(
-        (widget) => widget is Mascot && widget.breathes,
-      );
 
       /// 홈 over [decks] and the assistant, drawn as a phone draws it.
       Future<OpenedHome> open({
@@ -350,6 +345,8 @@ void main() {
         FakeAssistantClient? client,
         Map<String, Object> stored = const {},
         PhotoSource? photos,
+        String? heroState,
+        bool invite = false,
       }) async {
         // The banner is off before the app is built, the phone's size after.
         phone(tester);
@@ -357,14 +354,34 @@ void main() {
           tester,
           decks: decks,
           cardsPerDeck: cards,
+          heroState: heroState,
           client: client ?? FakeAssistantClient(),
-          stored: stored,
+          // 홈's chat bubble has shown on this day, but where a frame is of
+          // it.
+          stored: {if (!invite) 'assistant.inviteDay': '2026-10-15', ...stored},
+          clock: () => DateTime(2026, 10, 15, 9),
           themeMode: theme,
           locale: const Locale('ko'),
           photoSource: photos,
         );
         phone(tester);
-        await tester.pumpAndSettle();
+        if (invite) {
+          // The bubble comes a moment after 홈 shows and fades in; settling
+          // would run past its stay, so 홈 is pumped until the bubble shows.
+          bool shown() => [
+            ko.assistantInviteCards,
+            ko.assistantInviteDone,
+            ko.assistantInvite,
+          ].any((line) => shownText(line).evaluate().isNotEmpty);
+          for (var i = 0; i < 40 && !shown(); i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          expect(shown(), isTrue, reason: 'the bubble shows');
+          await tester.pump(const Duration(milliseconds: 400));
+          await tester.pump(const Duration(milliseconds: 400));
+        } else {
+          await tester.pumpAndSettle();
+        }
         return opened;
       }
 
@@ -391,40 +408,21 @@ void main() {
       await take('02-home-bubble');
       await unmount(tester);
 
-      // The edge character on the 노트 tab with its hint, with cards ready, and
-      // tucked while the list scrolls; inside a note; on 기록.
+      // 홈's chat bubble, once a day, with each of its lines.
+      for (final (name, state, decks) in [
+        ('19-home-invite-cards', 'today', <String>[]),
+        ('20-home-invite-done', 'done', <String>[]),
+        ('21-home-invite-plain', null, ['영단어 기본']),
+      ]) {
+        await open(heroState: state, decks: decks, invite: true);
+        await take(name);
+        await unmount(tester);
+      }
+
+      // The 노트 tab and 기록 draw no character.
       await open(decks: ['영단어 기본', '일본어 N3 한자', '회화 표현'], cards: 3);
       await showNotes(tester);
-      await take('03-notes-hint');
-      await unmount(tester);
-      await open(
-        decks: ['영단어 기본', '일본어 N3 한자', '회화 표현'],
-        cards: 3,
-        stored: storedChatShowcase(),
-      );
-      await showNotes(tester);
-      await take('04-notes-ready');
-      await unmount(tester);
-      await open(
-        decks: [for (var i = 1; i <= 9; i++) '노트 $i'],
-        cards: 3,
-        stored: {'assistant.hintShown': true},
-      );
-      await showNotes(tester);
-      final scroll = await tester.startGesture(const Offset(200, 500));
-      await scroll.moveBy(const Offset(0, -120));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      await shot(tester, 'assistant-05-notes-tucked');
-      await scroll.up();
-      await tester.pumpAndSettle(const Duration(seconds: 2));
-      await unmount(tester);
-      await open(decks: ['영단어 기본'], cards: 12);
-      await showNotes(tester);
-      await tap(tester, shownText('영단어 기본'));
-      await take('06-note-hint');
-      await tap(tester, edge);
-      await take('16-chat-from-note');
+      await take('03-notes');
       await unmount(tester);
       await open(decks: ['영단어 기본'], cards: 3);
       await tester.tap(shownText(ko.tabRecord));
