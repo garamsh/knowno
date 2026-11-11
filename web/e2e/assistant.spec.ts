@@ -421,7 +421,8 @@ test("draws a Markdown reply in a bubble in both themes, its wide table scrollin
   await expect(link).toHaveAttribute("rel", "noopener noreferrer");
 
   const region = page.getByRole("region", { name: "표" });
-  const bubble = page.locator("li", { has: region }).locator("> div").first();
+  // The bubble holds the table's region as its own child.
+  const bubble = region.locator("xpath=..");
   // The table is wider than its bubble and scrolls there, the page not at all.
   const sizes = await region.evaluate((element) => ({
     scroll: element.scrollWidth,
