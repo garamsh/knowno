@@ -3,49 +3,16 @@
 import { ArrowUp, ChevronLeft, ImagePlus, Square, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  lazy,
-  Suspense,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { type ReactNode, lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 
 import type { MascotExpression } from "@/design/brand";
 import { buttonClass } from "@/design/button";
 import { Confirm } from "@/design/confirm";
 import { RowMenu } from "@/design/row-menu";
-import { downscalePhoto } from "@/design/prepare-photo";
-
-import {
-  type AssistantClient,
-  httpAssistantClient,
-  type PreparedPhoto,
-  type SendResult,
-} from "../assistant-client";
-import { browserTimeZone } from "../browser-time-zone";
-import {
-  type AssistantTurn,
-  checkedCount,
-  type Conversation,
-  emptyConversation,
-  jobDoneMessage,
-  lastMessage,
-  loadConversation,
-  maxMessageLength,
-  requestTurns,
-  runningJob,
-  type ShownProposal,
-  storeConversation,
-  type Turn,
-  ended,
-  withEvent,
-} from "../conversation";
-import { type Allowance, type JobProgress, leftShare, type SendRefusal } from "../protocol";
+import { type AssistantClient, httpAssistantClient } from "../assistant-client";
+import { type AssistantTurn, lastMessage, maxMessageLength, type Turn } from "../conversation";
+import { type Allowance, leftShare, type JobProgress, type SendRefusal } from "../protocol";
+import { maxPhotos, type Status, useAssistantChat } from "../use-assistant-chat";
 import { Beside, EmptyChat, Typing } from "./malangi-profile";
 import { formatNames, ProposalView } from "./proposal-view";
 
@@ -58,28 +25,6 @@ const ReplyLine = lazy(() =>
 
 /** Where the message list's scroll is kept while the chat is left for a note (#711). */
 const scrollKey = "knowno.assistant.scroll";
-
-/** How long a message refused as `busy` waits before it is sent again, and how often. */
-export const busyRetryMs = 3000;
-const busyRetries = 3;
-
-/** How often a running photo job is asked how far it has read. */
-export const jobPollMs = 3000;
-
-/** The most photos a message attaches, as the function's `MAX_JOB_PHOTOS`. */
-const maxPhotos = 50;
-
-/** A photo staged for the next message: prepared as a JPEG, with the address its thumbnail shows. */
-type StagedPhoto = PreparedPhoto & { url: string };
-
-/** What the chat is doing: nothing, photos uploading, a reply streaming, waiting to resend, or refused. */
-type Status =
-  | { kind: "idle" }
-  | { kind: "uploading" }
-  | { kind: "uploadFailed" }
-  | { kind: "streaming" }
-  | { kind: "waiting" }
-  | { kind: "refused"; refusal: SendRefusal };
 
 /** What each refusal says, and whether "다시 시도" sends the message again. */
 const refusalNotices: Record<SendRefusal["kind"], { text: string; retry: boolean }> = {
@@ -102,16 +47,6 @@ const endingNotices = {
   stopped: "멈췄어요.",
   limit: "할 일이 많아 여기서 멈췄어요. 다시 시도해 주세요.",
 } as const;
-
-const newId = () => crypto.randomUUID();
-
-const wait = (ms: number) =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-
-/** A store that never changes, so its snapshot tells the server's render from the browser's. */
-const noChange = () => () => undefined;
 
 /** Whether a reply has anything to draw: a turn without it takes no part in a run (ADR 0250). */
 function drawsAnything(turn: AssistantTurn): boolean {
@@ -153,49 +88,33 @@ export function AssistantChat({
   client?: AssistantClient;
 }) {
   const router = useRouter();
-  // The conversation is this browser's: read as the page starts here, drawn once hydrated.
-  const [conversation, setConversation] = useState<Conversation>(() =>
-    typeof window === "undefined" ? emptyConversation : loadConversation(),
-  );
-  const hydrated = useSyncExternalStore(
-    noChange,
-    () => true,
-    () => false,
-  );
-  const [status, setStatus] = useState<Status>({ kind: "idle" });
-  const [allowance, setAllowance] = useState(readAllowance);
+  const chat = useAssistantChat(client, readAllowance);
+  const {
+    hydrated,
+    turns,
+    draft,
+    status,
+    allowance,
+    busy,
+    typing,
+    open,
+    committing,
+    commitFailure,
+    staged,
+    pickFailed,
+  } = chat;
   const [clearing, setClearing] = useState(false);
-  const [committing, setCommitting] = useState(false);
-  const [commitFailure, setCommitFailure] = useState<string | null>(null);
-  const [staged, setStaged] = useState<StagedPhoto[]>([]);
-  const [pickFailed, setPickFailed] = useState(false);
   const list = useRef<HTMLDivElement>(null);
   const following = useRef(true);
-  const abort = useRef<AbortController | null>(null);
-  // The latest conversation, for a send that runs across renders.
-  const latest = useRef(conversation);
 
-  // Every change goes through here, so [latest] is never behind what a send reads next.
-  const update = useCallback((change: (before: Conversation) => Conversation) => {
-    const next = change(latest.current);
-    latest.current = next;
-    setConversation(next);
-  }, []);
-
-  // Leaving the chat stops a reply still streaming; the function records it as cancelled.
-  useEffect(
-    () => () => {
-      abort.current?.abort();
-    },
-    [],
-  );
-
-  // What a poll that outlives a render reads: whether a message is under way.
-  const working = useRef(false);
-
-  useEffect(() => {
-    if (hydrated) storeConversation(conversation);
-  }, [conversation, hydrated]);
+  // A reply starting takes the list to its end, where it follows the reply as it grows.
+  // A resend after a busy wait is the same reply.
+  const kind = status.kind;
+  const before = useRef(kind);
+  useLayoutEffect(() => {
+    if (kind === "streaming" && before.current !== "waiting") following.current = true;
+    before.current = kind;
+  }, [kind]);
 
   // Back from a note lands where the list was (#711): on a fresh page, and when the router shows
   // the page it kept hidden again, which runs its effects anew.
@@ -219,242 +138,12 @@ export function AssistantChat({
   useLayoutEffect(() => {
     const element = list.current;
     if (element && following.current && restored.current) element.scrollTop = element.scrollHeight;
-  }, [conversation]);
-
-  const replyTo = useCallback(async () => {
-    const turns = latest.current.turns;
-    if (lastMessage(turns)?.role !== "user") return;
-    const controller = new AbortController();
-    abort.current = controller;
-    following.current = true;
-    let result: SendResult;
-    // A message refused as busy waits for the one before it to end, then goes again (ADR 0195).
-    for (let attempt = 0; ; attempt += 1) {
-      setStatus({ kind: attempt === 0 ? "streaming" : "waiting" });
-      if (attempt > 0) await wait(busyRetryMs);
-      if (controller.signal.aborted) {
-        setStatus({ kind: "idle" });
-        return;
-      }
-      try {
-        const timeZone = browserTimeZone();
-        result = await client.send(
-          {
-            messages: requestTurns(turns),
-            ...(timeZone !== null && { context: { time_zone: timeZone } }),
-          },
-          controller.signal,
-        );
-      } catch {
-        setStatus({ kind: "idle" });
-        return;
-      }
-      if (result.kind !== "refused" || result.refusal.kind !== "busy" || attempt === busyRetries)
-        break;
-    }
-    if (result.kind === "refused") {
-      const { refusal } = result;
-      if (refusal.kind === "rate_limited" && refusal.allowance) setAllowance(refusal.allowance);
-      setStatus({ kind: "refused", refusal });
-      return;
-    }
-    const id = newId();
-    const reply: AssistantTurn = {
-      role: "assistant",
-      id,
-      text: "",
-      citations: [],
-      proposals: [],
-      choice: null,
-      job: null,
-      interim: null,
-      ending: null,
-    };
-    update((before) => ({ ...before, turns: [...before.turns, reply] }));
-    const change = (edit: (turn: AssistantTurn) => AssistantTurn) => {
-      update((before) => ({
-        ...before,
-        turns: before.turns.map((turn) =>
-          turn.id === id && turn.role === "assistant" ? edit(turn) : turn,
-        ),
-      }));
-    };
-    try {
-      for await (const event of result.events) {
-        if (event === "malformed") change((turn) => ended(turn, "model_error"));
-        else {
-          if (event.type === "usage") setAllowance(event.allowance);
-          change((turn) => withEvent(turn, event));
-        }
-      }
-      change((turn) => ended(turn, "ok"));
-    } catch {
-      change((turn) => ended(turn, controller.signal.aborted ? "stopped" : "model_error"));
-    }
-    setStatus({ kind: "idle" });
-  }, [client, update]);
-
-  const busy =
-    status.kind === "uploading" || status.kind === "streaming" || status.kind === "waiting";
-  // After every commit, not when [busy] changes: a send that ends one busy state and starts the
-  // next in one batch leaves [busy] as it was.
-  useLayoutEffect(() => {
-    working.current = busy;
-  });
-
-  /** Sends [text], with the ids of the [photos] it attached, as the user's next message. */
-  const sendMessage = useCallback(
-    (text: string, photos: string[] = [], auto = false) => {
-      const message = text.trim();
-      if ((!message && photos.length === 0) || working.current) return;
-      setCommitFailure(null);
-      update((before) => ({
-        draft: "",
-        turns: [...before.turns, { role: "user", id: newId(), text: message, photos, auto }],
-      }));
-      void replyTo();
-    },
-    [replyTo, update],
-  );
-  const send = useCallback(
-    (text: string) => {
-      sendMessage(text);
-    },
-    [sendMessage],
-  );
-
-  /** Uploads the staged photos, then sends the draft with them; a photo that does not upload sends nothing. */
-  const submit = useCallback(async () => {
-    if (working.current) return;
-    const { draft: text } = latest.current;
-    if (staged.length === 0) {
-      sendMessage(text);
-      return;
-    }
-    working.current = true;
-    setStatus({ kind: "uploading" });
-    const stored = await client.upload(staged.map(({ id, jpeg }) => ({ id, jpeg })));
-    working.current = false;
-    if (!stored) {
-      setStatus({ kind: "uploadFailed" });
-      return;
-    }
-    setStatus({ kind: "idle" });
-    for (const photo of staged) URL.revokeObjectURL(photo.url);
-    setStaged([]);
-    sendMessage(
-      text,
-      staged.map(({ id }) => id),
-    );
-  }, [client, sendMessage, staged]);
-
-  /** Prepares the photos picked as JPEGs and stages them, as many as one message takes. */
-  const attach = useCallback(
-    async (files: File[]) => {
-      setPickFailed(false);
-      const room = maxPhotos - staged.length;
-      const added: StagedPhoto[] = [];
-      for (const file of files.slice(0, room)) {
-        const prepared = await downscalePhoto(file);
-        if (typeof prepared === "string") {
-          setPickFailed(true);
-          continue;
-        }
-        added.push({ id: newId(), jpeg: prepared, url: URL.createObjectURL(prepared) });
-      }
-      setStaged((before) => [...before, ...added].slice(0, maxPhotos));
-    },
-    [staged.length],
-  );
-
-  /** Sends the last message again, in place of the reply that failed after it. */
-  const retry = useCallback(() => {
-    update((before) => {
-      const last = lastMessage(before.turns);
-      return last?.role === "assistant"
-        ? { ...before, turns: before.turns.filter((turn) => turn.id !== last.id) }
-        : before;
-    });
-    void replyTo();
-  }, [replyTo, update]);
-
-  const setJob = useCallback(
-    (turnId: string, job: JobProgress) => {
-      update((before) => ({
-        ...before,
-        turns: before.turns.map((turn) =>
-          turn.id === turnId && turn.role === "assistant" ? { ...turn, job } : turn,
-        ),
-      }));
-    },
-    [update],
-  );
-
-  /** Asks how far the photo job [id] has read, and sends the turn that goes on once it is done. */
-  const askAfterJob = useCallback(
-    async (id: string) => {
-      const poll = await client.pollJob(id);
-      const reply = runningJob(latest.current.turns);
-      // The conversation may have been cleared or the job cancelled meanwhile.
-      if (!reply?.job || reply.job.id !== id || poll.kind === "failed") return;
-      if (poll.kind === "missing") {
-        setJob(reply.id, { ...reply.job, state: "cancelled" });
-        return;
-      }
-      // A job done while a message is under way is told at the next ask.
-      if (poll.progress.state === "done" && working.current) return;
-      setJob(reply.id, poll.progress);
-      if (poll.progress.state === "done" && lastMessage(latest.current.turns)?.id === reply.id)
-        sendMessage(jobDoneMessage, [], true);
-    },
-    [client, sendMessage, setJob],
-  );
-
-  const runningId = runningJob(conversation.turns)?.job?.id;
-  useEffect(() => {
-    if (!hydrated || !runningId) return;
-    const timer = window.setInterval(() => {
-      void askAfterJob(runningId);
-    }, jobPollMs);
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [hydrated, runningId, askAfterJob]);
-
-  const cancelJob = useCallback(async () => {
-    const reply = runningJob(latest.current.turns);
-    if (!reply?.job) return;
-    if (await client.cancelJob(reply.job.id))
-      setJob(reply.id, { ...reply.job, state: "cancelled" });
-  }, [client, setJob]);
-
-  const editProposal = useCallback(
-    (turnId: string, proposalId: string, edit: (one: ShownProposal) => ShownProposal) => {
-      update((before) => ({
-        ...before,
-        turns: before.turns.map((turn) =>
-          turn.id === turnId && turn.role === "assistant"
-            ? {
-                ...turn,
-                proposals: turn.proposals.map((one) =>
-                  one.proposal.id === proposalId ? edit(one) : one,
-                ),
-              }
-            : turn,
-        ),
-      }));
-    },
-    [update],
-  );
+  }, [turns]);
 
   if (!hydrated) return <ChatFrame allowance={allowance} />;
 
-  const { turns, draft } = conversation;
   const last = lastMessage(turns);
-  // The open proposal: the last one shown, not yet added, once its reply has ended.
-  const lastReply = turns.findLast((turn): turn is AssistantTurn => turn.role === "assistant");
-  const open = lastReply?.ending ? lastReply.proposals.findLast((one) => !one.added) : undefined;
-  const openCount = open ? checkedCount(open) : 0;
+  const openCount = open?.count ?? 0;
   const canSend = (draft.trim() !== "" || staged.length > 0) && !busy;
 
   // A run of 말랑이's turns shows its profile and name once, on its first item; a message the chat
@@ -469,11 +158,6 @@ export function AssistantChat({
       inRun = true;
     }
   }
-  // From the send until the reply's first text, drawn from the status and the last turn: the reply's
-  // turn does not exist until the route's headers have arrived.
-  const typing =
-    (status.kind === "streaming" || status.kind === "waiting") &&
-    (last?.role === "user" || (last?.role === "assistant" && last.ending === null && !last.text));
   const refused = status.kind === "refused";
   // Only the last run's profile takes the face of the state; an earlier one shows thinking.
   const lastProfile =
@@ -487,27 +171,6 @@ export function AssistantChat({
   const face = faceOf(status, last);
   const faceFor = (profile: string): MascotExpression =>
     profile === lastProfile ? face : "thinking";
-
-  const commit = async () => {
-    if (!open || !lastReply || openCount === 0) return;
-    setCommitting(true);
-    setCommitFailure(null);
-    const result = await client.commit(open.proposal, open.checked);
-    setCommitting(false);
-    if (result.kind === "failed") {
-      setCommitFailure(result.message);
-      return;
-    }
-    editProposal(lastReply.id, open.proposal.id, (one) => ({
-      ...one,
-      added: {
-        deck: result.deck,
-        count: result.count,
-        skipped: result.skipped,
-        refused: result.refused,
-      },
-    }));
-  };
 
   return (
     <ChatFrame
@@ -593,20 +256,17 @@ export function AssistantChat({
                       ))}
                     </ul>
                   )}
-                  {turn.job && <JobLine job={turn.job} onCancel={() => void cancelJob()} />}
+                  {turn.job && <JobLine job={turn.job} onCancel={() => void chat.cancelJob()} />}
                   {turn.proposals.map((one) => (
                     <ProposalView
                       key={one.proposal.id}
                       shown={one}
                       disabled={busy || turn.ending === null}
                       onCheck={(groupId, ids) => {
-                        editProposal(turn.id, one.proposal.id, (before) => ({
-                          ...before,
-                          checked: { ...before.checked, [groupId]: ids },
-                        }));
+                        chat.check(turn.id, one.proposal.id, groupId, ids);
                       }}
                       onRemake={(group, format) => {
-                        send(
+                        chat.send(
                           `${group.title} 부분은 ${formatNames[format]} 형식으로 다시 만들어 줘`,
                         );
                       }}
@@ -626,7 +286,7 @@ export function AssistantChat({
                               key={option}
                               type="button"
                               onClick={() => {
-                                send(option);
+                                chat.send(option);
                               }}
                               className={buttonClass("secondary", "header")}
                             >
@@ -647,7 +307,7 @@ export function AssistantChat({
                         !busy && (
                           <button
                             type="button"
-                            onClick={retry}
+                            onClick={chat.retry}
                             className={buttonClass("text", "header")}
                           >
                             다시 시도
@@ -663,7 +323,7 @@ export function AssistantChat({
             <Typing
               face={inRun ? null : faceFor(typingProfile)}
               line={
-                last.role === "assistant" && last.interim !== null ? (
+                last?.role === "assistant" && last.interim !== null ? (
                   <p
                     role="status"
                     aria-live="polite"
@@ -703,9 +363,7 @@ export function AssistantChat({
                 {refusalNotices[status.refusal.kind].retry && (
                   <button
                     type="button"
-                    onClick={() => {
-                      void replyTo();
-                    }}
+                    onClick={chat.retryRefused}
                     className={buttonClass("text", "header")}
                   >
                     다시 시도
@@ -733,11 +391,11 @@ export function AssistantChat({
               type="button"
               disabled={openCount === 0 || committing}
               onClick={() => {
-                void commit();
+                void chat.commit();
               }}
               className={buttonClass("primary", "cta")}
             >
-              {open.proposal.kind === "changes"
+              {open.shown.proposal.kind === "changes"
                 ? `${String(openCount)}장 바꾸기`
                 : `${String(openCount)}장 추가`}
             </button>
@@ -747,7 +405,7 @@ export function AssistantChat({
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              void submit();
+              void chat.submit();
             }}
             className="flex flex-col gap-1 rounded-field bg-surface p-1 pl-4"
           >
@@ -774,8 +432,7 @@ export function AssistantChat({
                           type="button"
                           aria-label="사진 삭제"
                           onClick={() => {
-                            URL.revokeObjectURL(photo.url);
-                            setStaged((before) => before.filter((one) => one.id !== photo.id));
+                            chat.unstage(photo);
                           }}
                           className="pressable absolute -top-3 -right-3 flex size-tap-target items-center justify-center"
                         >
@@ -801,7 +458,7 @@ export function AssistantChat({
                   onChange={(event) => {
                     const chosen = Array.from(event.currentTarget.files ?? []);
                     event.currentTarget.value = "";
-                    if (chosen.length > 0) void attach(chosen);
+                    if (chosen.length > 0) void chat.attach(chosen);
                   }}
                   className="sr-only"
                 />
@@ -816,14 +473,13 @@ export function AssistantChat({
                 maxLength={maxMessageLength}
                 placeholder="말랑이에게 부탁해 보세요"
                 onChange={(event) => {
-                  const text = event.target.value;
-                  update((before) => ({ ...before, draft: text }));
+                  chat.setDraft(event.target.value);
                 }}
                 onKeyDown={(event) => {
                   // Enter sends, Shift+Enter breaks the line; a Korean syllable being composed keeps its Enter.
                   if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                     event.preventDefault();
-                    void submit();
+                    void chat.submit();
                   }
                 }}
                 className="max-h-40 min-h-tap-target flex-1 resize-none bg-transparent py-2.5 text-body outline-none placeholder:text-muted"
@@ -832,9 +488,7 @@ export function AssistantChat({
                 <button
                   type="button"
                   aria-label="멈추기"
-                  onClick={() => {
-                    abort.current?.abort();
-                  }}
+                  onClick={chat.stop}
                   className="pressable flex size-tap-target shrink-0 items-center justify-center rounded-button bg-ink text-on-ink"
                 >
                   <Square aria-hidden className="size-4" />
@@ -864,9 +518,7 @@ export function AssistantChat({
           }}
           onConfirm={() => {
             setClearing(false);
-            setStatus({ kind: "idle" });
-            setCommitFailure(null);
-            update(() => emptyConversation);
+            chat.clear();
             try {
               window.sessionStorage.removeItem(scrollKey);
             } catch {

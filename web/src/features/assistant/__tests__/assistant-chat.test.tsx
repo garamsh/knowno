@@ -10,7 +10,8 @@ import type {
   SendResult,
 } from "../assistant-client";
 import type { CommitResult } from "../commit-proposal";
-import { AssistantChat, busyRetryMs, jobPollMs } from "../components/assistant-chat";
+import { AssistantChat } from "../components/assistant-chat";
+import { busyRetryMs, jobPollMs } from "../use-assistant-chat";
 import { jobDoneMessage, parseConversation } from "../conversation";
 import type { AssistantEvent, Proposal, SendRefusal } from "../protocol";
 
