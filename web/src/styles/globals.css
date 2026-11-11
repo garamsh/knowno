@@ -190,6 +190,19 @@
     }
   }
 
+  /* 말랑이's typing dots: each rises 4 px in turn over 1.2 s, as the phone's. */
+  --animate-typing-dot: typing-dot 1.2s ease-in-out infinite;
+  @keyframes typing-dot {
+    0%,
+    50%,
+    100% {
+      transform: none;
+    }
+    25% {
+      transform: translateY(-4px);
+    }
+  }
+
   /* The study coach's demonstration, as the phone's: out over 2.8 s with an ease, held, and back
      with a spring; the card tilts 0.0006 rad a pixel. Each -held token stops it where the card is
      out, for reduce motion. */

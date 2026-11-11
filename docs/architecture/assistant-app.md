@@ -80,7 +80,7 @@ The app's `assistant` domain: the chat with 말랑이 on the phone, its client o
 
 ## Rationale
 
-- [ADR 0250](adr/0250-draw-malangi-s-chat-as-a-messenger-with-a-profile-by-each-run-of-its-turns-three-dots-from-send-to-the-first-text-and-no-mascot-in-the-top-bar.md) records why the chat is drawn as a messenger, why the dots show from the send and not from the turn, and why the top bar holds no mascot. The web follows in #927.
+- [ADR 0250](adr/0250-draw-malangi-s-chat-as-a-messenger-with-a-profile-by-each-run-of-its-turns-three-dots-from-send-to-the-first-text-and-no-mascot-in-the-top-bar.md) records why the chat is drawn as a messenger, why the dots show from the send and not from the turn, and why the top bar holds no mascot. The web follows it in [`web-assistant.md`](web-assistant.md).
 - [ADR 0201](adr/0201-chat-with-malangi-on-the-phone-in-an-assistant-domain-kept-in-the-app-s-preferences-and-opened-from-home-s-mascot.md) records why the chat is a domain of its own, why the conversation is kept in the preferences and the draft apart, why one notifier outlives the screen, and how 홈 opens it.
 - [ADR 0204](adr/0204-draw-malangi-at-a-screen-s-edge-name-the-note-a-chat-opens-from-attach-photos-to-a-message-and-follow-their-job-from-the-phone.md) records how the job is polled and followed and what `photo_import` gives the chat; its edge character and its note a chat opens from are superseded by [ADR 0248](adr/0248-meet-malangi-on-home-alone-offer-the-chat-once-a-day-in-a-bubble-over-the-mascot-and-open-it-naming-no-note.md), which records why 말랑이 is met on 홈 alone and the bubble's rule.
 - Issues #711, #721, #923, #924 and #926 record the owner's and the PM's decisions the screens carry.

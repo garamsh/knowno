@@ -514,7 +514,12 @@ describe("말랑이's chat", () => {
       };
     }
 
-    const lines = () => screen.queryAllByRole("status");
+    // The interim lines: the typing dots' own status, named for a screen reader, is not one.
+    const lines = () =>
+      screen
+        .queryAllByRole("status")
+        .filter((element) => element.textContent !== "말랑이가 생각하는 중이에요");
+    const line = () => lines()[0] ?? screen.getByRole("status");
 
     it("shows one line a call, then only the reply, stored and sent back as the reply alone", async () => {
       const turn = held();
@@ -528,23 +533,24 @@ describe("말랑이's chat", () => {
       expect(await screen.findByText("찾아볼게요", { exact: false })).toBeInTheDocument();
       turn.mark();
       await waitFor(() => {
-        expect(screen.getByRole("status")).toHaveTextContent(/^노트를 찾아볼게요$/);
+        expect(line()).toHaveTextContent(/^노트를 찾아볼게요$/);
       });
-      const live = screen.getByRole("status");
+      const live = line();
       expect(live).toHaveAttribute("aria-live", "polite");
       expect(live.textContent).not.toContain("*");
       expect(lines()).toHaveLength(1);
-      expect(screen.queryByText("말랑이가 생각하는 중이에요")).not.toBeInTheDocument();
+      // The dots stay under the line, until the reply's first text.
+      expect(screen.getByText("말랑이가 생각하는 중이에요")).toBeInTheDocument();
 
       // The second call's text is the reply for a moment, then a line in the first one's place.
       turn.text("\n\n");
       turn.text("[카드](https://example.com)를 만들게요");
       turn.mark();
       await waitFor(() => {
-        expect(screen.getByRole("status")).toHaveTextContent(/^카드를 만들게요$/);
+        expect(line()).toHaveTextContent(/^카드를 만들게요$/);
       });
       expect(lines()).toHaveLength(1);
-      expect(screen.getByRole("status")).toBe(live);
+      expect(line()).toBe(live);
       expect(screen.queryByRole("link", { name: "카드" })).not.toBeInTheDocument();
 
       // The reply starts: the line goes, and the reply has no leading separator.
@@ -552,6 +558,7 @@ describe("말랑이's chat", () => {
       turn.text("**다 됐어요**");
       expect(await screen.findByText("다 됐어요")).toBeInTheDocument();
       expect(lines()).toHaveLength(0);
+      expect(screen.queryByText("말랑이가 생각하는 중이에요")).not.toBeInTheDocument();
       turn.end();
       await waitFor(() => {
         expect(screen.getByRole("button", { name: "보내기" })).toBeInTheDocument();
@@ -597,7 +604,7 @@ describe("말랑이's chat", () => {
       turn.text("찾아볼게요");
       turn.mark();
       await waitFor(() => {
-        expect(screen.getByRole("status")).toHaveTextContent("찾아볼게요");
+        expect(line()).toHaveTextContent("찾아볼게요");
       });
       await userEvent.click(screen.getByRole("button", { name: "멈추기" }));
       expect(await screen.findByText("멈췄어요.")).toBeInTheDocument();
@@ -855,5 +862,162 @@ describe("photos in the chat", () => {
       await vi.advanceTimersByTimeAsync(jobPollMs);
     });
     expect(await screen.findByText("사진 읽기를 취소했어요")).toBeInTheDocument();
+  });
+});
+
+describe("the chat drawn as a messenger (ADR 0250)", () => {
+  const stored = (...turns: object[]) => {
+    window.localStorage.setItem(
+      "knowno.assistant",
+      JSON.stringify({ version: 1, draft: "", turns }),
+    );
+  };
+  const user = (id: string) => ({ role: "user", id, text: `질문 ${id}`, photos: [], auto: false });
+  const reply = (id: string, text: string, ending: string | null = "ok") => ({
+    role: "assistant",
+    id,
+    text,
+    citations: [],
+    proposals: [],
+    choice: null,
+    job: null,
+    interim: null,
+    ending,
+  });
+  /** The profiles beside the turns, each the mascot's still image, by its face. */
+  const profiles = (container: HTMLElement, face: string) =>
+    container.querySelectorAll(`ol[aria-label="대화"] img[src*="knowno-${face}"]`);
+  const names = () => within(screen.getByRole("list", { name: "대화" })).queryAllByText("말랑이");
+
+  /** A send whose headers are held back until [release], as the route's are while the function starts. */
+  function held() {
+    const fake = fakeClient([]);
+    let release: (result: SendResult) => void = () => undefined;
+    const client: AssistantClient = {
+      ...fake.client,
+      send: (_request, signal) =>
+        new Promise<SendResult>((resolve, reject) => {
+          release = resolve;
+          signal.addEventListener("abort", () => {
+            reject(new DOMException("stopped", "AbortError"));
+          });
+        }),
+    };
+    return {
+      client,
+      release: (result: SendResult) => {
+        release(result);
+      },
+    };
+  }
+  const dots = () => document.querySelectorAll("[data-typing-dot]");
+
+  /** Whether the browser asks for reduced motion. */
+  function reduceMotion(reduce: boolean) {
+    vi.stubGlobal(
+      "matchMedia",
+      (query: string) =>
+        ({
+          matches: reduce && query.includes("prefers-reduced-motion"),
+          media: query,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+        }) as unknown as MediaQueryList,
+    );
+  }
+
+  it("draws the profile and the name on the first bubble of a run alone, the user's bubble unchanged", () => {
+    stored(user("a"), reply("r1", "하나"), reply("r2", "둘"), user("b"), reply("r3", "셋"));
+    const { container } = render(<AssistantChat allowance={null} client={fakeClient([]).client} />);
+    expect(screen.getByText("둘")).toBeInTheDocument();
+    // Two runs, two names and two profiles: the third bubble of three starts none.
+    expect(names()).toHaveLength(2);
+    expect(container.querySelectorAll('ol[aria-label="대화"] img')).toHaveLength(2);
+    // The user's bubble has neither.
+    expect(screen.getByText("질문 a")).toBeInTheDocument();
+  });
+
+  it("gives the last run's profile the state's face and an earlier run's thinking", () => {
+    stored(user("a"), reply("r1", "하나"), user("b"), reply("r2", "", "model_error"));
+    const { container } = render(<AssistantChat allowance={null} client={fakeClient([]).client} />);
+    expect(profiles(container, "sad")).toHaveLength(1);
+    expect(profiles(container, "thinking")).toHaveLength(1);
+  });
+
+  it("draws a mascot in no part of the bar", () => {
+    stored(user("a"), reply("r1", "하나"));
+    render(<AssistantChat allowance={allowance} client={fakeClient([]).client} />);
+    const bar = screen.getByRole("banner");
+    expect(within(bar).getByRole("heading", { name: "말랑이" })).toBeInTheDocument();
+    expect(bar.querySelector("img")).toBeNull();
+  });
+
+  it("draws the empty chat as a large profile with the name and what to memorise", async () => {
+    const { container } = render(<AssistantChat allowance={null} client={fakeClient([]).client} />);
+    expect(await screen.findByText("무엇을 외워 볼까요?")).toBeInTheDocument();
+    expect(names()).toHaveLength(1);
+    expect(profiles(container, "thinking")).toHaveLength(1);
+    expect(container.querySelector("ol[aria-label='대화'] .size-24")).not.toBeNull();
+    // The bar's title is the one heading.
+    expect(screen.getAllByRole("heading", { name: "말랑이" })).toHaveLength(1);
+  });
+
+  it("shows the dots and a profile from the send, while the route's headers are pending, and not the old line", async () => {
+    const { client, release } = held();
+    const { container } = render(<AssistantChat allowance={null} client={client} />);
+    await say("안녕");
+    // No reply turn exists yet; the sign is drawn from the status and the user's turn.
+    expect(dots()).toHaveLength(3);
+    expect(screen.getByRole("status")).toHaveTextContent("말랑이가 생각하는 중이에요");
+    expect(profiles(container, "thinking")).toHaveLength(1);
+    expect(names()).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "멈추기" })).toBeInTheDocument();
+
+    // The first text ends the dots; the reply's turn carries its own profile.
+    release(stream([{ type: "text", delta: "네" }], new AbortController().signal));
+    expect(await screen.findByText("네")).toBeInTheDocument();
+    expect(dots()).toHaveLength(0);
+    expect(profiles(container, "thinking")).toHaveLength(1);
+    expect(names()).toHaveLength(1);
+  });
+
+  it("takes the dots away on a refusal, beside a profile with the sad face, against the dots while waiting", async () => {
+    const { client, release } = held();
+    const { container } = render(<AssistantChat allowance={null} client={client} />);
+    await say("안녕");
+    expect(dots()).toHaveLength(3);
+    release({ kind: "refused", refusal: { kind: "unavailable" } });
+    expect(
+      await screen.findByText("말랑이가 지금 답할 수 없어요. 잠시 후 다시 시도해 주세요."),
+    ).toBeInTheDocument();
+    expect(dots()).toHaveLength(0);
+    expect(profiles(container, "sad")).toHaveLength(1);
+    expect(names()).toHaveLength(1);
+  });
+
+  it("takes the dots away on stop, and draws no profile for a reply that never began", async () => {
+    const { client } = held();
+    const { container } = render(<AssistantChat allowance={null} client={client} />);
+    await say("안녕");
+    expect(dots()).toHaveLength(3);
+    await userEvent.click(screen.getByRole("button", { name: "멈추기" }));
+    await waitFor(() => {
+      expect(dots()).toHaveLength(0);
+    });
+    expect(profiles(container, "thinking")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "보내기" })).toBeInTheDocument();
+  });
+
+  it("lets the dots rise when motion is allowed and stand still under reduced motion", async () => {
+    for (const reduce of [false, true]) {
+      reduceMotion(reduce);
+      window.localStorage.clear();
+      const { client } = held();
+      const { unmount } = render(<AssistantChat allowance={null} client={client} />);
+      await say("안녕");
+      expect(dots()).toHaveLength(3);
+      for (const dot of dots()) expect(dot.classList.contains("animate-typing-dot")).toBe(!reduce);
+      unmount();
+    }
   });
 });
