@@ -173,7 +173,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       # The stack tests run where Docker is, which the ubuntu runner has.
       - if: matrix.supabase
-        uses: supabase/setup-cli@d239d1052f6f024a8d746d7e5aeddead63b9cb53 # v3.1.0
+        uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
         with:
           version: 2.120.0
       # make lint-code's scripts/check-generated.ts runs tools/fonts/google_sans.py through uv, on
@@ -220,7 +220,7 @@ jobs:
           node-version: 24.22.0
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - uses: supabase/setup-cli@d239d1052f6f024a8d746d7e5aeddead63b9cb53 # v3.1.0
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
         with:
           version: 2.120.0
       # scripts/run.sh runs the programs in scripts/, which these targets call.
