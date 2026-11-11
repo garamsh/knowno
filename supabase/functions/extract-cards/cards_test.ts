@@ -979,6 +979,22 @@ const BREAKING: Record<CardRule, unknown> = {
   concept_card: note({ answer: null }),
 };
 
+Deno.test("parseCard drops a cloze with an unclosed opener even when its finished spans match its answers one for one", () => {
+  const broken = cloze({
+    front: "{{c1::H}}와 {{c2::O",
+    cloze: { answers: ["H"] },
+  });
+  const refused = parseCard(broken);
+  assert.ok(refused instanceof Refusal, "refused");
+  assert.equal(refused.rule, "cloze_blanks");
+  // Control: the same front with the opener closed, and an answer for it, is kept.
+  const closed = cloze({
+    front: "{{c1::H}}와 {{c2::O}}",
+    cloze: { answers: ["H", "O"] },
+  });
+  assert.ok(!(parseCard(closed) instanceof Refusal), "control: closed span");
+});
+
 Deno.test("every rule the parser refuses a card by is stated in the output contract, and each is reachable", () => {
   const refusedBy = new Set<CardRule>();
   for (const [rule, card] of Object.entries(BREAKING)) {
