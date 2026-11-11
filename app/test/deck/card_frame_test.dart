@@ -16,11 +16,14 @@ import 'package:knowno/l10n/app_localizations.dart';
 import 'package:knowno/media/media.dart';
 
 import '../media/fakes.dart';
+import 'frame_fixtures.dart';
 
 List<Map<String, Object?>> _cases(String file) {
   final path = '../supabase/fixtures/card-frame/$file';
-  return (jsonDecode(File(path).readAsStringSync()) as List<Object?>)
-      .cast<Map<String, Object?>>();
+  return migratedCases(
+    (jsonDecode(File(path).readAsStringSync()) as List<Object?>)
+        .cast<Map<String, Object?>>(),
+  );
 }
 
 List<Content> _blocks(Object? blocks) => decodeContent(jsonEncode(blocks));
@@ -77,7 +80,7 @@ void main() {
     test('a 칸 keeps its id, and one with none takes a new id', () {
       const cells = [
         TextCell(front: 'a', back: 'b', id: 'kept'),
-        BlankCell(ClozeContent('___', ['x'])),
+        BlankCell(ClozeContent('{{c1::x}}')),
         PlacedCell(
           AudioContent(media: MediaId('m'), duration: Duration(seconds: 1)),
           CellSide.back,
@@ -88,7 +91,7 @@ void main() {
         encodeCells(cells, newId: () => 'n${next++}'),
       ) as List<Object?>).cast<Map<String, Object?>>();
       expect([for (final block in stored) block['id']], ['kept', 'n0', 'n1']);
-      expect([for (final block in stored) block['v']], [2, 1, 2]);
+      expect([for (final block in stored) block['v']], [3, 2, 2]);
       expect((stored.last['payload'] as Map)['side'], 'back');
       expect(
         (stored.last['payload'] as Map)['media'],
@@ -153,9 +156,7 @@ void main() {
         frameKey(
           cellsFromSides(
             [const TextContent('Fill')],
-            [
-              const ClozeContent('___ red', ['Rose']),
-            ],
+            [const ClozeContent('{{c1::Rose}} red')],
           )!,
         ),
         CardKey.fromFront('Fill\nRose red'),
@@ -379,7 +380,7 @@ void main() {
         front: const [
           {
             'type': 'text',
-            'v': 2,
+            'v': 3,
             'payload': {'front': 'a', 'back': 'b'},
           },
         ],
@@ -396,7 +397,7 @@ void main() {
           front: const [
             {
               'type': 'text',
-              'v': 2,
+              'v': 3,
               'payload': {'front': '', 'back': ''},
             },
           ],

@@ -22,6 +22,7 @@ import '../home/deck_screens.dart';
 import '../media/fakes.dart';
 import '../word_breaks.dart';
 import 'editor.dart';
+import 'frame_fixtures.dart';
 
 /// The text the preview screen's card shows, its word joiners left out.
 List<String> _previewText(WidgetTester tester) => [
@@ -367,6 +368,36 @@ void main() {
     await screens.close();
   });
 
+  testWidgets('Save writes a typed text as text version 3, as typed', (
+    tester,
+  ) async {
+    final screens = await openNew(tester);
+
+    await typeBlock(tester, '2 * 3');
+    await typeBlock(tester, 'six', 1);
+    await screens.tap(shownText('Save'));
+    final [text] = await screens.storedFronts();
+    final block = (jsonDecode(text) as List<Object?>).single! as Map;
+    expect((block['type'], block['v']), ('text', 3));
+    expect(block['payload'], {'front': '2 * 3', 'back': 'six'});
+    await screens.close();
+  });
+
+  testWidgets('Save writes a blank sentence as cloze version 2, Anki text', (
+    tester,
+  ) async {
+    final screens = await openNew(tester);
+
+    await replaceFirstBlock(screens, 'Cloze sentence');
+    await typeInto(tester, blockField(), 'I like {{c1::tea}}');
+    await tapVisible(screens, shownText('Save'));
+    final [front] = await screens.storedFronts();
+    final block = (jsonDecode(front) as List<Object?>).single! as Map;
+    expect((block['type'], block['v']), ('cloze', 2));
+    expect(block['payload'], {'text': 'I like {{c1::tea}}'});
+    await screens.close();
+  });
+
   testWidgets(
     'Save and next card stores the card and leaves the editor open and empty, focused on the front',
     (tester) async {
@@ -426,10 +457,12 @@ void main() {
   });
 
   group('a card of each fixture placement', () {
-    final fixtures = (jsonDecode(
-      File('../supabase/fixtures/card-frame/conversion.json')
-          .readAsStringSync(),
-    ) as List<Object?>).cast<Map<String, Object?>>();
+    final fixtures = migratedCases(
+      (jsonDecode(
+        File('../supabase/fixtures/card-frame/conversion.json')
+            .readAsStringSync(),
+      ) as List<Object?>).cast<Map<String, Object?>>(),
+    );
     List<Content> blocks(Object? stored) => decodeContent(jsonEncode(stored));
 
     test('the fixtures name each placement', () {
@@ -566,13 +599,7 @@ void main() {
       );
       for (final (template, front, whole) in <(String, List<Content>, bool)>[
         ('flip', [const TextContent('apple')], false),
-        (
-          'cloze',
-          [
-            const ClozeContent('The ___ is red', ['apple']),
-          ],
-          true,
-        ),
+        ('cloze', [const ClozeContent('The {{c1::apple}} is red')], true),
         ('table', [name, table], true),
       ]) {
         await tester.runAsync(
@@ -677,10 +704,7 @@ void main() {
       final saved = (await screens.cards()).firstWhere(
         (stored) => stored.id == framed.id,
       );
-      expect(
-        saved.cells!.first,
-        const TextCell(front: 'pears', back: '배', markup: true),
-      );
+      expect(saved.cells!.first, const TextCell(front: 'pears', back: '배'));
       expect(
         encodeContent([(saved.cells!.last as UnknownCell).block]),
         encodeContent([unknown]),

@@ -16,14 +16,14 @@ import 'package:knowno/study/src/rust/api/engine.dart';
 import 'package:knowno/study/src/session.dart';
 
 import '../media/fakes.dart';
+import '../deck/frame_fixtures.dart';
+import '../word_breaks.dart';
 
-final _fixtures =
-    (jsonDecode(
-      File('../supabase/fixtures/card-frame/conversion.json')
-          .readAsStringSync(),
-    ) as List<Object?>).cast<Map<String, Object?>>().where(
-      (fixture) => fixture['cells'] != null,
-    );
+final _fixtures = migratedCases(
+  (jsonDecode(
+    File('../supabase/fixtures/card-frame/conversion.json').readAsStringSync(),
+  ) as List<Object?>).cast<Map<String, Object?>>(),
+).where((fixture) => fixture['cells'] != null);
 
 List<Content> _blocks(Object? blocks) => decodeContent(jsonEncode(blocks));
 
@@ -179,17 +179,17 @@ void main() {
           expect(find.byType(WholeCardView), findsOneWidget);
           expect(find.byType(SplitCard), findsNothing);
           for (final text in added) {
-            expect(find.text(text), findsNothing, reason: 'at the prompt');
+            expect(shownText(text), findsNothing, reason: 'at the prompt');
           }
           for (final text in _texts(sidesOf(cells).front)) {
-            expect(find.text(text), findsOneWidget, reason: 'its front');
+            expect(shownText(text), findsOneWidget, reason: 'its front');
           }
 
           await _pump(tester, _previous(card));
           expect(find.byType(WholeCardView), findsOneWidget);
           expect(find.byType(SplitCard), findsNothing);
           for (final text in added) {
-            expect(find.text(text), findsOneWidget, reason: 'its back');
+            expect(shownText(text), findsOneWidget, reason: 'its back');
           }
         });
       }
@@ -226,7 +226,7 @@ void main() {
   });
 
   group('a card of a 글 and a blank', () {
-    const cloze = ClozeContent('___ is red.', ['Rose']);
+    const cloze = ClozeContent('{{c1::Rose}} is red.');
     const cells = [
       BlankCell(cloze),
       TextCell(front: 'Colour', back: 'A flower.'),
@@ -259,7 +259,7 @@ void main() {
 
       final sheet = find.byType(BottomSheet);
       expect(
-        find.descendant(of: sheet, matching: find.text('A flower.')),
+        find.descendant(of: sheet, matching: shownText('A flower.')),
         findsOneWidget,
       );
       expect(find.text('Front'), findsNothing);
@@ -288,7 +288,7 @@ void main() {
       (
         'whole',
         const <Cell>[
-          BlankCell(ClozeContent('___ is red.', ['Rose'])),
+          BlankCell(ClozeContent('{{c1::Rose}} is red.')),
           PlacedCell(back, CellSide.back),
           PlacedCell(front, CellSide.front),
         ],
@@ -316,7 +316,7 @@ void main() {
         'prompt', (tester) async {
       final played = FakeAudioPlayback();
       const cells = <Cell>[
-        BlankCell(ClozeContent('___ is red.', ['Rose'])),
+        BlankCell(ClozeContent('{{c1::Rose}} is red.')),
         PlacedCell(back, CellSide.back),
       ];
       final sides = sidesOf(cells);

@@ -461,7 +461,7 @@ void main() {
         (oldEditor, oldEditor.back),
       ]) {
         Future<Card> stored() async => (await screens.cards()).singleWhere(
-          (card) => card.front.first == front.first,
+          (card) => plainText([card.front.first]) == plainText([front.first]),
         );
         final card = await stored();
         expect(card.back, back, reason: 'the setup stores the back asked');
@@ -471,10 +471,11 @@ void main() {
         );
         await save(screens);
         final saved = await stored();
-        expect(saved.front, front);
+        expect(plainText(saved.front), plainText(front));
+        expect(saved.front.last, front.last);
         expect(
-          saved.back,
-          kept,
+          plainText(saved.back),
+          plainText(kept),
           reason: '${plainText([front.first])} saved unchanged',
         );
       }
@@ -482,7 +483,8 @@ void main() {
       // Its name edited, the old editor's card keeps the back it holds, a
       // block of its own.
       final card = (await screens.cards()).singleWhere(
-        (card) => card.front.first == oldEditor.front.first,
+        (card) =>
+            plainText([card.front.first]) == plainText([oldEditor.front.first]),
       );
       await screens.push(
         (deck) =>

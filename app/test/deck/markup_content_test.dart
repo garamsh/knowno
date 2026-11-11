@@ -5,69 +5,66 @@ import 'package:knowno/deck/deck.dart';
 
 void main() {
   group('a 글 of the frame', () {
-    test('is stored at version 3 when it is markup, and at 2 when it is not', () {
-      String versionOf(TextCell cell) =>
-          '${(jsonDecode(encodeCells([cell], newId: () => 'id')) as List<Object?>).cast<Map<String, Object?>>().single['v']}';
-      expect(versionOf(const TextCell(front: 'a', markup: true)), '3');
-      expect(versionOf(const TextCell(front: 'a')), '2');
+    test('is stored at version 3', () {
+      final stored = jsonDecode(
+        encodeCells([const TextCell(front: 'a')], newId: () => 'id'),
+      );
+      expect((stored as List<Object?>).cast<Map<String, Object?>>().single, {
+        'type': 'text',
+        'v': 3,
+        'id': 'id',
+        'payload': {'front': 'a', 'back': ''},
+      });
     });
 
-    test('reads back with the version it was stored at', () {
-      for (final markup in [true, false]) {
-        final cell = TextCell(
-          front: '**a**',
-          back: 'b',
-          markup: markup,
-          id: 'x',
-        );
-        final read = decodeCells(encodeCells([cell], newId: () => 'id'));
-        expect(read, [cell]);
-        expect((read.single as TextCell).markup, markup);
-      }
+    test('reads back as it was stored', () {
+      const cell = TextCell(front: '**a**', back: 'b', id: 'x');
+      expect(decodeCells(encodeCells([cell], newId: () => 'id')), [cell]);
     });
 
-    test('is refused at version 3 with nothing in it, as at version 2', () {
-      for (final version in [2, 3]) {
-        expect(
-          () => decodeCells(
-            jsonEncode([
-              {
-                'type': 'text',
-                'v': version,
-                'payload': {'front': ' ', 'back': ''},
-              },
-            ]),
-          ),
-          throwsFormatException,
-          reason: 'v$version',
-        );
-      }
+    test('is refused at version 3 with nothing in it', () {
+      expect(
+        () => decodeCells(
+          jsonEncode([
+            {
+              'type': 'text',
+              'v': 3,
+              'payload': {'front': ' ', 'back': ''},
+            },
+          ]),
+        ),
+        throwsFormatException,
+      );
     });
 
-    test('gives its sides to every screen as markup text or as written', () {
+    test('of version 2 is kept as stored, unread, until the server converts '
+        'it', () {
+      const stored =
+          '[{"type":"text","v":2,"id":"x","payload":{"front":"a","back":"b"}}]';
+      final read = decodeCells(stored);
+      expect(read.single, isA<UnknownCell>());
+      expect(encodeCells(read, newId: () => 'id'), stored);
+    });
+
+    test('gives its sides to every screen as markup text', () {
       final sides = sidesOf(const [
-        TextCell(front: '**a**', back: 'b', markup: true),
+        TextCell(front: '**a**', back: 'b'),
         TextCell(front: '**c**'),
       ]);
       expect(sides.front, const [
         TextContent('**a**', markup: true),
-        TextContent('**c**'),
+        TextContent('**c**', markup: true),
       ]);
       expect(sides.back, const [TextContent('b', markup: true)]);
     });
 
     test('has the key of its plain text, the marks of version 3 left out', () {
       expect(
-        frameKey(const [TextCell(front: '**Apple** pie', markup: true)]),
+        frameKey(const [TextCell(front: '**Apple** pie')]),
         CardKey.fromFront('apple pie'),
       );
       expect(
-        frameKey(const [TextCell(front: '**Apple** pie')]),
-        CardKey.fromFront('**apple** pie'),
-        reason: 'control: a version 2 text is as written',
-      );
-      expect(
-        frameKey(const [BlankCell(ClozeContent.markup('A {{c1::pie}} ok'))]),
+        frameKey(const [BlankCell(ClozeContent('A {{c1::pie}} ok'))]),
         CardKey.fromFront('A pie ok'),
         reason: 'a cloze is its text filled in',
       );
@@ -79,26 +76,19 @@ void main() {
       const stored =
           '[{"type":"cloze","v":2,"id":"b","payload":{"text":"A {{c1::b::h}} {{c2::c}}"}}]';
       final read = decodeContent(stored);
-      expect(
-        read.single,
-        const ClozeContent.markup('A {{c1::b::h}} {{c2::c}}'),
-      );
+      expect(read.single, const ClozeContent('A {{c1::b::h}} {{c2::c}}'));
       expect((read.single as ClozeContent).numbers, [1, 2]);
       expect((read.single as ClozeContent).filled, 'A b c');
       expect(encodeContent(read), stored);
     });
 
-    test('of version 1 is read and written as before', () {
+    test('of version 1 is kept as stored, unread, until the server converts '
+        'it', () {
       const stored =
           '[{"type":"cloze","v":1,"payload":{"text":"A ___","answers":["b"]}}]';
-      expect(decodeContent(stored).single, const ClozeContent('A ___', ['b']));
-      expect(encodeContent(decodeContent(stored)), stored);
-      expect(
-        const ClozeContent.markup('{{c1::a}}') ==
-            const ClozeContent('{{c1::a}}', []),
-        isFalse,
-        reason: 'the two versions are not the same block',
-      );
+      final read = decodeContent(stored);
+      expect(read.single, isA<UnsupportedContent>());
+      expect(encodeContent(read), stored);
     });
 
     test(

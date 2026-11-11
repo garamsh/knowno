@@ -350,7 +350,7 @@ void main() {
               'front': [
                 {
                   'type': 'text',
-                  'v': 2,
+                  'v': 3,
                   'id': 'a',
                   'payload': {'front': 'one', 'back': 'two'},
                 },
@@ -394,8 +394,8 @@ void main() {
       contains('template_version'),
     );
     expect(framed.cells, const [TextCell(front: 'one', back: 'two')]);
-    expect(framed.front, const [TextContent('one')]);
-    expect(framed.back, const [TextContent('two')]);
+    expect(framed.front, const [TextContent('one', markup: true)]);
+    expect(framed.back, const [TextContent('two', markup: true)]);
     expect(earlier.cells, isNull);
     expect(earlier.front, const [TextContent('three')]);
     expect(earlier.back, const [TextContent('four')]);

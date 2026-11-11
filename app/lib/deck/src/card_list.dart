@@ -139,16 +139,10 @@ String spokenContent(
   return blocks
       .map(
         (block) => switch (block) {
-          ClozeContent(markup: true, :final text) => markupPlain(
+          ClozeContent(:final text) => markupPlain(
             markupEngine.parse(text),
             cloze: (run) => blank(answerText(run)),
           ),
-          ClozeContent(:final text, :final answers) => [
-            for (final (index, part) in text.split(clozeBlank).indexed) ...[
-              part,
-              if (index < answers.length) blank(answers[index]),
-            ],
-          ].join(),
           TableContent(:final columns, :final rows) => [
             columns.join(', '),
             for (final (row, cells) in rows.indexed)

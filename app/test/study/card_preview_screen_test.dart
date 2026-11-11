@@ -98,7 +98,7 @@ void main() {
     (tester) async {
       await tester.pumpWidget(
         _preview(const [
-          BlankCell(ClozeContent('___ is red.', ['Rose'])),
+          BlankCell(ClozeContent('{{c1::Rose}} is red.')),
           TextCell(back: 'A flower.'),
         ]),
       );

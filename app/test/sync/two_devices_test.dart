@@ -151,9 +151,7 @@ void main() {
     final deck = await a.deck.createDeck('French');
     await a.deck.addCard(
       deck.id,
-      front: [
-        const ClozeContent('___ is in France', ['Paris']),
-      ],
+      front: [const ClozeContent('{{c1::Paris}} is in France')],
       back: _text('Paris is in France'),
     );
     // A card as a newer build writes it: a template and block versions
@@ -352,6 +350,91 @@ void main() {
         reason: device.name,
       );
     }
+  }, skip: skip);
+
+  /// Runs [sql] in the stack's database as its owner, and returns its output.
+  Future<String> psql(String sql) async {
+    final result = await Process.run('docker', [
+      'exec',
+      db!,
+      'psql',
+      '-U',
+      'postgres',
+      '-d',
+      'postgres',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-Atc',
+      sql,
+    ]);
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+    return (result.stdout as String).trim();
+  }
+
+  test('a card the server holds in an old form is converted by '
+      'private.migrate_card_markup, and a device that syncs holds it as text '
+      'v3 and cloze v2, with its id and what it shows', () async {
+    final deck = await shared();
+    final cloze = const Uuid().v4();
+    final text = const Uuid().v4();
+    // A cloze of version 1 on two sides, and a 글 of version 2 in the frame
+    // whose front reads as typed, not as markup.
+    const clozeFront =
+        r'$j$[{"type":"cloze","v":1,"payload":{"text":"___ is in France",'
+        r'"answers":["Paris"]}}]$j$';
+    const clozeBack =
+        r'$j$[{"type":"text","v":1,"payload":{"text":"Paris is in France"}}]$j$';
+    const textFront =
+        r'$j$[{"type":"text","v":2,"id":"t","payload":{"front":"2 * 3",'
+        r'"back":"six"}}]$j$';
+    await psql(
+      'insert into public.cards (id, user_id, deck_id, front, back, card_key, '
+      'source, template, template_version, created_at, updated_at) values '
+      "('$cloze', '${account.value}', '${deck.id.value}', $clozeFront::jsonb, "
+      "$clozeBack::jsonb, 'k-cloze', 'manual', 'free', 1, now(), now()), "
+      "('$text', '${account.value}', '${deck.id.value}', $textFront::jsonb, "
+      "'[]'::jsonb, 'k-text', 'manual', 'free', 2, now(), now())",
+    );
+    await b.sync(account);
+
+    Future<CardRow> stored(String id) => (b.db.select(
+      b.db.cards,
+    )..where((card) => card.id.equals(id))).getSingle();
+    Object? block(String front) => (jsonDecode(front) as List<Object?>).single;
+    // Control: B holds both as the server wrote them, below this build's
+    // versions.
+    expect((block((await stored(cloze)).front)! as Map)['v'], 1);
+    expect((block((await stored(text)).front)! as Map)['v'], 2);
+
+    expect(await psql('select private.migrate_card_markup()'), '2');
+    await b.sync(account);
+
+    final clozeBlock = block((await stored(cloze)).front)! as Map;
+    expect(
+      [clozeBlock['type'], clozeBlock['v'], clozeBlock['payload']],
+      [
+        'cloze',
+        2,
+        {'text': '{{c1::Paris}} is in France'},
+      ],
+    );
+    final textBlock = block((await stored(text)).front)! as Map;
+    expect(
+      [textBlock['type'], textBlock['v'], textBlock['id']],
+      ['text', 3, 't'],
+    );
+    expect(textBlock['payload'], {'front': r'2 \* 3', 'back': 'six'});
+
+    final cards = {
+      for (final card in await b.deck.listCards(deck.id)) card.id.value: card,
+    };
+    expect(cards.keys, {cloze, text});
+    expect(cards[cloze]!.front.single, isA<ClozeContent>());
+    expect(plainText(cards[cloze]!.front), 'Paris is in France');
+    expect(plainText(cards[text]!.front), '2 * 3');
+    expect(cellsOf(cards[text]!), const [
+      TextCell(front: r'2 \* 3', back: 'six', id: 't'),
+    ]);
   }, skip: skip);
 
   /// Runs the server's tombstone purge as if the mark it purges below, the

@@ -333,35 +333,11 @@ class WholeCardView extends StatelessWidget {
   bool get _boxed => _look == _Look.studied && !revealed;
 
   Widget _cloze(BuildContext context, ClozeContent cloze) {
-    final parts = cloze.markup
-        ? const <String>[]
-        : cloze.text.split(clozeBlank);
-    final span = cloze.markup
-        ? markupSpan(
-            markupEngine.parse(cloze.text),
-            wrap: keepWords,
-            cloze: (run) =>
-                _blank(context, answerText(run), style, hint: run.hint),
-          )
-        : TextSpan(
-            children: [
-              for (final (index, part) in parts.indexed) ...[
-                // Korean breaks only between words (#454); a box keeps to the
-                // word it is written against.
-                TextSpan(
-                  text: _boxed
-                      ? _joined(
-                          part,
-                          before: index > 0,
-                          after: index < cloze.answers.length,
-                        )
-                      : keepWords(part),
-                ),
-                if (index < cloze.answers.length)
-                  _blank(context, cloze.answers[index], style),
-              ],
-            ],
-          );
+    final span = markupSpan(
+      markupEngine.parse(cloze.text),
+      wrap: keepWords,
+      cloze: (run) => _blank(context, answerText(run), style, hint: run.hint),
+    );
     final width = this.width;
     final minFontSize = this.minFontSize;
     if (listed) {
@@ -598,21 +574,6 @@ const blankEms = 2;
 /// em wide, joined so no line breaks inside it.
 final _boxMeasure = List.filled(blankEms, '\u3000').join('\u2060');
 
-/// [part] of a sentence with boxes, its lines broken only between words, and
-/// joined to a box [before] or [after] it that it touches, so a box keeps to
-/// its word and its punctuation.
-String _joined(String part, {required bool before, required bool after}) {
-  bool space(String char) => char.trim().isEmpty;
-  var text = keepWords(part);
-  if (before && part.isNotEmpty && !space(part[0])) {
-    text = '\u2060$text';
-  }
-  if (after && part.isNotEmpty && !space(part[part.length - 1])) {
-    text = '$text\u2060';
-  }
-  return text;
-}
-
 /// How long a card of [cells] reads before the reveal, in characters: what
 /// each 칸 shows, each empty blank counted as [blankEms], its box's width
 /// (#635).
@@ -621,12 +582,10 @@ int faceLength(List<Cell> cells) => [
     switch (block) {
       TextContent(:final plain) => plain.length,
       SensesContent(:final lines) => lines.length,
-      ClozeContent(markup: true, :final text) => markupPlain(
+      ClozeContent(:final text) => markupPlain(
         markupEngine.parse(text),
         cloze: (_) => List.filled(blankEms, 'x').join(),
       ).length,
-      ClozeContent(:final text, :final answers) =>
-        text.replaceAll(clozeBlank, '').length + answers.length * blankEms,
       TableContent() => [
         for (final (row, cells) in block.rows.indexed)
           for (final (column, _) in cells.indexed)
@@ -639,21 +598,8 @@ int faceLength(List<Cell> cells) => [
 ].fold(0, (sum, length) => sum + length);
 
 /// [cloze]'s text with each blank a box, as study's cards measure it.
-String boxedText(ClozeContent cloze) {
-  if (cloze.markup) {
-    return markupPlain(
-      markupEngine.parse(cloze.text),
-      cloze: (_) => _boxMeasure,
-    );
-  }
-  final parts = cloze.text.split(clozeBlank);
-  return [
-    for (final (index, part) in parts.indexed) ...[
-      part,
-      if (index < cloze.answers.length) _boxMeasure,
-    ],
-  ].join();
-}
+String boxedText(ClozeContent cloze) =>
+    markupPlain(markupEngine.parse(cloze.text), cloze: (_) => _boxMeasure);
 
 /// A whole card's 칸 as the current card and the card preview draw them: in
 /// the largest of [cardSteps] from [style] at which its text fits a box

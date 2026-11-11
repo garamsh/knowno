@@ -216,11 +216,10 @@ InlineSpan contentSpan(
       if (index > 0) const TextSpan(text: '\n'),
       switch (block) {
         final TextContent text => textSpan(text, wrap: wrap),
-        ClozeContent(markup: true, :final text) => markupSpan(
+        ClozeContent(:final text) => markupSpan(
           markupEngine.parse(text),
           wrap: wrap,
         ),
-        ClozeContent(:final filled) ||
         TableContent(:final filled) => TextSpan(text: wrap(filled)),
         SensesContent() => sensesSpan(block, wrap: wrap),
         ImageContent() => TextSpan(text: wrap(l10n.blockImage)),

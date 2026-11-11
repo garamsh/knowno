@@ -79,7 +79,7 @@ void main() {
             _spanish.id: [
               framed(const [TextCell(front: 'perro', back: 'dog')]),
               framed(const [
-                BlankCell(ClozeContent('___ barks.', ['Dog'])),
+                BlankCell(ClozeContent('{{c1::Dog}} barks.')),
                 TextCell(front: 'one'),
                 TextCell(front: 'two', back: 'A pet.'),
               ]),

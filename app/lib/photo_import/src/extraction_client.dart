@@ -295,7 +295,9 @@ CandidateCard _parseCard(Object? card) {
   throw const ServiceFailed('a card has no front and answer');
 }
 
-/// A cloze card's `cloze`, `{answers}`, as a cloze of [front], or a table
+/// A cloze card as a cloze block of [front], written as the server returns
+/// it, Anki's `{{cN::answer}}` (its `cloze` field, `{answers}`, is only
+/// checked to be there), or a table
 /// card's `table`, `{columns, rows, blanks}`, under [front] as its name; null
 /// for any other card. A cloze or table card without its field is refused.
 /// The blocks' own decoding checks their shape (`deck.md`).
@@ -305,9 +307,10 @@ List<Content>? _wholeFront(
   Map<String, Object?> fields,
 ) {
   final block = switch ((type, fields)) {
-    (CardType.cloze, {'cloze': final Map<String, Object?> cloze}) => {
+    (CardType.cloze, {'cloze': Map<String, Object?>()}) => {
       'type': 'cloze',
-      'payload': {'text': front, 'answers': cloze['answers']},
+      'v': 2,
+      'payload': {'text': front},
     },
     (CardType.table, {'table': final Map<String, Object?> table}) => {
       'type': 'table',
@@ -324,6 +327,9 @@ List<Content>? _wholeFront(
     decoded = decodeContent(jsonEncode([block]));
   } on FormatException {
     throw ServiceFailed("a card's ${type.name} is not one");
+  }
+  if (type == CardType.cloze && decoded.single is! ClozeContent) {
+    throw const ServiceFailed("a card's cloze front holds no blank");
   }
   return [if (type == CardType.table) TextContent(front), ...decoded];
 }

@@ -143,24 +143,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get wholeCard => '카드';
 
   @override
-  String get clozeInsertBlank => '빈칸 넣기';
-
-  @override
-  String get clozeUndoBlank => '빈칸 풀기';
-
-  @override
-  String clozeRemoveBlank(String answer) {
-    return '빈칸 풀기, $answer';
-  }
-
-  @override
-  String get clozeEmptyBlank => '빈칸';
-
-  @override
   String get clozeBlankRequired => '빈칸을 하나 이상 넣어 주세요';
-
-  @override
-  String get clozeBlankMarker => '줄에서 ___를 빼 주세요';
 
   @override
   String get addBlock => '칸 추가';

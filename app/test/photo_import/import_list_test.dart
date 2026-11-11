@@ -133,7 +133,7 @@ void main() {
   );
 
   test('a cloze row saves its blocks alone, swapped or not, where a plain note swaps', () {
-    const cloze = ClozeContent('3인칭 재귀칭: 높임 ___ · 예사 ___ · 낮춤 저', ['당신', '자기']);
+    const cloze = ClozeContent('3인칭 재귀칭: 높임 {{c1::당신}} · 예사 {{c2::자기}} · 낮춤 저');
     final list = ImportList(const [
       CandidateCard(
         front: '3인칭 재귀칭: 높임 ___ · 예사 ___ · 낮춤 저',
@@ -195,13 +195,13 @@ void main() {
 
     expect(list.toImport(), isEmpty);
     expect(sidesOf(row.cards(const VocabularyForm()).single).front, [
-      const TextContent('big'),
+      const TextContent('big', markup: true),
     ]);
     expect(
       sidesOf(
         row.cards(const VocabularyForm(direction: Direction.backward)).single,
       ).back,
-      [const TextContent('big')],
+      [const TextContent('big', markup: true)],
     );
   });
 
