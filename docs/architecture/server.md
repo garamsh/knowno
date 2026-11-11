@@ -1,4 +1,5 @@
 # Server
+
 The server's own: where the Supabase schema is defined and how migrations and Edge Functions reach production, and the tests that hold the database. The rest of the server is in the documents below.
 
 ## Current decisions
