@@ -130,6 +130,56 @@ void main() {
     });
   }
 
+  testWidgets('on study\'s cards a box is joined to the non-space text it '
+      'touches, inside bold and italic too, and drawn as measured (#635)', (
+    tester,
+  ) async {
+    const joiner = '\u2060';
+    const box = '\uFFFC';
+    Future<String> drawn(String text, {required bool revealed}) async {
+      await pumpComponent(
+        tester,
+        WholeCardView.studied(
+          [BlankCell(ClozeContent(text))],
+          revealed: revealed,
+          style: AppType.back,
+        ),
+      );
+      return tester
+          .widget<RichText>(
+            find.descendant(
+              of: find.byType(WholeCardView),
+              matching: find.byType(RichText),
+            ),
+          )
+          .text
+          .toPlainText();
+    }
+
+    for (final (text, joined) in [
+      ('{{c1::A}}, {{c2::B}}.', '$box$joiner, $box$joiner.'),
+      ('a{{c1::A}}b', 'a$joiner$box${joiner}b'),
+      ('x {{c1::A}} y', 'x $box y'),
+      ('**a**{{c1::A}}_b_', 'a$joiner$box${joiner}b'),
+      ('{{c1::A}}**, b**', '$box$joiner, b'),
+      ('{{c1::A}}{{c2::B}}', '$box$joiner$box'),
+    ]) {
+      final plain = await drawn(text, revealed: false);
+      expect(plain, joined, reason: text);
+      // The measure agrees with what is drawn.
+      expect(
+        boxedText(ClozeContent(text)),
+        plain.replaceAll(box, List.filled(blankEms, '\u3000').join(joiner)),
+        reason: text,
+      );
+    }
+    // Control: revealed, the answers are drawn as before, with no joiner.
+    expect(
+      await drawn('{{c1::A}}, {{c2::B}}.', revealed: true),
+      isNot(contains(joiner)),
+    );
+  });
+
   testWidgets('a Korean cloze sentence breaks only between words, its blank '
       'included, and reads as written (#454)', (tester) async {
     const korean = ClozeContent(
