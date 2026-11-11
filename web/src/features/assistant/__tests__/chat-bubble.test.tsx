@@ -6,7 +6,7 @@ import { ChatBubble, type ChatLine } from "../components/ready-bubble";
 const shownKey = "knowno.assistant.offer";
 const words: Record<ChatLine, string> = {
   cards: "오늘 배운 거, 같이 카드로 만들까요?",
-  done: "수고했어요. 얘기 좀 할래요?",
+  done: "오늘도 수고 많았어요!",
   other: "말랑이와 대화해요",
 };
 
