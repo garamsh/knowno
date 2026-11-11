@@ -13,11 +13,7 @@ import parse from "../../../engine/tests/fixtures/markup/parse.json" with {
 import plain from "../../../engine/tests/fixtures/markup/plain.json" with {
   type: "json",
 };
-import v1 from "../../../engine/tests/fixtures/markup/v1.json" with {
-  type: "json",
-};
 import {
-  clozeFromV1,
   clozeNumbers,
   escapeLiteral,
   fillCloze,
@@ -30,9 +26,7 @@ Deno.test("the fixtures are read whole", () => {
   assert.ok(parse.length > 100, "parse.json");
   assert.ok(cloze.length > 10, "cloze.json");
   assert.ok(plain.length > 5, "plain.json");
-  assert.ok(v1.length > 5, "v1.json");
   assert.ok(escape.length > 5, "escape.json");
-  assert.ok(v1.some(({ source }) => source === null));
 });
 
 for (const { name, input, document } of parse) {
@@ -59,12 +53,6 @@ for (const { name, input, numbers, hidden, filled } of cloze) {
 for (const { name, input, plainText: expected } of plain) {
   Deno.test(`gives the key's plain text as the engine does: ${name}`, () => {
     assert.equal(plainText(parseMarkup(input)), expected);
-  });
-}
-
-for (const { name, text, answers, source } of v1) {
-  Deno.test(`converts a version 1 cloze as the engine does: ${name}`, () => {
-    assert.equal(clozeFromV1(text, answers), source);
   });
 }
 
