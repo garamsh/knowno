@@ -6,7 +6,6 @@ import {
   type CellPart,
   type Content,
   cellRuns,
-  clozeBlank,
   describeContent,
   shownParts,
   spokenContent,
@@ -96,14 +95,11 @@ export function faceLength(blocks: Content[]): number {
   return blocks.reduce((sum, block) => {
     switch (block.kind) {
       case "text":
-        return sum + (block.markup?.plain ?? block.text).length;
+        return sum + block.markup.plain.length;
       case "senses":
         return sum + describeContent([block]).length;
       case "cloze":
-        if (block.markup) {
-          return sum + documentText(block.markup.document, () => "x".repeat(blankEms)).length;
-        }
-        return sum + block.text.split(clozeBlank).join("").length + block.answers.length * blankEms;
+        return sum + documentText(block.markup.document, () => "x".repeat(blankEms)).length;
       case "table":
         return (
           sum +
@@ -173,11 +169,7 @@ function WholeParts({
     >
       {parts.map(({ block, added }, index) => {
         if (listed && block.kind === "text") {
-          return listedPart(
-            index,
-            added,
-            block.markup ? <MarkupText document={block.markup.document} /> : block.text,
-          );
+          return listedPart(index, added, <MarkupText document={block.markup.document} />);
         }
         if (listed && block.kind === "senses") {
           return listedPart(index, added, <SensesText senses={block.senses} />);
@@ -205,36 +197,24 @@ function WholeParts({
                 aria-hidden
                 className={added ? addedStyle : inRow ? "" : "text-whole-front"}
               >
-                {block.markup ? <MarkupText document={block.markup.document} /> : block.text}
+                <MarkupText document={block.markup.document} />
               </span>
             );
           case "cloze":
             return (
               <span key={index} aria-hidden className={listed ? "line-clamp-2 break-keep" : ""}>
-                {block.markup ? (
-                  <MarkupText
-                    document={block.markup.document}
-                    cloze={(span) => (
-                      <Blank
-                        answer={<MarkupRuns content={span.answer} />}
-                        hint={span.hint}
-                        revealed={revealed}
-                        look={look}
-                      />
-                    )}
-                  />
-                ) : look === "studied" && !revealed ? (
-                  boxedWords(block.text.split(clozeBlank))
-                ) : (
-                  block.text.split(clozeBlank).map((part, at) => (
-                    <span key={at}>
-                      {part}
-                      {at < block.answers.length && (
-                        <Blank answer={block.answers[at] ?? ""} revealed={revealed} look={look} />
-                      )}
-                    </span>
-                  ))
-                )}
+                <MarkupText
+                  document={block.markup.document}
+                  joined={look === "studied" && !revealed}
+                  cloze={(span) => (
+                    <Blank
+                      answer={<MarkupRuns content={span.answer} />}
+                      hint={span.hint}
+                      revealed={revealed}
+                      look={look}
+                    />
+                  )}
+                />
               </span>
             );
           case "table": {
@@ -321,48 +301,6 @@ function WholeParts({
       })}
     </span>
   );
-}
-
-/**
- * A sentence of [parts] with an empty blank's box between each two, as study's cards draw it
- * (#635): each box on one line with the word or punctuation it touches, so a box and its comma
- * never part. A browser breaks a line beside a box whatever joiner the text holds there.
- */
-function boxedWords(parts: string[]): ReactNode[] {
-  const words: ReactNode[] = [];
-  let word: ReactNode[] = [];
-  let boxed = false;
-  const close = () => {
-    if (word.length === 0) return;
-    words.push(
-      boxed ? (
-        <span key={words.length} className="whitespace-nowrap">
-          {word}
-        </span>
-      ) : (
-        word
-      ),
-    );
-    word = [];
-    boxed = false;
-  };
-  parts.forEach((part, at) => {
-    for (const piece of part.split(/(\s+)/)) {
-      if (piece === "") continue;
-      if (/^\s+$/.test(piece)) {
-        close();
-        words.push(piece);
-      } else {
-        word.push(piece);
-      }
-    }
-    if (at < parts.length - 1) {
-      word.push(<Blank key={`box ${String(at)}`} answer="" revealed={false} look="studied" />);
-      boxed = true;
-    }
-  });
-  close();
-  return words;
 }
 
 /**

@@ -13,14 +13,15 @@ import { StudyScreen } from "../components/study-screen";
 import { loadEngine } from "../engine";
 import { type SessionPlan, type StudyCard, StudySession } from "../session";
 import { unknownPace } from "../study-time";
+import { textContent } from "@/testing/content";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
 
 const card = (front: string): StudyCard => ({
   id: uuidOf(front) as CardId,
   deckId: "d1" as DeckId,
-  front: [{ kind: "text", text: front }],
-  back: [{ kind: "text", text: `${front} back` }],
+  front: [textContent(front)],
+  back: [textContent(`${front} back`)],
   createdAt: start - day,
   text: { front, back: `${front} back` },
   frontLength: front.length,

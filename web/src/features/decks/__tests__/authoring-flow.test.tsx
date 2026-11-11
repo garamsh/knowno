@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { delay, http, HttpResponse } from "msw";
 import { addByHand } from "@/testing/add-by-hand";
 import { render } from "@/testing/render";
-import { cardRow, deckRow, side, uuidOf } from "@/testing/library";
+import { cardRow, deckRow, uuidOf } from "@/testing/library";
 import { FakePostgrest } from "@/testing/mocks/postgrest";
 import { server } from "@/testing/mocks/server";
 import { supabaseUrl, testAccessToken } from "@/testing/mocks/handlers";
@@ -1143,10 +1143,15 @@ describe("photo import", () => {
         expect(db.rows.cards).toHaveLength(2);
       });
       await waitFor(() => {
-        expect(db.rows.cards[0]?.back).toEqual([
-          ...side("수도 back"),
-          expect.objectContaining({ type: "text", payload: { text: "서울" } }),
+        expect(db.rows.cards[0]?.front).toEqual([
+          expect.objectContaining({
+            type: "text",
+            v: 3,
+            payload: { front: "수도", back: "수도 back" },
+          }),
+          expect.objectContaining({ type: "text", v: 3, payload: { front: "", back: "서울" } }),
         ]);
+        expect(db.rows.cards[0]?.back).toEqual([]);
       });
       expect(db.rows.cards[0]?.id).toBe(uuidOf("held"));
       // The rows are written before the action answers; the screen closes once it has.
@@ -1182,8 +1187,9 @@ describe("photo import", () => {
       expect(
         await screen.findByRole("heading", { name: "카드 2장을 만들었어요" }),
       ).toBeInTheDocument();
+      // Each line of the joined back is a block of its own, so the lines run together as text.
       expect(screen.getByRole("button", { name: "수도 편집" })).toHaveTextContent(
-        "서울 서울특별시",
+        "수도서울서울특별시",
       );
       expect(screen.getByRole("button", { name: "apple 편집" })).toHaveTextContent(
         "apple[명]사과사과나무배나무",

@@ -19,6 +19,7 @@ import init, { reviewCard, reviewNewCard } from "@/design/engine-wasm/knowno_eng
 import type { CardState } from "../queue";
 import type { StudyCard } from "../session";
 import { unknownPace } from "../study-time";
+import { textContent } from "@/testing/content";
 
 /** A day with no answer stored in it before the session. */
 const noAnswerToday = {
@@ -34,8 +35,8 @@ const iso = (time: number) => new Date(time).toISOString();
 const card: StudyCard = {
   id: uuidOf("c1") as CardId,
   deckId: "d1" as DeckId,
-  front: [{ kind: "text", text: "chat" }],
-  back: [{ kind: "text", text: "cat" }],
+  front: [textContent("chat")],
+  back: [textContent("cat")],
   createdAt: start - day,
   text: { front: "chat", back: "cat" },
   frontLength: 4,

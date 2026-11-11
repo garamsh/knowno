@@ -637,7 +637,7 @@ describe("a deck's page", () => {
         { id: "earlier", front: "chat", back: "고양이" },
         {
           id: "glue",
-          front: [{ type: "text", v: 2, payload: { front: "chien", back: "개" } }],
+          front: [{ type: "text", v: 3, payload: { front: "chien", back: "개" } }],
           back: [],
         },
         {
@@ -648,8 +648,8 @@ describe("a deck's page", () => {
         {
           id: "blank",
           front: [
-            { type: "cloze", v: 1, payload: { text: "___ is red.", answers: ["Rose"] } },
-            { type: "text", v: 2, payload: { front: "", back: "A flower." } },
+            { type: "cloze", v: 2, payload: { text: "{{c1::Rose}} is red." } },
+            { type: "text", v: 3, payload: { front: "", back: "A flower." } },
           ],
           back: [],
         },

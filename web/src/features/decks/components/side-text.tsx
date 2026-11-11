@@ -14,7 +14,7 @@ export function SideText({ blocks, photos = false }: { blocks: Content[]; photos
     <span key={index} className="block">
       {block.kind === "senses" ? (
         <SensesText senses={block.senses} />
-      ) : block.kind === "text" && block.markup ? (
+      ) : block.kind === "text" ? (
         <MarkupText document={block.markup.document} />
       ) : photos && block.kind === "image" ? (
         <PhotoFrame image={block} revealed />

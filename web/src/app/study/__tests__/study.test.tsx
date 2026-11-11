@@ -38,6 +38,8 @@ beforeAll(async () => {
   await loadEngine();
 }, 30_000);
 
+import { inCurrentForms } from "@/testing/frame-fixtures";
+
 vi.mock("next/headers", () => import("@/testing/next-headers"));
 
 const hour = 3_600_000;
@@ -55,10 +57,15 @@ async function open(decks: string, at = start) {
 
 /** The shared cases the phone's `framed_card_test.dart` reads, those with a list of 칸. */
 const placements = (
-  JSON.parse(
-    readFileSync(
-      path.join(import.meta.dirname, "../../../../../supabase/fixtures/card-frame/conversion.json"),
-      "utf8",
+  inCurrentForms(
+    JSON.parse(
+      readFileSync(
+        path.join(
+          import.meta.dirname,
+          "../../../../../supabase/fixtures/card-frame/conversion.json",
+        ),
+        "utf8",
+      ),
     ),
   ) as { name: string; front: unknown[]; back: unknown[]; cells: unknown[] | null }[]
 ).flatMap(({ cells, ...placement }) => (cells ? [{ ...placement, cells }] : []));
@@ -107,7 +114,7 @@ const drawn: Record<string, { whole: boolean; before: string; after: string; pho
   "placement 4: a front holding senses compares with no back, so an equal back is kept": {
     whole: true,
     before: "apple. 빈칸 is red.",
-    after: "appleapple\nRose is red.Rose is red.",
+    after: "appleappleRose is red.Rose is red.",
   },
   "back blank beside a front blank: a cloze shows after the answer as filled text": {
     whole: true,
@@ -117,7 +124,7 @@ const drawn: Record<string, { whole: boolean; before: string; after: string; pho
   "back blank beside a front blank: a table shows after the answer as filled text": {
     whole: true,
     before: "빈칸 is red.",
-    after: "Rose is red.A\na",
+    after: "Rose is red.Aa",
   },
   "back blank beside a front blank: a boxed photo is placed on the back, its answers a 글": {
     whole: true,
@@ -2167,11 +2174,11 @@ describe("the study page", () => {
       postgrest.seed("cards", {
         ...cardRow("d1-0", "d1", "meow"),
         front: [
-          { type: "text", payload: { text: "meow" } },
+          { type: "text", v: 3, payload: { text: "meow" } },
           { type: "audio", v: 1, payload: { media: "m1", duration_ms: 1250 } },
         ],
         back: [
-          { type: "text", payload: { text: "cat" } },
+          { type: "text", v: 3, payload: { text: "cat" } },
           { type: "audio", v: 1, payload: { media: "m2", duration_ms: 3000 } },
         ],
       });
@@ -2305,7 +2312,7 @@ describe("the study page", () => {
       postgrest.seed("cards", {
         ...cardRow("d1-0", "d1", "card"),
         front: side("Fill it"),
-        back: [{ type: "cloze", payload: { text: "___ is red.", answers: ["Rose"] } }],
+        back: [{ type: "cloze", v: 2, payload: { text: "{{c1::Rose}} is red." } }],
       });
       await open("d1");
 
@@ -2342,14 +2349,12 @@ describe("the study page", () => {
   describe("a whole card", () => {
     // Stored as the phone stores them: typed blocks, the back their filled text.
     const cloze = {
-      front: [
-        { type: "cloze", payload: { text: "The capital of France is ___", answers: ["Paris"] } },
-      ],
+      front: [{ type: "cloze", v: 2, payload: { text: "The capital of France is {{c1::Paris}}" } }],
       back: "The capital of France is Paris",
     };
     const table = {
       front: [
-        { type: "text", payload: { text: "Capitals" } },
+        { type: "text", v: 3, payload: { text: "Capitals" } },
         {
           type: "table",
           payload: {
@@ -2439,13 +2444,13 @@ describe("the study page", () => {
       expect(postgrest.rows.card_states).toHaveLength(1);
     });
 
-    it("studies a 글 of version 3 formatted, its back added by the answer, and a version 2 one as written", async () => {
+    it("studies a 글 formatted, its back added by the answer, and an escaped mark as written", async () => {
       postgrest.seed("decks", deckRow("d1", "d1"));
       postgrest.seed("cards", {
         ...cardRow("d1-0", "d1", "markup"),
         front: [
           { type: "text", v: 3, id: "t", payload: { front: "**apple**", back: "- 사과\n- 과일" } },
-          { type: "text", v: 2, id: "u", payload: { front: "*literal*", back: "" } },
+          { type: "text", v: 3, id: "u", payload: { front: "\\*literal\\*", back: "" } },
         ],
         back: [],
         template: "free",
@@ -2453,9 +2458,10 @@ describe("the study page", () => {
       });
       await open("d1");
 
-      const current = screen.getByText("*literal*").parentElement;
-      expect(current?.querySelector("strong")).toHaveTextContent("apple");
-      expect(current?.querySelector("em")).toBeNull();
+      expect(screen.getByText("*literal*")).toBeInTheDocument();
+      const current = screen.getByRole("group", { name: "앞면" });
+      expect(current.querySelector("strong")).toHaveTextContent("apple");
+      expect(current.querySelector("em")).toBeNull();
       expect(current).not.toHaveTextContent("사과");
 
       await answerKnow();
@@ -2465,7 +2471,7 @@ describe("the study page", () => {
       const detail = screen.getByRole("dialog", { name: "카드" });
       expect(detail.querySelector("strong")).toHaveTextContent("apple");
       expect([...detail.querySelectorAll("[data-markup]")].map((line) => line.textContent)).toEqual(
-        ["apple", "• 사과", "• 과일"],
+        ["apple", "*literal*", "• 사과", "• 과일"],
       );
       expect(detail).toHaveTextContent("*literal*");
     });

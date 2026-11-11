@@ -7,6 +7,7 @@ import type { CardId, DeckId } from "@/features/decks";
 import { StudyScreen } from "../components/study-screen";
 import type { SessionPlan, StudyCard } from "../session";
 import { unknownPace } from "../study-time";
+import { textContent } from "@/testing/content";
 
 // The engine's first load fails, as a dropped connection would fail its fetch; a retry loads it.
 const failures = vi.hoisted(() => ({ left: 1 }));
@@ -29,8 +30,8 @@ const start = Date.UTC(2026, 0, 15, 9);
 const card: StudyCard = {
   id: "a" as CardId,
   deckId: "d1" as DeckId,
-  front: [{ kind: "text", text: "a" }],
-  back: [{ kind: "text", text: "a back" }],
+  front: [textContent("a")],
+  back: [textContent("a back")],
   createdAt: start,
   text: { front: "a", back: "a back" },
   frontLength: 1,

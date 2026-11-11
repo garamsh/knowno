@@ -153,21 +153,6 @@ describe("a 글's fields as markup", () => {
       { type: "text", v: 3, payload: { front: "**apple**", back: "- 사과\n- 과일" } },
     ]);
   });
-
-  it("opens a stored version 2 글 as written, with no preview, and stores it as version 3 escaped once edited", async () => {
-    await editing([{ type: "text", v: 2, id: "t", payload: { front: "2*3*4", back: "- a" } }]);
-    const front = screen.getByRole("textbox", { name: "앞면" });
-    expect(front).toHaveValue("2*3*4");
-
-    await userEvent.type(front, "{Backspace}5");
-    await userEvent.click(screen.getByRole("button", { name: "저장" }));
-
-    await waitFor(() => {
-      expect(db.rows.cards[0]?.front).toMatchObject([
-        { type: "text", v: 3, payload: { front: "2\\*3\\*5", back: "\\- a" } },
-      ]);
-    });
-  });
 });
 
 describe("a paste of Markdown", () => {

@@ -6,6 +6,8 @@ import { blanksUnder, hatchedBlanksUnder } from "@/testing/whole-cards";
 import { type Cell, sidesOf } from "../card-content";
 import { CardGrid } from "../components/card-grid";
 import type { Card, CardId, Deck, DeckId } from "../library";
+import { textCell } from "../card-content";
+import { clozeContent } from "@/testing/content";
 
 const deck: Deck = { id: "d" as DeckId, name: "한국사", publication: "private" as const };
 
@@ -33,10 +35,7 @@ const hatched = (element: HTMLElement) =>
 describe("a note's card list row (#629)", () => {
   it("has no 뒷면 보기 switch: every card is shown whole when the page opens", () => {
     render(
-      <CardGrid
-        deck={deck}
-        cards={[card("a", [{ kind: "text", front: "조선의 최고 법전은?", back: "경국대전" }])]}
-      />,
+      <CardGrid deck={deck} cards={[card("a", [textCell("조선의 최고 법전은?", "경국대전")])]} />,
     );
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
     expect(screen.queryByText("뒷면 보기")).not.toBeInTheDocument();
@@ -46,7 +45,7 @@ describe("a note's card list row (#629)", () => {
   });
 
   it("shows a 글's front, then its back in a hatched box", () => {
-    const shown = row([{ kind: "text", front: "조선의 최고 법전은?", back: "경국대전" }]);
+    const shown = row([textCell("조선의 최고 법전은?", "경국대전")]);
     expect(hatched(shown)).toEqual(["경국대전"]);
     expect(shown).toHaveTextContent(/^조선의 최고 법전은\?경국대전$/);
   });
@@ -68,11 +67,7 @@ describe("a note's card list row (#629)", () => {
     const shown = row([
       {
         kind: "blank",
-        block: {
-          kind: "cloze",
-          text: "세종대왕은 ___년에 ___을 창제했다.",
-          answers: ["1443", "훈민정음"],
-        },
+        block: clozeContent("세종대왕은 {{c1::1443}}년에 {{c2::훈민정음}}을 창제했다."),
       },
     ]);
     expect(hatchedBlanksUnder(shown)).toEqual(["1443", "훈민정음"]);
@@ -141,7 +136,7 @@ describe("a note's card list row (#629)", () => {
 
   it("cuts a long card at two lines shown and three on the hatch, wrapping between words", () => {
     const long = Array.from({ length: 60 }, () => "낱말").join(" ");
-    const split = row([{ kind: "text", front: `앞 ${long}`, back: `뒤 ${long}` }]);
+    const split = row([textCell(`앞 ${long}`, `뒤 ${long}`)]);
     const front = within(split).getByText(`앞 ${long}`).closest(".line-clamp-2");
     expect(front).toHaveClass("break-keep");
     const back = within(split).getByText(`뒤 ${long}`).closest(".line-clamp-3");
@@ -152,21 +147,25 @@ describe("a note's card list row (#629)", () => {
   it("cuts a whole card's shown part at two lines and its added part at three", () => {
     const long = Array.from({ length: 60 }, () => "낱말").join(" ");
     const whole = row([
-      { kind: "blank", block: { kind: "cloze", text: `___ ${long}`, answers: ["답"] } },
-      { kind: "text", front: `앞 ${long}`, back: `뒤 ${long}` },
+      { kind: "blank", block: clozeContent(`{{c1::답}} ${long}`) },
+      textCell(`앞 ${long}`, `뒤 ${long}`),
     ]);
-    expect(within(whole).getByText(`앞 ${long}`)).toHaveClass("line-clamp-2", "break-keep");
-    expect(within(whole).getByText(`뒤 ${long}`)).toHaveClass("line-clamp-3", "break-keep");
+    expect(within(whole).getByText(`앞 ${long}`).closest(".line-clamp-2")).toHaveClass(
+      "break-keep",
+    );
+    expect(within(whole).getByText(`뒤 ${long}`).closest(".line-clamp-3")).toHaveClass(
+      "break-keep",
+    );
     expect(whole.querySelector("[data-blank]")?.closest(".line-clamp-2")).not.toBeNull();
   });
 
   it("draws every hatched box's text at the one secondary size, a split card's back and a whole card's part alike (#845)", () => {
-    const split = row([{ kind: "text", front: "앞", back: "뒤" }]);
+    const split = row([textCell("앞", "뒤")]);
     expect(split.querySelector("[data-hatched]")).toHaveClass("text-secondary", "font-normal");
     cleanup();
     const whole = row([
-      { kind: "text", front: "앞", back: "뒤" },
-      { kind: "blank", block: { kind: "cloze", text: "___ 문장", answers: ["답"] } },
+      textCell("앞", "뒤"),
+      { kind: "blank", block: clozeContent("{{c1::답}} 문장") },
     ]);
     const boxes = [...whole.querySelectorAll("[data-hatched]")];
     expect(boxes.length).toBeGreaterThan(0);

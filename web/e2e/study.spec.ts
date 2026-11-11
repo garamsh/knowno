@@ -136,7 +136,7 @@ test("a signed-in user studies two cards, and the server holds their reviews and
   expect((await phone.auth.signInWithPassword({ email, password })).error).toBeNull();
   const deckId = randomUUID();
   const now = new Date().toISOString();
-  const side = (text: string) => [{ type: "text", payload: { text } }];
+  const side = (text: string) => [{ type: "text", v: 3, payload: { text } }];
   // Two new cards, so the second is shown under the first one's answer; the deck is published. No
   // client write publishes a deck, so it is pushed private and published in the database after its cards.
   const backs = new Map([
@@ -519,7 +519,7 @@ test("an answer given just before the browser's back counts on 홈 once back the
   expect((await phone.auth.signInWithPassword({ email, password })).error).toBeNull();
   const deckId = randomUUID();
   const now = new Date().toISOString();
-  const side = (text: string) => [{ type: "text", payload: { text } }];
+  const side = (text: string) => [{ type: "text", v: 3, payload: { text } }];
   expect(
     (
       await phone.from("decks").insert({
@@ -677,8 +677,8 @@ test("each page that waits on the server shows its skeleton, still under reduced
         id: cardId,
         user_id: userId,
         deck_id: deckId,
-        front: [{ type: "text", payload: { text: "chat" } }],
-        back: [{ type: "text", payload: { text: "cat" } }],
+        front: [{ type: "text", v: 3, payload: { text: "chat" } }],
+        back: [{ type: "text", v: 3, payload: { text: "cat" } }],
         card_key: "chat",
         source: "manual",
         created_at: now,
@@ -888,7 +888,7 @@ test("a card of 100, 200 and 400 characters, and one of several senses, are stud
   expect((await phone.auth.signInWithPassword({ email, password })).error).toBeNull();
   const deckId = randomUUID();
   const now = new Date().toISOString();
-  const text = (value: string) => ({ type: "text", payload: { text: value } });
+  const text = (value: string) => ({ type: "text", v: 3, payload: { text: value } });
   const verb = { kind: "part_of_speech", category: "verb", text: "동" };
   const senses = {
     type: "senses",
@@ -1055,8 +1055,8 @@ test.describe("in UTC, where a study day runs from 04:00 to 04:00 UTC", () => {
             id: card.id,
             user_id: userId,
             deck_id: deckId,
-            front: [{ type: "text", payload: { text: `word ${String(index)}` } }],
-            back: [{ type: "text", payload: { text: String(index) } }],
+            front: [{ type: "text", v: 3, payload: { text: `word ${String(index)}` } }],
+            back: [{ type: "text", v: 3, payload: { text: String(index) } }],
             card_key: `word ${String(index)}`,
             source: "manual",
             created_at: iso(now - 90 * day),
@@ -1201,7 +1201,7 @@ test.describe("in UTC, where a study day runs from 04:00 to 04:00 UTC", () => {
     const cardId = randomUUID();
     const now = Date.now();
     const iso = (at: number) => new Date(at).toISOString();
-    const side = (text: string) => [{ type: "text", payload: { text } }];
+    const side = (text: string) => [{ type: "text", v: 3, payload: { text } }];
     expect(
       (
         await phone.from("decks").insert({
@@ -1281,8 +1281,8 @@ test("the shell's menu sits at the side from 1024 px and at the foot below it, a
         id: randomUUID(),
         user_id: userId,
         deck_id: deckId,
-        front: [{ type: "text", payload: { text: "chat" } }],
-        back: [{ type: "text", payload: { text: "cat" } }],
+        front: [{ type: "text", v: 3, payload: { text: "chat" } }],
+        back: [{ type: "text", v: 3, payload: { text: "cat" } }],
         card_key: "chat",
         source: "manual",
         created_at: now,

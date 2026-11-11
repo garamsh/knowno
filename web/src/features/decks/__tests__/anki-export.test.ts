@@ -15,9 +15,9 @@ function card(...cells: unknown[]): Card {
   if (!content) throw new Error("the cells did not parse");
   return { id: "c" as CardId, deckId: "d" as DeckId, createdAt: 0, ...content };
 }
-const text = (front: string, back: string, v = 3) => ({
+const text = (front: string, back: string) => ({
   type: "text",
-  v,
+  v: 3,
   id: "t",
   payload: { front, back },
 });
@@ -51,10 +51,10 @@ describe("a note exported to Anki's plain text", () => {
     expect([basic, clozes]).toEqual([1, 0]);
   });
 
-  it("writes a line break as <br> and a literal 글 as typed, never as markup", () => {
-    const { text: file } = ankiNotes("n", [card(text("*a*\nb", "1. no & <i>", 2))]);
+  it("writes a line break as <br> and escaped markup as the literal text it stands for", () => {
+    const { text: file } = ankiNotes("n", [card(text("\\*a\\*\nb", "\\- no & <i>"))]);
 
-    expect(rows(file)).toEqual([["Basic", "n", "*a*<br>b", "1. no &amp; &lt;i&gt;"]]);
+    expect(rows(file)).toEqual([["Basic", "n", "*a*<br>b", "- no &amp; &lt;i&gt;"]]);
   });
 
   it("writes a cloze as a Cloze note keeping every {{cN::answer::hint}}", () => {
@@ -66,19 +66,6 @@ describe("a note exported to Anki's plain text", () => {
       ["Cloze", "n", "{{c1::Paris::city}} is in {{c2::<b>France</b>}}", ""],
     ]);
     expect(clozes).toBe(1);
-  });
-
-  it("writes a version 1 cloze with its blanks as numbered clozes", () => {
-    const old = {
-      type: "cloze",
-      v: 1,
-      id: "c",
-      payload: { text: "___ is red", answers: ["Rose"] },
-    };
-
-    expect(rows(ankiNotes("n", [card(old)]).text)).toEqual([
-      ["Cloze", "n", "{{c1::Rose}} is red", ""],
-    ]);
   });
 
   it("keeps a literal {{c1:: in a Basic note from reading as a cloze in Anki, and a literal :: from splitting a hint", () => {

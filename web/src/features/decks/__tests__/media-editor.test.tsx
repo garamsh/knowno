@@ -346,7 +346,7 @@ describe("a stored card's 사진 and 소리", () => {
     id: "s",
     payload: { media, duration_ms: 7000, side: "back" },
   });
-  const text = { type: "text", v: 2, id: "f", payload: { front: "dog", back: "개" } };
+  const text = { type: "text", v: 3, id: "f", payload: { front: "dog", back: "개" } };
 
   /** A file the user stored under [name]'s id. */
   function storedFile(name: string, kind: "image" | "audio" = "image") {

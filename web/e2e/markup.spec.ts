@@ -119,7 +119,6 @@ async function seededNote(context: BrowserContext, baseURL: string) {
           "paris is the capital\nof france",
           5,
         ),
-        row([text(2, "m2", "2*3*4 = 24", "- not a list")], "2*3*4 = 24", 4),
         row(
           [
             cloze("m3", {
@@ -136,7 +135,7 @@ async function seededNote(context: BrowserContext, baseURL: string) {
   return { db, deckId };
 }
 
-test("draws a 글 of version 3 and a cloze of version 2 in the note's list and in study, and leaves the old ones as written", async ({
+test("draws a 글 of version 3 and a cloze of version 2 in the note's list and in study", async ({
   page,
   context,
   baseURL,
@@ -157,10 +156,6 @@ test("draws a 글 of version 3 and a cloze of version 2 in the note's list and i
   // a numbered one: six lines.
   await expect(markup.locator("[data-markup]")).toHaveCount(6);
   await expect(markup.locator("br")).toHaveCount(1);
-  // A version 2 글 stays as it was written, its asterisks and its hyphen.
-  const literal = list.getByRole("button", { name: /^2\*3\*4 = 24/ });
-  await expect(literal.locator("em")).toHaveCount(0);
-  await expect(literal).toContainText("- not a list");
   // A cloze of version 2 shows its spans filled on the hatch, a cloze of none as a placeholder.
   const anki = list.getByRole("button", { name: /^빈칸 is the capital of 빈칸/ });
   await expect(anki.locator('[data-blank="marked"]')).toHaveText(["Paris", "France", "2 million"]);
@@ -184,7 +179,7 @@ test("draws a 글 of version 3 and a cloze of version 2 in the note's list and i
   expect(seen.size).toBeGreaterThan(1);
 });
 
-test("writes Markdown as version 3 and Anki's cloze as version 2, keeps an old 글 until it is edited, and turns a pasted table into a 표", async ({
+test("writes Markdown as version 3 and Anki's cloze as version 2, and turns a pasted table into a 표", async ({
   page,
   context,
   baseURL,
@@ -269,34 +264,4 @@ test("writes Markdown as version 3 and Anki's cloze as version 2, keeps an old �
     back: "`2 + 2` is 4",
   });
   expect(front0[2]?.payload).toEqual({ text: "{{c1::Tokyo}} is the capital of {{c2::Japan}}" });
-
-  // An old 글 opens as written, is stored as it was while unchanged, and as version 3 once edited
-  // with its text through the escape, so the asterisks stay asterisks.
-  const list = page.getByRole("region", { name: "카드" });
-  await list.getByRole("button", { name: /^2\*3\*4 = 24/ }).click();
-  const editor = page.getByRole("dialog", { name: "카드 편집" });
-  const old = editor.getByRole("textbox", { name: "앞면", exact: true });
-  await expect(old).toHaveValue("2*3*4 = 24");
-  await expect(editor.getByRole("group", { name: "미리 보기" })).toHaveCount(0);
-  await editor.getByRole("button", { name: "저장", exact: true }).click();
-  await expect(editor).toBeHidden();
-  const unchanged = await db
-    .from("cards")
-    .select("front")
-    .eq("deck_id", deckId)
-    .eq("card_key", "2*3*4 = 24");
-  expect((unchanged.data?.[0]?.front as { v: number }[])[0]?.v).toBe(2);
-  await list.getByRole("button", { name: /^2\*3\*4 = 24/ }).click();
-  await editor.getByRole("textbox", { name: "앞면", exact: true }).fill("2*3*4 = 24!");
-  await editor.getByRole("button", { name: "저장", exact: true }).click();
-  await expect(editor).toBeHidden();
-  const edited = await db
-    .from("cards")
-    .select("front")
-    .eq("deck_id", deckId)
-    .like("card_key", "2*3*4 = 24!%");
-  expect(edited.data?.[0]?.front).toMatchObject([
-    { type: "text", v: 3, payload: { front: "2\\*3\\*4 = 24!", back: "\\- not a list" } },
-  ]);
-  await expect(list.getByRole("button", { name: /^2\*3\*4 = 24!/ }).locator("em")).toHaveCount(0);
 });

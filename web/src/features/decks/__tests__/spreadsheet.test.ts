@@ -10,6 +10,7 @@ import {
   type Spreadsheet,
 } from "../spreadsheet";
 import { cardsOfRows, cellLimit, headerByDefault } from "../spreadsheet-cards";
+import { textContent } from "@/testing/content";
 
 const fileOf = (bytes: Uint8Array<ArrayBuffer> | string, name: string) =>
   new File([typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes], name);
@@ -211,8 +212,8 @@ describe("the header toggle's default", () => {
       ids,
     );
     expect(result.cards.map((card) => [card.row, cellsOf(card).front])).toEqual([
-      [1, [{ kind: "text", text: "apple" }]],
-      [2, [{ kind: "text", text: "banana" }]],
+      [1, [textContent("apple")]],
+      [2, [textContent("banana")]],
     ]);
   });
 
@@ -239,8 +240,8 @@ describe("rows into cards", () => {
     const rows = await csv("메모,뜻,단어\n외우기,사과,apple\n,바나나,banana");
     const result = cardsOfRows(rows, { front: 2, back: 1, label: null, example: null }, true, ids);
     expect(result.cards.map((card) => [card.row, front(card), back(card)])).toEqual([
-      [2, [{ kind: "text", text: "apple" }], [{ kind: "text", text: "사과" }]],
-      [3, [{ kind: "text", text: "banana" }], [{ kind: "text", text: "바나나" }]],
+      [2, [textContent("apple")], [textContent("사과")]],
+      [3, [textContent("banana")], [textContent("바나나")]],
     ]);
     expect(result.cards.map((card) => card.id)).toEqual([ids(2), ids(3)]);
     expect(

@@ -32,16 +32,23 @@ import {
 import { parseCardContent, parseCells } from "../card-content";
 import { addCard, editCard } from "../save-cards";
 import { storeCardMedia } from "../store-card-media";
+import { textCell } from "../card-content";
+import { inCurrentForms } from "@/testing/frame-fixtures";
 
 vi.mock("next/headers", () => import("@/testing/next-headers"));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.spyOn(console, "error").mockImplementation(() => undefined);
 
 const conversions = (
-  JSON.parse(
-    readFileSync(
-      path.join(import.meta.dirname, "../../../../../supabase/fixtures/card-frame/conversion.json"),
-      "utf8",
+  inCurrentForms(
+    JSON.parse(
+      readFileSync(
+        path.join(
+          import.meta.dirname,
+          "../../../../../supabase/fixtures/card-frame/conversion.json",
+        ),
+        "utf8",
+      ),
     ),
   ) as { name: string; front: unknown; back: unknown; cells: unknown }[]
 ).filter(({ cells }) => cells !== null);
@@ -68,7 +75,7 @@ const written = (cells: unknown): WrittenCell[] => {
 
 const glue = (front: string, back: string, id = "b1") => ({
   type: "text",
-  v: 2,
+  v: 3,
   id,
   payload: { front, back },
 });
@@ -133,7 +140,7 @@ describe("encodeCells", () => {
           ],
         },
       },
-      { type: "cloze", v: 1, id: "c", payload: { text: "___", answers: ["x"] } },
+      { type: "cloze", v: 2, id: "c", payload: { text: "{{c1::x}}" } },
       {
         type: "table",
         v: 2,
@@ -177,7 +184,7 @@ describe("encodeCells", () => {
           ],
         },
       },
-      { type: "cloze", v: 1, id: "c", payload: { text: "___", answers: ["x"] } },
+      { type: "cloze", v: 2, id: "c", payload: { text: "{{c1::x}}" } },
       {
         type: "table",
         v: 2,
@@ -201,13 +208,7 @@ describe("encodeCells", () => {
   });
 
   it("gives a 칸 of no id one, and keeps one it holds", () => {
-    const blocks = encodeCells(
-      [
-        { kind: "text", front: "a", back: "" },
-        { kind: "text", front: "b", back: "", id: "kept" },
-      ],
-      () => "made",
-    );
+    const blocks = encodeCells([textCell("a", ""), textCell("b", "", "kept")], () => "made");
     expect(blocks.map(({ id }) => id)).toEqual(["made", "kept"]);
   });
 
@@ -312,7 +313,7 @@ describe("addCard", () => {
     expect(db.rows.cards).toHaveLength(0);
     // Control: both parts, then a blank alone, which counts for both.
     expect(await addCard(uuidOf("deck"), draftOf("c", glue("a", "b")))).toEqual({ saved: true });
-    const cloze = { type: "cloze", v: 1, id: "c", payload: { text: "___", answers: ["x"] } };
+    const cloze = { type: "cloze", v: 2, id: "c", payload: { text: "{{c1::x}}" } };
     expect(await addCard(uuidOf("deck"), draftOf("d", cloze))).toEqual({ saved: true });
   });
 
@@ -663,46 +664,15 @@ describe("editCard", () => {
 });
 
 describe("the editor's drafts", () => {
-  const cloze = (line: string, blanks: { start: number; end: number }[]): CellDraft => ({
-    kind: "cloze",
-    id: emptyCell("text").id,
-    line,
-    blanks,
-  });
-  const onlyMessage = (draft: CellDraft) => builtCells([draft]);
-
   it("does not save a 글 left empty, which keeps nothing from saving", () => {
     const empty = emptyCell("text");
-    const full: CellDraft = { kind: "text", id: "g", front: "a", back: "b", markup: true };
+    const full: CellDraft = { kind: "text", id: "g", front: "a", back: "b" };
     expect(builtCells([empty, full]).cells).toHaveLength(1);
     // Control: alone, the card has nothing to show.
     expect(builtCells([empty])).toEqual({
       cells: null,
       message: "앞면에 보일 내용을 하나 이상 넣어 주세요",
     });
-  });
-
-  it("opens a stored cloze with its blanks in place and saves it unchanged", () => {
-    const block = { kind: "cloze" as const, text: "___ is ___.", answers: ["Rose", "red"] };
-    const draft = cellDraft({ kind: "blank", block: { ...block, id: "c" } });
-    expect(draft).toMatchObject({
-      line: "Rose is red.",
-      blanks: [
-        { start: 0, end: 4 },
-        { start: 8, end: 11 },
-      ],
-    });
-    expect(builtCells([draft]).cells).toEqual([{ kind: "blank", block: { ...block, id: "c" } }]);
-  });
-
-  it("asks for a blank, and refuses underscores that read as one, against a line that saves", () => {
-    expect(onlyMessage(cloze("no blank", [])).cells).toBeNull();
-    expect(onlyMessage(cloze("a ___ b", [{ start: 0, end: 1 }])).cells).toBeNull();
-    expect(onlyMessage(cloze("a b", [{ start: 0, end: 1 }])).cells).not.toBeNull();
-  });
-
-  it("drops a blank of whitespace rather than storing an empty answer", () => {
-    expect(onlyMessage(cloze("a b", [{ start: 1, end: 2 }])).cells).toBeNull();
   });
 
   it("keeps a label as stored until its field changes", () => {
@@ -852,7 +822,7 @@ describe("frameKey", () => {
     expect(
       frameKey(
         written([
-          { type: "cloze", v: 1, payload: { text: "___ is", answers: ["Rose"] } },
+          { type: "cloze", v: 2, payload: { text: "{{c1::Rose}} is" } },
           glue("  RED ", "back"),
           {
             type: "senses",
