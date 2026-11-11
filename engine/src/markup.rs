@@ -208,7 +208,8 @@ impl Document {
     }
 }
 
-/// A version 1 cloze block, its text with `___` for each blank and its answers in order, as a
+/// `text` written as markup that reads back as exactly that text, with `\r\n` and `\r` as `\n`:
+/// each character the syntax gives meaning to is preceded by a backslash, and so is a line's
 /// first `-` or digit run followed by `.`. The parsed result holds no mark, list or cloze.
 pub fn escape_literal(text: &str) -> String {
     escape(&normalize_newlines(text), true)
