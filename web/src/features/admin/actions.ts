@@ -29,7 +29,6 @@ export { setAssistantTokenBudget, type BudgetFormState } from "./set-assistant-t
 export { activateCardFormSkill } from "./activate-card-form-skill";
 export { clearCardFormSkillTest } from "./clear-card-form-skill-test";
 export { saveCardFormSkill, type SaveSkillState } from "./save-card-form-skill";
-export { setCardMarkup } from "./set-card-markup";
 export { allowDeck } from "./allow-deck";
 export { keepDeckHidden } from "./keep-deck-hidden";
 export { addScreeningTerm, importScreeningWords, removeScreeningTerm } from "./screening-terms";

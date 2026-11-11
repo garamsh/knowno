@@ -1217,6 +1217,20 @@ describe("the audit log", () => {
     ]);
   });
 
+  it("still names the card markup switch entries the database keeps as history", async () => {
+    admin.audit.push({
+      id: 1,
+      created_at: "2026-11-09T11:00:00Z",
+      admin_email: testUser.email,
+      action: "set_card_markup",
+      target_kind: "switch",
+      target_id: "card_markup",
+      detail: { enabled: true, enabled_before: false },
+    });
+    await render(AdminsContent, {});
+    expect(auditEntries()).toEqual(["카드 마크업 스위치 · 카드 마크업 · 켜기"]);
+  });
+
   it("is refused to a user who is not an admin", async () => {
     await signIn(otherUser);
     await render(AdminsContent, {});
