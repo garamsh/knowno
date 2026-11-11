@@ -519,30 +519,6 @@ export function escapeLiteral(text: string): string {
 }
 
 /**
- * A version 1 cloze block as a text of this syntax: blank k becomes `{{ck::answer_k}}`, the text and
- * the answers through [escapeLiteral]'s rule. Null when the blanks and answers differ in number, or
- * an answer is empty or has a line of only whitespace.
- */
-export function clozeFromV1(
-  text: string,
-  answers: readonly string[],
-): string | null {
-  const parts = normalizeNewlines(text).split("___");
-  if (parts.length !== answers.length + 1) return null;
-  let source = "";
-  for (const [index, part] of parts.entries()) {
-    source += escape(part, index === 0);
-    const answer = answers[index];
-    if (answer !== undefined) {
-      const normal = normalizeNewlines(answer);
-      if (normal.split("\n").some(isBlank)) return null;
-      source += `{{c${index + 1}::${escape(normal, false)}}}`;
-    }
-  }
-  return source;
-}
-
-/**
  * How many `{{cN::` openers [text] has that no cloze of its parsed document accounts for: a cloze
  * with no answer, one not closed, or one inside another. Openers escaped or in code do not count.
  */
