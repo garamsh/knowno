@@ -90,6 +90,45 @@ void main() {
   );
 
   testWidgets(
+    'is met on 홈 alone: no character or hint on the 노트 tab, a note or 기록',
+    (tester) async {
+      final home = await openHome(
+        tester,
+        decks: ['Alpha'],
+        client: FakeAssistantClient(),
+        semantics: true,
+      );
+      final entry = find.bySemanticsLabel('Chat with Malangi');
+      // Control: 홈 has it, so the check can fail.
+      expect(entry, findsOneWidget);
+      Future<void> tab(String name) async {
+        await tester.tap(
+          find.descendant(
+            of: find.bySemanticsLabel(RegExp(r'^(Tabs|탭)$')),
+            matching: shownText(name),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await tab('Notes');
+      expect(entry, findsNothing);
+      expect(shownText('Tap Malangi to chat any time'), findsNothing);
+      expect(shownText('New note'), findsOneWidget, reason: 'as with none');
+      await tester.tap(shownText('Alpha'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DeckScreen), findsOneWidget);
+      expect(entry, findsNothing);
+      expect(shownText('Add card'), findsOneWidget, reason: 'as with none');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tab('Record');
+      expect(entry, findsNothing);
+      await home.close();
+    },
+  );
+
+  testWidgets(
     'shows no bubble before a proposal, once its cards are added, or for changes',
     (tester) async {
       Future<void> opened(Map<String, Object> stored) async {

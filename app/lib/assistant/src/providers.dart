@@ -43,46 +43,42 @@ final assistantReadyCardsProvider = Provider<int>((ref) {
 /// photo button. The composition site overrides it.
 final assistantPhotoSourceProvider = Provider<PhotoSource?>((ref) => null);
 
-/// The edge the character rests at.
-enum EdgeSide { left, right }
-
-/// Which edge the character rests at on this device, the right until the
-/// user drags it to the left.
-final assistantEdgeSideProvider = NotifierProvider<EdgeSideNotifier, EdgeSide>(
-  EdgeSideNotifier.new,
+/// The clock 홈's chat bubble reads the local day from; a test sets it.
+final assistantClockProvider = Provider<DateTime Function()>(
+  (ref) => DateTime.now,
 );
 
-class EdgeSideNotifier extends Notifier<EdgeSide> {
-  @override
-  EdgeSide build() =>
-      ref.watch(assistantStorageProvider).getString(edgeSideKey) == 'left'
-      ? EdgeSide.left
-      : EdgeSide.right;
+/// Whether 홈's chat bubble may show today: at most once per local day, kept
+/// on this device and not synced.
+final assistantInviteProvider = Provider<ChatInvite>((ref) {
+  if (ref.watch(assistantClientProvider) == null) return const ChatInvite.off();
+  return ChatInvite._(
+    ref.watch(assistantStorageProvider),
+    ref.watch(assistantClockProvider),
+  );
+});
 
-  void rest(EdgeSide side) {
-    state = side;
-    unawaited(
-      ref.read(assistantStorageProvider).setString(edgeSideKey, side.name),
-    );
+class ChatInvite {
+  const ChatInvite._(this._storage, this._clock);
+
+  /// With no assistant: never due.
+  const ChatInvite.off() : _storage = null, _clock = null;
+
+  final SharedPreferencesWithCache? _storage;
+  final DateTime Function()? _clock;
+
+  String get _today {
+    final now = _clock!();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${now.year}-${two(now.month)}-${two(now.day)}';
   }
-}
 
-/// Whether the one-time hint beside the character has shown and gone, on
-/// this device.
-final assistantHintShownProvider = NotifierProvider<HintShownNotifier, bool>(
-  HintShownNotifier.new,
-);
+  /// Whether the bubble has not shown on today's date.
+  bool due() => _storage != null && _storage.getString(inviteDayKey) != _today;
 
-class HintShownNotifier extends Notifier<bool> {
-  @override
-  bool build() =>
-      ref.watch(assistantStorageProvider).getBool(edgeHintShownKey) ?? false;
-
-  void dismiss() {
-    if (state) return;
-    state = true;
-    unawaited(
-      ref.read(assistantStorageProvider).setBool(edgeHintShownKey, true),
-    );
+  /// Records that the bubble showed today.
+  void spend() {
+    if (_storage == null) return;
+    unawaited(_storage.setString(inviteDayKey, _today));
   }
 }

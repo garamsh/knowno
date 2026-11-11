@@ -1946,6 +1946,15 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String get assistantInviteCards => '오늘 배운 거, 같이 카드로 만들까요?';
+
+  @override
+  String get assistantInviteDone => '수고했어요. 얘기 좀 할래요?';
+
+  @override
+  String get assistantInvite => '말랑이와 대화해요';
+
+  @override
   String get assistantName => '말랑이';
 
   @override
@@ -2104,23 +2113,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get assistantNoteNotSynced => '노트를 아직 불러오지 못했어요. 잠시 후 다시 눌러 주세요.';
 
   @override
-  String assistantReadyShort(int count) {
-    return '$count장 만들어 뒀어요';
-  }
-
-  @override
-  String get assistantHint => '말랑이를 누르면 언제든 대화할 수 있어요';
-
-  @override
-  String get assistantHintClose => '안내 닫기';
-
-  @override
   String assistantFromNote(String name) {
     return '$name 노트에서';
   }
-
-  @override
-  String get assistantAddByHand => '직접 추가';
 
   @override
   String get assistantPhotoAttach => '사진 첨부';

@@ -172,8 +172,9 @@ final class UserTurn extends Turn {
   final bool auto;
 }
 
-/// Where the chat was opened from: the note [deckId] named [text], shown
-/// in the thread and sent with each message as its context, never as a turn.
+/// A line of a stored thread naming the note [deckId] [text], from when a
+/// chat opened from a note (ADR 0248 ended that). Shown in the thread, never
+/// sent as a turn.
 final class ContextTurn extends Turn {
   const ContextTurn({
     required super.id,

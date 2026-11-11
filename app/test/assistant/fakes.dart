@@ -52,9 +52,6 @@ final class FakeAssistantClient implements AssistantClient {
   final List<Script> scripts;
   final sent = <List<Map<String, Object?>>>[];
 
-  /// The note id each message was sent with, null for none.
-  final contexts = <String?>[];
-
   /// The photos uploaded, by id, and whether an upload is kept.
   final uploaded = <String, Uint8List>{};
   var uploadsWork = true;
@@ -85,11 +82,9 @@ final class FakeAssistantClient implements AssistantClient {
   @override
   Future<SendOutcome> send(
     List<Map<String, Object?>> messages, {
-    String? deckId,
     required Future<void> abort,
   }) async {
     sent.add(messages);
-    contexts.add(deckId);
     return scripts.removeAt(0)(abort);
   }
 
@@ -185,7 +180,6 @@ Future<ProviderContainer> pumpChat(
   SharedPreferencesWithCache storage, {
   ThemeMode themeMode = ThemeMode.light,
   double textScale = 1,
-  ChatNote? note,
   PhotoSource? photoSource,
 }) async {
   opened.clear();
@@ -217,7 +211,6 @@ Future<ProviderContainer> pumpChat(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => AssistantChatScreen(
-                  note: note,
                   openNote: (context, deckId) async {
                     opened.add(deckId);
                     await Navigator.of(context).push(

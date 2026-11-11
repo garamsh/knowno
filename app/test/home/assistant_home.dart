@@ -12,12 +12,14 @@ import 'package:knowno/design/theme_choice.dart';
 import 'package:knowno/home/src/home_screen.dart';
 import 'package:knowno/l10n/app_localizations.dart';
 import 'package:knowno/photo_import/photo_import.dart' show PhotoSource;
+import 'package:knowno/study/study.dart';
 import 'package:knowno/sync/sync.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../assistant/fakes.dart';
 import '../photo_import/fakes.dart' show openPreferences;
 import '../study/study_storage.dart';
+import 'hero_states.dart';
 import 'home_data.dart';
 
 /// A sync that only counts its runs.
@@ -45,7 +47,7 @@ final class OpenedHome {
   final CountingSync sync;
   final DeckId? firstDeck;
 
-  /// The device storage the assistant keeps its chat, edge and hint in.
+  /// The device storage the assistant keeps its chat and bubble day in.
   final SharedPreferencesWithCache storage;
   final WidgetTester _tester;
   final SemanticsHandle? _semantics;
@@ -59,7 +61,8 @@ final class OpenedHome {
   }
 }
 
-/// 홈 over a database holding [decks] and, with [client], the assistant over
+/// 홈 over a database holding [decks], or the cards of a `hero_states.dart`
+/// state named [heroState], and, with [client], the assistant over
 /// [stored] chat; the first note's id is the first deck's.
 Future<OpenedHome> openHome(
   WidgetTester tester, {
@@ -72,6 +75,9 @@ Future<OpenedHome> openHome(
   bool semantics = false,
   int cardsPerDeck = 0,
   PhotoSource? photoSource,
+  DateTime Function()? clock,
+  bool reduceMotion = false,
+  String? heroState,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -91,9 +97,9 @@ Future<OpenedHome> openHome(
     clock: () => DateTime.utc(2026, 10, 15),
     newId: () => 'deck${ids++}',
   );
-  final created = (await tester.runAsync(
-    () async => [
-      for (final name in decks)
+  final created = (await tester.runAsync(() async {
+    final ids = [
+      for (final name in heroState == null ? decks : heroNotesOf(heroState))
         await () async {
           final deck = await repository.createDeck(name);
           for (var i = 0; i < cardsPerDeck; i++) {
@@ -105,8 +111,18 @@ Future<OpenedHome> openHome(
           }
           return deck.id;
         }(),
-    ],
-  ))!;
+    ];
+    if (heroState != null) {
+      final minutes = await heroStates[heroState]!.$2(db, repository, ids);
+      if (minutes != null) {
+        await StudyRepository(
+          db,
+          newId: () => 'setting',
+        ).setDailyMinutes(minutes, at: homeNow);
+      }
+    }
+    return ids;
+  }))!;
   final storage = await openStudyStorage(tester);
   final assistantStorage = await openAssistantStorage(tester, stored);
   final themePreferences = await openPreferences(tester);
@@ -123,6 +139,7 @@ Future<OpenedHome> openHome(
         assistantClientProvider.overrideWithValue(client),
         assistantStorageProvider.overrideWithValue(assistantStorage),
         assistantPhotoSourceProvider.overrideWithValue(photoSource),
+        if (clock != null) assistantClockProvider.overrideWithValue(clock),
       ],
       child: MaterialApp(
         theme: lightTheme,
@@ -132,11 +149,15 @@ Future<OpenedHome> openHome(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         // A scale of 1 leaves the platform's, which a screenshot sets.
-        builder: (context, child) => textScale == 1
+        builder: (context, child) => textScale == 1 && !reduceMotion
             ? child!
             : MediaQuery(
-                data: MediaQuery.of(context)
-                    .copyWith(textScaler: TextScaler.linear(textScale)),
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: textScale == 1
+                      ? null
+                      : TextScaler.linear(textScale),
+                  disableAnimations: reduceMotion,
+                ),
                 child: child!,
               ),
         home: const HomeScreen(),

@@ -35,12 +35,9 @@ typedef OpenNote = Future<void> Function(BuildContext context, String deckId);
 /// field. A note it added opens through [openNote] over the chat, so back
 /// returns to the same turns, scroll and draft.
 class AssistantChatScreen extends ConsumerStatefulWidget {
-  const AssistantChatScreen({super.key, required this.openNote, this.note});
+  const AssistantChatScreen({super.key, required this.openNote});
 
   final OpenNote openNote;
-
-  /// The note the chat was opened from, which its messages are tied to.
-  final ChatNote? note;
 
   @override
   ConsumerState<AssistantChatScreen> createState() =>
@@ -56,10 +53,6 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
   @override
   void initState() {
     super.initState();
-    // A provider is not changed while the tree builds.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _chat.enter(widget.note);
-    });
     unawaited(_chat.refreshAllowance());
   }
 

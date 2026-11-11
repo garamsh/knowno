@@ -428,38 +428,17 @@ void main() {
     });
   });
 
-  group('context', () {
-    const note = (id: 'deck-1', name: '영단어');
+  group('a stored note line', () {
+    // A thread stored before ADR 0248 holds the line a chat opened from a
+    // note wrote.
+    final stored = Conversation(
+      turns: const [
+        ContextTurn(id: 'c1', deckId: 'deck-1', text: '영단어'),
+        UserTurn(id: 'u1', text: '단어 더 만들어 줘'),
+      ],
+    ).encode();
 
-    testWidgets(
-      'names the note the chat was opened from, and sends it with each message',
-      (tester) async {
-        final client = FakeAssistantClient(
-          scripts: [
-            reply([const TextDelta('네')]),
-          ],
-        );
-        await pumpChat(
-          tester,
-          client,
-          await openAssistantStorage(tester),
-          note: note,
-        );
-        expect(_text('From the note 영단어'), findsOneWidget);
-        expect(
-          _text('What shall we memorise?'),
-          findsOneWidget,
-          reason: 'the marker is not a message',
-        );
-        await _send(tester, '카드 더 만들어 줘');
-        expect(client.contexts, ['deck-1']);
-        expect(client.sent.single, [
-          {'role': 'user', 'text': '카드 더 만들어 줘'},
-        ], reason: 'the marker is not sent as a turn');
-      },
-    );
-
-    testWidgets('sends no context from a chat opened from nowhere', (
+    testWidgets('still loads and draws, and is sent as no turn', (
       tester,
     ) async {
       final client = FakeAssistantClient(
@@ -467,30 +446,27 @@ void main() {
           reply([const TextDelta('네')]),
         ],
       );
-      await pumpChat(tester, client, await openAssistantStorage(tester));
-      expect(shownTextContaining('From the note'), findsNothing);
-      await _send(tester, '안녕');
-      expect(client.contexts, [null]);
+      await pumpChat(
+        tester,
+        client,
+        await openAssistantStorage(tester, {'assistant.conversation': stored}),
+      );
+      expect(_text('From the note 영단어'), findsOneWidget);
+      await _send(tester, '고마워');
+      expect(client.sent.single.map((turn) => turn['text']), [
+        '단어 더 만들어 줘',
+        '고마워',
+      ], reason: 'the line is not sent as a turn');
     });
 
-    testWidgets('names a note once for each opening, not twice in a row', (
-      tester,
-    ) async {
-      final storage = await openAssistantStorage(tester);
-      Future<void> open(ChatNote? from) async {
-        await tester.pumpWidget(const SizedBox());
-        await pumpChat(tester, FakeAssistantClient(), storage, note: from);
-      }
-
-      await open(note);
-      await open(note);
-      expect(_text('From the note 영단어'), findsOneWidget, reason: 'same note');
-      await open((id: 'deck-2', name: '일본어'));
-      expect(_text('From the note 영단어'), findsOneWidget);
-      expect(_text('From the note 일본어'), findsOneWidget);
-      await open(null);
-      await open(note);
-      expect(_text('From the note 영단어'), findsNWidgets(2));
+    testWidgets('is not added by opening the chat', (tester) async {
+      await pumpChat(
+        tester,
+        FakeAssistantClient(),
+        await openAssistantStorage(tester),
+      );
+      // Control: the stored line above is drawn; a fresh thread has none.
+      expect(shownTextContaining('From the note'), findsNothing);
     });
   });
 }

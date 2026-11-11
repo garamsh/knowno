@@ -20,7 +20,7 @@ One term per concept, in every string on the phone and the web (#446) ([ADR 0118
 |---|---|---|
 | A deck | 노트 | 덱 |
 | The entry that makes a deck | 새 노트 만들기 | 노트 만들기 |
-| Writing by hand, a deck's name or a card | 직접 입력; as a menu item that adds by hand, 직접 추가 (#711) | 직접 만들기 |
+| Writing by hand, a deck's name or a card | 직접 입력; as a menu item that adds by hand, 직접 추가 (#711; the web's until #925, the phone's gone with ADR 0248) | 직접 만들기 |
 | The new card editor's title | 새 카드 | 카드 추가, as a title |
 | Editing | 편집 | 고치기 |
 | Removing something stored | 삭제, the card editor's "소리 삭제" and "사진 삭제" among them | 지우기 |

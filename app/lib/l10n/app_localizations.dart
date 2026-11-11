@@ -3312,6 +3312,24 @@ abstract class AppLocalizations {
   /// **'카드 {count}장 만들어 뒀어요'**
   String assistantReady(int count);
 
+  /// 홈's chat bubble once a day while cards are left to study.
+  ///
+  /// In ko, this message translates to:
+  /// **'오늘 배운 거, 같이 카드로 만들까요?'**
+  String get assistantInviteCards;
+
+  /// 홈's chat bubble once a day when the day's cards are done.
+  ///
+  /// In ko, this message translates to:
+  /// **'수고했어요. 얘기 좀 할래요?'**
+  String get assistantInviteDone;
+
+  /// 홈's chat bubble once a day in any other state.
+  ///
+  /// In ko, this message translates to:
+  /// **'말랑이와 대화해요'**
+  String get assistantInvite;
+
   /// The chat's title, beside the mascot.
   ///
   /// In ko, this message translates to:
@@ -3588,35 +3606,11 @@ abstract class AppLocalizations {
   /// **'노트를 아직 불러오지 못했어요. 잠시 후 다시 눌러 주세요.'**
   String get assistantNoteNotSynced;
 
-  /// The short bubble beside the edge character while 말랑이 has new cards ready.
-  ///
-  /// In ko, this message translates to:
-  /// **'{count}장 만들어 뒀어요'**
-  String assistantReadyShort(int count);
-
-  /// The one-time hint beside the edge character once a first note exists.
-  ///
-  /// In ko, this message translates to:
-  /// **'말랑이를 누르면 언제든 대화할 수 있어요'**
-  String get assistantHint;
-
-  /// Screen reader name of the hint's close button.
-  ///
-  /// In ko, this message translates to:
-  /// **'안내 닫기'**
-  String get assistantHintClose;
-
   /// The thread's line naming the note the chat was opened from.
   ///
   /// In ko, this message translates to:
   /// **'{name} 노트에서'**
   String assistantFromNote(String name);
-
-  /// The ⋯ item that adds a card by hand on a note, or makes a note by hand on the 노트 tab.
-  ///
-  /// In ko, this message translates to:
-  /// **'직접 추가'**
-  String get assistantAddByHand;
 
   /// The photo button beside the message field.
   ///
