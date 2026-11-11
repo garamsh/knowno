@@ -16,8 +16,7 @@ mod markup;
 mod today;
 
 pub use markup::{
-    Block, Cloze, Document, Inline, List, ListItem, SubList, cloze_from_v1, escape_literal,
-    parse_markup,
+    Block, Cloze, Document, Inline, List, ListItem, SubList, escape_literal, parse_markup,
 };
 pub use today::{StudyDay, Today, today};
 

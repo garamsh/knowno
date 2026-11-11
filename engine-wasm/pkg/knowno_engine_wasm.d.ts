@@ -126,13 +126,6 @@ export type EngineError = { kind: "reviewBeforeLastReview"; lastReview: bigint; 
 
 
 /**
- * A version 1 cloze block as a text of this syntax, blank k as `{{ck::answer_k}}`, the text
- * and answers escaped; absent when the blanks and answers differ in number or an answer is
- * empty or has a line of only whitespace, and the block stays version 1.
- */
-export function clozeFromV1(text: string, answers: string[]): string | undefined;
-
-/**
  * The cloze numbers a card text holds, ascending, each once.
  */
 export function clozeNumbers(text: string): Uint32Array;
@@ -197,7 +190,6 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly clozeFromV1: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly clozeNumbers: (a: number, b: number, c: number) => void;
     readonly escapeLiteral: (a: number, b: number, c: number) => void;
     readonly fillCloze: (a: number, b: number, c: number) => void;
