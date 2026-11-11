@@ -23,7 +23,7 @@ The `media` domain: the user's images and sounds, kept on the device and in the 
 - A stored file is named by a media id, a UUID v7 from the composition site's generator; a deck holds that id, never a URL ([ADR 0107](adr/0107-store-media-in-a-private-supabase-storage-bucket-named-by-media-id-and-give-each-deck-an-image.md)).
 - `DeviceImagePick` takes one photo from the camera or the album through `image_picker`, at most 2048 px a side, and prepares it on a background isolate in the `ImageShape` its caller asks for: its EXIF orientation applied, then, for `square`, the default and a deck's tile's, cropped to its centred square, or, for `whole`, a card's photo's, kept whole at its aspect ratio; scaled to at most 1024 px on its longer side and encoded as JPEG at quality 85, with its SHA-256 and its width and height in pixels. A refused camera or library, or bytes no decoder reads, is `MediaUnreadable`.
 - A whole image keeps its aspect ratio through the scale, so a box stored in fractions of it covers the same pixels at the size it was drawn on and the size it is stored at ([ADR 0109](adr/0109-store-an-image-block-s-boxes-in-fractions-of-the-image-and-draw-them-with-the-image-s-one-transform.md)).
-- The server's ceiling is 10 MiB a file, for an image or a sound (`server.md` §Media storage); it is a ceiling, not the target, and the resize above, not the ceiling, sets a prepared image's size, far below it ([ADR 0107](adr/0107-store-media-in-a-private-supabase-storage-bucket-named-by-media-id-and-give-each-deck-an-image.md)).
+- The server's ceiling is 10 MiB a file, for an image or a sound (`server-schema.md` §Media storage); it is a ceiling, not the target, and the resize above, not the ceiling, sets a prepared image's size, far below it ([ADR 0107](adr/0107-store-media-in-a-private-supabase-storage-bucket-named-by-media-id-and-give-each-deck-an-image.md)).
 
 ### Sounds
 
@@ -49,10 +49,10 @@ The `media` domain: the user's images and sounds, kept on the device and in the 
 
 ### Server
 
-- `SupabaseMediaServer` acts as the signed-in user, whose id is the folder of each file, `{owner}/{media id}` ([`server.md`](server.md) §Media storage):
+- `SupabaseMediaServer` acts as the signed-in user, whose id is the folder of each file, `{owner}/{media id}` ([`server-schema.md`](server-schema.md) §Media storage):
   - an upload inserts the `media` row, keeping the user's own row already there under the id, the table's key being `(user_id, id)`, then uploads the file without overwriting; a file Storage already holds counts as uploaded, so a retry after a lost answer succeeds;
   - a suspended user's upload is refused, and stays queued like any refusal;
-  - a download reads the signed-in user's own folder, or the folder of the owner it is given, which the server lets the user read for a public deck's live cards ([`server.md`](server.md) §Media storage); one of a file Storage does not hold, or does not let the user read, returns null;
+  - a download reads the signed-in user's own folder, or the folder of the owner it is given, which the server lets the user read for a public deck's live cards ([`server-schema.md`](server-schema.md) §Media storage); one of a file Storage does not hold, or does not let the user read, returns null;
   - a delete removes the file, then the user's row under the id.
 - Each request is bounded by 20 seconds. A timeout, a refusal, an unreachable server or no signed-in user is `MediaTransferFailed`, which the store keeps queued.
 

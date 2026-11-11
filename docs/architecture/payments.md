@@ -1,11 +1,11 @@
 # Payments
 
-How a purchase becomes a plan: RevenueCat, the `store-webhook` Edge Function, store grants beside admin grants, the plan read for 내 플랜, and what the owner sets up outside the repository. The schema is [`server.md`](server.md)'s §Store plans; MCP's refusal of 무료 is [`mcp.md`](mcp.md)'s §Plan gate.
+How a purchase becomes a plan: RevenueCat, the `store-webhook` Edge Function, store grants beside admin grants, the plan read for 내 플랜, and what the owner sets up outside the repository. The schema is [`server-plans.md`](server-plans.md)'s §Store plans; MCP's refusal of 무료 is [`mcp.md`](mcp.md)'s §Plan gate.
 
 ## Current decisions
 
 - A store purchase is made in the app through RevenueCat, whose app user id is the Supabase user id (the app logs in to RevenueCat with it before any purchase). The entitlement `plus` is plan `pro`, shown 플러스; plan versions and limits are unchanged.
-- RevenueCat posts every event to the `store-webhook` function with the `Authorization` value the owner set. The function treats the event as a trigger only (and the sync route, for the caller alone, does the same read): it reads the current entitlements of the user (of every user a `TRANSFER` names) with `GET /v1/subscribers/{app_user_id}` and sets or ends the user's store grant ([`server.md`](server.md) §Store plans).
+- RevenueCat posts every event to the `store-webhook` function with the `Authorization` value the owner set. The function treats the event as a trigger only (and the sync route, for the caller alone, does the same read): it reads the current entitlements of the user (of every user a `TRANSFER` names) with `GET /v1/subscribers/{app_user_id}` and sets or ends the user's store grant ([`server-plans.md`](server-plans.md) §Store plans).
 - A store grant never replaces an admin grant or 무제한, and a store event never ends one; each store change is in the audit log.
 - Sandbox events grant like production ones.
 - An account deleted while a store subscription is active keeps being billed by the store until the user cancels there, so the app's deletion confirmation says so and offers 구독 관리, and deletion is never blocked (#914, carried out in #912).
