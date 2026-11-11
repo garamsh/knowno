@@ -21,6 +21,5 @@ export const markupFixtures = {
     filled: Block[];
   }[],
   plain: fixture("plain") as { name: string; input: string; plainText: string }[],
-  v1: fixture("v1") as { name: string; text: string; answers: string[]; source: string | null }[],
   escape: fixture("escape") as { name: string; text: string; escaped: string }[],
 };

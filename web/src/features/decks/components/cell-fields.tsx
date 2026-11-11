@@ -6,7 +6,6 @@ import { type CellDraft, cellProblem, type MediaFile } from "../authoring";
 import type { CellSide } from "../card-content";
 import type { PastePart } from "../markdown-paste";
 import { prepareImage } from "../prepare-image";
-import { ClozeGroup } from "./cloze-fields";
 import {
   cellSection,
   type Editing,
@@ -15,7 +14,7 @@ import {
   firstField,
   UndoSnack,
 } from "./editing";
-import { Choices, type Draft, Field, Problem } from "./editor-field";
+import { Choices, type Draft, Problem } from "./editor-field";
 import { AnkiGroup, MarkupField } from "./markup-fields";
 import { type CellChange, PhotoFields, SoundFields } from "./media-fields";
 import { RowMenu } from "@/design/row-menu";
@@ -38,24 +37,14 @@ function TextGroup({
           <span aria-hidden className="w-10 shrink-0 px-1 py-2 text-body text-muted">
             {side === "front" ? "앞면" : "뒷면"}
           </span>
-          {draft.markup ? (
-            <MarkupField
-              label={side === "front" ? "앞면" : "뒷면"}
-              value={draft[side]}
-              paste={paste}
-              change={(value) => {
-                change({ ...draft, [side]: value });
-              }}
-            />
-          ) : (
-            <Field
-              label={side === "front" ? "앞면" : "뒷면"}
-              value={draft[side]}
-              change={(value) => {
-                change({ ...draft, [side]: value });
-              }}
-            />
-          )}
+          <MarkupField
+            label={side === "front" ? "앞면" : "뒷면"}
+            value={draft[side]}
+            paste={paste}
+            change={(value) => {
+              change({ ...draft, [side]: value });
+            }}
+          />
         </div>
       ))}
     </div>
@@ -68,7 +57,6 @@ function kindName(draft: CellDraft): string {
       return "글";
     case "word":
       return "단어";
-    case "cloze":
     case "anki":
       return "빈칸 문장";
     case "table":
@@ -160,7 +148,6 @@ function CellGroup({
           <WordGroup draft={draft} showErrors={showErrors} change={change} />
         )}
         {draft.kind === "anki" && <AnkiGroup draft={draft} change={change} paste={paste} />}
-        {draft.kind === "cloze" && <ClozeGroup draft={draft} change={change} />}
         {draft.kind === "table" && (
           <TableGroup draft={draft} showErrors={showErrors} change={change} />
         )}
@@ -274,7 +261,7 @@ export function CellFields({
     const made = parts.map((part): CellDraft => {
       switch (part.kind) {
         case "text":
-          return { kind: "text", id: v7(), front: part.text, back: "", markup: true };
+          return { kind: "text", id: v7(), front: part.text, back: "" };
         case "table":
           return {
             kind: "table",

@@ -5,14 +5,15 @@ import type { CardId, DeckId } from "@/features/decks";
 import { loadEngine } from "../engine";
 import { type SessionPlan, type StudyCard, StudySession } from "../session";
 import { unknownPace } from "../study-time";
+import { textContent } from "@/testing/content";
 
 const start = Date.UTC(2026, 0, 15, 9);
 
 const card = (front: string): StudyCard => ({
   id: front as CardId,
   deckId: "d1" as DeckId,
-  front: [{ kind: "text", text: front }],
-  back: [{ kind: "text", text: `${front} back` }],
+  front: [textContent(front)],
+  back: [textContent(`${front} back`)],
   createdAt: start,
   text: { front, back: `${front} back` },
   frontLength: front.length,

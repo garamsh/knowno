@@ -113,7 +113,7 @@ export function cellsOf(
           ...front,
           {
             kind: "blank",
-            block: { kind: "cloze", text: card.front, answers: [], markup: markedOf(card.front) },
+            block: { kind: "cloze", text: card.front, markup: markedOf(card.front) },
           },
         ]
       : [

@@ -344,12 +344,13 @@ export async function readDeck(id: string): Promise<AdminRead<AdminDeck | null>>
   if (removalReason !== null && removal === null) return { failure: "unreadable" };
   const cards = rows(cardsRead.data, (cardRow) => {
     const cardId = text(field(cardRow, "card_id"));
-    // The call returns no template: a 칸 list reads an earlier front as it was drawn, and a 칸
-    // card's stored back is empty.
-    const cells = parseCells(field(cardRow, "front"));
+    // The call returns no template: a front that is a 칸 list reads as one, and any other front is
+    // an earlier card's side of blocks. A 칸 card's stored back is empty.
+    const front = field(cardRow, "front");
+    const cells = parseCells(front);
+    const sides = cells ? sidesOf(cells) : { front: parseContent(front), back: [] };
     const back = parseContent(field(cardRow, "back"));
-    if (cardId === null || !cells || !back) return null;
-    const sides = sidesOf(cells);
+    if (cardId === null || !sides.front || !back) return null;
     return {
       id: cardId,
       front: describeContent(sides.front),
@@ -996,7 +997,7 @@ function skillLabels(value: unknown): SkillLabel[] | null {
   if (list === null) return null;
   const labels: SkillLabel[] = [];
   for (const label of list) {
-    if (label !== "active" && label !== "test" && label !== "markup") return null;
+    if (label !== "active" && label !== "test") return null;
     labels.push(label);
   }
   return labels;
@@ -1109,11 +1110,8 @@ export type SkillVersion = {
   labels: SkillLabel[];
 };
 
-/**
- * A skill version's label: a prompt's two, and `markup`, the version served in place of `active`
- * while the server's `card_markup` switch is on (ADR 0216).
- */
-export type SkillLabel = PromptLabel | "markup";
+/** A skill version's label: a prompt's two. */
+export type SkillLabel = PromptLabel;
 
 /** Every saved skill version of every form, newest first. */
 export async function readCardFormSkills(): Promise<AdminRead<SkillVersion[]>> {

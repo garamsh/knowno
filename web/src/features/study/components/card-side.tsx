@@ -20,7 +20,7 @@ export function CardSide({ blocks, size }: { blocks: Content[]; size?: "front" |
       {blocks.map((block, index) =>
         block.kind === "text" ? (
           <p key={index}>
-            {block.markup ? <MarkupText document={block.markup.document} /> : block.text}
+            <MarkupText document={block.markup.document} />
           </p>
         ) : block.kind === "unsupported" ? (
           <p key={index} className="text-body text-muted italic">

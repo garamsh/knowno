@@ -73,7 +73,7 @@ async function hold(
     id: cardId,
     deck_id: deckId,
     user_id: owner.userId,
-    front: [{ type: "text", v: 1, id: "f", payload: { text: contact } }],
+    front: [{ type: "text", v: 3, id: "f", payload: { front: contact, back: "" } }],
     back: [],
     card_key: contact,
     source: "manual",

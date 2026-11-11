@@ -49,7 +49,12 @@ const png = Buffer.from(
   "base64",
 );
 
-const text = (id: string, value: string) => ({ type: "text", v: 1, id, payload: { text: value } });
+const text = (id: string, front: string, back = "") => ({
+  type: "text",
+  v: 3,
+  id,
+  payload: { front, back },
+});
 
 /**
  * Saves [page] at 390 and 1280 px in both themes, when E2E_SCREENSHOTS names a directory, and,
@@ -244,8 +249,8 @@ test("draws the first-run home, 홈 with its streak, the 노트 page, a note, it
         id: randomUUID(),
         deck_id: deck.id,
         user_id: userId,
-        front: [text(`f${String(at)}`, word)],
-        back: [text(`b${String(at)}`, `${word}의 뜻`)],
+        front: [text(`f${String(at)}`, word, `${word}의 뜻`)],
+        back: [],
         card_key: word,
         source: "manual",
         template: "free",
@@ -498,8 +503,8 @@ test("draws 홈 as one screen with the owner's 481 cards over four notes on a 19
     id: randomUUID(),
     deck_id: decks[at % decks.length]?.id,
     user_id: userId,
-    front: [text("f", `word ${String(at)}`)],
-    back: [text("b", `뜻 ${String(at)}`)],
+    front: [text("f", `word ${String(at)}`, `뜻 ${String(at)}`)],
+    back: [],
     card_key: `word ${String(at)}`,
     source: "manual",
     template: "free",
@@ -661,8 +666,8 @@ test("keeps 홈 one screen at 375 × 667 with its tallest ground, a day that can
     id: randomUUID(),
     deck_id: deck.id,
     user_id: userId,
-    front: [text("f", "candid")],
-    back: [text("b", "솔직한")],
+    front: [text("f", "candid", "솔직한")],
+    back: [],
     card_key: "candid",
     source: "manual",
     template: "free",
@@ -742,8 +747,8 @@ test("draws 홈 with the day done and in a backlog at 390 and 1280 px and at 200
     id: randomUUID(),
     deck_id: deck.id,
     user_id: userId,
-    front: [text("f", word)],
-    back: [text("b", `${word}의 뜻`)],
+    front: [text("f", word, `${word}의 뜻`)],
+    back: [],
     card_key: word,
     source: "manual",
     template: "free",
@@ -968,8 +973,8 @@ test("draws 알아몰라 once on 홈 from 1024 px, the side menu's lockup, and s
     id: randomUUID(),
     deck_id: deck,
     user_id: userId,
-    front: [text("f", "ephemeral")],
-    back: [text("b", "덧없는")],
+    front: [text("f", "ephemeral", "덧없는")],
+    back: [],
     card_key: "ephemeral",
     source: "manual",
     template: "free",

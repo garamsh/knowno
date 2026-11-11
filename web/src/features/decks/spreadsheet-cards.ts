@@ -1,4 +1,6 @@
+import { escapeLiteral } from "@/design/markup-engine";
 import { type CellsDraft, encodeCells, labelsFromText, type WrittenCell } from "./authoring";
+import { textCell } from "./card-content";
 import type { SheetRow } from "./spreadsheet";
 
 /** The most characters, in code points, a cell filling a card field may hold (ADR 0125). */
@@ -95,7 +97,7 @@ export function cardsOfRows(
         row: row.number,
         blocks: encodeCells([
           columns.label === null && columns.example === null
-            ? { kind: "text", front, back }
+            ? textCell(escapeLiteral(front), escapeLiteral(back))
             : word(front, back, label, example),
         ]),
       });

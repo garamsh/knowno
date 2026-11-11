@@ -15,6 +15,8 @@ import {
   PhotoImports,
 } from "@/features/decks";
 import { uuidOf } from "@/testing/library";
+import { textContent } from "@/testing/content";
+import { textCell } from "@/features/decks";
 
 // The router as `@/testing/setup` gives it, which the note's 카드 추가 reads, and a path.
 vi.mock("next/navigation", async (importOriginal) => {
@@ -183,9 +185,9 @@ describe("the controls' pointer, hover and pressed states", () => {
               id: idOf(parseCardId, "c-chat"),
               deckId: idOf(parseDeckId, "d-fr"),
               createdAt: 0,
-              front: [{ kind: "text", text: "chat" }],
-              back: [{ kind: "text", text: "cat" }],
-              cells: [{ kind: "text", front: "chat", back: "cat" }],
+              front: [textContent("chat")],
+              back: [textContent("cat")],
+              cells: [textCell("chat", "cat")],
             },
           ]}
         />

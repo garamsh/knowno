@@ -34,12 +34,6 @@ describe("a proposed card's two lines", () => {
     expect(back).not.toBe("");
   });
 
-  it("reads a cloze that has answers as it did, its text and answers as given", () => {
-    expect(
-      previewOf({ blocks: [{ type: "cloze", text: "___ is red", answers: ["Rose", ["a", "b"]] }] }),
-    ).toEqual({ front: "___ is red", back: "Rose, a/b" });
-  });
-
   it("leaves the other forms as they were", () => {
     expect(previewOf({ front: " a ", back: "b", labels: ["명"] })).toEqual({
       front: "a",

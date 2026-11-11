@@ -74,7 +74,7 @@ test("draws a note's 사진 card at the thumbnail height, its row no taller than
       [
         {
           type: "text",
-          v: 2,
+          v: 3,
           id: randomUUID(),
           payload: { front: "조선의 최고 법전은?", back: "경국대전, 성종 때 완성" },
         },
@@ -85,15 +85,15 @@ test("draws a note's 사진 card at the thumbnail height, its row no taller than
       [
         {
           type: "text",
-          v: 2,
+          v: 3,
           id: randomUUID(),
           payload: { front: "태조의 건국", back: "이성계" },
         },
         {
           type: "cloze",
-          v: 1,
+          v: 2,
           id: randomUUID(),
-          payload: { text: "태조는 ___년에 조선을 세웠다.", answers: ["1392"] },
+          payload: { text: "태조는 {{c1::1392}}년에 조선을 세웠다." },
         },
       ],
     ],
@@ -102,9 +102,9 @@ test("draws a note's 사진 card at the thumbnail height, its row no taller than
       [
         {
           type: "cloze",
-          v: 1,
+          v: 2,
           id: randomUUID(),
-          payload: { text: "세종대왕은 ___년에 ___을 창제했다.", answers: ["1443", "훈민정음"] },
+          payload: { text: "세종대왕은 {{c1::1443}}년에 {{c2::훈민정음}}을 창제했다." },
         },
       ],
     ],
@@ -113,7 +113,7 @@ test("draws a note's 사진 card at the thumbnail height, its row no taller than
       [
         {
           type: "text",
-          v: 2,
+          v: 3,
           id: randomUUID(),
           payload: { front: "조선 전기 왕과 업적", back: "" },
         },

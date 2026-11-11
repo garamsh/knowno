@@ -76,7 +76,7 @@ function withOrientation6(jpeg: Buffer): Buffer {
 
 const text = (value: string) => ({
   type: "text",
-  v: 1,
+  v: 3,
   id: randomUUID(),
   payload: { text: value },
 });

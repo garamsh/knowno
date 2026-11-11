@@ -15,13 +15,16 @@ import {
   shownParts,
   sidesOf,
   spokenCells,
+  textCell,
 } from "../card-content";
+import { textContent } from "@/testing/content";
+import { inCurrentForms } from "@/testing/frame-fixtures";
 
 /** The shared cases the app's `card_frame_test.dart` reads (ADR 0137, ADR 0140). */
 function fixture<T>(file: string): T[] {
   const root = path.join(import.meta.dirname, "../../../../..");
   const text = readFileSync(path.join(root, "supabase/fixtures/card-frame", file), "utf8");
-  return JSON.parse(text) as T[];
+  return inCurrentForms(JSON.parse(text)) as T[];
 }
 
 const conversions = fixture<{
@@ -41,8 +44,8 @@ function blocks(side: unknown): Content[] {
   return read;
 }
 
-const text = (value: string, v = 1) => ({ type: "text", v, payload: { text: value } });
-const cloze = { type: "cloze", v: 1, payload: { text: "___ is red.", answers: ["Rose"] } };
+const text = (value: string, v = 3) => ({ type: "text", v, payload: { text: value } });
+const cloze = { type: "cloze", v: 2, payload: { text: "{{c1::Rose}} is red." } };
 
 describe("the shared fixtures", () => {
   it("hold each placement, O2, O3 and the unknown blocks", () => {
@@ -97,13 +100,11 @@ describe("parseCells", () => {
   });
 
   it("refuses what is not a list and a block of an id that is not text", () => {
-    const glue = { type: "text", v: 2, payload: { front: "a", back: "b" } };
+    const glue = { type: "text", v: 3, payload: { front: "a", back: "b" } };
     expect(parseCells({})).toBeNull();
     expect(parseCells([{ ...glue, id: 1 }])).toBeNull();
     // Control: the same block with a text id.
-    expect(parseCells([{ ...glue, id: "b1" }])).toEqual([
-      { kind: "text", front: "a", back: "b", id: "b1" },
-    ]);
+    expect(parseCells([{ ...glue, id: "b1" }])).toEqual([textCell("a", "b", "b1")]);
   });
 
   it("keeps a 칸 of a later version, which counts as a question", () => {
@@ -133,21 +134,21 @@ describe("the sides of a list of 칸", () => {
 
   it("puts a 단어's asked part on the front and its other part on the back", () => {
     expect(sidesOf(word("term"))).toEqual({
-      front: [{ kind: "text", text: "apple" }],
+      front: [textContent("apple")],
       back: [senses],
     });
     expect(sidesOf(word("meaning"))).toEqual({
       front: [senses],
-      back: [{ kind: "text", text: "apple" }],
+      back: [textContent("apple")],
     });
   });
 
   it("shows what the reveal adds only once revealed, each 칸 in place", () => {
     const cells =
       parseCells([
-        { type: "text", v: 2, payload: { front: "", back: "after" } },
+        { type: "text", v: 3, payload: { front: "", back: "after" } },
         cloze,
-        { type: "text", v: 2, payload: { front: "before", back: "added" } },
+        { type: "text", v: 3, payload: { front: "before", back: "added" } },
       ]) ?? [];
 
     expect(shownParts(cells, false).map(({ block }) => describeOne(block))).toEqual([
@@ -168,7 +169,7 @@ describe("the sides of a list of 칸", () => {
 /** The text of a text or cloze [block], filled. */
 function describeOne(block: Content): string {
   if (block.kind === "text") return block.text;
-  if (block.kind === "cloze") return block.text.replace("___", block.answers[0] ?? "");
+  if (block.kind === "cloze") return block.markup.plain;
   throw new Error("a text or a cloze is expected");
 }
 
@@ -193,19 +194,20 @@ describe("parseCardContent", () => {
   });
 
   it("reads a free v2 card's list, and its sides from it", () => {
-    const list = [{ type: "text", v: 2, payload: { front: "a", back: "b" } }];
+    const list = [{ type: "text", v: 3, payload: { front: "a", back: "b" } }];
     expect(parseCardContent(stored(list, [], "free", 2))).toEqual({
-      cells: [{ kind: "text", front: "a", back: "b" }],
-      front: [{ kind: "text", text: "a" }],
-      back: [{ kind: "text", text: "b" }],
+      cells: [textCell("a", "b")],
+      front: [textContent("a")],
+      back: [textContent("b")],
     });
   });
 
   it("refuses a free v2 card whose list breaks its shape", () => {
-    const empty = [{ type: "text", v: 2, payload: { front: " ", back: "" } }];
+    const empty = [{ type: "text", v: 3, payload: { front: " ", back: "" } }];
     expect(parseCardContent(stored(empty, [], "free", 2))).toBeNull();
-    // Control: the template decides how it is read: at v1 the block is unknown, not refused.
-    expect(parseCardContent(stored(empty, [], "free", 1))).not.toBeNull();
+    // Control: the same list at a version this build does not read is kept as unknown, not refused.
+    const later = [{ ...empty[0], v: 4 }];
+    expect(parseCardContent(stored(later, [], "free", 2))).not.toBeNull();
   });
 
   it.each([
@@ -217,14 +219,14 @@ describe("parseCardContent", () => {
     ["table", 1],
   ])("converts a card of template %s at version %s", (template, version) => {
     expect(parseCardContent(stored([text("a")], [text("b")], template, version))?.cells).toEqual([
-      { kind: "text", front: "a", back: "b" },
+      textCell("a", "b"),
     ]);
   });
 
   it("keeps the sides of a card holding an unknown block, and of a later template", () => {
     const chart = { type: "chart", payload: {} };
     const unknown = parseCardContent(stored([text("a")], [chart, cloze], "free", 1));
-    expect(unknown?.front).toEqual([{ kind: "text", text: "a" }]);
+    expect(unknown?.front).toEqual([textContent("a")]);
     expect(unknown?.back).toHaveLength(2);
     // Its blank still makes it whole, so no answer is drawn at the prompt, and what this build
     // cannot show follows the rest, as the phone's `cellsToDraw` keeps it.
@@ -232,8 +234,8 @@ describe("parseCardContent", () => {
     expect(unknown?.cells.map(({ kind }) => kind)).toEqual(["text", "blank", "unknown"]);
 
     const later = parseCardContent(stored([text("a")], [text("b")], "free", 3));
-    expect(later?.front).toEqual([{ kind: "text", text: "a" }]);
-    expect(later?.back).toEqual([{ kind: "text", text: "b" }]);
+    expect(later?.front).toEqual([textContent("a")]);
+    expect(later?.back).toEqual([textContent("b")]);
     expect(parseCardContent(stored([cloze], [text("Rose is red.")], "flip", 2))?.back).toHaveLength(
       1,
     );

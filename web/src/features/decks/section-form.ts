@@ -1,6 +1,7 @@
 import { field } from "@/supabase/row";
 import { type Block, type CardDraft, type CellsDraft, encodeCells } from "./authoring";
-import { cellsFromSides, parseContent } from "./card-content";
+import { escapeLiteral } from "@/design/markup-engine";
+import { cellsFromSides, parseContent, textCell } from "./card-content";
 import type { Candidate } from "./photo-candidates";
 
 /** Which cards a vocabulary row makes, as the phone's `Direction`: word to meaning, meaning to word, or both. */
@@ -93,7 +94,7 @@ function blocksOf(front: Block[], back: Block[], added = ""): Block[] {
   if (!cells) return [];
   return encodeCells([
     ...cells.filter((cell) => cell.kind !== "unknown"),
-    ...(added ? [{ kind: "text" as const, front: "", back: added }] : []),
+    ...(added ? [textCell("", escapeLiteral(added))] : []),
   ]);
 }
 

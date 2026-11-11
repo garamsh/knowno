@@ -241,94 +241,6 @@ describe("a new card", () => {
     }
   });
 
-  /** The editor over a stored version 1 cloze, [text] with its [answers], which a new card no longer makes. */
-  const v1Cloze = (text: string, answers: string[]) =>
-    editing([{ type: "cloze", v: 1, id: "c", payload: { text, answers } }], [], "free", 2);
-
-  it("makes a selection of a stored version 1 line a blank through the line's one action, and turns it back", async () => {
-    await v1Cloze("Rose is ___", ["red"]);
-    const line = screen.getByRole("textbox", { name: "문장" });
-    select(line, 9, 9);
-    await userEvent.click(screen.getByRole("button", { name: "빈칸 풀기, red" }));
-    await userEvent.click(screen.getByRole("button", { name: "저장" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("빈칸을 하나 이상 넣어 주세요");
-    select(line, 0, 4);
-    await userEvent.click(screen.getByRole("button", { name: "빈칸 넣기" }));
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    select(line, 2, 2);
-    expect(screen.getByRole("button", { name: "빈칸 풀기, Rose" })).toHaveTextContent("빈칸 풀기");
-    await userEvent.click(screen.getByRole("button", { name: "빈칸 풀기, Rose" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("빈칸을 하나 이상 넣어 주세요");
-    select(line, 0, 4);
-    await userEvent.click(screen.getByRole("button", { name: "빈칸 넣기" }));
-    await userEvent.click(screen.getByRole("button", { name: "저장" }));
-    await waitFor(() => {
-      expect(db.rows.cards[0]?.front).toMatchObject([
-        { type: "cloze", v: 2, payload: { text: "{{c1::Rose}} is red" } },
-      ]);
-    });
-  });
-
-  it("saves a stored version 1 cloze nobody edited as it was, version 1", async () => {
-    await v1Cloze("Rose is ___", ["red"]);
-    await userEvent.click(screen.getByRole("button", { name: "저장" }));
-    await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "저장" })).not.toBeInTheDocument();
-    });
-    expect(db.rows.cards[0]?.front).toMatchObject([
-      { type: "cloze", v: 1, payload: { text: "Rose is ___", answers: ["red"] } },
-    ]);
-  });
-
-  it("tints a stored line's blank words in the line, and draws an empty blank as an underline where the caret stands", async () => {
-    await v1Cloze("Rose ___ red", ["is"]);
-    const line = screen.getByRole("textbox", { name: "문장" });
-    // The copy under the line that draws its marks; the line's own text is transparent over it.
-    const copy = line.previousElementSibling;
-    if (!(copy instanceof HTMLElement)) throw new Error("the line's marks are not drawn");
-    expect(within(copy).queryByText("Rose"), "control: no mark before a blank").toBeNull();
-    expect(within(copy).getByText("is")).toHaveClass("bg-brand-tint");
-    select(line, 0, 4);
-    await userEvent.click(screen.getByRole("button", { name: "빈칸 넣기" }));
-    expect(within(copy).getByText("Rose")).toHaveClass("bg-brand-tint");
-    expect(copy.querySelector(".bg-muted"), "control: no empty blank yet").toBeNull();
-    select(line, 11, 11);
-    await userEvent.click(screen.getByRole("button", { name: "빈칸 넣기" }));
-    expect(copy.querySelector(".bg-muted")).toHaveClass("absolute", "bottom-0", "h-px", "w-8");
-  });
-
-  it("types an opened blank's answer, and drops one left empty", async () => {
-    await v1Cloze("is ___", ["red"]);
-    const line = screen.getByRole("textbox", { name: "문장" });
-    select(line, 0, 0);
-    await userEvent.click(screen.getByRole("button", { name: "빈칸 넣기" }));
-    await userEvent.keyboard("Rose");
-    select(line, 9, 9);
-    await userEvent.click(screen.getByRole("button", { name: "저장" }));
-    await waitFor(() => {
-      expect(db.rows.cards[0]?.front).toMatchObject([
-        { v: 2, payload: { text: "{{c1::Rose}}is {{c2::red}}" } },
-      ]);
-    });
-  });
-
-  it("keeps the line's action under a press elsewhere until it ends, so the control pressed stays put", async () => {
-    await v1Cloze("Rose ___ red", ["is"]);
-    await userEvent.click(screen.getByRole("textbox", { name: "문장" }));
-    const more = screen.getByRole("button", { name: "+ 칸 추가" });
-    // One session, so the release ends the press begun by the first call.
-    const user = userEvent.setup();
-    await user.pointer({ keys: "[MouseLeft>]", target: more });
-    expect(more).toHaveFocus();
-    expect(screen.getByRole("button", { name: "빈칸 넣기" })).toBeInTheDocument();
-    await user.pointer({ keys: "[/MouseLeft]", target: more });
-    await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "빈칸 넣기" })).not.toBeInTheDocument();
-    });
-    // The press was a click on the control it started on.
-    expect(screen.getByRole("dialog", { name: "칸 추가" })).toBeInTheDocument();
-  });
-
   it("makes a table's cell a blank from the phone's fixed toolbar, and deletes a row at once", async () => {
     await newCard();
     await removeFirst();
@@ -611,8 +523,8 @@ describe("a stored card", () => {
 
   it("opens a v1 card's sides as one list of 칸, and writes it in the frame over the same id", async () => {
     const close = await editing(
-      [{ type: "text", id: "f", payload: { text: "dog" } }],
-      [{ type: "text", id: "g", payload: { text: "개" } }],
+      [{ type: "text", v: 3, id: "f", payload: { text: "dog" } }],
+      [{ type: "text", v: 3, id: "g", payload: { text: "개" } }],
     );
     expect(screen.getByRole("heading", { name: "카드 편집" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "앞면" })).not.toHaveFocus();
@@ -633,7 +545,10 @@ describe("a stored card", () => {
   });
 
   it("keeps a photo and a sound, moving a side and leaving a boxed photo sideless", async () => {
-    await editing([{ type: "text", id: "f", payload: { text: "dog" } }, photo, boxed], [sound]);
+    await editing(
+      [{ type: "text", v: 3, id: "f", payload: { text: "dog" } }, photo, boxed],
+      [sound],
+    );
     expect(screen.getAllByRole("heading", { name: "사진" })).toHaveLength(2);
     expect(screen.getByRole("heading", { name: "소리" })).toBeInTheDocument();
     // Two chip rows: the unboxed photo's and the sound's; a boxed photo has no side.
@@ -663,8 +578,8 @@ describe("a stored card", () => {
   it("offers 그래도 저장 where a key is taken, as the phone's editor", async () => {
     db.rows.cards.push({ ...cardRow("taken", "deck", "new"), card_key: "new" });
     await editing(
-      [{ type: "text", id: "f", payload: { text: "dog" } }],
-      [{ type: "text", id: "g", payload: { text: "개" } }],
+      [{ type: "text", v: 3, id: "f", payload: { text: "dog" } }],
+      [{ type: "text", v: 3, id: "g", payload: { text: "개" } }],
     );
     await userEvent.clear(screen.getByRole("textbox", { name: "앞면" }));
     await userEvent.type(screen.getByRole("textbox", { name: "앞면" }), "New");
@@ -678,8 +593,8 @@ describe("a stored card", () => {
 
   it("asks before leaving an edit, and closes at once with none", async () => {
     const close = await editing(
-      [{ type: "text", id: "f", payload: { text: "dog" } }],
-      [{ type: "text", id: "g", payload: { text: "개" } }],
+      [{ type: "text", v: 3, id: "f", payload: { text: "dog" } }],
+      [{ type: "text", v: 3, id: "g", payload: { text: "개" } }],
     );
     await userEvent.type(screen.getByRole("textbox", { name: "앞면" }), "s");
     await userEvent.click(screen.getByRole("button", { name: "닫기" }));
@@ -692,10 +607,10 @@ describe("a stored card", () => {
   });
 
   it.each([
-    ["a later template", [{ type: "text", payload: { text: "dog" } }], [], "free", 3],
+    ["a later template", [{ type: "text", v: 3, payload: { text: "dog" } }], [], "free", 3],
     [
       "an unknown block",
-      [{ type: "text", payload: { text: "dog" } }],
+      [{ type: "text", v: 3, payload: { text: "dog" } }],
       [{ type: "chart", payload: {} }],
       "free",
       1,
@@ -703,7 +618,7 @@ describe("a stored card", () => {
     [
       "a framed card's unknown 칸",
       [
-        { type: "text", v: 2, payload: { front: "dog", back: "b" } },
+        { type: "text", v: 3, payload: { front: "dog", back: "b" } },
         { type: "chart", payload: {} },
       ],
       [],
@@ -728,8 +643,8 @@ describe("a stored card", () => {
 
   it("opens a known card with fields, the control for the read-only line", async () => {
     await editing(
-      [{ type: "text", payload: { text: "dog" } }],
-      [{ type: "text", payload: { text: "b" } }],
+      [{ type: "text", v: 3, payload: { text: "dog" } }],
+      [{ type: "text", v: 3, payload: { text: "b" } }],
     );
     expect(screen.getByRole("button", { name: "저장" })).toBeInTheDocument();
     expect(screen.queryByText(/새 버전의 앱에서/)).not.toBeInTheDocument();

@@ -47,14 +47,7 @@ function blockLines(block: Fields): CardPreview {
         back: (Array.isArray(block.senses) ? block.senses : []).map(senseLine).join(" · "),
       };
     case "cloze":
-      // A cloze of version 2 holds its text alone, in Anki's syntax.
-      if (!Array.isArray(block.answers)) return clozeMarkup(text(block.text));
-      return {
-        front: text(block.text),
-        back: (Array.isArray(block.answers) ? block.answers : [])
-          .map((answer) => (Array.isArray(answer) ? texts(answer).join("/") : text(answer)))
-          .join(", "),
-      };
+      return clozeMarkup(text(block.text));
     case "table":
       return {
         front: texts(block.columns).join(" · "),
