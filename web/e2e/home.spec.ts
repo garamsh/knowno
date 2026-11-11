@@ -407,12 +407,12 @@ test("answers the browser's back on an authoring screen as the phone's back, and
     await expect(editor).toBeVisible();
   };
 
-  // Untouched, the back closes the screen and stays on the note, focus back on 노트 설정.
+  // Untouched, the back closes the screen and stays on the note, focus back on 카드 추가.
   await openEditor();
   await page.goBack();
   await expect(editor).toBeHidden();
   expect(new URL(page.url()).pathname).toBe(`/decks/${deckId}`);
-  await expect(page.getByRole("button", { name: "노트 설정", exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: "카드 추가", exact: true })).toBeFocused();
 
   // Over the screen, the back closes a sheet alone; the next asks about the 칸 added, and 버리기
   // leaves nothing behind.

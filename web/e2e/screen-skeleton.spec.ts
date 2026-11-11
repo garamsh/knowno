@@ -19,8 +19,8 @@ type Box = { left: number; right: number; top: number; bottom: number; height: n
 /** The shell's side menu is 240 px wide from 1024 px, and the page's gutter 20 px, 32 px from there. */
 const gutterLeft = { 390: 20, 1280: 240 + 32 };
 
-async function box(page: Page, selector: string): Promise<Box | null> {
-  const slot = page.locator(selector).first();
+async function box(page: Page, selector: string, last = false): Promise<Box | null> {
+  const slot = last ? page.locator(selector).last() : page.locator(selector).first();
   if ((await slot.count()) === 0) return null;
   const found = await slot.boundingBox();
   if (!found) return null;
@@ -112,7 +112,8 @@ test("draws 기록, 노트, a note and 설정 in one screen skeleton: the header
       const search = await box(page, '[data-slot="search"]');
       const body = await box(page, '[data-slot="body"]');
       const title = await box(page, '[data-slot="header"] h1');
-      const actions = await box(page, '[data-slot="header"] button');
+      // The last button is the ⋯ at the header's end, after the screen's own action.
+      const actions = await box(page, '[data-slot="header"] button', true);
       const at = `${screen.name} at ${String(width)} px`;
       // The three slots exist, and the search only where the screen lists what the user made.
       expect.soft(header !== null && body !== null, `${at}: header and body`).toBe(true);
