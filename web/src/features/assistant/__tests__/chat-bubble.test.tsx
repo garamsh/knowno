@@ -84,7 +84,7 @@ describe("the offer over 홈's mascot", () => {
   it("shows a moment after 홈 appears, and is gone after about 6 s", async () => {
     draw();
     expect(bubble()).toBeNull();
-    await pass(500);
+    await pass(1000);
     expect(bubble()).toBeNull();
     await pass(600);
     expect(bubble()).toHaveTextContent(words.cards);
@@ -99,7 +99,7 @@ describe("the offer over 홈's mascot", () => {
     for (const line of ["cards", "done", "other"] as const) {
       window.localStorage.clear();
       draw(line);
-      await pass(1100);
+      await pass(1600);
       expect(bubble()).toHaveTextContent(words[line]);
       expect(bubble()).toHaveAttribute("aria-hidden", "true");
       cleanup();
@@ -108,7 +108,7 @@ describe("the offer over 홈's mascot", () => {
 
   it("shows once a local day, on the first open of it, and again the next day", async () => {
     draw();
-    await pass(1100);
+    await pass(1600);
     expect(bubble()).not.toBeNull();
     await pass(7000);
     await pass(500);
@@ -125,7 +125,7 @@ describe("the offer over 홈's mascot", () => {
     // Control: the next local day shows it again.
     vi.setSystemTime(new Date(2026, 10, 12, 0, 1, 0));
     draw();
-    await pass(1100);
+    await pass(1600);
     expect(bubble()).not.toBeNull();
   });
 
@@ -135,7 +135,7 @@ describe("the offer over 홈's mascot", () => {
     cleanup();
     expect(window.localStorage.getItem(shownKey)).toBeNull();
     draw();
-    await pass(1100);
+    await pass(1600);
     expect(bubble()).not.toBeNull();
     expect(window.localStorage.getItem(shownKey)).toBe("2026-11-11");
   });
@@ -151,14 +151,14 @@ describe("the offer over 홈's mascot", () => {
       window.localStorage.removeItem("knowno.assistant");
       window.dispatchEvent(new StorageEvent("storage", { key: "knowno.assistant" }));
     });
-    await pass(1100);
+    await pass(1600);
     expect(bubble()).toHaveTextContent(words.cards);
     expect(window.localStorage.getItem(shownKey)).toBe("2026-11-11");
   });
 
   it("is never drawn once the ready bubble appears while it shows", async () => {
     draw();
-    await pass(1100);
+    await pass(1600);
     expect(bubble()).not.toBeNull();
     act(() => {
       readyProposal();
@@ -170,7 +170,7 @@ describe("the offer over 홈's mascot", () => {
   it("draws no fade under reduced motion, and hides at once at the end", async () => {
     reduceMotion(true);
     draw();
-    await pass(1100);
+    await pass(1600);
     const shown = bubble();
     expect(shown).not.toBeNull();
     expect(shown?.className).not.toContain("transition-opacity");
@@ -180,7 +180,7 @@ describe("the offer over 홈's mascot", () => {
 
   it("fades before it goes when motion is allowed, against reduced motion's none", async () => {
     draw();
-    await pass(1100);
+    await pass(1600);
     expect(bubble()?.className).toContain("transition-opacity");
     await pass(6000);
     expect(bubble()?.className).toContain("opacity-0");
@@ -196,7 +196,7 @@ describe("the offer over 홈's mascot", () => {
       throw new Error("blocked");
     });
     draw();
-    await pass(1100);
+    await pass(1600);
     expect(bubble()).not.toBeNull();
     vi.restoreAllMocks();
   });

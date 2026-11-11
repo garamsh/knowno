@@ -60,7 +60,7 @@ const lines: Record<ChatLine, string> = {
 const shownKey = "knowno.assistant.offer";
 
 /** How long after 홈 appears the offer shows, how long it stays, and how long it takes to fade. */
-export const offerDelayMs = 1000;
+export const offerDelayMs = 1500;
 export const offerStayMs = 6000;
 export const offerFadeMs = 300;
 

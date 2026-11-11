@@ -843,7 +843,7 @@ describe("홈 and the 노트 page", () => {
 
     // Control: the day is spent, so the next open of 홈 offers nothing.
     await render(Today, {});
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     expect(screen.queryByText("오늘 배운 거, 같이 카드로 만들까요?")).not.toBeInTheDocument();
     cleanup();
 
@@ -854,7 +854,7 @@ describe("홈 and the 노트 page", () => {
     await render(Today, {});
     await offered("말랑이와 대화해요");
     window.localStorage.clear();
-  });
+  }, 15_000);
 
   it("shows how to start in the sky when the notes hold no card, leading to the one note's 카드 추가 or to the notes", async () => {
     const title = "첫 카드를 만들어 볼까요?";
