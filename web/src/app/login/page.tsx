@@ -3,7 +3,13 @@ import { Suspense } from "react";
 
 import { BrandMark } from "@/design/brand";
 import { LegalLinks, SellerInfo } from "@/features/legal";
-import { AppleSignInButton, CallbackError, EmailSignIn, SignInButton } from "@/features/account";
+import {
+  AppleSignInButton,
+  CallbackError,
+  DeletedNotice,
+  EmailSignIn,
+  SignInButton,
+} from "@/features/account";
 
 export const metadata: Metadata = { title: "로그인 · 알아몰라" };
 
@@ -30,6 +36,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
           <EmailSignIn />
           <Suspense>
             <CallbackError searchParams={searchParams} />
+            <DeletedNotice searchParams={searchParams} />
           </Suspense>
         </div>
         <div className="flex flex-col text-center">

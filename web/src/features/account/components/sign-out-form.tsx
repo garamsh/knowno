@@ -17,7 +17,7 @@ export function SignOutForm() {
         type="submit"
         disabled={pending}
         aria-busy={pending}
-        className="pressable flex min-h-button items-center justify-between gap-3 rounded-b-group px-4 py-3 text-left text-body-strong text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+        className="pressable flex min-h-button items-center justify-between gap-3 px-4 py-3 text-left text-body-strong text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
       >
         로그아웃
         {pending && (

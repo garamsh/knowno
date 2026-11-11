@@ -163,4 +163,18 @@ describe("the privacy policy", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("gives account deletion an anchor and names both ways: the app's and, from knowno.app, the web's", async () => {
+    await render(PrivacyPage, {});
+
+    const way = document.getElementById("delete-account");
+    expect(way).toHaveTextContent("앱의 계정 화면에서 “계정 삭제”를 하거나");
+    expect(way).toHaveTextContent("웹에서 knowno.app에 로그인한 뒤 설정의 “계정 삭제”");
+    // Control: it is the retention section's, which still says what is deleted.
+    expect(
+      within(screen.getByRole("region", { name: "보유 기간과 파기" })).getByText(
+        /서버의 계정과 그 계정의 노트, 카드, 학습 기록, 표시 이름, 신고, 차단, 이용 기록이 모두 삭제돼요/,
+      ),
+    ).toBe(way);
+  });
 });
