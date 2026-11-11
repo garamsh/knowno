@@ -3,9 +3,20 @@
  * shared write path, `create_deck` and `add_cards` or `update_cards`, with their refusals.
  */
 
+import { SupabaseError } from "../_shared/auth.ts";
 import type { Store } from "../_shared/store.ts";
 import { callTool, type ToolDeps } from "../_shared/tools.ts";
-import type { Proposal } from "./tools.ts";
+import {
+  type Answer,
+  type Caller,
+  isRecord,
+  MAX_BODY_BYTES,
+  readBody,
+  refusal,
+  refuseSuspended,
+  storeOf,
+} from "./answer.ts";
+import { parseProposal, type Proposal } from "./tools.ts";
 
 /** A commit's answer: what the write tool answered, or why nothing was written. */
 export type Committed =
@@ -143,4 +154,52 @@ function reasons(answer: Record<string, unknown>): string {
     .sort((a, b) => Number(a.index) - Number(b.index))
     .map((one) => `Card ${String(one.index)}: ${String(one.reason)}`);
   return `No card was written. ${each.join(" ")}`;
+}
+
+/** `POST /assistant/commit`: the proposal and the cards checked, written as the caller. */
+export async function commitRequest(caller: Caller): Promise<Answer> {
+  const read = await readBody(caller.request, MAX_BODY_BYTES, caller.entry);
+  if ("answer" in read) return read.answer;
+  const suspended = await refuseSuspended(caller);
+  if (suspended !== null) return suspended;
+  const { body } = read;
+  const entry = caller.entry;
+  const proposal = isRecord(body) ? parseProposal(body.proposal) : null;
+  if (proposal === null || !isRecord(body)) {
+    return refusal(400, "bad_request", entry);
+  }
+  let committed;
+  try {
+    committed = await commit(
+      proposal,
+      body.checked,
+      storeOf(caller),
+      caller.deps,
+    );
+  } catch (error) {
+    if (error instanceof SupabaseError) {
+      return refusal(503, "unavailable", entry);
+    }
+    throw error;
+  }
+  switch (committed.kind) {
+    case "bad_request":
+      return refusal(400, "bad_request", entry, { message: committed.message });
+    case "refused":
+      return refusal(
+        422,
+        "refused",
+        committed.left === undefined ? entry : {
+          ...entry,
+          left_deck_id: committed.left.deckId,
+          left_reason: committed.left.reason,
+        },
+        { message: committed.message },
+      );
+    case "written":
+      return {
+        response: Response.json({ deck: committed.deck, ...committed.result }),
+        entry: { ...entry, outcome: "committed" },
+      };
+  }
 }

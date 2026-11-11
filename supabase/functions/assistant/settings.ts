@@ -7,9 +7,11 @@
 import {
   authenticate,
   type SupabaseDeps,
+  SupabaseError,
   type UserId,
 } from "../_shared/auth.ts";
 import { type Keys, PROVIDERS } from "../_shared/keys.ts";
+import { type Answer, type Call, refusal } from "./answer.ts";
 import { ADAPTERS, sseEvents, StreamError } from "./providers.ts";
 import {
   type Draft,
@@ -203,4 +205,32 @@ export function settingsStatus(outcome: SettingsOutcome): number {
     case "call_failed":
       return 422;
   }
+}
+
+/** `POST /assistant/settings/configuration`: [saveDraft] answered as the route does. */
+export async function settingsRequest(call: Call): Promise<Answer> {
+  const { request, deps, service, entry } = call;
+  let outcome;
+  try {
+    outcome = await saveDraft(request, {
+      supabase: service,
+      keys: deps.keys,
+      fetch: deps.fetch,
+      timeout: deps.timeout,
+    });
+  } catch (error) {
+    if (error instanceof SupabaseError) {
+      return refusal(503, "unavailable", entry);
+    }
+    throw error;
+  }
+  return {
+    response: Response.json(
+      outcome.kind === "saved"
+        ? { saved: true, configuration_id: outcome.configurationId }
+        : { error: outcome.kind },
+      { status: settingsStatus(outcome) },
+    ),
+    entry: { ...entry, outcome: outcome.kind },
+  };
 }

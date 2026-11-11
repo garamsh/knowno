@@ -7,7 +7,7 @@
 
 import { type SupabaseDeps, SupabaseError } from "../_shared/auth.ts";
 import type { Keys } from "../_shared/keys.ts";
-import type { LogEntry } from "./handler.ts";
+import { type Answer, type Call, type LogEntry, refusal } from "./answer.ts";
 import {
   clearJob,
   deleteObjects,
@@ -380,4 +380,47 @@ export async function work(deps: WorkerDeps, started: number): Promise<void> {
   if (outOfTime && lanes.every((ended) => ended.status === "fulfilled")) {
     await kick(deps.supabase);
   }
+}
+
+/** Whether [a] and [b] are the same text, compared in a time that does not depend on where they differ. */
+function sameText(a: string, b: string): boolean {
+  const left = new TextEncoder().encode(a);
+  const right = new TextEncoder().encode(b);
+  let differ = left.length ^ right.length;
+  for (let i = 0; i < Math.max(left.length, right.length); i++) {
+    differ |= (left[i] ?? 0) ^ (right[i] ?? 0);
+  }
+  return differ === 0;
+}
+
+/**
+ * `POST /assistant/jobs/work` with the service-role key as bearer: runs the worker after the
+ * response, which answers 202.
+ */
+export function workRequest(call: Call): Answer {
+  const { request, deps, config, service, entry, started, log } = call;
+  const bearer = request.headers.get("Authorization")?.match(
+    /^Bearer (\S+)$/,
+  )?.[1];
+  if (bearer === undefined || !sameText(bearer, config.serviceRoleKey)) {
+    return refusal(401, "unauthenticated", entry);
+  }
+  deps.background(
+    work({
+      supabase: service,
+      fetch: deps.fetch,
+      keys: deps.keys,
+      now: deps.now,
+      timeout: deps.timeout,
+      wait: deps.wait,
+      log: deps.log,
+    }, started).catch((error) => {
+      log(entry);
+      throw error;
+    }),
+  );
+  return {
+    response: Response.json({ working: true }, { status: 202 }),
+    entry: { ...entry, outcome: "working" },
+  };
 }

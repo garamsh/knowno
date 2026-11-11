@@ -3,21 +3,17 @@
 import assert from "node:assert/strict";
 import { cardFormSkills, FORMS } from "../_shared/card_forms.ts";
 import { SEED } from "../_shared/card_forms_seed.ts";
+import { type LogEntry, MAX_BODY_BYTES } from "./answer.ts";
 import {
-  createHandler,
-  type LogEntry,
-  MAX_BODY_BYTES,
-  MAX_DESCRIBED_TURN,
   MAX_MODEL_CALLS,
-  MAX_REPLY_TEXT,
-  MAX_REQUEST_BYTES,
-  MAX_TURN_TEXT,
-  MAX_TURNS,
   PARAGRAPH_BREAK,
   REPLY_RULES,
-  STALE_MS,
   TURN_LIMIT_MS,
-} from "./handler.ts";
+} from "./converse.ts";
+import { createHandler } from "./handler.ts";
+import { MAX_DESCRIBED_TURN, MAX_TURN_TEXT, MAX_TURNS } from "./history.ts";
+import { MAX_REPLY_TEXT, MAX_REQUEST_BYTES } from "./message.ts";
+import { STALE_MS } from "./poll.ts";
 import { READ_PAGE } from "./photo_tools.ts";
 import {
   ASSISTANT_PHOTO_ESTIMATE_TOKENS,
@@ -827,6 +823,51 @@ async function send(
 const ask = (text: string) => ({ messages: [{ role: "user", text }] });
 
 const card = (front: string, back: string) => ({ front, back });
+
+const JOB_ID = "0123abcd-0123-4abc-8abc-0123456789ab";
+
+Deno.test("each route answers only its method and logs its name, a path that is none a 404", async () => {
+  const routes = [
+    ["/assistant", "POST", "message"],
+    ["/assistant/commit", "POST", "commit"],
+    ["/assistant/settings/configuration", "POST", "settings"],
+    ["/assistant/jobs/work", "POST", "work"],
+    [`/assistant/jobs/${JOB_ID}`, "GET", "job"],
+    [`/assistant/jobs/${JOB_ID}/cancel`, "POST", "cancel"],
+    // The id in either case, and the path with a trailing slash.
+    [`/assistant/jobs/${JOB_ID.toUpperCase()}`, "GET", "job"],
+    ["/assistant/commit/", "POST", "commit"],
+  ] as const;
+  for (const [path, method, route] of routes) {
+    const other = method === "GET" ? "POST" : "GET";
+    const wrong = await send(seed(), { path, method: other, token: null });
+    assert.equal(wrong.status, 405, `${other} ${path}`);
+    assert.deepEqual(wrong.logs.map((log) => [log.route, log.outcome]), [[
+      route,
+      "method_not_allowed",
+    ]]);
+    // The control: the right method reaches the route, which refuses a caller with no token.
+    const right = await send(seed(), { path, method, token: null });
+    assert.equal(right.status, 401, `${method} ${path}`);
+    assert.equal(right.logs[0]?.route, route);
+  }
+  for (
+    const path of [
+      "/assistant/other",
+      "/assistant/commit/other",
+      "/assistant/jobs/not-an-id",
+      `/assistant/jobs/${JOB_ID}/other`,
+      "/assistant/jobs",
+    ]
+  ) {
+    const none = await send(seed(), { path, token: null });
+    assert.equal(none.status, 404, path);
+    assert.deepEqual(none.logs.map((log) => [log.route, log.outcome]), [[
+      null,
+      "not_found",
+    ]]);
+  }
+});
 
 Deno.test("a message streams its text, then one usage event last, and is recorded", async () => {
   const fake = seed();
