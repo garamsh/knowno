@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Deck } from "../library";
+import { buttonClass } from "@/design/button";
 import { Sheet } from "@/design/sheet";
 import { CardEditor } from "./card-editor";
 import { NewNote } from "./new-note";
@@ -17,26 +19,20 @@ const choices = [
   { choice: "엑셀·CSV 파일", open: "file" },
 ] as const;
 
-/** Where the authoring flow is: the ways to add a card, a hand-made card, a file, or a new note's name. */
-export type AuthoringScreen = "options" | "manual" | "file" | "name";
-
 /**
- * The screens of adding by hand (#722), opened from a ⋯ menu's "직접 추가": with [deck], the 카드
- * 추가 sheet of the ways to add a card (ADR 0150) and what each opens; without one, 새 노트. The
- * menu owns [screen], and [setScreen] closes with null.
+ * With [deck], "+ 카드 추가" beside the note's ⋯, which opens the 카드 추가 sheet of the ways to add
+ * a card (ADR 0150) and what each opens, open on arrival with [adding]. Without one, "+ 새 노트"
+ * beside the 노트 page's title, which opens 새 노트. It is the page's own action in the tonal fill,
+ * the brand tint under an accent label on the edge a quiet button sits on, 44 high, as the phone's
+ * header action.
  */
-export function AuthoringSheets({
-  deck,
-  screen,
-  setScreen,
-}: {
-  deck?: Deck;
-  screen: AuthoringScreen | null;
-  setScreen: (screen: AuthoringScreen | null) => void;
-}) {
+export function AuthoringButton({ deck, adding = false }: { deck?: Deck; adding?: boolean }) {
+  const [screen, setScreen] = useState<"options" | "manual" | "file" | "name" | null>(
+    deck && adding ? "options" : null,
+  );
   const imports = usePhotoImports();
   const router = useRouter();
-  // An import left reading outlives this flow; its other ways open here while it is shown, else
+  // An import left reading outlives this button; its other ways open here while it is shown, else
   // on the note's page with its 카드 추가 sheet up.
   const mounted = useRef(false);
   useEffect(() => {
@@ -47,6 +43,16 @@ export function AuthoringSheets({
   }, []);
   return (
     <>
+      <button
+        type="button"
+        onClick={() => {
+          setScreen(deck ? "options" : "name");
+        }}
+        className={`${buttonClass("tonal", "header")} shrink-0`}
+      >
+        <Plus aria-hidden className="size-5" strokeWidth={2.6} />
+        {deck ? "카드 추가" : "새 노트"}
+      </button>
       {screen === "options" && deck && (
         <Sheet
           title="카드 추가"

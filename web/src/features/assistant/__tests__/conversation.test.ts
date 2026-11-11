@@ -4,7 +4,6 @@ import {
   type AssistantTurn,
   type Conversation,
   ended,
-  enteredFrom,
   lastMessage,
   parseConversation,
   readyProposal,
@@ -240,17 +239,12 @@ describe("photos, the photo job and the note a chat opens from", () => {
     expect(runningJob([reply({ job: { ...job, state: "cancelled" } })])).toBeUndefined();
   });
 
-  it("names a note once, unless the last line already does, and reads the line back", () => {
-    const note = { id: "d1", name: "영단어" };
-    const first = enteredFrom({ turns: [said("u1", "안녕")], draft: "" }, note, "c1");
-    expect(first.turns.at(-1)).toEqual({ role: "context", id: "c1", deckId: "d1", name: "영단어" });
-    expect(enteredFrom(first, note, "c2")).toBe(first);
-    // Control: another note, or the same one after a message, is named again.
-    expect(enteredFrom(first, { id: "d2", name: "표" }, "c3").turns).toHaveLength(3);
-    const after = { ...first, turns: [...first.turns, said("u2", "더")] };
-    expect(enteredFrom(after, note, "c4").turns).toHaveLength(4);
-    const read = parseConversation(JSON.stringify({ version: 1, ...first }));
-    expect(read.turns.at(-1)).toEqual(first.turns.at(-1));
+  it("reads back a stored context line, which is shown and never sent", () => {
+    const line = { role: "context", id: "c1", deckId: "d1", name: "영단어" } as const;
+    const read = parseConversation(
+      JSON.stringify({ version: 1, turns: [said("u1", "안녕"), line], draft: "" }),
+    );
+    expect(read.turns.at(-1)).toEqual(line);
   });
 
   it("reads back a user turn's photos and a reply's job, and drops a job that is not one", () => {

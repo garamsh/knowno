@@ -1,23 +1,21 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { AssistantChat, readAllowance, readNote } from "@/features/assistant";
+import { AssistantChat, readAllowance } from "@/features/assistant";
 
 import { Skeleton, SkeletonLine } from "@/design/skeleton";
 
 export const metadata: Metadata = { title: "말랑이 · 알아몰라" };
 
-async function Chat({ note }: { note: Promise<string | string[] | undefined> }) {
-  const [allowance, opened] = await Promise.all([readAllowance(), note.then(readNote)]);
-  return <AssistantChat allowance={allowance} note={opened} />;
+async function Chat() {
+  return <AssistantChat allowance={await readAllowance()} />;
 }
 
 /**
  * 말랑이's chat (#722): the conversation is this browser's, so the server reads only the day's
- * tokens left, and the name of the note `?note=` says the chat was opened from, under a skeleton
- * of the chat's bar and message field.
+ * tokens left, under a skeleton of the chat's bar and message field.
  */
-export default function AssistantPage({ searchParams }: PageProps<"/assistant">) {
+export default function AssistantPage() {
   return (
     <Suspense
       fallback={
@@ -36,7 +34,7 @@ export default function AssistantPage({ searchParams }: PageProps<"/assistant">)
         </Skeleton>
       }
     >
-      <Chat note={searchParams.then((query) => query.note)} />
+      <Chat />
     </Suspense>
   );
 }

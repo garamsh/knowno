@@ -30,7 +30,7 @@ installMarkupModule(readEngineModule());
 
 beforeAll(() => {
   server.listen({ onUnhandledFrame: "error" });
-  // jsdom has no pointer capture, which a press on a draggable control (`EdgeAssistant`) takes: a
+  // jsdom has no pointer capture, which a press on a draggable control takes: a
   // browser gives the press's pointer to the control, and here nothing is captured.
   if (typeof HTMLElement !== "undefined") HTMLElement.prototype.setPointerCapture = () => undefined;
   // jsdom has no modal dialog, which every sheet (`@/design/sheet`) opens: open and close mark it,

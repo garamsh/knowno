@@ -16,6 +16,7 @@ import { signedInCookies } from "@/testing/session";
 
 import { parseCardContent } from "../card-content";
 import { CardEditor } from "../components/card-editor";
+import { AuthoringButton } from "../components/authoring-button";
 import { NoteSettings } from "../components/note-settings";
 import { type Card, parseCardId, parseDeckId } from "../library";
 import { prepareImage } from "../prepare-image";
@@ -56,7 +57,15 @@ beforeEach(async () => {
 
 /** Opens direct entry from the deck's "카드 추가". */
 async function newCard() {
-  await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+  await render(
+    () => (
+      <>
+        <AuthoringButton deck={deck} />
+        <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />
+      </>
+    ),
+    {},
+  );
   await addByHand();
   await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
 }

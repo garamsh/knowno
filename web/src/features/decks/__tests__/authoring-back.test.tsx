@@ -11,6 +11,7 @@ import { render } from "@/testing/render";
 import { testRouter } from "@/testing/router";
 import { signedInCookies } from "@/testing/session";
 
+import { AuthoringButton } from "../components/authoring-button";
 import { NoteSettings } from "../components/note-settings";
 import { NotesMenu } from "../components/notes-menu";
 import { parseDeckId } from "../library";
@@ -37,7 +38,15 @@ const onPageEntry = () => (window.history.state as { page?: string } | null)?.pa
 
 /** Opens 새 카드 from the deck's "카드 추가" sheet, as a user does. */
 async function newCard() {
-  await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+  await render(
+    () => (
+      <>
+        <AuthoringButton deck={deck} />
+        <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />
+      </>
+    ),
+    {},
+  );
   await addByHand();
   await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
   expect(screen.getByRole("dialog", { name: "새 카드" })).toBeInTheDocument();
@@ -58,7 +67,7 @@ describe("the browser's back on an authoring screen", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
     expect(onPageEntry()).toBe(true);
-    expect(screen.getByRole("button", { name: "노트 설정" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "카드 추가" })).toHaveFocus();
   });
 
   it("asks before leaving an edited card, and a back on the question keeps writing", async () => {

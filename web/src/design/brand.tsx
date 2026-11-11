@@ -74,7 +74,7 @@ function motionOf(expression: MascotExpression, width: number, breathes: boolean
 const reduceMotion = "(prefers-reduced-motion: reduce)";
 
 /** Whether the system asks for reduced motion; the server, knowing nothing, holds still. */
-function useReducedMotion(): boolean {
+export function useReducedMotion(): boolean {
   return useSyncExternalStore(
     (changed) => {
       if (typeof window.matchMedia !== "function") return () => undefined;

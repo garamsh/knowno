@@ -9,6 +9,7 @@ export {
   sidesOf,
   spokenCells,
 } from "./card-content";
+export { AuthoringButton } from "./components/authoring-button";
 export { CardGrid } from "./components/card-grid";
 export { DeckList } from "./components/deck-list";
 export { DeckTile } from "./components/deck-tile";

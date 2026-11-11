@@ -12,7 +12,7 @@ import { SearchField } from "@/design/search-field";
 import { HatchedBox, ListedCells } from "./whole-card";
 
 /**
- * A note's page, as the final screens draw it (ADR 0150): [settings], its ⋯, over its name, on a line of its own, two lines at most, in a `ScreenSkeleton`; while it holds a card, the "카드 검색" field, always shown;
+ * A note's page, as the final screens draw it (ADR 0150): [add], its "+ 카드 추가", and [settings], its ⋯, over its name, on a line of its own, two lines at most, in a `ScreenSkeleton`; while it holds a card, the "카드 검색" field, always shown;
  * [study]; then its cards as one group of rows under that search, which keeps the cards whose 칸 hold it, revealed, ignoring case (ADR 0118,
  * ADR 0137), under a row pinned above the group of "카드 n" and the [mastered] count. Each row
  * shows the whole card, and what study hides until the reveal on the hatch (#629): a split card
@@ -25,12 +25,14 @@ export function CardGrid({
   cards,
   mastered = 0,
   study,
+  add,
   settings,
 }: {
   deck: Deck;
   cards: Card[];
   mastered?: number;
   study?: ReactNode;
+  add?: ReactNode;
   settings?: ReactNode;
 }) {
   const word = publicationWord(deck.publication);
@@ -55,8 +57,14 @@ export function CardGrid({
     ? rows.filter((row) => row.faces.some((face) => face.toLocaleLowerCase().includes(needle)))
     : rows;
 
+  const actions = (
+    <>
+      {add}
+      {settings}
+    </>
+  );
   const frame = (search: ReactNode, body: ReactNode) => (
-    <ScreenSkeleton title={deck.name} userTitle actions={settings} search={search}>
+    <ScreenSkeleton title={deck.name} userTitle actions={actions} search={search}>
       {body}
     </ScreenSkeleton>
   );

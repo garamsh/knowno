@@ -11,6 +11,7 @@ import { supabaseUrl, testAccessToken } from "@/testing/mocks/handlers";
 import { setRequestCookies } from "@/testing/next-headers";
 import { signedInCookies } from "@/testing/session";
 import { testRouter } from "@/testing/router";
+import { AuthoringButton } from "../components/authoring-button";
 import { NoteSettings } from "../components/note-settings";
 import { PhotoImports } from "../components/photo-imports";
 import { preparePhoto } from "../extract-photo";
@@ -39,7 +40,15 @@ const deck = { id: deckId, name: "단어장", publication: "private" as const };
 
 describe("authoring from the page", () => {
   it("closes a pristine draft directly and confirms dirty dismissal without losing a kept draft", async () => {
-    await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+    await render(
+      () => (
+        <>
+          <AuthoringButton deck={deck} />
+          <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />
+        </>
+      ),
+      {},
+    );
     await addByHand();
     await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
     await userEvent.click(screen.getByRole("button", { name: "닫기" }));
@@ -58,7 +67,15 @@ describe("authoring from the page", () => {
   });
 
   it("keeps a manual draft after a failed save, then saves meanings and labels once", async () => {
-    await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+    await render(
+      () => (
+        <>
+          <AuthoringButton deck={deck} />
+          <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />
+        </>
+      ),
+      {},
+    );
     await addByHand();
     await userEvent.click(screen.getByRole("button", { name: "직접 입력" }));
     await userEvent.click(screen.getByRole("button", { name: "1번째 칸 메뉴" }));
@@ -99,7 +116,15 @@ describe("authoring from the page", () => {
     );
   });
   it("opens nothing when the picker is cancelled, and keeps the choices usable", async () => {
-    await render(() => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />, {});
+    await render(
+      () => (
+        <>
+          <AuthoringButton deck={deck} />
+          <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />
+        </>
+      ),
+      {},
+    );
     await addByHand();
     const picker = screen.getByLabelText("앨범에서 고르기", { selector: "input" });
     fireEvent.change(picker, { target: { files: [] } });
@@ -457,7 +482,12 @@ describe("photo import", () => {
   async function choose(count: number) {
     const files = Array.from({ length: count }, (_, at) => new File([], `${String(at)}.jpg`));
     const view = await render(
-      () => <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />,
+      () => (
+        <>
+          <AuthoringButton deck={deck} />
+          <NoteSettings deck={deck} cardCount={0} displayName={{ name: null }} />
+        </>
+      ),
       {},
     );
     await addByHand();
