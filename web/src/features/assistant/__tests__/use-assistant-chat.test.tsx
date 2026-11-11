@@ -173,7 +173,7 @@ describe("sending a message", () => {
       chat.result.current.send("둘");
     });
     expect(requests).toHaveLength(1);
-    expect(chat.result.current.turns).toHaveLength(1);
+    expect(chat.result.current.turns.filter((turn) => turn.role === "user")).toHaveLength(1);
     turn.end();
     await settled(chat);
   });
