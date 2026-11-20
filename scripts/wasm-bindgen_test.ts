@@ -5,8 +5,11 @@ import { passedTotal } from "./wasm-bindgen.ts";
 import { host, program, RECORD, repository, write } from "./testing.ts";
 
 const LOCK = `[[package]]\nname = "wasm-bindgen"\nversion = "0.2.129"\n`;
-const CLI =
-  `if [ "$1" = --version ]; then echo "wasm-bindgen 0.2.129"; exit; fi\n${RECORD}`;
+// A CLI that, asked to generate, writes a module whose producers section ends in `recorded`.
+const cli = (recorded: string) =>
+  `if [ "$1" = --version ]; then echo "wasm-bindgen 0.2.129"; exit; fi\n${RECORD}\nmkdir -p "$4"\necho glue >"$4/knowno_engine_wasm.js"\nprintf 'producers%s' '${recorded}' >"$4/knowno_engine_wasm_bg.wasm"`;
+const RELEASE = "wasm-bindgen 0.2.129 (165586f85)";
+const CLI = cli(RELEASE);
 const NODE = "exit 0";
 const FLAGS =
   `${RECORD}\necho "RUSTFLAGS=$RUSTFLAGS" >>"$(dirname "$0")/calls"`;
@@ -16,6 +19,8 @@ const passing = (counts: number[]) =>
 async function fixture(): Promise<string> {
   const repo = await repository();
   await write(repo, "engine-wasm/Cargo.lock", LOCK);
+  // The directory the real CLI creates, holding a leftover of an earlier run.
+  await write(repo, "engine-wasm/target/generate/bindgen/leftover", "x");
   return repo;
 }
 
@@ -156,8 +161,47 @@ Deno.test("generate builds with the paths mapped, then writes pkg/ for the web",
   );
   assert.equal(
     calls[2],
-    "wasm-bindgen --target web --out-dir pkg target/generate/wasm32-unknown-unknown/release/knowno_engine_wasm.wasm",
+    "wasm-bindgen --target web --out-dir target/generate/bindgen target/generate/wasm32-unknown-unknown/release/knowno_engine_wasm.wasm",
   );
+});
+
+Deno.test("generate refuses a CLI that is not the release archive and leaves pkg/ as it was", async () => {
+  const written = (repo: string) =>
+    Deno.readTextFile(`${repo}/engine-wasm/pkg/knowno_engine_wasm_bg.wasm`);
+  const run = async (recorded: string) => {
+    const { path } = await host({
+      "wasm-bindgen": cli(recorded),
+      cargo: FLAGS,
+    });
+    const repo = await fixture();
+    await write(repo, "engine-wasm/pkg/knowno_engine_wasm_bg.wasm", "old");
+    return {
+      repo,
+      ran: await program(repo, "wasm-bindgen", ["generate"], { PATH: path }),
+    };
+  };
+
+  const release = await run(RELEASE);
+  assert.equal(release.ran.code, 0, release.ran.stderr);
+  assert.equal(await written(release.repo), `producers${RELEASE}`);
+  assert.equal(
+    await Deno.readTextFile(
+      `${release.repo}/engine-wasm/pkg/knowno_engine_wasm.js`,
+    ),
+    "glue\n",
+  );
+  await assert.rejects(
+    Deno.stat(`${release.repo}/engine-wasm/pkg/leftover`),
+    Deno.errors.NotFound,
+  );
+
+  const source = await run("wasm-bindgen 0.2.129");
+  assert.equal(source.ran.code, 1);
+  assert.match(
+    source.ran.stderr,
+    /^this wasm-bindgen is not the release archive, .*engine-wasm\/pkg\/ was left as it was\. Install the prebuilt wasm-bindgen 0\.2\.129 archive .*not cargo install\n$/,
+  );
+  assert.equal(await written(source.repo), "old");
 });
 
 Deno.test("generate falls back to the home directory's cargo", async () => {
