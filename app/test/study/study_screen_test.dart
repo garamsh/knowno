@@ -73,6 +73,9 @@ class _InstantScheduler implements Scheduler {
 
 /// Reads no state and never finishes a write.
 class _StalledRepository implements StudyRepository {
+  @override
+  Stream<void> get changes => const Stream.empty();
+
   var _ids = 0;
   final records = <CardId>[];
 

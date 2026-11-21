@@ -10,6 +10,7 @@ import 'overview.dart';
 import 'providers.dart';
 import 'queue.dart';
 import 'stats.dart' show heatmapDays, studyDayCounts;
+import 'study_changes.dart';
 import 'today_counter.dart';
 
 /// What a selection holds for today, as the home screen shows it.
@@ -70,8 +71,9 @@ typedef TodayOverviewBuilder = Widget Function(
 /// completion sheet counts it, and the next review; shows it through
 /// [builder].
 ///
-/// It is read again when [decks] changes and whenever the route that shows it
-/// comes back on top.
+/// It is read again when [decks] changes, whenever the route that shows it
+/// comes back on top, and, while it is on top, after the cards, their states
+/// or the reviews change.
 class TodayOverviewReader extends ConsumerStatefulWidget {
   const TodayOverviewReader({
     super.key,
@@ -89,6 +91,13 @@ class TodayOverviewReader extends ConsumerStatefulWidget {
 
 class _TodayOverviewReaderState extends ConsumerState<TodayOverviewReader> {
   late Future<TodayOverview> _overview = _read();
+  late final _changes = StudyChanges(ref.read(studyRepositoryProvider), () {
+    if (_onTop) {
+      setState(() {
+        _overview = _read();
+      });
+    }
+  });
   bool _onTop = true;
 
   Future<TodayOverview> _read() async {
@@ -131,6 +140,18 @@ class _TodayOverviewReaderState extends ConsumerState<TodayOverviewReader> {
         offsetAt: zone,
       ).sublist(heatmapDays - chartDays),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _changes.start();
+  }
+
+  @override
+  void dispose() {
+    _changes.cancel();
+    super.dispose();
   }
 
   @override
