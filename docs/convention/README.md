@@ -7,6 +7,7 @@ Rules every agent follows when writing code, tests, commits, and documents. The 
 - Stack-neutral
 - Stack-specific
 - Independence
+- Stage
 - Precedence
 
 ## Scope
@@ -61,6 +62,10 @@ Reading a convention file is enough to apply its rules. Where the Extends column
 - **A rule appears once** — inside a file as much as across files. A section that restates earlier rules in the negative is a second site to keep in sync, not a summary. A derived file — one the Extends column gives a base — that repeats a base rule it does not change is that same defect: what it does not hold, it does not copy.
 - **Two files' rules may share a reason.** That is not duplication. Each states its own reason; neither points at the other for it.
 - **A convention file does not send the reader to another convention file.** Where one file's territory ends and the next begins, a base included, is recorded in the tables above, not inside the files themselves.
+
+## Stage
+
+The project is in its **development stage** (owner decision, 2026-11-21: https://github.com/garamsh/discussions/discussions/6#discussioncomment-19780300). `review.md` §Submitting a review and `ci.md` §Run the checks before pushing state what it relaxes and what it never does. The owner ends it by changing this line to the release stage.
 
 ## Precedence
 
