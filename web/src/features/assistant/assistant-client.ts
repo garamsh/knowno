@@ -1,3 +1,5 @@
+import { unstable_isUnrecognizedActionError as isStaleAction } from "next/navigation";
+
 import { createClient } from "@/supabase/browser";
 
 import { cancelPhotoJob } from "./cancel-job";
@@ -61,6 +63,12 @@ async function* eventsOf(body: ReadableStream<Uint8Array>) {
   }
 }
 
+/** What a commit that threw says: the action is gone after a deploy, or the call never arrived. */
+const commitMessages = {
+  stale: "새 버전이 나왔어요. 페이지를 새로고침한 뒤 다시 추가해 주세요.",
+  unreachable: "카드를 추가하지 못했어요. 잠시 후 다시 시도해 주세요.",
+} as const;
+
 /** The assistant through this app's `/api/assistant` route and its commit action. */
 export const httpAssistantClient: AssistantClient = {
   async send(request, signal) {
@@ -81,7 +89,17 @@ export const httpAssistantClient: AssistantClient = {
     const body: unknown = await response.json().catch(() => null);
     return { kind: "refused", refusal: parseRefusal(response.status, body) };
   },
-  commit: (proposal, checked) => commitProposal(proposal, checked),
+  async commit(proposal, checked) {
+    try {
+      return await commitProposal(proposal, checked);
+    } catch (cause) {
+      // A deploy that landed under the open page leaves the action unknown to the server.
+      return {
+        kind: "failed",
+        message: isStaleAction(cause) ? commitMessages.stale : commitMessages.unreachable,
+      };
+    }
+  },
   async upload(photos) {
     try {
       const supabase = createClient();

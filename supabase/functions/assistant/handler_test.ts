@@ -1204,6 +1204,38 @@ Deno.test("the system prompt is the configuration's prompt, then the card forms 
   assert.ok(!system.includes("read_card_form"));
 });
 
+Deno.test("the reply rules tell the model to answer in the language of the user's latest message, on a chat turn and on the turn after a photo job, English as the control", async () => {
+  const job = "f0000000-0000-7000-8000-000000000011";
+  const turns: [string, unknown[]][] = [
+    ["Korean chat", [{ role: "user", text: "영단어 카드 만들어 줘" }]],
+    ["English chat", [{ role: "user", text: "Make me vocabulary cards" }]],
+    ["Korean photo job", [
+      { role: "user", text: "읽어 줘", photos: [photoOf(1)] },
+      { role: "assistant", text: "읽고 있어요.", job: { id: job, photos: 1 } },
+      { role: "user", text: "다 됐어?" },
+    ]],
+    ["English photo job", [
+      { role: "user", text: "Read these", photos: [photoOf(1)] },
+      { role: "assistant", text: "Reading.", job: { id: job, photos: 1 } },
+      { role: "user", text: "Done yet?" },
+    ]],
+  ];
+  for (const [name, messages] of turns) {
+    const fake = seed();
+    fake.replies.push(says("ok"));
+    await send(fake, { body: { messages } });
+    const system = String(fake.requests[0]!.instructions);
+    assert.ok(system.endsWith(REPLY_RULES), name);
+    assert.match(
+      system,
+      /in the language of the user's latest message with words in it: Korean for a Korean message, English for an English one/,
+      name,
+    );
+    // The control: the rule names no one language to answer in, so an English message is not forced into Korean.
+    assert.ok(!/always (in )?Korean/i.test(system), name);
+  }
+});
+
 Deno.test("read_card_form answers the form's served guide, the text MCP serves, and refuses a form that is none", async () => {
   const fake = seed();
   fake.skills = fake.skills.map((row) =>

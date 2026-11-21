@@ -7,10 +7,16 @@ export type ClozeSpan = Extract<Inline, { type: "cloze" }>;
 
 /**
  * [content], a cloze span's answer or any inline runs, as spans of text with their marks, each
- * cloze inside drawn as its answer.
+ * cloze inside drawn by [cloze], as its answer where it is not given.
  */
-export function MarkupRuns({ content }: { content: Inline[] }) {
-  return runs(content, filled);
+export function MarkupRuns({
+  content,
+  cloze = filled,
+}: {
+  content: Inline[];
+  cloze?: (span: ClozeSpan) => ReactNode;
+}) {
+  return runs(content, cloze);
 }
 
 function runs(
