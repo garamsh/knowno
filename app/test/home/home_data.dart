@@ -17,22 +17,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// zone at UTC, so the study day runs from 04:00 that day to 04:00 the next.
 final homeNow = DateTime.utc(2026, 10, 15, 9);
 
-/// What the home screens read beside the decks: a signed-in account, and
-/// study over [db] at [homeNow], whose count never finishes reading when
-/// [stalled]. Counting and opening a session schedule nothing, so the
-/// scheduler only answers the 기록 tab's folds and recall.
+/// What the home screens read beside the decks: a signed-in account, or
+/// [account] where one is given, and study over [db] at [homeNow], whose count
+/// never finishes reading when [stalled]. Counting and opening a session
+/// schedule nothing, so the scheduler only answers the 기록 tab's folds and
+/// recall.
 List<Override> homeOverrides(
   AppDatabase db, {
   required SharedPreferencesWithCache storage,
   bool stalled = false,
+  FakeAccountService? account,
 }) => [
   accountServiceProvider.overrideWithValue(
-    FakeAccountService(
-      const SignedIn(
-        userId: UserId('00000000-0000-4000-8000-00000000000a'),
-        email: 'ada@example.com',
-      ),
-    ),
+    account ??
+        FakeAccountService(
+          const SignedIn(
+            userId: UserId('00000000-0000-4000-8000-00000000000a'),
+            email: 'ada@example.com',
+          ),
+        ),
   ),
   studyRepositoryProvider.overrideWithValue(
     stalled

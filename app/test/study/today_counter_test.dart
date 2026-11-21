@@ -50,6 +50,9 @@ class _InstantScheduler implements Scheduler {
 /// Fails every read of the stored states.
 class _UnreadableStates implements StudyRepository {
   @override
+  Stream<void> get changes => const Stream.empty();
+
+  @override
   ReviewId newReviewId() => const ReviewId('unused');
 
   @override

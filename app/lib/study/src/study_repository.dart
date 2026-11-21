@@ -20,6 +20,12 @@ class StudyRepository {
   final AppDatabase _db;
   final String Function() _newId;
 
+  /// An event after each write to the cards, their states or the reviews,
+  /// whoever writes: a session's answer, an edit or a sync's pull.
+  Stream<void> get changes => _db.tableUpdates(
+    TableUpdateQuery.onAllTables([_db.cards, _db.cardStates, _db.reviews]),
+  );
+
   /// The last write [queueWrite] queued while it runs; each runs after the
   /// one before.
   Future<void>? _writing;

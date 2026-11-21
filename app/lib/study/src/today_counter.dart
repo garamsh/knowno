@@ -16,6 +16,7 @@ import 'failure_message.dart';
 import 'model.dart';
 import 'providers.dart';
 import 'queue.dart';
+import 'study_changes.dart';
 import 'study_time.dart';
 import 'today.dart';
 
@@ -124,8 +125,9 @@ typedef TodayBuilder = Widget Function(BuildContext context, TodayCount count);
 /// the rules that build its queue, whether new cards pause for a backlog, and
 /// the user's pace, and shows the count through [builder].
 ///
-/// The count is read again when [decks] changes and whenever the route that
-/// shows it comes back on top.
+/// The count is read again when [decks] changes, whenever the route that
+/// shows it comes back on top, and, while it is on top, after the cards, their
+/// states or the reviews change.
 class TodayCounter extends ConsumerStatefulWidget {
   const TodayCounter({super.key, required this.decks, required this.builder});
 
@@ -138,10 +140,29 @@ class TodayCounter extends ConsumerStatefulWidget {
 
 class _TodayCounterState extends ConsumerState<TodayCounter> {
   late Future<TodayCounted> _count = _read();
+  late final _changes = StudyChanges(ref.read(studyRepositoryProvider), () {
+    if (_onTop) {
+      setState(() {
+        _count = _read();
+      });
+    }
+  });
   bool _onTop = true;
 
   Future<TodayCounted> _read() async =>
       (await readToday(widget.decks, ref)).count;
+
+  @override
+  void initState() {
+    super.initState();
+    _changes.start();
+  }
+
+  @override
+  void dispose() {
+    _changes.cancel();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
