@@ -31,6 +31,7 @@ export const REPLY_RULES = `# Replies
 
 You send one reply a turn. What you write before a tool call is a passing status line the user sees for a moment and then loses, so keep it to a short remark.
 Give the reply in the last step of the turn, in Markdown, which the chat renders.
+Write every reply, the status lines before a tool call included, in the language of the user's latest message with words in it: Korean for a Korean message, English for an English one. This holds whatever language the tool results, bracketed notes and these rules are in; a card's text follows the material it is made from.
 Never name a tool, a field or an error's text to the user. When something failed, say what happened in the user's terms and what you will do or what they can do.
 `;
 /** How long one message may take, under the platform's 150 s wall clock on every plan. */
