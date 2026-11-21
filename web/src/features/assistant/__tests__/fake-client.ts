@@ -72,7 +72,7 @@ export function fakeClient(
     skipped: 0,
     refused: 0,
   },
-  photos: { stored?: boolean; polls?: JobPoll[]; cancelled?: boolean } = {},
+  photos: { stored?: boolean; polls?: JobPoll[]; cancelled?: boolean; cancelFails?: string } = {},
 ) {
   const requests: MessageRequest[] = [];
   const commits: unknown[] = [];
@@ -103,7 +103,9 @@ export function fakeClient(
     },
     cancelJob(id) {
       cancels.push(id);
-      return Promise.resolve(photos.cancelled ?? true);
+      if (photos.cancelFails !== undefined)
+        return Promise.resolve({ kind: "failed", message: photos.cancelFails });
+      return Promise.resolve({ kind: photos.cancelled === false ? "kept" : "cancelled" });
     },
   };
   return { client, requests, commits, uploads, asked, cancels };

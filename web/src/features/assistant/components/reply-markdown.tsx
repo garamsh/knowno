@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { type ClozeSpan, MarkupRuns } from "@/design/markup-text";
+import { type ClozeSpan, MarkupRuns, MarkupText } from "@/design/markup-text";
 import { parse } from "@/design/markup-engine";
 import { useMarkupReady } from "@/design/use-markup-ready";
 
@@ -18,15 +18,31 @@ function blank(span: ClozeSpan): ReactNode {
   );
 }
 
-/** A text of the reply that holds cloze syntax, read by the engine and drawn as a card draws it. */
-function ReplyCloze({ source }: { source: string }) {
+/**
+ * A text of the reply that holds cloze syntax, read by the engine and drawn as a card draws it: a
+ * paragraph's runs where it reads one, else each block it reads, a list item after its marker. In a
+ * [line] the blocks run on, a space between them.
+ */
+function ReplyCloze({ source, line = false }: { source: string; line?: boolean }) {
   const ready = useMarkupReady();
   if (!ready) return source;
-  const [only, ...more] = parse(source);
+  const blocks = parse(source);
+  if (line)
+    return blocks
+      .flatMap((block) =>
+        block.type === "paragraph" ? [block.content] : block.items.map((item) => item.content),
+      )
+      .map((content, at) => (
+        <Fragment key={at}>
+          {at > 0 && " "}
+          <MarkupRuns content={content} cloze={blank} />
+        </Fragment>
+      ));
+  const [only, ...more] = blocks;
   return only?.type === "paragraph" && more.length === 0 ? (
     <MarkupRuns content={only.content} cloze={blank} />
   ) : (
-    source
+    <MarkupText document={blocks} cloze={blank} />
   );
 }
 
@@ -75,6 +91,18 @@ function heading(level: number) {
   };
 }
 
+/** The `span` that [clozeTexts] leaves where a text holds cloze syntax. */
+function clozeSpan(line: boolean) {
+  return function ClozeSpan({ children, ...props }: { children?: ReactNode }) {
+    const source: unknown = (props as Record<string, unknown>)["data-cloze-source"];
+    return typeof source === "string" ? (
+      <ReplyCloze source={source} line={line} />
+    ) : (
+      <span>{children}</span>
+    );
+  };
+}
+
 const components: Components = {
   h1: heading(1),
   h2: heading(2),
@@ -97,10 +125,7 @@ const components: Components = {
       <>{children}</>
     ),
   img: ({ alt }) => <span>{alt}</span>,
-  span: ({ children, ...props }) => {
-    const source: unknown = (props as Record<string, unknown>)["data-cloze-source"];
-    return typeof source === "string" ? <ReplyCloze source={source} /> : <span>{children}</span>;
-  },
+  span: clozeSpan(false),
   ul: ({ children }) => <ul className="flex list-disc flex-col gap-1 ps-6">{children}</ul>,
   ol: ({ children }) => <ol className="flex list-decimal flex-col gap-1 ps-6">{children}</ol>,
   li: ({ children }) => <li className="flex flex-col gap-1">{children}</li>,
@@ -210,9 +235,21 @@ function words(node: LineNode): string {
 /** A rehype plugin: the whole tree becomes one text node, the reply's words folded to a line. */
 function intoLine() {
   return (tree: LineNode) => {
-    tree.children = [{ type: "text", value: words(tree).replace(/\s+/g, " ").trim() }];
+    const value = words(tree).replace(/\s+/g, " ").trim();
+    tree.children = [
+      value.includes("{{")
+        ? {
+            type: "element",
+            tagName: "span",
+            properties: { dataClozeSource: value },
+            children: [],
+          }
+        : { type: "text", value },
+    ];
   };
 }
+
+const lineSpan = clozeSpan(true);
 
 /**
  * 말랑이's interim remark as the words the reply would show for it, on one line: read with the
@@ -220,7 +257,11 @@ function intoLine() {
  */
 export function ReplyLine({ text }: { text: string }) {
   return (
-    <Markdown remarkPlugins={replyRemarkPlugins} rehypePlugins={[intoLine]}>
+    <Markdown
+      remarkPlugins={replyRemarkPlugins}
+      rehypePlugins={[intoLine]}
+      components={{ span: lineSpan }}
+    >
       {text}
     </Markdown>
   );

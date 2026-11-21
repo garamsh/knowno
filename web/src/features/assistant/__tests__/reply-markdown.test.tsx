@@ -156,8 +156,42 @@ describe("말랑이's reply as Markdown", () => {
   });
 });
 
+describe("a cloze in a text that holds more than one line", () => {
+  it("draws the reply of #990 as a blank, its soft-broken `3.` kept, and never shows the answer", () => {
+    const { container } = render(
+      <ReplyMarkdown text={"**빈칸 문장** (cloze)\n3. 광합성은 {{c1::엽록체}}에서 일어난다."} />,
+    );
+    const blanks = container.querySelectorAll('[data-blank="reply"]');
+    expect([...blanks].map((one) => one.textContent)).toEqual(["___"]);
+    expect(container.textContent).toContain("광합성은 ___에서 일어난다.");
+    expect(container.textContent).not.toContain("엽록체");
+    expect(container.textContent).not.toContain("{{");
+    expect(screen.getByText("빈칸 문장").tagName).toBe("STRONG");
+    // Control: the engine read it as more than one block, so the whole text was not one paragraph.
+    expect(container.querySelector('[data-markup="item"]')).not.toBeNull();
+  });
+});
+
 describe("an interim remark as a status line", () => {
   const line = (text: string) => render(<ReplyLine text={text} />).container;
+
+  it("draws a cloze in a remark as a blank on its one line, never its answer", () => {
+    const { container } = render(
+      <ReplyLine
+        text={"**찾는 중** (cloze)\n3. 광합성은 {{c1::엽록체}}에서 {{c2::일어난::일}}다"}
+      />,
+    );
+    expect(container.textContent).toBe("찾는 중 (cloze) 3. 광합성은 ___에서 ___(일)다");
+    expect(
+      [...container.querySelectorAll('[data-blank="reply"]')].map((one) => one.textContent),
+    ).toEqual(["___", "___(일)"]);
+    expect(container.querySelector('[data-markup="item"]')).toBeNull();
+    cleanup();
+    // A remark the engine reads as a list stays on the one line too.
+    const listed = line("3. 광합성은 {{c1::엽록체}}에서 일어난다");
+    expect(listed.textContent).toBe("광합성은 ___에서 일어난다");
+    expect(listed.querySelector('[data-markup="item"]')).toBeNull();
+  });
 
   it("shows a remark's words without Markdown marks, on one line", () => {
     const marked = line("**굵게** *기울여* ~~지워~~ `코드` 말해요");

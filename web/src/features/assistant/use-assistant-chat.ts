@@ -83,6 +83,7 @@ export function useAssistantChat(client: AssistantClient, readAllowance: Allowan
   const [allowance, setAllowance] = useState(readAllowance);
   const [committing, setCommitting] = useState(false);
   const [commitFailure, setCommitFailure] = useState<string | null>(null);
+  const [cancelFailure, setCancelFailure] = useState<string | null>(null);
   const [staged, setStaged] = useState<StagedPhoto[]>([]);
   const [pickFailed, setPickFailed] = useState(false);
   const abort = useRef<AbortController | null>(null);
@@ -332,12 +333,14 @@ export function useAssistantChat(client: AssistantClient, readAllowance: Allowan
     };
   }, [hydrated, runningId, askAfterJob]);
 
-  /** Cancels the photo job the conversation reads; one the function refuses keeps running. */
+  /** Cancels the photo job the conversation reads; one the function refuses keeps running, and a failed call is kept in [cancelFailure]. */
   const cancelJob = useCallback(async () => {
     const reply = runningJob(latest.current.turns);
     if (!reply?.job) return;
-    if (await client.cancelJob(reply.job.id))
-      setJob(reply.id, { ...reply.job, state: "cancelled" });
+    setCancelFailure(null);
+    const result = await client.cancelJob(reply.job.id);
+    if (result.kind === "failed") setCancelFailure(result.message);
+    else if (result.kind === "cancelled") setJob(reply.id, { ...reply.job, state: "cancelled" });
   }, [client, setJob]);
 
   const editProposal = useCallback(
@@ -413,6 +416,7 @@ export function useAssistantChat(client: AssistantClient, readAllowance: Allowan
   const clear = useCallback(() => {
     setStatus({ kind: "idle" });
     setCommitFailure(null);
+    setCancelFailure(null);
     update(() => emptyConversation);
   }, [update]);
 
@@ -427,6 +431,7 @@ export function useAssistantChat(client: AssistantClient, readAllowance: Allowan
     open,
     committing,
     commitFailure,
+    cancelFailure,
     staged,
     pickFailed,
     setDraft,

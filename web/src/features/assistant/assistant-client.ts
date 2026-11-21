@@ -18,6 +18,10 @@ import {
 
 export type { CommitResult };
 
+/** What cancelling a photo job came to: it is cancelled, the function kept it running, or the call threw. */
+export type CancelResult =
+  { kind: "cancelled" } | { kind: "kept" } | { kind: "failed"; message: string };
+
 /**
  * A message: the turns, oldest first, the last the user's, and its context: the browser's time
  * zone, where known.
@@ -49,8 +53,8 @@ export type AssistantClient = {
   /** Uploads each of [photos] to the chat's private bucket; whether every one is stored. */
   upload: (photos: PreparedPhoto[]) => Promise<boolean>;
   pollJob: (id: string) => Promise<JobPoll>;
-  /** Cancels the photo job [id]; whether it is cancelled. */
-  cancelJob: (id: string) => Promise<boolean>;
+  /** Cancels the photo job [id]. */
+  cancelJob: (id: string) => Promise<CancelResult>;
 };
 
 /** The bucket the function reads a message's photos from (`assistant.md` §Photo jobs). */
@@ -67,6 +71,12 @@ async function* eventsOf(body: ReadableStream<Uint8Array>) {
 const commitMessages = {
   stale: "새 버전이 나왔어요. 페이지를 새로고침한 뒤 다시 추가해 주세요.",
   unreachable: "카드를 추가하지 못했어요. 잠시 후 다시 시도해 주세요.",
+} as const;
+
+/** What a cancel that threw says, as a commit's does. */
+const cancelMessages = {
+  stale: "새 버전이 나왔어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.",
+  unreachable: "사진 읽기를 취소하지 못했어요. 잠시 후 다시 시도해 주세요.",
 } as const;
 
 /** The assistant through this app's `/api/assistant` route and its commit action. */
@@ -128,5 +138,14 @@ export const httpAssistantClient: AssistantClient = {
       return { kind: "failed" };
     }
   },
-  cancelJob: (id) => cancelPhotoJob(id),
+  async cancelJob(id) {
+    try {
+      return (await cancelPhotoJob(id)) ? { kind: "cancelled" } : { kind: "kept" };
+    } catch (cause) {
+      return {
+        kind: "failed",
+        message: isStaleAction(cause) ? cancelMessages.stale : cancelMessages.unreachable,
+      };
+    }
+  },
 };
