@@ -32,7 +32,7 @@ OUT = ROOT / "app/assets/fonts/GoogleSans-Medium"
 LABELS = {
     "app/lib/l10n/app_en.arb": "Continue with Google",
     "app/lib/l10n/app_ko.arb": "Google로 계속하기",
-    "web/src/features/account/components/sign-in-button.tsx": "Google로 로그인",
+    "web/src/features/account/components/sign-in-button.tsx": "Google로 계속하기",
 }
 BASIC_LATIN = range(0x20, 0x7F)
 
