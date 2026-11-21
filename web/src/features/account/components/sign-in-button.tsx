@@ -72,7 +72,7 @@ export function SignInButton() {
             <GoogleMark theme="dark" />
           </>
         )}
-        Google로 로그인
+        Google로 계속하기
       </button>
       {state === "failed" && (
         <p role="alert" className="text-caption text-dont-know-text">

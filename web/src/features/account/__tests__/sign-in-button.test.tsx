@@ -30,7 +30,7 @@ describe("SignInButton", () => {
     signInWithOAuth.mockResolvedValue({ data: {}, error: null });
     render(<SignInButton />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Google로 로그인" }));
+    await userEvent.click(screen.getByRole("button", { name: "Google로 계속하기" }));
 
     expect(signInWithOAuth).toHaveBeenCalledWith({
       provider: "google",
@@ -42,7 +42,7 @@ describe("SignInButton", () => {
   it("is Google's button: the light and the dark theme's G mark before the label", () => {
     render(<SignInButton />);
 
-    const button = screen.getByRole("button", { name: "Google로 로그인" });
+    const button = screen.getByRole("button", { name: "Google로 계속하기" });
     // The marks are decorative, so the label alone names the button; they are found by source.
     const marks = Array.from(button.querySelectorAll("img"), (img) => ({
       src: img.getAttribute("src"),
@@ -52,7 +52,7 @@ describe("SignInButton", () => {
       { src: "/google/g-mark-light.png", alt: "" },
       { src: "/google/g-mark-dark.png", alt: "" },
     ]);
-    expect(button.lastChild).toHaveTextContent("Google로 로그인");
+    expect(button.lastChild).toHaveTextContent("Google로 계속하기");
   });
 
   it("sets its label in Google Sans, as the guidelines do, with Pretendard for the Hangul", () => {
@@ -60,7 +60,7 @@ describe("SignInButton", () => {
 
     // jsdom computes no font, so the button is checked for the family token and the token for
     // Google Sans first.
-    expect(screen.getByRole("button", { name: "Google로 로그인" })).toHaveClass("font-google");
+    expect(screen.getByRole("button", { name: "Google로 계속하기" })).toHaveClass("font-google");
     expect(globalsCss).toMatch(/--font-google: var\(--font-google-sans\), var\(--font-sans\);/);
   });
 
@@ -68,9 +68,9 @@ describe("SignInButton", () => {
     signInWithOAuth.mockReturnValue(new Promise(() => undefined));
     render(<SignInButton />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Google로 로그인" }));
+    await userEvent.click(screen.getByRole("button", { name: "Google로 계속하기" }));
 
-    const button = screen.getByRole("button", { name: "Google로 로그인" });
+    const button = screen.getByRole("button", { name: "Google로 계속하기" });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("aria-busy", "true");
     // Progress takes the mark's place inside the pressed button.
@@ -84,17 +84,17 @@ describe("SignInButton", () => {
     signInWithOAuth.mockResolvedValue({ data: {}, error: new AuthError("no provider") });
     render(<SignInButton />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Google로 로그인" }));
+    await userEvent.click(screen.getByRole("button", { name: "Google로 계속하기" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(failure);
-    expect(screen.getByRole("button", { name: "Google로 로그인" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Google로 계속하기" })).toBeEnabled();
   });
 
   it("shows the reason when starting sign-in throws", async () => {
     signInWithOAuth.mockRejectedValue(new Error("storage unavailable"));
     render(<SignInButton />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Google로 로그인" }));
+    await userEvent.click(screen.getByRole("button", { name: "Google로 계속하기" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(failure);
   });

@@ -169,7 +169,7 @@ export function AppleSignInButton() {
         <div
           id="appleid-signin"
           data-mode="center-align"
-          data-type="sign-in"
+          data-type="continue"
           data-color={dark ? "white" : "black"}
           data-border="false"
           // A percentage of the height to Apple's script: 50% of 48 px is the 24 px of rounded-button.

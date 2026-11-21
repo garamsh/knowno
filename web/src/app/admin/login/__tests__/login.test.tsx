@@ -24,8 +24,8 @@ describe("the admin host's sign-in", () => {
     expect(
       screen.getByText("관리자 계정으로 로그인해 주세요. 서비스의 로그인과는 따로예요."),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Google로 로그인" })).toBeEnabled();
-    expect(document.getElementById("appleid-signin")).toHaveAttribute("data-type", "sign-in");
+    expect(screen.getByRole("button", { name: "Google로 계속하기" })).toBeEnabled();
+    expect(document.getElementById("appleid-signin")).toHaveAttribute("data-type", "continue");
     // The legal pages are the service's, which the admin host does not open.
     expect(screen.queryByRole("link")).toBeNull();
   });

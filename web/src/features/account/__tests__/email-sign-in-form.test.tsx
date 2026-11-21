@@ -42,6 +42,23 @@ afterEach(() => {
 });
 
 describe("EmailSignIn", () => {
+  it("draws its button as the sign-in group's: 48 high, 16/24 medium, a thin outline and no press edge", () => {
+    render(<EmailSignIn />);
+
+    const button = screen.getByRole("button", { name: "이메일로 계속하기" });
+    // jsdom computes no style, so the classes are the claim; the stylesheet's tokens are asserted
+    // where the group is (login.test.tsx).
+    expect(button).toHaveClass("min-h-google-height", "text-body", "border", "border-outline");
+    // The press edge is drawn for `.rounded-button.bg-surface`, so a fill of that name brings it back.
+    expect(button).toHaveClass("bg-transparent");
+    expect(button).not.toHaveClass(
+      "bg-surface",
+      "text-button",
+      "font-display",
+      "border-b-edge-button",
+    );
+  });
+
   it("is a button, 이메일로 계속하기, until it is pressed, and then the email step", async () => {
     const user = userEvent.setup();
     render(<EmailSignIn />);

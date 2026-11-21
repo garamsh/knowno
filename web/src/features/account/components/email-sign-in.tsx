@@ -12,6 +12,12 @@ import type { VerifyCodeState } from "../verify-email-code";
 const field =
   "min-h-field w-full rounded-field border border-outline bg-surface px-4 py-3 text-body text-ink placeholder:text-muted focus:outline-2 focus:outline-ink";
 
+// The entry button, one of the sign-in group's three 48 high buttons beside Google's and Apple's
+// (ADR 0265): the body type on the page's ground with a thin outline and no press edge, which the
+// transparent fill leaves out, since the edge is drawn for a `bg-surface` button.
+const entryButton =
+  "pressable flex min-h-google-height w-full max-w-sign-in items-center justify-center self-center rounded-button border border-outline bg-transparent px-5 text-center text-body break-keep text-ink not-disabled:cursor-pointer outline-offset-2 focus-visible:outline-2 focus-visible:outline-ink disabled:opacity-50";
+
 // The server's render hands back the initial state it is given, so each is one object: a new one
 // every render would be taken for a change, and the render would not end.
 const nothingSent: SendCodeState = { sent: 0, email: null, resendIn: null, message: null };
@@ -54,7 +60,7 @@ export function EmailSignIn() {
         onClick={() => {
           setOpen(true);
         }}
-        className={`${buttonClass("secondary")} w-full max-w-sign-in self-center border border-outline`}
+        className={entryButton}
       >
         이메일로 계속하기
       </button>
