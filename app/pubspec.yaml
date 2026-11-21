@@ -57,7 +57,7 @@ dependencies:
   url_launcher: 6.3.3
   purchases_flutter: 11.0.1
   package_info_plus: 10.2.2
-  record: 7.1.2
+  record: 7.2.0
   just_audio: 0.10.6
   file_picker: 13.3.0
   archive: ^4.7.1
