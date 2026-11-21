@@ -163,12 +163,18 @@ describe("a cloze in a text that holds more than one line", () => {
     );
     const blanks = container.querySelectorAll('[data-blank="reply"]');
     expect([...blanks].map((one) => one.textContent)).toEqual(["___"]);
-    expect(container.textContent).toContain("광합성은 ___에서 일어난다.");
+    // One paragraph: the label and "(cloze)" on a line, the reply's own break, then "3." as written.
+    const paragraph = container.querySelectorAll("p");
+    expect(paragraph).toHaveLength(1);
+    expect(paragraph[0]?.textContent).toBe("빈칸 문장 (cloze)3. 광합성은 ___에서 일어난다.");
+    expect(paragraph[0]?.querySelectorAll("br")).toHaveLength(1);
+    expect(paragraph[0]?.innerHTML).toContain("(cloze)<br>3. 광합성은 ");
     expect(container.textContent).not.toContain("엽록체");
     expect(container.textContent).not.toContain("{{");
     expect(screen.getByText("빈칸 문장").tagName).toBe("STRONG");
-    // Control: the engine read it as more than one block, so the whole text was not one paragraph.
-    expect(container.querySelector('[data-markup="item"]')).not.toBeNull();
+    // Read as the reply's words: one paragraph, no list the engine would number from 1.
+    expect(container.querySelector('[data-markup="item"]')).toBeNull();
+    expect(container.textContent).not.toContain("1. 광합성");
   });
 });
 

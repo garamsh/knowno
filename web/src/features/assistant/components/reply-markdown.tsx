@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -18,26 +18,20 @@ function blank(span: ClozeSpan): ReactNode {
   );
 }
 
+/** [text] with each line's first list marker made literal, as the card markup's escape does (`escape` in `engine/src/markup.rs`). */
+function literalMarkers(text: string): string {
+  return text.replace(/^(?=-|\d+\.)/gm, "\\");
+}
+
 /**
- * A text of the reply that holds cloze syntax, read by the engine and drawn as a card draws it: a
- * paragraph's runs where it reads one, else each block it reads, a list item after its marker. In a
- * [line] the blocks run on, a space between them.
+ * A text of the reply that holds cloze syntax, read by the engine and drawn as a card draws it. A
+ * line of the reply that starts `3. ` is the reply's words, not a list, so its marker is escaped
+ * and the text reads as one paragraph.
  */
-function ReplyCloze({ source, line = false }: { source: string; line?: boolean }) {
+function ReplyCloze({ source }: { source: string }) {
   const ready = useMarkupReady();
   if (!ready) return source;
-  const blocks = parse(source);
-  if (line)
-    return blocks
-      .flatMap((block) =>
-        block.type === "paragraph" ? [block.content] : block.items.map((item) => item.content),
-      )
-      .map((content, at) => (
-        <Fragment key={at}>
-          {at > 0 && " "}
-          <MarkupRuns content={content} cloze={blank} />
-        </Fragment>
-      ));
+  const blocks = parse(literalMarkers(source));
   const [only, ...more] = blocks;
   return only?.type === "paragraph" && more.length === 0 ? (
     <MarkupRuns content={only.content} cloze={blank} />
@@ -92,15 +86,9 @@ function heading(level: number) {
 }
 
 /** The `span` that [clozeTexts] leaves where a text holds cloze syntax. */
-function clozeSpan(line: boolean) {
-  return function ClozeSpan({ children, ...props }: { children?: ReactNode }) {
-    const source: unknown = (props as Record<string, unknown>)["data-cloze-source"];
-    return typeof source === "string" ? (
-      <ReplyCloze source={source} line={line} />
-    ) : (
-      <span>{children}</span>
-    );
-  };
+function ClozeSpan({ children, ...props }: { children?: ReactNode }) {
+  const source: unknown = (props as Record<string, unknown>)["data-cloze-source"];
+  return typeof source === "string" ? <ReplyCloze source={source} /> : <span>{children}</span>;
 }
 
 const components: Components = {
@@ -125,7 +113,7 @@ const components: Components = {
       <>{children}</>
     ),
   img: ({ alt }) => <span>{alt}</span>,
-  span: clozeSpan(false),
+  span: ClozeSpan,
   ul: ({ children }) => <ul className="flex list-disc flex-col gap-1 ps-6">{children}</ul>,
   ol: ({ children }) => <ol className="flex list-decimal flex-col gap-1 ps-6">{children}</ol>,
   li: ({ children }) => <li className="flex flex-col gap-1">{children}</li>,
@@ -249,8 +237,6 @@ function intoLine() {
   };
 }
 
-const lineSpan = clozeSpan(true);
-
 /**
  * 말랑이's interim remark as the words the reply would show for it, on one line: read with the
  * reply's parser and extension set, no mark left, a link as its text, an image as its alt text.
@@ -260,7 +246,7 @@ export function ReplyLine({ text }: { text: string }) {
     <Markdown
       remarkPlugins={replyRemarkPlugins}
       rehypePlugins={[intoLine]}
-      components={{ span: lineSpan }}
+      components={{ span: ClozeSpan }}
     >
       {text}
     </Markdown>
