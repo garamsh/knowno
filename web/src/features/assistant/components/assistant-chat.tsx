@@ -100,6 +100,7 @@ export function AssistantChat({
     open,
     committing,
     commitFailure,
+    cancelFailure,
     staged,
     pickFailed,
   } = chat;
@@ -256,7 +257,13 @@ export function AssistantChat({
                       ))}
                     </ul>
                   )}
-                  {turn.job && <JobLine job={turn.job} onCancel={() => void chat.cancelJob()} />}
+                  {turn.job && (
+                    <JobLine
+                      job={turn.job}
+                      failure={cancelFailure}
+                      onCancel={() => void chat.cancelJob()}
+                    />
+                  )}
                   {turn.proposals.map((one) => (
                     <ProposalView
                       key={one.proposal.id}
@@ -579,7 +586,15 @@ function ChatFrame({
  * A photo job's line under 말랑이's reply: "n/m장 읽는 중" over a bar with "읽기 취소" while it
  * reads, then that it was read whole or cancelled.
  */
-function JobLine({ job, onCancel }: { job: JobProgress; onCancel: () => void }) {
+function JobLine({
+  job,
+  failure,
+  onCancel,
+}: {
+  job: JobProgress;
+  failure: string | null;
+  onCancel: () => void;
+}) {
   if (job.state === "done")
     return (
       <p className="text-secondary break-keep text-muted">사진 {job.photos}장을 다 읽었어요</p>
@@ -600,6 +615,11 @@ function JobLine({ job, onCancel }: { job: JobProgress; onCancel: () => void }) 
       <button type="button" onClick={onCancel} className={buttonClass("text", "header")}>
         읽기 취소
       </button>
+      {failure && (
+        <p role="alert" className="text-secondary break-keep text-dont-know-text">
+          {failure}
+        </p>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { type ClozeSpan, MarkupRuns } from "@/design/markup-text";
+import { type ClozeSpan, MarkupRuns, MarkupText } from "@/design/markup-text";
 import { parse } from "@/design/markup-engine";
 import { useMarkupReady } from "@/design/use-markup-ready";
 
@@ -18,15 +18,25 @@ function blank(span: ClozeSpan): ReactNode {
   );
 }
 
-/** A text of the reply that holds cloze syntax, read by the engine and drawn as a card draws it. */
+/** [text] with each line's first list marker made literal, as the card markup's escape does (`escape` in `engine/src/markup.rs`). */
+function literalMarkers(text: string): string {
+  return text.replace(/^(?=-|\d+\.)/gm, "\\");
+}
+
+/**
+ * A text of the reply that holds cloze syntax, read by the engine and drawn as a card draws it. A
+ * line of the reply that starts `3. ` is the reply's words, not a list, so its marker is escaped
+ * and the text reads as one paragraph.
+ */
 function ReplyCloze({ source }: { source: string }) {
   const ready = useMarkupReady();
   if (!ready) return source;
-  const [only, ...more] = parse(source);
+  const blocks = parse(literalMarkers(source));
+  const [only, ...more] = blocks;
   return only?.type === "paragraph" && more.length === 0 ? (
     <MarkupRuns content={only.content} cloze={blank} />
   ) : (
-    source
+    <MarkupText document={blocks} cloze={blank} />
   );
 }
 
@@ -75,6 +85,12 @@ function heading(level: number) {
   };
 }
 
+/** The `span` that [clozeTexts] leaves where a text holds cloze syntax. */
+function ClozeSpan({ children, ...props }: { children?: ReactNode }) {
+  const source: unknown = (props as Record<string, unknown>)["data-cloze-source"];
+  return typeof source === "string" ? <ReplyCloze source={source} /> : <span>{children}</span>;
+}
+
 const components: Components = {
   h1: heading(1),
   h2: heading(2),
@@ -97,10 +113,7 @@ const components: Components = {
       <>{children}</>
     ),
   img: ({ alt }) => <span>{alt}</span>,
-  span: ({ children, ...props }) => {
-    const source: unknown = (props as Record<string, unknown>)["data-cloze-source"];
-    return typeof source === "string" ? <ReplyCloze source={source} /> : <span>{children}</span>;
-  },
+  span: ClozeSpan,
   ul: ({ children }) => <ul className="flex list-disc flex-col gap-1 ps-6">{children}</ul>,
   ol: ({ children }) => <ol className="flex list-decimal flex-col gap-1 ps-6">{children}</ol>,
   li: ({ children }) => <li className="flex flex-col gap-1">{children}</li>,
@@ -210,7 +223,17 @@ function words(node: LineNode): string {
 /** A rehype plugin: the whole tree becomes one text node, the reply's words folded to a line. */
 function intoLine() {
   return (tree: LineNode) => {
-    tree.children = [{ type: "text", value: words(tree).replace(/\s+/g, " ").trim() }];
+    const value = words(tree).replace(/\s+/g, " ").trim();
+    tree.children = [
+      value.includes("{{")
+        ? {
+            type: "element",
+            tagName: "span",
+            properties: { dataClozeSource: value },
+            children: [],
+          }
+        : { type: "text", value },
+    ];
   };
 }
 
@@ -220,7 +243,11 @@ function intoLine() {
  */
 export function ReplyLine({ text }: { text: string }) {
   return (
-    <Markdown remarkPlugins={replyRemarkPlugins} rehypePlugins={[intoLine]}>
+    <Markdown
+      remarkPlugins={replyRemarkPlugins}
+      rehypePlugins={[intoLine]}
+      components={{ span: ClozeSpan }}
+    >
       {text}
     </Markdown>
   );

@@ -845,6 +845,19 @@ describe("photos", () => {
     expect(replyOf(chat).job?.state).toBe("cancelled");
   });
 
+  it("keeps the failure of a cancel that threw, and drops it when the cancel is tried again", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { chat } = await startJob([[{ type: "job", id: "j1", photos: 3 }]], {
+      cancelFails: "취소하지 못했어요",
+    });
+    await settled(chat);
+    await act(async () => {
+      await chat.result.current.cancelJob();
+    });
+    expect(chat.result.current.cancelFailure).toBe("취소하지 못했어요");
+    expect(replyOf(chat).job?.state).toBe("running");
+  });
+
   it("asks after a stored running job when the chat opens", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const first = startJob([[{ type: "job", id: "j1", photos: 3 }]], {});

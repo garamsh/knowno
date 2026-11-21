@@ -156,8 +156,48 @@ describe("말랑이's reply as Markdown", () => {
   });
 });
 
+describe("a cloze in a text that holds more than one line", () => {
+  it("draws the reply of #990 as a blank, its soft-broken `3.` kept, and never shows the answer", () => {
+    const { container } = render(
+      <ReplyMarkdown text={"**빈칸 문장** (cloze)\n3. 광합성은 {{c1::엽록체}}에서 일어난다."} />,
+    );
+    const blanks = container.querySelectorAll('[data-blank="reply"]');
+    expect([...blanks].map((one) => one.textContent)).toEqual(["___"]);
+    // One paragraph: the label and "(cloze)" on a line, the reply's own break, then "3." as written.
+    const paragraph = container.querySelectorAll("p");
+    expect(paragraph).toHaveLength(1);
+    expect(paragraph[0]?.textContent).toBe("빈칸 문장 (cloze)3. 광합성은 ___에서 일어난다.");
+    expect(paragraph[0]?.querySelectorAll("br")).toHaveLength(1);
+    expect(paragraph[0]?.innerHTML).toContain("(cloze)<br>3. 광합성은 ");
+    expect(container.textContent).not.toContain("엽록체");
+    expect(container.textContent).not.toContain("{{");
+    expect(screen.getByText("빈칸 문장").tagName).toBe("STRONG");
+    // Read as the reply's words: one paragraph, no list the engine would number from 1.
+    expect(container.querySelector('[data-markup="item"]')).toBeNull();
+    expect(container.textContent).not.toContain("1. 광합성");
+  });
+});
+
 describe("an interim remark as a status line", () => {
   const line = (text: string) => render(<ReplyLine text={text} />).container;
+
+  it("draws a cloze in a remark as a blank on its one line, never its answer", () => {
+    const { container } = render(
+      <ReplyLine
+        text={"**찾는 중** (cloze)\n3. 광합성은 {{c1::엽록체}}에서 {{c2::일어난::일}}다"}
+      />,
+    );
+    expect(container.textContent).toBe("찾는 중 (cloze) 3. 광합성은 ___에서 ___(일)다");
+    expect(
+      [...container.querySelectorAll('[data-blank="reply"]')].map((one) => one.textContent),
+    ).toEqual(["___", "___(일)"]);
+    expect(container.querySelector('[data-markup="item"]')).toBeNull();
+    cleanup();
+    // A remark the engine reads as a list stays on the one line too.
+    const listed = line("3. 광합성은 {{c1::엽록체}}에서 일어난다");
+    expect(listed.textContent).toBe("광합성은 ___에서 일어난다");
+    expect(listed.querySelector('[data-markup="item"]')).toBeNull();
+  });
 
   it("shows a remark's words without Markdown marks, on one line", () => {
     const marked = line("**굵게** *기울여* ~~지워~~ `코드` 말해요");
