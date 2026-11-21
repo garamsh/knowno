@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show QueryExecutor;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -11,7 +12,6 @@ import 'package:google_sign_in_platform_interface/google_sign_in_platform_interf
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:knowno/account/account.dart';
@@ -222,10 +222,6 @@ void main() {
       find.byType(GoogleSignInButton),
     ))
       button.label,
-    for (final button in tester.widgetList<SignInWithAppleButton>(
-      find.byType(SignInWithAppleButton),
-    ))
-      if (button.onPressed != null) button.text,
     for (final button in tester.widgetList<EmailSignInButton>(
       find.byType(EmailSignInButton),
     ))
@@ -250,16 +246,34 @@ void main() {
     (tester) async {
       tester.platformDispatcher.localesTestValue = const [Locale('ko')];
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      // No iOS hosts the system's Apple button here: the platform views
+      // channel records the view the screen asks for.
+      final views = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform_views,
+        (call) async {
+          if (call.method == 'create') {
+            views.add((call.arguments as Map)['viewType'] as String);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform_views,
+          null,
+        ),
+      );
 
       await pumpApp(tester, FakeAccountService());
 
+      expect(views, ['app.knowno/apple-sign-in-button']);
       expect(find.byType(SignInScreen), findsOneWidget);
       expect(find.bySemanticsLabel('알아몰라'), findsOneWidget);
       expect(shownText('밀어서 응답하고,\n잊을 때쯤 다시 만나는 암기 카드'), findsOneWidget);
       // Besides the sign-in buttons, only the links to the terms answer a tap.
       expect(enabledButtons(tester), [
         'Google로 계속하기',
-        'Apple로 계속하기',
         '이메일로 계속하기',
         '이용약관',
         '개인정보 처리방침',
