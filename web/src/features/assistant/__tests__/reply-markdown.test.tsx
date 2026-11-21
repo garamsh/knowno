@@ -137,6 +137,23 @@ describe("말랑이's reply as Markdown", () => {
       /style="[^"]*(color|background)|#[0-9a-f]{3,6}|(bg|text|border)-(white|black|[a-z]+-\d{2,3})\b/,
     );
   });
+
+  it("draws a cloze in a reply as a blank with its hint after it, never as source text", () => {
+    const { container } = render(
+      <ReplyMarkdown
+        text={
+          "3. 광합성은 {{c1::엽록체}}에서 일어난다.\n4. {{c2::수도::도시}}는 **서울**\n\n`{{c1::코드}}`"
+        }
+      />,
+    );
+    const blanks = container.querySelectorAll('[data-blank="reply"]');
+    expect([...blanks].map((one) => one.textContent)).toEqual(["___", "___(도시)"]);
+    expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("광합성은 ___에서 일어난다.");
+    expect(screen.getByText("서울").tagName).toBe("STRONG");
+    // An answer is not shown, and code keeps the syntax it holds.
+    expect(container.textContent).not.toContain("엽록체");
+    expect(screen.getByText("{{c1::코드}}").tagName).toBe("CODE");
+  });
 });
 
 describe("an interim remark as a status line", () => {

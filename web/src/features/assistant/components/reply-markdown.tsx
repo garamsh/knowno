@@ -2,8 +2,52 @@ import type { ReactNode } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { type ClozeSpan, MarkupRuns } from "@/design/markup-text";
+import { parse } from "@/design/markup-engine";
+import { useMarkupReady } from "@/design/use-markup-ready";
+
 /** The Markdown 말랑이's reply is read as: CommonMark with GFM's tables, strikethrough and bare links (ADR 0227). */
 export const replyRemarkPlugins = [remarkGfm];
+
+/** A cloze of the card markup as a blank, its hint after it, as a proposal's card shows it. */
+function blank(span: ClozeSpan): ReactNode {
+  return (
+    <span data-blank="reply" className="rounded-sm bg-brand-tint px-1">
+      {span.hint === null ? "___" : `___(${span.hint})`}
+    </span>
+  );
+}
+
+/** A text of the reply that holds cloze syntax, read by the engine and drawn as a card draws it. */
+function ReplyCloze({ source }: { source: string }) {
+  const ready = useMarkupReady();
+  if (!ready) return source;
+  const [only, ...more] = parse(source);
+  return only?.type === "paragraph" && more.length === 0 ? (
+    <MarkupRuns content={only.content} cloze={blank} />
+  ) : (
+    source
+  );
+}
+
+/** A rehype plugin: each text holding `{{` outside code becomes a span the engine reads. */
+function clozeTexts() {
+  const walk = (node: LineNode) => {
+    if (node.tagName === "code" || node.tagName === "pre") return;
+    node.children = node.children?.map((child) => {
+      if (child.type === "text" && child.value?.includes("{{") === true)
+        return {
+          type: "element",
+          tagName: "span",
+          properties: { dataClozeSource: child.value },
+          children: [],
+        };
+      walk(child);
+      return child;
+    });
+  };
+  return walk;
+}
 
 /** What a link may open: the phone's set; any other scheme is text. */
 const linkSchemes = new Set(["http:", "https:", "mailto:"]);
@@ -53,6 +97,10 @@ const components: Components = {
       <>{children}</>
     ),
   img: ({ alt }) => <span>{alt}</span>,
+  span: ({ children, ...props }) => {
+    const source: unknown = (props as Record<string, unknown>)["data-cloze-source"];
+    return typeof source === "string" ? <ReplyCloze source={source} /> : <span>{children}</span>;
+  },
   ul: ({ children }) => <ul className="flex list-disc flex-col gap-1 ps-6">{children}</ul>,
   ol: ({ children }) => <ol className="flex list-decimal flex-col gap-1 ps-6">{children}</ol>,
   li: ({ children }) => <li className="flex flex-col gap-1">{children}</li>,
@@ -110,6 +158,7 @@ export default function ReplyMarkdown({ text }: { text: string }) {
     <div className="flex flex-col gap-2 text-body">
       <Markdown
         remarkPlugins={replyRemarkPlugins}
+        rehypePlugins={[clozeTexts]}
         components={components}
         urlTransform={urlTransform}
       >
