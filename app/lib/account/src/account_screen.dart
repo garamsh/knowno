@@ -54,7 +54,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     Future.microtask(() {
       // A first read still under way is as fresh as a read gets.
       if (mounted &&
-          ref.exists(planProvider) &&
+          ref.read(planProvider.exists) &&
           ref.read(planProvider) is! PlanLoading) {
         ref.read(planProvider.notifier).refresh();
       }
