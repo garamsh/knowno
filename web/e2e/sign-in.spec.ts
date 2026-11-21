@@ -31,7 +31,9 @@ test.describe("signed out", () => {
         exact: true,
       }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Google로 로그인", exact: true })).toBeEnabled();
+    await expect(
+      page.getByRole("button", { name: "Google로 계속하기", exact: true }),
+    ).toBeEnabled();
   });
 
   test("Google sign-in leaves for Supabase Auth with this origin's /auth/callback", async ({
@@ -48,7 +50,7 @@ test.describe("signed out", () => {
     const origin = new URL(page.url()).origin;
 
     await untilReacted(
-      () => page.getByRole("button", { name: "Google로 로그인", exact: true }).click(),
+      () => page.getByRole("button", { name: "Google로 계속하기", exact: true }).click(),
       () => Promise.resolve(requested.length > 0),
     );
 
@@ -89,7 +91,7 @@ test.describe("signed out", () => {
   test("Google's button takes the guidelines' light colours and G mark in light, and the dark in dark", async ({
     page,
   }) => {
-    const button = page.getByRole("button", { name: "Google로 로그인", exact: true });
+    const button = page.getByRole("button", { name: "Google로 계속하기", exact: true });
     const guidelines = {
       light: { fill: "rgb(255, 255, 255)", stroke: "rgb(116, 119, 117)", label: "rgb(31, 31, 31)" },
       dark: { fill: "rgb(19, 19, 20)", stroke: "rgb(142, 145, 143)", label: "rgb(227, 227, 227)" },
@@ -167,7 +169,7 @@ test.describe("signed out", () => {
     }
   });
 
-  test("Google's and Apple's buttons are one width and one 48 px height, centred, on both hosts' /login at 390 and 1280", async ({
+  test("Google's, Apple's and the email button are one width and one 48 px height, centred, on both hosts' /login at 390 and 1280", async ({
     page,
     baseURL,
   }) => {
@@ -181,7 +183,7 @@ test.describe("signed out", () => {
           renderButton() {
             const wrapper = document.getElementById("appleid-signin");
             if (wrapper) wrapper.innerHTML =
-              '<div role="button" aria-label="Apple로 로그인" style="width:100%;max-width:375px;height:100%"></div>';
+              '<div role="button" aria-label="Apple로 계속하기" style="width:100%;max-width:375px;height:100%"></div>';
           },
         } };`,
       }),
@@ -191,11 +193,11 @@ test.describe("signed out", () => {
       for (const width of [390, 1280]) {
         await page.setViewportSize({ width, height: 844 });
         await page.goto(`${origin}/login`);
-        const apple = page.getByRole("button", { name: "Apple로 로그인", exact: true });
+        const apple = page.getByRole("button", { name: "Apple로 계속하기", exact: true });
         await expect(apple).toBeVisible();
 
         const google = await page
-          .getByRole("button", { name: "Google로 로그인", exact: true })
+          .getByRole("button", { name: "Google로 계속하기", exact: true })
           .boundingBox();
         const drawn = await apple.boundingBox();
         expect({
@@ -213,8 +215,18 @@ test.describe("signed out", () => {
         });
         // Below 375 px plus the gutters both fill the column; above it both stop at 375.
         expect(drawn?.width).toBe(Math.min(375, width - 40));
-        // The pair's height, the least a tap target takes on Android (ADR 0194).
+        // The group's height, the least a tap target takes on Android (ADR 0194, ADR 0265).
         expect(drawn?.height).toBe(48);
+        // The admin host offers no email code; the service's third button is the same box.
+        if (origin.includes("admin.")) continue;
+        const email = await page
+          .getByRole("button", { name: "이메일로 계속하기", exact: true })
+          .boundingBox();
+        expect({ x: email?.x, width: email?.width, height: email?.height }).toEqual({
+          x: drawn?.x,
+          width: drawn?.width,
+          height: 48,
+        });
       }
     }
   });

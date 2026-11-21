@@ -110,7 +110,9 @@ test.describe("signed out", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "관리자 로그인", exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Google로 로그인", exact: true })).toBeEnabled();
+    await expect(
+      page.getByRole("button", { name: "Google로 계속하기", exact: true }),
+    ).toBeEnabled();
     await expect(page.getByRole("navigation")).toHaveCount(0);
     await capture(page, "admin-sign-in");
 

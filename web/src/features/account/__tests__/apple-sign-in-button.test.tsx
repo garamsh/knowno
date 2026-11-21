@@ -187,7 +187,7 @@ describe("AppleSignInButton", () => {
       expect(init).toHaveBeenCalled();
     });
 
-    expect(appleButton()).toHaveAttribute("data-type", "sign-in");
+    expect(appleButton()).toHaveAttribute("data-type", "continue");
     expect(appleButton()).toHaveAttribute("data-color", "white");
     expect(appleButton()).toHaveAttribute("data-border", "false");
     const drawn = renderButton.mock.calls.length;
