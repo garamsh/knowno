@@ -16,8 +16,11 @@ const FONT_RUN =
 
 const codegen = (writes = "") =>
   `if [ "$1" = --version ]; then echo "flutter_rust_bridge_codegen 2.13.0"; exit; fi\n${RECORD}\n${writes}`;
-const cli =
-  `if [ "$1" = --version ]; then echo "wasm-bindgen 0.2.129"; exit; fi\n${RECORD}`;
+const RELEASE_MODULE = "producers wasm-bindgen 0.2.129 (165586f85)";
+// Asked to generate, writes into --out-dir ($4) a module the release archive's CLI would write,
+// and the glue `glue` holds.
+const cli = (glue = "generated") =>
+  `if [ "$1" = --version ]; then echo "wasm-bindgen 0.2.129"; exit; fi\n${RECORD}\nif [ "$1" = --target ]; then mkdir -p "$4"; echo ${glue} >"$4/glue.js"; printf '%s' '${RELEASE_MODULE}' >"$4/knowno_engine_wasm_bg.wasm"; fi`;
 
 function generators(
   overrides: Record<string, string> = {},
@@ -27,7 +30,7 @@ function generators(
     dart: RECORD,
     flutter: RECORD,
     cargo: RECORD,
-    "wasm-bindgen": cli,
+    "wasm-bindgen": cli(),
     uv: RECORD,
     ...overrides,
   };
@@ -41,6 +44,11 @@ async function fixture(): Promise<string> {
   await write(repo, "app/drift_schemas/two/v1.json", "{}\n");
   await write(repo, "engine-wasm/Cargo.lock", WASM_LOCK);
   await write(repo, "engine-wasm/pkg/glue.js", "generated\n");
+  await write(
+    repo,
+    "engine-wasm/pkg/knowno_engine_wasm_bg.wasm",
+    RELEASE_MODULE,
+  );
   await write(repo, "app/assets/fonts/GoogleSans-Medium.ttf", "generated\n");
   await commit(repo, "generated");
   return repo;
@@ -60,7 +68,7 @@ Deno.test("passes when the generators change nothing, counting each set beside i
   );
   assert.ok(
     ran.stdout.includes(
-      `checked 1 generated files in engine-wasm/pkg/ against wasm-bindgen, selected by: ${WASM_SCOPE}\n`,
+      `checked 2 generated files in engine-wasm/pkg/ against wasm-bindgen, selected by: ${WASM_SCOPE}\n`,
     ),
     ran.stdout,
   );
@@ -137,7 +145,7 @@ Deno.test("reads an uncommitted edit: the generator's output differs from the wo
 Deno.test("fails on stale engine-wasm/pkg/ after the app's set passed", async () => {
   const { path } = await host(
     generators({
-      "wasm-bindgen": `${cli}\n[ "$1" = --target ] && echo new >pkg/glue.js`,
+      "wasm-bindgen": cli("new"),
     }),
   );
   const ran = await program(await fixture(), "check-generated", [], {
@@ -218,7 +226,7 @@ Deno.test("fails on a stale Google Sans font after the other sets passed", async
   });
   assert.equal(ran.code, 1);
   assert.ok(
-    ran.stdout.includes("checked 1 generated files in engine-wasm/pkg/"),
+    ran.stdout.includes("checked 2 generated files in engine-wasm/pkg/"),
     ran.stdout,
   );
   assert.match(

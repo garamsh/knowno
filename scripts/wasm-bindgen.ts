@@ -46,6 +46,28 @@ function reproducibleFlags(root: string, cargoHome: string): string {
   return `--remap-path-prefix=${cargoHome}=/cargo --remap-path-prefix=${root}=/knowno`;
 }
 
+/** Where the CLI writes first, so that pkg/ changes only once the CLI is known to be the release. */
+const BINDGEN = "target/generate/bindgen";
+
+/**
+ * Fails unless the module records the release archive's build of the CLI. `--version` is the same
+ * for the archive and for `cargo install` of that release, but only the archive's module ends its
+ * `producers` section in `wasm-bindgen <version> (<commit>)`, and the two write different bytes.
+ */
+async function requireRelease(version: string): Promise<void> {
+  const module = await Deno.readFile(
+    `${CRATE}/${BINDGEN}/knowno_engine_wasm_bg.wasm`,
+  );
+  const producers = new RegExp(
+    `wasm-bindgen.${version.replaceAll(".", "\\.")} \\([0-9a-f]+\\)$`,
+  );
+  if (!producers.test(new TextDecoder("latin1").decode(module.slice(-64)))) {
+    fail(
+      `this wasm-bindgen is not the release archive, so it writes a module CI's does not match; engine-wasm/pkg/ was left as it was. Install the prebuilt wasm-bindgen ${version} archive for this host from github.com/wasm-bindgen/wasm-bindgen/releases/tag/${version}, not cargo install`,
+    );
+  }
+}
+
 /** Writes engine-wasm/pkg/. */
 export async function generate(): Promise<void> {
   const version = await pinnedCli("generate");
@@ -60,13 +82,23 @@ export async function generate(): Promise<void> {
       env: { RUSTFLAGS: reproducibleFlags(ROOT, cargoHome) },
     },
   );
+  await Deno.remove(`${CRATE}/${BINDGEN}`, { recursive: true }).catch(
+    (error) => {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    },
+  );
   await attached("wasm-bindgen", [
     "--target",
     "web",
     "--out-dir",
-    "pkg",
+    BINDGEN,
     "target/generate/wasm32-unknown-unknown/release/knowno_engine_wasm.wasm",
   ], { cwd: CRATE });
+  await requireRelease(version);
+  await Deno.mkdir(`${CRATE}/pkg`, { recursive: true });
+  for await (const { name } of Deno.readDir(`${CRATE}/${BINDGEN}`)) {
+    await Deno.copyFile(`${CRATE}/${BINDGEN}/${name}`, `${CRATE}/pkg/${name}`);
+  }
   console.log(
     `generated engine-wasm/pkg/ with wasm-bindgen ${version}, --target web`,
   );

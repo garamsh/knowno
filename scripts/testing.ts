@@ -96,6 +96,7 @@ const HOST_TOOLS = [
   "git",
   "grep",
   "head",
+  "mkdir",
   "realpath",
   "rm",
   "sed",
