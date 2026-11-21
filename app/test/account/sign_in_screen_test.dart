@@ -5,17 +5,18 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knowno/account/account.dart';
+import 'package:knowno/account/src/apple_button.dart';
 import 'package:knowno/account/src/email_button.dart';
 import 'package:knowno/account/src/google_button.dart';
 import 'package:knowno/account/src/legal.dart';
 import 'package:knowno/account/src/sign_in_screen.dart';
 import 'package:knowno/design/theme.dart';
 import 'package:knowno/l10n/app_localizations.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../app_fonts.dart';
 import '../contrast.dart';
 import 'fake_account_service.dart';
+import 'fake_apple_button.dart';
 import '../word_breaks.dart';
 
 /// The stacked logo, read as the app's name.
@@ -33,6 +34,7 @@ void main() {
       ProviderScope(
         overrides: [
           accountServiceProvider.overrideWithValue(service),
+          appleButtonViewProvider.overrideWithValue(fakeAppleButtonView),
           if (opener != null) linkOpenerProvider.overrideWithValue(opener),
         ],
         child: MaterialApp(
@@ -177,49 +179,71 @@ void main() {
   group('on iOS', () {
     final iOS = TargetPlatformVariant.only(TargetPlatform.iOS);
 
-    final apple = find.byType(SignInWithAppleButton);
+    final apple = find.byType(FakeAppleButton);
 
     testWidgets(
-      "Apple's button sits under Google's, as tall, with Apple's Korean title",
+      "the system's Apple button sits between Google's and the email button, each 48 tall and 12 apart on shared edges",
       (tester) async {
-        await pumpScreen(
-          tester,
-          FakeAccountService(),
-          locale: const Locale('ko'),
-        );
+        await pumpScreen(tester, FakeAccountService());
 
-        expect(
-          find.descendant(of: apple, matching: find.text('Apple로 계속하기')),
-          findsOneWidget,
-        );
         final google = tester.getRect(find.byType(GoogleSignInButton));
         final appleRect = tester.getRect(apple);
-        expect(appleRect.top, greaterThan(google.bottom));
-        expect(appleRect.height, google.height);
-        expect(appleRect.width, google.width);
+        final email = tester.getRect(find.byType(EmailSignInButton));
+        for (final rect in [google, appleRect, email]) {
+          expect(rect.height, 48);
+          expect(rect.left, google.left);
+          expect(rect.right, google.right);
+        }
+        expect(appleRect.top - google.bottom, 12);
+        expect(email.top - appleRect.bottom, 12);
       },
       variant: iOS,
     );
 
-    for (final (mode, style) in [
-      (ThemeMode.light, SignInWithAppleButtonStyle.black),
-      (ThemeMode.dark, SignInWithAppleButtonStyle.white),
+    for (final scale in [1.5, 3.12]) {
+      testWidgets(
+        "at text scale $scale nothing is clipped, the buttons stay on shared edges 12 apart and none is under 48 tall",
+        (tester) async {
+          tester.platformDispatcher.textScaleFactorTestValue = scale;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await pumpScreen(tester, FakeAccountService());
+
+          final google = tester.getRect(find.byType(GoogleSignInButton));
+          final appleRect = tester.getRect(apple);
+          final email = tester.getRect(find.byType(EmailSignInButton));
+          for (final rect in [google, appleRect, email]) {
+            expect(rect.height, greaterThanOrEqualTo(48));
+            expect(rect.left, google.left);
+            expect(rect.right, google.right);
+          }
+          expect(appleRect.height, google.height);
+          expect(appleRect.top - google.bottom, 12);
+          expect(email.top - appleRect.bottom, 12);
+          // The email label's whole paragraph fits its button.
+          final label = find.descendant(
+            of: find.byType(EmailSignInButton),
+            matching: find.byType(RichText),
+          );
+          expect(
+            tester.getSize(label.first).height,
+            lessThanOrEqualTo(email.height),
+          );
+          expect(tester.takeException(), isNull);
+        },
+        variant: iOS,
+      );
+    }
+
+    for (final (mode, dark) in [
+      (ThemeMode.light, false),
+      (ThemeMode.dark, true),
     ]) {
       testWidgets(
-        "in the ${mode.name} theme Apple's button is ${style.name}, and the screen meets the tap target and contrast guidelines",
+        "in the ${mode.name} theme Apple's button is asked for ${dark ? 'white' : 'black'}, and the screen meets the tap target and contrast guidelines",
         (tester) async {
           await pumpScreen(tester, FakeAccountService(), themeMode: mode);
 
-          expect(tester.widget<SignInWithAppleButton>(apple).style, style);
-          expect(
-            tester.getSemantics(find.text('Continue with Apple')),
-            matchesSemantics(
-              label: 'Continue with Apple',
-              isButton: true,
-              hasTapAction: true,
-              isFocusable: true,
-            ),
-          );
+          expect(tester.widget<FakeAppleButton>(apple).dark, dark);
           await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
           await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
           await expectLater(tester, meetsGuideline(textContrastGuideline));
@@ -228,48 +252,12 @@ void main() {
       );
     }
 
-    testWidgets(
-      "at the default text size Google's and Apple's buttons are both 48 tall, Apple's title 43% of it",
-      (tester) async {
-        await pumpScreen(
-          tester,
-          FakeAccountService(),
-          locale: const Locale('ko'),
-        );
-
-        expect(tester.getSize(find.byType(GoogleSignInButton)).height, 48);
-        expect(tester.getSize(apple).height, 48);
-        final title = tester.widget<Text>(
-          find.descendant(of: apple, matching: find.text('Apple로 계속하기')),
-        );
-        expect(title.style!.fontSize, 48 * 0.43);
-      },
-      variant: iOS,
-    );
-
-    testWidgets("Apple's title keeps its size at the largest text", (
-      tester,
-    ) async {
-      tester.platformDispatcher.textScaleFactorTestValue = 3.12;
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      await pumpScreen(tester, FakeAccountService());
-
-      final title = find.descendant(
-        of: apple,
-        matching: find.text('Continue with Apple'),
-      );
-      expect(
-        tester.getSize(title).height,
-        lessThan(tester.getSize(apple).height),
-      );
-      expect(tester.takeException(), isNull);
-    }, variant: iOS);
-
     testWidgets('signs in with Apple, not Google', (tester) async {
       final service = FakeAccountService();
       await pumpScreen(tester, service);
 
-      await tapAndSettle(tester, 'Continue with Apple');
+      await tester.tap(apple);
+      await tester.pumpAndSettle();
 
       expect(service.state, isA<SignedIn>());
       expect(service.appleSignIns, 1);
@@ -289,7 +277,7 @@ void main() {
             .expandToInclude(tester.getRect(apple))
             .expandToInclude(tester.getRect(find.byType(EmailSignInButton)));
 
-        await tester.tap(find.text('Continue with Apple'));
+        await tester.tap(apple);
         await tester.pump();
         expect(find.bySemanticsLabel('Signing in'), findsOneWidget);
         expect(apple, findsNothing);
@@ -324,7 +312,8 @@ void main() {
           final service = FakeAccountService()..failure = failure;
           await pumpScreen(tester, service);
 
-          await tapAndSettle(tester, 'Continue with Apple');
+          await tester.tap(apple);
+          await tester.pumpAndSettle();
 
           expect(service.appleSignIns, 1);
           expect(find.text(message), findsOneWidget);
@@ -335,13 +324,48 @@ void main() {
     }
   });
 
+  for (final (mode, colors) in [
+    (ThemeMode.light, AppColors.light),
+    (ThemeMode.dark, AppColors.dark),
+  ]) {
+    testWidgets(
+      'the email button is Pretendard 16/24 medium in ink with a thin outline on the screen surface in the ${mode.name} theme, as wide as Google\'s and 12 under it off iOS',
+      (tester) async {
+        await pumpScreen(tester, FakeAccountService(), themeMode: mode);
+
+        final button = find.byType(EmailSignInButton);
+        final label = tester.widget<Text>(
+          find.descendant(of: button, matching: find.byType(Text)),
+        );
+        expect(label.style!.fontFamily, appFontFamily);
+        expect(label.style!.fontSize, 16);
+        expect(label.style!.height, 24 / 16);
+        expect(label.style!.fontWeight, FontWeight.w500);
+        expect(label.style!.color, colors.ink);
+        final surface = tester.widget<Material>(
+          find.descendant(of: button, matching: find.byType(Material)).first,
+        );
+        expect(surface.color, colors.surface);
+        final side = (surface.shape! as RoundedRectangleBorder).side;
+        expect(side.color, colors.outline);
+        expect(side.width, 1);
+        final google = tester.getRect(find.byType(GoogleSignInButton));
+        final email = tester.getRect(button);
+        expect(email.height, 48);
+        expect(email.left, google.left);
+        expect(email.right, google.right);
+        expect(email.top - google.bottom, 12);
+      },
+    );
+  }
+
   testWidgets('offers no Apple button off iOS, where there is no Apple sheet', (
     tester,
   ) async {
     await pumpScreen(tester, FakeAccountService());
 
     expect(find.byType(GoogleSignInButton), findsOneWidget);
-    expect(find.byType(SignInWithAppleButton), findsNothing);
+    expect(find.byType(FakeAppleButton), findsNothing);
     expect(find.textContaining('Apple'), findsNothing);
   });
 
@@ -480,7 +504,7 @@ void main() {
       }
 
       testWidgets(
-        "on a ${width.toInt()} wide iPhone Apple's button is as tall as Google's grown one, its title at the size it has at 48",
+        "on a ${width.toInt()} wide iPhone Apple's button is as tall as Google's grown one",
         (tester) async {
           tester.view.physicalSize = Size(width, 844);
           tester.view.devicePixelRatio = 1;
@@ -496,14 +520,9 @@ void main() {
           final google = tester.getSize(find.byType(GoogleSignInButton));
           // The setup: Google's button has grown past 48.
           expect(google.height, greaterThan(GoogleButtonStyle.height));
-          final apple = find.byType(SignInWithAppleButton);
+          final apple = find.byType(FakeAppleButton);
           expect(tester.getSize(apple).height, google.height);
           expect(tester.getSize(apple).width, google.width);
-          final title = tester.widget<Text>(
-            find.descendant(of: apple, matching: find.text('Apple로 계속하기')),
-          );
-          // Apple's proportion of the title to a 48 high button.
-          expect(title.style!.fontSize, GoogleButtonStyle.height * 0.43);
           expect(tester.takeException(), isNull);
         },
         variant: TargetPlatformVariant.only(TargetPlatform.iOS),

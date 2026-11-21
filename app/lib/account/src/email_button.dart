@@ -4,10 +4,10 @@ import '../../design/theme.dart';
 import '../../design/word_break.dart';
 import 'google_button.dart';
 
-/// The "continue with email" button, full width, drawn as the Google button
-/// beside it is: as tall as that at the least, a capsule on the surface with
-/// a one-pixel muted outline, its label centred in ink and wrapping between
-/// words, the button growing to hold it at a large text size.
+/// The "continue with email" button, full width, as tall as Google's button
+/// at the least: a capsule on the screen's surface with a one-pixel outline,
+/// its label in the body style centred in ink and wrapping between words, the
+/// button growing to hold it at a large text size.
 class EmailSignInButton extends StatelessWidget {
   const EmailSignInButton({
     super.key,
@@ -23,7 +23,7 @@ class EmailSignInButton extends StatelessWidget {
     final colors = AppColors.of(context);
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.button),
-      side: BorderSide(color: colors.muted),
+      side: BorderSide(color: colors.outline),
     );
     return Semantics(
       button: true,
@@ -45,9 +45,7 @@ class EmailSignInButton extends StatelessWidget {
                   keepWords(label),
                   semanticsLabel: label,
                   textAlign: TextAlign.center,
-                  style: GoogleButtonStyle.labelStyle.copyWith(
-                    color: colors.ink,
-                  ),
+                  style: AppType.body.copyWith(color: colors.ink),
                 ),
               ),
             ),

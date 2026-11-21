@@ -125,12 +125,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                               SizedBox(
                                 height: offersApple
                                     ? GoogleButtonStyle.height +
-                                          AppSpace.s8 +
+                                          AppSpace.s12 +
                                           GoogleButtonStyle.height +
-                                          AppSpace.s8 +
+                                          AppSpace.s12 +
                                           GoogleButtonStyle.height
                                     : GoogleButtonStyle.height +
-                                          AppSpace.s8 +
+                                          AppSpace.s12 +
                                           GoogleButtonStyle.height,
                                 child: Center(
                                   child: CircularProgressIndicator(
@@ -149,7 +149,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                 ),
                               ),
                               if (offersApple) ...[
-                                const SizedBox(height: AppSpace.s8),
+                                const SizedBox(height: AppSpace.s12),
                                 // As tall as Google's button at the same
                                 // width: Apple's guidelines make it no
                                 // smaller than another sign-in button.
@@ -161,7 +161,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                         width,
                                       ),
                                   child: AppleSignInButton(
-                                    label: l10n.signInWithApple,
                                     onPressed: () => _signIn(
                                       ref
                                           .read(accountServiceProvider)
@@ -170,7 +169,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                   ),
                                 ),
                               ],
-                              const SizedBox(height: AppSpace.s8),
+                              const SizedBox(height: AppSpace.s12),
                               EmailSignInButton(
                                 label: l10n.signInWithEmail,
                                 onPressed: () => Navigator.of(context).push(
