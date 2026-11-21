@@ -1,6 +1,6 @@
 [toolchain]
 # Same release as engine/rust-toolchain.toml; native_toolchain_rust requires an exact version.
-channel = "1.99.1"
+channel = "1.100.0"
 components = ["clippy", "rustfmt"]
 profile = "minimal"
 targets = [
