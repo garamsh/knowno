@@ -75,6 +75,15 @@ Deno.test("OpenRouter sends the reasoning effort, none included", () => {
   });
 });
 
+Deno.test("OpenRouter asks Anthropic's models for automatic prompt caching, and no other model", () => {
+  assert.deepEqual(body("openrouter").cache_control, { type: "ephemeral" });
+  assert.equal(
+    "cache_control" in body("openrouter", { model: "openai/gpt-5.5" }),
+    false,
+  );
+  assert.equal("cache_control" in body("openai"), false);
+});
+
 Deno.test("OpenAI has no native search, so search on sends no search tool", () => {
   assert.deepEqual(toolTypes(body("openai", { webSearch: true })), [
     "function",
@@ -154,6 +163,7 @@ Deno.test("a chat stream's text, tool call pieces and reasoning tokens are read"
           prompt_tokens: 50,
           completion_tokens: 30,
           completion_tokens_details: { reasoning_tokens: 12 },
+          prompt_tokens_details: { cached_tokens: 40, cache_write_tokens: 6 },
         },
       }),
       { event: "message", data: "[DONE]" },
@@ -171,6 +181,8 @@ Deno.test("a chat stream's text, tool call pieces and reasoning tokens are read"
     inputTokens: 50,
     outputTokens: 30,
     reasoningTokens: 12,
+    cacheReadTokens: 40,
+    cacheWriteTokens: 6,
     webSearchRequests: 0,
     webFetchRequests: 0,
   });
@@ -208,7 +220,14 @@ Deno.test("an Anthropic stream's citations, tool input, thinking and searches ar
     events(
       data({
         type: "message_start",
-        message: { usage: { input_tokens: 80, output_tokens: 1 } },
+        message: {
+          usage: {
+            input_tokens: 20,
+            cache_read_input_tokens: 50,
+            cache_creation_input_tokens: 10,
+            output_tokens: 1,
+          },
+        },
       }),
       data({
         type: "content_block_start",
@@ -298,6 +317,8 @@ Deno.test("an Anthropic stream's citations, tool input, thinking and searches ar
     inputTokens: 80,
     outputTokens: 40,
     reasoningTokens: 25,
+    cacheReadTokens: 50,
+    cacheWriteTokens: 10,
     webSearchRequests: 1,
     webFetchRequests: 2,
   });
@@ -393,6 +414,7 @@ Deno.test("a responses stream's text, citations, function calls and usage are re
           output: [search, call],
           usage: {
             input_tokens: 50,
+            input_tokens_details: { cached_tokens: 40, cache_write_tokens: 6 },
             output_tokens: 30,
             output_tokens_details: { reasoning_tokens: 12 },
             server_tool_use_details: { web_search_requests: 1 },
@@ -417,6 +439,8 @@ Deno.test("a responses stream's text, citations, function calls and usage are re
     inputTokens: 50,
     outputTokens: 30,
     reasoningTokens: 12,
+    cacheReadTokens: 40,
+    cacheWriteTokens: 6,
     webSearchRequests: 1,
     webFetchRequests: 0,
   });

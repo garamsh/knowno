@@ -504,6 +504,10 @@ select results_eq(
   $$values (array[pg_temp.job(2)], 7::bigint)$$,
   'once recorded, a job begun over 7 days ago is deleted with its photos, and its steps stay with no job');
 
+-- The cache tokens' revert runs before them (assistant_cache_tokens_test.sql tests it).
+select private.revert_assistant_cache_tokens();
+drop function private.revert_assistant_cache_tokens();
+
 -- The retry-after revert comes first: it puts the cleanup's `finish_assistant_job_step` back, with
 -- the steps of outcome `not_sent` read as `model_error`.
 

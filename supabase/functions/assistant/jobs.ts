@@ -210,6 +210,8 @@ export type StepUsage = {
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly reasoningTokens: number;
+  readonly cacheReadTokens: number;
+  readonly cacheWriteTokens: number;
 };
 
 /**
@@ -234,6 +236,8 @@ export async function finishStep(
       input_tokens: usage.inputTokens,
       output_tokens: usage.outputTokens,
       reasoning_tokens: usage.reasoningTokens,
+      cache_read_tokens: usage.cacheReadTokens,
+      cache_write_tokens: usage.cacheWriteTokens,
       latency_ms: Math.round(latencyMs),
       reading,
       retry_after_seconds: retryAfterSeconds,

@@ -862,6 +862,34 @@ Deno.test("each route answers only its method and logs its name, a path that is 
   }
 });
 
+Deno.test("a message records the cache tokens its calls read and wrote, charged as input they are part of", async () => {
+  const fake = seed();
+  fake.replies.push(() =>
+    responsesStream([
+      { type: "response.output_text.delta", delta: "안녕" },
+      completed([message("안녕")], {
+        ...usage,
+        input_tokens_details: { cached_tokens: 70, cache_write_tokens: 25 },
+      }),
+    ])
+  );
+  const run = await send(fake);
+  assert.equal(run.status, 200);
+  assert.equal(fake.finished[0]!.cache_read_tokens, 70);
+  assert.equal(fake.finished[0]!.cache_write_tokens, 25);
+  // The client's usage event and the day's charge are as they were.
+  assert.deepEqual(run.events.at(-1)!.data, {
+    outcome: "ok",
+    model_calls: 1,
+    input_tokens: 100,
+    output_tokens: 20,
+    reasoning_tokens: 0,
+    web_search_requests: 0,
+    token_budget: 200_000,
+    tokens_used: 120,
+  });
+});
+
 Deno.test("a message streams its text, then one usage event last, and is recorded", async () => {
   const fake = seed();
   fake.replies.push(says("안녕", "하세요!"));
@@ -2893,6 +2921,24 @@ Deno.test("the worker reads each queued photo with one call of the job's model, 
   const user = await runWorker(refused, { token: "ada-token" });
   assert.equal(user.status, 401);
   assert.equal(refused.requests.length, 0, "a user's token runs no work");
+});
+
+Deno.test("a photo read records the cache tokens its call read and wrote", async () => {
+  const fake = seed();
+  jobOf(fake, ADA, [photoOf(1)]);
+  fake.replies.push(() =>
+    responsesStream([
+      completed([message("# photo 1")], {
+        ...usage,
+        input_tokens_details: { cached_tokens: 64, cache_write_tokens: 12 },
+      }),
+    ])
+  );
+  await runWorker(fake);
+  assert.deepEqual(
+    fake.steps.map((step) => [step.cache_read_tokens, step.cache_write_tokens]),
+    [[64, 12]],
+  );
 });
 
 Deno.test("a read that fails after its request was sent is charged the photo estimate and retried, the photo failed on its third, and a photo Storage lacks fails unread", async () => {

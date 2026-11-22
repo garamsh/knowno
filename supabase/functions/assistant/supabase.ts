@@ -65,6 +65,9 @@ export type Usage = {
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly reasoningTokens: number;
+  /** The input tokens read from and written to the provider's prompt cache, which `inputTokens` includes. */
+  readonly cacheReadTokens: number;
+  readonly cacheWriteTokens: number;
   readonly webSearchRequests: number;
 };
 
@@ -303,6 +306,8 @@ export async function finishMessage(
     input_tokens: usage.inputTokens,
     output_tokens: usage.outputTokens,
     reasoning_tokens: usage.reasoningTokens,
+    cache_read_tokens: usage.cacheReadTokens,
+    cache_write_tokens: usage.cacheWriteTokens,
     web_search_requests: usage.webSearchRequests,
     latency_ms: Math.round(latencyMs),
   }, deps);
