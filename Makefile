@@ -26,6 +26,10 @@ APP_CONFIG := --dart-define-from-file=config/dev.json
 # What make build produces, relative to app/, and the bridge crate library each must hold.
 APK := build/app/outputs/flutter-apk/app-debug.apk
 IOS_APP := build/ios/iphonesimulator/Runner.app
+# The committed pins of the Swift packages the iOS build resolves, relative to app/; the build fails
+# when it changed either.
+IOS_PACKAGE_RESOLVED := ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved \
+	ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 BRIDGE_LIB := rust_lib_knowno
 # What make build builds, set on the command line: all (the default), or ios for the iOS simulator
 # app alone, which CI's macOS job builds; CI's ubuntu jobs build the rest.
@@ -146,7 +150,10 @@ build-ios:
 	if [ "$$(uname -s)" = Darwin ]; then \
 		cd app && flutter build ios --simulator --debug --no-codesign $(APP_CONFIG) && \
 		test -f $(IOS_APP)/Frameworks/$(BRIDGE_LIB).framework/$(BRIDGE_LIB) && \
-		echo "built the unsigned iOS simulator app app/$(IOS_APP), holding $(BRIDGE_LIB).framework"; \
+		echo "built the unsigned iOS simulator app app/$(IOS_APP), holding $(BRIDGE_LIB).framework" && \
+		{ git --no-pager diff --exit-code -- $(IOS_PACKAGE_RESOLVED) || { \
+			echo "the build changed the Package.resolved pins above; re-resolve both files as docs/architecture/account.md §Configuration states (\"The mover is the PM\") and commit them" >&2; exit 1; }; } && \
+		echo "the build left both Package.resolved files under app/ios/ unchanged"; \
 	elif [ $(BUILD) = ios ]; then \
 		echo "BUILD=ios builds the iOS simulator app alone, which needs macOS, and this host is $$(uname -s)" >&2; exit 1; \
 	else \
