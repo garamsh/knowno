@@ -248,11 +248,9 @@ jobs:
           cache-workspaces: |
             engine
             app/rust
-      - run: make build BUILD=ios
-      # TEMPORARY (#892): re-resolve both files by account.md's steps and upload them; reverted
-      # before review.
-      - if: always()
-        working-directory: app
+      # TEMPORARY (#892): re-resolve both files by account.md's steps and upload them; run before the build, on
+      # a clean runner; reverted before review.
+      - working-directory: app
         run: |
           rm ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           flutter build ios --config-only --no-codesign --dart-define-from-file=config/dev.json
@@ -264,6 +262,7 @@ jobs:
         with:
           name: package-resolved
           path: app/ios/**/Package.resolved
+      - run: make build BUILD=ios
 
   ubuntu:
     name: ci (ubuntu)
