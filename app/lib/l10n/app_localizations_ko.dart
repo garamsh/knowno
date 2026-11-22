@@ -643,9 +643,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get signInWithGoogle => 'Google로 계속하기';
 
   @override
-  String get signInWithApple => 'Apple로 계속하기';
-
-  @override
   String get signInWithEmail => '이메일로 계속하기';
 
   @override

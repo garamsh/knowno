@@ -179,7 +179,6 @@
   "accountTitle": "Settings",
   "welcomeBody": "Swipe to respond,\nand meet each card again just before you forget",
   "signInWithGoogle": "Continue with Google",
-  "signInWithApple": "Continue with Apple",
   "signInWithEmail": "Continue with email",
   "emailSignInBody": "We email you a 6-digit code. A first sign-in creates your account.",
   "emailAddress": "Email",
