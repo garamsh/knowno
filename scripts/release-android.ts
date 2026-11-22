@@ -21,8 +21,8 @@ export const UPLOAD_KEY = [
 /** The secret that holds the keystore, base64-encoded, in place of the keystore's path. */
 const KEYSTORE_BASE64 = "ANDROID_UPLOAD_KEYSTORE_BASE64";
 
-/** Where flutter build appbundle writes the bundle, relative to the repository. */
-export const BUNDLE = "app/build/app/outputs/bundle/release/app-release.aab";
+/** Where flutter build appbundle writes the bundle, relative to the repository; Gradle uploads from it. */
+export const BUNDLE_DIR = "app/build/app/outputs/bundle/release";
 
 /** What the Gradle build says when it refuses to sign the release with no upload key. */
 const REFUSAL = "The release build signs only with the upload key";
@@ -98,14 +98,29 @@ function appbundle(config: string, version: string, number: number): string[] {
   ];
 }
 
-/** Builds the bundle with the keystore at `keystore` and fails unless that keystore's key signed it. */
+/** The one bundle in BUNDLE_DIR. */
+async function theBundle(): Promise<string> {
+  const bundles: string[] = [];
+  for await (const { name } of Deno.readDir(BUNDLE_DIR)) {
+    if (name.endsWith(".aab")) bundles.push(`${BUNDLE_DIR}/${name}`);
+  }
+  if (bundles.length !== 1) {
+    fail(`${BUNDLE_DIR} holds ${bundles.length} .aab files, not one`);
+  }
+  return bundles[0];
+}
+
+/**
+ * Builds the bundle with the keystore at `keystore` and fails unless that keystore's key signed it.
+ * Returns the bundle and the key's fingerprint.
+ */
 async function signedBuild(
   keystore: string,
   config: string,
   version: string,
   number: number,
-): Promise<string> {
-  await removeIfPresent(BUNDLE);
+): Promise<{ bundle: string; key: string }> {
+  await removeIfPresent(BUNDLE_DIR);
   await attached("flutter", appbundle(config, version, number), {
     cwd: "app",
     env: { ANDROID_UPLOAD_KEYSTORE: keystore },
@@ -125,17 +140,18 @@ async function signedBuild(
   if (key === undefined) {
     fail(`keytool printed no SHA-256 fingerprint for the upload key`);
   }
+  const bundle = await theBundle();
   const signers = fingerprints(
-    await read("keytool", ["-printcert", "-jarfile", BUNDLE]),
+    await read("keytool", ["-printcert", "-jarfile", bundle]),
   );
   if (signers.length !== 1 || signers[0] !== key) {
     fail(
-      `${BUNDLE} is signed by ${
+      `${bundle} is signed by ${
         signers.join(", ") || "no certificate"
       }, not the upload key ${key}`,
     );
   }
-  return key;
+  return { bundle, key };
 }
 
 async function build(run: string, config: string, tag?: string): Promise<void> {
@@ -151,15 +167,15 @@ async function build(run: string, config: string, tag?: string): Promise<void> {
   for (const name of UPLOAD_KEY.slice(1)) required(name);
   const bytes = decoded(required(KEYSTORE_BASE64));
   Deno.env.delete(KEYSTORE_BASE64);
-  let key = "";
+  let built = { bundle: "", key: "" };
   await withKeystore(
     (path) => Deno.writeFile(path, bytes, { mode: 0o600, createNew: true }),
     async (keystore) => {
-      key = await signedBuild(keystore, config, version, number);
+      built = await signedBuild(keystore, config, version, number);
     },
   );
   console.log(
-    `built ${BUNDLE}: ${version} (${number}), signed by the upload key ${key}`,
+    `built ${built.bundle}: ${version} (${number}), signed by the upload key ${built.key}`,
   );
 }
 
@@ -187,7 +203,7 @@ async function dryRun(config: string, number: number): Promise<void> {
   Deno.env.set("ANDROID_UPLOAD_KEYSTORE_PASSWORD", password);
   Deno.env.set("ANDROID_UPLOAD_KEY_PASSWORD", password);
   Deno.env.set("ANDROID_UPLOAD_KEY_ALIAS", "dry-run");
-  let key = "";
+  let built = { bundle: "", key: "" };
   await withKeystore(
     (path) =>
       attached("keytool", [
@@ -212,11 +228,11 @@ async function dryRun(config: string, number: number): Promise<void> {
         "ANDROID_UPLOAD_KEY_PASSWORD",
       ]).then(() => Deno.chmod(path, 0o600)),
     async (keystore) => {
-      key = await signedBuild(keystore, config, version, number);
+      built = await signedBuild(keystore, config, version, number);
     },
   );
   console.log(
-    `built ${BUNDLE}: ${version} (${number}), signed by the key made for this dry run ${key}; no tag was given, so it holds no upload key and nothing is uploaded`,
+    `built ${built.bundle}: ${version} (${number}), signed by the key made for this dry run ${built.key}; no tag was given, so it holds no upload key and nothing is uploaded`,
   );
 }
 

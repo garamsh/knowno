@@ -1,6 +1,8 @@
 // scripts/release-android.ts against stubs of flutter and keytool.
 import assert from "node:assert/strict";
-import { BUNDLE, decoded, fingerprints } from "./release-android.ts";
+import { decoded, fingerprints } from "./release-android.ts";
+
+const BUNDLE = "app/build/app/outputs/bundle/release/app.aab";
 import { host, program, RECORD, repository } from "./testing.ts";
 
 const fp = (byte: string) => Array(32).fill(byte).join(":");
@@ -54,7 +56,7 @@ if [ -z "\${ANDROID_UPLOAD_KEYSTORE:-}" ]; then
 fi
 echo "keystore $(/bin/ls -l "$ANDROID_UPLOAD_KEYSTORE" | sed -E 's/^(.{10}).*/\\1/'), holds $(cat "$ANDROID_UPLOAD_KEYSTORE")" >>"$(dirname "$0")/calls"
 [ ${exit} = 0 ] || exit ${exit}
-/bin/mkdir -p build/app/outputs/bundle/release && echo aab >build/app/outputs/bundle/release/app-release.aab`,
+/bin/mkdir -p build/app/outputs/bundle/release && echo aab >build/app/outputs/bundle/release/app.aab`,
     keytool: `${RECORD}
 case "$1" in
   -genkeypair) echo generated >"$3" ;;

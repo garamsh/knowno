@@ -142,7 +142,7 @@ release-android:
 release-android-upload:
 	cd app/android && if [ -n "$${TAG:-}" ]; then \
 		./gradlew :app:publishReleaseBundle && \
-		echo "uploaded app/build/app/outputs/bundle/release/app-release.aab to Google Play's internal track"; \
+		echo "uploaded the bundle in app/build/app/outputs/bundle/release/ to Google Play's internal track"; \
 	else \
 		./gradlew --dry-run :app:publishReleaseBundle && \
 		echo "listed the tasks :app:publishReleaseBundle runs, none of them signing; no tag was given, so nothing was uploaded"; \
