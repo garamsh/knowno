@@ -233,7 +233,7 @@ wheels = [
 
 [[package]]
 name = "codemagic-cli-tools"
-version = "0.70.2"
+version = "0.71.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
@@ -247,7 +247,7 @@ dependencies = [
     { name = "requests" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e9/36/18e2784bf4713bd04bed4b798d0be9c9c9bf68be11702fe7b23efea7c116/codemagic_cli_tools-0.70.2-py3-none-any.whl", hash = "sha256:bbaf9eb5c561477fed5b34297831895bcf20164e4b2ff3c425b807a748e61d70", size = 31007514, upload-time = "2026-10-29T11:55:56.193Z" },
+    { url = "https://files.pythonhosted.org/packages/37/ca/d96519de679cb8db5c09bd1e8c0907b903070ab4c7e436b4250758599a54/codemagic_cli_tools-0.71.0-py3-none-any.whl", hash = "sha256:a202396b850b9635daa7b664d50b245c298d1fd8fa84ff5acf6d1ae4ff6d419a", size = 31008785, upload-time = "2026-11-17T12:12:51.127Z" },
 ]
 
 [[package]]
@@ -414,7 +414,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "codemagic-cli-tools", specifier = "==0.70.2" }]
+requires-dist = [{ name = "codemagic-cli-tools", specifier = "==0.71.0" }]
 
 [[package]]
 name = "oauth2client"
