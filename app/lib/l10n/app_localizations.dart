@@ -1177,12 +1177,6 @@ abstract class AppLocalizations {
   /// **'Google로 계속하기'**
   String get signInWithGoogle;
 
-  /// Button that opens the system's Apple ID sheet to sign in: Apple's Korean title for Continue with Apple.
-  ///
-  /// In ko, this message translates to:
-  /// **'Apple로 계속하기'**
-  String get signInWithApple;
-
   /// Button on the sign-in screen that opens the email step: sign in with a code sent to an email address.
   ///
   /// In ko, this message translates to:
