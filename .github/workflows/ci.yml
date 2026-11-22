@@ -249,6 +249,21 @@ jobs:
             engine
             app/rust
       - run: make build BUILD=ios
+      # TEMPORARY (#892): re-resolve both files by account.md's steps and upload them; reverted
+      # before review.
+      - if: always()
+        working-directory: app
+        run: |
+          rm ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          flutter build ios --config-only --no-codesign --dart-define-from-file=config/dev.json
+          xcodebuild -resolvePackageDependencies -workspace ios/Runner.xcworkspace -scheme Runner
+          git status --short
+          git --no-pager diff
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-resolved
+          path: app/ios/**/Package.resolved
 
   ubuntu:
     name: ci (ubuntu)
