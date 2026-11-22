@@ -117,8 +117,8 @@ const sections: readonly LegalSection[] = [
           갱신되고 결제돼요.
         </li>
         <li>
-          플러스는 앱에서 구매하고, 해지는 구매한 앱 스토어(예: App Store)의 구독 관리에서 해요.
-          운영자가 대신 해지할 수 없어요.
+          플러스는 앱에서 구매해요. iOS에서는 App Store, Android에서는 Google Play에서 구매하고,
+          해지는 구매한 앱 스토어의 구독 관리에서 해요. 운영자가 대신 해지할 수 없어요.
         </li>
         <li>
           해지하면 다음 갱신부터 결제되지 않고, 이미 결제한 기간이 끝날 때까지는 플러스를 그대로 쓸
@@ -137,7 +137,8 @@ const sections: readonly LegalSection[] = [
           학습 기록은 그대로 남아요.
         </li>
         <li>
-          결제는 구매한 앱 스토어가 처리해요. 운영자는 카드 번호 같은 결제 수단 정보를 받지 않아요.
+          결제는 구매한 앱 스토어(App Store 또는 Google Play)가 판매자로서 처리해요. 운영자는 카드
+          번호 같은 결제 수단 정보를 받지 않아요.
         </li>
       </ul>
     ),
@@ -170,9 +171,10 @@ const sections: readonly LegalSection[] = [
         <p>환불은 구매한 앱 스토어의 절차로 요청해요.</p>
         <ul>
           <li>
-            앱 스토어가 결제를 처리하므로 환불도 그 앱 스토어의 절차로 요청해요. App Store에서
+            앱 스토어가 결제를 처리하므로 환불도 판매한 앱 스토어의 절차로 요청해요. App Store에서
             구매했다면 Apple의 reportaproblem.apple.com에서 &ldquo;환불 요청&rdquo;을 고르면 Apple이
-            검토해서 승인 여부를 정해요.
+            검토해서 승인 여부를 정해요. Google Play에서 구매했다면 Google Play의 구매 내역에서
+            환불을 요청하면 Google이 검토해서 승인 여부를 정해요.
           </li>
           <li>
             환불이 처리되면 그 결제로 받은 플러스는 끝나요(&ldquo;플러스 요금제와 구독&rdquo;).
@@ -258,7 +260,7 @@ const sections: readonly LegalSection[] = [
     heading: "시행일",
     body: (
       <>
-        <p>이 약관은 2026년 11월 17일부터 시행해요.</p>
+        <p>이 약관은 2026년 11월 30일부터 시행해요.</p>
         <p>약관이 바뀌면 시행하기 전에 이 페이지에서 바뀐 내용과 시행일을 알려 드려요.</p>
       </>
     ),
@@ -270,7 +272,7 @@ export default function TermsPage() {
   return (
     <LegalDocument
       title="이용약관"
-      effectiveDate="2026년 11월 17일"
+      effectiveDate="2026년 11월 30일"
       intro={
         <p>
           이 약관은 알아몰라 운영자(이하 &ldquo;운영자&rdquo;)가 제공하는 알아몰라 서비스를 이용하는

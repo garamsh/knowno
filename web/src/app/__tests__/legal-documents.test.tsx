@@ -16,8 +16,8 @@ const documents = [
     name: "the privacy policy",
     page: PrivacyPage,
     title: "개인정보 처리방침",
-    effectiveDate: "2026년 11월 17일",
-    effectiveSentence: "이 개인정보 처리방침은 2026년 11월 17일부터 시행해요.",
+    effectiveDate: "2026년 11월 30일",
+    effectiveSentence: "이 개인정보 처리방침은 2026년 11월 30일부터 시행해요.",
     headings: [
       "수집하는 개인정보 항목과 수집 방법",
       "개인정보의 이용 목적",
@@ -36,8 +36,8 @@ const documents = [
     name: "the terms of service",
     page: TermsPage,
     title: "이용약관",
-    effectiveDate: "2026년 11월 17일",
-    effectiveSentence: "이 약관은 2026년 11월 17일부터 시행해요.",
+    effectiveDate: "2026년 11월 30일",
+    effectiveSentence: "이 약관은 2026년 11월 30일부터 시행해요.",
     headings: [
       "서비스",
       "계정과 로그인",
@@ -117,7 +117,10 @@ describe("the terms of service, for the paid plan", () => {
       plus.getByText(/해지하기 전까지 매 결제 주기가 끝날 때 같은 가격으로 자동으로 갱신/),
     ).toBeInTheDocument();
     expect(
-      plus.getByText(/구매한 앱 스토어\(예: App Store\)의 구독 관리에서 해요/),
+      plus.getByText(/iOS에서는 App Store, Android에서는 Google Play에서 구매하고/),
+    ).toBeInTheDocument();
+    expect(
+      plus.getByText(/구매한 앱 스토어\(App Store 또는 Google Play\)가 판매자로서 처리해요/),
     ).toBeInTheDocument();
     expect(plus.getByText(/가격을 바꾸면 적용하기 전에/)).toBeInTheDocument();
     expect(
@@ -133,19 +136,26 @@ describe("the terms of service, for the paid plan", () => {
     expect(refund.getByText(/제17조 제2항 제5호/)).toBeInTheDocument();
     expect(refund.getByText(/제17조 제6항/)).toBeInTheDocument();
     expect(refund.getByText(/reportaproblem\.apple\.com/)).toBeInTheDocument();
+    expect(
+      refund.getByText(/Google Play에서 구매했다면 Google Play의 구매 내역에서/),
+    ).toBeInTheDocument();
     expect(refund.queryByText(/Paddle/)).not.toBeInTheDocument();
   });
 });
 
 describe("the privacy policy", () => {
-  it("names RevenueCat as a processor with what it receives, and Apple as the seller collecting its own data", async () => {
+  it("names RevenueCat as a processor with what it receives, and Apple and Google as the sellers collecting their own data", async () => {
     await render(PrivacyPage, {});
 
     const processors = within(screen.getByRole("region", { name: "개인정보 처리의 위탁" }));
     expect(processors.getByText(/^RevenueCat: .*구독 상태/)).toBeInTheDocument();
     expect(processors.queryByText(/^Apple:/)).not.toBeInTheDocument();
     const sharing = within(screen.getByRole("region", { name: "개인정보의 제3자 제공" }));
-    expect(sharing.getByText(/Apple\)가 판매자로서 결제와 환불을 처리하고/)).toBeInTheDocument();
+    expect(
+      sharing.getByText(/\(App Store 또는 Google Play\)가 판매자로서 결제와 환불을 처리하고/),
+    ).toBeInTheDocument();
+    expect(sharing.getByText(/Apple ID나 Google 계정과 결제 수단 정보를/)).toBeInTheDocument();
+    expect(processors.queryByText(/^Google Play:/)).not.toBeInTheDocument();
     const overseas = within(screen.getByRole("region", { name: "개인정보의 국외 이전" }));
     expect(
       overseas.getByText(/^RevenueCat\(revenuecat\.com\): 미국에 저장해요/),
