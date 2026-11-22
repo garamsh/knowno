@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,7 +15,7 @@ import 'failure_message.dart';
 import 'model.dart';
 import 'providers.dart';
 import 'queue.dart';
-import 'study_changes.dart';
+import 'study_rereads.dart';
 import 'study_time.dart';
 import 'today.dart';
 
@@ -138,45 +137,17 @@ class TodayCounter extends ConsumerStatefulWidget {
   ConsumerState<TodayCounter> createState() => _TodayCounterState();
 }
 
-class _TodayCounterState extends ConsumerState<TodayCounter> {
-  late Future<TodayCounted> _count = _read();
-  late final _changes = StudyChanges(ref.read(studyRepositoryProvider), () {
-    if (_onTop) {
-      setState(() {
-        _count = _read();
-      });
-    }
-  });
-  bool _onTop = true;
+class _TodayCounterState extends ConsumerState<TodayCounter> with StudyRereads {
+  late Future<TodayCounted> _count = _readCount();
 
-  Future<TodayCounted> _read() async =>
+  @override
+  DeckSelection get decks => widget.decks;
+
+  @override
+  void read() => _count = _readCount();
+
+  Future<TodayCounted> _readCount() async =>
       (await readToday(widget.decks, ref)).count;
-
-  @override
-  void initState() {
-    super.initState();
-    _changes.start();
-  }
-
-  @override
-  void dispose() {
-    _changes.cancel();
-    super.dispose();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final onTop = ModalRoute.isCurrentOf(context) ?? true;
-    if (onTop && !_onTop) _count = _read();
-    _onTop = onTop;
-  }
-
-  @override
-  void didUpdateWidget(TodayCounter oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!setEquals(oldWidget.decks.ids, widget.decks.ids)) _count = _read();
-  }
 
   @override
   Widget build(BuildContext context) {

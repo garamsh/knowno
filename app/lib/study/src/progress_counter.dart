@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +7,7 @@ import 'failure.dart';
 import 'overview.dart';
 import 'providers.dart';
 import 'queue.dart';
+import 'study_rereads.dart';
 
 /// Builds what the caller shows of a selection's [DeckProgress], null while it
 /// is read or when a domain failure stops the read.
@@ -19,8 +19,9 @@ typedef ProgressBuilder = Widget Function(
 /// Counts how many of [decks]' cards are mastered, learning and new, and
 /// shows the count through [builder].
 ///
-/// The count is read again when [decks] changes and whenever the route that
-/// shows it comes back on top, as [TodayCounter]'s is.
+/// The count is read again when [decks] changes, whenever the route that
+/// shows it comes back on top and, while it is on top, after the cards, their
+/// states or the reviews change, as [TodayCounter]'s is.
 class ProgressCounter extends ConsumerStatefulWidget {
   const ProgressCounter({
     super.key,
@@ -35,31 +36,23 @@ class ProgressCounter extends ConsumerStatefulWidget {
   ConsumerState<ProgressCounter> createState() => _ProgressCounterState();
 }
 
-class _ProgressCounterState extends ConsumerState<ProgressCounter> {
-  late Future<DeckProgress> _progress = _read();
-  bool _onTop = true;
+class _ProgressCounterState extends ConsumerState<ProgressCounter>
+    with StudyRereads {
+  late Future<DeckProgress> _progress = _readProgress();
 
-  Future<DeckProgress> _read() async {
+  @override
+  DeckSelection get decks => widget.decks;
+
+  @override
+  void read() => _progress = _readProgress();
+
+  Future<DeckProgress> _readProgress() async {
     final (cards, states) = await readCards(
       widget.decks,
       ref.read(deckRepositoryProvider),
       ref.read(studyRepositoryProvider),
     );
     return DeckProgress.of(cards, states);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final onTop = ModalRoute.isCurrentOf(context) ?? true;
-    if (onTop && !_onTop) _progress = _read();
-    _onTop = onTop;
-  }
-
-  @override
-  void didUpdateWidget(ProgressCounter oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!setEquals(oldWidget.decks.ids, widget.decks.ids)) _progress = _read();
   }
 
   @override

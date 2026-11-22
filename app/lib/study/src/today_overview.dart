@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Card;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,7 +9,7 @@ import 'overview.dart';
 import 'providers.dart';
 import 'queue.dart';
 import 'stats.dart' show heatmapDays, studyDayCounts;
-import 'study_changes.dart';
+import 'study_rereads.dart';
 import 'today_counter.dart';
 
 /// What a selection holds for today, as the home screen shows it.
@@ -89,18 +88,17 @@ class TodayOverviewReader extends ConsumerStatefulWidget {
       _TodayOverviewReaderState();
 }
 
-class _TodayOverviewReaderState extends ConsumerState<TodayOverviewReader> {
-  late Future<TodayOverview> _overview = _read();
-  late final _changes = StudyChanges(ref.read(studyRepositoryProvider), () {
-    if (_onTop) {
-      setState(() {
-        _overview = _read();
-      });
-    }
-  });
-  bool _onTop = true;
+class _TodayOverviewReaderState extends ConsumerState<TodayOverviewReader>
+    with StudyRereads {
+  late Future<TodayOverview> _overview = _readOverview();
 
-  Future<TodayOverview> _read() async {
+  @override
+  DeckSelection get decks => widget.decks;
+
+  @override
+  void read() => _overview = _readOverview();
+
+  Future<TodayOverview> _readOverview() async {
     final today = await readToday(widget.decks, ref);
     final repository = ref.read(studyRepositoryProvider);
     final now = ref.read(studyClockProvider)();
@@ -140,32 +138,6 @@ class _TodayOverviewReaderState extends ConsumerState<TodayOverviewReader> {
         offsetAt: zone,
       ).sublist(heatmapDays - chartDays),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _changes.start();
-  }
-
-  @override
-  void dispose() {
-    _changes.cancel();
-    super.dispose();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final onTop = ModalRoute.isCurrentOf(context) ?? true;
-    if (onTop && !_onTop) _overview = _read();
-    _onTop = onTop;
-  }
-
-  @override
-  void didUpdateWidget(TodayOverviewReader oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!setEquals(oldWidget.decks.ids, widget.decks.ids)) _overview = _read();
   }
 
   @override
