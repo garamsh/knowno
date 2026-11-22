@@ -2235,7 +2235,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get plusWithdrawal =>
-      '플러스의 이용이 시작된 부분은 청약철회를 할 수 없어요. 환불은 구매한 앱 스토어의 절차로 요청해요.';
+      '플러스의 이용이 시작된 부분은 청약철회를 할 수 없어요. 환불은 구매한 스토어의 절차로 요청해요.';
 
   @override
   String get plusSheetStart => '플러스 시작하기';

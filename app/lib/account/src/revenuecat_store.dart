@@ -6,12 +6,37 @@ import 'account_state.dart';
 import 'config.dart';
 import 'purchase_store.dart';
 
+/// The package the purchase sheet sells, in RevenueCat's current offering.
+const plusPackageId = r'$rc_monthly';
+
+/// Google Play's page of the subscriptions of the signed-in Play account,
+/// opened for this app when RevenueCat names no management page.
+final playSubscriptionsUrl = Uri.https(
+  'play.google.com',
+  '/store/account/subscriptions',
+  {'package': 'app.knowno'},
+);
+
+/// The package of the plus subscription in [offering], or null when the
+/// offering is missing or holds none under [plusPackageId]. No store product
+/// id is read: RevenueCat maps the package to each store's product.
+Package? plusPackageOf(Offering? offering) =>
+    offering?.getPackage(plusPackageId);
+
+/// The page that manages the subscription: RevenueCat's when it gives one,
+/// else the store's own [fallback].
+Uri? managementPage(String? fromRevenueCat, Uri? fallback) =>
+    (fromRevenueCat == null ? null : Uri.tryParse(fromRevenueCat)) ?? fallback;
+
 /// [PurchaseStore] over RevenueCat's `purchases_flutter`, keyed by the public
 /// SDK key of the platform. The app user id is the Supabase user id.
 final class RevenueCatPurchaseStore implements PurchaseStore {
-  RevenueCatPurchaseStore(this._apiKey);
+  RevenueCatPurchaseStore(this._apiKey, {this.managementFallback});
 
   final String _apiKey;
+
+  /// The store's own management page, for when RevenueCat names none.
+  final Uri? managementFallback;
   var _configured = false;
   final _packages = <String, Package>{};
 
@@ -48,8 +73,7 @@ final class RevenueCatPurchaseStore implements PurchaseStore {
   Future<PlusPackage?> offer() async {
     if (!_configured) return null;
     try {
-      final offering = (await Purchases.getOfferings()).current;
-      final package = offering?.availablePackages.firstOrNull;
+      final package = plusPackageOf((await Purchases.getOfferings()).current);
       if (package == null) return null;
       _packages[package.identifier] = package;
       return PlusPackage(
@@ -96,12 +120,12 @@ final class RevenueCatPurchaseStore implements PurchaseStore {
 
   @override
   Future<Uri?> managementUrl() async {
-    if (!_configured) return null;
+    if (!_configured) return managementFallback;
     try {
       final url = (await Purchases.getCustomerInfo()).managementURL;
-      return url == null ? null : Uri.tryParse(url);
+      return managementPage(url, managementFallback);
     } on PlatformException {
-      return null;
+      return managementFallback;
     }
   }
 }
@@ -113,12 +137,16 @@ PurchaseStore connectPurchases(
   Map<String, String> defines, {
   TargetPlatform? platform,
 }) {
-  final key = switch (platform ?? defaultTargetPlatform) {
-    TargetPlatform.iOS => defines[AccountConfigKey.revenueCatAppleKey],
-    TargetPlatform.android => defines[AccountConfigKey.revenueCatGoogleKey],
-    _ => null,
-  }?.trim();
-  return key == null || key.isEmpty
+  final (key, fallback) = switch (platform ?? defaultTargetPlatform) {
+    TargetPlatform.iOS => (defines[AccountConfigKey.revenueCatAppleKey], null),
+    TargetPlatform.android => (
+      defines[AccountConfigKey.revenueCatGoogleKey],
+      playSubscriptionsUrl,
+    ),
+    _ => (null, null),
+  };
+  final trimmed = key?.trim();
+  return trimmed == null || trimmed.isEmpty
       ? const UnavailablePurchaseStore()
-      : RevenueCatPurchaseStore(key);
+      : RevenueCatPurchaseStore(trimmed, managementFallback: fallback);
 }
