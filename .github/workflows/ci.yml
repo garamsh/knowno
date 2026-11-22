@@ -29,7 +29,7 @@ concurrency:
 # equal to the tree it lands. What the push adds is the caches: an entry a pull request saves is
 # its own, and the ones every pull request restores are those a run on main saved. So a push runs
 # `checks` and `ios`, whose jobs save those caches, and only when it changed a file their keys are
-# computed from (`changes`, the filter `cache`); setup-gradle saves the Gradle cache on main alone.
+# computed from (`changes`, the filter `cache`); the Gradle cache is saved on main alone.
 # lint-repo, `stack-tests`, which save no cache, and the two verdicts run on pull requests only.
 #
 # Each job runs on a versioned runner label, the image `-latest` named when it was set. A label
@@ -60,8 +60,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The files the caches of `checks` and `ios` are keyed on, as each action documents its key:
       # rust-cache, every Cargo.lock, Cargo.toml, rust-toolchain.toml and .cargo/config.toml;
-      # flutter-action, the Flutter release in app/pubspec.yaml and app/pubspec.lock; setup-gradle's
-      # basic provider, the Gradle build files; setup-node, web/package-lock.json; and this file,
+      # flutter-action, the Flutter release in app/pubspec.yaml and app/pubspec.lock; the Gradle
+      # cache, the Gradle build files and those two; setup-node, web/package-lock.json; and this file,
       # which sets the tools' versions; and the font cache, tools/fonts/google_sans.py.
       - if: github.event_name == 'push'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -122,12 +122,28 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      # Caches Gradle's home for flutter build apk, through actions/cache (cache-provider basic). As
-      # the action defaults, only a run on main saves it; a pull request restores main's.
+      # Validates the Gradle wrapper. Gradle's home is cached by the two actions/cache steps around
+      # make, so setup-gradle leaves it to them (cache-provider external): its basic provider keys
+      # on the Gradle build files alone, and most of what flutter build apk resolves is declared
+      # outside them, in the Flutter SDK's Gradle plugin and each pub plugin's android/ build, which
+      # change with app/pubspec.yaml and app/pubspec.lock.
       - if: matrix.java
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
-          cache-provider: basic
+          cache-provider: external
+      # actions/cache's Gradle example, keyed also on the files that pin the Flutter release and the
+      # pub plugins. A changed key restores the newest entry under the prefix, so a run downloads
+      # only what changed. Only a run on main saves; a pull request restores main's.
+      - id: gradle-cache
+        if: matrix.java
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'app/pubspec.yaml', 'app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
       # cache: true caches the Flutter SDK and the pub packages. Every target but build runs
       # Flutter or Dart.
       - if: matrix.id != 'build'
@@ -199,6 +215,13 @@ jobs:
         with:
           deno-version-file: scripts/.deno-version
       - run: make ${{ matrix.target }}
+      - if: matrix.java && github.event_name == 'push' && steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
 
   # The tests on a local stack that build no Rust and run no Flutter, so they save no cache.
   stack-tests:
