@@ -14,13 +14,14 @@ name: release
 # So it runs on pull requests from forks and Dependabot too.
 #
 # The same tag builds the Android App Bundle and uploads it to Google Play's internal track (ADR
-# 0266). The job `release-android` runs in the same environment and reads the upload keystore from
-# it. It signs nothing else: make release-android builds the bundle signed with the upload key, and
-# make release-android-upload runs gradle-play-publisher as the service account below, through the
-# credentials file google-github-actions/auth writes from this job's OIDC token. No Google key is
-# stored. The project number and the workload identity pool and provider are the environment's
-# variables. Promotion to another track stays the owner's, by hand. The job `dry-run-android`
-# builds the bundle with no secret, signed with a key made for the run, and lists the upload's tasks.
+# 0266). The job `release-android` runs in the same environment and gates the tag with the same
+# make release-check. make release-android builds the bundle signed with the upload key, read from
+# the environment's secrets, and make release-android-upload runs gradle-play-publisher as the
+# service account below, through the credentials file google-github-actions/auth writes from this
+# job's OIDC token. No Google key is stored. The project number and the workload identity pool and
+# provider are the environment's variables. Promotion to another track stays the owner's, by hand.
+# The job `dry-run-android` reads no secret: it builds the bundle signed with a key made for the
+# run, and lists the upload's tasks.
 #
 # Dependabot moves the `uses:` pins, which are ci.yml's, and tools/release/uv.lock. The runner label
 # and the Xcode in DEVELOPER_DIR, one of the image's versioned paths, are moved by the PM with
