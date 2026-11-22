@@ -1,4 +1,4 @@
-.PHONY: lint format test build ci lint-repo lint-code bridge test-app design-shots test-db test-sync test-web build-ios build-apk build-engine-web preview-migrations brand release-check release-ios release-upload release-cleanup
+.PHONY: lint format test build ci lint-repo lint-code bridge test-app design-shots test-db test-sync test-web build-ios build-apk build-engine-web preview-migrations brand release-check release-ios release-upload release-cleanup release-android release-android-upload
 
 # lint and test are each the sum of their parts, run in this order. CI runs the parts as parallel
 # jobs; lint-repo reads only the repository's files and needs no toolchain, so CI runs it on every
@@ -130,6 +130,23 @@ release-upload:
 
 release-cleanup:
 	scripts/run.sh release-ios cleanup
+
+# The Android release's steps (release.md), each reading the environment: TAG and RUN, as above; for
+# release-android, the upload keystore base64-encoded, its password, and the key's alias and
+# password; for release-android-upload, the credentials file google-github-actions/auth writes. Not
+# part of make ci: they sign and upload. With TAG unset, release-android is a dry run that signs with
+# a key made for the run, and release-android-upload lists the tasks the upload runs and runs none.
+release-android:
+	scripts/run.sh release-android build "$$RUN" $(APP_CONFIG) "$${TAG:-}"
+
+release-android-upload:
+	cd app/android && if [ -n "$${TAG:-}" ]; then \
+		./gradlew :app:publishReleaseBundle && \
+		echo "uploaded app/build/app/outputs/bundle/release/app-release.aab to Google Play's internal track"; \
+	else \
+		./gradlew --dry-run :app:publishReleaseBundle && \
+		echo "listed the tasks :app:publishReleaseBundle runs, none of them signing; no tag was given, so nothing was uploaded"; \
+	fi
 
 test-sync: bridge
 	scripts/run.sh test-sync

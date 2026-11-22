@@ -13,6 +13,15 @@ name: release
 # environment and reads no secret: it installs the locked tools and builds the app unsigned as 0.0.0.
 # So it runs on pull requests from forks and Dependabot too.
 #
+# The same tag builds the Android App Bundle and uploads it to Google Play's internal track (ADR
+# 0266). The job `release-android` runs in the same environment and reads the upload keystore from
+# it. It signs nothing else: make release-android builds the bundle signed with the upload key, and
+# make release-android-upload runs gradle-play-publisher as the service account below, through the
+# credentials file google-github-actions/auth writes from this job's OIDC token. No Google key is
+# stored. The project number and the workload identity pool and provider are the environment's
+# variables. Promotion to another track stays the owner's, by hand. The job `dry-run-android`
+# builds the bundle with no secret, signed with a key made for the run, and lists the upload's tasks.
+#
 # Dependabot moves the `uses:` pins, which are ci.yml's, and tools/release/uv.lock. The runner label
 # and the Xcode in DEVELOPER_DIR, one of the image's versioned paths, are moved by the PM with
 # ci.yml's labels; "Set up job" logs the image each run resolved to.
@@ -25,6 +34,9 @@ on:
       - '.github/workflows/release.yml'
       - 'Makefile'
       - 'scripts/release-ios.ts'
+      - 'scripts/release-android.ts'
+      - 'app/android/settings.gradle.kts'
+      - 'app/android/app/build.gradle.kts'
       - 'scripts/grants.txt'
       - 'scripts/process.ts'
       - 'scripts/run.sh'
@@ -128,3 +140,75 @@ jobs:
         run: make release-cleanup
         env:
           TMPDIR: ${{ runner.temp }}
+
+  dry-run-android:
+    name: release dry run android
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - *deno
+      # keytool and Gradle run on the JDK ci.yml's build-apk builds with.
+      - &java
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - *flutter
+      - *rust
+      # With TAG unset, make release-android shows a build with no key failing, then signs with a
+      # key made for the run; make release-android-upload lists the upload's tasks and runs none.
+      - run: make release-android
+        env:
+          RUN: ${{ github.run_number }}
+          TMPDIR: ${{ runner.temp }}
+      - run: make release-android-upload
+
+  release-android:
+    name: release Android
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 60
+    # id-token: write lets google-github-actions/auth request this job's OIDC token; the rest is what
+    # make release-check reads through the GitHub API.
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+      id-token: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      # make release-check reads main and the tag from the clone. The checkout comes before auth,
+      # which writes its credentials file into the workspace.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - *deno
+      - run: make release-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - *java
+      - *flutter
+      - *rust
+      # The version code is the run number plus one, as the iOS build number is.
+      - run: make release-android
+        env:
+          RUN: ${{ github.run_number }}
+          TMPDIR: ${{ runner.temp }}
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+      # Workload Identity Federation through a service account, as the action's README shows: it
+      # writes an external-account credentials file and sets GOOGLE_APPLICATION_CREDENTIALS to it.
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ vars.GCP_WORKLOAD_IDENTITY_POOL }}/providers/${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: github-actions-release@knowno-515411.iam.gserviceaccount.com
+      - run: make release-android-upload
