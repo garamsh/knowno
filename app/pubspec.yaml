@@ -55,7 +55,7 @@ dependencies:
   # Lucide's 2 px, round-capped icons (docs/architecture/design/brand.md).
   lucide_icons_flutter: 4.0.3
   url_launcher: 6.3.3
-  purchases_flutter: 11.0.1
+  purchases_flutter: 11.0.4
   package_info_plus: 10.2.2
   record: 7.2.0
   just_audio: 0.10.6
