@@ -350,7 +350,7 @@ void main() {
     'the sheet says before the buy button that begun use cannot be withdrawn and a refund is asked of the store',
     (tester) async {
       const line =
-          "You can't withdraw from the part of Plus that has already begun. Ask for a refund through the app store you bought it in.";
+          "You can't withdraw from the part of Plus that has already begun. Ask for a refund through the store you bought it in.";
       await pumpScreen(tester);
 
       await tapAndSettle(tester, shownText('Learn about Plus'));
