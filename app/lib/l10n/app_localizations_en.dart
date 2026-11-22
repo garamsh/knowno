@@ -2468,7 +2468,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get plusWithdrawal =>
-      'You can\'t withdraw from the part of Plus that has already begun. Ask for a refund through the app store you bought it in.';
+      'You can\'t withdraw from the part of Plus that has already begun. Ask for a refund through the store you bought it in.';
 
   @override
   String get plusSheetStart => 'Start Plus';
