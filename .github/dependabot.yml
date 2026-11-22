@@ -79,3 +79,11 @@ updates:
     directory: "/tools/release"
     schedule:
       interval: "weekly"
+  # gradle-play-publisher, which the release workflow uploads the Android bundle with (docs/architecture/release.md).
+  # Only it: this entry leaves the Android Gradle and Kotlin plugins beside it where they are.
+  - package-ecosystem: "gradle"
+    directory: "/app/android"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-name: "com.github.triplet.play*"

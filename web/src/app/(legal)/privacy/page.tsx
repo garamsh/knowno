@@ -112,10 +112,10 @@ const sections: readonly LegalSection[] = [
           운영자는 확인하려고 그 노트의 내용을 볼 수 있어요.
         </p>
         <p>
-          앱에서 플러스를 구매하면 구매한 앱 스토어(예: Apple)가 판매자로서 결제와 환불을 처리하고,
-          이용자의 Apple ID와 결제 수단 정보를 자기 개인정보 처리방침에 따라 직접 받아요. 운영자가
-          Apple에 개인정보를 넘기는 것이 아니고, 운영자는 그 정보를 받지 않아요. 구매 사실은
-          RevenueCat을 거쳐 알게 돼요.
+          앱에서 플러스를 구매하면 구매한 앱 스토어(App Store 또는 Google Play)가 판매자로서 결제와
+          환불을 처리하고, Apple이나 Google이 이용자의 Apple ID나 Google 계정과 결제 수단 정보를
+          자기 개인정보 처리방침에 따라 직접 받아요. 운영자가 Apple이나 Google에 개인정보를 넘기는
+          것이 아니고, 운영자는 그 정보를 받지 않아요. 구매 사실은 RevenueCat을 거쳐 알게 돼요.
         </p>
       </>
     ),
@@ -258,7 +258,7 @@ const sections: readonly LegalSection[] = [
     heading: "시행일과 변경",
     body: (
       <>
-        <p>이 개인정보 처리방침은 2026년 11월 17일부터 시행해요.</p>
+        <p>이 개인정보 처리방침은 2026년 11월 30일부터 시행해요.</p>
         <p>내용이 바뀌면 시행하기 전에 이 페이지에서 바뀐 내용과 시행일을 알려 드려요.</p>
       </>
     ),
@@ -270,7 +270,7 @@ export default function PrivacyPage() {
   return (
     <LegalDocument
       title="개인정보 처리방침"
-      effectiveDate="2026년 11월 17일"
+      effectiveDate="2026년 11월 30일"
       intro={
         <p>
           알아몰라 운영자(이하 &ldquo;운영자&rdquo;)는 「개인정보 보호법」에 따라 이용자의
