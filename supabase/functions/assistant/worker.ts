@@ -126,6 +126,8 @@ const counted = (call: CallUsage): StepUsage => ({
   inputTokens: call.inputTokens,
   outputTokens: call.outputTokens,
   reasoningTokens: call.reasoningTokens,
+  cacheReadTokens: call.cacheReadTokens,
+  cacheWriteTokens: call.cacheWriteTokens,
 });
 
 const NOTHING: StepUsage = counted(NO_USAGE);
@@ -249,6 +251,8 @@ function unavailable(deps: WorkerDeps, started: number): void {
     input_tokens: null,
     output_tokens: null,
     reasoning_tokens: null,
+    cache_read_tokens: null,
+    cache_write_tokens: null,
     web_search_requests: null,
     latency_ms: Math.round(deps.now() - started),
     outcome_recorded: null,
@@ -340,6 +344,8 @@ async function take(step: Step, deps: WorkerDeps): Promise<void> {
     input_tokens: done.usage.inputTokens,
     output_tokens: done.usage.outputTokens,
     reasoning_tokens: done.usage.reasoningTokens,
+    cache_read_tokens: done.usage.cacheReadTokens,
+    cache_write_tokens: done.usage.cacheWriteTokens,
     web_search_requests: 0,
     latency_ms: Math.round(deps.now() - started),
     outcome_recorded: recorded,

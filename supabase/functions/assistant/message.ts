@@ -149,6 +149,8 @@ export async function messageRequest(caller: Caller): Promise<Answer> {
         input_tokens: ended.usage.inputTokens,
         output_tokens: ended.usage.outputTokens,
         reasoning_tokens: ended.usage.reasoningTokens,
+        cache_read_tokens: ended.usage.cacheReadTokens,
+        cache_write_tokens: ended.usage.cacheWriteTokens,
         web_search_requests: ended.usage.webSearchRequests,
         outcome_recorded: recorded,
         outcome: ended.outcome,

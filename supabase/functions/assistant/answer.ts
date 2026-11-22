@@ -59,6 +59,8 @@ export type LogEntry = {
   readonly input_tokens: number | null;
   readonly output_tokens: number | null;
   readonly reasoning_tokens: number | null;
+  readonly cache_read_tokens: number | null;
+  readonly cache_write_tokens: number | null;
   readonly web_search_requests: number | null;
   readonly latency_ms: number;
   readonly outcome_recorded: boolean | null;
@@ -92,6 +94,8 @@ export const blank: Entry = {
   input_tokens: null,
   output_tokens: null,
   reasoning_tokens: null,
+  cache_read_tokens: null,
+  cache_write_tokens: null,
   web_search_requests: null,
   outcome_recorded: null,
   outcome: "internal",

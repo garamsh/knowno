@@ -64,6 +64,10 @@ export type CallUsage = {
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly reasoningTokens: number;
+  /** The input tokens the provider read from its prompt cache, which `inputTokens` includes. */
+  readonly cacheReadTokens: number;
+  /** The input tokens the provider wrote to its prompt cache, which `inputTokens` includes. */
+  readonly cacheWriteTokens: number;
   readonly webSearchRequests: number;
   readonly webFetchRequests: number;
 };
@@ -81,6 +85,8 @@ export const NO_USAGE: CallUsage = {
   inputTokens: 0,
   outputTokens: 0,
   reasoningTokens: 0,
+  cacheReadTokens: 0,
+  cacheWriteTokens: 0,
   webSearchRequests: 0,
   webFetchRequests: 0,
 };
@@ -267,10 +273,15 @@ async function readChat(
       const details = isRecord(u.completion_tokens_details)
         ? u.completion_tokens_details
         : {};
+      const cached = isRecord(u.prompt_tokens_details)
+        ? u.prompt_tokens_details
+        : {};
       usage = {
         inputTokens: count(u.prompt_tokens),
         outputTokens: count(u.completion_tokens),
         reasoningTokens: count(details.reasoning_tokens),
+        cacheReadTokens: count(cached.cached_tokens),
+        cacheWriteTokens: count(cached.cache_write_tokens),
         webSearchRequests: 0,
         webFetchRequests: 0,
       };
@@ -344,10 +355,14 @@ function responsesUsage(response: Record<string, unknown>): CallUsage {
   const tools = isRecord(u.server_tool_use_details)
     ? u.server_tool_use_details
     : {};
+  // OpenRouter's usage: `input_tokens` holds the cached tokens, `input_tokens_details` says how many.
+  const cached = isRecord(u.input_tokens_details) ? u.input_tokens_details : {};
   return {
     inputTokens: count(u.input_tokens),
     outputTokens: count(u.output_tokens),
     reasoningTokens: count(details.reasoning_tokens),
+    cacheReadTokens: count(cached.cached_tokens),
+    cacheWriteTokens: count(cached.cache_write_tokens),
     webSearchRequests: count(tools.web_search_requests),
     webFetchRequests: 0,
   };
@@ -460,6 +475,13 @@ const openrouter: Adapter = {
     ],
     reasoning: { effort: configuration.effort },
     max_output_tokens: MAX_OUTPUT_TOKENS,
+    // Automatic prompt caching, which Anthropic's models take as a top-level `cache_control`: the
+    // breakpoint sits on the last cacheable block, so tools, instructions and the turns so far are
+    // the prefix a later call of the conversation reads at a tenth of the input price. A model of
+    // another provider caches by itself.
+    ...(configuration.model.startsWith("anthropic/")
+      ? { cache_control: { type: "ephemeral" } }
+      : {}),
     stream: true,
   }),
   toolResults: (results) =>
@@ -519,6 +541,8 @@ async function readAnthropic(
   let inputTokens = 0;
   let outputTokens = 0;
   let thinkingTokens = 0;
+  let cacheRead = 0;
+  let cacheWrite = 0;
   let searches = 0;
   let fetches = 0;
   let ended = false;
@@ -526,6 +550,8 @@ async function readAnthropic(
     inputTokens,
     outputTokens,
     reasoningTokens: thinkingTokens,
+    cacheReadTokens: cacheRead,
+    cacheWriteTokens: cacheWrite,
     webSearchRequests: searches,
     webFetchRequests: fetches,
   });
@@ -542,6 +568,8 @@ async function readAnthropic(
           count(usage.cache_read_input_tokens) +
           count(usage.cache_creation_input_tokens);
         outputTokens = count(usage.output_tokens);
+        cacheRead = count(usage.cache_read_input_tokens);
+        cacheWrite = count(usage.cache_creation_input_tokens);
         seen(used());
         break;
       }
@@ -620,6 +648,8 @@ async function readAnthropic(
           inputTokens = count(usage.input_tokens) +
             count(usage.cache_read_input_tokens) +
             count(usage.cache_creation_input_tokens);
+          cacheRead = count(usage.cache_read_input_tokens);
+          cacheWrite = count(usage.cache_creation_input_tokens);
         }
         // Thinking's share of the output tokens, sent on the final message_delta.
         if (isRecord(usage.output_tokens_details)) {

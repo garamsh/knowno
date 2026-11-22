@@ -42,6 +42,8 @@ const ZERO: Usage = {
   inputTokens: 0,
   outputTokens: 0,
   reasoningTokens: 0,
+  cacheReadTokens: 0,
+  cacheWriteTokens: 0,
   webSearchRequests: 0,
 };
 
@@ -51,6 +53,8 @@ function plus(usage: Usage, call: CallUsage): Usage {
     inputTokens: usage.inputTokens + call.inputTokens,
     outputTokens: usage.outputTokens + call.outputTokens,
     reasoningTokens: usage.reasoningTokens + call.reasoningTokens,
+    cacheReadTokens: usage.cacheReadTokens + call.cacheReadTokens,
+    cacheWriteTokens: usage.cacheWriteTokens + call.cacheWriteTokens,
     webSearchRequests: usage.webSearchRequests + call.webSearchRequests,
   };
 }
